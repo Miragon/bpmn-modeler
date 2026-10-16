@@ -94,6 +94,20 @@ export class DuplicateDeploymentTargetError extends Error {
     }
 }
 
+/** Names the variable and field so the failure is actionable where it surfaces. */
+export class UnresolvedEnvVariableError extends Error {
+    constructor(
+        readonly variable: string,
+        readonly field?: string,
+    ) {
+        const where = field ? ` in "${field}"` : "";
+        super(
+            `Environment variable "${variable}"${where} is not set. Define it in a .env file at the workspace root or in the IDE's environment.`,
+        );
+        this.name = "UnresolvedEnvVariableError";
+    }
+}
+
 /**
  * Thrown when fetching an OAuth2 access token fails.
  */

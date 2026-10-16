@@ -1,4 +1,5 @@
 import { DeploymentTarget } from "./deploymentTarget";
+import { EnvLookup, expandEnvRefsLeniently } from "./envRef";
 
 /**
  * Freshness of the active editor content relative to what was last deployed to
@@ -59,14 +60,22 @@ function fnv1a(value: string, seed: number): string {
 export class DeploymentTargetIdentity {
     private constructor(private readonly value: string) {}
 
-    static fromTarget(target: DeploymentTarget): DeploymentTargetIdentity {
+    /**
+     * `lookup` expands env refs so switching `.env` to another engine changes the
+     * identity — keying on the literal `${env:URL}` would report a false green.
+     */
+    static fromTarget(target: DeploymentTarget, lookup: EnvLookup): DeploymentTargetIdentity {
+        const endpoint = expandEnvRefsLeniently(target.endpoint, lookup);
         return new DeploymentTargetIdentity(
-            `target:${target.name.trim()}@${endpointHost(target.endpoint)}`,
+            `target:${target.name.trim()}@${endpointHost(endpoint)}`,
         );
     }
 
-    static adHoc(endpoint: string, tenantId: string): DeploymentTargetIdentity {
-        return new DeploymentTargetIdentity(`adhoc:${endpointHost(endpoint)}/${tenantId}`);
+    static adHoc(endpoint: string, tenantId: string, lookup: EnvLookup): DeploymentTargetIdentity {
+        const host = endpointHost(expandEnvRefsLeniently(endpoint, lookup));
+        return new DeploymentTargetIdentity(
+            `adhoc:${host}/${expandEnvRefsLeniently(tenantId, lookup)}`,
+        );
     }
 
     key(): string {

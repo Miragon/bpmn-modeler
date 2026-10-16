@@ -1,9 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NoAuth } from "../domain/deployment";
+import { BasicAuth, NoAuth } from "../domain/deployment";
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { StartInstanceService } from "./StartInstanceService";
+import { EnvValueResolver } from "./EnvValueResolver";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { FileNotFound } from "../../shared/domain/errors";
+
+function createEnvResolver(
+    dotEnv: Record<string, string> = {},
+    processEnv: Record<string, string> = {},
+): EnvValueResolver {
+    const artifactService = { getWorkspaceRoot: vi.fn().mockResolvedValue("/work") };
+    const workspace = {
+        readFile: vi.fn().mockImplementation(async (path: string) => {
+            if (path.endsWith(".env")) {
+                return Object.entries(dotEnv)
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join("\n");
+            }
+            throw new FileNotFound(path);
+        }),
+        getWorkspaceFolderPaths: vi.fn().mockReturnValue(["/work"]),
+    };
+    const env = { get: (name: string) => processEnv[name] };
+    return new EnvValueResolver(artifactService as never, workspace as never, env as never);
+}
 
 // A real C7 document so `getProcessDefinitionKey` exercises the production
 // `BpmnDocument.extractProcessId` regex against valid XML rather than a stub.
@@ -15,7 +37,7 @@ const C7_DOC = BpmnDocument.empty("c7", "7.24.0");
  * free of any `vscode` surface. `ArtifactService` is concrete in production but
  * is doubled here the same way — the cast erases the nominal type.
  */
-function createService() {
+function createService(envResolver: EnvValueResolver = createEnvResolver()) {
     const vsDocument = {
         getFilePath: vi.fn(),
         getContent: vi.fn(),
@@ -44,6 +66,7 @@ function createService() {
         notifier as never,
         picker as never,
         artifactService as never,
+        envResolver,
     );
 
     return { service, vsDocument, vsWorkspace, restClient, notifier, picker, artifactService };
@@ -191,5 +214,47 @@ describe("StartInstanceService.startInstance", () => {
         expect(result.success).toBe(false);
         expect(restClient.startInstance).not.toHaveBeenCalled();
         expect(notifier.logError).toHaveBeenCalledOnce();
+    });
+
+    it("resolves ${env:VAR} in endpoint, auth, and URL before the REST call", async () => {
+        const { service, restClient } = createService(
+            createEnvResolver({ STAGE: "prod", TOKEN: "t0ken" }),
+        );
+        restClient.startInstance.mockResolvedValue(new StartInstanceResult(true, "started"));
+
+        await service.startInstance(
+            "Process_1",
+            "https://camunda.${env:STAGE}.example/engine-rest",
+            "c7",
+            new BasicAuth("admin", "${env:TOKEN}"),
+            "",
+            "https://gw.${env:STAGE}/{processDefinitionKey}/start",
+            "/work",
+        );
+
+        const config = restClient.startInstance.mock.calls[0][0] as StartInstanceConfig;
+        expect(config.endpoint).toBe("https://camunda.prod.example/engine-rest");
+        expect((config.auth as BasicAuth).password).toBe("t0ken");
+        // Env expands first; {processDefinitionKey} is left for the REST client.
+        expect(config.startInstanceUrl).toBe("https://gw.prod/{processDefinitionKey}/start");
+    });
+
+    it("returns a failed result when a referenced variable is unset", async () => {
+        const { service, restClient } = createService(createEnvResolver());
+        restClient.startInstance.mockResolvedValue(new StartInstanceResult(true, "started"));
+
+        const result = await service.startInstance(
+            "Process_1",
+            "https://camunda.${env:MISSING_STAGE}/rest",
+            "c7",
+            new NoAuth(),
+            "",
+            undefined,
+            "/work",
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("MISSING_STAGE");
+        expect(restClient.startInstance).not.toHaveBeenCalled();
     });
 });

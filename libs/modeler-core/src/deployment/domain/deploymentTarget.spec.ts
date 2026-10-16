@@ -23,6 +23,10 @@ function target(name: string, overrides: Partial<DeploymentTarget> = {}): Deploy
         overrides.audience ?? "",
         overrides.deployUrl,
         overrides.startInstanceUrl,
+        overrides.username,
+        overrides.password,
+        overrides.clientId,
+        overrides.clientSecret,
     );
 }
 
@@ -107,6 +111,44 @@ describe("parseDeploymentTargetsFile", () => {
             }),
         ).toThrow(InvalidDeploymentTargetsFileError);
     });
+
+    it("parses whole-value env references in credential fields", () => {
+        const [parsed] = parseDeploymentTargetsFile({
+            targets: [
+                {
+                    name: "dev",
+                    engine: "c7",
+                    endpoint: "http://h",
+                    auth: {
+                        type: "basic",
+                        username: "${env:CAMUNDA_USER}",
+                        password: "  ${env:CAMUNDA_PASSWORD}  ",
+                    },
+                },
+            ],
+        });
+
+        expect(parsed.username).toBe("${env:CAMUNDA_USER}");
+        expect(parsed.password).toBe("${env:CAMUNDA_PASSWORD}");
+    });
+
+    it.each([
+        ["a literal password", "plain-secret"],
+        ["partial interpolation", "user-${env:PW}"],
+    ])("rejects %s in a credential field (never a real secret in the file)", (_desc, value) => {
+        expect(() =>
+            parseDeploymentTargetsFile({
+                targets: [
+                    {
+                        name: "dev",
+                        engine: "c7",
+                        endpoint: "http://h",
+                        auth: { type: "basic", password: value },
+                    },
+                ],
+            }),
+        ).toThrow(InvalidDeploymentTargetsFileError);
+    });
 });
 
 describe("serializeDeploymentTargets", () => {
@@ -128,6 +170,20 @@ describe("serializeDeploymentTargets", () => {
 
     it("omits the endpoints block when there are no overrides", () => {
         expect(serializeDeploymentTargets([target("dev")])).not.toContain("endpoints");
+    });
+
+    it("round-trips credential env references under auth", () => {
+        const targets = [
+            target("dev", {
+                authType: "basic",
+                username: "${env:CAMUNDA_USER}",
+                password: "${env:CAMUNDA_PASSWORD}",
+            }),
+        ];
+
+        const parsed = parseDeploymentTargetsFile(JSON.parse(serializeDeploymentTargets(targets)));
+
+        expect(parsed).toEqual(targets);
     });
 });
 
