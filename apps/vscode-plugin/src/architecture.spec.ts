@@ -188,6 +188,7 @@ describe("architecture", () => {
             "deployment",
             "scriptTask",
             "codeLink",
+            "deepLink",
             "navigation",
             "definitionSearch",
             "modeler/bpmn",
