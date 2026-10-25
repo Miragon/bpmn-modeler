@@ -43,7 +43,8 @@
     --popup-description-color: var(--dt-surface-a60);
     --popup-no-results-color: var(--dt-surface-a70);
     --popup-entry-title-color: var(--dt-surface-a70);
-    --popup-entry-hover-color: var(--dt-surface-a20);
+    --popup-entry-selected-background-color: var(--dt-surface-a20);
+    --popup-entry-selected-color: var(--dt-surface-a70);
     --popup-search-border-color: var(--dt-surface-a60);
     --popup-search-focus-border-color: var(--dt-primary-a20);
     --popup-search-focus-background-color: var(--dt-primary-a40);
@@ -207,6 +208,11 @@
 /* Entry names inherit the page colour, which stays dark when only this instance is themed. */
 [data-bpmn-theme="dark"] .djs-popup .entry {
     color: var(--popup-entry-title-color);
+}
+
+/* Restores the selected colour, which the rule above otherwise shadows at equal specificity. */
+[data-bpmn-theme="dark"] .djs-popup .entry.selected {
+    color: var(--popup-entry-selected-color);
 }
 
 [data-bpmn-theme="dark"] .djs-popup-header-group > li > button {
