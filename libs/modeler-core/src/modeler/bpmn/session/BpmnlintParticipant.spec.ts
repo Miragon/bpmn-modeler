@@ -123,6 +123,19 @@ describe("BpmnlintParticipant", () => {
             expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id, false);
         });
 
+        it("re-lints only the editor whose document changed", async () => {
+            const { host, lintSvc, participant } = createServices("external");
+            await host.openSession(PATH, [participant], { focused: false });
+            const other = await host.openSession("/work/other.bpmn", [participant], {
+                focused: false,
+            });
+
+            other.changeDocument("<bpmn:definitions />");
+            vi.advanceTimersByTime(400);
+
+            expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(other.id, false);
+        });
+
         it("does not re-lint on document change when the editor is in-page", async () => {
             const { host, lintSvc, participant } = createServices("in-page");
             const editor = await host.openSession(PATH, [participant]);

@@ -3,7 +3,7 @@ import { EditorSessionDocuments } from "../shared/infrastructure/EditorSessionDo
 import { EditorSessionLifecycle } from "../shared/infrastructure/EditorSessionLifecycle";
 import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
 import { WebviewMessageRouter } from "../shared/infrastructure/WebviewMessageRouter";
-import { FakeEditorHandle } from "./FakeEditorHandle";
+import { DocumentChangeStream, FakeEditorHandle } from "./FakeEditorHandle";
 import {
     InMemorySecretStore,
     InMemoryTokenStore,
@@ -45,6 +45,7 @@ export function createTestHost(options: TestHostOptions = {}) {
     const store = new EditorSessionStore(() => undefined);
     const notifier = new RecordingNotifier();
     const lifecycles = new Map<string, EditorSessionLifecycle>();
+    const documentChanges = new DocumentChangeStream();
     return {
         store,
         documents: new EditorSessionDocuments(store),
@@ -61,7 +62,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         propertiesPanelState: new InMemoryPropertiesPanelState(),
         diagnostics: new RecordingDiagnostics(),
         openEditor(path: string, content = ""): FakeEditorHandle {
-            const handle = new FakeEditorHandle(path, { content });
+            const handle = new FakeEditorHandle(path, { content, documentChanges });
             store.register(handle);
             return handle;
         },
@@ -74,7 +75,7 @@ export function createTestHost(options: TestHostOptions = {}) {
                 router = new WebviewMessageRouter(),
             }: TestSessionOptions = {},
         ): Promise<FakeEditorHandle> {
-            const handle = new FakeEditorHandle(path, { content });
+            const handle = new FakeEditorHandle(path, { content, documentChanges });
             handle.active = focused;
             store.register(handle);
             const lifecycle = new EditorSessionLifecycle(store, notifier, router, participants);
