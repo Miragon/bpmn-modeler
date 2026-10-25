@@ -47,7 +47,7 @@
     --popup-entry-selected-color: var(--dt-surface-a70);
     --popup-search-border-color: var(--dt-surface-a60);
     --popup-search-focus-border-color: var(--dt-primary-a20);
-    --popup-search-focus-background-color: var(--dt-primary-a40);
+    --popup-search-focus-background-color: var(--dt-surface-a20);
 
     --resizer-fill-color: var(--dt-primary-a50);
     --resizer-stroke-color: var(--canvas-fill-color);
@@ -213,6 +213,20 @@
 /* Restores the selected colour, which the rule above otherwise shadows at equal specificity. */
 [data-bpmn-theme="dark"] .djs-popup .entry.selected {
     color: var(--popup-entry-selected-color);
+}
+
+/* The input otherwise keeps the browser's light field colours. */
+[data-bpmn-theme="dark"] .djs-popup-search input {
+    color: var(--popup-entry-title-color);
+}
+
+[data-bpmn-theme="dark"] .djs-popup-search input:not(:focus) {
+    background-color: var(--popup-background-color);
+}
+
+/* The icon path carries a hard-coded dark fill attribute. */
+[data-bpmn-theme="dark"] .djs-popup-search-icon path {
+    fill: var(--popup-description-color);
 }
 
 [data-bpmn-theme="dark"] .djs-popup-header-group > li > button {
