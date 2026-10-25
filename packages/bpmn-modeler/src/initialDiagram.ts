@@ -1,8 +1,7 @@
 import { ENGINE_EXECUTION_PLATFORM, type Engine } from "@miragon/bpmn-modeler-types";
 
 /**
- * bpmn-js ships an engine-neutral initial diagram, and camunda-bpmn-js ships no
- * platform-specific one. Hosts derive engine and mode availability from the
+ * bpmn-js ships only an engine-neutral initial diagram. Hosts derive engine and mode availability from the
  * saved XML, so an engine-bound `newDiagram()` must stamp the execution-platform
  * metadata itself or the diagram reopens as neutral.
  */

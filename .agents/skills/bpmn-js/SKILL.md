@@ -15,10 +15,10 @@ The modeler is encapsulated in `packages/bpmn-modeler/src/modeler.ts` as a `Bpmn
 
 The modeler supports two Camunda engine variants, selected by the `engine` option:
 
-Each engine stack (`packages/bpmn-modeler/src/engineStacks/c7.ts`, `c8.ts`) is data: the upstream plugin modules in camunda-bpmn-js's former registration order (wrapped by `composeUpstreamModules` with the shared leading/trailing modules), the engine-only modules, the engine moddle extension, and the properties-panel / popup-menu option defaults. `loadEngineStack(engine)` imports it dynamically, so a page only parses the stack it opens.
+Each engine stack (`packages/bpmn-modeler/src/engineStacks/c7.ts`, `c8.ts`) is data: the upstream plugin modules (wrapped by `composeUpstreamModules` with the shared leading/trailing modules), the engine-only modules, the engine moddle extension, the properties-panel option defaults, and the engine's popup-menu annotation overrides. Popup-menu descriptions, search keywords and the replace-menu Templates tab come from `src/popupMenuAnnotations/`: an engine-neutral base set that Design loads as is and each engine overrides where its semantics differ. `loadEngineStack(engine)` imports it dynamically, so a page only parses the stack it opens.
 
 - **Camunda 7** — `camunda` moddle extension. Engine modules: `CreateAppendElementTemplatesModule`, `CreateAppendC7ElementTemplatesModule`, `TransactionBoundariesModule`.
-- **Camunda 8** — `zeebe` moddle extension, `popupMenu.defaultTab`. No engine modules beyond its upstream set.
+- **Camunda 8** — `zeebe` moddle extension. No engine modules beyond its upstream set.
 
 Both variants share the `commonModules` array in `BpmnModeler.init()` — e.g. `TokenSimulationModule`, `ElementTemplateChooserModule`, `AppendMenuModule`, plus translation, lint, layout, and mode modules. Read the array for the full set.
 
@@ -37,7 +37,7 @@ Both variants share the `commonModules` array in `BpmnModeler.init()` — e.g. `
 `BpmnModeler.init()` passes these options to `new Modeler(...)`:
 - `container`: the element passed to `createModeler` (the webview's `#js-canvas`)
 - `propertiesPanel`: the stack's `propertiesPanelDefaults`, `parent` from the `propertiesPanel.parent` option (the webview's `#js-properties-panel-mount`), and `feelPopupContainer: container` so FEEL popups stay in the instance's theme scope
-- `popupMenu`: the stack's `popupMenuDefaults` (C8 only)
+- `popupMenu`: `{ defaultTab: BPMN_TAB }`, so the replace menu files element-template entries under a separate Templates tab
 - `alignToOrigin`: `ALIGN_TO_ORIGIN_OPTIONS` — `{ alignOnSave: false, offset: 150, tolerance: 50 }`
 - `moddleExtensions`: the stack's extension merged with the caller's `moddleExtensions`
 - `propertiesPanelMode`: the normalized `mode` option

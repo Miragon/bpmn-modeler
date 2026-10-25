@@ -14,6 +14,8 @@ import { userEvent } from "vitest/browser";
 import { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "@miragon/bpmn-modeler-append-menu";
 
 import { createModeler } from "./createModeler";
+import { createDesigner } from "./design/createDesigner";
+import type { BpmnDesigner } from "./design/designer";
 import type { BpmnModeler } from "./modeler";
 import { afterPaint } from "./__fixtures__/surfaceMount";
 
@@ -30,6 +32,8 @@ type ModelerOptions = Pick<
     Parameters<typeof createModeler>[1],
     "engine" | "locale" | "settings" | "elementTemplates"
 >;
+
+const CALL_ACTIVITY_FAVOURITE = { favouriteBpmnElements: ["bpmn:CallActivity"] };
 
 const UPSTREAM_OPTIONS = [
     ...TASK,
@@ -70,7 +74,7 @@ const ZEEBE_TASK_TEMPLATE = {
     properties: [],
 };
 
-const handles: BpmnModeler[] = [];
+const handles: (BpmnModeler | BpmnDesigner)[] = [];
 const mountedNodes: HTMLElement[] = [];
 
 function teardown(): void {
@@ -97,9 +101,30 @@ async function openModeler(options: ModelerOptions): Promise<BpmnModeler> {
 
 async function openAppendMenu(options: Partial<ModelerOptions>): Promise<BpmnModeler> {
     const handle = await openModeler({ engine: "c7", ...options });
+    openAppendMenuOn(handle);
+    return handle;
+}
+
+async function openDesignerAppendMenu(): Promise<void> {
+    const container = document.createElement("div");
+    const panel = document.createElement("div");
+    container.style.cssText = "position:absolute;width:1200px;height:800px";
+    document.body.append(container, panel);
+    mountedNodes.push(container, panel);
+    const designer = await createDesigner(container, {
+        propertiesPanel: { parent: panel },
+        locale: "en",
+        ...CALL_ACTIVITY_FAVOURITE,
+    });
+    handles.push(designer);
+    await designer.loadDiagram(XML);
+    await afterPaint();
+    openAppendMenuOn(designer);
+}
+
+function openAppendMenuOn(handle: BpmnModeler | BpmnDesigner): void {
     const task = handle.getService<{ get(id: string): Shape }>("elementRegistry").get("Task_1");
     handle.getService<PopupMenuService>("popupMenu").open(task, "bpmn-append", { x: 320, y: 200 });
-    return handle;
 }
 
 function navKeys(selector: string): (string | null)[] {
@@ -203,34 +228,43 @@ describe("append menu", () => {
         );
     });
 
-    it("finds a C8 element by its keyword and previews the description the arrow keys reach", async () => {
-        await openAppendMenu({
-            engine: "c8",
-            locale: "en",
-            settings: { favouriteBpmnElements: ["bpmn:CallActivity"] },
-        });
+    it.each([
+        [
+            "C7",
+            () => openAppendMenu({ engine: "c7", locale: "en", settings: CALL_ACTIVITY_FAVOURITE }),
+        ],
+        [
+            "C8",
+            () => openAppendMenu({ engine: "c8", locale: "en", settings: CALL_ACTIVITY_FAVOURITE }),
+        ],
+        ["Design", openDesignerAppendMenu],
+    ])(
+        "finds a %s element by its keyword and previews the description the arrow keys reach",
+        async (_surface, openMenu) => {
+            await openMenu();
 
-        await userEvent.type(
-            document.querySelector<HTMLInputElement>(".am-search-input")!,
-            "child process",
-        );
-        await expect
-            .poll(() => navKeys(".am-panel"))
-            .toEqual(["fav:append-call-activity", "grp:subprocess:append-call-activity"]);
+            await userEvent.type(
+                document.querySelector<HTMLInputElement>(".am-search-input")!,
+                "child process",
+            );
+            await expect
+                .poll(() => navKeys(".am-panel"))
+                .toEqual(["fav:append-call-activity", "grp:subprocess:append-call-activity"]);
 
-        await userEvent.keyboard("{ArrowDown}");
+            await userEvent.keyboard("{ArrowDown}");
 
-        const callActivity = document.querySelector<HTMLElement>(
-            '[data-nav-key="grp:subprocess:append-call-activity"]',
-        )!;
-        await expect.element(callActivity).toHaveClass("am-bpmn-button--focused");
-        const descriptionCard = () =>
-            document.getElementById(callActivity.getAttribute("aria-describedby") ?? "");
-        await expect
-            .poll(() => descriptionCard()?.textContent)
-            .toContain("Calls another process as a reusable subprocess");
-        await expect.element(descriptionCard()!).toBeVisible();
-    });
+            const callActivity = document.querySelector<HTMLElement>(
+                '[data-nav-key="grp:subprocess:append-call-activity"]',
+            )!;
+            await expect.element(callActivity).toHaveClass("am-bpmn-button--focused");
+            const descriptionCard = () =>
+                document.getElementById(callActivity.getAttribute("aria-describedby") ?? "");
+            await expect
+                .poll(() => descriptionCard()?.textContent)
+                .toContain("Calls another process as a reusable subprocess");
+            await expect.element(descriptionCard()!).toBeVisible();
+        },
+    );
 
     it("leaves the collapsed palette collapsed while the mouse rests on a description", async () => {
         await openAppendMenu({

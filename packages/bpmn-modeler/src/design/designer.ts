@@ -23,6 +23,7 @@ import type { SelectionManager } from "../selection";
 import type { RootElementManager } from "../rootElement";
 import type { ViewState } from "../viewState";
 import { buildLintModules } from "../lintModules";
+import { createPopupMenuAnnotationsModule } from "../popupMenuAnnotations";
 import type { LintHandleMethods } from "../lintHandle";
 import { wireContentSaved } from "../contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../diagramXml";
@@ -161,6 +162,7 @@ export class BpmnDesigner {
                 CustomGroupsModule,
                 CreateAppendAnythingModule,
                 AppendMenuModule,
+                createPopupMenuAnnotationsModule(),
                 FlowNavigationModule,
                 // Formatting is pure geometry, so it is engine-neutral and
                 // belongs on this surface as much as on the modeler.

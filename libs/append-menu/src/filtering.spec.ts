@@ -231,8 +231,8 @@ describe("with upstream create-append-anything entries", () => {
     });
 });
 
-// Shaped like the C8 entries: camunda-bpmn-js annotates the upstream entries with
-// translated descriptions and its search keywords, as one string or a list.
+// Shaped like the C8 entries: the modeler annotates the upstream entries with
+// translated descriptions and search keywords, as one string or a list.
 describe("with C8-annotated create-append-anything entries", () => {
     const c8Groups = [
         group("tasks", "Tasks", [

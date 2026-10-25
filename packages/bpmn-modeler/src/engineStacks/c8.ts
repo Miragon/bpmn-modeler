@@ -10,10 +10,6 @@ import {
     CreateAppendAnythingModule,
     CreateAppendElementTemplatesModule,
 } from "bpmn-js-create-append-anything";
-import CamundaDetailsPopupMenuModule from "camunda-bpmn-js/lib/camunda-cloud/features/popup-menu";
-import ElementDescriptionsModule from "camunda-bpmn-js/lib/base/features/element-descriptions";
-import { ReplaceTabsProvider } from "camunda-bpmn-js/lib/base/features/create-append-tabs/CreateAppendTabsProvider";
-import { BPMN_TAB } from "camunda-bpmn-js/lib/base/features/create-append-tabs/tabs";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
 
@@ -28,11 +24,7 @@ const FEEL_POPUP_LINKS = {
     },
 } as const;
 
-// The create/append tab providers would regroup the entries the custom append menu reads.
-const ReplaceTabsModule = {
-    __init__: ["replaceTabsProvider"],
-    replaceTabsProvider: ["type", ReplaceTabsProvider],
-};
+const JOB_WORKER_KEYWORDS = ["job worker"];
 
 export const c8Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([
@@ -45,9 +37,6 @@ export const c8Stack: EngineStack = {
         ColorPickerModule,
         ZeebeVariableResolverModule,
         ExampleDataPropertiesProviderModule,
-        CamundaDetailsPopupMenuModule,
-        ElementDescriptionsModule,
-        ReplaceTabsModule,
     ]),
     engineModules: [],
     moddleExtensions: { zeebe: zeebeModdle },
@@ -58,5 +47,16 @@ export const c8Stack: EngineStack = {
             return link ? [link] : undefined;
         },
     },
-    popupMenuDefaults: { defaultTab: BPMN_TAB },
+    popupMenuAnnotations: {
+        descriptions: {
+            "service-task": "Automated work carried out by a job worker or connector",
+        },
+        additionalKeywords: {
+            "service-task": JOB_WORKER_KEYWORDS,
+            "script-task": JOB_WORKER_KEYWORDS,
+            "send-task": JOB_WORKER_KEYWORDS,
+            "message-intermediate-throw": JOB_WORKER_KEYWORDS,
+            "message-end": JOB_WORKER_KEYWORDS,
+        },
+    },
 };

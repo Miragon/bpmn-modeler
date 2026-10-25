@@ -11,7 +11,7 @@ the Camunda element-template stack.
 npm install @miragon/bpmn-modeler
 ```
 
-The bpmn-io stack (`bpmn-js`, `diagram-js`, `camunda-bpmn-js`, …) ships as real
+The bpmn-io stack (`bpmn-js`, `diagram-js`, `bpmn-js-properties-panel`, …) ships as real
 `dependencies`, so a single install pulls everything the modeler needs.
 
 > `tiny-svg@4.1.4` is currently a direct runtime dependency as a compatibility
@@ -574,8 +574,7 @@ throws too.
 
 ### Kept out of the module graph
 
-`camunda-bpmn-js`, `bpmnlint` /
-`bpmn-js-bpmnlint`, `bpmn-js-create-append-anything`,
+`bpmnlint` / `bpmn-js-bpmnlint`, `bpmn-js-create-append-anything`,
 `camunda-transaction-boundaries`, and `minisearch` — the Camunda editor stack.
 `bpmn-js-token-simulation` (its viewer module) and `diagram-js-minimap` **are**
 present: engine-neutral canvas chrome shared by every surface ([BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)). The shared i18n translator
@@ -600,8 +599,10 @@ two overlap, so do **not** load both on a viewer-only page.
 conceptual modelling. It wraps the base bpmn-js `Modeler`
 (palette, context pad, modelling, copy-paste, keyboard, search) plus an engine-neutral properties
 panel (general / documentation groups only), a minimap, and the neutral UX modules (translate,
-append menu, flow navigation). It loads **none** of the Camunda editor stack — no camunda-bpmn-js,
-element templates, or transaction boundaries — so it never carries an execution platform. Linting is
+append menu, flow navigation). The create, append and replace menus describe each element and
+find it by engine-neutral keywords ("child process" finds the call activity); the C7/C8 modelers
+add their engine's wording and keywords ("java delegate", "job worker") on top. It loads **none** of the Camunda editor stack — no Camunda moddles or
+behaviors, element templates, or transaction boundaries — so it never carries an execution platform. Linting is
 available on the same injection-only seam as the root (omit for none; the engine-neutral Design
 config applies), and the lint *stack* still stays out of the design chunk unless you inject it via
 `/lint`.
@@ -695,8 +696,7 @@ which carries **no** `modeler:executionPlatform`, so a fresh diagram stays engin
 
 ### Guaranteed absent from the module graph
 
-`camunda-bpmn-js`, `camunda-bpmn-moddle` / `zeebe-bpmn-moddle`,
-`camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
+`camunda-bpmn-moddle` / `zeebe-bpmn-moddle`, `camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
 `bpmn-js-element-templates`, `@miragon/create-append-c7`, and `minisearch`. The lint stack
 (`bpmnlint` / `bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`)
 is **also** absent from the design chunk **unless you inject it** via `/lint` — the designer
@@ -879,9 +879,9 @@ brings no extra stylesheet wiring.
   history.
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
   `preact`, the bpmn-js / diagram-js / moddle core, and the properties-panel / CodeMirror
-  stack. `camunda-bpmn-js` declares caret ranges for bpmn-js and diagram-js, so package
-  managers that resolve each range independently (Yarn Berry, pnpm) can install a second,
-  newer copy next to the one this package pins. If you build with Vite, add these to
+  stack. bpmn-js declares a caret range for diagram-js, so package managers that resolve
+  each range independently (Yarn Berry, pnpm) can install a second, newer diagram-js next
+  to the one this package pins. If you build with Vite, add these to
   `resolve.dedupe`:
 
   ```ts
@@ -911,7 +911,7 @@ brings no extra stylesheet wiring.
 ## License
 
 Apache-2.0 — see [`LICENSE`](./LICENSE). This package bundles and depends on third-party software
-(bpmn-js, diagram-js, camunda-bpmn-js and the bpmn.io ecosystem, bpmnlint, and others); their
+(bpmn-js, diagram-js and the bpmn.io ecosystem, bpmnlint, and others); their
 respective licenses and the bpmn.io watermark requirement continue to apply to your usage.
 
 The engine-neutral properties panel shipped in the `/design` subpath is a fork

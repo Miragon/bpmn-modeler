@@ -25,8 +25,8 @@ import type { BpmnSurfaceHandle } from "../surfaceHandle";
  * an engine-bound properties panel) and the readonly {@link BpmnViewerHandle}: it
  * is fully editable — palette, context pad, modelling, copy-paste — but carries
  * only plain-BPMN properties (general / documentation groups), none of the
- * Camunda stack. It never loads camunda-bpmn-js, element templates, or
- * transaction boundaries. Linting is injection-only exactly as on the root
+ * Camunda stack. It never loads the Camunda moddles or behaviors, element
+ * templates, or transaction boundaries. Linting is injection-only exactly as on the root
  * {@link createModeler} (see {@link DesignerOptions.linting}): omitted/`false`
  * pulls no lint bytes; a `module` from `@miragon/bpmn-modeler/lint` opts in with
  * the engine-neutral Design config.

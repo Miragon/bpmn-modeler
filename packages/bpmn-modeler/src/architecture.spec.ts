@@ -159,10 +159,9 @@ describe("bpmn-modeler import direction", () => {
     });
 
     it("plugin CSS comes from its own package, never another package's prebuilt copy", () => {
-        // camunda-bpmn-js and bpmn-js ship diagram-js/properties-panel/minimap CSS
-        // frozen at their own build, which drifts from the versions we pin.
+        // bpmn-js ships diagram-js CSS frozen at its own build, which drifts from the
+        // version we pin.
         const isPrebuiltCopy = (spec: string): boolean =>
-            spec.startsWith("camunda-bpmn-js/dist/") ||
             spec === "bpmn-js/dist/assets/diagram-js.css";
         const offenders: string[] = [];
         const collectOffender = (file: string, spec: string): void => {
@@ -210,8 +209,8 @@ describe("bpmn-modeler import direction", () => {
         // The `/design` subpath must stay free of the Camunda engine stack at the
         // module-graph level. Unlike `/viewer` it legitimately ships the
         // engine-neutral properties panel and append/create menu, so those (plus
-        // preact via the panel) are allowed — but a value import of
-        // camunda-bpmn-js, element templates, transaction boundaries, or the lint
+        // preact via the panel) are allowed — but a value import of the Camunda
+        // moddles or behaviors, element templates, transaction boundaries, or the lint
         // stack here is exactly what a single-file bundler
         // would inline into a design-only consumer. `import type` stays fine. The
         // runtime graph is gated separately by `check-design-pure-entry.mjs`.
@@ -228,8 +227,8 @@ describe("bpmn-modeler import direction", () => {
             // Engine-neutral canvas chrome shared by every surface:
             // plain bpmn-js simulation, no Camunda stack behind it.
             spec === "bpmn-js-token-simulation" ||
-            // Engine-neutral browser clipboard (parity with camunda-bpmn-js's base
-            // Modeler). Plain bpmn-js extension, no Camunda stack; the bridge module
+            // Engine-neutral browser clipboard, as the C7/C8 stacks load it.
+            // Plain bpmn-js extension, no Camunda stack; the bridge module
             // overrides its `nativeCopyPaste` service in sandboxed hosts.
             spec === "bpmn-js-native-copy-paste" ||
             spec === "@miragon/bpmn-modeler-types" ||

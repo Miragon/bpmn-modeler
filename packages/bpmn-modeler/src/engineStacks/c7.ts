@@ -12,12 +12,13 @@ import {
     CreateAppendElementTemplatesModule,
     RemoveTemplatesModule,
 } from "bpmn-js-create-append-anything";
-import ElementDescriptionsModule from "camunda-bpmn-js/lib/base/features/element-descriptions";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 // The CJS entry wraps the ESM module in a default export, preventing DI registration under Vite.
 import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
+
+const JAVA_IMPLEMENTATION_KEYWORDS = ["java delegate", "external task"];
 
 export const c7Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([
@@ -26,7 +27,6 @@ export const c7Stack: EngineStack = {
         ElementTemplatesPropertiesProviderModule,
         ColorPickerModule,
         CreateAppendAnythingModule,
-        ElementDescriptionsModule,
         CamundaVariableResolverModule,
         RemoveTemplatesModule,
     ]),
@@ -37,4 +37,16 @@ export const c7Stack: EngineStack = {
     ],
     moddleExtensions: { camunda: camundaModdle },
     propertiesPanelDefaults: { tooltip: CamundaPlatformTooltipProvider },
+    popupMenuAnnotations: {
+        descriptions: {
+            "service-task":
+                "Automated work carried out by a Java delegate, expression, or external task",
+        },
+        additionalKeywords: {
+            "service-task": JAVA_IMPLEMENTATION_KEYWORDS,
+            "send-task": JAVA_IMPLEMENTATION_KEYWORDS,
+            "message-intermediate-throw": JAVA_IMPLEMENTATION_KEYWORDS,
+            "message-end": JAVA_IMPLEMENTATION_KEYWORDS,
+        },
+    },
 };

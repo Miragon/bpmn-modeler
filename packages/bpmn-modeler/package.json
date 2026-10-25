@@ -110,7 +110,6 @@
         "bpmn-js-token-simulation": "1.0.0",
         "bpmn-moddle": "10.3.1",
         "bpmnlint": "11.15.0",
-        "camunda-bpmn-js": "5.36.0",
         "camunda-bpmn-js-behaviors": "1.18.0",
         "camunda-bpmn-moddle": "8.0.2",
         "camunda-transaction-boundaries": "1.1.2",

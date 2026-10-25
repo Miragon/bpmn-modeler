@@ -35,6 +35,11 @@ import {
 } from "@miragon/bpmn-modeler-inline-scripting";
 import type { ScriptField, ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules } from "./lintModules";
+import {
+    BPMN_TAB,
+    createPopupMenuAnnotationsModule,
+    ReplaceTemplatesTabModule,
+} from "./popupMenuAnnotations";
 import type { LintHandleMethods } from "./lintHandle";
 import { capabilityModules } from "./capabilityModules";
 import { wireContentSaved } from "./contentSaved";
@@ -206,6 +211,8 @@ export class BpmnModeler {
             ),
             ElementTemplateChooserModule,
             AppendMenuModule,
+            createPopupMenuAnnotationsModule(engineStack.popupMenuAnnotations),
+            ReplaceTemplatesTabModule,
             FlowNavigationModule,
             createBpmnLayoutModule(),
             propertiesPanelRootModule,
@@ -229,7 +236,7 @@ export class BpmnModeler {
                 // Keep popups within this instance's theme scope instead of document.body.
                 feelPopupContainer: this.container,
             },
-            popupMenu: engineStack.popupMenuDefaults,
+            popupMenu: { defaultTab: BPMN_TAB },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
             moddleExtensions: { ...engineStack.moddleExtensions, ...this.options.moddleExtensions },
             // The panel defaults to design if this config is absent.

@@ -7,7 +7,6 @@ const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const ROOT_ENTRY = resolve(distDir, "design.js");
 
 const FORBIDDEN_PREFIXES = [
-    "camunda-bpmn-js",
     "camunda-bpmn-moddle",
     "zeebe-bpmn-moddle",
     "camunda-bpmn-js-behaviors",
