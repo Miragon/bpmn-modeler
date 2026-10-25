@@ -94,7 +94,7 @@
         "@camunda/example-data-properties-provider": "1.5.2",
         "@lezer/lr": "1.4.11",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
-        "@miragon/bpmnlint-plugin-rules": "0.12.1",
+        "@miragon/bpmnlint-plugin-rules": "0.13.0",
         "@miragon/create-append-c7": "1.0.1",
         "bpmn-auto-layout": "2.0.0-alpha.2",
         "bpmn-js": "18.31.0",

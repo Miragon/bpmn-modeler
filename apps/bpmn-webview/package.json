@@ -20,7 +20,7 @@
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
-        "@miragon/bpmnlint-plugin-rules": "0.12.1",
+        "@miragon/bpmnlint-plugin-rules": "0.13.0",
         "bpmn-auto-layout": "2.0.0-alpha.2",
         "bpmn-js": "18.31.0",
         "bpmn-js-bpmnlint": "0.25.0",
