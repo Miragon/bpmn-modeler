@@ -1,14 +1,16 @@
 /**
  * Renders the real properties panel (renderer + neutral provider + the fork's
  * cmd module) against a real bpmn-moddle tree, wired to a real diagram-js
- * CommandStack with bpmn-js' `element.updateModdleProperties` handler. Group
- * setters therefore mutate the moddle and undo exactly as in a modeler, while
- * jsdom never has to lay out an SVG canvas (which bpmn-js cannot do there).
+ * CommandStack with bpmn-js' `element.updateModdleProperties` and
+ * `element.updateProperties` handlers. Group setters therefore mutate the
+ * moddle and undo exactly as in a modeler, while jsdom never has to lay out an
+ * SVG canvas (which bpmn-js cannot do there).
  */
 import { act } from "@bpmn-io/properties-panel/preact/test-utils";
 import * as bpmnModdlePackage from "bpmn-moddle";
 import BpmnFactory from "bpmn-js/lib/features/modeling/BpmnFactory";
 import UpdateModdlePropertiesHandler from "bpmn-js/lib/features/modeling/cmd/UpdateModdlePropertiesHandler";
+import UpdatePropertiesHandler from "bpmn-js/lib/features/modeling/cmd/UpdatePropertiesHandler";
 import CommandStack from "diagram-js/lib/command/CommandStack";
 import EventBus from "diagram-js/lib/core/EventBus";
 import { Ids } from "ids";
@@ -76,17 +78,21 @@ export async function createPanelServices(xml: string, { readonly = false } = {}
     const { moddle, definitions, elementsById } = await loadDefinitions(xml);
     const eventBus = new EventBus();
 
-    // One shape per id: the panel matches `elements.changed` by identity.
-    const shapes = new Map<string, Shape>();
-    const shapeOf = (id: string): Shape => {
-        const businessObject = elementsById[id];
+    // One shape per element: the panel matches `elements.changed` by identity.
+    // The registry is keyed by the current id, so a renamed element moves with it.
+    const shapeByBusinessObject = new Map<ModdleElement, Shape>();
+    const registry = new Map<string, Shape>();
+    for (const [id, businessObject] of Object.entries(elementsById)) {
+        const shape = { id, type: businessObject.$type, businessObject };
+        shapeByBusinessObject.set(businessObject, shape);
+        registry.set(id, shape);
+    }
+    const shapeOf = (fixtureId: string): Shape => {
+        const businessObject = elementsById[fixtureId];
         if (!businessObject) {
-            throw new Error(`no element "${id}" in fixture`);
+            throw new Error(`no element "${fixtureId}" in fixture`);
         }
-        if (!shapes.has(id)) {
-            shapes.set(id, { id, type: businessObject.$type, businessObject });
-        }
-        return shapes.get(id)!;
+        return shapeByBusinessObject.get(businessObject)!;
     };
 
     const rootElements: ModdleElement[] = definitions.get("rootElements");
@@ -98,10 +104,16 @@ export async function createPanelServices(xml: string, { readonly = false } = {}
         eventBus,
         canvas: { getRootElement: () => (canvasRoot ? shapeOf(canvasRoot.id!) : undefined) },
         elementRegistry: {
-            get: (id: string) => (elementsById[id] ? shapeOf(id) : undefined),
+            get: (id: string) => registry.get(id),
             filter: (predicate: (shape: Shape) => boolean) =>
-                Object.keys(elementsById).map(shapeOf).filter(predicate),
+                [...registry.values()].filter(predicate),
+            updateId(shape: Shape, newId: string) {
+                registry.delete(shape.id);
+                shape.id = newId;
+                registry.set(newId, shape);
+            },
         },
+        moddle,
         translate: (text: string) => text,
         debounceInput: (callback: unknown) => callback,
     };
@@ -125,15 +137,23 @@ export async function createPanelServices(xml: string, { readonly = false } = {}
 
     let commandStack: CommandStack | undefined;
     if (!readonly) {
-        commandStack = new CommandStack(eventBus, injector as never);
-        commandStack.registerHandler(
+        const stack = new CommandStack(eventBus, injector as never);
+        // bpmn-js' Modeling registers every modeling handler, most of which need
+        // a canvas; its updateProperties is this one dispatch.
+        services.modeling = {
+            updateProperties: (element: Shape, properties: Record<string, unknown>) =>
+                stack.execute("element.updateProperties", { element, properties }),
+        };
+        // Only lays out external labels, which no harness shape has.
+        services.textRenderer = {};
+        stack.registerHandler(
             "element.updateModdleProperties",
             UpdateModdlePropertiesHandler as never,
         );
-        services.commandStack = commandStack;
+        stack.registerHandler("element.updateProperties", UpdatePropertiesHandler as never);
+        services.commandStack = stack;
         services.bpmnFactory = new BpmnFactory(moddle as never);
-        // Presence alone makes the panel editable; no entry under test writes through it.
-        services.modeling = {};
+        commandStack = stack;
     }
 
     for (const initializer of CommandsModule.__init__) {
