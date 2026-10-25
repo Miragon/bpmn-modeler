@@ -206,6 +206,62 @@ describe("createFlushResponder", () => {
         expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(11, undefined, "unavailable"));
     });
 
+    it("keeps the lock when a release names another flush", async () => {
+        const source = makeSource();
+        const respond = createFlushResponder(source, vi.fn());
+
+        await respond(new FlushDocumentQuery(12, true));
+        await respond(new ReleaseDocumentFlushQuery(11));
+        expect(source.endDestructiveFlush).not.toHaveBeenCalled();
+
+        await respond(new ReleaseDocumentFlushQuery(12));
+        await respond(new ReleaseDocumentFlushQuery(12));
+        expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
+    });
+
+    it("hands the lock to a newer destructive flush and ignores the older release", async () => {
+        const source = makeSource();
+        const respond = createFlushResponder(source, vi.fn());
+
+        await respond(new FlushDocumentQuery(13, true));
+        await respond(new FlushDocumentQuery(14, true));
+        expect(source.beginDestructiveFlush).toHaveBeenCalledTimes(2);
+        expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
+
+        await respond(new ReleaseDocumentFlushQuery(13));
+        expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
+
+        await respond(new ReleaseDocumentFlushQuery(14));
+        expect(source.endDestructiveFlush).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not release a newer flush's lock when an older destructive export fails", async () => {
+        let failOlderExport!: (error: Error) => void;
+        const source = makeSource({
+            exportContent: vi
+                .fn()
+                .mockImplementationOnce(
+                    () => new Promise<string>((_, reject) => (failOlderExport = reject)),
+                )
+                .mockResolvedValue("<newer/>"),
+        });
+        const post = vi.fn();
+        const respond = createFlushResponder(source, post);
+
+        const older = respond(new FlushDocumentQuery(15, true));
+        await vi.waitFor(() => expect(source.exportContent).toHaveBeenCalledOnce());
+        await respond(new FlushDocumentQuery(16, true));
+        failOlderExport(new Error("no diagram"));
+        await older;
+
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(16, "<newer/>", "flushed", 0));
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(15, undefined, "unavailable"));
+        expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
+
+        await respond(new ReleaseDocumentFlushQuery(16));
+        expect(source.endDestructiveFlush).toHaveBeenCalledTimes(2);
+    });
+
     it("echoes the query token verbatim", async () => {
         const source = makeSource();
         const post = vi.fn();
