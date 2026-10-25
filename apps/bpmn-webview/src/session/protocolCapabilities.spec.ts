@@ -247,4 +247,21 @@ describe("createProtocolCapabilities", () => {
         await Promise.resolve();
         expect(settled).toHaveBeenCalledOnce();
     });
+
+    it("still resolves a search answered just before the deadline", async () => {
+        vi.useFakeTimers();
+        const host = createHost();
+        const { capabilities, handlers } = createProtocolCapabilities(host, () =>
+            modelerSurface({}),
+        );
+        const search = capabilities.definitionSearch.search({ kind: "message", text: "order" });
+        const [{ requestId }] = host.sentOfType("SearchWorkspaceDefinitionsCommand");
+
+        await vi.advanceTimersByTimeAsync(DEFINITION_SEARCH_TIMEOUT_MS - 1);
+        handlers.WorkspaceDefinitionsQuery(
+            new WorkspaceDefinitionsQuery(requestId as number, [orderDefinition]),
+        );
+
+        await expect(search).resolves.toEqual([orderDefinition]);
+    });
 });

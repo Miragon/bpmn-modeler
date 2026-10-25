@@ -23,6 +23,10 @@ export interface WebviewDocumentSyncOptions {
 
 type HostChannel = { postMessage(message: Command | Query): void };
 
+export const HOST_UPDATE_DEBOUNCE_MS = 100;
+// The host recovers the sub-300ms tail through the flush protocol.
+export const SYNC_DEBOUNCE_MS = 300;
+
 /**
  * A modeler webview's document synchronisation with its host, shared by the
  * BPMN and DMN webviews: host revisions, the serialized modeler-operation
@@ -41,10 +45,9 @@ export class WebviewDocumentSync implements FlushSource {
     private readonly debouncedHostUpdate = asyncDebounce(
         (content: string | undefined, documentRevision: number) =>
             this.importNow(content, documentRevision),
-        100,
+        HOST_UPDATE_DEBOUNCE_MS,
     );
-    // The host recovers the sub-300ms tail through the flush protocol.
-    private readonly debouncedSync = asyncDebounce(() => this.sendChanges(), 300, {
+    private readonly debouncedSync = asyncDebounce(() => this.sendChanges(), SYNC_DEBOUNCE_MS, {
         maxWait: 1000,
     });
 
