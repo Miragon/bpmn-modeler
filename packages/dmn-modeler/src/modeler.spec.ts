@@ -118,7 +118,8 @@ vi.mock("@emaarco/dmn-js-simulation", () => ({
     },
 }));
 
-vi.mock("@miragon/bpmn-modeler-types", () => ({
+vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@miragon/bpmn-modeler-types")>()),
     observeCanvasSize: vi.fn((canvas: { resized(): void }, _container: Element) => {
         const dispose = vi.fn();
         mocks.resizeCanvases.push(canvas);
@@ -135,6 +136,8 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
         setLanguage: mocks.setLanguage,
     },
 }));
+
+import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { DmnModeler } from "./modeler";
 
@@ -481,10 +484,10 @@ describe("DmnModeler", () => {
             propertiesPanel: { parent: document.createElement("aside") },
         });
         handle.destroy();
-        await expect(handle.setLocale("de")).rejects.toThrow("DMN modeler has been destroyed");
+        await expect(handle.setLocale("de")).rejects.toThrow(NoModelerError);
     });
 
-    it("scopes data-dmn-theme to the container and panel parent and clears it on destroy", () => {
+    it("scopes data-dmn-theme to the container and panel parent and ignores setTheme once destroyed", () => {
         const container = document.createElement("main");
         const panel = document.createElement("aside");
         const handle = new DmnModeler(container, { propertiesPanel: { parent: panel } });
@@ -494,6 +497,11 @@ describe("DmnModeler", () => {
         expect(panel.getAttribute("data-dmn-theme")).toBe("dark");
 
         handle.destroy();
+        expect(container.hasAttribute("data-dmn-theme")).toBe(false);
+        expect(panel.hasAttribute("data-dmn-theme")).toBe(false);
+
+        handle.setTheme("light");
+        handle.setTheme("automatic");
         expect(container.hasAttribute("data-dmn-theme")).toBe(false);
         expect(panel.hasAttribute("data-dmn-theme")).toBe(false);
     });
@@ -521,9 +529,7 @@ describe("DmnModeler", () => {
         expect(mocks.resizeDisposers[0]).toHaveBeenCalledOnce();
         expect(vendor.destroy).toHaveBeenCalledOnce();
         expect(changed).not.toHaveBeenCalled();
-        expect(() => handle.getViews()).toThrow("DMN modeler has been destroyed");
-        await expect(handle.loadDiagram("<xml />")).rejects.toThrow(
-            "DMN modeler has been destroyed",
-        );
+        expect(() => handle.getViews()).toThrow(NoModelerError);
+        await expect(handle.loadDiagram("<xml />")).rejects.toThrow(NoModelerError);
     });
 });

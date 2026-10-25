@@ -65,8 +65,8 @@ export interface BridgeOptions {
 /**
  * Constructs the bridge: the shared collaborators, then every per-feature wiring
  * module. Handles flow forward (diff's `rebroadcastLanguage` into the
- * templates/settings feature); session hooks flow backward into the editor-
- * session feature's register/dispose loop.
+ * templates/settings feature); session participants flow into the editor-session
+ * feature's lifecycle.
  *
  * @param write Emits one framed JSON line (caller appends the newline + flushes).
  * @param log   Diagnostic sink (stderr in production; a spy in tests). Kept off
@@ -99,18 +99,19 @@ export function createBridge(
     const codeLink = codeLinkFeature.register(deps);
     const bpmnlint = bpmnlintFeature.register(deps);
     const script = scriptFeature.register(deps);
+    const deployment = deploymentFeature.register(deps);
     const editorSession = editorSessionFeature.register(deps, [
-        script.sessionHooks,
-        navigation.sessionHooks,
-        definitionSearch.sessionHooks,
-        codeLink.sessionHooks,
-        bpmnlint.sessionHooks,
-        templates.sessionHooks,
+        ...navigation.participants,
+        ...definitionSearch.participants,
+        ...templates.participants,
+        ...bpmnlint.participants,
+        ...deployment.participants,
+        ...script.participants,
+        ...codeLink.participants,
     ]);
     // Portable modeler commands (change engine version, migrate all). Registered
     // after the editor-session feature so it can reuse that feature's bpmnService.
     commandsFeature.register(deps, { bpmnService: editorSession.bpmnService });
-    deploymentFeature.register(deps);
     marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
         templatesSvc: templates.templatesSvc,

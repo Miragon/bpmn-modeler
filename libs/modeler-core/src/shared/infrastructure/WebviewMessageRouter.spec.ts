@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { Command } from "@miragon/bpmn-modeler-shared";
+import { Command, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
 
 import { WebviewMessageRouter } from "./WebviewMessageRouter";
 
@@ -14,9 +14,9 @@ class TestCommand extends Command {
 describe("WebviewMessageRouter", () => {
     it("dispatches a registered handler with the message and editor id", async () => {
         const handler = vi.fn();
-        const router = new WebviewMessageRouter().on("FooCommand", handler);
+        const router = new WebviewMessageRouter().on("ShowInfoCommand", handler);
 
-        const message = new TestCommand("FooCommand");
+        const message = new ShowInfoCommand("hello");
         await router.dispatch(message, "file:///a.bpmn");
 
         expect(handler).toHaveBeenCalledWith(message, "file:///a.bpmn");
@@ -24,7 +24,7 @@ describe("WebviewMessageRouter", () => {
 
     it("is a no-op for an unregistered type", async () => {
         const handler = vi.fn();
-        const router = new WebviewMessageRouter().on("FooCommand", handler);
+        const router = new WebviewMessageRouter().on("ShowInfoCommand", handler);
 
         await router.dispatch(new TestCommand("UnknownCommand"), "file:///a.bpmn");
 
@@ -34,14 +34,14 @@ describe("WebviewMessageRouter", () => {
     it("runs multiple handlers for the same type in registration order", async () => {
         const calls: string[] = [];
         const router = new WebviewMessageRouter()
-            .on("FooCommand", () => {
+            .on("ShowInfoCommand", () => {
                 calls.push("first");
             })
-            .on("FooCommand", () => {
+            .on("ShowInfoCommand", () => {
                 calls.push("second");
             });
 
-        await router.dispatch(new TestCommand("FooCommand"), "id");
+        await router.dispatch(new ShowInfoCommand("hello"), "id");
 
         expect(calls).toEqual(["first", "second"]);
     });
@@ -49,15 +49,15 @@ describe("WebviewMessageRouter", () => {
     it("awaits each async handler before starting the next", async () => {
         const calls: string[] = [];
         const router = new WebviewMessageRouter()
-            .on("FooCommand", async () => {
+            .on("ShowInfoCommand", async () => {
                 await Promise.resolve();
                 calls.push("first");
             })
-            .on("FooCommand", () => {
+            .on("ShowInfoCommand", () => {
                 calls.push("second");
             });
 
-        await router.dispatch(new TestCommand("FooCommand"), "id");
+        await router.dispatch(new ShowInfoCommand("hello"), "id");
 
         expect(calls).toEqual(["first", "second"]);
     });

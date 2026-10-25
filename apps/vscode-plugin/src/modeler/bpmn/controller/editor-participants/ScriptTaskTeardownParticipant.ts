@@ -1,9 +1,6 @@
 import { ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskService } from "../../../../scriptTask/index";
-import {
-    EditorSessionContext,
-    EditorSessionParticipant,
-} from "../../../editor-session/EditorSessionParticipant";
+import { EditorSessionContext, EditorSessionParticipant } from "@miragon/bpmn-modeler-core";
 
 /**
  * Disposes a session's inline script-task editors and buffered replays on close,

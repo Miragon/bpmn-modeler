@@ -21,27 +21,23 @@
  * @see modeler.ts for the modeler-specific Query and Command implementations that
  * extend these base classes.
  */
-interface MessageType {
-    type: string;
-}
+export abstract class Query<TType extends string = string> {
+    public readonly type: TType;
 
-export abstract class Query implements MessageType {
-    public readonly type: string;
-
-    protected constructor(type: string) {
+    protected constructor(type: TType) {
         this.type = type;
     }
 }
 
-export abstract class Command implements MessageType {
-    public readonly type: string;
+export abstract class Command<TType extends string = string> {
+    public readonly type: TType;
 
-    protected constructor(type: string) {
+    protected constructor(type: TType) {
         this.type = type;
     }
 }
 
-export class SyncDocumentCommand extends Command {
+export class SyncDocumentCommand extends Command<"SyncDocumentCommand"> {
     public readonly content: string;
     public readonly documentRevision: number;
 
@@ -58,7 +54,7 @@ export class SyncDocumentCommand extends Command {
  * same `token`. Sent on a save (VS Code) or tab-close (IntelliJ) so the persist
  * path never races the outbound sync debounce and writes stale content.
  */
-export class FlushDocumentQuery extends Query {
+export class FlushDocumentQuery extends Query<"FlushDocumentQuery"> {
     public readonly token: number;
 
     /** Whether the webview must remain mutation-locked until reload or release. */
@@ -76,7 +72,7 @@ export class FlushDocumentQuery extends Query {
 }
 
 /** Host → webview: releases a destructive flush when the host cannot reload. */
-export class ReleaseDocumentFlushQuery extends Query {
+export class ReleaseDocumentFlushQuery extends Query<"ReleaseDocumentFlushQuery"> {
     public readonly token: number;
 
     constructor(token: number) {
@@ -93,7 +89,7 @@ export type DocumentFlushStatus = "clean" | "flushed" | "host-updated" | "unavai
  * update, and a modeler that could not flush. `token` lets the host drop replies
  * after timeout/supersession.
  */
-export class DocumentFlushedCommand extends Command {
+export class DocumentFlushedCommand extends Command<"DocumentFlushedCommand"> {
     public readonly token: number;
 
     public readonly content?: string;
@@ -115,9 +111,7 @@ export class DocumentFlushedCommand extends Command {
     }
 }
 
-export class LogMessageCommand implements Command {
-    public readonly type: string = "LogMessageCommand";
-
+export abstract class LogMessageCommand<TType extends string = string> extends Command<TType> {
     public readonly message: string;
 
     /**
@@ -129,26 +123,35 @@ export class LogMessageCommand implements Command {
      */
     public readonly stack?: string;
 
-    constructor(log: string, stack?: string) {
+    protected constructor(type: TType, log: string, stack?: string) {
+        super(type);
         this.message = log;
         this.stack = stack;
     }
 }
 
-export class LogDebugCommand extends LogMessageCommand {
-    public override readonly type: string = "LogDebugCommand";
+export class LogDebugCommand extends LogMessageCommand<"LogDebugCommand"> {
+    constructor(log: string, stack?: string) {
+        super("LogDebugCommand", log, stack);
+    }
 }
 
-export class LogInfoCommand extends LogMessageCommand {
-    public override readonly type: string = "LogInfoCommand";
+export class LogInfoCommand extends LogMessageCommand<"LogInfoCommand"> {
+    constructor(log: string, stack?: string) {
+        super("LogInfoCommand", log, stack);
+    }
 }
 
-export class LogWarningCommand extends LogMessageCommand {
-    public override readonly type: string = "LogWarningCommand";
+export class LogWarningCommand extends LogMessageCommand<"LogWarningCommand"> {
+    constructor(log: string, stack?: string) {
+        super("LogWarningCommand", log, stack);
+    }
 }
 
-export class LogErrorCommand extends LogMessageCommand {
-    public override readonly type: string = "LogErrorCommand";
+export class LogErrorCommand extends LogMessageCommand<"LogErrorCommand"> {
+    constructor(log: string, stack?: string) {
+        super("LogErrorCommand", log, stack);
+    }
 }
 
 /**
@@ -157,7 +160,7 @@ export class LogErrorCommand extends LogMessageCommand {
  * messages the user must see without opening the output channel — the sandboxed
  * webview has no notification UI of its own.
  */
-export class ShowInfoCommand extends Command {
+export class ShowInfoCommand extends Command<"ShowInfoCommand"> {
     public readonly message: string;
 
     constructor(message: string) {
@@ -171,14 +174,14 @@ export class ShowInfoCommand extends Command {
  * receives the focus VS Code meant for it, and only the host knows whether its
  * editor is the active one.
  */
-export class RequestFocusCommand extends Command {
+export class RequestFocusCommand extends Command<"RequestFocusCommand"> {
     constructor() {
         super("RequestFocusCommand");
     }
 }
 
 /** Host → webview reply to {@link RequestFocusCommand}: the editor is active. */
-export class TakeFocusQuery extends Query {
+export class TakeFocusQuery extends Query<"TakeFocusQuery"> {
     constructor() {
         super("TakeFocusQuery");
     }

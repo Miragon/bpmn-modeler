@@ -39,10 +39,9 @@ import {
     ScriptXmlService,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
+import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
 import { ScriptFileStore } from "../infrastructure/ScriptFileStore";
 import { toUri } from "../../shared/infrastructure/uriPath";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../../shared/infrastructure/VsCodePicker";
 
 /**
  * Tracks an open script document.
@@ -174,8 +173,8 @@ export class ScriptTaskService {
         private readonly editorStore: EditorSessionStore,
         private readonly scriptFiles: ScriptFileStore,
         private readonly settings: SettingsPort,
-        private readonly notifier: VsCodeNotifier,
-        private readonly picker: VsCodePicker,
+        private readonly notifier: NotifierPort,
+        private readonly picker: PickerPort,
         private readonly scriptXml: ScriptXmlService,
     ) {}
 

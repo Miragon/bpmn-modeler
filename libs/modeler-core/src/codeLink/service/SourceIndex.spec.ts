@@ -1,8 +1,6 @@
-import { posix } from "path";
-
 import { describe, expect, it, vi } from "vitest";
 
-import { isSourceFile } from "../domain/ImplementationReference";
+import { InMemoryWorkspace, RecordingNotifier } from "../../testing";
 import { SourceIndex } from "./SourceIndex";
 
 const FOLDER = "/ws";
@@ -11,55 +9,20 @@ const SECOND_DOC = "/ws/sub/invoice.bpmn";
 const WORKER = "/ws/src/Worker.java";
 const OTHER = "/ws/src/pkg/Other.java";
 
-interface FakeWatcher {
-    root: string;
-    handlers: {
-        onCreate: (path: string) => void;
-        onChange: (path: string) => void;
-        onDelete: (path: string) => void;
-    };
-    dispose: ReturnType<typeof vi.fn>;
-}
-
-/** A workspace whose files and folders tests change in place. */
-function createWorkspace(initialFiles: Record<string, string>, initialFolders = [FOLDER]) {
-    const files = { ...initialFiles };
-    let folders = initialFolders;
-    const watchers: FakeWatcher[] = [];
-    const workspace = {
-        findWorkspaceFolderForDocument: vi.fn((document: string) =>
-            folders.find((folder) => document.startsWith(`${folder}/`)),
-        ),
-        getWorkspaceFolderPaths: vi.fn(() => folders),
-        getDocumentDirectory: vi.fn((document: string) => posix.dirname(document)),
-        findFiles: vi.fn(async () => Object.keys(files).filter(isSourceFile)),
-        readDirectory: vi.fn(async () => []),
-        readFile: vi.fn(async (path: string) => {
-            if (!(path in files)) {
-                throw new Error(`ENOENT ${path}`);
-            }
-            return files[path];
-        }),
-        createWatcher: vi.fn(
-            (root: string, _glob: string, handlers: FakeWatcher["handlers"]): FakeWatcher => {
-                const watcher = { root, handlers, dispose: vi.fn() };
-                watchers.push(watcher);
-                return watcher;
-            },
-        ),
-    };
-    const logger = { logInfo: vi.fn(), logWarning: vi.fn() };
-    const index = new SourceIndex(workspace as never, logger);
+function createIndex(files: Record<string, string>, folders = [FOLDER]) {
+    const workspace = new InMemoryWorkspace(folders, files);
+    const findFiles = vi.spyOn(workspace, "findFiles");
+    const readFile = vi.spyOn(workspace, "readFile");
+    const notifier = new RecordingNotifier();
+    const index = new SourceIndex(workspace, notifier);
     return {
         index,
         workspace,
-        files,
-        watchers,
-        logger,
-        setFolders: (next: string[]) => {
-            folders = next;
-        },
-        readsOf: (path: string) => workspace.readFile.mock.calls.filter(([read]) => read === path),
+        watchers: workspace.watchers,
+        findFiles,
+        readFile,
+        notifier,
+        readsOf: (path: string) => readFile.mock.calls.filter(([read]) => read === path),
     };
 }
 
@@ -72,7 +35,7 @@ async function scan(index: SourceIndex, editorId: string, document: string): Pro
 
 describe("SourceIndex", () => {
     it("shares one listing and one read per file between editors of the same folders", async () => {
-        const { index, workspace, readsOf } = createWorkspace({
+        const { index, watchers, findFiles, readsOf } = createIndex({
             [WORKER]: `@JobWorker(type = "pay")`,
             [OTHER]: "class Other {}",
         });
@@ -84,21 +47,19 @@ describe("SourceIndex", () => {
 
         expect(paths).toEqual([WORKER, OTHER]);
         expect(worker?.facts.implementsLiteral("pay")).toBe(true);
-        expect(workspace.findFiles).toHaveBeenCalledOnce();
+        expect(findFiles).toHaveBeenCalledOnce();
         expect(readsOf(WORKER)).toHaveLength(1);
-        expect(workspace.createWatcher).toHaveBeenCalledOnce();
-        expect(workspace.createWatcher.mock.calls[0].slice(0, 2)).toEqual([FOLDER, "**/*"]);
+        expect(watchers.map(({ root, glob }) => [root, glob])).toEqual([[FOLDER, "**/*"]]);
     });
 
     it("re-reads only a file that changed", async () => {
-        const { index, files, watchers, readsOf } = createWorkspace({
+        const { index, workspace, readsOf } = createIndex({
             [WORKER]: `"pay"`,
             [OTHER]: "class Other {}",
         });
         await scan(index, "editor1", DOC);
 
-        files[WORKER] = `"refund"`;
-        watchers[0].handlers.onChange(WORKER);
+        await workspace.writeFile(WORKER, `"refund"`);
         await scan(index, "editor1", DOC);
         const worker = await index.sourcesFor("editor1", DOC)!.inspect(WORKER, false);
 
@@ -109,57 +70,54 @@ describe("SourceIndex", () => {
 
     it("lists again after a new source file without re-reading the known ones", async () => {
         const created = "/ws/src/Created.java";
-        const { index, files, watchers, workspace, readsOf } = createWorkspace({
-            [WORKER]: `"pay"`,
-        });
+        const { index, workspace, findFiles, readsOf } = createIndex({ [WORKER]: `"pay"` });
         await scan(index, "editor1", DOC);
 
-        files[created] = `"new"`;
-        watchers[0].handlers.onCreate(created);
+        await workspace.writeFile(created, `"new"`);
         const paths = await scan(index, "editor1", DOC);
 
         expect(paths).toEqual([WORKER, created]);
-        expect(workspace.findFiles).toHaveBeenCalledTimes(2);
+        expect(findFiles).toHaveBeenCalledTimes(2);
         expect(readsOf(WORKER)).toHaveLength(1);
     });
 
     it("treats a create event for a listed file as a change", async () => {
-        const { index, watchers, workspace, readsOf } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index, watchers, findFiles, readsOf } = createIndex({ [WORKER]: `"pay"` });
         await scan(index, "editor1", DOC);
 
-        watchers[0].handlers.onCreate(WORKER);
+        watchers[0].handlers.onCreate?.(WORKER);
         await scan(index, "editor1", DOC);
 
-        expect(workspace.findFiles).toHaveBeenCalledOnce();
+        expect(findFiles).toHaveBeenCalledOnce();
         expect(readsOf(WORKER)).toHaveLength(2);
     });
 
     it("lists again after a delete and reads the files of a re-created folder afresh", async () => {
-        const { index, files, watchers, workspace, readsOf } = createWorkspace({
+        const { index, workspace, watchers, findFiles, readsOf } = createIndex({
             [WORKER]: `"pay"`,
             [OTHER]: `"old"`,
             "/ws/src/Kept.java": "class Kept {}",
         });
         await scan(index, "editor1", DOC);
 
-        delete files[WORKER];
-        watchers[0].handlers.onDelete(WORKER);
-        watchers[0].handlers.onDelete("/ws/src/pkg");
-        files[OTHER] = `"new"`;
-        watchers[0].handlers.onCreate("/ws/src/pkg");
+        workspace.deleteFile(WORKER);
+        // A folder replaced as a whole reports only the folder's own events.
+        watchers[0].handlers.onDelete?.("/ws/src/pkg");
+        workspace.files.set(OTHER, `"new"`);
+        watchers[0].handlers.onCreate?.("/ws/src/pkg");
         const paths = await scan(index, "editor1", DOC);
         const other = await index.sourcesFor("editor1", DOC)!.inspect(OTHER, false);
 
         expect(paths).toEqual([OTHER, "/ws/src/Kept.java"]);
-        expect(workspace.findFiles).toHaveBeenCalledTimes(2);
+        expect(findFiles).toHaveBeenCalledTimes(2);
         expect(other?.facts.implementsLiteral("new")).toBe(true);
         expect(readsOf("/ws/src/Kept.java")).toHaveLength(1);
     });
 
     it("does not keep a read that a change overtook", async () => {
-        const { index, workspace, watchers, readsOf } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index, workspace, readFile, readsOf } = createIndex({ [WORKER]: `"pay"` });
         let releaseRead!: (content: string) => void;
-        workspace.readFile.mockImplementationOnce(
+        readFile.mockImplementationOnce(
             () =>
                 new Promise<string>((resolve) => {
                     releaseRead = resolve;
@@ -168,7 +126,7 @@ describe("SourceIndex", () => {
         const sources = index.sourcesFor("editor1", DOC)!;
 
         const staleRead = sources.inspect(WORKER, false);
-        watchers[0].handlers.onChange(WORKER);
+        await workspace.writeFile(WORKER, `"pay"`);
         releaseRead(`"stale"`);
         await staleRead;
         const fresh = await sources.inspect(WORKER, false);
@@ -180,10 +138,10 @@ describe("SourceIndex", () => {
     it("matches watcher paths that use backslash separators", async () => {
         const folder = "C:/ws";
         const file = "C:/ws/src/Worker.java";
-        const { index, watchers, readsOf } = createWorkspace({ [file]: `"pay"` }, [folder]);
+        const { index, watchers, readsOf } = createIndex({ [file]: `"pay"` }, [folder]);
         await scan(index, "editor1", "C:/ws/order.bpmn");
 
-        watchers[0].handlers.onChange("C:\\ws\\src\\Worker.java");
+        watchers[0].handlers.onChange?.("C:\\ws\\src\\Worker.java");
         await scan(index, "editor1", "C:/ws/order.bpmn");
 
         expect(readsOf(file)).toHaveLength(2);
@@ -191,30 +149,28 @@ describe("SourceIndex", () => {
 
     it("judges excluded directories relative to the watched folder", async () => {
         const file = "/home/build/ws/src/Worker.java";
-        const { index, watchers, readsOf } = createWorkspace({ [file]: `"pay"` }, [
-            "/home/build/ws",
-        ]);
+        const { index, workspace, readsOf } = createIndex({ [file]: `"pay"` }, ["/home/build/ws"]);
         const sources = index.sourcesFor("editor1", "/home/build/ws/order.bpmn")!;
         await sources.inspect(file, false);
 
-        watchers[0].handlers.onChange(file);
+        await workspace.writeFile(file, `"pay"`);
         await sources.inspect(file, false);
 
         expect(readsOf(file)).toHaveLength(2);
     });
 
     it("ignores changes inside excluded directories", async () => {
-        const { index, watchers, workspace } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index, workspace, findFiles } = createIndex({ [WORKER]: `"pay"` });
         await scan(index, "editor1", DOC);
 
-        watchers[0].handlers.onCreate("/ws/target/classes/Generated.java");
+        await workspace.writeFile("/ws/target/classes/Generated.java", "class Generated {}");
         await scan(index, "editor1", DOC);
 
-        expect(workspace.findFiles).toHaveBeenCalledOnce();
+        expect(findFiles).toHaveBeenCalledOnce();
     });
 
     it("returns the content only when asked and never keeps it", async () => {
-        const { index } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index } = createIndex({ [WORKER]: `"pay"` });
         const sources = index.sourcesFor("editor1", DOC)!;
 
         const withoutContent = await sources.inspect(WORKER, false);
@@ -225,43 +181,45 @@ describe("SourceIndex", () => {
     });
 
     it("disposes the watchers with the last editor", async () => {
-        const { index, watchers } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index, watchers } = createIndex({ [WORKER]: `"pay"` });
         index.sourcesFor("editor1", DOC);
         index.sourcesFor("editor2", SECOND_DOC);
 
         index.release("editor1");
-        expect(watchers[0].dispose).not.toHaveBeenCalled();
+        expect(watchers[0].disposed).toBe(false);
 
         index.release("editor2");
-        expect(watchers[0].dispose).toHaveBeenCalledOnce();
+        expect(watchers[0].disposed).toBe(true);
     });
 
     it("moves an editor to a new index when the workspace folders change", async () => {
-        const { index, watchers, setFolders } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index, workspace, watchers } = createIndex({ [WORKER]: `"pay"` });
         const before = index.sourcesFor("editor1", DOC);
 
-        setFolders([FOLDER, "/other"]);
+        vi.spyOn(workspace, "getWorkspaceFolderPaths").mockReturnValue([FOLDER, "/other"]);
         const after = index.sourcesFor("editor1", DOC);
 
         expect(after).not.toBe(before);
-        expect(watchers[0].dispose).toHaveBeenCalledOnce();
+        expect(watchers[0].disposed).toBe(true);
         expect(watchers.map((watcher) => watcher.root)).toEqual([FOLDER, FOLDER, "/other"]);
     });
 
     it("shares nothing for a document outside every workspace folder", () => {
-        const { index, workspace } = createWorkspace({ [WORKER]: `"pay"` });
+        const { index, watchers } = createIndex({ [WORKER]: `"pay"` });
 
         expect(index.sourcesFor("editor1", "/loose/diagram.bpmn")).toBeUndefined();
-        expect(workspace.createWatcher).not.toHaveBeenCalled();
+        expect(watchers).toEqual([]);
     });
 
     it("falls back to unshared searches when the folders cannot be watched", () => {
-        const { index, workspace, logger } = createWorkspace({ [WORKER]: `"pay"` });
-        workspace.createWatcher.mockImplementationOnce(() => {
+        const { index, workspace, notifier } = createIndex({ [WORKER]: `"pay"` });
+        vi.spyOn(workspace, "createWatcher").mockImplementationOnce(() => {
             throw new Error("watch limit reached");
         });
 
         expect(index.sourcesFor("editor1", DOC)).toBeUndefined();
-        expect(logger.logWarning).toHaveBeenCalledOnce();
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringContaining("watch limit reached"),
+        ]);
     });
 });

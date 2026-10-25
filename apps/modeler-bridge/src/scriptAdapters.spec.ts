@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import { createTestHost, FakeEditorHandle } from "@miragon/bpmn-modeler-core/testing";
 import {
     OpenScriptEditorCommand,
+    UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptSourceCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -18,9 +20,11 @@ import { METHODS } from "./protocol/descriptor";
  * here instead. The tracked-script state is seeded directly rather than through
  * the full `open` flow, which is exercised end-to-end elsewhere.
  */
-const EDITOR_ID = "file:///repo/process.bpmn";
+const EDITOR_PATH = "/repo/process.bpmn";
+const EDITOR_ID = `file://${EDITOR_PATH}`;
 const SCRIPT_ID = "script-1";
 const ELEMENT_ID = "Task_1";
+const SCRIPT_FILE = "/base/hash/Task_1/slug/Task_1.js";
 
 interface Internals {
     scripts: Map<string, unknown>;
@@ -28,23 +32,20 @@ interface Internals {
 }
 
 function createEditor() {
-    const store = { postMessage: vi.fn().mockResolvedValue(true) };
+    const host = createTestHost({ files: { [SCRIPT_FILE]: "a" } });
+    const modelerEditor = host.openEditor(EDITOR_PATH);
     const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
-    const notifier = { logError: vi.fn() };
-    const workspace = { deleteDirectory: vi.fn().mockResolvedValue(undefined) };
-    const picker = {};
-    const settings = {};
     const manifestSvc = {};
     const artifactSvc = {};
 
     const editor = new BridgeScriptEditor(
-        store as never,
-        picker as never,
+        host.store,
+        host.picker,
         rpc as never,
-        notifier as never,
-        settings as never,
+        host.notifier,
+        host.settings,
         manifestSvc as never,
-        workspace as never,
+        host.workspace,
         artifactSvc as never,
     );
 
@@ -56,16 +57,14 @@ function createEditor() {
         kind: "script-task",
         listenerIndex: undefined,
     });
-    internals.filePathByScript.set(SCRIPT_ID, "/base/hash/Task_1/slug/Task_1.js");
+    internals.filePathByScript.set(SCRIPT_ID, SCRIPT_FILE);
 
-    return { editor, store, rpc, notifier, workspace };
+    return { editor, host, modelerEditor, rpc };
 }
 
-/** UpdateScriptContentQuery posts only (skips lock broadcasts sharing the mock). */
-function contentPosts(postMessage: { mock: { calls: unknown[][] } }): unknown[][] {
-    return postMessage.mock.calls.filter(
-        ([, message]) => (message as { type: string })?.type === "UpdateScriptContentQuery",
-    );
+/** UpdateScriptContentQuery posts only (skips lock broadcasts to the same webview). */
+function contentPosts(modelerEditor: FakeEditorHandle): UpdateScriptContentQuery[] {
+    return modelerEditor.postedOfType<UpdateScriptContentQuery>("UpdateScriptContentQuery");
 }
 
 beforeEach(() => {
@@ -78,62 +77,57 @@ afterEach(() => {
 
 describe("BridgeScriptEditor keystroke debounce", () => {
     it("coalesces a burst of didChange into one trailing post with the latest content", async () => {
-        const { editor, store } = createEditor();
+        const { editor, modelerEditor } = createEditor();
 
         editor.didChange(SCRIPT_ID, "a");
         editor.didChange(SCRIPT_ID, "ab");
         editor.didChange(SCRIPT_ID, "abc");
         // Nothing posts before the window elapses.
-        expect(contentPosts(store.postMessage)).toHaveLength(0);
+        expect(contentPosts(modelerEditor)).toHaveLength(0);
 
         await vi.advanceTimersByTimeAsync(300);
 
-        const posts = contentPosts(store.postMessage);
-        expect(posts).toHaveLength(1);
-        expect(posts[0]).toEqual([
-            EDITOR_ID,
+        expect(contentPosts(modelerEditor)).toEqual([
             new UpdateScriptContentQuery(ELEMENT_ID, "script-task", undefined, "abc"),
         ]);
     });
 
     it("does not post before the window elapses", async () => {
-        const { editor, store } = createEditor();
+        const { editor, modelerEditor } = createEditor();
 
         editor.didChange(SCRIPT_ID, "a");
         await vi.advanceTimersByTimeAsync(299);
 
-        expect(contentPosts(store.postMessage)).toHaveLength(0);
+        expect(contentPosts(modelerEditor)).toHaveLength(0);
     });
 
     it("ignores didChange for an unknown scriptId", async () => {
-        const { editor, store } = createEditor();
+        const { editor, modelerEditor } = createEditor();
 
         editor.didChange("nope", "x");
         await vi.advanceTimersByTimeAsync(300);
 
-        expect(store.postMessage).not.toHaveBeenCalled();
+        expect(modelerEditor.posted).toEqual([]);
     });
 
     it("flushes the pending keystroke before releasing on didClose", async () => {
-        const { editor, store, workspace } = createEditor();
+        const { editor, host, modelerEditor } = createEditor();
 
         editor.didChange(SCRIPT_ID, "last");
         // Close arrives inside the debounce window; the flush must still deliver.
         await editor.didClose(SCRIPT_ID);
 
-        const posts = contentPosts(store.postMessage);
-        expect(posts).toHaveLength(1);
-        expect(posts[0][1]).toEqual(
+        expect(contentPosts(modelerEditor)).toEqual([
             new UpdateScriptContentQuery(ELEMENT_ID, "script-task", undefined, "last"),
-        );
+        ]);
         // A user-initiated close must not delete the file (a re-open has to work);
         // it only drops the path entry so `open` rewrites fresh content.
-        expect(workspace.deleteDirectory).not.toHaveBeenCalled();
+        expect(host.workspace.files.has(SCRIPT_FILE)).toBe(true);
         expect((editor as unknown as Internals).filePathByScript.has(SCRIPT_ID)).toBe(false);
     });
 
     it("cancels a pending keystroke when the model overwrites the tab", async () => {
-        const { editor, store, rpc } = createEditor();
+        const { editor, modelerEditor, rpc } = createEditor();
 
         editor.didChange(SCRIPT_ID, "stale");
         editor.applyModelChange(
@@ -143,7 +137,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         await vi.advanceTimersByTimeAsync(300);
 
         // The stale keystroke never streamed back (it would clobber the undo).
-        expect(contentPosts(store.postMessage)).toHaveLength(0);
+        expect(contentPosts(modelerEditor)).toHaveLength(0);
         expect(rpc.notify).toHaveBeenCalledWith(METHODS.scriptUpdateContent, {
             scriptId: SCRIPT_ID,
             content: "undone",
@@ -151,7 +145,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
     });
 
     it("drops a pending keystroke when the script surface disappears", async () => {
-        const { editor, store, rpc } = createEditor();
+        const { editor, modelerEditor, rpc } = createEditor();
 
         editor.didChange(SCRIPT_ID, "stale");
         editor.applyModelChange(
@@ -161,23 +155,21 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         );
         await vi.advanceTimersByTimeAsync(300);
 
-        expect(contentPosts(store.postMessage)).toHaveLength(0);
+        expect(contentPosts(modelerEditor)).toHaveLength(0);
         expect(rpc.notify).toHaveBeenCalledWith(METHODS.scriptClose, { scriptId: SCRIPT_ID });
     });
 
     it("best-effort flushes the pending keystroke on editor dispose", async () => {
-        const { editor, store, rpc } = createEditor();
+        const { editor, modelerEditor, rpc } = createEditor();
 
         editor.didChange(SCRIPT_ID, "final");
         editor.disposeEditor(EDITOR_ID);
         // Let the flush's in-flight post settle.
         await vi.advanceTimersByTimeAsync(0);
 
-        const posts = contentPosts(store.postMessage);
-        expect(posts).toHaveLength(1);
-        expect(posts[0][1]).toEqual(
+        expect(contentPosts(modelerEditor)).toEqual([
             new UpdateScriptContentQuery(ELEMENT_ID, "script-task", undefined, "final"),
-        );
+        ]);
         expect(rpc.notify).toHaveBeenCalledWith(METHODS.scriptClose, { scriptId: SCRIPT_ID });
     });
 });
@@ -191,7 +183,8 @@ describe("BridgeScriptEditor keystroke debounce", () => {
  * invariant that adoption never runs the orphan sweep.
  */
 describe("BridgeScriptEditor materialise + adopt-on-open", () => {
-    const FULL_EDITOR = "file:///repo/proc.bpmn";
+    const FULL_EDITOR_PATH = "/repo/proc.bpmn";
+    const FULL_EDITOR = `file://${FULL_EDITOR_PATH}`;
     const BASE_DIR = "/repo/.camunda/tmp/scripting";
 
     interface FullInternals {
@@ -201,38 +194,25 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         extractedByEditor: Map<string, unknown[]>;
     }
 
-    function createFullEditor() {
-        const store = {
-            postMessage: vi.fn().mockResolvedValue(true),
-            getEditorIds: vi.fn(() => [FULL_EDITOR]),
-        };
+    function createFullEditor(files: Record<string, string> = {}) {
+        const host = createTestHost({ files, settings: { scriptingSpin: false } });
+        const modelerEditor = host.openEditor(FULL_EDITOR_PATH);
         const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
-        const notifier = { logError: vi.fn() };
-        const workspace = {
-            writeFile: vi.fn().mockResolvedValue(undefined),
-            readFile: vi.fn().mockResolvedValue("disk content"),
-            deleteDirectory: vi.fn().mockResolvedValue(undefined),
-        };
-        const picker = { pickScriptLanguage: vi.fn() };
-        const settings = {
-            getConfigFolder: vi.fn(() => ".camunda"),
-            getScriptingSpin: vi.fn(() => false),
-        };
 
         const editor = new BridgeScriptEditor(
-            store as never,
-            picker as never,
+            host.store,
+            host.picker,
             rpc as never,
-            notifier as never,
-            settings as never,
+            host.notifier,
+            host.settings,
             {} as never,
-            workspace as never,
+            host.workspace,
             {} as never,
         );
         const internals = editor as unknown as FullInternals;
         // Skip the workspace-root resolution; the sweep still exercises deleteDirectory.
         internals.baseDirByEditor.set(FULL_EDITOR, BASE_DIR);
-        return { editor, store, rpc, notifier, workspace, picker, internals };
+        return { editor, host, modelerEditor, rpc, internals };
     }
 
     /** The on-disk path a script-task materialises to under the seeded base dir. */
@@ -268,7 +248,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
     describe("materialize", () => {
         it("writes the file and seeds variables without a script/open or lock", async () => {
-            const { editor, workspace, rpc, store, internals } = createFullEditor();
+            const { editor, host, rpc, modelerEditor, internals } = createFullEditor();
             const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
             const result = await editor.materialize(
@@ -277,21 +257,18 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             );
 
             expect(result).toEqual({ written: true });
-            expect(workspace.writeFile).toHaveBeenCalledWith(
-                scriptFilePath("Task_1", "groovy"),
-                "x = 1",
-            );
+            expect(host.workspace.files.get(scriptFilePath("Task_1", "groovy"))).toBe("x = 1");
             expect(internals.extractedByEditor.get(FULL_EDITOR)).toEqual(variables);
             // No tab semantics: no script/open, no lock broadcast, no path recorded
             // (an untracked panel-button open then rewrites from the model).
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(store.postMessage).not.toHaveBeenCalled();
+            expect(modelerEditor.posted).toEqual([]);
             expect(internals.scripts.size).toBe(0);
             expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("skips a script an open tab already owns, leaving its buffer untouched", async () => {
-            const { editor, workspace, internals } = createFullEditor();
+            const { editor, host, internals } = createFullEditor();
             const scriptId = new ScriptUri(
                 FULL_EDITOR,
                 "Task_1",
@@ -310,24 +287,26 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             const result = await editor.materialize(openCommand("groovy", "fresh"), FULL_EDITOR);
 
             expect(result).toEqual({ written: false });
-            expect(workspace.writeFile).not.toHaveBeenCalled();
+            expect(host.workspace.files.size).toBe(0);
         });
 
         it("returns undefined when the language picker is cancelled", async () => {
-            const { editor, workspace, picker } = createFullEditor();
-            picker.pickScriptLanguage.mockResolvedValue(undefined);
+            const { editor, host } = createFullEditor();
 
             const result = await editor.materialize(openCommand("", ""), FULL_EDITOR);
 
             expect(result).toBeUndefined();
-            expect(workspace.writeFile).not.toHaveBeenCalled();
+            expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: [""] }]);
+            expect(host.workspace.files.size).toBe(0);
         });
     });
 
     describe("adoptExternalOpen", () => {
         it("tracks the file, notifies script/open, broadcasts the lock, and never sweeps", async () => {
-            const { editor, rpc, store, workspace, internals } = createFullEditor();
             const filePath = scriptFilePath("Task_1", "groovy");
+            const { editor, rpc, modelerEditor, host, internals } = createFullEditor({
+                [filePath]: "disk content",
+            });
 
             await editor.adoptExternalOpen(filePath);
 
@@ -348,25 +327,24 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 filePath,
                 content: "disk content",
             });
-            const lockCall = store.postMessage.mock.calls.find(
-                ([, message]) =>
-                    (message as { type: string })?.type === "UpdateOpenScriptEditorsQuery",
-            );
-            expect(lockCall).toBeDefined();
+            expect(modelerEditor.postedOfType("UpdateOpenScriptEditorsQuery")).not.toEqual([]);
             // The whole point of resolveBaseDir (not prepareBaseDir): the file being
             // opened must not be swept out from under the adoption.
-            expect(workspace.deleteDirectory).not.toHaveBeenCalled();
+            expect(Object.fromEntries(host.workspace.files)).toEqual({
+                [filePath]: "disk content",
+            });
         });
 
         it("ignores an ambient sibling (camunda.d.ts)", async () => {
-            const { editor, rpc, workspace, internals } = createFullEditor();
+            const { editor, rpc, host, internals } = createFullEditor();
+            const readFile = vi.spyOn(host.workspace, "readFile");
 
             await editor.adoptExternalOpen(
                 `${BASE_DIR}/${ScriptUri.hashEditorId(FULL_EDITOR)}/Task_1/script-task/camunda.d.ts`,
             );
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(workspace.readFile).not.toHaveBeenCalled();
+            expect(readFile).not.toHaveBeenCalled();
             expect(internals.scripts.size).toBe(0);
         });
 
@@ -392,7 +370,8 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         });
 
         it("is a no-op for an already-tracked script", async () => {
-            const { editor, rpc, workspace, internals } = createFullEditor();
+            const { editor, rpc, host, internals } = createFullEditor();
+            const readFile = vi.spyOn(host.workspace, "readFile");
             const scriptId = new ScriptUri(
                 FULL_EDITOR,
                 "Task_1",
@@ -411,13 +390,13 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             await editor.adoptExternalOpen(scriptFilePath("Task_1", "groovy"));
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(workspace.readFile).not.toHaveBeenCalled();
+            expect(readFile).not.toHaveBeenCalled();
         });
 
         it("marks the base dir swept so a later write path spares the adopted file", async () => {
-            const { editor, workspace } = createFullEditor();
-            await editor.adoptExternalOpen(scriptFilePath("Task_1", "groovy"));
-            workspace.deleteDirectory.mockClear();
+            const adoptedPath = scriptFilePath("Task_1", "groovy");
+            const { editor, host } = createFullEditor({ [adoptedPath]: "disk content" });
+            await editor.adoptExternalOpen(adoptedPath);
 
             // A later materialise of a *different* script must not sweep the dir
             // the adopted, live file sits in.
@@ -432,29 +411,22 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             );
             await editor.materialize(cmd, FULL_EDITOR);
 
-            expect(workspace.deleteDirectory).not.toHaveBeenCalled();
-            expect(workspace.writeFile).toHaveBeenCalledWith(
-                scriptFilePath("Task_2", "groovy"),
-                "y = 2",
-            );
+            expect(host.workspace.files.get(adoptedPath)).toBe("disk content");
+            expect(host.workspace.files.get(scriptFilePath("Task_2", "groovy"))).toBe("y = 2");
         });
     });
 
     describe("re-open within the close window", () => {
         /** The last open-script lock broadcast, or undefined if none was posted. */
-        function lastLockRefs(store: {
-            postMessage: { mock: { calls: unknown[][] } };
-        }): unknown[] | undefined {
-            const calls = store.postMessage.mock.calls.filter(
-                ([, message]) =>
-                    (message as { type: string })?.type === "UpdateOpenScriptEditorsQuery",
+        function lastLockRefs(modelerEditor: FakeEditorHandle): unknown[] | undefined {
+            const broadcasts = modelerEditor.postedOfType<UpdateOpenScriptEditorsQuery>(
+                "UpdateOpenScriptEditorsQuery",
             );
-            const last = calls[calls.length - 1];
-            return (last?.[1] as { openScripts: unknown[] } | undefined)?.openScripts;
+            return broadcasts[broadcasts.length - 1]?.openScripts;
         }
 
         it("swallows the late didClose so the re-tracked script and its lock survive", async () => {
-            const { editor, store, internals, workspace } = createFullEditor();
+            const { editor, modelerEditor, internals, host } = createFullEditor();
             const scriptId = new ScriptUri(
                 FULL_EDITOR,
                 "Task_1",
@@ -480,7 +452,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             //    cancelled and the next didClose is armed to be swallowed.
             await editor.open(openCommand("groovy", "v2"), FULL_EDITOR);
             expect(internals.scripts.has(scriptId)).toBe(true);
-            workspace.deleteDirectory.mockClear();
+            const filesBeforeLateClose = new Map(host.workspace.files);
 
             // 4. The host still emits one late didClose for the pre-empted close.
             await editor.didClose(scriptId);
@@ -489,8 +461,8 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             // deferred deletion ran.
             expect(internals.scripts.has(scriptId)).toBe(true);
             expect(internals.filePathByScript.has(scriptId)).toBe(true);
-            expect(workspace.deleteDirectory).not.toHaveBeenCalled();
-            expect(lastLockRefs(store)).toHaveLength(1);
+            expect(host.workspace.files).toEqual(filesBeforeLateClose);
+            expect(lastLockRefs(modelerEditor)).toHaveLength(1);
         });
     });
 });

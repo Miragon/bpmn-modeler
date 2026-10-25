@@ -1,72 +1,42 @@
 # Deployment
 
-The BPMN Modeler extension includes a deployment sidebar that lets you deploy BPMN/DMN diagrams and start process instances directly from VS Code. It supports both **Camunda Platform 7** and **Camunda 8** with multiple authentication methods.
+Deploy BPMN and DMN files to Camunda 7 or Camunda 8 and start process instances from VS Code.
 
-The sidebar lives in the activity bar (rocket icon) and provides two tabs:
+## The Deploy sidebar
 
-- **Deploy** — upload diagrams (with optional additional files) to a Camunda engine
-- **Start Instance** — start a process instance with an optional JSON payload
+Open the **Deploy Diagram** view from the rocket icon in the activity bar. It has two tabs:
+
+- **Deploy** uploads the diagram, optionally with additional files.
+- **Start Instance** starts a process instance, optionally with a JSON payload.
+
+Fill in engine, endpoint, tenant and authentication, then deploy. For a quick deploy of the open diagram use the rocket button in the editor title bar.
+
+## Authentication
+
+| Mode | Sends |
+|---|---|
+| **None** (default) | No auth header, for local engines |
+| **Basic Auth** | `Authorization: Basic …` from username and password |
+| **OAuth2 Client Credentials** | `Authorization: Bearer …`, fetched from the token endpoint, with optional `audience` |
+
+Credentials are kept in VS Code's encrypted secret storage, never in files. The one exception is a credential that is exactly one [environment reference](#environment-variable-references), which is not a secret.
+
+### Approved hosts
+
+A named target's credentials, and the `.env` values its requests carry, go only to hosts you approved for that target: the shared `deployment-targets.json`, or a `.env` value it references, decides where they go, and someone else's commit can change that. A host is scheme, host name and port (`https://camunda.example:8443`); switching from `https` to `http` counts as a new host.
+
+- **Saving a target** approves the hosts you typed that no target in the file uses yet. Hosts carried over by the form (including from the target **New** started from) and URLs built from `${env:...}` still need approval.
+- **The first request** (deploy, start instance, verify) that would send credentials (for OAuth2, the client secret and its token) or a `.env` value to an unapproved host asks first, naming the host. **Send Credentials** remembers it; dismissing sends nothing.
+- Approvals live with the target's credentials: deleting the target removes them, a rename keeps them.
+- In ad-hoc mode a typed endpoint is never questioned; once a request uses an `${env:...}` value, its host needs approval too.
+
+### Error messages
+
+A failed request shows the server's own explanation (Camunda 7 `message`, Camunda 8 `detail`/`title`, OAuth2 `error_description`, or a plain-text body) on one line of at most 1000 characters. An HTML error page, or JSON that is not an error message (such as a proxy echoing the request), is dropped, leaving only the HTTP status. Values the request carried that may be secret are masked as `***`: credentials, the `Authorization` header, URL query values and user info, and substituted `MIRAGON_` values.
 
 ## Deployment targets
 
-A **deployment target** is a named connection (engine, endpoint, tenant, auth, and
-optional endpoint overrides) you can save once and reuse. Targets are stored in a
-team-shareable file so a repository can ship its known environments; **secrets are
-never written to the file** — credentials live in VS Code's encrypted secret
-storage, keyed per target.
-
-- **Storage:** `<configFolder>/deployment-targets.json` (default
-  `.camunda/deployment-targets.json`), discovered by walking up from the focused
-  diagram to the workspace root (nearest file wins). A JSON schema is registered,
-  so the editor validates and autocompletes the file.
-- **Editing:** the sidebar's Connection/Authentication/Advanced fields are the
-  target editor. The row above Connection has a target select plus **New**,
-  **Save**, and **Delete**. Fill the connection, type a **Target Name**, and
-  click **New** to create the target from the entered data — a name that already
-  exists is rejected so a create never overwrites. **Save** updates the currently
-  selected target (including a rename, which migrates the stored credentials);
-  it is disabled when no target is selected, and a rename onto another target's
-  name is rejected. Save connection changes before using **Deploy** or **Start
-  Instance**. Credential-only changes can be used immediately. **Edit JSON**
-  opens `deployment-targets.json` in the editor (creating an empty one first) for
-  direct, schema-assisted editing.
-- **Ad-hoc mode:** with **(none — use form values)** selected, the form behaves
-  exactly as before and persists to per-workspace state — nothing is written to
-  the file until you save a target.
-- **Active target:** shown in the status bar with a coloured freshness dot
-  (`$(circle-filled) <name>`, or *No deployment target*). Click it for a small
-  menu — switch the active target, or (for a Camunda 7 target) verify against
-  the engine; **Switch Deployment Target** changes it directly. The sidebar
-  select and the status bar are two views of the same active target.
-- **Deployment freshness dot:** the dot colour tells you whether the diagram in
-  front of you matches what was last deployed to the active target *from this
-  machine*:
-  - **Green** — deployed: the content matches the last deployment.
-  - **Yellow** — undeployed changes: the content differs; the tooltip shows when
-    you last deployed.
-  - **Blue** — superseded: a verification found that the deployed version on
-    the engine differs from your diagram. Deploying from the modeler turns it
-    green again.
-  - **Gray** — unknown: this machine has never deployed this file to this target.
-    Gray means "no local record", not "absent on the engine".
-
-  Freshness is decided entirely locally (no engine call): the modeler records a
-  content fingerprint on each successful deploy, per target and file. Because the
-  deploy sends the **saved file on disk**, a diagram with **unsaved edits** shows
-  yellow until you save — the engine does not run the bytes you haven't saved.
-  The record is per-developer state and is *not* written to
-  `deployment-targets.json`.
-- **Verify on the engine (Camunda 7):** run **Verify Deployment on Engine** (or
-  pick *Verify* from the status-bar menu) to reconcile the local record against
-  the engine's latest deployed version of the process. If the engine runs
-  exactly this diagram (deployed by a colleague, or before a fresh clone), the
-  dot turns green; a differing deployed version turns it blue and shows an
-  informational notification; a process that is not deployed clears the
-  record. Verification is only ever on
-  demand, needs the plain REST base URL (the `endpoints.deploy` override is not
-  applied to lookups), and is not available for Camunda 8 targets.
-
-### File format
+A target is a saved, named connection you can reuse and share with your team. Targets live in `<configFolder>/deployment-targets.json` (`.camunda/deployment-targets.json` by default); the nearest file from the diagram up to the workspace root wins. The file has a JSON schema, so the editor completes and validates it.
 
 ```json
 {
@@ -76,7 +46,7 @@ storage, keyed per target.
       "engine": "c7",
       "endpoint": "http://localhost:8080/engine-rest",
       "tenantId": "",
-      "auth": { "type": "oauth2", "tokenEndpoint": "https://login/oauth/token", "audience": "" },
+      "auth": { "type": "oauth2", "tokenEndpoint": "https://login.example.com/oauth/token", "audience": "" },
       "endpoints": {
         "deploy": "https://gw.example.com/camunda/deploy",
         "startInstance": "https://gw.example.com/camunda/{processDefinitionKey}/start"
@@ -86,128 +56,102 @@ storage, keyed per target.
 }
 ```
 
-`name` is the unique identity. `auth.type` is `none`, `basic`, or `oauth2`
-(`tokenEndpoint`/`audience` apply to `oauth2`). `endpoints` and its keys are
-optional — see [Endpoint overrides](#endpoint-overrides).
+- `name` is unique. `engine` is `c7` or `c8`. `auth.type` is `none`, `basic` or `oauth2`; `auth.tokenEndpoint` and `auth.audience` are only read for `oauth2`.
+- `auth.username`/`auth.password` (basic) and `auth.clientId`/`auth.clientSecret` (oauth2) are optional and accept only a single `${env:MIRAGON_NAME}` reference. A literal there makes the whole file invalid, so a secret cannot be committed by accident. These keys are validated under any `auth.type`.
+- `endpoints` is optional. Use it when a gateway exposes custom routes: the request goes to that URL with the same body, and `{processDefinitionKey}` is filled in.
 
-### Commands
+**Manage targets in the sidebar.** Pick a target above **Connection**, then use **New** (create from the form, rejects existing names), **Save** (update the selected target, including a rename) or **Delete**. **Edit JSON** opens the file. Save connection changes before you deploy. Literal credential changes apply at once; adding, changing or removing a credential [environment reference](#environment-variable-references) needs **Save** first. With no target selected (the first entry, which uses the form values), the form is stored per workspace and nothing is written to the file.
 
-| Command | Description |
+## Environment variable references
+
+Connection and authentication fields may contain `${env:MIRAGON_NAME}` references, resolved from the project's `.env` when a deploy, start-instance or verify request is built. A value may hold several, e.g. `https://camunda.${env:MIRAGON_STAGE}.example/engine-rest`.
+
+```dotenv
+# .env beside the folder holding deployment-targets.json; keep it out of version control
+MIRAGON_CAMUNDA_URL=https://camunda.dev.example/engine-rest
+MIRAGON_CAMUNDA_USER=demo
+MIRAGON_CAMUNDA_PASSWORD=s3cret
+```
+
+Supported fields: `username`, `password`, `clientId`, `clientSecret`, `tokenEndpoint`, `audience`, `endpoint`, `tenantId` and the `endpoints` overrides. The form and storage keep the literal `${env:...}` text, so the webview never sees a resolved value, and errors name at most the resolved host and port, never a resolved URL.
+
+**Which `.env`.** For a named target, the `.env` in the directory containing the config folder of its targets file (by default `<workspace>/.env` beside `<workspace>/.camunda/`; `sub/.camunda/deployment-targets.json` reads `sub/.env`). **Deploy Files…** uses the active target's `.env` for every selected file. In ad-hoc mode, the `.env` at the root of the diagram's workspace folder. Diagrams outside a workspace folder resolve nothing.
+
+**Missing and empty values.** An undefined variable fails the request, naming the variable and the `.env` searched; it never falls back to the literal text. A variable defined as empty counts as set: an empty URL override falls back to the convention route, an empty endpoint is rejected.
+
+**Shareable credentials.** When you save a named target, a credential whose entire value is one `${env:MIRAGON_NAME}` is also written to `deployment-targets.json`. Teammates clone the repo, add their own `.env` and deploy without per-machine setup. The file is the only authority for references: it wins over a value stored on the machine, and a reference removed from it is not restored from local storage. Anything else (literals, partial interpolation like `user-${env:MIRAGON_SUFFIX}`, every ad-hoc value) stays in the secret store only.
+
+**Security boundaries.** A committed targets file decides both where a request goes and which variables it carries, so resolution is narrow:
+
+- Only `MIRAGON_`-prefixed names can be referenced. Others (`${env:GITHUB_TOKEN}`) are rejected when the file loads or the target is saved, and other `.env` entries are discarded on read.
+- Only that one project `.env` is read: never the IDE's process environment, a parent folder or the git root. A symlinked `.env` is refused.
+- `.env` is read only when a value contains a reference, so an unrelated `.env` (such as a Python virtualenv directory) cannot break plain deployments.
+- A literal must not contain `${env:` unless it is a valid reference; put such a value into `.env`, whose values are never expanded again.
+
+`.env` syntax is plain `KEY=VALUE` lines, `#` comment lines, an optional `export ` prefix and surrounding quotes. Inline comments (`KEY=value # note`) and escapes such as `\n` are not interpreted; they become part of the value.
+
+## Status bar and freshness
+
+The status bar shows the active target with a coloured dot. Click it to switch targets or, for Camunda 7, verify against the engine.
+
+| Dot | Meaning |
 |---|---|
-| **Switch Deployment Target** (`bpmn-modeler.switchDeploymentTarget`) | Pick the active target (or ad-hoc) via a Quick Pick. |
-| **Deploy Diagram** (`bpmn-modeler.deployDiagram`) | Save the focused diagram, then deploy only that file to the active target (prompting for a target first if none is active). Additional resources still need the sidebar. Also the editor title-bar rocket button. |
-| **Deploy Files…** (`bpmn-modeler.deployFiles`) | Multi-select workspace `.bpmn`/`.dmn` files and deploy each to the active target (one deployment per file, named after the file). Also available on the Explorer context menu for `.bpmn`/`.dmn`. |
-| **Verify Deployment on Engine** (`bpmn-modeler.verifyDeployment`) | Reconcile the focused diagram's freshness record against the active Camunda 7 target's engine. Also reachable from the status-bar item's click menu. |
+| Green | The diagram matches your last deployment to this target. |
+| Yellow | The diagram changed since then, including unsaved edits (deploy sends the saved file). |
+| Blue | Verification found a different version on the engine. |
+| Gray | This machine has never deployed this file to this target. |
 
-## Settings
+Freshness is recorded locally per target and file, not on the engine and not in `deployment-targets.json`. **Verify Deployment on Engine** (Camunda 7 only) compares with the engine's latest version: green if it matches, blue if not. It uses the plain endpoint, not the `endpoints.deploy` override.
 
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `miragon.bpmnModeler.configFolder` | `string` | `.camunda` | Name of the config folder searched at each directory level from the BPMN file up to the workspace root. Payload files must be under `<configFolder>/payloads/`. |
-| `miragon.bpmnModeler.c8ApiVersion` | `string` | `v2` | REST API version prefix for Camunda 8 endpoints (e.g. `v2`). |
+## Commands
 
-## REST Endpoints
+| Command | Use |
+|---|---|
+| **Miragon BPMN Modeler: Deploy Diagram** | Save and deploy the open diagram to the active target. Additional files need the sidebar. |
+| **Miragon BPMN Modeler: Deploy Files…** | Deploy several `.bpmn`/`.dmn` files, one deployment each. Also in the Explorer context menu. |
+| **Miragon BPMN Modeler: Switch Deployment Target** | Pick the active target or ad-hoc form values. |
+| **Miragon BPMN Modeler: Verify Deployment on Engine** | Check the open diagram against a Camunda 7 engine. |
 
-### Camunda 7
+## Payload files
 
-| Operation | Method | URL |
-|---|---|---|
-| Deploy | `POST` | `{endpoint}/deployment/create` (multipart), or the target's `endpoints.deploy` override |
-| Start Instance | `POST` | `{endpoint}/process-definition/key/{key}/start` (JSON), or the target's `endpoints.startInstance` override |
-
-The deploy request sends a multipart body with fields `deployment-name`, `tenant-id` (optional), `deployment-source` (`"BPMN Modeler"`), and one file part per resource.
-
-The start-instance request wraps the payload in a `variables` key:
-
-```json
-{ "variables": { ...payload } }
-```
-
-### Camunda 8
-
-| Operation | Method | URL |
-|---|---|---|
-| Deploy | `POST` | `{endpoint}/{apiVersion}/deployments` (multipart), or the target's `endpoints.deploy` override |
-| Start Instance | `POST` | `{endpoint}/{apiVersion}/process-instances` (JSON), or the target's `endpoints.startInstance` override |
-
-The deploy request sends a multipart body with `tenantId` (optional) and file parts all named `resources`.
-
-The start-instance request sends `processDefinitionId` alongside the payload wrapped in a `variables` key:
-
-```json
-{
-  "processDefinitionId": "<process-definition-key>",
-  "variables": { ...payload }
-}
-```
-
-### Endpoint overrides
-
-A deployment target may override the URL per operation for environments behind a
-gateway with custom routes. When `endpoints.deploy` / `endpoints.startInstance`
-is set on the active target, the request is sent to that full URL instead of the
-convention path above. The request body / multipart shape is unchanged (the
-override is assumed to proxy the same engine API), and `{processDefinitionKey}`
-in the start-instance override is substituted (percent-encoded) before the call.
-
-## Payload Files
-
-Payload files are plain JSON objects that define the process variables passed when starting a new instance. They are discovered by convention from the `<configFolder>/payloads/` directory.
-
-### Discovery
-
-The extension walks up from the BPMN file's directory to the workspace root, collecting all `.json` files found under `<configFolder>/payloads/` at each level (nearest first). The user picks one via a VS Code QuickPick.
-
-### Directory Structure Example
+Process variables for **Start Instance** come from `.json` files under `<configFolder>/payloads/`. The modeler collects them from the diagram's folder up to the workspace root (nearest first) and lets you pick one.
 
 ```
 my-project/
-├── .camunda/
-│   └── payloads/
-│       └── default-vars.json      ← discovered for all BPMN files
-├── processes/
-│   ├── .camunda/
-│   │   └── payloads/
-│   │       └── order-vars.json    ← discovered for files in processes/
-│   └── order-process.bpmn
+├── .camunda/payloads/default-vars.json      # every diagram
+└── processes/
+    ├── .camunda/payloads/order-vars.json    # diagrams in processes/
+    └── order-process.bpmn
 ```
 
-### Payload Format
+The file is sent as `variables` unchanged, so it must match the engine:
 
-Camunda 7 and Camunda 8 expect **different** payload formats. The extension sends the payload file contents as-is (wrapped in a `variables` key), so the file must match the target engine's format.
-
-#### Camunda 8
-
-A plain JSON object whose keys become process variables:
-
-```json
-{
-  "amount": 1500,
-  "customerId": "cust-42"
-}
+```jsonc
+// Camunda 8
+{ "amount": 1500, "customerId": "cust-42" }
 ```
 
-#### Camunda 7
-
-Each variable is an object with `value` (required), `type` (optional), and `valueInfo` (optional):
-
-```json
-{
-  "amount": { "value": 1500 },
-  "customerId": { "value": "cust-42", "type": "String" }
-}
+```jsonc
+// Camunda 7
+{ "amount": { "value": 1500 }, "customerId": { "value": "cust-42", "type": "String" } }
 ```
 
-See the [Camunda 7 REST API docs](https://docs.camunda.org/rest/camunda-bpm-platform/7.22/#tag/Process-Definition/operation/startProcessInstanceByKey) for the full variable schema.
+See the [Camunda 7 REST API](https://docs.camunda.org/rest/camunda-bpm-platform/7.22/#tag/Process-Definition/operation/startProcessInstanceByKey) for the Camunda 7 variable format.
 
-## Authentication
+## Endpoints and settings
 
-The sidebar supports three authentication modes, selectable in the form:
-
-| Mode | Header | Details |
+| Engine | Deploy | Start instance |
 |---|---|---|
-| **None** | *(no auth header)* | Default. Suitable for local development engines. |
-| **Basic Auth** | `Authorization: Basic <base64>` | Username and password encoded as UTF-8 → base64. |
-| **OAuth2 Client Credentials** | `Authorization: Bearer <token>` | Fetches an access token from the configured token endpoint using `client_credentials` grant. Optionally includes an `audience` parameter. |
+| Camunda 7 | `POST {endpoint}/deployment/create` | `POST {endpoint}/process-definition/key/{key}/start` |
+| Camunda 8 | `POST {endpoint}/{apiVersion}/deployments` | `POST {endpoint}/{apiVersion}/process-instances` |
 
-Credentials are stored securely using VS Code's encrypted `SecretStorage` API and restored automatically on the next deployment.
+| Setting | Default | Description |
+|---|---|---|
+| `miragon.bpmnModeler.configFolder` | `.camunda` | Folder searched for targets and payloads. |
+| `miragon.bpmnModeler.c8ApiVersion` | `v2` | API version for Camunda 8 endpoints. |
+
+## Next steps
+
+- [Linting](/vscode/features/linting): catch what the engine cannot run before you deploy.
+- [BPMN diff](/vscode/features/bpmn-diff): review what changed before you deploy.
+- [Configuration](/vscode/configuration): the config folder and Camunda 8 API version.

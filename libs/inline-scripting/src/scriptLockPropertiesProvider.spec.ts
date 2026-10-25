@@ -7,7 +7,7 @@ import {
     PropertiesEntry,
     ScriptLockPropertiesProvider,
 } from "./scriptLockPropertiesProvider";
-import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
 
 /** The slice of a preact vnode these tree-walking helpers touch. */
 interface VNode {

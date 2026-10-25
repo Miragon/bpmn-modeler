@@ -29,11 +29,15 @@
                     },
                     "endpoint": {
                         "type": "string",
-                        "description": "Base URL of the Camunda REST API."
+                        "pattern": "^(?:[^$]|\\$(?!\\{env:)|\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\})*$",
+                        "patternErrorMessage": "Every ${env:…} must reference a MIRAGON_-prefixed variable, e.g. ${env:MIRAGON_URL}; literal text may not contain \"${env:\".",
+                        "description": "Base URL of the Camunda REST API. May contain ${env:MIRAGON_NAME} references, resolved at request time from the .env beside this file's config folder."
                     },
                     "tenantId": {
                         "type": "string",
-                        "description": "Optional tenant identifier."
+                        "pattern": "^(?:[^$]|\\$(?!\\{env:)|\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\})*$",
+                        "patternErrorMessage": "Every ${env:…} must reference a MIRAGON_-prefixed variable, e.g. ${env:MIRAGON_URL}; literal text may not contain \"${env:\".",
+                        "description": "Optional tenant identifier. May contain ${env:MIRAGON_NAME} references, resolved at request time from the .env beside this file's config folder."
                     },
                     "auth": {
                         "type": "object",
@@ -45,11 +49,39 @@
                             },
                             "tokenEndpoint": {
                                 "type": "string",
-                                "description": "OAuth2 token endpoint (oauth2 only)."
+                                "pattern": "^(?:[^$]|\\$(?!\\{env:)|\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\})*$",
+                                "patternErrorMessage": "Every ${env:…} must reference a MIRAGON_-prefixed variable, e.g. ${env:MIRAGON_URL}; literal text may not contain \"${env:\".",
+                                "description": "OAuth2 token endpoint (oauth2 only). May contain ${env:MIRAGON_NAME} references, resolved at request time from the .env beside this file's config folder."
                             },
                             "audience": {
                                 "type": "string",
-                                "description": "OAuth2 audience (oauth2 only)."
+                                "pattern": "^(?:[^$]|\\$(?!\\{env:)|\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\})*$",
+                                "patternErrorMessage": "Every ${env:…} must reference a MIRAGON_-prefixed variable, e.g. ${env:MIRAGON_URL}; literal text may not contain \"${env:\".",
+                                "description": "OAuth2 audience (oauth2 only). May contain ${env:MIRAGON_NAME} references, resolved at request time from the .env beside this file's config folder."
+                            },
+                            "username": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\}$",
+                                "patternErrorMessage": "Only a single ${env:MIRAGON_NAME} reference is allowed here; store literal secrets via the deployment sidebar.",
+                                "description": "Basic-auth username as a single ${env:MIRAGON_NAME} reference only — never a literal secret. Resolved at request time from the .env beside this file's config folder."
+                            },
+                            "password": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\}$",
+                                "patternErrorMessage": "Only a single ${env:MIRAGON_NAME} reference is allowed here; store literal secrets via the deployment sidebar.",
+                                "description": "Basic-auth password as a single ${env:MIRAGON_NAME} reference only — never a literal secret. Resolved at request time from the .env beside this file's config folder."
+                            },
+                            "clientId": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\}$",
+                                "patternErrorMessage": "Only a single ${env:MIRAGON_NAME} reference is allowed here; store literal secrets via the deployment sidebar.",
+                                "description": "OAuth2 client ID as a single ${env:MIRAGON_NAME} reference only — never a literal secret. Resolved at request time from the .env beside this file's config folder."
+                            },
+                            "clientSecret": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\}$",
+                                "patternErrorMessage": "Only a single ${env:MIRAGON_NAME} reference is allowed here; store literal secrets via the deployment sidebar.",
+                                "description": "OAuth2 client secret as a single ${env:MIRAGON_NAME} reference only — never a literal secret. Resolved at request time from the .env beside this file's config folder."
                             }
                         },
                         "required": ["type"]
@@ -61,11 +93,15 @@
                         "properties": {
                             "deploy": {
                                 "type": "string",
-                                "description": "Full URL for the deploy call."
+                                "pattern": "^(?:[^$]|\\$(?!\\{env:)|\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\})*$",
+                                "patternErrorMessage": "Every ${env:…} must reference a MIRAGON_-prefixed variable, e.g. ${env:MIRAGON_URL}; literal text may not contain \"${env:\".",
+                                "description": "Full URL for the deploy call. May contain ${env:MIRAGON_NAME} references, resolved at request time from the .env beside this file's config folder."
                             },
                             "startInstance": {
                                 "type": "string",
-                                "description": "Full URL for start-instance; {processDefinitionKey} is substituted."
+                                "pattern": "^(?:[^$]|\\$(?!\\{env:)|\\$\\{env:MIRAGON_[A-Za-z0-9_]+\\})*$",
+                                "patternErrorMessage": "Every ${env:…} must reference a MIRAGON_-prefixed variable, e.g. ${env:MIRAGON_URL}; literal text may not contain \"${env:\".",
+                                "description": "Full URL for start-instance; {processDefinitionKey} is substituted. May contain ${env:MIRAGON_NAME} references, resolved at request time from the .env beside this file's config folder."
                             }
                         }
                     }

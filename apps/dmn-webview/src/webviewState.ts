@@ -1,24 +1,10 @@
 /**
- * @internal Host-adapter surface — persisted webview UI state shapes consumed by
- * `WebviewStateManager`. Not part of the public modeler API.
+ * @internal Host-adapter surface — the webview state persisted via
+ * `host.setState` / `host.getState`. Not part of the public modeler API.
+ *
+ * DMN persists only properties-panel UI state; viewport and selection
+ * round-tripping is not implemented for dmn-js.
  */
+import type { PropertiesPanelUiState } from "@miragon/bpmn-modeler-shared";
 
-/**
- * Shape of the data persisted via `host.setState` / `host.getState`.
- */
-export interface WebviewState {
-    // Scroll position of `.bio-properties-panel-scroll-container`.
-    panelScroll?: number;
-    /**
-     * Indexes (in render order) of `.bio-properties-panel-group` elements
-     * that are currently expanded.  Keyed by position so it survives a
-     * language switch — group labels are localised, indexes are not.
-     */
-    expandedGroupIndexes?: number[];
-    /**
-     * Per-editor properties-panel visibility. Absent until the user first
-     * toggles the panel in this editor; while absent the editor follows the
-     * host's global default (`dmnPropertiesPanelVisible`). Present entry wins.
-     */
-    panelVisible?: boolean;
-}
+export type WebviewState = PropertiesPanelUiState;

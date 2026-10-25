@@ -20,6 +20,14 @@ const REFUSAL_MESSAGES: Record<LayoutErrorCode, string> = {
 
 const NOTHING_TO_CLEAN = "Nothing to clean up — the diagram carries no leftovers.";
 
+// The code crosses the webview boundary as JSON, so a webview built against a
+// newer protocol can send one this host has no copy for.
+function refusalCodeOf(message: DiagramFormattedCommand): LayoutErrorCode {
+    return message.code && Object.prototype.hasOwnProperty.call(REFUSAL_MESSAGES, message.code)
+        ? message.code
+        : "ENGINE_FAILED";
+}
+
 /**
  * Drives formatting and cleanup from the host side.
  *
@@ -57,14 +65,11 @@ export class BpmnLayoutService {
             return;
         }
 
-        const reason = message.code
-            ? REFUSAL_MESSAGES[message.code]
-            : REFUSAL_MESSAGES.ENGINE_FAILED;
+        const code = refusalCodeOf(message);
+        const reason = REFUSAL_MESSAGES[code];
         if (message.message) this.notifier.logError(`Format failed: ${message.message}`);
         this.notifier.showError(
-            message.code === "ENGINE_FAILED" && message.message
-                ? `${reason} ${message.message}`
-                : reason,
+            code === "ENGINE_FAILED" && message.message ? `${reason} ${message.message}` : reason,
         );
     }
 

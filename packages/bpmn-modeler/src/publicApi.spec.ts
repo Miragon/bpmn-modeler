@@ -341,6 +341,13 @@ void _viewerHasNoEditing;
 const _modelerSatisfiesDesignerHandle = (m: BpmnModelerHandle): BpmnDesignerHandle => m;
 void _modelerSatisfiesDesignerHandle;
 
+const _liveFavourites = (m: BpmnModelerHandle, d: BpmnDesignerHandle) => {
+    const favourites: readonly string[] = ["bpmn:UserTask"];
+    m.setFavouriteBpmnElements(favourites);
+    d.setFavouriteBpmnElements(favourites);
+};
+void _liveFavourites;
+
 const _coreDesignerServices = (d: BpmnDesignerHandle) => {
     const canvas: CoreModelerServices["canvas"] = d.getService("canvas");
     const commandStack: CoreModelerServices["commandStack"] = d.getService("commandStack");

@@ -8,7 +8,7 @@
  */
 import { render, h } from "preact";
 import { ChooserOverlay } from "./components/ChooserOverlay";
-import type { ElementTemplate } from "./types";
+import { fallbackTranslate, type ElementTemplate, type Translate } from "./types";
 import { getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
 import type { Element } from "bpmn-js/lib/model/Types";
 import type EventBus from "diagram-js/lib/core/EventBus";
@@ -28,13 +28,6 @@ interface ElementTemplatesService {
 interface InjectorLike {
     get<T = unknown>(name: string, strict: false): T | null;
 }
-
-type Translate = (template: string, replacements?: Record<string, string>) => string;
-
-// Fallback when no TranslateModule is registered (third-party bpmn-js setups):
-// echo the template while still resolving {placeholders}, matching diagram-js.
-const fallbackTranslate: Translate = (template, replacements = {}) =>
-    template.replace(/{([^}]+)}/g, (_, key) => replacements[key] ?? `{${key}}`);
 
 /**
  * Opens the element template chooser overlay when the properties panel

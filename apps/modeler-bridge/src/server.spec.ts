@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { registerParams, settle, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -12,56 +13,6 @@ const C7_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.20.0">
   <bpmn:process id="Process_1" isExecutable="true" />
 </bpmn:definitions>`;
-
-/** Spins past pending microtasks/timers so the router's async dispatch settles. */
-async function settle(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-/**
- * Polls captured frames until `predicate` matches, instead of guessing a fixed
- * number of `settle()` ticks. A filesystem-backed reload (e.g. re-reading the
- * element-template folder on a configFolder change) takes an unbounded number of
- * event-loop turns under load, so a fixed wait races and flakes; polling waits
- * exactly as long as needed and fails fast with a clear message otherwise.
- */
-async function waitForFrame(
-    frames: any[],
-    predicate: (frame: any) => boolean,
-    timeoutMs = 5000,
-): Promise<any> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-        const match = frames.find(predicate);
-        if (match) return match;
-        if (Date.now() >= deadline) {
-            throw new Error("Timed out waiting for a matching frame");
-        }
-        await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-}
-
-/** Frames the host would send to register an open `.bpmn` editor. */
-function registerParams(
-    editorId: string,
-    root: string,
-    fsPath: string,
-    content: string,
-    settings?: Record<string, unknown>,
-    session?: { sessionId: number; documentRevision: number },
-) {
-    return {
-        editorId,
-        uriString: editorId,
-        path: editorId.replace(/^file:\/\//, ""),
-        fsPath,
-        scheme: "file",
-        workspaceRoot: root,
-        content,
-        ...(settings ? { settings } : {}),
-        ...session,
-    };
-}
 
 describe("bridge end-to-end (real core over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];
@@ -125,7 +76,7 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, bpmnPath, C7_XML, undefined, {
+                params: registerParams(editorId, root, bpmnPath, C7_XML, {
                     sessionId: 17,
                     documentRevision: 4,
                 }),
@@ -159,7 +110,7 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, bpmnPath, C7_XML, undefined, {
+                params: registerParams(editorId, root, bpmnPath, C7_XML, {
                     sessionId: 17,
                     documentRevision: 4,
                 }),
@@ -205,7 +156,7 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
             rpc.handleLine(
                 JSON.stringify({
                     method: "session/register",
-                    params: registerParams(editorId, root, bpmnPath, C7_XML, undefined, {
+                    params: registerParams(editorId, root, bpmnPath, C7_XML, {
                         sessionId,
                         documentRevision: 0,
                     }),
@@ -346,10 +297,12 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
             JSON.stringify({
                 method: "session/register",
                 params: registerParams(editorId, root, bpmnPath, C7_XML, {
-                    alignToOrigin: true,
-                    colorTheme: "light",
-                    favouriteBpmnElements: ["bpmn:UserTask"],
-                    language: "de",
+                    settings: {
+                        alignToOrigin: true,
+                        colorTheme: "light",
+                        favouriteBpmnElements: ["bpmn:UserTask"],
+                        language: "de",
+                    },
                 }),
             }),
         );
@@ -386,7 +339,9 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, bpmnPath, C7_XML, { language: "de" }),
+                params: registerParams(editorId, root, bpmnPath, C7_XML, {
+                    settings: { language: "de" },
+                }),
             }),
         );
         await rpc.handleLine(
@@ -412,7 +367,9 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, bpmnPath, C7_XML, { language: "en" }),
+                params: registerParams(editorId, root, bpmnPath, C7_XML, {
+                    settings: { language: "en" },
+                }),
             }),
         );
         const before = frames.length;
@@ -454,7 +411,7 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
             JSON.stringify({
                 method: "session/register",
                 params: registerParams(editorId, root, bpmnPath, C7_XML, {
-                    configFolder: ".camunda",
+                    settings: { configFolder: ".camunda" },
                 }),
             }),
         );
@@ -476,6 +433,8 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
                 f.params.message.elementTemplates?.some(
                     (t: { name?: string }) => t?.name === "Next Template",
                 ),
+            // The folder re-read takes an unbounded number of event-loop turns under load.
+            { timeoutMs: 5000 },
         );
         expect(templates.params.message.elementTemplates).toContainEqual(
             expect.objectContaining({ name: "Next Template" }),

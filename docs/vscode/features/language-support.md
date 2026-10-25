@@ -1,26 +1,32 @@
-# Language Support
+# Language support
 
-The BPMN Modeler extension supports multiple UI languages for the modeler interface. Translations cover the palette, context pad, properties panel, and other modeler UI elements for both BPMN and DMN diagrams.
+Run the modeler UI (palette, context pad, properties panel) in your own language, for BPMN and DMN.
 
-## Supported Languages
+## Languages
 
 | Locale | Language |
 |---|---|
 | `de` | Deutsch |
 | `en` | English (default) |
-| `fr` | Fran&ccedil;ais |
+| `es` | Español |
+| `fr` | Français |
+| `it` | Italiano |
+| `ja` | 日本語 |
+| `ko` | 한국어 |
 | `nl-nl` | Nederlands |
-| `pt-br` | Portugu&ecirc;s (Brasil) |
+| `pt-br` | Português (Brasil) |
 | `ru` | Русский |
 | `zh-Hans` | 简体中文 (Simplified Chinese) |
 | `zh-Hant` | 繁体中文 (Traditional Chinese) |
 
-## Usage
+## Change the language
 
-There are two ways to change the modeler language:
+- **Command:** run **Miragon BPMN Modeler: Change Modeler Language** and pick a language. The command is available while a modeler tab is open and saves your choice in your User settings.
+- **Setting:** set `miragon.bpmnModeler.language` to one of the locale codes above. The Settings editor dropdown does not list `it`, `ja` and `ko` yet; pick those with the command or enter them in `settings.json`.
 
-1. **VS Code Setting** — set `miragon.bpmnModeler.language` in your settings to one of the locale codes above.
-2. **Command Palette** — run `BPMN Modeler: Change Modeler Language` (command ID `bpmn-modeler.changeLanguage`) to pick a language from a QuickPick menu. The command is available when at least one BPMN editor is open.
+The change applies at once to every open modeler tab.
 
-The language change takes effect immediately on all open modeler tabs.
+## Next steps
 
+- [Configuration](/vscode/configuration): every other setting.
+- [Editor modes](/vscode/features/modes): View, Design and Implement.

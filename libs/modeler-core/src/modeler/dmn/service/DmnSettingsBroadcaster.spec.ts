@@ -1,160 +1,118 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-// `DmnSettingsBroadcaster` imports `EditorSessionStore`, which imports the
-// `Disposable` *type* from vscode — erased at runtime, but the specifier must
-// still resolve under vitest.
-vi.mock("vscode", () => ({}));
+import { describe, expect, it, vi } from "vitest";
 
 import { DmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
+import { createTestHost } from "../../../testing";
 import { DmnSettingsBroadcaster } from "./DmnSettingsBroadcaster";
 
-const EDITOR = "file:///work/decision.dmn";
-
 function createBroadcaster() {
-    const editorStore = {
-        postMessage: vi.fn().mockResolvedValue(true),
-        subscribeToSettingChangeEvent: vi.fn(),
-    };
-    const vsSettings = {
-        getColorTheme: vi.fn().mockReturnValue("light"),
-        getLanguage: vi.fn().mockReturnValue("de"),
-    };
-    const notifier = { notifyError: vi.fn(), logError: vi.fn() };
-
-    const broadcaster = new DmnSettingsBroadcaster(
-        editorStore as never,
-        vsSettings as never,
-        notifier as never,
-    );
-
-    return { broadcaster, editorStore, vsSettings, notifier };
+    const host = createTestHost({ settings: { colorTheme: "light", language: "de" } });
+    const editor = host.openEditor("/work/decision.dmn");
+    const broadcaster = new DmnSettingsBroadcaster(host.store, host.settings, host.notifier);
+    return { broadcaster, host, editor };
 }
-
-beforeEach(() => {
-    vi.clearAllMocks();
-});
 
 describe("DmnSettingsBroadcaster.setSettings", () => {
     it("reads the color theme from VS Code config and posts it", async () => {
-        const { broadcaster, editorStore } = createBroadcaster();
+        const { broadcaster, editor } = createBroadcaster();
 
-        const result = await broadcaster.setSettings(EDITOR);
+        const result = await broadcaster.setSettings(editor.id);
 
         expect(result).toBe(true);
-        const [id, msg] = editorStore.postMessage.mock.calls[0];
-        expect(id).toBe(EDITOR);
+        const [msg] = editor.posted;
         expect(msg).toBeInstanceOf(DmnModelerSettingQuery);
         expect((msg as DmnModelerSettingQuery).setting).toEqual({ colorTheme: "light" });
     });
 
     it("notifies and returns false when the webview rejects the post", async () => {
-        const { broadcaster, editorStore, notifier } = createBroadcaster();
-        editorStore.postMessage.mockResolvedValue(false);
+        const { broadcaster, host, editor } = createBroadcaster();
+        vi.spyOn(editor, "postMessage").mockResolvedValue(false);
 
-        const result = await broadcaster.setSettings(EDITOR);
+        const result = await broadcaster.setSettings(editor.id);
 
         expect(result).toBe(false);
-        expect(notifier.notifyError).toHaveBeenCalledOnce();
+        expect(host.notifier.errors).toEqual([
+            "A problem occurred while applying modeler settings.\nUnable to set preferences.",
+        ]);
     });
 
     it("logs and returns false when reading the setting throws", async () => {
-        const { broadcaster, vsSettings, notifier } = createBroadcaster();
-        vsSettings.getColorTheme.mockImplementation(() => {
+        const { broadcaster, host, editor } = createBroadcaster();
+        vi.spyOn(host.settings, "getColorTheme").mockImplementation(() => {
             throw new Error("config read failed");
         });
 
-        const result = await broadcaster.setSettings(EDITOR);
+        const result = await broadcaster.setSettings(editor.id);
 
         expect(result).toBe(false);
-        expect(notifier.logError).toHaveBeenCalledOnce();
-        expect(notifier.notifyError).not.toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual(["config read failed"]);
+        expect(host.notifier.errors).toEqual([]);
     });
 });
 
 describe("DmnSettingsBroadcaster.setLanguage", () => {
     it("posts the configured language as a LanguageQuery", () => {
-        const { broadcaster, editorStore, vsSettings } = createBroadcaster();
+        const { broadcaster, editor } = createBroadcaster();
 
-        broadcaster.setLanguage(EDITOR);
+        broadcaster.setLanguage(editor.id);
 
-        expect(vsSettings.getLanguage).toHaveBeenCalledOnce();
-        const [id, msg] = editorStore.postMessage.mock.calls[0];
-        expect(id).toBe(EDITOR);
+        expect(editor.posted).toHaveLength(1);
+        const [msg] = editor.posted;
         expect(msg).toBeInstanceOf(LanguageQuery);
         expect((msg as LanguageQuery).locale).toBe("de");
     });
 
     it("logs when the post rejects", async () => {
-        const { broadcaster, editorStore, notifier } = createBroadcaster();
-        editorStore.postMessage.mockRejectedValue(new Error("post failed"));
+        const { broadcaster, host, editor } = createBroadcaster();
+        editor.hidden = true;
 
-        broadcaster.setLanguage(EDITOR);
+        broadcaster.setLanguage(editor.id);
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(notifier.logError).toHaveBeenCalledOnce();
+        expect(host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
     });
 });
 
 describe("DmnSettingsBroadcaster.subscribe", () => {
-    /**
-     * Drives the registered config-change callback with a stub event whose
-     * `affectsConfiguration` only matches the given keys.
-     */
-    function fireSettingChange(
-        editorStore: { subscribeToSettingChangeEvent: ReturnType<typeof vi.fn> },
-        affected: string[],
-    ) {
-        const callback = editorStore.subscribeToSettingChangeEvent.mock.calls[0][1];
-        callback({ affectsConfiguration: (key: string) => affected.includes(key) }, EDITOR);
-    }
-
     it("re-pushes the theme, not the language, when the colorTheme setting changes", () => {
-        const { broadcaster, editorStore } = createBroadcaster();
-        const setSettings = vi.spyOn(broadcaster, "setSettings").mockResolvedValue(true);
-        const setLanguage = vi.spyOn(broadcaster, "setLanguage").mockReturnValue(undefined);
+        const { broadcaster, editor } = createBroadcaster();
 
-        broadcaster.subscribe(EDITOR);
-        fireSettingChange(editorStore, ["miragon.bpmnModeler.colorTheme"]);
+        broadcaster.subscribe(editor.id);
+        editor.changeSetting("miragon.bpmnModeler.colorTheme");
 
-        expect(setSettings).toHaveBeenCalledWith(EDITOR);
-        expect(setLanguage).not.toHaveBeenCalled();
+        expect(editor.postedOfType("DmnModelerSettingQuery")).toHaveLength(1);
+        expect(editor.postedOfType("LanguageQuery")).toHaveLength(0);
     });
 
     it("re-pushes the language, not the settings, when the language setting changes", () => {
-        const { broadcaster, editorStore } = createBroadcaster();
-        const setSettings = vi.spyOn(broadcaster, "setSettings").mockResolvedValue(true);
-        const setLanguage = vi.spyOn(broadcaster, "setLanguage").mockReturnValue(undefined);
+        const { broadcaster, editor } = createBroadcaster();
 
-        broadcaster.subscribe(EDITOR);
-        fireSettingChange(editorStore, ["miragon.bpmnModeler.language"]);
+        broadcaster.subscribe(editor.id);
+        editor.changeSetting("miragon.bpmnModeler.language");
 
-        expect(setLanguage).toHaveBeenCalledWith(EDITOR);
-        expect(setSettings).not.toHaveBeenCalled();
+        expect(editor.postedOfType("LanguageQuery")).toHaveLength(1);
+        expect(editor.postedOfType("DmnModelerSettingQuery")).toHaveLength(0);
     });
 
     it("ignores config changes outside the theme and language settings", () => {
-        const { broadcaster, editorStore } = createBroadcaster();
-        const setSettings = vi.spyOn(broadcaster, "setSettings").mockResolvedValue(true);
-        const setLanguage = vi.spyOn(broadcaster, "setLanguage").mockReturnValue(undefined);
+        const { broadcaster, editor } = createBroadcaster();
 
-        broadcaster.subscribe(EDITOR);
-        fireSettingChange(editorStore, ["miragon.bpmnModeler.alignToOrigin", "editor.fontSize"]);
+        broadcaster.subscribe(editor.id);
+        editor.changeSetting("miragon.bpmnModeler.alignToOrigin", "editor.fontSize");
 
-        expect(setSettings).not.toHaveBeenCalled();
-        expect(setLanguage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("guards a rejecting setSettings so the change listener never leaks a rejection", async () => {
-        const { broadcaster, editorStore, notifier } = createBroadcaster();
+        const { broadcaster, host, editor } = createBroadcaster();
         vi.spyOn(broadcaster, "setSettings").mockRejectedValue(new Error("post failed"));
 
-        broadcaster.subscribe(EDITOR);
-        fireSettingChange(editorStore, ["miragon.bpmnModeler.colorTheme"]);
+        broadcaster.subscribe(editor.id);
+        editor.changeSetting("miragon.bpmnModeler.colorTheme");
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(notifier.logError).toHaveBeenCalledOnce();
+        expect(host.notifier.logged("error")).toEqual(["post failed"]);
     });
 });

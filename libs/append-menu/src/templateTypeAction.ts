@@ -28,6 +28,12 @@ export interface TemplateTypeActionContext {
     target: unknown;
 }
 
+// An `elementType` fixes the created type (and its event definition), so only templates
+// without one leave the type to pick from `appliesTo`.
+export function offersTypePick(template: ElementTemplate | undefined): boolean {
+    return !!template && !template.elementType && template.appliesTo.length > 1;
+}
+
 // `bpmn:BoundaryEvent` cannot be auto-placed (it must attach to a host), so it
 // always falls through to interactive `create.start`, matching upstream's
 // `canAutoPlaceElement`.
@@ -52,10 +58,8 @@ export function executeTemplateTypeAction(
         return;
     }
 
-    // `KeyboardEvent` guarded with `typeof` because the modeler runs in browsers
-    // where it is global, but not in the node test environment.
-    const isKeyboard = typeof KeyboardEvent !== "undefined" && event instanceof KeyboardEvent;
-    const startEvent = isKeyboard ? (mouse?.getLastMoveEvent() ?? event) : event;
+    const startEvent =
+        event instanceof KeyboardEvent ? (mouse?.getLastMoveEvent() ?? event) : event;
 
     create.start(
         startEvent,

@@ -7,12 +7,14 @@
  * {@link ./navigation}) unit-testable and prevents the two columns from each
  * re-deriving their own — and therefore divergent — filtered lists.
  */
-import type {
-    EnrichedTemplateEntry,
-    BpmnElementGroup,
-    BpmnElementEntry,
-    PopupMenuEntry,
+import {
+    searchTermsOf,
+    type EnrichedTemplateEntry,
+    type BpmnElementGroup,
+    type BpmnElementEntry,
+    type PopupMenuEntry,
 } from "./types";
+import { bpmnTypeOfPlainEntry } from "./plainEntryCatalog";
 
 /** A template category surfaced as a filter chip. */
 export interface TemplateCategory {
@@ -59,17 +61,22 @@ export function filterTemplates(
             return true;
         }
         const appliesToLabels = (template?.appliesTo ?? []).map(bpmnTypeToLabel);
-        const haystack = [
-            entry.label,
-            entry.description ?? "",
-            template?.category?.name ?? "",
-            ...(entry.search ?? []),
-            ...appliesToLabels,
-        ]
-            .join(" ")
-            .toLowerCase();
-        return haystack.includes(q);
+        return fieldsInclude(
+            [
+                entry.label,
+                entry.description ?? "",
+                template?.category?.name ?? "",
+                ...searchTermsOf(entry),
+                ...appliesToLabels,
+            ],
+            q,
+        );
     });
+}
+
+/** Whether the lowercase, trimmed `query` occurs in the space-joined `fields`. */
+function fieldsInclude(fields: string[], query: string): boolean {
+    return fields.join(" ").toLowerCase().includes(query);
 }
 
 /**
@@ -114,73 +121,30 @@ export interface ProcessedPalette {
     groups: ProcessedGroup[];
 }
 
-/**
- * Fuzzy-matches a BPMN type against a palette entry's normalized label or id,
- * the same heuristic the palette uses to map types↔entries in both directions.
- */
-function typeMatchesEntry(bpmnType: string, id: string, label: string): boolean {
-    const shortName = bpmnType.split(":")[1]?.toLowerCase() ?? "";
-    const normalizedLabel = label.toLowerCase().replace(/[\s-]/g, "");
-    if (normalizedLabel === shortName) {
-        return true;
-    }
-    const normalizedId = id.toLowerCase().replace(/[\s-]/g, "");
-    return normalizedId.includes(shortName);
+function entryCreatesOneOf(entry: BpmnElementEntry, bpmnTypes: Set<string>): boolean {
+    const bpmnType = bpmnTypeOfPlainEntry(entry.id);
+    return bpmnType !== undefined && bpmnTypes.has(bpmnType);
 }
 
 /**
- * Checks whether a BPMN palette entry matches any type in a filter set.
+ * Resolves which `appliesTo` type a clicked palette entry represents, or
+ * `undefined` when the entry does not create the plain element of one of them.
  */
-function entryMatchesFilter(entry: BpmnElementEntry, filter: Set<string>): boolean {
-    for (const bpmnType of filter) {
-        if (typeMatchesEntry(bpmnType, entry.id, entry.entry.label)) {
-            return true;
-        }
-    }
-    return false;
+export function resolveSelectedType(entryId: string, appliesTo: string[]): string | undefined {
+    const bpmnType = bpmnTypeOfPlainEntry(entryId);
+    return bpmnType !== undefined && appliesTo.includes(bpmnType) ? bpmnType : undefined;
 }
 
-/**
- * Resolves which `appliesTo` type a clicked palette entry represents.
- *
- * The match order matters: exact-normalized-label equality is checked against
- * *all* candidate types first, then id-substring — otherwise `bpmn:Task` would
- * shadow `bpmn:UserTask` via `id.includes("task")`.
- */
-export function resolveSelectedType(
-    id: string,
-    label: string,
-    appliesTo: string[],
-): string | undefined {
-    const normalizedLabel = label.toLowerCase().replace(/[\s-]/g, "");
-    const byLabel = appliesTo.find(
-        (bpmnType) => (bpmnType.split(":")[1]?.toLowerCase() ?? "") === normalizedLabel,
-    );
-    if (byLabel) {
-        return byLabel;
-    }
-    const normalizedId = id.toLowerCase().replace(/[\s-]/g, "");
-    return appliesTo.find((bpmnType) =>
-        normalizedId.includes(bpmnType.split(":")[1]?.toLowerCase() ?? ""),
-    );
+/** Matches a BPMN palette entry on its label, description, and search keywords. */
+function entryMatchesSearch(entry: PopupMenuEntry, query: string): boolean {
+    return fieldsInclude([entry.label, entry.description ?? "", ...searchTermsOf(entry)], query);
 }
 
-/**
- * Checks whether a BPMN palette entry matches a search query.
- */
-function entryMatchesSearch(entry: BpmnElementEntry, query: string): boolean {
-    const haystack = [entry.entry.label, entry.entry.description ?? ""].join(" ").toLowerCase();
-    return haystack.includes(query);
-}
-
-/**
- * Finds a favourite BPMN entry by its type string among all palette entries.
- *
- * Matches on the normalized label first, then on the entry id — the same
- * fuzzy matching the palette originally used.
- */
-function findFavouriteEntry(entries: ProcessedEntry[], type: string): ProcessedEntry | undefined {
-    return entries.find((e) => typeMatchesEntry(type, e.id, e.entry.label));
+function findFavouriteEntry(
+    entries: ProcessedEntry[],
+    bpmnType: string,
+): ProcessedEntry | undefined {
+    return entries.find((e) => bpmnTypeOfPlainEntry(e.id) === bpmnType);
 }
 
 /**
@@ -207,8 +171,8 @@ export function processPaletteGroups(
             ...entry,
             disabled: false,
             hidden:
-                (appliesToFilter ? !entryMatchesFilter(entry, appliesToFilter) : false) ||
-                (query ? !entryMatchesSearch(entry, query) : false),
+                (appliesToFilter ? !entryCreatesOneOf(entry, appliesToFilter) : false) ||
+                (query ? !entryMatchesSearch(entry.entry, query) : false),
         })),
     }));
 
@@ -242,6 +206,18 @@ export interface PaletteNavItem {
     hidden: boolean;
 }
 
+export function favouriteNavKey(entryId: string): string {
+    return `fav:${entryId}`;
+}
+
+export function groupNavKey(groupId: string, entryId: string): string {
+    return `grp:${groupId}:${entryId}`;
+}
+
+export function isEntryDisabled(processed: ProcessedEntry): boolean {
+    return processed.disabled || !!processed.entry.disabled;
+}
+
 /**
  * Flattens the processed palette into the exact render order: favourites
  * first, then each group's entries. Feeds both the keyboard navigation
@@ -254,20 +230,20 @@ export function flattenPaletteItems(processed: ProcessedPalette): PaletteNavItem
     const items: PaletteNavItem[] = [];
     for (const e of processed.favouriteEntries) {
         items.push({
-            key: `fav:${e.id}`,
+            key: favouriteNavKey(e.id),
             id: e.id,
             entry: e.entry,
-            disabled: e.disabled || !!e.entry.disabled,
+            disabled: isEntryDisabled(e),
             hidden: e.hidden,
         });
     }
     for (const group of processed.groups) {
         for (const e of group.entries) {
             items.push({
-                key: `grp:${group.id}:${e.id}`,
+                key: groupNavKey(group.id, e.id),
                 id: e.id,
                 entry: e.entry,
-                disabled: e.disabled || !!e.entry.disabled,
+                disabled: isEntryDisabled(e),
                 hidden: e.hidden,
             });
         }

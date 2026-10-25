@@ -1,9 +1,12 @@
 import {
+    createInertLock,
+    HostDocumentRevisions,
     LogErrorCommand,
     LogWarningCommand,
     SyncDocumentCommand,
     UpdateFormOutputValuesCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { serializeAsync } from "@miragon/bpmn-modeler-types";
 
 import { FormHost } from "./host";
 
@@ -37,11 +40,14 @@ export interface FormEditorElements {
 export class FormEditorApp {
     private mode: "edit" | "preview" = "edit";
     private activeHostUpdates = 0;
-    private hostImportQueue: Promise<void> = Promise.resolve();
-    private previewImportQueue: Promise<void> = Promise.resolve();
-    private hostDocumentRevision = 0;
-    private latestHostDocumentRevision = 0;
-    private loadVersion = 0;
+    private readonly importSchema = serializeAsync((schema: Schema) =>
+        this.formEditor.importSchema(schema),
+    );
+    private readonly importPreviewInOrder = serializeAsync((version: number) =>
+        this.importPreview(version),
+    );
+    private readonly flushLock = createInertLock(document.body);
+    private readonly revisions = new HostDocumentRevisions();
     private previewRefreshVersion = 0;
     private sourceContent = "";
     private baseline = "";
@@ -53,7 +59,6 @@ export class FormEditorApp {
     private outputValuesContent: string | undefined;
     private previewOutputActive = false;
     private syncDeliveryTimer: ReturnType<typeof setTimeout> | undefined;
-    private inertBeforeFlush: boolean | undefined;
 
     constructor(
         private readonly formEditor: FormEditorLike,
@@ -78,9 +83,8 @@ export class FormEditorApp {
     }
 
     async load(content: string, documentRevision = 0): Promise<void> {
-        if (documentRevision < this.latestHostDocumentRevision) return;
-        this.latestHostDocumentRevision = documentRevision;
-        const version = ++this.loadVersion;
+        if (this.revisions.receive(documentRevision) === "stale") return;
+        const version = this.revisions.version;
         this.cancelPendingSync();
         this.invalidatePreview(this.baseline !== "");
 
@@ -97,15 +101,10 @@ export class FormEditorApp {
 
         this.activeHostUpdates++;
         try {
-            const importing = this.hostImportQueue.then(() => this.formEditor.importSchema(schema));
-            this.hostImportQueue = importing.then(
-                () => undefined,
-                () => undefined,
-            );
-            const result = await importing;
-            if (version !== this.loadVersion) return;
+            const result = await this.importSchema(schema);
+            if (!this.revisions.isCurrent(version)) return;
 
-            this.hostDocumentRevision = documentRevision;
+            this.revisions.markImported(documentRevision);
             this.logWarnings("Form editor", result.warnings);
             this.sourceContent = content;
             this.baseline = this.serialize(this.formEditor.saveSchema());
@@ -114,7 +113,7 @@ export class FormEditorApp {
             this.showCurrentSurface();
             if (this.mode === "preview") await this.refreshPreview();
         } catch (error) {
-            if (version === this.loadVersion) {
+            if (this.revisions.isCurrent(version)) {
                 this.showError(
                     "The form schema could not be loaded. Open the raw JSON editor to fix it.",
                     error,
@@ -134,11 +133,11 @@ export class FormEditorApp {
     }
 
     hostUpdateVersion(): number {
-        return this.loadVersion;
+        return this.revisions.version;
     }
 
     documentRevision(): number {
-        return this.hostDocumentRevision;
+        return this.revisions.representedRevision;
     }
 
     cancelPendingSync(): void {
@@ -155,16 +154,11 @@ export class FormEditorApp {
     }
 
     beginDestructiveFlush(): void {
-        if (this.inertBeforeFlush === undefined) {
-            this.inertBeforeFlush = Boolean(document.body.inert);
-            document.body.inert = true;
-        }
+        this.flushLock.acquire();
     }
 
     endDestructiveFlush(): void {
-        if (this.inertBeforeFlush === undefined) return;
-        document.body.inert = this.inertBeforeFlush;
-        this.inertBeforeFlush = undefined;
+        this.flushLock.release();
     }
 
     async exportContent(): Promise<string> {
@@ -217,7 +211,7 @@ export class FormEditorApp {
         const content = this.currentContent();
         if (!force && content === this.lastPostedContent) return false;
         this.lastPostedContent = content;
-        this.host.postMessage(new SyncDocumentCommand(content, this.hostDocumentRevision));
+        this.host.postMessage(new SyncDocumentCommand(content, this.revisions.representedRevision));
         return true;
     }
 
@@ -229,12 +223,7 @@ export class FormEditorApp {
     private async refreshPreview(): Promise<void> {
         const version = ++this.previewRefreshVersion;
         this.previewOutputActive = false;
-        const refreshing = this.previewImportQueue.then(() => this.importPreview(version));
-        this.previewImportQueue = refreshing.then(
-            () => undefined,
-            () => undefined,
-        );
-        return refreshing;
+        return this.importPreviewInOrder(version);
     }
 
     private async importPreview(version: number): Promise<void> {

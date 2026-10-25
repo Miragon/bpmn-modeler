@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
-import type { BpmnModelerHandle } from "../publicApi";
+import type { BpmnModelerHandle, ThemeMode } from "../publicApi";
 import { createModeSession } from "./modeSession";
-import type { ModelerSurfaceContext, SurfaceContext, SurfaceFactories } from "./publicApi";
+import type {
+    ModelerSurfaceContext,
+    SurfaceContext,
+    SurfaceFactories,
+    SurfaceHandle,
+} from "./publicApi";
 
 /**
  * A recording fake surface. `hasSetMode` decides whether it looks like a full
@@ -63,6 +68,20 @@ function makeSurface(opts: {
 }
 
 const container = () => document.createElement("div");
+
+const gate = () => {
+    let release!: () => void;
+    const promise = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    return { promise, release };
+};
+
+/** The theme a fake surface ends up in: its last `setTheme`, else its factory context's. */
+function appliedTheme(surface: SurfaceHandle, context: SurfaceContext): ThemeMode {
+    const { calls } = (surface as unknown as { setTheme: ReturnType<typeof vi.fn> }).setTheme.mock;
+    return (calls.at(-1)?.[0] as ThemeMode | undefined) ?? context.theme;
+}
 
 describe("createModeSession — availability & routing", () => {
     it("offers every mode a factory + the engine rule allow (tagged model)", async () => {
@@ -349,6 +368,81 @@ describe("createModeSession — theming & teardown", () => {
         await session.destroy();
         expect(log).toContain("view:destroy");
     });
+
+    it("applies a theme changed mid-recreate to the new surface", async () => {
+        const log: string[] = [];
+        const factoryStarted = gate();
+        const factoryGate = gate();
+        const built: Array<{ surface: SurfaceHandle; context: SurfaceContext }> = [];
+        const session = await createModeSession({
+            container: container(),
+            engine: "c7",
+            theme: "light",
+            initialMode: "implement",
+            surfaces: {
+                view: async (context) => {
+                    factoryStarted.release();
+                    await factoryGate.promise;
+                    const surface = makeSurface({ id: "view", hasSetMode: false, log });
+                    built.push({ surface, context });
+                    return surface;
+                },
+                implement: async (ctx: ModelerSurfaceContext) =>
+                    makeSurface({ id: "modeler", hasSetMode: true, initialMode: ctx.mode, log }),
+            },
+        });
+
+        const switching = session.requestMode("view");
+        await factoryStarted.promise;
+        session.setTheme("dark");
+        factoryGate.release();
+        await switching;
+
+        expect(session.getMode()).toBe("view");
+        expect(appliedTheme(built[0].surface, built[0].context)).toBe("dark");
+    });
+
+    it("applies a theme changed mid-fallback to the fallback surface", async () => {
+        const log: string[] = [];
+        const fallbackStarted = gate();
+        const fallbackGate = gate();
+        const built: Array<{ surface: SurfaceHandle; context: SurfaceContext }> = [];
+        const session = await createModeSession({
+            container: container(),
+            engine: "c7",
+            theme: "light",
+            initialMode: "implement",
+            onError: vi.fn(),
+            surfaces: {
+                view: async () => {
+                    throw new Error("view factory boom");
+                },
+                implement: async (context: ModelerSurfaceContext) => {
+                    if (built.length > 0) {
+                        fallbackStarted.release();
+                        await fallbackGate.promise;
+                    }
+                    const surface = makeSurface({
+                        id: `modeler#${built.length + 1}`,
+                        hasSetMode: true,
+                        initialMode: context.mode,
+                        log,
+                    });
+                    built.push({ surface, context });
+                    return surface;
+                },
+            },
+        });
+
+        const switching = session.requestMode("view");
+        await fallbackStarted.promise;
+        session.setTheme("dark");
+        fallbackGate.release();
+        await switching;
+
+        expect(session.getHandle()).toBe(built[1].surface);
+        expect(appliedTheme(built[1].surface, built[1].context)).toBe("dark");
+    });
 });
 
 const patchMethod = <T>(handle: unknown, name: string, impl: T): void => {
@@ -591,14 +685,6 @@ describe("createModeSession — fault injection", () => {
 
 describe("createModeSession — destroy during a pending switch", () => {
     const engine: DetectedEngine = "c7";
-
-    const gate = () => {
-        let release!: () => void;
-        const promise = new Promise<void>((resolve) => {
-            release = resolve;
-        });
-        return { promise, release };
-    };
 
     it("destroys the original once and skips the switch when torn down during exportDiagram", async () => {
         const log: string[] = [];

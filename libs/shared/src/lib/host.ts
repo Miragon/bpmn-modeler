@@ -11,22 +11,18 @@ import type { WebviewApi } from "vscode-webview";
  */
 export interface HostApi<T, M> {
     /**
-     * Get the current state of the webview.
-     * @throws MissingStateError if the state is missing
+     * Get the persisted state of the webview.
+     * @returns `undefined` until the first write, e.g. on a webview's first-ever open
      */
-    getState(): T;
+    getState(): T | undefined;
 
+    /** Replace the persisted state. */
     setState(state: T): void;
 
+    /** Merge `state` into the persisted state, or seed it when nothing is saved yet. */
     updateState(state: Partial<T>): void;
 
     postMessage(message: M): void;
-}
-
-export class MissingStateError extends Error {
-    constructor() {
-        super("State is missing.");
-    }
 }
 
 /**
@@ -41,10 +37,8 @@ export class HostApiImpl<T, M> implements HostApi<T, M> {
         this.host = acquireVsCodeApi();
     }
 
-    getState(): T {
-        const state = this.host.getState();
-        if (!state) throw new MissingStateError();
-        return state;
+    getState(): T | undefined {
+        return this.host.getState();
     }
 
     setState(state: T) {
@@ -54,10 +48,7 @@ export class HostApiImpl<T, M> implements HostApi<T, M> {
     }
 
     updateState(state: Partial<T>) {
-        this.setState({
-            ...this.getState(),
-            ...state,
-        });
+        this.setState(mergeState(this.getState(), state));
     }
 
     postMessage(message: M) {
@@ -70,10 +61,9 @@ export class HostApiImpl<T, M> implements HostApi<T, M> {
  * run standalone in the browser without any embedding application.
  */
 export abstract class MockHostApi<T, M> implements HostApi<T, M> {
-    protected state: T | undefined;
+    private state: T | undefined;
 
-    getState(): T {
-        if (!this.state) throw new MissingStateError();
+    getState(): T | undefined {
         return this.state;
     }
 
@@ -82,7 +72,14 @@ export abstract class MockHostApi<T, M> implements HostApi<T, M> {
         console.debug("[Debug] setState()", this.getState());
     }
 
-    abstract updateState(state: Partial<T>): void;
+    updateState(state: Partial<T>) {
+        this.setState(mergeState(this.state, state));
+    }
 
     abstract postMessage(message: M): void;
+}
+
+// A first write stores only its partial, so `T` must not require fields that write omits.
+function mergeState<T>(saved: T | undefined, partial: Partial<T>): T {
+    return { ...saved, ...partial } as T;
 }

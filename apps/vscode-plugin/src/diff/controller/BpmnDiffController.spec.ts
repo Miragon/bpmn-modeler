@@ -39,6 +39,7 @@ import { commands, workspace } from "vscode";
 
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
+import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { BpmnDiffController } from "./BpmnDiffController";
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
@@ -79,8 +80,8 @@ function createController() {
         forwardCursor: vi.fn().mockResolvedValue(undefined),
         rebroadcastLanguage: vi.fn(),
     };
-    const notifier = { logError: vi.fn(), showError: vi.fn(), showInfo: vi.fn() };
-    const controller = new BpmnDiffController(store, diffService as never, notifier as never);
+    const notifier = new RecordingNotifier();
+    const controller = new BpmnDiffController(store, diffService as never, notifier);
     return { controller, store, diffService, notifier };
 }
 
@@ -176,8 +177,8 @@ describe("BpmnDiffController.openCompareFilesDiff", () => {
             ),
         ).resolves.toBeUndefined();
 
-        expect(notifier.logError).toHaveBeenCalled();
-        expect(notifier.showError).toHaveBeenCalledWith(expect.stringContaining("boom"));
+        expect(notifier.logged("error")).toEqual(["boom"]);
+        expect(notifier.errors).toEqual(["Failed to open compare view: boom"]);
     });
 });
 

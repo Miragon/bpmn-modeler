@@ -8,13 +8,16 @@ import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
 import {
+    DisposableStore,
     installCanvasFocusIndicator,
+    MutableDisposable,
+    NoModelerError,
     observeCanvasSize,
     type ResizableCanvas,
+    ThemeController,
 } from "@miragon/bpmn-modeler-types";
 import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
-import { ThemeController } from "./theme";
 import type {
     DmnModelerHandle,
     DmnModelerOptions,
@@ -36,6 +39,8 @@ const DEFAULT_EXPRESSION_LANGUAGES = {
     ],
     defaults: { editor: "feel" },
 };
+
+const THEME_ATTRIBUTE = "data-dmn-theme";
 
 const DEFAULT_DATA_TYPES = ["string", "boolean", "integer", "long", "double", "date"];
 
@@ -82,11 +87,10 @@ interface ViewboxCanvas extends ResizableCanvas {
 /** @internal */
 export class DmnModeler implements DmnModelerHandle {
     private readonly modeler: VendorDmnModeler;
-    private readonly stopObservingSize: () => void;
+    private readonly store = new DisposableStore();
+    private readonly focusIndicator = new MutableDisposable();
+    private readonly commandStackBinding = new MutableDisposable();
     private activeEventBus?: EventBus;
-    private disposeFocusIndicator?: () => void;
-    private destroyed = false;
-
     private themeController?: ThemeController;
 
     constructor(
@@ -140,16 +144,27 @@ export class DmnModeler implements DmnModelerHandle {
             },
         });
 
+        this.store.add(() => this.modeler.destroy());
         this.modeler.on("views.changed", this.handleViewsChanged);
-        this.stopObservingSize = observeCanvasSize(
-            {
-                resized: () => {
-                    if (!this.destroyed) {
-                        this.getActiveCanvas()?.resized();
-                    }
+        this.store.add(() => this.modeler.off("views.changed", this.handleViewsChanged));
+        this.store.add(
+            observeCanvasSize(
+                {
+                    resized: () => {
+                        if (!this.store.isDisposed) {
+                            this.getActiveCanvas()?.resized();
+                        }
+                    },
                 },
+                container,
+            ),
+        );
+        this.store.add(
+            () => {
+                this.commandStackBinding.dispose();
+                this.activeEventBus = undefined;
             },
-            container,
+            () => this.focusIndicator.dispose(),
         );
     }
 
@@ -234,12 +249,16 @@ export class DmnModeler implements DmnModelerHandle {
     }
 
     setTheme(theme: DmnThemeMode): void {
-        this.assertLive();
+        if (this.store.isDisposed) {
+            return;
+        }
         if (!this.themeController) {
-            this.themeController = new ThemeController([
-                this.container,
-                this.options.propertiesPanel.parent,
-            ]);
+            const controller = new ThemeController(
+                [this.container, this.options.propertiesPanel.parent],
+                THEME_ATTRIBUTE,
+            );
+            this.themeController = controller;
+            this.store.add(() => controller.dispose());
         }
         this.themeController.setMode(theme);
     }
@@ -254,20 +273,11 @@ export class DmnModeler implements DmnModelerHandle {
     }
 
     destroy(): void {
-        if (this.destroyed) {
-            return;
-        }
-        this.destroyed = true;
-        this.disposeFocusIndicator?.();
-        this.themeController?.dispose();
-        this.modeler.off("views.changed", this.handleViewsChanged);
-        this.unbindCommandStack();
-        this.stopObservingSize();
-        this.modeler.destroy();
+        this.store.dispose();
     }
 
     private readonly handleViewsChanged = (event: DmnViewChangedEvent): void => {
-        if (this.destroyed) {
+        if (this.store.isDisposed) {
             return;
         }
 
@@ -276,22 +286,23 @@ export class DmnModeler implements DmnModelerHandle {
     };
 
     private bindActiveViewer(): void {
-        if (this.destroyed) {
+        if (this.store.isDisposed) {
             return;
         }
         const eventBus = this.getActiveViewer()?.get<EventBus>("eventBus");
         if (eventBus !== this.activeEventBus) {
-            this.unbindCommandStack();
             this.activeEventBus = eventBus;
-            this.activeEventBus?.on("commandStack.changed", this.handleContentChanged);
+            eventBus?.on("commandStack.changed", this.handleContentChanged);
+            this.commandStackBinding.set(
+                eventBus && (() => eventBus.off("commandStack.changed", this.handleContentChanged)),
+            );
             this.syncCanvasFocusIndicator();
         }
     }
 
     // Only the DRD view has diagram-js canvas focus.
     private syncCanvasFocusIndicator(): void {
-        this.disposeFocusIndicator?.();
-        this.disposeFocusIndicator = undefined;
+        this.focusIndicator.set(undefined);
 
         if (this.modeler.getActiveView()?.type !== "drd") {
             return;
@@ -303,32 +314,29 @@ export class DmnModeler implements DmnModelerHandle {
         if (!canvas || !selection || !eventBus) {
             return;
         }
-        this.disposeFocusIndicator = installCanvasFocusIndicator({
-            parent: canvas.getContainer(),
-            isFocused: () => canvas.isFocused(),
-            onFocusChanged: (listener) =>
-                eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
-            hasSelection: () => selection.get().length > 0,
-            onSelectionChanged: (listener) =>
-                eventBus.on("selection.changed", (event) =>
-                    listener(event.newSelection.length > 0),
-                ),
-        });
+        this.focusIndicator.set(
+            installCanvasFocusIndicator({
+                parent: canvas.getContainer(),
+                isFocused: () => canvas.isFocused(),
+                onFocusChanged: (listener) =>
+                    eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
+                hasSelection: () => selection.get().length > 0,
+                onSelectionChanged: (listener) =>
+                    eventBus.on("selection.changed", (event) =>
+                        listener(event.newSelection.length > 0),
+                    ),
+            }),
+        );
     }
 
     private readonly handleContentChanged = (): void => {
-        if (!this.destroyed) {
+        if (!this.store.isDisposed) {
             this.options.onContentChanged?.();
         }
     };
 
-    private unbindCommandStack(): void {
-        this.activeEventBus?.off("commandStack.changed", this.handleContentChanged);
-        this.activeEventBus = undefined;
-    }
-
     private reportWarnings(warnings: DmnWarning[]): void {
-        if (this.destroyed) {
+        if (this.store.isDisposed) {
             return;
         }
         for (const warning of warnings) {
@@ -356,8 +364,8 @@ export class DmnModeler implements DmnModelerHandle {
     }
 
     private assertLive(): void {
-        if (this.destroyed) {
-            throw new Error("DMN modeler has been destroyed");
+        if (this.store.isDisposed) {
+            throw new NoModelerError();
         }
     }
 }

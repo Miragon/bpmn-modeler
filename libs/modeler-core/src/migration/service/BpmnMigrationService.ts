@@ -132,7 +132,7 @@ export class BpmnMigrationService {
     }
 
     /**
-     * Files open in an editor are updated via {@link VsCodeDocument.write};
+     * Files open in an editor are updated via {@link DocumentPort.write};
      * files only on disk are written via {@link VsCodeWorkspace.writeFile}.
      */
     private async applyVersionUpdate(

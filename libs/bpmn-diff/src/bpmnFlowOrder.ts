@@ -5,17 +5,25 @@
  * Produces a deterministic "Start Event → End Event" ordering so the stepper
  * walks ids in flow direction rather than the arbitrary order `bpmn-js-differ`
  * reports them. The order comes from a BFS over the parsed `bpmn-moddle`
- * definitions (from each StartEvent following outgoing SequenceFlows across
- * nested containers, each flow indexed right after its source), with BPMNDI
- * bounds (visual `y` then `x`) as the tiebreaker for parallel branches and the
- * key for orphan nodes the BFS never reaches.
+ * definitions, starting at the StartEvents of the top-level processes and
+ * following outgoing SequenceFlows, each flow indexed right after its source.
+ * Every sub-process is walked as one contiguous block: an embedded one's
+ * content comes right after its shape and before its outgoing flows (entered
+ * at its own StartEvents, or at every node without an incoming flow when it
+ * has none, e.g. an ad-hoc sub-process), and each event sub-process follows
+ * its parent container's flow, shape first. A boundary event follows its host
+ * activity's outgoing flows, with its own outgoing flows right after it, so
+ * its exception path is walked like any other branch. BPMNDI bounds (visual
+ * `y` then `x`) are the tiebreaker for parallel branches and boundary events
+ * on one host, and the key for orphan nodes no walk reaches.
  *
  * Removed elements only exist on the *before* canvas, so the after-pane order
  * has no slot for them.  {@link buildRemovedAnchors} walks the before graph
  * for each removed id, picks a surviving neighbour (incoming source first,
- * outgoing target as fallback), and assigns the removed id a fractional index
- * adjacent to that anchor's position in the after order.  This places removed
- * nodes near where they sit in the flow rather than at the end.
+ * then a boundary event's host, outgoing target as fallback), and assigns the
+ * removed id a fractional index adjacent to that anchor's position in the
+ * after order.  This places removed nodes near where they sit in the flow
+ * rather than at the end.
  *
  * The ordering is a heuristic — multi-pool collaborations, complex parallel
  * gateway fan-outs, and disconnected nodes all have known limitations
@@ -42,11 +50,14 @@ export interface ModdleElement {
  * removed elements between two surviving siblings).  `y`/`x` come from BPMNDI
  * bounds and are tiebreakers for elements that share an index — most
  * commonly a parallel-gateway fork where two branches start at the same depth.
+ * `blockEndIndex` is set on a sub-process: the index of the last element of its
+ * block, so an element anchored after the sub-process lands behind its content.
  */
 export interface FlowPosition {
     flowIndex: number;
     y: number;
     x: number;
+    blockEndIndex?: number;
 }
 
 /**
@@ -54,101 +65,15 @@ export interface FlowPosition {
  *
  * The returned map covers every FlowElement reachable through `rootElements`
  * (including nested SubProcesses), plus orphan nodes appended at the end in
- * visual top-left → bottom-right order.
+ * visual top-left → bottom-right order. An orphaned sub-process still brings
+ * its content right after its shape.
  */
 export function buildFlowOrder(root: ModdleElement): Map<string, FlowPosition> {
-    const containers = collectContainers(root);
-    const bounds = collectBounds(root);
-
-    const flowElementsById = new Map<string, ModdleElement>();
-    const startEvents: ModdleElement[] = [];
-    for (const container of containers) {
-        const fes = readArray<ModdleElement>(container.flowElements);
-        for (const fe of fes) {
-            if (!fe.id) continue;
-            flowElementsById.set(fe.id, fe);
-            if (fe.$type === "bpmn:StartEvent") {
-                startEvents.push(fe);
-            }
-        }
-    }
-
-    // `bpmn-moddle` does not auto-populate `incoming`/`outgoing` on FlowNodes
-    // when references resolve via the `references` companion array — different
-    // call paths return different shapes.  Build an outgoing index from
-    // SequenceFlow.sourceRef/targetRef ourselves so the BFS works regardless.
-    const outgoingBySource = new Map<string, ModdleElement[]>();
-    for (const fe of flowElementsById.values()) {
-        if (fe.$type !== "bpmn:SequenceFlow") continue;
-        const sourceId = refId(fe.sourceRef);
-        if (!sourceId) continue;
-        const list = outgoingBySource.get(sourceId);
-        if (list) {
-            list.push(fe);
-        } else {
-            outgoingBySource.set(sourceId, [fe]);
-        }
-    }
-
-    const order = new Map<string, FlowPosition>();
-    let counter = 0;
-    const visited = new Set<string>();
-    const queue: ModdleElement[] = [];
-
-    const enqueue = (node: ModdleElement | undefined): void => {
-        if (!node?.id || visited.has(node.id)) return;
-        visited.add(node.id);
-        queue.push(node);
-    };
-
-    sortByPosition(startEvents, bounds);
-    for (const se of startEvents) enqueue(se);
-
-    while (queue.length > 0) {
-        const node = queue.shift()!;
-        const id = node.id!;
-        const b = bounds.get(id) ?? { x: 0, y: 0 };
-        order.set(id, { flowIndex: counter++, y: b.y, x: b.x });
-
-        const outgoing = outgoingBySource.get(id) ?? [];
-        // Visit parallel branches top-to-bottom, left-to-right.
-        const sorted = [...outgoing].sort((a, b) => {
-            const ta = refId(a.targetRef);
-            const tb = refId(b.targetRef);
-            const pa = (ta ? bounds.get(ta) : undefined) ?? { x: 0, y: 0 };
-            const pb = (tb ? bounds.get(tb) : undefined) ?? { x: 0, y: 0 };
-            return pa.y - pb.y || pa.x - pb.x;
-        });
-
-        for (const flow of sorted) {
-            if (flow.id && !order.has(flow.id)) {
-                const fb = bounds.get(flow.id) ?? { x: b.x, y: b.y };
-                order.set(flow.id, {
-                    flowIndex: counter++,
-                    y: fb.y,
-                    x: fb.x,
-                });
-            }
-            const targetId = refId(flow.targetRef);
-            if (targetId) enqueue(flowElementsById.get(targetId));
-        }
-    }
-
-    // Orphans: sub-graphs without a reachable start event (e.g. event
-    // sub-processes triggered by error/escalation, or genuinely disconnected
-    // nodes).  Append in visual reading order so they at least step
-    // predictably even though the flow position is unknown.
-    const orphans: ModdleElement[] = [];
-    for (const [id, fe] of flowElementsById) {
-        if (!order.has(id)) orphans.push(fe);
-    }
-    sortByPosition(orphans, bounds);
-    for (const fe of orphans) {
-        const b = bounds.get(fe.id!) ?? { x: 0, y: 0 };
-        order.set(fe.id!, { flowIndex: counter++, y: b.y, x: b.x });
-    }
-
-    return order;
+    const walk = new FlowWalk(indexFlowGraph(root), collectBounds(root));
+    const topLevelProcesses = collectTopLevelProcesses(root);
+    walk.walkContainerFlow(topLevelProcesses, topLevelProcesses.flatMap(startEventsOf));
+    walk.appendOrphans();
+    return walk.order;
 }
 
 /**
@@ -157,8 +82,11 @@ export function buildFlowOrder(root: ModdleElement): Map<string, FlowPosition> {
  * that survived the diff:
  *
  *   - incoming source → place removed just after that node (`+0.5`)
+ *   - host of a boundary event → place removed just after the host (`+0.5`)
  *   - outgoing target → place removed just before that node (`-0.5`)
  *   - flow's own source/target if the removed element is itself a sequence flow
+ *
+ * Just after a sub-process means after its whole block, content included.
  *
  * Removed ids without any surviving neighbour are omitted from the map; the
  * caller's sort then drops them to the end via the fallback index.
@@ -171,35 +99,15 @@ export function buildRemovedAnchors(
     const anchors = new Map<string, FlowPosition>();
     if (removedIds.length === 0) return anchors;
 
-    const containers = collectContainers(beforeRoot);
-    const flowElementsById = new Map<string, ModdleElement>();
-    for (const c of containers) {
-        for (const fe of readArray<ModdleElement>(c.flowElements)) {
-            if (fe.id) flowElementsById.set(fe.id, fe);
-        }
-    }
-
-    const incomingByTarget = new Map<string, ModdleElement[]>();
-    const outgoingBySource = new Map<string, ModdleElement[]>();
-    for (const fe of flowElementsById.values()) {
-        if (fe.$type !== "bpmn:SequenceFlow") continue;
-        const sourceId = refId(fe.sourceRef);
-        const targetId = refId(fe.targetRef);
-        if (sourceId) {
-            const list = outgoingBySource.get(sourceId);
-            if (list) list.push(fe);
-            else outgoingBySource.set(sourceId, [fe]);
-        }
-        if (targetId) {
-            const list = incomingByTarget.get(targetId);
-            if (list) list.push(fe);
-            else incomingByTarget.set(targetId, [fe]);
-        }
-    }
+    const { flowElementsById, incomingByTarget, outgoingBySource } = indexFlowGraph(beforeRoot);
 
     const anchorAfter = (baseId: string, offset: number): FlowPosition | undefined => {
         const p = afterOrder.get(baseId);
-        return p && { flowIndex: p.flowIndex + offset, y: p.y, x: p.x };
+        return p && { flowIndex: (p.blockEndIndex ?? p.flowIndex) + offset, y: p.y, x: p.x };
+    };
+    const anchorBefore = (baseId: string, offset: number): FlowPosition | undefined => {
+        const p = afterOrder.get(baseId);
+        return p && { flowIndex: p.flowIndex - offset, y: p.y, x: p.x };
     };
 
     for (const removedId of removedIds) {
@@ -223,23 +131,30 @@ export function buildRemovedAnchors(
             }
         }
         /**
-         * 2. Otherwise the surviving successor.
+         * 2. Removed boundary event: its surviving host.
+         */
+        if (!anchor) {
+            const hostId = refId(node.attachedToRef);
+            if (hostId && afterOrder.has(hostId)) anchor = anchorAfter(hostId, 0.5);
+        }
+        /**
+         * 3. Otherwise the surviving successor.
          */
         if (!anchor) {
             for (const flow of outgoingBySource.get(removedId) ?? []) {
                 const targetId = refId(flow.targetRef);
                 if (targetId && afterOrder.has(targetId)) {
-                    anchor = anchorAfter(targetId, -0.5);
+                    anchor = anchorBefore(targetId, 0.5);
                     break;
                 }
                 if (flow.id && afterOrder.has(flow.id)) {
-                    anchor = anchorAfter(flow.id, -0.25);
+                    anchor = anchorBefore(flow.id, 0.25);
                     break;
                 }
             }
         }
         /**
-         * 3. Removed sequence flow: anchor on its own endpoints.
+         * 4. Removed sequence flow: anchor on its own endpoints.
          */
         if (!anchor && node.$type === "bpmn:SequenceFlow") {
             const sourceId = refId(node.sourceRef);
@@ -247,7 +162,7 @@ export function buildRemovedAnchors(
             if (sourceId && afterOrder.has(sourceId)) {
                 anchor = anchorAfter(sourceId, 0.5);
             } else if (targetId && afterOrder.has(targetId)) {
-                anchor = anchorAfter(targetId, -0.5);
+                anchor = anchorBefore(targetId, 0.5);
             }
         }
 
@@ -288,6 +203,183 @@ export function sortIdsByOrder(
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
+type Point = { x: number; y: number };
+
+const ORIGIN: Point = { x: 0, y: 0 };
+
+interface FlowGraph {
+    flowElementsById: ReadonlyMap<string, ModdleElement>;
+    incomingByTarget: ReadonlyMap<string, readonly ModdleElement[]>;
+    outgoingBySource: ReadonlyMap<string, readonly ModdleElement[]>;
+    boundaryEventsByHost: ReadonlyMap<string, readonly ModdleElement[]>;
+}
+
+/**
+ * Hands out flow indices in walk order. Each element is placed at most once,
+ * so an element reachable along several paths keeps its first position.
+ */
+class FlowWalk {
+    readonly order = new Map<string, FlowPosition>();
+    private readonly claimedIds = new Set<string>();
+    private nextFlowIndex = 0;
+
+    constructor(
+        private readonly graph: FlowGraph,
+        private readonly bounds: ReadonlyMap<string, Point>,
+    ) {}
+
+    /**
+     * Walks the flow of `containers` from `entryNodes`, then each of their
+     * event sub-processes as one block.
+     */
+    walkContainerFlow(
+        containers: readonly ModdleElement[],
+        entryNodes: readonly ModdleElement[],
+    ): void {
+        this.walkFlow(entryNodes);
+        const eventSubProcesses = containers.flatMap((container) =>
+            readArray<ModdleElement>(container.flowElements).filter(isEventSubProcess),
+        );
+        for (const eventSubProcess of this.inReadingOrder(eventSubProcesses)) {
+            if (this.isUnclaimed(eventSubProcess)) this.placeNode(eventSubProcess);
+        }
+    }
+
+    /**
+     * Orphans: elements no walk reaches (e.g. compensation handlers, linked by
+     * an association rather than a sequence flow, or disconnected nodes).
+     * Appended in visual reading order so they at least step predictably even
+     * though the flow position is unknown.
+     */
+    appendOrphans(): void {
+        const orphans = [...this.graph.flowElementsById.values()].filter((flowElement) =>
+            this.isUnclaimed(flowElement),
+        );
+        for (const orphan of this.inReadingOrder(orphans)) {
+            // An orphaned sub-process has already placed its content with it.
+            if (this.isUnclaimed(orphan)) this.placeNode(orphan);
+        }
+    }
+
+    private walkFlow(entryNodes: readonly ModdleElement[]): void {
+        const queue: ModdleElement[] = [];
+        const enqueue = (node: ModdleElement | undefined): void => {
+            if (!node || !this.isUnclaimed(node)) return;
+            this.claimedIds.add(node.id!);
+            queue.push(node);
+        };
+
+        for (const node of this.inReadingOrder(entryNodes)) enqueue(node);
+
+        while (queue.length > 0) {
+            const node = queue.shift()!;
+            this.placeNode(node);
+            this.followOutgoingFlows(node, enqueue);
+            const boundaryEvents = this.graph.boundaryEventsByHost.get(node.id!) ?? [];
+            for (const boundaryEvent of this.inReadingOrder(boundaryEvents)) {
+                if (!this.isUnclaimed(boundaryEvent)) continue;
+                this.place(boundaryEvent);
+                this.followOutgoingFlows(boundaryEvent, enqueue);
+            }
+        }
+    }
+
+    private followOutgoingFlows(
+        source: ModdleElement,
+        enqueue: (target: ModdleElement | undefined) => void,
+    ): void {
+        for (const flow of this.outgoingInReadingOrder(source)) {
+            if (this.isUnclaimed(flow)) this.place(flow, this.positionOf(source.id));
+            const targetId = refId(flow.targetRef);
+            if (targetId) enqueue(this.graph.flowElementsById.get(targetId));
+        }
+    }
+
+    private placeNode(node: ModdleElement): void {
+        const position = this.place(node);
+        if (!isSubProcess(node)) return;
+        this.walkContainerFlow([node], entryNodesOf(node, this.graph));
+        position.blockEndIndex = this.nextFlowIndex - 1;
+    }
+
+    private place(element: ModdleElement, fallback: Point = ORIGIN): FlowPosition {
+        const id = element.id!;
+        const { x, y } = this.bounds.get(id) ?? fallback;
+        const position: FlowPosition = { flowIndex: this.nextFlowIndex++, y, x };
+        this.claimedIds.add(id);
+        this.order.set(id, position);
+        return position;
+    }
+
+    private isUnclaimed(element: ModdleElement): boolean {
+        return element.id !== undefined && !this.claimedIds.has(element.id);
+    }
+
+    private positionOf(id: string | undefined): Point {
+        return (id ? this.bounds.get(id) : undefined) ?? ORIGIN;
+    }
+
+    /** Parallel branches are visited top-to-bottom, left-to-right by target. */
+    private outgoingInReadingOrder(node: ModdleElement): ModdleElement[] {
+        const outgoing = this.graph.outgoingBySource.get(node.id!) ?? [];
+        return [...outgoing].sort((a, b) =>
+            compareReadingOrder(
+                this.positionOf(refId(a.targetRef)),
+                this.positionOf(refId(b.targetRef)),
+            ),
+        );
+    }
+
+    private inReadingOrder(elements: readonly ModdleElement[]): ModdleElement[] {
+        return [...elements].sort((a, b) =>
+            compareReadingOrder(this.positionOf(a.id), this.positionOf(b.id)),
+        );
+    }
+}
+
+function compareReadingOrder(a: Point, b: Point): number {
+    return a.y - b.y || a.x - b.x;
+}
+
+/**
+ * `bpmn-moddle` does not auto-populate `incoming`/`outgoing` on FlowNodes
+ * when references resolve via the `references` companion array — different
+ * call paths return different shapes.  The flow indexes are built from
+ * SequenceFlow.sourceRef/targetRef instead, so the walk works regardless.
+ */
+function indexFlowGraph(root: ModdleElement): FlowGraph {
+    const flowElementsById = new Map<string, ModdleElement>();
+    for (const container of collectContainers(root)) {
+        for (const flowElement of readArray<ModdleElement>(container.flowElements)) {
+            if (flowElement.id) flowElementsById.set(flowElement.id, flowElement);
+        }
+    }
+
+    const incomingByTarget = new Map<string, ModdleElement[]>();
+    const outgoingBySource = new Map<string, ModdleElement[]>();
+    const boundaryEventsByHost = new Map<string, ModdleElement[]>();
+    for (const flowElement of flowElementsById.values()) {
+        if (flowElement.$type === "bpmn:SequenceFlow") {
+            appendTo(outgoingBySource, refId(flowElement.sourceRef), flowElement);
+            appendTo(incomingByTarget, refId(flowElement.targetRef), flowElement);
+        } else if (isBoundaryEvent(flowElement)) {
+            appendTo(boundaryEventsByHost, refId(flowElement.attachedToRef), flowElement);
+        }
+    }
+    return { flowElementsById, incomingByTarget, outgoingBySource, boundaryEventsByHost };
+}
+
+function appendTo(
+    index: Map<string, ModdleElement[]>,
+    key: string | undefined,
+    element: ModdleElement,
+): void {
+    if (!key) return;
+    const list = index.get(key);
+    if (list) list.push(element);
+    else index.set(key, [element]);
+}
+
 function collectContainers(root: ModdleElement): ModdleElement[] {
     const containers: ModdleElement[] = [];
     const visit = (el: ModdleElement): void => {
@@ -311,21 +403,63 @@ function collectContainers(root: ModdleElement): ModdleElement[] {
     return containers;
 }
 
+/** Root processes and the processes behind collaboration participants, once each. */
+function collectTopLevelProcesses(root: ModdleElement): ModdleElement[] {
+    const processes = new Set<ModdleElement>();
+    for (const rootElement of readArray<ModdleElement>(root.rootElements)) {
+        if (rootElement.$type === "bpmn:Process") processes.add(rootElement);
+        for (const participant of readArray<ModdleElement>(rootElement.participants)) {
+            const process = participant.processRef as ModdleElement | undefined;
+            if (process) processes.add(process);
+        }
+    }
+    return [...processes];
+}
+
+function startEventsOf(container: ModdleElement): ModdleElement[] {
+    return readArray<ModdleElement>(container.flowElements).filter(
+        (flowElement) => flowElement.$type === "bpmn:StartEvent",
+    );
+}
+
+function entryNodesOf(subProcess: ModdleElement, graph: FlowGraph): ModdleElement[] {
+    const startEvents = startEventsOf(subProcess);
+    if (startEvents.length > 0) return startEvents;
+    return readArray<ModdleElement>(subProcess.flowElements).filter(
+        (flowElement) =>
+            flowElement.$type !== "bpmn:SequenceFlow" &&
+            !isEventSubProcess(flowElement) &&
+            !isBoundaryEvent(flowElement) &&
+            !graph.incomingByTarget.has(flowElement.id ?? ""),
+    );
+}
+
 function isContainer(el: ModdleElement): boolean {
+    return el.$type === "bpmn:Process" || isSubProcess(el);
+}
+
+function isBoundaryEvent(el: ModdleElement): boolean {
+    return el.$type === "bpmn:BoundaryEvent";
+}
+
+function isSubProcess(el: ModdleElement): boolean {
     return (
-        el.$type === "bpmn:Process" ||
         el.$type === "bpmn:SubProcess" ||
         el.$type === "bpmn:AdHocSubProcess" ||
         el.$type === "bpmn:Transaction"
     );
 }
 
+function isEventSubProcess(el: ModdleElement): boolean {
+    return isSubProcess(el) && el.triggeredByEvent === true;
+}
+
 /**
  * Reads BPMNDI bounds keyed by `bpmnElement.id`, using waypoint midpoints as
  * a fallback for edges (which carry `waypoint` instead of `bounds`).
  */
-function collectBounds(root: ModdleElement): Map<string, { x: number; y: number }> {
-    const result = new Map<string, { x: number; y: number }>();
+function collectBounds(root: ModdleElement): Map<string, Point> {
+    const result = new Map<string, Point>();
     for (const diagram of readArray<ModdleElement>(root.diagrams)) {
         const plane = diagram.plane as ModdleElement | undefined;
         if (!plane) continue;
@@ -340,7 +474,7 @@ function collectBounds(root: ModdleElement): Map<string, { x: number; y: number 
                 continue;
             }
 
-            const wps = readArray<{ x: number; y: number }>(pe.waypoint);
+            const wps = readArray<Point>(pe.waypoint);
             if (wps.length > 0) {
                 let sumX = 0;
                 let sumY = 0;
@@ -374,15 +508,4 @@ function refId(ref: unknown): string | undefined {
 
 function readArray<T>(value: unknown): T[] {
     return Array.isArray(value) ? (value as T[]) : [];
-}
-
-function sortByPosition(
-    nodes: ModdleElement[],
-    bounds: ReadonlyMap<string, { x: number; y: number }>,
-): void {
-    nodes.sort((a, b) => {
-        const ba = (a.id ? bounds.get(a.id) : undefined) ?? { x: 0, y: 0 };
-        const bb = (b.id ? bounds.get(b.id) : undefined) ?? { x: 0, y: 0 };
-        return ba.y - bb.y || ba.x - bb.x;
-    });
 }

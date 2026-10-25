@@ -11,6 +11,10 @@ import {
 import { CamundaEnginePort } from "../domain/ports";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { DeploymentTarget } from "../domain/deploymentTarget";
+import { loggableHost } from "../domain/urlTemplate";
+import { CredentialApprovalService } from "./CredentialApprovalService";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 import { Engine } from "@miragon/bpmn-modeler-types";
 /**
@@ -37,6 +41,8 @@ export class StartInstanceService {
         private readonly notifier: NotifierPort,
         private readonly picker: PickerPort,
         private readonly artifactService: ArtifactService,
+        private readonly envResolver: EnvValueResolver,
+        private readonly credentialApproval: CredentialApprovalService,
     ) {}
 
     /**
@@ -86,6 +92,8 @@ export class StartInstanceService {
      * @param auth Authentication configuration.
      * @param payloadFilePath Absolute path to a JSON payload file, or empty string for no payload.
      * @param startInstanceUrl Optional full-URL override for the start-instance call.
+     * @param documentDir Directory anchoring the `.env` lookup for env refs.
+     * @param target The named target the request was validated against; ad-hoc when absent.
      * @returns The outcome of the start-instance attempt.
      */
     async startInstance(
@@ -94,7 +102,9 @@ export class StartInstanceService {
         engine: Engine,
         auth: AuthConfig,
         payloadFilePath: string,
-        startInstanceUrl?: string,
+        startInstanceUrl: string | undefined,
+        documentDir: string | undefined,
+        target: DeploymentTarget | undefined,
     ): Promise<StartInstanceResult> {
         try {
             let payload: Record<string, unknown> | null = null;
@@ -112,8 +122,26 @@ export class StartInstanceService {
                 payload,
                 startInstanceUrl,
             );
+            const lookup = await this.envResolver.createLookup(
+                target === undefined ? "workspaceFolder" : "targetsFile",
+                documentDir,
+                config,
+            );
+            const requestConfig = config.expandEnvRefs(lookup);
+            // A typed ad-hoc request is the user's own choice; one carrying `.env` values is not.
+            if (target !== undefined || requestConfig.carriesEnvValues()) {
+                await this.credentialApproval.ensureApproved(
+                    target,
+                    documentDir,
+                    requestConfig.sensitiveDestinations(),
+                );
+            }
 
-            return await this.restClient.startInstance(config);
+            // Breadcrumb. Host[:port] of the resolved URL only — never the full URL or auth payload.
+            this.notifier.logInfo(
+                `Instance start requested: ${processDefinitionKey} @ ${loggableHost(requestConfig.startInstanceUrl ?? requestConfig.endpoint)}`,
+            );
+            return await this.restClient.startInstance(requestConfig);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(message));

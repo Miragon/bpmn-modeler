@@ -1,63 +1,39 @@
-# Form Editing
+# Forms
 
-The Miragon BPMN Modeler opens `.form` files in a visual Camunda Form editor
-powered by [bpmn.io form-js](https://bpmn.io/toolkit/form-js/). Build forms for
-User Tasks, preview them, and test their input and output data without leaving VS Code.
+Build Camunda Forms for user tasks in a visual editor ([form-js](https://bpmn.io/toolkit/form-js/)), preview them and test their data inside VS Code.
 
 ## Create or open a form
 
-1. Open the Command Palette.
-2. Run **Miragon BPMN Modeler: New Form**.
-3. Choose a location and filename. The extension adds the `.form` suffix when
-   you omit it.
-4. Add and configure components in the visual editor, then save the file.
+Run **Miragon BPMN Modeler: New Form**, choose a location and a name (`.form` is added if you leave it out), then add components and save. Existing `.form` files open in the visual editor; an empty `.form` file is initialised with a valid empty form.
 
-Existing `.form` files open in the visual editor automatically. You can also
-create an empty `.form` file; the editor initializes it with a valid empty form
-schema when you open it.
-
-Run **Miragon BPMN Modeler: Toggle Standard Text Editor** or press
-<kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> to inspect or edit
-the underlying JSON beside the visual editor.
+To see the JSON beside the editor, run **Miragon BPMN Modeler: Toggle Standard Text Editor** or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>.
 
 ## Edit and preview
 
-Use the toolbar at the top of the Form Editor to switch between two modes:
+The toolbar switches between two modes. Both keep your unsaved changes; save the file to keep them.
 
-- **Edit** opens the form-js modeler for adding fields, arranging the layout,
-  and changing component properties.
-- **Preview** renders the current form as users will see it. You can interact
-  with its fields before saving the form.
+| Mode | Use |
+|---|---|
+| **Edit** | Add fields, arrange the layout, change component properties. |
+| **Preview** | Use the form as a user would see it. |
 
-Switching modes keeps your current form changes. Save the `.form` file to
-persist them.
+## Test input and output data
 
-## Test input and output values
+| Command (also in the editor title bar) | Opens |
+|---|---|
+| **Miragon BPMN Modeler: Toggle Form Input Values** | A writable `<form-name>.input.json` tab. Enter a JSON object as process variables; the preview updates as you type. |
+| **Miragon BPMN Modeler: Toggle Form Output Values** | A read-only `<form-name>.output.json` tab with the values the preview would submit, updated live. |
 
-Use the Form Editor title buttons or run these commands from the Command
-Palette:
+Test data lives only for the open editor session. It is not written to the workspace or the `.form` file and is gone when you close the form.
 
-- **Miragon BPMN Modeler: Toggle Form Input Values** opens a writable
-  `<form-name>.input.json` tab. Enter a valid JSON object to provide process
-  variables to the preview. Valid changes appear in the preview immediately.
-- **Miragon BPMN Modeler: Toggle Form Output Values** opens a read-only
-  `<form-name>.output.json` tab. It shows the values that the current preview
-  would submit and updates while you interact with the form.
+## Open a form from a user task
 
-Input and output values exist only for the current open Form Editor session.
-The extension does not write these companion documents to your workspace or
-store them in the `.form` file. Closing the form discards the test values.
+1. Set the user task's **Form ID** to the top-level `id` of the form.
+2. Select the user task and click **Navigate to referenced model** in the context pad, or press <kbd>G</kbd>.
 
-## Open a form from a User Task
+The form `id` identifies the file, not the file name. If several forms share an id, the modeler asks which one to open.
 
-The extension can resolve a User Task's form declaration and open the
-matching `.form` file:
+## Next steps
 
-1. Save the `.form` file in the workspace and note its top-level `id` value.
-2. Select the User Task in the BPMN diagram.
-3. Set the User Task's **Form ID** to the same value as the form's `id`.
-4. Click **Navigate to referenced model** in the User Task's context pad, or
-   press <kbd>G</kbd> while the task is selected.
-
-The Form ID, not the filename, identifies the target. If more than one form
-uses the same ID, the extension asks which file to open.
+- [Jump to code and models](/vscode/features/code-navigation): open a form from its user task.
+- [Deployment](/vscode/features/deployment): deploy the form with its process.

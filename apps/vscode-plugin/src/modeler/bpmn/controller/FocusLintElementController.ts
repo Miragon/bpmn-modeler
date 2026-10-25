@@ -1,9 +1,8 @@
 import { commands, ExtensionContext, Uri } from "vscode";
 
 import { BPMN_VIEW_TYPE, EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { FocusElementQuery } from "@miragon/bpmn-modeler-shared";
-
-import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
 
 // VS Code command ID behind a bpmnlint diagnostic's clickable code link.
 export const FOCUS_LINT_ELEMENT_CMD = "bpmn-modeler.focusLintElement";
@@ -18,7 +17,7 @@ export const FOCUS_LINT_ELEMENT_CMD = "bpmn-modeler.focusLintElement";
 export class FocusLintElementController {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     register(context: ExtensionContext): void {

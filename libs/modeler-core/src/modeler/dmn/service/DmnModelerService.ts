@@ -1,92 +1,69 @@
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { ModelerSession } from "../../../shared/domain/session";
 import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../../shared/domain/hostPorts";
+import { EditorDocumentSync } from "../../../shared/infrastructure/EditorDocumentSync";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 import { EMPTY_DMN_DIAGRAM } from "../domain/emptyDmn";
 
 export class DmnModelerService {
-    private readonly sessions: Map<string, ModelerSession> = new Map();
+    private readonly documents: EditorDocumentSync;
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: DocumentPort,
+        document: DocumentPort,
         private readonly notifier: NotifierPort,
-    ) {}
+    ) {
+        this.documents = new EditorDocumentSync(editorStore, document);
+    }
 
     registerSession(editorId: string): void {
-        this.sessions.set(editorId, new ModelerSession(editorId));
+        this.documents.register(editorId);
     }
 
     disposeSession(editorId: string): void {
-        this.sessions.delete(editorId);
+        this.documents.dispose(editorId);
     }
 
     async display(editorId: string, hostUpdated = false): Promise<boolean> {
         try {
-            const session = this.sessions.get(editorId);
-            let dmnFile = this.vsDocument.getContent(editorId);
-            if (session?.isGuarded(dmnFile)) return false;
-            if (hostUpdated) this.editorStore.markHostDocumentUpdated(editorId);
-            const documentRevision = this.editorStore.currentHostDocumentRevision(editorId);
-
-            if (dmnFile === "") {
-                dmnFile = EMPTY_DMN_DIAGRAM;
-                session?.acquireGuard(dmnFile);
-                try {
-                    await this.vsDocument.write(editorId, dmnFile, documentRevision);
-                } finally {
-                    session?.releaseGuard(dmnFile);
-                }
-                await this.vsDocument.save(editorId);
+            const snapshot = this.documents.read(editorId, hostUpdated);
+            if (!snapshot) return false;
+            let content: string | undefined = snapshot.content;
+            if (content === "") {
+                content = await this.documents.initializeEmpty(
+                    editorId,
+                    snapshot,
+                    hostUpdated,
+                    () => EMPTY_DMN_DIAGRAM,
+                );
+                if (content === undefined) return false;
             }
-
             return await this.editorStore.postMessage(
                 editorId,
-                new DmnFileQuery(dmnFile, documentRevision),
+                new DmnFileQuery(content, snapshot.revision),
             );
         } catch (error) {
-            if (error instanceof UserCancelledError) {
+            if (error instanceof UserCancelledError || isHiddenEditorError(error)) {
                 return false;
             }
-            if (isHiddenEditorError(error)) {
-                return false;
-            }
-            return this.handleError(error as Error);
+            this.notifier.notifyError(
+                "A problem occurred while trying to display the DMN Modeler.",
+                error as Error,
+            );
+            return false;
         }
     }
 
     async sync(editorId: string, content: string, documentRevision?: number): Promise<boolean> {
-        const session = this.sessions.get(editorId);
-        if (!this.editorStore.isHostDocumentRevisionCurrent(editorId, documentRevision)) {
+        try {
+            return await this.documents.sync(editorId, content, documentRevision);
+        } catch (error) {
+            this.notifier.notifyError(
+                "A problem occurred while trying to sync the DMN file.",
+                error as Error,
+            );
             return false;
         }
-        // Guard around the write so the resulting document-change event is
-        // recognised as our own echo and not re-rendered.
-        session?.acquireGuard(content);
-        try {
-            return await this.vsDocument.write(editorId, content, documentRevision);
-        } catch (error) {
-            return this.handleSyncError(error as Error);
-        } finally {
-            session?.releaseGuard(content);
-        }
-    }
-
-    private handleError(error: Error): boolean {
-        this.notifier.logError(error);
-        this.notifier.showError(
-            `A problem occurred while trying to display the DMN Modeler.\n${error.message ?? error}`,
-        );
-        return false;
-    }
-
-    private handleSyncError(error: Error): boolean {
-        this.notifier.logError(error);
-        this.notifier.showError(
-            `A problem occurred while trying to sync the DMN file.\n${error.message}`,
-        );
-        return false;
     }
 }

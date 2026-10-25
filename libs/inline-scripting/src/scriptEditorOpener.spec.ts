@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Element, ListenerModdle, ModdleElement } from "./bpmnTypes";
 import { ScriptEditorOpener } from "./scriptEditorOpener";
-import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
 
 // ---------------------------------------------------------------------------
 // Test harness

@@ -118,6 +118,40 @@ describe("ScriptXmlService.applyScriptContents", () => {
         expect(out).toBeUndefined();
     });
 
+    it("returns undefined for a script-task update addressed at an element that is no longer a bpmn:ScriptTask", async () => {
+        const svc = new ScriptXmlService();
+
+        const out = await svc.applyScriptContents(FIXTURE, [
+            {
+                elementId: "User_1",
+                kind: "script-task",
+                listenerIndex: undefined,
+                content: "x = 2",
+            },
+        ]);
+
+        expect(out).toBeUndefined();
+    });
+
+    it("applies a listener update in the same batch as a script-task update to a morphed element", async () => {
+        const svc = new ScriptXmlService();
+
+        const out = await svc.applyScriptContents(FIXTURE, [
+            {
+                elementId: "User_1",
+                kind: "script-task",
+                listenerIndex: undefined,
+                content: "x = 2",
+            },
+            { elementId: "User_1", kind: "task-listener", listenerIndex: 0, content: "tl0-new" },
+        ]);
+
+        expect(out).toBeDefined();
+        expect(out).toContain("tl0-new");
+        expect(out).toMatch(/<bpmn:userTask id="User_1">/);
+        expect(out).not.toContain("x = 2");
+    });
+
     it("returns undefined for an out-of-range listener index", async () => {
         const svc = new ScriptXmlService();
 

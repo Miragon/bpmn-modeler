@@ -1,13 +1,6 @@
 ---
 name: i18n-translate
-description: >
-  Add or complete translations for the BPMN/DMN modeler UI in the miranum-ide project. Use this skill
-  whenever the user wants to add a new language, translate missing keys for an existing locale, fill an
-  untranslated modeler UI string, add or maintain the local translation overlay in `libs/bpmn-i18n-extras/`,
-  or register a new locale in the i18n system. Also trigger when the user mentions locale codes, language
-  names, the language QuickPick, `i18n.extend`, `supportedModelerLanguages`, script-lock badge strings
-  ("Read-only", "Being edited in"), or talks about translating modeler UI strings in this repository —
-  even if they assume the translations live locally.
+description: Adds or completes modeler UI translations, including the local overlay in libs/bpmn-i18n-extras and new locale registration. Use when adding a language or translating a missing or untranslated string.
 ---
 
 # i18n Translation Skill

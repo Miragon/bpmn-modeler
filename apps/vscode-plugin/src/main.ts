@@ -1,7 +1,7 @@
-import { env, ExtensionContext, Uri, window } from "vscode";
+import { ExtensionContext } from "vscode";
 
-import { LoggerPort } from "@miragon/bpmn-modeler-core";
 import { setContext } from "./shared/infrastructure/extensionContext";
+import { notifyIfNewRelease } from "./shared/infrastructure/releaseNotes";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";
@@ -36,7 +36,11 @@ export function activate(context: ExtensionContext): TestApi {
 
     const deps = buildSharedDeps(context);
     // Below buildSharedDeps so the release check can log through the notifier.
-    notifyIfNewRelease(context, deps.notifier);
+    void notifyIfNewRelease(
+        context.extension.packageJSON.version,
+        context.globalState,
+        deps.notifier,
+    );
     const { diffController, diffStore } = diffFeature.register(context, deps);
     const { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant } =
         scriptFeature.register(context, deps);
@@ -75,38 +79,4 @@ export function activate(context: ExtensionContext): TestApi {
             },
         },
     };
-}
-
-const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";
-const LAST_NOTIFIED_KEY = "lastNotifiedVersion";
-
-function notifyIfNewRelease(context: ExtensionContext, logger: LoggerPort): void {
-    const current: string = context.extension.packageJSON.version;
-    const last = context.globalState.get<string>(LAST_NOTIFIED_KEY);
-
-    if (current === last) {
-        return;
-    }
-
-    // Persist before showing so a crash/dismiss never re-triggers the prompt.
-    // A rejected update means the prompt may repeat next launch — log it rather
-    // than let the write float away silently.
-    Promise.resolve(context.globalState.update(LAST_NOTIFIED_KEY, current)).catch((error) => {
-        logger.logError(error instanceof Error ? error : new Error(String(error)));
-    });
-
-    window
-        .showInformationMessage(
-            `BPMN Modeler updated to v${current}. See what's new!`,
-            "View Release Notes",
-        )
-        .then((selection) => {
-            if (selection === "View Release Notes") {
-                return env.openExternal(Uri.parse(`${RELEASES_BASE}/vscode-v${current}`));
-            }
-            return undefined;
-        })
-        .then(undefined, (error) => {
-            logger.logError(error instanceof Error ? error : new Error(String(error)));
-        });
 }

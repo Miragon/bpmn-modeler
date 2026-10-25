@@ -8,9 +8,7 @@ describe("parseVariableManifest", () => {
     it("maps entries to authored variables with name, type, and description", () => {
         const vars = parseVariableManifest(
             JSON.stringify({
-                variables: [
-                    { name: "orderId", type: "String", description: "Set by REST start" },
-                ],
+                variables: [{ name: "orderId", type: "String", description: "Set by REST start" }],
             }),
             MANIFEST,
         );

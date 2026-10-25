@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RepositoryAccessError, RepositorySource, RepositorySourceConfig } from "../domain/ports";
+import { createTestHost } from "../../testing";
+import {
+    RepositoryAccessError,
+    RepositorySource,
+    RepositorySourceConfig,
+    RepositorySourceFactory,
+} from "../domain/ports";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 const MANIFEST = JSON.stringify({
@@ -11,37 +17,51 @@ const MANIFEST = JSON.stringify({
 });
 
 /**
- * Wires the service to fakes. `sources` maps a serialized config key to a
- * scripted {@link RepositorySource}, so each fetched repo/subtree can return its
- * own files (or throw) independently. The marketplace-root source (path `""`)
- * serves `marketplace.json`.
+ * Builds a service over `factory` and the in-memory host. `tokenAnswers` scripts
+ * the prompt per host (an unanswered host declines); `storedTokens` seeds the
+ * token store.
  */
-function createService(opts: { manifest?: string | Error } = {}) {
+function serviceOver(
+    factory: RepositorySourceFactory,
+    {
+        tokenAnswers,
+        storedTokens = {},
+    }: { tokenAnswers?: Record<string, string>; storedTokens?: Record<string, string> } = {},
+) {
+    const host = createTestHost({ tokenAnswers });
+    for (const [tokenHost, token] of Object.entries(storedTokens)) {
+        host.tokens.tokens.set(tokenHost, token);
+    }
     const cache = {
         write: vi.fn().mockResolvedValue(undefined),
         getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
         prune: vi.fn().mockResolvedValue([]),
     };
-    const settings = { getMarketplaces: vi.fn().mockReturnValue([]) };
-    const notifier = {
-        logWarning: vi.fn(),
-        logDebug: vi.fn(),
-        logInfo: vi.fn(),
-        logError: vi.fn(),
+    const service = new TemplateMarketplaceService(
+        factory,
+        cache as never,
+        host.settings,
+        host.notifier,
+        host.tokens,
+        host.tokenPrompt,
+        "/home/test",
+    );
+    return {
+        service,
+        cache,
+        settings: host.settings,
+        notifier: host.notifier,
+        tokens: host.tokens,
+        tokenPrompt: host.tokenPrompt,
     };
+}
 
-    // Map-backed token store so a granted prompt is observable on the next
-    // `getToken`; the prompt stub declines by default (tests override it).
-    const stored = new Map<string, string>();
-    const tokens = {
-        getToken: vi.fn(async (host: string) => stored.get(host)),
-        setToken: vi.fn(async (host: string, token: string) => void stored.set(host, token)),
-    };
-    const tokenPrompt = {
-        promptForToken: vi.fn<() => Promise<string | undefined>>(async () => undefined),
-    };
-
-    const sourceFor = (config: RepositorySourceConfig): RepositorySource => {
+/**
+ * Wires the service to a factory whose marketplace-root source (path `""`)
+ * serves `marketplace.json` and whose every other source serves one file.
+ */
+function createService(opts: { manifest?: string | Error } = {}) {
+    const sourceFactory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
@@ -57,27 +77,8 @@ function createService(opts: { manifest?: string | Error } = {}) {
             listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
             fetchFile: vi.fn().mockResolvedValue(`{"from":"${config.path}"}`),
         };
-    };
-    const sourceFactory = vi.fn(sourceFor);
-
-    const service = new TemplateMarketplaceService(
-        sourceFactory as never,
-        cache as never,
-        settings as never,
-        notifier as never,
-        tokens as never,
-        tokenPrompt as never,
-        "/home/test",
-    );
-    return { service, cache, settings, notifier, sourceFactory, tokens, tokenPrompt, stored };
-}
-
-/** Inert token store + prompt for tests that never exercise the auth path. */
-function noAuth() {
-    return {
-        tokens: { getToken: vi.fn(async () => undefined), setToken: vi.fn() },
-        tokenPrompt: { promptForToken: vi.fn(async () => undefined) },
-    };
+    });
+    return { ...serviceOver(sourceFactory), sourceFactory };
 }
 
 /**
@@ -133,42 +134,6 @@ function tokenGatedFactory(opts: {
     });
 }
 
-/** Builds a service over `factory` with a Map-backed token store + prompt stub. */
-function serviceOver(
-    factory: ReturnType<typeof vi.fn>,
-    prompt: () => Promise<string | undefined>,
-    seededTokens: Record<string, string> = {},
-) {
-    const cache = {
-        write: vi.fn().mockResolvedValue(undefined),
-        getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
-        prune: vi.fn().mockResolvedValue([]),
-    };
-    const notifier = {
-        logWarning: vi.fn(),
-        logDebug: vi.fn(),
-        logInfo: vi.fn(),
-        logError: vi.fn(),
-    };
-    const stored = new Map<string, string>(Object.entries(seededTokens));
-    const tokens = {
-        getToken: vi.fn(async (host: string) => stored.get(host)),
-        setToken: vi.fn(async (host: string, token: string) => void stored.set(host, token)),
-    };
-    const tokenPrompt = { promptForToken: vi.fn(prompt) };
-    const settings = { getMarketplaces: vi.fn().mockReturnValue([]) };
-    const service = new TemplateMarketplaceService(
-        factory as never,
-        cache as never,
-        settings as never,
-        notifier as never,
-        tokens as never,
-        tokenPrompt as never,
-        "/home/test",
-    );
-    return { service, cache, notifier, tokens, tokenPrompt, stored, settings };
-}
-
 beforeEach(() => {
     vi.clearAllMocks();
 });
@@ -195,7 +160,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             "resources/t.json",
             expect.any(String),
         );
-        expect(notifier.logInfo).toHaveBeenCalledWith(
+        expect(notifier.logged("info")).toContain(
             "Marketplace added: https://github.com/acme/templates (2 template file(s) cached)",
         );
     });
@@ -238,16 +203,6 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         // A github-registered marketplace whose manifest points at an external
         // local folder via `provider: "local"`. The root (manifest) read uses the
         // github config; the local source resolves to its own expanded directory.
-        const cache = {
-            write: vi.fn().mockResolvedValue(undefined),
-            getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
-        };
-        const notifier = {
-            logWarning: vi.fn(),
-            logDebug: vi.fn(),
-            logInfo: vi.fn(),
-            logError: vi.fn(),
-        };
         const manifest = JSON.stringify({
             sources: [{ provider: "local", path: "~/ext-templates" }],
         });
@@ -262,15 +217,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
-        const service = new TemplateMarketplaceService(
-            factory as never,
-            cache as never,
-            { getMarketplaces: vi.fn() } as never,
-            notifier as never,
-            noAuth().tokens as never,
-            noAuth().tokenPrompt as never,
-            "/home/test",
-        );
+        const { service, cache } = serviceOver(factory);
 
         await service.addMarketplace("https://github.com/acme/templates");
 
@@ -301,8 +248,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
     });
 
     it("skips a failing source, warns, and keeps caching the rest (D8)", async () => {
-        const { cache, notifier } = createService();
-        // Re-wire a factory where the github source (index 1) fails to list.
+        // A factory where the github source (index 1) fails to list.
         const failingFactory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
             if (config.path === "") {
                 return {
@@ -321,20 +267,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const service = new TemplateMarketplaceService(
-            failingFactory as never,
-            cache as never,
-            { getMarketplaces: vi.fn() } as never,
-            notifier as never,
-            noAuth().tokens as never,
-            noAuth().tokenPrompt as never,
-            "/home/test",
-        );
+        const { service, cache, notifier } = serviceOver(failingFactory);
 
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(cache.write).toHaveBeenCalledTimes(1); // only the relative source
-        expect(notifier.logWarning).toHaveBeenCalledOnce();
+        expect(notifier.logged("warning")).toHaveLength(1);
     });
 
     it("caches a supported source but warns and skips an unknown content type", async () => {
@@ -359,7 +297,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             "element-templates/t.json",
             expect.any(String),
         );
-        expect(notifier.logWarning).toHaveBeenCalledWith(
+        expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining('content type "palette-entries" is not supported'),
         );
     });
@@ -379,11 +317,11 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                       fetchFile: vi.fn(),
                   },
         );
-        const { service, notifier } = serviceOver(factory, async () => undefined);
+        const { service, notifier } = serviceOver(factory);
 
         await service.addMarketplace("/Users/me/templates");
 
-        expect(notifier.logWarning).toHaveBeenCalledWith(
+        expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining("has no template files (local folder /Users/me/templates)"),
         );
     });
@@ -392,18 +330,16 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
 describe("TemplateMarketplaceService.updateAll", () => {
     it("re-fetches every registered marketplace", async () => {
         const { service, settings, cache, notifier } = createService();
-        settings.getMarketplaces.mockReturnValue([
+        settings.values.marketplaces = [
             "https://github.com/acme/one",
             "https://github.com/acme/two",
-        ]);
+        ];
 
         const outcome = await service.updateAll();
 
         expect(outcome).toEqual({ succeeded: 2, failures: [] });
-        expect(notifier.logInfo).toHaveBeenCalledWith("Updating 2 marketplace(s)");
-        expect(notifier.logInfo).toHaveBeenCalledWith(
-            "Marketplace update finished: 2 of 2 succeeded",
-        );
+        expect(notifier.logged("info")).toContain("Updating 2 marketplace(s)");
+        expect(notifier.logged("info")).toContain("Marketplace update finished: 2 of 2 succeeded");
         expect(cache.write).toHaveBeenCalledWith(
             "acme__one",
             0,
@@ -422,7 +358,7 @@ describe("TemplateMarketplaceService.updateAll", () => {
 
     it("never throws when a marketplace fails — logs and continues (D8)", async () => {
         const { service, settings, notifier } = createService({ manifest: new Error("offline") });
-        settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
+        settings.values.marketplaces = ["https://github.com/acme/one"];
 
         const outcome = await service.updateAll();
         expect(outcome).toEqual({
@@ -434,7 +370,7 @@ describe("TemplateMarketplaceService.updateAll", () => {
                 },
             ],
         });
-        expect(notifier.logWarning).toHaveBeenCalledOnce();
+        expect(notifier.logged("warning")).toHaveLength(1);
     });
 
     it("reports a manifest-level failure in the outcome while the healthy one succeeds", async () => {
@@ -455,11 +391,11 @@ describe("TemplateMarketplaceService.updateAll", () => {
                     ),
             };
         });
-        const { service, settings } = serviceOver(factory, async () => undefined);
-        settings.getMarketplaces.mockReturnValue([
+        const { service, settings } = serviceOver(factory);
+        settings.values.marketplaces = [
             "https://github.com/acme/one",
             "https://github.com/acme/two",
-        ]);
+        ];
 
         const outcome = await service.updateAll();
 
@@ -474,7 +410,7 @@ describe("TemplateMarketplaceService.updateAll", () => {
 
     it("prunes after a fetch failure, keeping the still-registered marketplace's slot", async () => {
         const { service, settings, cache } = createService({ manifest: new Error("offline") });
-        settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
+        settings.values.marketplaces = ["https://github.com/acme/one"];
 
         await service.updateAll();
 
@@ -489,13 +425,13 @@ describe("TemplateMarketplaceService.updateAll", () => {
         const { service, settings, cache, notifier } = createService();
         // An object entry with no valid provider fails parseMarketplaceEntry, so
         // its id is unknown — pruning would risk deleting a valid slot.
-        settings.getMarketplaces.mockReturnValue([{ provider: "bogus" } as never]);
+        settings.values.marketplaces = [{ provider: "bogus" } as never];
 
         const outcome = await service.updateAll();
 
         expect(outcome.failures).toHaveLength(1);
         expect(cache.prune).not.toHaveBeenCalled();
-        expect(notifier.logDebug).toHaveBeenCalledWith(
+        expect(notifier.logged("debug")).toContainEqual(
             expect.stringContaining("Skipped marketplace cache prune"),
         );
     });
@@ -504,7 +440,7 @@ describe("TemplateMarketplaceService.updateAll", () => {
 describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
     it("prunes using the ids parsed from current settings and returns the pruned ids", async () => {
         const { service, settings, cache } = createService();
-        settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
+        settings.values.marketplaces = ["https://github.com/acme/one"];
         cache.prune.mockResolvedValue(["acme__gone"]);
 
         const pruned = await service.pruneOrphanedCaches();
@@ -517,7 +453,7 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
 
     it("removing the last marketplace prunes with an empty set (sweeps every slot)", async () => {
         const { service, settings, cache } = createService();
-        settings.getMarketplaces.mockReturnValue([]);
+        settings.values.marketplaces = [];
         cache.prune.mockResolvedValue(["acme__one", "acme__two"]);
 
         const pruned = await service.pruneOrphanedCaches();
@@ -529,13 +465,13 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
 
     it("suppresses pruning and returns [] when a settings entry cannot be parsed", async () => {
         const { service, settings, cache, notifier } = createService();
-        settings.getMarketplaces.mockReturnValue([{ provider: "bogus" } as never]);
+        settings.values.marketplaces = [{ provider: "bogus" } as never];
 
         const pruned = await service.pruneOrphanedCaches();
 
         expect(pruned).toEqual([]);
         expect(cache.prune).not.toHaveBeenCalled();
-        expect(notifier.logDebug).toHaveBeenCalledWith(
+        expect(notifier.logged("debug")).toContainEqual(
             expect.stringContaining("Skipped marketplace cache prune"),
         );
     });
@@ -576,10 +512,7 @@ describe("TemplateMarketplaceService include filtering", () => {
             "connectors/http/element-templates/versioned/old.json",
             "connectors/aws/lambda/element-templates/lambda.json",
         ];
-        const { service, cache } = serviceOver(
-            servingListing(manifest, listing),
-            async () => undefined,
-        );
+        const { service, cache } = serviceOver(servingListing(manifest, listing));
 
         await service.addMarketplace("https://github.com/acme/mp");
 
@@ -606,10 +539,7 @@ describe("TemplateMarketplaceService include filtering", () => {
             sources: [{ path: "element-templates", include: ["*.json"] }],
         });
         const listing = ["element-templates/a.json", "element-templates/nested/b.json"];
-        const { service, cache } = serviceOver(
-            servingListing(manifest, listing),
-            async () => undefined,
-        );
+        const { service, cache } = serviceOver(servingListing(manifest, listing));
 
         await service.addMarketplace("https://github.com/acme/mp");
 
@@ -641,7 +571,7 @@ describe("TemplateMarketplaceService include filtering", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const { service, cache } = serviceOver(factory, async () => undefined);
+        const { service, cache } = serviceOver(factory);
 
         await service.addMarketplace("https://github.com/acme/mp");
 
@@ -668,13 +598,12 @@ describe("TemplateMarketplaceService include filtering", () => {
         });
         const { service, cache, notifier } = serviceOver(
             servingListing(manifest, ["connectors/http/element-templates/rest.json"]),
-            async () => undefined,
         );
 
         await service.addMarketplace("https://github.com/acme/mp");
 
         expect(cache.write).not.toHaveBeenCalled();
-        expect(notifier.logWarning).toHaveBeenCalledWith(
+        expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining('"include" patterns matched none'),
         );
     });
@@ -719,8 +648,9 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const { service, tokens, tokenPrompt } = serviceOver(factory, async () => "unused", {
-            "github.com": "stored-tok",
+        const { service, tokens, tokenPrompt } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "unused" },
+            storedTokens: { "github.com": "stored-tok" },
         });
 
         await service.addMarketplace("https://github.com/acme/templates");
@@ -736,8 +666,8 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             expect.objectContaining({ kind: "local", token: expect.anything() }),
         );
         // The store is read once (lazily, after the anonymous 404), never prompted.
-        expect(tokens.getToken).toHaveBeenCalledOnce();
-        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toEqual([]);
     });
 
     it("prompts on a private-repo 404, stores the token, retries once, and succeeds", async () => {
@@ -745,29 +675,20 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "element-templates" }] }),
             expectedToken: "granted",
         });
-        const { service, cache, tokenPrompt, tokens, notifier } = serviceOver(
-            factory,
-            async () => "granted",
-        );
+        const { service, cache, tokenPrompt, tokens, notifier } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "granted" },
+        });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledWith(
-            "github.com",
-            expect.stringMatching(/may be private/),
-        );
-        expect(tokens.setToken).toHaveBeenCalledWith("github.com", "granted");
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "github.com", reason: expect.stringMatching(/may be private/) },
+        ]);
+        expect(tokens.tokens.get("github.com")).toBe("granted");
         expect(cache.write).toHaveBeenCalled();
 
         // Secret hygiene: the granted token value must never reach any log line.
-        const loggedArgs = [
-            ...notifier.logInfo.mock.calls,
-            ...notifier.logDebug.mock.calls,
-            ...notifier.logWarning.mock.calls,
-            ...notifier.logError.mock.calls,
-        ].flat();
-        expect(loggedArgs.some((arg) => String(arg).includes("granted"))).toBe(false);
+        expect(notifier.logs.some((entry) => entry.message.includes("granted"))).toBe(false);
     });
 
     it("declining during add rejects, caches nothing, and prompts once", async () => {
@@ -775,17 +696,14 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "x" }] }),
             // No expectedToken → every read is denied, whatever the token.
         });
-        const { service, cache, tokenPrompt, notifier } = serviceOver(
-            factory,
-            async () => undefined,
-        );
+        const { service, cache, tokenPrompt, notifier } = serviceOver(factory);
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
             /requires a personal access token/,
         );
         expect(cache.write).not.toHaveBeenCalled();
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
-        expect(notifier.logDebug).toHaveBeenCalledWith("Token prompt for github.com declined");
+        expect(tokenPrompt.prompts).toHaveLength(1);
+        expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
     });
 
     it("reports 'can't access' when the freshly entered token is also denied", async () => {
@@ -793,12 +711,14 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "x" }] }),
             // Every token is rejected, so the retry fails too.
         });
-        const { service, tokenPrompt } = serviceOver(factory, async () => "still-wrong");
+        const { service, tokenPrompt } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "still-wrong" },
+        });
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
             /can't access/,
         );
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
     it("re-prompts with 'was rejected' wording for a stale stored token and overwrites it", async () => {
@@ -806,18 +726,18 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "x" }] }),
             expectedToken: "new",
         });
-        const { service, tokenPrompt, tokens, stored } = serviceOver(factory, async () => "new", {
-            "github.com": "old",
+        const { service, tokenPrompt, tokens } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "old" },
         });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledWith(
-            "github.com",
-            expect.stringMatching(/was rejected/),
-        );
-        expect(tokens.setToken).toHaveBeenCalledWith("github.com", "new");
-        expect(stored.get("github.com")).toBe("new");
+        expect(tokenPrompt.prompts).toContainEqual({
+            host: "github.com",
+            reason: expect.stringMatching(/was rejected/),
+        });
+        expect(tokens.tokens.get("github.com")).toBe("new");
     });
 
     it("retries a run-cached token's public source anonymously, never prompting", async () => {
@@ -861,17 +781,15 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn(async () => (denied ? denyAccess() : "{}")),
             };
         });
-        const { service, cache, tokenPrompt, tokens, stored } = serviceOver(
-            factory,
-            async () => "should-not-be-used",
-            { "github.com": "stored-tok" },
-        );
+        const { service, cache, tokenPrompt, tokens } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "should-not-be-used" },
+            storedTokens: { "github.com": "stored-tok" },
+        });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
-        expect(tokens.setToken).not.toHaveBeenCalled();
-        expect(stored.get("github.com")).toBe("stored-tok");
+        expect(tokenPrompt.prompts).toEqual([]);
+        expect(tokens.tokens).toEqual(new Map([["github.com", "stored-tok"]]));
         expect(cache.write).toHaveBeenCalled();
     });
 
@@ -905,14 +823,15 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const { service, tokenPrompt } = serviceOver(factory, async () => "new", {
-            "github.com": "old",
+        const { service, tokenPrompt } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "old" },
         });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(attempted).toEqual([undefined, "old", "new"]);
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
     it("a rate-limited anonymous 403 retries with the stored token before prompting", async () => {
@@ -930,8 +849,8 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 }),
             };
         });
-        const { service, tokenPrompt } = serviceOver(factory, async () => undefined, {
-            "github.com": "have-it",
+        const { service, tokenPrompt } = serviceOver(factory, {
+            storedTokens: { "github.com": "have-it" },
         });
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
@@ -939,7 +858,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         );
         // Anonymous first, then the lazily-read stored token — no branch-(a) retry.
         expect(attempted).toEqual([undefined, "have-it"]);
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
     it("makes exactly one pre-prompt attempt when no token is stored (unchanged)", async () => {
@@ -962,14 +881,14 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn(),
             };
         });
-        const { service, tokenPrompt, tokens } = serviceOver(factory, async () => undefined);
+        const { service, tokenPrompt, tokens } = serviceOver(factory);
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow();
 
         expect(attempted).toEqual([undefined]);
         // The store is read once, lazily, after the anonymous 404 — and finds nothing.
-        expect(tokens.getToken).toHaveBeenCalledOnce();
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
     it("batch-prompts once for two private sources when the store is empty", async () => {
@@ -993,11 +912,13 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
-        const { service, tokenPrompt } = serviceOver(factory, async () => "granted");
+        const { service, tokenPrompt } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "granted" },
+        });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
     it("does not batch-prompt when a token for the host is already stored", async () => {
@@ -1015,13 +936,14 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
-        const { service, tokenPrompt } = serviceOver(factory, async () => "granted", {
-            "github.com": "have-it",
+        const { service, tokenPrompt } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "granted" },
+            storedTokens: { "github.com": "have-it" },
         });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
+        expect(tokenPrompt.prompts).toEqual([]);
     });
 
     it("prompts at most once per host across a whole updateAll, warning+skipping each", async () => {
@@ -1029,23 +951,20 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "x" }] }),
             // Both marketplaces are private and the user declines.
         });
-        const { service, notifier, tokenPrompt, tokens, settings } = serviceOver(
-            factory,
-            async () => undefined,
-        );
-        settings.getMarketplaces.mockReturnValue([
+        const { service, notifier, tokenPrompt, tokens, settings } = serviceOver(factory);
+        settings.values.marketplaces = [
             "https://github.com/acme/one",
             "https://github.com/acme/two",
-        ]);
+        ];
 
         const outcome = await service.updateAll();
 
         expect(outcome.succeeded).toBe(0);
         expect(outcome.failures).toHaveLength(2);
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce(); // one run spans both
+        expect(tokenPrompt.prompts).toHaveLength(1); // one run spans both
         // The second marketplace reuses the run cache, so the store is read once.
-        expect(tokens.getToken).toHaveBeenCalledOnce();
-        expect(notifier.logWarning).toHaveBeenCalledTimes(2);
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(notifier.logged("warning")).toHaveLength(2);
     });
 
     it("mentions the rate limit (not a rejection) when a 403 rate-limit persists with a token", async () => {
@@ -1055,8 +974,8 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             rateLimited: true,
             // No expectedToken → the stored token still hits the limit.
         });
-        const { service } = serviceOver(factory, async () => undefined, {
-            "github.com": "have-it",
+        const { service } = serviceOver(factory, {
+            storedTokens: { "github.com": "have-it" },
         });
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
@@ -1076,8 +995,8 @@ describe("TemplateMarketplaceService private-repo auth", () => {
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokens.getToken).not.toHaveBeenCalled();
-        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
+        expect(tokens.reads).toEqual([]);
+        expect(tokenPrompt.prompts).toEqual([]);
         // No config ever carried a token value (anonymous throughout).
         const carriedToken = sourceFactory.mock.calls.some(
             ([config]) =>
@@ -1111,12 +1030,12 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn(deny),
             };
         });
-        const { service, tokens, tokenPrompt } = serviceOver(factory, async () => undefined);
+        const { service, tokens, tokenPrompt } = serviceOver(factory);
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokens.getToken).toHaveBeenCalledOnce();
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
     it("run-caches a prompted token and reuses it for later sources without re-reading the store", async () => {
@@ -1146,12 +1065,14 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn(async () => (denied ? deny() : "{}")),
             };
         });
-        const { service, tokens, tokenPrompt } = serviceOver(factory, async () => "granted");
+        const { service, tokens, tokenPrompt } = serviceOver(factory, {
+            tokenAnswers: { "github.com": "granted" },
+        });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokens.getToken).toHaveBeenCalledOnce();
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
         // Both sources carried the run-cached token on their first attempt.
         expect(factory).toHaveBeenCalledWith(
             expect.objectContaining({ kind: "github", path: "a", token: "granted" }),
@@ -1180,10 +1101,10 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
 
     it("resolves a mixed string+object settings array to the right configs", async () => {
         const { service, settings, sourceFactory } = createService();
-        settings.getMarketplaces.mockReturnValue([
+        settings.values.marketplaces = [
             "https://github.com/acme/one",
             { provider: "gitlab", repo: "group/two", baseUrl: "https://gitlab.acme.com" },
-        ]);
+        ];
 
         await service.updateAll();
 
@@ -1229,11 +1150,13 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const { service, settings } = serviceOver(factory, async () => "gl-tok");
-        settings.getMarketplaces.mockReturnValue([
+        const { service, settings } = serviceOver(factory, {
+            tokenAnswers: { "gitlab.acme.com": "gl-tok" },
+        });
+        settings.values.marketplaces = [
             { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },
             "https://github.com/acme/repo",
-        ]);
+        ];
 
         await service.updateAll();
 
@@ -1253,15 +1176,15 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
                 },
             ],
         });
-        const { service, tokenPrompt } = serviceOver(serving(manifest), async () => "granted");
+        const { service, tokenPrompt } = serviceOver(serving(manifest), {
+            tokenAnswers: { "gitlab.acme.com": "granted" },
+        });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
-        expect(tokenPrompt.promptForToken).toHaveBeenCalledWith(
-            "gitlab.acme.com",
-            expect.any(String),
-        );
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "gitlab.acme.com", reason: expect.any(String) },
+        ]);
     });
 
     it("derives the rate-limit warning wording from the failing host (gitlab 429)", async () => {
@@ -1271,8 +1194,8 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
                 throw new RepositoryAccessError("gitlab.com", 429, "group/proj", true);
             }),
         }));
-        const { service } = serviceOver(factory, async () => undefined, {
-            "gitlab.com": "have-it",
+        const { service } = serviceOver(factory, {
+            storedTokens: { "gitlab.com": "have-it" },
         });
 
         await expect(service.addMarketplace("https://gitlab.com/group/proj")).rejects.toThrow(
@@ -1287,14 +1210,14 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
                 throw new Error("offline");
             }),
         }));
-        const { service, notifier, settings } = serviceOver(factory, async () => undefined);
-        settings.getMarketplaces.mockReturnValue([
+        const { service, notifier, settings } = serviceOver(factory);
+        settings.values.marketplaces = [
             { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },
-        ]);
+        ];
 
         await service.updateAll();
 
-        expect(notifier.logWarning).toHaveBeenCalledWith(
+        expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining("gitlab.acme.com/group/proj"),
         );
     });

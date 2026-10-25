@@ -1,5 +1,7 @@
 package io.miragon.intellij.bpmn
 
+import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
@@ -34,10 +36,27 @@ class IntellijSecretStore {
 
     fun getOAuth2(slot: String?): Credentials? = passwordSafe.get(attributesFor("oauth2", slot))
 
-    /** Removes every credential kind stored under [slot] (target delete / rename). */
+    /** `null` when nothing is stored; a corrupt entry approves nothing, so the next request asks again. */
+    fun getApprovedDestinations(slot: String): List<String>? {
+        val stored =
+            passwordSafe.get(attributesFor(APPROVED_DESTINATIONS, slot))?.getPasswordAsString()
+                ?: return null
+        return runCatching { JsonParser.parseString(stored).asJsonArray.map { it.asString } }
+            .getOrElse { emptyList() }
+    }
+
+    // The user half is a fixed label: PasswordSafe reads an entry with an empty half back as absent.
+    fun saveApprovedDestinations(slot: String, origins: List<String>) =
+        passwordSafe.set(
+            attributesFor(APPROVED_DESTINATIONS, slot),
+            Credentials(APPROVED_DESTINATIONS, Gson().toJson(origins)),
+        )
+
+    /** Removes every credential kind and the approved destinations stored under [slot] (target delete / rename). */
     fun delete(slot: String) {
         passwordSafe.set(attributesFor("basicAuth", slot), null)
         passwordSafe.set(attributesFor("oauth2", slot), null)
+        passwordSafe.set(attributesFor(APPROVED_DESTINATIONS, slot), null)
     }
 
     private companion object {
@@ -48,6 +67,7 @@ class IntellijSecretStore {
         // application-scoped, so the targets-file path in the slot is what keeps
         // a "dev" target in two workspaces from colliding.
         const val SUBSYSTEM = "Miragon BPMN Modeler Deployment"
+        const val APPROVED_DESTINATIONS = "approvedDestinations"
 
         fun attributesFor(kind: String, slot: String?): CredentialAttributes {
             val key = if (slot == null) kind else "$kind:$slot"

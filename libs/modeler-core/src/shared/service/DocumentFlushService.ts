@@ -178,8 +178,10 @@ export class DocumentFlushService {
  * Router handler for `DocumentFlushedCommand` — routes the webview's flush reply
  * back to the outstanding {@link DocumentFlushService.requestFlush} promise.
  */
-export function documentFlushedHandler(svc: DocumentFlushService): MessageHandler {
+export function documentFlushedHandler(
+    svc: DocumentFlushService,
+): MessageHandler<DocumentFlushedCommand> {
     return (message, editorId) => {
-        svc.handleReply(message as DocumentFlushedCommand, editorId);
+        svc.handleReply(message, editorId);
     };
 }

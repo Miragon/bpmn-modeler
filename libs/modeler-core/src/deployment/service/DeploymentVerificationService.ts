@@ -1,14 +1,22 @@
 import { posix } from "path";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
-import { EngineInspectionFailedError } from "../../shared/domain/errors";
+import {
+    CredentialDestinationError,
+    EngineInspectionFailedError,
+    EnvReferenceError,
+} from "../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { reconcile } from "../domain/deploymentVerification";
 import { EngineInspectionPort } from "../domain/ports";
+import { sensitiveDestinations } from "../domain/deployment";
+import { recordingLookup } from "../domain/envRef";
+import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 /**
  * On-demand reconciliation of the local deployment ledger against a Camunda 7
@@ -26,6 +34,8 @@ export class DeploymentVerificationService {
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly inspection: EngineInspectionPort,
         private readonly notifier: NotifierPort,
+        private readonly envResolver: EnvValueResolver,
+        private readonly credentialApproval: CredentialApprovalService,
     ) {}
 
     /**
@@ -63,19 +73,35 @@ export class DeploymentVerificationService {
         }
 
         try {
-            const auth = await this.deploymentTargetService.getCredentials(target, dir);
+            const credentials = await this.deploymentTargetService.getCredentials(target, dir);
+            const lookup = await this.envResolver.createLookup(
+                "targetsFile",
+                dir,
+                target.connectionEnvRefs(),
+                credentials,
+            );
+            const recording = recordingLookup(lookup);
+            const auth = credentials.expandEnvRefs(recording);
+            const { endpoint, tenantId } = target.expandConnection(recording);
+            const envValues = [...recording.resolved];
+            await this.credentialApproval.ensureApproved(
+                target,
+                dir,
+                sensitiveDestinations(endpoint, auth, envValues),
+            );
             const snapshot = await this.notifier.withProgress(
                 `Verifying on "${target.name}"…`,
                 () =>
                     this.inspection.fetchLatestDefinition({
-                        endpoint: target.endpoint,
-                        tenantId: target.tenantId,
+                        endpoint,
+                        tenantId,
                         processKey,
                         auth,
+                        envValues,
                     }),
             );
 
-            const identity = DeploymentTargetIdentity.fromTarget(target);
+            const identity = DeploymentTargetIdentity.fromTarget(target, lookup);
             const recorded = this.deploymentStatusService.getRevision(filePath, identity);
             const { outcome, revision } = reconcile(recorded, content, snapshot);
 
@@ -115,6 +141,10 @@ export class DeploymentVerificationService {
                 this.notifier.showError(
                     `Could not verify deployment on "${target.name}" — check the target credentials.`,
                 );
+                return;
+            }
+            if (error instanceof EnvReferenceError || error instanceof CredentialDestinationError) {
+                this.notifier.showError(error.message);
                 return;
             }
             this.notifier.notifyError(

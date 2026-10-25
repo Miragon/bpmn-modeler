@@ -16,6 +16,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { registerParams, settle, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -30,43 +31,6 @@ function bpmnWithProcessId(id: string): string {
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_X" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="${id}" isExecutable="true" />
 </bpmn:definitions>`;
-}
-
-async function settle(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-/**
- * Waits for a frame matching `predicate` to land, or rejects after `timeoutMs`.
- * The navigation flow awaits the picker's `searchAndPickReferencedModel` → an
- * async fs.glob → an `await Promise.all` over per-file reads, so a single
- * `settle()` isn't enough turns to drain it; polling lets the test stay
- * deterministic without coupling to the number of microtasks the flow chains.
- */
-async function waitForFrame(
-    frames: any[],
-    predicate: (frame: any) => boolean,
-    timeoutMs = 2000,
-): Promise<any> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        const match = frames.find(predicate);
-        if (match) return match;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error("waitForFrame timed out");
-}
-
-function registerParams(editorId: string, root: string, fsPath: string, content: string) {
-    return {
-        editorId,
-        uriString: editorId,
-        path: editorId.replace(/^file:\/\//, ""),
-        fsPath,
-        scheme: "file",
-        workspaceRoot: root,
-        content,
-    };
 }
 
 describe("bridge navigation (real core + locator over a fake transport)", () => {

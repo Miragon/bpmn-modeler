@@ -1,147 +1,214 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { FileNotFound, DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
+import { createTestHost, TestHostOptions } from "../../testing";
 import { ArtifactService } from "./ArtifactService";
 
-/**
- * Builds the service with bare-`vi.fn()` port doubles cast to the interfaces.
- * The service only ever calls these methods, so structural doubles keep the
- * test free of any `vscode` surface (the subject imports only pure ports).
- */
-function createService() {
-    const vsWorkspace = {
-        getWorkspaceFolderForDocument: vi.fn(),
-        findGitRoot: vi.fn(),
-        readDirectory: vi.fn(),
-        readFile: vi.fn(),
-        createWatcher: vi.fn(),
-    };
-    const vsSettings = {
-        getConfigFolder: vi.fn().mockReturnValue(".camunda"),
-    };
-
-    const service = new ArtifactService(vsWorkspace as never, vsSettings as never);
-
-    return { service, vsWorkspace, vsSettings };
+function createService(options: TestHostOptions = {}) {
+    const { workspace, settings } = createTestHost(options);
+    const service = new ArtifactService(workspace, settings);
+    return { service, workspace };
 }
 
-beforeEach(() => {
-    vi.clearAllMocks();
-});
+describe("ArtifactService.findConfigBaseDir", () => {
+    it("returns the nearest directory whose config folder holds the file", async () => {
+        const { service } = createService({
+            files: {
+                "/root/.camunda/deployment-targets.json": "{}",
+                "/root/nested/.camunda/deployment-targets.json": "{}",
+            },
+        });
 
-describe("ArtifactService.findConfigFile", () => {
-    it("does not skip an unreadable nearest file in favor of another destination", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readFile.mockRejectedValue(new Error("EACCES"));
-        await expect(
-            service.findConfigFile("/root/nested", ".camunda", "deployment-targets.json", "/root"),
-        ).rejects.toThrow("EACCES");
-        expect(vsWorkspace.readFile).toHaveBeenCalledOnce();
-    });
-    it("returns the nearest existing config file, walking up from the document dir", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readFile.mockImplementation((path: string) =>
-            path === "/root/nested/.camunda/deployment-targets.json"
-                ? Promise.resolve("{}")
-                : Promise.reject(new FileNotFound(path)),
-        );
-
-        const found = await service.findConfigFile(
+        const baseDir = await service.findConfigBaseDir(
             "/root/nested/deep",
             ".camunda",
             "deployment-targets.json",
             "/root",
         );
 
-        expect(found).toBe("/root/nested/.camunda/deployment-targets.json");
+        expect(baseDir).toBe("/root/nested");
     });
 
-    it("returns undefined when no config file exists up to the root", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readFile.mockRejectedValue(new FileNotFound("x"));
+    it("walks up to the workspace root itself", async () => {
+        const { service, workspace } = createService({
+            files: { "/root/.camunda/deployment-targets.json": "{}" },
+        });
+        const readFile = vi.spyOn(workspace, "readFile");
 
-        const found = await service.findConfigFile(
+        const baseDir = await service.findConfigBaseDir(
+            "/root/nested/deep",
+            ".camunda",
+            "deployment-targets.json",
+            "/root",
+        );
+
+        expect(baseDir).toBe("/root");
+        expect(readFile.mock.calls.map(([path]) => path)).toEqual([
+            "/root/nested/deep/.camunda/deployment-targets.json",
+            "/root/nested/.camunda/deployment-targets.json",
+            "/root/.camunda/deployment-targets.json",
+        ]);
+    });
+
+    it("does not look above the workspace root", async () => {
+        const { service, workspace } = createService({
+            files: { "/.camunda/deployment-targets.json": "{}" },
+        });
+        const readFile = vi.spyOn(workspace, "readFile");
+
+        const baseDir = await service.findConfigBaseDir(
             "/root/nested",
             ".camunda",
             "deployment-targets.json",
             "/root",
         );
 
-        expect(found).toBeUndefined();
+        expect(baseDir).toBeUndefined();
+        expect(readFile).not.toHaveBeenCalledWith("/.camunda/deployment-targets.json");
+    });
+
+    it("returns undefined when no config folder up to the root holds the file", async () => {
+        const { service } = createService();
+
+        const baseDir = await service.findConfigBaseDir(
+            "/root/nested",
+            ".camunda",
+            "deployment-targets.json",
+            "/root",
+        );
+
+        expect(baseDir).toBeUndefined();
+    });
+
+    it("does not skip an unreadable nearest file in favor of another destination", async () => {
+        const { service, workspace } = createService({
+            files: { "/root/.camunda/deployment-targets.json": "{}" },
+        });
+        const readFile = vi.spyOn(workspace, "readFile").mockRejectedValueOnce(new Error("EACCES"));
+
+        await expect(
+            service.findConfigBaseDir(
+                "/root/nested",
+                ".camunda",
+                "deployment-targets.json",
+                "/root",
+            ),
+        ).rejects.toThrow("EACCES");
+        expect(readFile).toHaveBeenCalledOnce();
     });
 });
 
 describe("ArtifactService.getWorkspaceRoot", () => {
+    // Listing any other directory is denied, as in a tree of execute-only
+    // directories, so the walk only succeeds by probing `.git` itself.
+    function createServiceOutsideWorkspaceFolders(
+        gitEntries: Record<string, "directory" | "file">,
+    ) {
+        const files = Object.fromEntries(
+            Object.entries(gitEntries).map(([path, type]) =>
+                type === "directory"
+                    ? [`${path}/HEAD`, "ref: refs/heads/main"]
+                    : [path, "gitdir: /repo/.git/worktrees/feature"],
+            ),
+        );
+        const { service, workspace } = createService({ files });
+        const listDirectory = workspace.readDirectory.bind(workspace);
+        vi.spyOn(workspace, "readDirectory").mockImplementation(async (path: string) => {
+            if (path.endsWith("/.git")) {
+                return listDirectory(path);
+            }
+            throw new Error(`EACCES: permission denied, scandir '${path}'`);
+        });
+        return service;
+    }
+
     it("returns the VS Code workspace folder when one exists", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockReturnValue("/work");
+        const { service } = createService({
+            folders: ["/work"],
+            files: { "/work/sub/.git/HEAD": "ref: refs/heads/main" },
+        });
 
         await expect(service.getWorkspaceRoot("/work/sub")).resolves.toBe("/work");
-        expect(vsWorkspace.findGitRoot).not.toHaveBeenCalled();
     });
 
-    it("falls back to the enclosing git repo when no workspace folder is found", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockImplementation(() => {
-            throw new NoWorkspaceFolderFoundError();
+    it("falls back to the document directory when it holds the git repository", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "/repo/.git": "directory",
+            "/.git": "directory",
         });
-        vsWorkspace.findGitRoot.mockResolvedValue("/repo");
 
-        await expect(service.getWorkspaceRoot("/repo/sub")).resolves.toBe("/repo");
+        await expect(service.getWorkspaceRoot("/repo")).resolves.toBe("/repo");
     });
 
-    it("falls back to the document directory when neither folder nor git root exist", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockImplementation(() => {
-            throw new NoWorkspaceFolderFoundError();
+    it("falls back to the nearest enclosing git repository", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "/repo/.git": "directory",
+            "/.git": "directory",
         });
-        vsWorkspace.findGitRoot.mockResolvedValue(undefined);
 
-        await expect(service.getWorkspaceRoot("/some/dir")).resolves.toBe("/some/dir");
+        await expect(service.getWorkspaceRoot("/repo/processes/orders")).resolves.toBe("/repo");
+    });
+
+    it("recognises the .git file of a worktree or submodule as the repository root", async () => {
+        const service = createServiceOutsideWorkspaceFolders({ "/worktrees/feature/.git": "file" });
+
+        await expect(service.getWorkspaceRoot("/worktrees/feature/src")).resolves.toBe(
+            "/worktrees/feature",
+        );
+    });
+
+    it("recognises a git repository at the filesystem root", async () => {
+        const service = createServiceOutsideWorkspaceFolders({ "/.git": "directory" });
+
+        await expect(service.getWorkspaceRoot("/tmp/loose")).resolves.toBe("/");
+    });
+
+    it("keeps URI-form document directories in URI form", async () => {
+        const service = createServiceOutsideWorkspaceFolders({ "file:///repo/.git": "directory" });
+
+        await expect(service.getWorkspaceRoot("file:///repo/processes")).resolves.toBe(
+            "file:///repo",
+        );
+    });
+
+    it("falls back to the document directory when no git repository encloses it", async () => {
+        const service = createServiceOutsideWorkspaceFolders({});
+
+        await expect(service.getWorkspaceRoot("/tmp/loose")).resolves.toBe("/tmp/loose");
     });
 
     it("rethrows errors that are not NoWorkspaceFolderFoundError", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockImplementation(() => {
+        const { service, workspace } = createService();
+        vi.spyOn(workspace, "getWorkspaceFolderForDocument").mockImplementation(() => {
             throw new Error("boom");
         });
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
 
         await expect(service.getWorkspaceRoot("/work/sub")).rejects.toThrow("boom");
-        expect(vsWorkspace.findGitRoot).not.toHaveBeenCalled();
+        expect(readDirectory).not.toHaveBeenCalled();
     });
 });
 
 describe("ArtifactService.readDirectory", () => {
     it("returns the empty list when the directory is missing", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockRejectedValue(new DirectoryNotFound("/x"));
+        const { service } = createService();
 
         await expect(service.readDirectory("/x", ".json")).resolves.toEqual([]);
     });
 
     it("rethrows non-DirectoryNotFound read errors", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockRejectedValue(new Error("EACCES"));
+        const { service, workspace } = createService();
+        vi.spyOn(workspace, "readDirectory").mockRejectedValue(new Error("EACCES"));
 
         await expect(service.readDirectory("/x", ".json")).rejects.toThrow("EACCES");
     });
 
     it("returns only files matching the extension and recurses into subdirectories", async () => {
-        const { service, vsWorkspace } = createService();
-        // Sub-directory entries are resolved by path, so the recursion can be
-        // driven purely off the requested folder.
-        vsWorkspace.readDirectory.mockImplementation((folder: string) => {
-            if (folder === "/root") {
-                return Promise.resolve([
-                    ["a.json", "file"],
-                    ["b.txt", "file"],
-                    ["nested", "directory"],
-                ]);
-            }
-            if (folder === "/root/nested") {
-                return Promise.resolve([["c.json", "file"]]);
-            }
-            return Promise.resolve([]);
+        const { service } = createService({
+            files: {
+                "/root/a.json": "{}",
+                "/root/b.txt": "",
+                "/root/nested/c.json": "{}",
+            },
         });
 
         await expect(service.readDirectory("/root", ".json")).resolves.toEqual([
@@ -153,9 +220,15 @@ describe("ArtifactService.readDirectory", () => {
 
 describe("ArtifactService.collectTemplateDirs", () => {
     it("walks up nearest-first and stops at the workspace root", async () => {
-        const { service, vsWorkspace } = createService();
         // Every probed directory exists, so the result mirrors the walk order.
-        vsWorkspace.readDirectory.mockResolvedValue([]);
+        const { service } = createService({
+            files: {
+                "/work/a/b/.camunda/element-templates/t.json": "[]",
+                "/work/a/.camunda/element-templates/t.json": "[]",
+                "/work/.camunda/element-templates/t.json": "[]",
+                "/.camunda/element-templates/t.json": "[]",
+            },
+        });
 
         await expect(
             service.collectTemplateDirs("/work/a/b", "/work", ".camunda"),
@@ -167,12 +240,8 @@ describe("ArtifactService.collectTemplateDirs", () => {
     });
 
     it("swallows DirectoryNotFound but keeps directories that exist", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockImplementation((path: string) => {
-            if (path === "/work/a/.camunda/element-templates") {
-                throw new DirectoryNotFound(path);
-            }
-            return Promise.resolve([]);
+        const { service } = createService({
+            files: { "/work/.camunda/element-templates/t.json": "[]" },
         });
 
         await expect(service.collectTemplateDirs("/work/a", "/work", ".camunda")).resolves.toEqual([
@@ -181,8 +250,8 @@ describe("ArtifactService.collectTemplateDirs", () => {
     });
 
     it("rethrows non-DirectoryNotFound errors raised during the walk", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockRejectedValue(new Error("EIO"));
+        const { service, workspace } = createService();
+        vi.spyOn(workspace, "readDirectory").mockRejectedValue(new Error("EIO"));
 
         await expect(service.collectTemplateDirs("/work/a", "/work", ".camunda")).rejects.toThrow(
             "EIO",
@@ -190,20 +259,29 @@ describe("ArtifactService.collectTemplateDirs", () => {
     });
 
     it("does not walk above a document that already is the workspace root", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockResolvedValue([]);
+        const { service, workspace } = createService({
+            files: {
+                "/work/.camunda/element-templates/t.json": "[]",
+                "/.camunda/element-templates/t.json": "[]",
+            },
+        });
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
 
         await expect(service.collectTemplateDirs("/work", "/work", ".camunda")).resolves.toEqual([
             "/work/.camunda/element-templates",
         ]);
         // The single probe proves the loop broke at the root, not via the
         // filesystem-root parent guard.
-        expect(vsWorkspace.readDirectory).toHaveBeenCalledTimes(1);
+        expect(readDirectory).toHaveBeenCalledTimes(1);
     });
 
     it("collects dirs when the workspace root carries a trailing slash (drive-root)", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockResolvedValue([]);
+        const { service } = createService({
+            files: {
+                "/c:/proj/.camunda/element-templates/t.json": "[]",
+                "/c:/.camunda/element-templates/t.json": "[]",
+            },
+        });
 
         // A drive-root workspace opened as `C:\` surfaces as `/c:/`; the trailing
         // slash must not defeat the `startsWith`/`===` containment guard.
@@ -214,26 +292,27 @@ describe("ArtifactService.collectTemplateDirs", () => {
     });
 
     it("guards against an infinite loop at the filesystem root", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readDirectory.mockResolvedValue([]);
+        const { service, workspace } = createService({
+            files: { "/.camunda/element-templates/t.json": "[]" },
+        });
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
 
         // documentDir starts at "/", which is neither equal to nor under the
         // sentinel root, so the loop must not even run.
         await expect(service.collectTemplateDirs("/", "/work", ".camunda")).resolves.toEqual([]);
-        expect(vsWorkspace.readDirectory).not.toHaveBeenCalled();
+        expect(readDirectory).not.toHaveBeenCalled();
     });
 });
 
 describe("ArtifactService.getTemplateDirs", () => {
     it("returns the existing template dirs nearest-first", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockReturnValue("/work");
-        vsWorkspace.readDirectory.mockImplementation((path: string) =>
-            path === "/work/a/.camunda/element-templates" ||
-            path === "/work/.camunda/element-templates"
-                ? Promise.resolve([])
-                : Promise.reject(new DirectoryNotFound(path)),
-        );
+        const { service } = createService({
+            folders: ["/work"],
+            files: {
+                "/work/a/.camunda/element-templates/t.json": "[]",
+                "/work/.camunda/element-templates/t.json": "[]",
+            },
+        });
 
         await expect(service.getTemplateDirs("/work/a")).resolves.toEqual([
             "/work/a/.camunda/element-templates",
@@ -244,13 +323,9 @@ describe("ArtifactService.getTemplateDirs", () => {
 
 describe("ArtifactService.getPayloadPaths", () => {
     it("aggregates JSON paths from the payloads subfolders", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockReturnValue("/work");
-        vsWorkspace.readDirectory.mockImplementation((path: string) => {
-            if (path === "/work/.camunda/payloads") {
-                return Promise.resolve([["order.json", "file"]]);
-            }
-            return Promise.resolve([]);
+        const { service } = createService({
+            folders: ["/work"],
+            files: { "/work/.camunda/payloads/order.json": "{}" },
         });
 
         await expect(service.getPayloadPaths("/work")).resolves.toEqual([
@@ -261,44 +336,35 @@ describe("ArtifactService.getPayloadPaths", () => {
 
 describe("ArtifactService.readFile", () => {
     it("delegates to the workspace port", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.readFile.mockResolvedValue("contents");
+        const { service } = createService({ files: { "/work/a.json": "contents" } });
 
         await expect(service.readFile("/work/a.json")).resolves.toBe("contents");
-        expect(vsWorkspace.readFile).toHaveBeenCalledWith("/work/a.json");
     });
 });
 
 describe("ArtifactService.createWatcher", () => {
     it("watches the config glob from the workspace root and wires all three handlers to a template refresh", async () => {
-        const { service, vsWorkspace } = createService();
-        vsWorkspace.getWorkspaceFolderForDocument.mockReturnValue("/work");
-        const handle = { dispose: vi.fn() };
-        vsWorkspace.createWatcher.mockReturnValue(handle);
+        const { service, workspace } = createService({ folders: ["/work"] });
         const target = { refreshElementTemplates: vi.fn() };
 
         const result = await service.createWatcher("/work/proc/order.bpmn", target as never);
 
-        expect(result).toEqual({ disposables: [handle], errors: [] });
-        // Extension-less glob: a one-shot folder copy may only emit a
-        // directory-create event, which a `*.json` suffix would drop.
-        expect(vsWorkspace.createWatcher).toHaveBeenCalledWith(
-            "/work",
-            "**/.camunda/element-templates/**",
-            expect.objectContaining({
-                onCreate: expect.any(Function),
-                onChange: expect.any(Function),
-                onDelete: expect.any(Function),
-            }),
-        );
+        expect(result.disposables).toHaveLength(1);
+        expect(result.errors).toEqual([]);
 
-        // Each handler must trigger a refresh keyed by the originating editor —
-        // including for a bare directory path (the folder-copy case).
-        const handlers = vsWorkspace.createWatcher.mock.calls[0][2];
-        handlers.onCreate("/work/.camunda/element-templates/copied-folder");
-        handlers.onChange("/work/.camunda/element-templates/x.json");
-        handlers.onDelete("/work/.camunda/element-templates/x.json");
-        expect(target.refreshElementTemplates).toHaveBeenCalledTimes(3);
+        // Each event must trigger a refresh keyed by the originating editor —
+        // including for a bare, extension-less path (the folder-copy case).
+        await workspace.writeFile("/work/.camunda/element-templates/copied-folder", "");
+        await workspace.writeFile("/work/.camunda/element-templates/x.json", "{}");
+        await workspace.writeFile("/work/.camunda/element-templates/x.json", "[]");
+        workspace.deleteFile("/work/.camunda/element-templates/x.json");
+        await workspace.writeFile("/work/proc/x.json", "{}");
+        await workspace.writeFile("/elsewhere/.camunda/element-templates/x.json", "{}");
+        expect(target.refreshElementTemplates).toHaveBeenCalledTimes(4);
         expect(target.refreshElementTemplates).toHaveBeenNthCalledWith(1, "/work/proc/order.bpmn");
+
+        result.disposables[0].dispose();
+        await workspace.writeFile("/work/.camunda/element-templates/y.json", "{}");
+        expect(target.refreshElementTemplates).toHaveBeenCalledTimes(4);
     });
 });

@@ -9,8 +9,9 @@ export default defineConfig({
         environment: "jsdom",
         include: ["src/**/*.{spec,test}.{ts,tsx}"],
         coverage: {
-            ...coveragePreset(__dirname),
-            thresholds: { statements: 80, branches: 67, functions: 72, lines: 82 },
+            // Import-time entry wiring; bootstrap.ts carries the logic.
+            ...coveragePreset(__dirname, { exclude: ["src/main.ts"] }),
+            thresholds: { statements: 87, branches: 77, functions: 84, lines: 89 },
         },
     },
 });

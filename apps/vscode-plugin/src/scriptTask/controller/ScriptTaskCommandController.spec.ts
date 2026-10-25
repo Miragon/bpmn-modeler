@@ -2,20 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAllScriptTasksQuery } from "@miragon/bpmn-modeler-shared";
 
-// The controller imports `vscode` transitively via `VsCodeNotifier`; capture the
-// command registration so a test can invoke the handler the way VS Code would.
+// Capture the command registration so a test can invoke the handler the way VS Code would.
 const registerCommandMock = vi.fn();
 vi.mock("vscode", () => ({
     commands: { registerCommand: (...args: unknown[]) => registerCommandMock(...args) },
     Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
 }));
 
+import { EditorSessionStore, NotifierPort } from "@miragon/bpmn-modeler-core";
+import { createTestHost } from "@miragon/bpmn-modeler-core/testing";
+
 import {
     OPEN_ALL_SCRIPT_TASKS_CMD,
     ScriptTaskCommandController,
 } from "./ScriptTaskCommandController";
-
-const EDITOR = "file:///work/diagram.bpmn";
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -25,8 +25,11 @@ beforeEach(() => {
  * Registers the controller and returns the command handler VS Code would call,
  * so tests exercise the real registration wiring rather than a private method.
  */
-function registerAndGetHandler(editorStore: unknown, notifier: unknown): () => Promise<void> {
-    new ScriptTaskCommandController(editorStore as never, notifier as never).register({
+function registerAndGetHandler(
+    editorStore: EditorSessionStore,
+    notifier: NotifierPort,
+): () => Promise<void> {
+    new ScriptTaskCommandController(editorStore, notifier).register({
         subscriptions: [],
     } as never);
     expect(registerCommandMock).toHaveBeenCalledWith(
@@ -42,48 +45,39 @@ function registerAndGetHandler(editorStore: unknown, notifier: unknown): () => P
 
 describe("ScriptTaskCommandController", () => {
     it("posts an OpenAllScriptTasksQuery to the active editor", async () => {
-        const editorStore = {
-            getActiveEditorId: vi.fn().mockReturnValue(EDITOR),
-            postMessage: vi.fn().mockResolvedValue(true),
-        };
-        const notifier = { logError: vi.fn(), showInfo: vi.fn() };
+        const host = createTestHost();
+        const editor = host.openEditor("/work/diagram.bpmn");
 
-        await registerAndGetHandler(editorStore, notifier)();
+        await registerAndGetHandler(host.store, host.notifier)();
 
-        expect(editorStore.postMessage).toHaveBeenCalledTimes(1);
-        const [id, message] = editorStore.postMessage.mock.calls[0];
-        expect(id).toBe(EDITOR);
-        expect(message).toBeInstanceOf(OpenAllScriptTasksQuery);
-        expect(notifier.logError).not.toHaveBeenCalled();
-        expect(notifier.showInfo).not.toHaveBeenCalled();
+        expect(editor.posted).toHaveLength(1);
+        expect(editor.posted[0]).toBeInstanceOf(OpenAllScriptTasksQuery);
+        expect(host.notifier.logged("error")).toEqual([]);
+        expect(host.notifier.infos).toEqual([]);
     });
 
     it("logs and hints when there is no active editor, without rejecting", async () => {
-        const editorStore = {
-            getActiveEditorId: vi.fn().mockImplementation(() => {
-                throw new Error("No active editor.");
-            }),
-            postMessage: vi.fn(),
-        };
-        const notifier = { logError: vi.fn(), showInfo: vi.fn() };
+        const host = createTestHost();
 
-        await expect(registerAndGetHandler(editorStore, notifier)()).resolves.toBeUndefined();
+        await expect(registerAndGetHandler(host.store, host.notifier)()).resolves.toBeUndefined();
 
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
-        expect(notifier.logError).toHaveBeenCalledTimes(1);
-        expect(notifier.showInfo).toHaveBeenCalledTimes(1);
+        expect(host.notifier.logged("error")).toEqual(["No active editor."]);
+        expect(host.notifier.infos).toEqual([
+            "Focus a BPMN diagram tab, then run the command again.",
+        ]);
     });
 
     it("logs and hints when the active editor is hidden, without rejecting", async () => {
-        const editorStore = {
-            getActiveEditorId: vi.fn().mockReturnValue(EDITOR),
-            postMessage: vi.fn().mockRejectedValue(new Error("The active editor is hidden.")),
-        };
-        const notifier = { logError: vi.fn(), showInfo: vi.fn() };
+        const host = createTestHost();
+        const editor = host.openEditor("/work/diagram.bpmn");
+        editor.hidden = true;
 
-        await expect(registerAndGetHandler(editorStore, notifier)()).resolves.toBeUndefined();
+        await expect(registerAndGetHandler(host.store, host.notifier)()).resolves.toBeUndefined();
 
-        expect(notifier.logError).toHaveBeenCalledTimes(1);
-        expect(notifier.showInfo).toHaveBeenCalledTimes(1);
+        expect(editor.posted).toEqual([]);
+        expect(host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
+        expect(host.notifier.infos).toEqual([
+            "Focus a BPMN diagram tab, then run the command again.",
+        ]);
     });
 });

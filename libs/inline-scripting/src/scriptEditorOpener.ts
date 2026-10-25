@@ -1,5 +1,5 @@
 import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
-import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { readScriptTaskFormat } from "./scriptModel";
 
 /**

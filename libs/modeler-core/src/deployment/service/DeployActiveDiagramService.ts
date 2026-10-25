@@ -5,6 +5,7 @@ import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionSto
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
+import { resolveOrPickActiveTarget } from "./resolveOrPickActiveTarget";
 
 const DEPLOYABLE_EXTENSIONS = [".bpmn", ".dmn"];
 
@@ -45,14 +46,13 @@ export class DeployActiveDiagramService {
         }
 
         const dir = documentDir ?? posix.dirname(filePath);
-        let target = await this.deploymentTargetService.getActiveTarget(dir);
+        const target = await resolveOrPickActiveTarget(
+            this.deploymentTargetService,
+            this.deploymentStatusService,
+            dir,
+        );
         if (target === undefined) {
-            await this.deploymentTargetService.switchActiveTarget(dir);
-            await this.deploymentStatusService.refreshActive();
-            target = await this.deploymentTargetService.getActiveTarget(dir);
-            if (target === undefined) {
-                return;
-            }
+            return;
         }
 
         // save() returns false for an unmodified document (nothing to persist);
@@ -66,11 +66,10 @@ export class DeployActiveDiagramService {
             return;
         }
 
-        const resolvedTarget = target;
         const name = posix.basename(filePath);
         const auth = await this.deploymentTargetService.getCredentials(target, dir);
         await this.notifier.withProgress(`Deploying ${name} to "${target.name}"`, () =>
-            this.deploymentService.deployFiles([filePath], resolvedTarget, auth),
+            this.deploymentService.deployFiles([filePath], target, auth, dir),
         );
         await this.deploymentStatusService.refreshActive();
     }

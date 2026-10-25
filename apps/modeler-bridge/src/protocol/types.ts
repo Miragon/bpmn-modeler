@@ -19,14 +19,21 @@ import {
 import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
 
-import { DeploymentStateSnapshot } from "../adapters";
+import { DeploymentStateSnapshot, SessionMeta } from "../adapters";
 import { SettingsSnapshot } from "../nodeAdapters";
 
-// Re-export (don't move) the register payload: it extends `SessionMeta` from
-// `adapters.ts`, so relocating its definition would drag `SessionMeta`/settings
-// types across modules and risk an import cycle. Sharing the one definition is
-// all the descriptor needs.
-export type { RegisterParams } from "../composition/sessionHooks";
+/**
+ * `session/register` — the editor identity/meta plus the initial document
+ * content and an optional settings snapshot that must seed the host-global
+ * config before any template discovery runs.
+ */
+export interface RegisterParams extends SessionMeta {
+    content: string;
+    /** Host-owned revision preserved across bridge restarts. */
+    documentRevision?: number;
+    /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
+    settings?: Partial<SettingsSnapshot>;
+}
 
 /** Empty-body notification/request (e.g. `clipboard/read`, `statusBar/templatesHide`). */
 export type EmptyParams = Record<string, never>;
@@ -289,6 +296,17 @@ export interface SecretGetParams {
 }
 export interface SecretDeleteParams {
     slot: string;
+}
+export interface SecretGetApprovedDestinationsParams {
+    slot: string;
+}
+/** `secretStore/getApprovedDestinations` result, or `null` when nothing is stored. */
+export interface SecretApprovedDestinations {
+    origins: string[];
+}
+export interface SecretSaveApprovedDestinationsParams {
+    slot: string;
+    origins: string[];
 }
 
 /**

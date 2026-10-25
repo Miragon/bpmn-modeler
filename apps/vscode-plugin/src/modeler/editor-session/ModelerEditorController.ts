@@ -7,16 +7,15 @@ import {
     window,
 } from "vscode";
 
-import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
-
-import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon/bpmn-modeler-core";
-import { basenameOfUriString, EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import {
+    basenameOfUriString,
+    EditorSessionLifecycle,
+    EditorSessionParticipant,
+    EditorSessionStore,
+    NotifierPort,
+    WebviewMessageRouter,
+} from "@miragon/bpmn-modeler-core";
 import { VsCodeEditorHandle } from "../../shared/infrastructure/VsCodeEditorHandle";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
-import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
-import { EditorSessionContext, EditorSessionParticipant } from "./EditorSessionParticipant";
-
-const ORDERED_DOCUMENT_MESSAGES = new Set(["SyncDocumentCommand"]);
 
 /**
  * Per-`viewType` configuration for {@link ModelerEditorController}. Everything
@@ -41,19 +40,26 @@ export interface ModelerEditorOptions {
 /**
  * Generic `CustomTextEditorProvider` for the modeler editors.
  *
- * Constant-size as features grow: it does not hand-wire each feature's session
- * setup. `resolveCustomTextEditor` reduces to URI routing → create session → run
- * participants → dispatch. Each lifecycle concern lives in an
- * {@link EditorSessionParticipant}; this controller only owns the parts that are
- * the same for every modeler — message dispatch, tab tracking, and the single
- * aggregated dispose.
+ * Constant-size as features grow: `resolveCustomTextEditor` reduces to URI
+ * routing → create the handle → hand the session to the host-agnostic
+ * {@link EditorSessionLifecycle}, which dispatches messages and runs every
+ * {@link EditorSessionParticipant} — the same lifecycle the IntelliJ bridge runs.
  */
 export class ModelerEditorController implements CustomTextEditorProvider {
+    private readonly lifecycle: EditorSessionLifecycle;
+
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
         private readonly options: ModelerEditorOptions,
-    ) {}
+    ) {
+        this.lifecycle = new EditorSessionLifecycle(
+            editorStore,
+            notifier,
+            options.messageRouter,
+            options.participants,
+        );
+    }
 
     /**
      * Registers this provider as the custom editor for its `viewType` and adds
@@ -69,14 +75,8 @@ export class ModelerEditorController implements CustomTextEditorProvider {
     }
 
     /**
-     * Called by VS Code whenever a matching file is opened.
-     *
-     * Order matters: the diff branch short-circuits before any session is
-     * created; message/tab/dispose
-     * subscriptions are wired synchronously before any participant runs (a
-     * participant may await, and the webview is already loading); the single
-     * dispose subscription runs every participant's teardown once, after the
-     * store's own bookkeeping.
+     * Called by VS Code whenever a matching file is opened. The diff branch
+     * short-circuits before any session is created.
      */
     async resolveCustomTextEditor(
         document: TextDocument,
@@ -106,161 +106,17 @@ export class ModelerEditorController implements CustomTextEditorProvider {
                 `Editor opened: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
             );
 
-            const context = new EditorSessionContextImpl(
-                this.editorStore,
-                editorHandle,
-                editorId,
-                webviewPanel,
-            );
-
-            // Wire message/tab/dispose synchronously, before running any
-            // participant. `register` set the webview HTML, so the webview is
-            // already loading and posts its first message (e.g. GetBpmnFileCommand)
-            // on load; a participant may then `await` (ElementTemplatesParticipant
-            // does a filesystem lookup), so attaching the listener after the loop
-            // would open a window where that first message arrives unobserved.
             // Participant order still matters for behaviour: the render
             // participant must run first so the diagram is mounted before later
             // participants broadcast settings/engine state against it.
-            this.subscribeToMessageEvent(editorId);
-            this.editorStore.subscribeToTabChangeEvent(editorId);
-            // Single dispose subscription, not one per participant: a second
-            // `onDidDispose` listener would fire `disposeEditor` (map delete +
-            // open-count) once per participant. Aggregating teardown here keeps
-            // it a single call, after the store's own bookkeeping. Wired before
-            // the loop (the callbacks are read lazily) so an immediate close
-            // during a participant's await is still cleaned up.
-            this.editorStore.subscribeToDisposeEvent(editorId, () => {
+            await this.lifecycle.open(editorId, () =>
                 this.notifier.logInfo(
                     `Editor closed: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
-                );
-                context.runDisposeCallbacks();
-            });
-
-            // Isolate each participant: a throw in one must not skip the rest.
-            // ElementTemplatesParticipant awaits a workspace-root lookup that
-            // rethrows on a missing git root, and a single outer catch would then
-            // drop every later participant — no settings broadcast, no engine
-            // status bar, and (worst) the inline-script teardown never registers,
-            // leaking on editor close. Order-independent and future-proof.
-            for (const participant of this.options.participants) {
-                if (!context.isCurrent()) break;
-                try {
-                    await participant.onResolve(context);
-                } catch (error) {
-                    if (context.isCurrent()) {
-                        this.notifier.showError((error as Error).message);
-                        this.notifier.logError(error as Error);
-                    }
-                }
-            }
+                ),
+            );
         } catch (error) {
             this.notifier.showError((error as Error).message);
             this.notifier.logError(error as Error);
-        }
-    }
-
-    /**
-     * Forwards incoming webview messages to the {@link WebviewMessageRouter}.
-     *
-     * The router's handlers (wired in `main.ts`) own the transport → service
-     * translation; this method only brackets dispatch with the received/processed
-     * log lines that the output channel relies on.
-     */
-    private subscribeToMessageEvent(editorId: string): void {
-        this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
-            const session = this.editorStore.captureEditorSession(id);
-            if (!session) return;
-            const dispatch = async (): Promise<void> => {
-                // Per-message transport tracing: useful when diagnosing a stuck
-                // webview handshake, but far too frequent for the default level.
-                this.notifier.logDebug(`Message received -> ${message.type}`);
-                try {
-                    await this.options.messageRouter.dispatch(message, id);
-                    this.notifier.logDebug(`Message processed -> ${message.type}`);
-                } catch (error) {
-                    // VS Code's event emitter does not await this async listener, so
-                    // a rejected dispatch would otherwise surface as an unhandled
-                    // promise rejection. Log it — one handler's failure must never
-                    // crash the host.
-                    this.notifier.logError(error as Error);
-                }
-            };
-
-            if (ORDERED_DOCUMENT_MESSAGES.has(message.type)) {
-                const sync = message as SyncDocumentCommand;
-                if (!this.editorStore.isHostDocumentRevisionCurrent(id, sync.documentRevision)) {
-                    return;
-                }
-                await this.editorStore.runInEditorQueue(id, async () => {
-                    await dispatch();
-                    if (this.editorStore.isHostDocumentRevisionCurrent(id, sync.documentRevision)) {
-                        this.editorStore.recordDocumentSync(id, session, sync.content);
-                    }
-                });
-            } else {
-                await dispatch();
-            }
-        });
-    }
-}
-
-/**
- * Concrete {@link EditorSessionContext} backed by the {@link EditorSessionStore}.
- *
- * Collects participants' `onDispose` callbacks rather than wiring each to its
- * own store dispose subscription; {@link runDisposeCallbacks} is invoked once by
- * the controller's single dispose handler.
- */
-class EditorSessionContextImpl implements EditorSessionContext {
-    private readonly disposeCallbacks: (() => void)[] = [];
-    private disposed = false;
-
-    constructor(
-        private readonly editorStore: EditorSessionStore,
-        private readonly session: object,
-        readonly editorId: string,
-        readonly panel: WebviewPanel,
-    ) {}
-
-    onDocumentChange(callback: (event: DocumentChangeEvent) => void): void {
-        if (!this.isCurrent()) return;
-        this.editorStore.subscribeToDocumentChangeEvent(this.editorId, callback);
-    }
-
-    onSettingChange(callback: (event: SettingChange, editorId: string) => void): void {
-        if (!this.isCurrent()) return;
-        this.editorStore.subscribeToSettingChangeEvent(this.editorId, callback);
-    }
-
-    onDispose(callback: () => void): void {
-        if (this.disposed || !this.isCurrent()) {
-            callback();
-            return;
-        }
-        this.disposeCallbacks.push(callback);
-    }
-
-    addDisposable(disposable: EditorSubscription): void {
-        if (!this.isCurrent()) {
-            disposable.dispose();
-            return;
-        }
-        this.editorStore.addToDisposals(this.editorId, disposable);
-    }
-
-    isCurrent(): boolean {
-        return (
-            !this.disposed && this.editorStore.isCurrentEditorSession(this.editorId, this.session)
-        );
-    }
-
-    /** Runs the collected teardown callbacks in registration order. */
-    runDisposeCallbacks(): void {
-        if (this.disposed) return;
-        this.disposed = true;
-        for (const callback of this.disposeCallbacks.splice(0)) {
-            callback();
         }
     }
 }

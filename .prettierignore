@@ -2,7 +2,9 @@
 
 # Build output and caches
 **/dist
-**/lib
+# Theia build output; a bare `**/lib` would also hide `libs/shared/src/lib`
+apps/standalone/lib
+libs/standalone-extension/lib
 **/build
 **/out
 **/coverage

@@ -1,0 +1,16 @@
+{
+  // Standalone: Vitest runs these files as ES modules in Node, while the
+  // workspace's spec config compiles CommonJS. Type-checked by `test:vscode`.
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    // DOM for the callbacks Playwright evaluates inside VS Code's documents.
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts", "../../../../libs/modeler-core/src/types/bpmn-moddle.d.ts"]
+}

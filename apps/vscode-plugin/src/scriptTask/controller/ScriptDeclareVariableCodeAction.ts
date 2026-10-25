@@ -18,7 +18,7 @@ import {
     ScriptVariableManifestService,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { ScriptCompletionProvider } from "./ScriptCompletionProvider";
 import { ScriptTaskService } from "./ScriptTaskService";
 
@@ -52,7 +52,7 @@ export class ScriptDeclareVariableCodeAction implements CodeActionProvider {
         private readonly scriptTaskSvc: ScriptTaskService,
         private readonly store: ScriptVariableStore,
         private readonly manifestSvc: ScriptVariableManifestService,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     /**

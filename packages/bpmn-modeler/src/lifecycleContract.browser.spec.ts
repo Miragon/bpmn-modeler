@@ -3,11 +3,22 @@ import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "./createModeler";
 import { BpmnModeler } from "./modeler";
+import type { ThemeMode } from "./publicApi";
 import { createDesigner } from "./design/createDesigner";
 import type { BpmnDesigner } from "./design/designer";
 import { createViewer } from "./viewer/createViewer";
 import type { BpmnViewer } from "./viewer/viewer";
 import { DiffViewer } from "./viewer/diff/DiffViewer";
+import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
+import {
+    mountCanvas,
+    mountWithPanel,
+    removeMounts,
+    settleObserver,
+    trackColorSchemeListeners,
+    trackDocumentListeners,
+    wait,
+} from "./__fixtures__/surfaceMount";
 
 /**
  * One lifecycle contract, run against every surface (modeler, designer, viewer,
@@ -16,24 +27,6 @@ import { DiffViewer } from "./viewer/diff/DiffViewer";
  * Exhaustive per-phase init-failure coverage stays in the jsdom
  * `createSurface.spec.ts`; here each surface is exercised end to end.
  */
-
-const XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true">
-    <bpmn:startEvent id="StartEvent_1" />
-    <bpmn:task id="Task_1" name="A" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
-        <dc:Bounds x="5000" y="4000" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="5100" y="3980" width="100" height="80" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
 
 // A bpmn-js DI module whose service throws during construction, so the bpmn-js
 // constructor inside each factory's init phase fails — the "allocation" failure.
@@ -53,8 +46,13 @@ type Handle = { destroy(): void };
 
 interface Mount {
     container: HTMLElement;
-    panelParent?: HTMLElement;
+    panel?: HTMLElement;
     roots: HTMLElement[];
+}
+
+function mountWithPanelRoots(): Mount {
+    const { container, panel } = mountWithPanel();
+    return { container, panel, roots: [container, panel] };
 }
 
 interface SurfaceDescriptor {
@@ -67,36 +65,12 @@ interface SurfaceDescriptor {
     subscribeChannels(handle: Handle, onFire: () => void): Array<() => void>;
     /** Fires a user-driven viewbox change; absent when the surface exposes no canvas. */
     triggerViewbox?(handle: Handle): void;
-    /** Reads a live-only accessor, which must throw once destroyed. */
-    probeDead(handle: Handle): void;
-}
-
-const raf = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-async function settleObserver(): Promise<void> {
-    for (let i = 0; i < 6; i++) {
-        await raf();
-    }
-}
-
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-const openMounts: HTMLElement[] = [];
-
-function el(width = 800, height = 600): HTMLElement {
-    const node = document.createElement("div");
-    node.style.width = `${width}px`;
-    node.style.height = `${height}px`;
-    node.style.position = "absolute";
-    document.body.appendChild(node);
-    openMounts.push(node);
-    return node;
-}
-
-function mountWithPanel(): Mount {
-    const container = el();
-    const panelParent = el(300, 600);
-    return { container, panelParent, roots: [container, panelParent] };
+    /** The diagram-js canvas; absent when the surface exposes none. */
+    canvas?(handle: Handle): { resized(): void };
+    /** Live-only accessors, each of which must throw once destroyed. */
+    deadAccessors(handle: Handle): Array<() => unknown>;
+    /** Switches the colour theme; absent when the surface has no theme setter. */
+    setTheme?(handle: Handle, theme: ThemeMode): void;
 }
 
 function assertClean(roots: HTMLElement[]): void {
@@ -111,88 +85,84 @@ function assertClean(roots: HTMLElement[]): void {
     }
 }
 
-function trackDocumentKeydown() {
-    const originalAdd = document.addEventListener.bind(document);
-    const originalRemove = document.removeEventListener.bind(document);
-    let added = 0;
-    let removed = 0;
-    document.addEventListener = ((type: string, ...rest: unknown[]) => {
-        if (type === "keydown") added++;
-        return (originalAdd as (...a: unknown[]) => void)(type, ...rest);
-    }) as typeof document.addEventListener;
-    document.removeEventListener = ((type: string, ...rest: unknown[]) => {
-        if (type === "keydown") removed++;
-        return (originalRemove as (...a: unknown[]) => void)(type, ...rest);
-    }) as typeof document.removeEventListener;
-    return {
-        counts: () => ({ added, removed }),
-        restore: () => {
-            document.addEventListener = originalAdd;
-            document.removeEventListener = originalRemove;
-        },
-    };
-}
-
 const surfaces: SurfaceDescriptor[] = [
     {
         name: "modeler",
-        mount: mountWithPanel,
+        mount: mountWithPanelRoots,
         create: (m) =>
             createModeler(m.container, {
                 engine: "c8",
-                propertiesPanel: { parent: m.panelParent! },
+                propertiesPanel: { parent: m.panel! },
             }),
         createFailing: (m) =>
             createModeler(m.container, {
                 engine: "c8",
-                propertiesPanel: { parent: m.panelParent! },
+                propertiesPanel: { parent: m.panel! },
                 additionalModules: [POISON_MODULE] as never,
             }),
-        load: async (h) => void (await (h as BpmnModeler).loadDiagram(XML)),
+        load: async (h) => void (await (h as BpmnModeler).loadDiagram(FAR_FROM_ORIGIN_XML)),
         subscribeChannels: (h, onFire) => [
             (h as BpmnModeler).viewport.onViewportChanged(onFire),
             (h as BpmnModeler).onCommandStackChanged(onFire),
         ],
         triggerViewbox: (h) => (h as BpmnModeler).getService("canvas").zoom(2),
-        probeDead: (h) => void (h as BpmnModeler).viewport,
+        canvas: (h) => (h as BpmnModeler).getService("canvas"),
+        deadAccessors: (h) => [
+            () => (h as BpmnModeler).viewport,
+            () => (h as BpmnModeler).selection,
+            () => (h as BpmnModeler).rootElement,
+        ],
+        setTheme: (h, theme) => (h as BpmnModeler).setTheme(theme),
     },
     {
         name: "designer",
-        mount: mountWithPanel,
-        create: (m) => createDesigner(m.container, { propertiesPanel: { parent: m.panelParent! } }),
+        mount: mountWithPanelRoots,
+        create: (m) => createDesigner(m.container, { propertiesPanel: { parent: m.panel! } }),
         createFailing: (m) =>
             createDesigner(m.container, {
-                propertiesPanel: { parent: m.panelParent! },
+                propertiesPanel: { parent: m.panel! },
                 additionalModules: [POISON_MODULE] as never,
             }),
-        load: async (h) => void (await (h as BpmnDesigner).loadDiagram(XML)),
+        load: async (h) => void (await (h as BpmnDesigner).loadDiagram(FAR_FROM_ORIGIN_XML)),
         subscribeChannels: (h, onFire) => [(h as BpmnDesigner).viewport.onViewportChanged(onFire)],
         triggerViewbox: (h) => (h as BpmnDesigner).getService("canvas").zoom(2),
-        probeDead: (h) => void (h as BpmnDesigner).viewport,
+        canvas: (h) => (h as BpmnDesigner).getService("canvas"),
+        deadAccessors: (h) => [
+            () => (h as BpmnDesigner).viewport,
+            () => (h as BpmnDesigner).selection,
+            () => (h as BpmnDesigner).rootElement,
+        ],
+        setTheme: (h, theme) => (h as BpmnDesigner).setTheme(theme),
     },
     {
         name: "viewer",
-        mount: mountWithPanel,
-        create: (m) => createViewer(m.container, { propertiesPanel: { parent: m.panelParent! } }),
+        mount: mountWithPanelRoots,
+        create: (m) => createViewer(m.container, { propertiesPanel: { parent: m.panel! } }),
         createFailing: (m) =>
             createViewer(m.container, {
-                propertiesPanel: { parent: m.panelParent! },
+                propertiesPanel: { parent: m.panel! },
                 additionalModules: [POISON_MODULE] as never,
             }),
-        load: async (h) => void (await (h as BpmnViewer).loadDiagram(XML)),
+        load: async (h) => void (await (h as BpmnViewer).loadDiagram(FAR_FROM_ORIGIN_XML)),
         subscribeChannels: (h, onFire) => [(h as BpmnViewer).viewport.onViewportChanged(onFire)],
         triggerViewbox: (h) => (h as BpmnViewer).getService("canvas").zoom(2),
-        probeDead: (h) => void (h as BpmnViewer).viewport,
+        canvas: (h) => (h as BpmnViewer).getService("canvas"),
+        deadAccessors: (h) => [
+            () => (h as BpmnViewer).viewport,
+            () => (h as BpmnViewer).selection,
+            () => (h as BpmnViewer).rootElement,
+        ],
+        setTheme: (h, theme) => (h as BpmnViewer).setTheme(theme),
     },
     {
         name: "diffViewer",
         mount: () => {
-            const container = el();
+            const container = mountCanvas();
             return { container, roots: [container] };
         },
         create: async (m) => {
             const diff = new DiffViewer(m.container);
-            await diff.importXML(XML);
+            await diff.importXML(FAR_FROM_ORIGIN_XML);
             return diff;
         },
         // Allocation cannot fail (the constructor takes no options); a malformed
@@ -209,19 +179,15 @@ const surfaces: SurfaceDescriptor[] = [
         },
         load: () => Promise.resolve(),
         subscribeChannels: (h, onFire) => [(h as DiffViewer).onViewportChanged(onFire)],
-        probeDead: (h) => void (h as DiffViewer).getViewport(),
+        deadAccessors: (h) => [() => (h as DiffViewer).getViewport()],
     },
 ];
 
-afterEach(() => {
-    for (const node of openMounts.splice(0)) {
-        node.remove();
-    }
-});
+afterEach(removeMounts);
 
 describe.each(surfaces)("$name lifecycle contract", (surface) => {
     it("destroys cleanly: no DOM residue, balanced listeners, dead accessors", async () => {
-        const tracker = trackDocumentKeydown();
+        const tracker = trackDocumentListeners("keydown");
         const mount = surface.mount();
         const handle = await surface.create(mount);
         await surface.load(handle);
@@ -237,7 +203,9 @@ describe.each(surfaces)("$name lifecycle contract", (surface) => {
         expect(removed).toBe(added);
         tracker.restore();
 
-        expect(() => surface.probeDead(handle)).toThrow(NoModelerError);
+        for (const readAccessor of surface.deadAccessors(handle)) {
+            expect(readAccessor).toThrow(NoModelerError);
+        }
 
         // Idempotent: a second destroy neither throws nor re-runs disposers.
         expect(() => handle.destroy()).not.toThrow();
@@ -268,6 +236,44 @@ describe.each(surfaces)("$name lifecycle contract", (surface) => {
         expect(onFire).not.toHaveBeenCalled();
     });
 
+    it("stops observing the container size once destroyed", async () => {
+        if (!surface.canvas) {
+            return;
+        }
+        const mount = surface.mount();
+        const handle = await surface.create(mount);
+        await surface.load(handle);
+        await settleObserver();
+        const resized = vi.spyOn(surface.canvas(handle), "resized");
+
+        handle.destroy();
+        mount.container.style.width = "400px";
+        await settleObserver();
+
+        expect(resized).not.toHaveBeenCalled();
+    });
+
+    it("ignores setTheme once destroyed: no theme attribute, no scheme listener", async () => {
+        if (!surface.setTheme) {
+            return;
+        }
+        const schemeListeners = trackColorSchemeListeners();
+        try {
+            const mount = surface.mount();
+            const handle = await surface.create(mount);
+            handle.destroy();
+
+            surface.setTheme(handle, "dark");
+            surface.setTheme(handle, "automatic");
+
+            assertClean(mount.roots);
+            const { added, removed } = schemeListeners.counts();
+            expect(removed).toBe(added);
+        } finally {
+            schemeListeners.restore();
+        }
+    });
+
     it("rejects a failed create, leaves zero residue, and stays reusable", async () => {
         const mount = surface.mount();
 
@@ -283,10 +289,10 @@ describe.each(surfaces)("$name lifecycle contract", (surface) => {
 
 describe("BpmnModeler engine stack loading", () => {
     it("allocates nothing when destroyed while its engine stack loads", async () => {
-        const mount = mountWithPanel();
+        const mount = mountWithPanelRoots();
         const modeler = new BpmnModeler(mount.container, {
             engine: "c7",
-            propertiesPanel: { parent: mount.panelParent! },
+            propertiesPanel: { parent: mount.panel! },
         });
 
         const initialized = modeler.init();
@@ -295,5 +301,26 @@ describe("BpmnModeler engine stack loading", () => {
 
         assertClean(mount.roots);
         expect(() => modeler.getService("canvas")).toThrow(NoModelerError);
+    });
+});
+
+describe("BpmnModeler re-entrant init", () => {
+    it("keeps setTheme working after init() disposes the previous store", async () => {
+        const mount = mountWithPanelRoots();
+        const modeler = new BpmnModeler(mount.container, {
+            engine: "c8",
+            propertiesPanel: { parent: mount.panel! },
+        });
+        await modeler.init();
+        modeler.setTheme("dark");
+
+        await modeler.init();
+        modeler.setTheme("dark");
+
+        for (const root of mount.roots) {
+            expect(root.getAttribute("data-bpmn-theme")).toBe("dark");
+        }
+        modeler.destroy();
+        assertClean(mount.roots);
     });
 });

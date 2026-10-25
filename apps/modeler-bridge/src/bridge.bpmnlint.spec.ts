@@ -28,6 +28,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { registerParams, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -56,41 +57,6 @@ const BPMN_XML_OVERSIZED = `<?xml version="1.0" encoding="UTF-8"?>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
-
-function registerParams(editorId: string, root: string, fsPath: string, content = BPMN_XML) {
-    return {
-        editorId,
-        uriString: editorId,
-        path: fsPath,
-        fsPath,
-        scheme: "file",
-        workspaceRoot: root,
-        content,
-    };
-}
-
-/**
- * Polls `frames` for the first entry (at or after `fromIndex`) matching
- * `predicate`. `onPoll` runs each miss — the watcher-driven tests re-touch the
- * `.bpmnlintrc` there, because fsevents can drop the first `add` after a
- * freshly-armed chokidar watch.
- */
-async function waitForFrame(
-    frames: any[],
-    predicate: (frame: any) => boolean,
-    timeoutMs = 2000,
-    onPoll?: () => Promise<void> | void,
-    fromIndex = 0,
-): Promise<any> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        const match = frames.slice(fromIndex).find(predicate);
-        if (match) return match;
-        await onPoll?.();
-        await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error("waitForFrame timed out");
-}
 
 // A host lint delivering actual findings. Requires non-null `results`: a
 // `.bpmnlintrc` write is truncate-then-write, so the watcher can fire mid-write
@@ -291,7 +257,10 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
                 "utf8",
             );
         await writeConfig();
-        const frame = await waitForFrame(frames, isLintResultsFrame, 5000, writeConfig);
+        const frame = await waitForFrame(frames, isLintResultsFrame, {
+            timeoutMs: 5000,
+            onMiss: writeConfig,
+        });
         expect(Object.keys(frame.params.message.results)).toContain("start-event-required");
 
         // The takeover flipped the mode to "external" *before* the results push,
@@ -339,12 +308,54 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         // produce a fresh in-page handback, not the pre-existing results frame.
         const baseline = frames.length;
         await fs.rm(configPath);
-        await waitForFrame(
-            frames,
-            (frame) => isInPageInstructionFrame(frame),
-            5000,
-            undefined,
-            baseline,
+        await waitForFrame(frames, isInPageInstructionFrame, {
+            timeoutMs: 5000,
+            fromIndex: baseline,
+        });
+    });
+    async function setupHostLinted() {
+        const session = await setup();
+        await fs.writeFile(
+            join(session.root, ".bpmnlintrc"),
+            JSON.stringify({
+                extends: "bpmnlint:recommended",
+                moddleExtensions: { acme: "./acme.json" },
+            }),
+            "utf8",
         );
+        await requestConfig(session.rpc, session.editorId);
+        await waitForFrame(session.frames, isLintResultsFrame);
+        return session;
+    }
+
+    it("re-lints a host-linted diagram after an external edit", async () => {
+        const { rpc, frames, editorId } = await setupHostLinted();
+        const baseline = frames.length;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "document/didChange",
+                params: { editorId, content: BPMN_XML_OVERSIZED },
+            }),
+        );
+
+        const frame = await waitForFrame(frames, isLintResultsFrame, { fromIndex: baseline });
+        expect(Object.keys(frame.params.message.results)).toContain("start-event-required");
+    });
+
+    it("re-lints when the host moves the config folder", async () => {
+        const { rpc, frames } = await setupHostLinted();
+        const baseline = frames.length;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "settings/didChange",
+                params: { settings: { configFolder: ".bpmn" } },
+            }),
+        );
+
+        await expect(
+            waitForFrame(frames, isLintResultsFrame, { fromIndex: baseline }),
+        ).resolves.toBeDefined();
     });
 });

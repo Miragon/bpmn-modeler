@@ -1,7 +1,7 @@
 # DMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-09-18
+- Last reviewed: 2026-10-24
 
 ## Context
 
@@ -43,6 +43,13 @@ leaked private protocol symbols and dmn-js imports in the public declarations;
 guard declared runtime dependencies. Version alignment and the bundled consumer
 smoke test follow [Release and publishing](release-and-publishing.md).
 
+The handle follows the BPMN surfaces' lifecycle contract, so an embedder sees
+the same behavior from both packages. Teardown composes the shared
+`DisposableStore` and `MutableDisposable` from `modeler-types`. `destroy()` is
+idempotent; afterwards every member throws `NoModelerError` (async members
+reject with it), which the package exports, except `setTheme`, which becomes a
+no-op.
+
 ### Themes
 
 Each instance controls `data-dmn-theme="light" | "dark"` on its container and
@@ -60,8 +67,8 @@ absence. A separate themes-only build of the main stylesheet is unnecessary.
 Pass the canvas container as `feelPopupContainer` so the DRD panel's FEEL popup
 stays inside the theme scope. The private shared `hostTheme` adapter maps IDE
 body classes to the package-specific attribute and themes page chrome. The
-package's small `ThemeController` remains separate from BPMN's controller;
-extracting another shared abstraction was not necessary for this contract.
+theme controller is the one BPMN uses, shared through `modeler-types` with the
+attribute name as a parameter, so a theme fix lands in both packages.
 
 ### Locale
 

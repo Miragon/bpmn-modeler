@@ -164,6 +164,8 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             }
             handle = candidate;
             currentMode = target;
+            // A setTheme during the build reached only the destroyed original.
+            handle.setTheme(theme);
             options.onSurfaceCreated?.(handle, target);
             await handle.loadDiagram(xml);
             if (disposed) {
@@ -193,6 +195,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             }
             handle = surface;
             currentMode = fallback;
+            handle.setTheme(theme);
             options.onSurfaceCreated?.(handle, fallback);
             await handle.loadDiagram(xml);
             if (disposed) {

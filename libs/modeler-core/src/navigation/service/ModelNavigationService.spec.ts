@@ -1,35 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { PickerAnswers, RecordingNotifier, ScriptedPicker } from "../../testing";
 import { ModelNavigationService } from "./ModelNavigationService";
 import { LocateResult } from "./ReferencedModelLocator";
 
-function createService(result: LocateResult) {
+function createService(result: LocateResult, answers: PickerAnswers = {}) {
     const locator = {
         findDeclaringFiles: vi.fn().mockResolvedValue(result),
     };
-    const notifier = {
-        showInfo: vi.fn(),
-        showError: vi.fn(),
-        logInfo: vi.fn(),
-        logWarning: vi.fn(),
-        logError: vi.fn(),
-        openDocument: vi.fn().mockResolvedValue(undefined),
-    };
+    const notifier = new RecordingNotifier();
+    const picker = new ScriptedPicker(answers);
 
-    const picker = {
-        searchAndPickReferencedModel: vi.fn(
-            async (_placeholder: string, search: () => Promise<LocateResult>) => ({
-                outcome: await search(),
-                chosen: undefined as string | undefined,
-            }),
-        ),
-    };
-
-    const service = new ModelNavigationService(
-        locator as never,
-        notifier as never,
-        picker as never,
-    );
+    const service = new ModelNavigationService(locator as never, notifier, picker);
 
     return { service, locator, notifier, picker };
 }
@@ -44,10 +26,11 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(picker.searchAndPickReferencedModel).toHaveBeenCalledTimes(1);
-        const [placeholder, search] = picker.searchAndPickReferencedModel.mock.calls[0];
-        expect(placeholder).toContain("ProcessB");
-        expect(search).toBeTypeOf("function");
+        expect(picker.prompts).toHaveLength(1);
+        const { method, args } = picker.prompts[0];
+        expect(method).toBe("searchAndPickReferencedModel");
+        expect(args[0]).toContain("ProcessB");
+        // The scripted picker calls the thunk itself, so a pre-resolved result would throw.
         expect(locator.findDeclaringFiles).toHaveBeenCalled();
     });
 
@@ -73,39 +56,34 @@ describe("ModelNavigationService.navigate", () => {
         await service.navigate("ProcessB", "process");
 
         // Single match opens directly, without a pick.
-        expect(notifier.openDocument).toHaveBeenCalledWith("/a.bpmn");
+        expect(notifier.openedDocuments).toEqual(["/a.bpmn"]);
     });
 
     it("opens the user's QuickPick selection when the locator returns multiple matches", async () => {
-        const { service, picker, notifier } = createService({
-            kind: "matches",
-            paths: ["/a.bpmn", "/b.bpmn"],
-            readFailures: [],
-        });
-        picker.searchAndPickReferencedModel.mockImplementation(async (_placeholder, search) => ({
-            outcome: await search(),
-            chosen: "/b.bpmn",
-        }));
+        const { service, notifier } = createService(
+            {
+                kind: "matches",
+                paths: ["/a.bpmn", "/b.bpmn"],
+                readFailures: [],
+            },
+            { referencedModel: "/b.bpmn" },
+        );
 
         await service.navigate("Shared", "process");
 
-        expect(notifier.openDocument).toHaveBeenCalledWith("/b.bpmn");
+        expect(notifier.openedDocuments).toEqual(["/b.bpmn"]);
     });
 
     it("does not open anything when the user cancels the QuickPick", async () => {
-        const { service, picker, notifier } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: ["/a.bpmn", "/b.bpmn"],
             readFailures: [],
         });
-        picker.searchAndPickReferencedModel.mockImplementation(async (_placeholder, search) => ({
-            outcome: await search(),
-            chosen: undefined,
-        }));
 
         await service.navigate("Shared", "process");
 
-        expect(notifier.openDocument).not.toHaveBeenCalled();
+        expect(notifier.openedDocuments).toEqual([]);
     });
 
     it("shows an info notification when matches is empty", async () => {
@@ -117,8 +95,8 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("Missing", "process");
 
-        expect(notifier.showInfo).toHaveBeenCalledWith(expect.stringContaining("Missing"));
-        expect(notifier.openDocument).not.toHaveBeenCalled();
+        expect(notifier.infos).toEqual([expect.stringContaining("Missing")]);
+        expect(notifier.openedDocuments).toEqual([]);
     });
 
     it("shows the 'open a folder' hint when the locator reports no-search-scope", async () => {
@@ -126,8 +104,8 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(notifier.showInfo).toHaveBeenCalledWith(expect.stringContaining("Open a folder"));
-        expect(notifier.openDocument).not.toHaveBeenCalled();
+        expect(notifier.infos).toEqual([expect.stringContaining("Open a folder")]);
+        expect(notifier.openedDocuments).toEqual([]);
     });
 
     it("logs each failure and shows an error when the locator reports all-unreadable", async () => {
@@ -139,11 +117,14 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(notifier.logWarning).toHaveBeenCalledTimes(2);
-        expect(notifier.showError).toHaveBeenCalledWith(
+        expect(notifier.logged("warning")).toEqual([
+            "read /bad1 failed: EACCES",
+            "read /bad2 failed: EACCES",
+        ]);
+        expect(notifier.errors).toEqual([
             expect.stringContaining("none of the candidate files were readable"),
-        );
-        expect(notifier.openDocument).not.toHaveBeenCalled();
+        ]);
+        expect(notifier.openedDocuments).toEqual([]);
     });
 
     it("logs partial read failures alongside a successful match", async () => {
@@ -155,8 +136,8 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(notifier.logWarning).toHaveBeenCalledWith(expect.stringContaining("EACCES"));
-        expect(notifier.openDocument).toHaveBeenCalledWith("/good.bpmn");
+        expect(notifier.logged("warning")).toEqual([expect.stringContaining("EACCES")]);
+        expect(notifier.openedDocuments).toEqual(["/good.bpmn"]);
     });
 
     it("surfaces an error when openDocument rejects", async () => {
@@ -165,12 +146,12 @@ describe("ModelNavigationService.navigate", () => {
             paths: ["/a.bpmn"],
             readFailures: [],
         });
-        notifier.openDocument.mockRejectedValueOnce(new Error("File not found"));
+        vi.spyOn(notifier, "openDocument").mockRejectedValueOnce(new Error("File not found"));
 
         await service.navigate("ProcessB", "process");
 
-        expect(notifier.showError).toHaveBeenCalledWith(expect.stringContaining("File not found"));
-        expect(notifier.logError).toHaveBeenCalled();
+        expect(notifier.errors).toEqual([expect.stringContaining("File not found")]);
+        expect(notifier.logged("error")).toEqual(["File not found"]);
     });
 
     it("truncates very long reference ids in user-facing notifications", async () => {
@@ -183,10 +164,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate(huge, "process");
 
-        const message = notifier.showInfo.mock.calls[0][0] as string;
-        /**
-         * The 500-char id must NOT appear in full — truncation kicks in.
-         */
+        const [message] = notifier.infos;
         expect(message).not.toContain(huge);
         expect(message).toContain("…");
     });

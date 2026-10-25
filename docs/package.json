@@ -3,17 +3,26 @@
     "private": true,
     "scripts": {
         "dev": "portless",
-        "dev:app": "(open \"$PORTLESS_URL/bpmn-modeler/\" || true) & vitepress dev . --port $PORT --host 127.0.0.1",
+        "dev:app": "(open \"$PORTLESS_URL/\" || true) & vitepress dev . --port $PORT --host 127.0.0.1",
         "build": "vitepress build .",
         "preview": "vitepress preview .",
+        "check:kit": "node .vitepress/miragon/check.mjs",
         "test": "vitest run"
     },
     "devDependencies": {
+        "@braintree/sanitize-url": "7.1.2",
+        "@fontsource-variable/geist": "5.3.0",
+        "@fontsource-variable/geist-mono": "5.3.0",
+        "cytoscape": "3.34.4",
+        "cytoscape-cose-bilkent": "4.1.0",
+        "dayjs": "1.11.23",
+        "debug": "4.4.3",
         "mermaid": "11.17.2",
         "portless": "0.15.8",
         "vite": "8.3.4",
         "vitepress": "1.6.4",
         "vitepress-plugin-mermaid": "2.0.17",
         "vitest": "5.0.5"
-    }
+    },
+    "type": "module"
 }

@@ -93,29 +93,29 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
         return () => document.removeEventListener("keydown", handleKey, true);
     }, [onCancel]);
 
+    const focusTemplateAt = useCallback(
+        (index: number) => {
+            setFocusIndex(index);
+            setSelectedId(filtered[index]?.id ?? null);
+        },
+        [filtered],
+    );
+
     // Keyboard navigation within the template list.
     const handleKeyDown = useCallback(
         (e: KeyboardEvent) => {
             if (e.key === "ArrowDown") {
                 e.preventDefault();
-                setFocusIndex((prev) => {
-                    const next = Math.min(prev + 1, filtered.length - 1);
-                    setSelectedId(filtered[next]?.id ?? null);
-                    return next;
-                });
+                focusTemplateAt(Math.min(focusIndex + 1, filtered.length - 1));
             } else if (e.key === "ArrowUp") {
                 e.preventDefault();
-                setFocusIndex((prev) => {
-                    const next = Math.max(prev - 1, 0);
-                    setSelectedId(filtered[next]?.id ?? null);
-                    return next;
-                });
+                focusTemplateAt(Math.max(focusIndex - 1, 0));
             } else if (e.key === "Enter" && selectedTemplate) {
                 e.preventDefault();
                 onSelect(selectedTemplate);
             }
         },
-        [filtered, selectedTemplate, onSelect],
+        [focusIndex, filtered.length, focusTemplateAt, selectedTemplate, onSelect],
     );
 
     /**
@@ -231,10 +231,7 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
                                     ]
                                         .filter(Boolean)
                                         .join(" ")}
-                                    onClick={() => {
-                                        setSelectedId(t.id);
-                                        setFocusIndex(idx);
-                                    }}
+                                    onClick={() => focusTemplateAt(idx)}
                                     onDblClick={() => onSelect(t)}
                                 >
                                     <div class="etc-card-header">

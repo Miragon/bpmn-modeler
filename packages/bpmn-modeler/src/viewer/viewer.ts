@@ -3,25 +3,20 @@ import OutlineModule from "bpmn-js/lib/features/outline";
 import ContextPadModule from "diagram-js/lib/features/context-pad";
 import MinimapModule from "diagram-js-minimap";
 import TokenSimulationViewerModule from "bpmn-js-token-simulation/lib/viewer";
-import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 // Deep imports avoid the barrel's CSS side effects; viewer styles must stay separate from editor CSS.
 import PropertiesPanelModule from "@miragon/bpmn-modeler-properties-panel/render/index";
 import NeutralPropertiesProviderModule from "@miragon/bpmn-modeler-properties-panel/provider/index";
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
-import { DisposableStore, MutableDisposable, NoModelerError } from "@miragon/bpmn-modeler-types";
-import { ThemeController } from "../theme";
-import { CanvasViewportManager, type ViewportManager } from "../viewport";
-import { ElementSelectionManager, type SelectionManager } from "../selection";
-import { CanvasRootElementManager, type RootElementManager } from "../rootElement";
-import {
-    applyViewState as applyViewStateComposition,
-    captureViewState as captureViewStateComposition,
-    type ViewState,
-} from "../viewState";
-import { armInitialViewportPolicy } from "../initialViewport";
-import { installSurfaceFocusFeatures } from "../focusFeatures";
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
+import type { ViewportManager } from "../viewport";
+import type { SelectionManager } from "../selection";
+import type { RootElementManager } from "../rootElement";
+import type { ViewState } from "../viewState";
+import { exportFormattedXml, exportSvg, importDiagram } from "../diagramXml";
+import { SurfaceCore } from "../surfaceCore";
 import type { ThemeMode } from "../publicApi";
 import type { CoreViewerServices, ViewerOptions } from "./publicApi";
 
@@ -30,20 +25,9 @@ import type { CoreViewerServices, ViewerOptions } from "./publicApi";
  * Create it with {@link createViewer}; accessors require a live instance.
  */
 export class BpmnViewer {
-    private viewer: NavigatedViewer | undefined = undefined;
-
-    private _viewport: ViewportManager | undefined;
-
-    private _selection: SelectionManager | undefined;
-
-    private _rootElement: RootElementManager | undefined;
-
-    private themeController?: ThemeController;
+    private readonly core: SurfaceCore<NavigatedViewer>;
 
     private readonly store = new DisposableStore();
-
-    // Re-armed per loadDiagram, so it can't be a plain store entry.
-    private readonly sizeObserver = new MutableDisposable();
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -52,30 +36,24 @@ export class BpmnViewer {
     constructor(
         private readonly container: HTMLElement,
         private readonly options: ViewerOptions,
-    ) {}
+    ) {
+        const panel = options.propertiesPanel;
+        this.core = new SurfaceCore(container, panel ? [container, panel.parent] : [container]);
+    }
 
     /** Access the viewport manager after {@link init}. */
     get viewport(): ViewportManager {
-        if (!this._viewport) {
-            throw new NoModelerError();
-        }
-        return this._viewport;
+        return this.core.viewport;
     }
 
     /** Access the selection manager after {@link init}. */
     get selection(): SelectionManager {
-        if (!this._selection) {
-            throw new NoModelerError();
-        }
-        return this._selection;
+        return this.core.selection;
     }
 
     /** Access the root element manager after {@link init}. */
     get rootElement(): RootElementManager {
-        if (!this._rootElement) {
-            throw new NoModelerError();
-        }
-        return this._rootElement;
+        return this.core.rootElement;
     }
 
     /**
@@ -85,7 +63,7 @@ export class BpmnViewer {
      * {@link ViewState} for the plane/selection degradation rules.
      */
     captureViewState(): ViewState {
-        return captureViewStateComposition(this.viewStateManagers());
+        return this.core.captureViewState();
     }
 
     /**
@@ -93,16 +71,7 @@ export class BpmnViewer {
      * and selection in the required root → viewport → selection order.
      */
     applyViewState(state: ViewState): void {
-        applyViewStateComposition(this.viewStateManagers(), state);
-    }
-
-    // Accessing viewport guards initialization; all three managers share its lifecycle.
-    private viewStateManagers() {
-        return {
-            viewport: this.viewport,
-            selection: this.selection,
-            rootElement: this._rootElement!,
-        };
+        this.core.applyViewState(state);
     }
 
     /** @internal */
@@ -115,95 +84,59 @@ export class BpmnViewer {
             ? [ContextPadModule, createModelNavigationModule(navigationPort)]
             : [];
 
-        this.allocateViewer(panel, capModules);
-        this.store.add(() => {
-            this.viewer?.destroy();
-            this.viewer = undefined;
+        this.core.allocate(this.store, () => this.constructViewer(panel, capModules), {
+            extraRoots: panel ? [panel.parent] : [],
+            hasSearchPad: false,
         });
-
-        const accessor = <T>(name: string): T => this.getViewer().get<T>(name);
-        this._viewport = new CanvasViewportManager(accessor);
-        this._selection = new ElementSelectionManager(accessor);
-        this._rootElement = new CanvasRootElementManager(accessor);
-
-        this.store.add(
-            installSurfaceFocusFeatures(accessor, {
-                extraRoots: panel ? [panel.parent] : [],
-                hasSearchPad: false,
-            }),
-        );
-        this.store.add(() => this.sizeObserver.dispose());
     }
 
-    private allocateViewer(panel: ViewerOptions["propertiesPanel"], capModules: unknown[]): void {
-        try {
-            this.viewer = new NavigatedViewer({
-                container: this.container,
-                moddleExtensions: this.options.moddleExtensions,
-                minimap: { open: false },
-                ...(panel && {
-                    propertiesPanel: {
-                        parent: panel.parent,
-                        // Keep popups within this instance's theme scope instead of document.body.
-                        feelPopupContainer: this.container,
-                    },
-                }),
-                // NavigatedViewer omits Outline, which is needed to make selection and hover visible.
-                additionalModules: [
-                    OutlineModule,
-                    MinimapModule,
-                    // The readonly variant does not require the absent modeling service.
-                    TokenSimulationViewerModule,
-                    ...(panel
-                        ? [
-                              PropertiesPanelModule,
-                              NeutralPropertiesProviderModule,
-                              ModeFilterModule,
-                              CustomGroupsModule,
-                          ]
-                        : []),
-                    ...capModules,
-                    ...((this.options.additionalModules as unknown[]) ?? []),
-                ],
-            });
-        } catch (error) {
-            // A partially-constructed bpmn-js attaches `.bjs-container` with no
-            // handle to destroy; clear the dedicated container before rethrowing.
-            this.container.replaceChildren();
-            throw error;
-        }
+    private constructViewer(
+        panel: ViewerOptions["propertiesPanel"],
+        capModules: unknown[],
+    ): NavigatedViewer {
+        return new NavigatedViewer({
+            container: this.container,
+            moddleExtensions: this.options.moddleExtensions,
+            minimap: { open: false },
+            ...(panel && {
+                propertiesPanel: {
+                    parent: panel.parent,
+                    // Keep popups within this instance's theme scope instead of document.body.
+                    feelPopupContainer: this.container,
+                },
+            }),
+            // NavigatedViewer omits Outline, which is needed to make selection and hover visible.
+            additionalModules: [
+                OutlineModule,
+                MinimapModule,
+                // The readonly variant does not require the absent modeling service.
+                TokenSimulationViewerModule,
+                ...(panel
+                    ? [
+                          PropertiesPanelModule,
+                          NeutralPropertiesProviderModule,
+                          ModeFilterModule,
+                          CustomGroupsModule,
+                      ]
+                    : []),
+                ...capModules,
+                ...((this.options.additionalModules as unknown[]) ?? []),
+            ],
+        });
     }
 
     async loadDiagram(xml: string): Promise<ImportXMLResult> {
-        try {
-            const result = await this.getViewer().importXML(xml);
-            const canvas = this.getService("canvas");
-            this.sizeObserver.set(armInitialViewportPolicy(canvas, this._viewport!));
-            return result;
-        } catch (error: unknown) {
-            if ((error as ImportXMLError).warnings) {
-                const importError = error as ImportXMLError;
-                throw new Error(`${importError.message} ${importError.warnings}`, {
-                    cause: error,
-                });
-            }
-            throw error;
-        }
+        const result = await importDiagram(this.core.instance, xml);
+        this.core.armInitialViewport();
+        return result;
     }
 
     async exportDiagram(): Promise<string> {
-        const result: SaveXMLResult = await this.getViewer().saveXML({ format: true });
-        if (result.xml) {
-            return result.xml;
-        } else if (result.error) {
-            throw result.error;
-        }
-        throw new Error("Failed to serialise the diagram!");
+        return exportFormattedXml(this.core.instance);
     }
 
     async getDiagramSvg(): Promise<string> {
-        const result = await this.getViewer().saveSVG();
-        return result.svg;
+        return exportSvg(this.core.instance);
     }
 
     /**
@@ -212,14 +145,7 @@ export class BpmnViewer {
      * mirrors the choice to a legacy page-global `#theme-link` when present.
      */
     setTheme(theme: ThemeMode): void {
-        if (!this.themeController) {
-            const panel = this.options.propertiesPanel;
-            this.themeController = new ThemeController(
-                panel ? [this.container, panel.parent] : [this.container],
-            );
-            this.store.add(() => this.themeController?.dispose());
-        }
-        this.themeController.setMode(theme);
+        this.core.setTheme(this.store, theme);
     }
 
     /**
@@ -230,30 +156,18 @@ export class BpmnViewer {
     getService<K extends keyof CoreViewerServices>(name: K): CoreViewerServices[K];
     getService<T = unknown>(name: string): T;
     getService<T = unknown>(name: string): T {
-        return this.getViewer().get<T>(name);
+        return this.core.service<T>(name);
     }
 
     /**
      * Tears the instance down: disposes every registered lifecycle resource (the
      * canvas-size observer, focus features, theme controller, and the underlying
-     * bpmn-js viewer) in reverse order. Idempotent. A destroyed facade throws
-     * {@link NoModelerError} from every accessor.
+     * bpmn-js viewer) in reverse order. Idempotent.
+     *
+     * @see BpmnViewerHandle.destroy
      */
     destroy(): void {
         this.store.dispose();
-        this._viewport = undefined;
-        this._selection = undefined;
-        this._rootElement = undefined;
-    }
-
-    /**
-     * @throws {NoModelerError} If {@link init} has not been called (or the
-     *   instance was destroyed).
-     */
-    private getViewer(): NavigatedViewer {
-        if (!this.viewer) {
-            throw new NoModelerError();
-        }
-        return this.viewer;
+        this.core.releaseManagers();
     }
 }

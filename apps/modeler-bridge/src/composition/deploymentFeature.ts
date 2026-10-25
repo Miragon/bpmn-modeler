@@ -1,19 +1,4 @@
-import { posix } from "path";
-
-import {
-    AuthHeaderResolver,
-    Camunda7RestClient,
-    Camunda8RestClient,
-    CamundaEngineRouter,
-    DeployActiveDiagramService,
-    DeploymentMessageDispatcher,
-    DeploymentService,
-    DeploymentStatusService,
-    DeploymentTargetService,
-    DeploymentVerificationService,
-    FetchHttpClient,
-    StartInstanceService,
-} from "@miragon/bpmn-modeler-core";
+import { DeploymentFeature, EditorSessionParticipant } from "@miragon/bpmn-modeler-core";
 
 import { RpcDeploymentState, RpcSecretStore } from "../adapters";
 import { METHODS } from "../protocol/descriptor";
@@ -26,119 +11,36 @@ import {
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
- * The deployment feature owns its entire stack: the Camunda 7/8 REST client
- * chain, the deployment-state mirror, the PasswordSafe-backed secret store, the
- * two services, and the message dispatcher. None of it is shared, so the engine
- * router is assembled here. `artifactSvc` (shared with templates/code-link) is
- * the only collaborator pulled from `deps`.
+ * The deployment feature maps the host's deployment RPC onto the core
+ * {@link DeploymentFeature} — the same flows VS Code runs — over the
+ * deployment-state mirror and the PasswordSafe-backed secret store. The
+ * deployment tool window is the one panel; `post` notifies the host, which
+ * pushes the Query into its JCEF browser.
  *
  * RPC (Host → Core): deploymentState/seed, deployment/webviewMessage,
- * deployment/open.
+ * deployment/open, deployment/switchTarget, deployment/verify,
+ * deployment/statusBarMenu, deployment/deployFiles, deployment/deployActive.
  */
-export function register(deps: BridgeSharedDeps): void {
-    // Deployment reuses the production deployment brain verbatim: the same
-    // services + dispatcher the VS Code host wires, now fed by the host-fed
-    // deployment-state mirror and the PasswordSafe-backed secret store over RPC.
-    // The Camunda REST stack is pure Node (Buffer/fetch/multipart), so it runs
-    // unmodified under Bun. `post` notifies the host, which pushes the Query into
-    // the deployment tool-window's JCEF browser.
-    const httpClient = new FetchHttpClient();
-    const authResolver = new AuthHeaderResolver(httpClient);
-    const c7Client = new Camunda7RestClient(httpClient, authResolver);
-    const camundaRouter = new CamundaEngineRouter(
-        c7Client,
-        new Camunda8RestClient(httpClient, authResolver, deps.settings.getC8ApiVersion()),
-    );
+export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
     const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
-    const secretStore = new RpcSecretStore(deps.rpc);
-    const startInstanceService = new StartInstanceService(
-        deps.documentPort,
-        deps.nodeWorkspace,
-        camundaRouter,
-        deps.notifier,
-        deps.picker,
-        deps.artifactSvc,
-    );
-    const deploymentTargetService = new DeploymentTargetService(
-        deps.artifactSvc,
-        deps.settings,
-        deps.nodeWorkspace,
-        secretStore,
-        deploymentState,
-        deps.picker,
-        deps.notifier,
-    );
-    const deploymentStatusService = new DeploymentStatusService(
-        deps.store,
-        deps.documentPort,
-        deploymentTargetService,
-        deploymentState,
-        deps.statusBar,
-        deps.picker,
-        deps.notifier,
-    );
-    const deploymentVerificationService = new DeploymentVerificationService(
-        deps.store,
-        deps.documentPort,
-        deploymentTargetService,
-        deploymentStatusService,
-        c7Client,
-        deps.notifier,
-    );
-    const deploymentService = new DeploymentService(
-        deps.documentPort,
-        deps.nodeWorkspace,
-        deploymentState,
-        camundaRouter,
-        deps.notifier,
-        deps.picker,
-        secretStore,
-        deploymentStatusService,
-    );
-    const deployActiveDiagramService = new DeployActiveDiagramService(
-        deps.store,
-        deps.documentPort,
-        deploymentTargetService,
-        deploymentService,
-        deploymentStatusService,
-        deps.notifier,
-    );
-    const deploymentDispatcher = new DeploymentMessageDispatcher(
-        deps.store,
-        deps.documentPort,
-        deploymentService,
-        startInstanceService,
-        deploymentTargetService,
-        deploymentStatusService,
-        deps.notifier,
-        (message) => deps.rpc.notify(METHODS.deploymentPostMessage, { message }),
-    );
-
-    // The form's defaults track the active editor, but only while the panel is
-    // open — refreshing a hidden panel would be wasted RPC. The host reports
+    const deployment = new DeploymentFeature({
+        store: deps.store,
+        documents: deps.documentPort,
+        workspace: deps.nodeWorkspace,
+        settings: deps.settings,
+        notifier: deps.notifier,
+        picker: deps.picker,
+        statusBar: deps.statusBar,
+        artifacts: deps.artifactSvc,
+        secrets: new RpcSecretStore(deps.rpc),
+        state: deploymentState,
+    });
+    // Refreshing a hidden tool window would be wasted RPC; the host reports
     // open/close via `deployment/open`.
-    let deploymentPanelOpen = false;
-    deps.store.onDidChangeActiveEditor(() => {
-        if (deploymentPanelOpen) {
-            deploymentDispatcher.sendFormDefaults();
-        }
-        void deploymentStatusService.refreshActive();
-    });
-
-    // Keep the freshness dot live on edits. The status-bar widget tracks the
-    // focused editor regardless of the deployment panel's visibility, so this
-    // refresh is independent of `deploymentPanelOpen`. Debounced so a burst of
-    // keystroke-driven syncs collapses into one ledger lookup.
-    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-    deps.mirror.onDidChangeContent(() => {
-        if (refreshTimer) {
-            clearTimeout(refreshTimer);
-        }
-        refreshTimer = setTimeout(() => {
-            refreshTimer = undefined;
-            void deploymentStatusService.refreshActive();
-        }, 300);
-    });
+    const panel = deployment.attachPanel(
+        (message) => deps.rpc.notify(METHODS.deploymentPostMessage, { message }),
+        false,
+    );
 
     // Seed the deployment-state mirror once at startup (and after a persisted
     // save, if the host chooses to re-seed); getters then read it synchronously.
@@ -146,107 +48,44 @@ export function register(deps: BridgeSharedDeps): void {
         deploymentState.seed(params.state);
     });
 
-    // Inbound deployment-webview message → the shared dispatch core. Errors are
-    // caught inside each handler, so this never rejects.
+    // Errors are caught inside each handler, so this never rejects.
     deps.rpc.on(METHODS.deploymentWebviewMessage, (params: DeploymentWebviewMessageParams) => {
-        void deploymentDispatcher.handle(params.message);
+        void panel.handle(params.message);
     });
 
-    // The host reports the tool window's visibility; on open, push the current
-    // form defaults so the panel reflects the active diagram immediately.
     deps.rpc.on(METHODS.deploymentOpen, (params: DeploymentOpenParams) => {
-        deploymentPanelOpen = params.open;
-        if (params.open) {
-            deploymentDispatcher.sendFormDefaults();
-        }
+        panel.setVisible(params.open);
     });
 
-    async function withDeploymentContext(
+    // The commands can run before any diagram is open, so the host's root
+    // stands in for the document directory and is registered for the run.
+    async function inWorkspace(
         params: DeploymentWorkspaceRootParams,
-        action: (documentDir: string) => Promise<void>,
+        command: (documentDir: string) => Promise<void>,
     ): Promise<void> {
         deps.nodeWorkspace.registerRoot(params.workspaceRoot);
         try {
-            let documentDir = params.workspaceRoot;
-            try {
-                documentDir = posix.dirname(
-                    deps.documentPort.getFilePath(deps.store.getActiveEditorId()),
-                );
-            } catch {
-                // Commands also work before any diagram is opened.
-            }
-            await action(documentDir);
-        } catch (error) {
-            deps.notifier.notifyError(
-                "Deployment command failed",
-                error instanceof Error ? error : new Error(String(error)),
-            );
+            await command(deployment.activeDocumentDir() ?? params.workspaceRoot);
         } finally {
             deps.nodeWorkspace.unregisterRoot(params.workspaceRoot);
         }
     }
 
     deps.rpc.on(METHODS.deploymentSwitchTarget, (params: DeploymentWorkspaceRootParams) =>
-        withDeploymentContext(params, async (documentDir) => {
-            await deploymentTargetService.switchActiveTarget(documentDir);
-            await deploymentStatusService.refreshActive();
-            await deploymentDispatcher.sendTargets();
-        }),
+        inWorkspace(params, (dir) => deployment.switchTarget(dir)),
     );
-
     deps.rpc.on(METHODS.deploymentVerify, (params: DeploymentWorkspaceRootParams) =>
-        withDeploymentContext(params, async (documentDir) => {
-            await deploymentVerificationService.verifyActive(documentDir);
-        }),
+        inWorkspace(params, (dir) => deployment.verify(dir)),
     );
-
-    // The status-bar click: the core renders the switch/verify chooser through
-    // the generic picker, then runs the chosen flow.
     deps.rpc.on(METHODS.deploymentStatusBarMenu, (params: DeploymentWorkspaceRootParams) =>
-        withDeploymentContext(params, async (documentDir) => {
-            const action = await deploymentStatusService.pickStatusBarAction(documentDir);
-            if (action === "switch") {
-                await deploymentTargetService.switchActiveTarget(documentDir);
-                await deploymentStatusService.refreshActive();
-                await deploymentDispatcher.sendTargets();
-            } else if (action === "verify") {
-                await deploymentVerificationService.verifyActive(documentDir);
-            }
-        }),
+        inWorkspace(params, (dir) => deployment.statusMenu(dir)),
     );
-
     deps.rpc.on(METHODS.deploymentDeployFiles, (params: DeploymentWorkspaceRootParams) =>
-        withDeploymentContext(params, async (documentDir) => {
-            let target = await deploymentTargetService.getActiveTarget(documentDir);
-            if (target === undefined) {
-                await deploymentTargetService.switchActiveTarget(documentDir);
-                await deploymentStatusService.refreshActive();
-                await deploymentDispatcher.sendTargets();
-                target = await deploymentTargetService.getActiveTarget(documentDir);
-                if (target === undefined) return;
-            }
-
-            const files = await deps.picker.pickWorkspaceFiles({
-                glob: "**/*.{bpmn,dmn}",
-                exclude: "**/node_modules/**",
-                placeholder: `Select files to deploy to "${target.name}"`,
-            });
-            if (files.length === 0) return;
-
-            const resolvedTarget = target;
-            const auth = await deploymentTargetService.getCredentials(resolvedTarget, documentDir);
-            await deps.notifier.withProgress(
-                `Deploying ${files.length} file(s) to "${resolvedTarget.name}"`,
-                () => deploymentService.deployFiles(files, resolvedTarget, auth),
-            );
-            await deploymentStatusService.refreshActive();
-        }),
+        inWorkspace(params, (dir) => deployment.deployFiles(dir)),
     );
-
     deps.rpc.on(METHODS.deploymentDeployActive, (params: DeploymentWorkspaceRootParams) =>
-        withDeploymentContext(params, async (documentDir) => {
-            await deployActiveDiagramService.deployActive(documentDir);
-            await deploymentDispatcher.sendTargets();
-        }),
+        inWorkspace(params, (dir) => deployment.deployActive(dir)),
     );
+
+    return { participants: [deployment.statusParticipant] };
 }

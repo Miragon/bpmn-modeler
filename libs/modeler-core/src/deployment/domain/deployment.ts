@@ -1,4 +1,15 @@
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { CredentialDestinations } from "./credentialDestinations";
+import {
+    assertEnvRefsValid,
+    containsEnvRef,
+    EnvLookup,
+    expandCredentialEnvRefs,
+    expandEnvRefs,
+    expandOptionalEnvRefs,
+    recordingLookup,
+} from "./envRef";
+import { SecretRedactor } from "./secretRedactor";
 
 import { Engine } from "@miragon/bpmn-modeler-types";
 export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
@@ -11,6 +22,26 @@ export class NoAuth {
      */
     toHeaders(): Record<string, string> {
         return {};
+    }
+
+    referencesEnv(): boolean {
+        return false;
+    }
+
+    assertCredentialEnvRefsValid(): void {
+        // No credential fields that could carry a reference.
+    }
+
+    expandEnvRefs(_lookup: EnvLookup): NoAuth {
+        return this;
+    }
+
+    redactor(): SecretRedactor {
+        return SecretRedactor.none();
+    }
+
+    destinationsFor(_requestUrl: string): CredentialDestinations {
+        return CredentialDestinations.none();
     }
 }
 
@@ -34,6 +65,30 @@ export class BasicAuth {
         const credentials = Buffer.from(`${this.username}:${this.password}`).toString("base64");
         return { Authorization: `Basic ${credentials}` };
     }
+
+    referencesEnv(): boolean {
+        return containsEnvRef(this.username) || containsEnvRef(this.password);
+    }
+
+    assertCredentialEnvRefsValid(): void {
+        assertEnvRefsValid(this.username, "auth.username");
+        assertEnvRefsValid(this.password, "auth.password");
+    }
+
+    expandEnvRefs(lookup: EnvLookup): BasicAuth {
+        return new BasicAuth(
+            expandCredentialEnvRefs(this.username, lookup, "auth.username"),
+            expandCredentialEnvRefs(this.password, lookup, "auth.password"),
+        );
+    }
+
+    redactor(): SecretRedactor {
+        return SecretRedactor.of(this.username, this.password);
+    }
+
+    destinationsFor(requestUrl: string): CredentialDestinations {
+        return CredentialDestinations.of(requestUrl);
+    }
 }
 
 /**
@@ -49,6 +104,50 @@ export class OAuth2Auth {
         readonly tokenEndpoint: string,
         readonly audience: string,
     ) {}
+
+    referencesEnv(): boolean {
+        return [this.clientId, this.clientSecret, this.tokenEndpoint, this.audience].some(
+            containsEnvRef,
+        );
+    }
+
+    assertCredentialEnvRefsValid(): void {
+        assertEnvRefsValid(this.clientId, "auth.clientId");
+        assertEnvRefsValid(this.clientSecret, "auth.clientSecret");
+    }
+
+    expandEnvRefs(lookup: EnvLookup): OAuth2Auth {
+        return new OAuth2Auth(
+            expandCredentialEnvRefs(this.clientId, lookup, "auth.clientId"),
+            expandCredentialEnvRefs(this.clientSecret, lookup, "auth.clientSecret"),
+            expandEnvRefs(this.tokenEndpoint, lookup, "auth.tokenEndpoint"),
+            expandEnvRefs(this.audience, lookup, "auth.audience"),
+        );
+    }
+
+    redactor(): SecretRedactor {
+        return SecretRedactor.of(this.clientId, this.clientSecret);
+    }
+
+    /** The client secret goes to the token endpoint, the token it returns to the request URL. */
+    destinationsFor(requestUrl: string): CredentialDestinations {
+        return CredentialDestinations.of(requestUrl, this.tokenEndpoint);
+    }
+}
+
+/**
+ * Where a request sends something secret: its credentials, or `.env` values
+ * anywhere in it — a committed targets file chooses where both go.
+ */
+export function sensitiveDestinations(
+    requestUrl: string,
+    auth: AuthConfig,
+    envValues: readonly string[],
+): CredentialDestinations {
+    const credentialDestinations = auth.destinationsFor(requestUrl);
+    return envValues.length === 0
+        ? credentialDestinations
+        : credentialDestinations.union(CredentialDestinations.of(requestUrl));
 }
 
 /**
@@ -66,6 +165,8 @@ export class DeploymentConfig {
      * @param auth Authentication configuration for the REST API.
      * @param deployUrl Optional full-URL override for the deploy call; when set,
      *   the client posts here instead of deriving the URL from `endpoint`.
+     * @param envValues The `.env` values an expanded copy carries; empty for a
+     *   literal config.
      */
     constructor(
         readonly deploymentName: string,
@@ -76,7 +177,49 @@ export class DeploymentConfig {
         readonly additionalFilePaths: string[],
         readonly auth: AuthConfig = new NoAuth(),
         readonly deployUrl?: string,
+        readonly envValues: readonly string[] = [],
     ) {}
+
+    referencesEnv(): boolean {
+        return (
+            [this.tenantId, this.endpoint, this.deployUrl].some(containsEnvRef) ||
+            this.auth.referencesEnv()
+        );
+    }
+
+    /** A conventional route is appended to `endpoint`, which keeps its origin. */
+    sensitiveDestinations(): CredentialDestinations {
+        return sensitiveDestinations(this.deployUrl ?? this.endpoint, this.auth, this.envValues);
+    }
+
+    carriesEnvValues(): boolean {
+        return this.envValues.length > 0;
+    }
+
+    /** What a server must not be able to echo back from this request. */
+    redactor(): SecretRedactor {
+        return this.auth.redactor().and(SecretRedactor.of(...this.envValues));
+    }
+
+    /**
+     * Request-only copy: the literal config stays the one that is persisted, so
+     * a resolved secret never reaches the secret store. Rebuilt through the
+     * builder so a variable set to an empty value obeys the same rules as a
+     * typed one.
+     */
+    expandEnvRefs(lookup: EnvLookup): DeploymentConfig {
+        const recording = recordingLookup(lookup);
+        const builder = new DeploymentConfigBuilder()
+            .withDeploymentName(this.deploymentName)
+            .withTenantId(expandEnvRefs(this.tenantId, recording, "tenantId"))
+            .withEndpoint(expandEnvRefs(this.endpoint, recording, "endpoint"))
+            .withEngine(this.engine)
+            .withMainFilePath(this.mainFilePath)
+            .withAdditionalFilePaths(this.additionalFilePaths)
+            .withAuth(this.auth.expandEnvRefs(recording))
+            .withDeployUrl(expandOptionalEnvRefs(this.deployUrl, recording, "endpoints.deploy"));
+        return builder.withEnvValues([...recording.resolved]).build();
+    }
 }
 
 /**
@@ -101,6 +244,8 @@ export class DeploymentConfigBuilder {
     private _auth: AuthConfig = new NoAuth();
 
     private _deployUrl: string | undefined = undefined;
+
+    private _envValues: readonly string[] = [];
 
     withDeploymentName(name: string): this {
         this._deploymentName = name;
@@ -142,6 +287,11 @@ export class DeploymentConfigBuilder {
         return this;
     }
 
+    withEnvValues(envValues: readonly string[]): this {
+        this._envValues = envValues;
+        return this;
+    }
+
     /**
      * Validates and creates the {@link DeploymentConfig}.
      *
@@ -172,6 +322,7 @@ export class DeploymentConfigBuilder {
             this._additionalFilePaths,
             this._auth,
             this._deployUrl,
+            this._envValues,
         );
     }
 }

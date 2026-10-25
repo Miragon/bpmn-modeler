@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createFlushResponder, FlushSource } from "./documentFlush";
-import {
-    DocumentFlushedCommand,
-    FlushDocumentQuery,
-    ReleaseDocumentFlushQuery,
-} from "./messages";
+import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery } from "./messages";
 
 /**
  * Covers the webview-side flush responder — the piece both the BPMN and (untested
@@ -31,14 +27,15 @@ describe("createFlushResponder", () => {
     it("reports unavailable immediately when the modeler is not ready", async () => {
         const exportContent = vi.fn().mockResolvedValue("<xml/>");
         const cancelPendingSync = vi.fn();
-        const source = { ...makeSource({ isReady: () => false, exportContent }), cancelPendingSync };
+        const source = {
+            ...makeSource({ isReady: () => false, exportContent }),
+            cancelPendingSync,
+        };
         const post = vi.fn();
 
         await createFlushResponder(source, post)(new FlushDocumentQuery(1));
 
-        expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(1, undefined, "unavailable"),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(1, undefined, "unavailable"));
         expect(exportContent).not.toHaveBeenCalled();
         expect(cancelPendingSync).not.toHaveBeenCalled();
     });
@@ -80,9 +77,7 @@ describe("createFlushResponder", () => {
         await createFlushResponder(source, post)(new FlushDocumentQuery(4));
 
         expect(source.exportContent).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(4, undefined, "host-updated"),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(4, undefined, "host-updated"));
     });
 
     it("forces the normal sync fallback and reports unavailable when export fails", async () => {
@@ -101,9 +96,7 @@ describe("createFlushResponder", () => {
 
         expect(cancelPendingSync).not.toHaveBeenCalled();
         expect(flushPendingSync).toHaveBeenCalledOnce();
-        expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(5, undefined, "unavailable"),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(5, undefined, "unavailable"));
     });
 
     it("locks and drains the webview before exporting a destructive flush", async () => {
@@ -123,9 +116,7 @@ describe("createFlushResponder", () => {
 
         expect(order).toEqual(["begin", "flush", "export", "post"]);
         expect(source.endDestructiveFlush).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(6, "<stable/>", "flushed", 0),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(6, "<stable/>", "flushed", 0));
 
         await respond(new ReleaseDocumentFlushQuery(6));
         expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
@@ -169,9 +160,7 @@ describe("createFlushResponder", () => {
         expect(source.beginDestructiveFlush).toHaveBeenCalledOnce();
         expect(source.flushPendingSync).not.toHaveBeenCalled();
         expect(source.exportContent).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(9, undefined, "host-updated"),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(9, undefined, "host-updated"));
 
         await respond(new ReleaseDocumentFlushQuery(9));
         expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
@@ -214,9 +203,7 @@ describe("createFlushResponder", () => {
         await createFlushResponder(source, post)(new FlushDocumentQuery(11, true));
 
         expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
-        expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(11, undefined, "unavailable"),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(11, undefined, "unavailable"));
     });
 
     it("echoes the query token verbatim", async () => {

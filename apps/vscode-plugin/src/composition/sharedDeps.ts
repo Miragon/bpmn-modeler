@@ -1,7 +1,7 @@
 import { commands, ExtensionContext } from "vscode";
 
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
-import { VsCodeDocument } from "../shared/infrastructure/VsCodeDocument";
+import { EditorSessionDocuments } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "../shared/infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../shared/infrastructure/VsCodeSettings";
 import { VsCodeStatusBar } from "../shared/infrastructure/VsCodeStatusBar";
@@ -20,7 +20,7 @@ import { ArtifactService } from "@miragon/bpmn-modeler-core";
  */
 export interface SharedDeps {
     editorStore: EditorSessionStore;
-    vsDocument: VsCodeDocument;
+    vsDocument: EditorSessionDocuments;
     vsWorkspace: VsCodeWorkspace;
     vsSettings: VsCodeSettings;
     statusBar: VsCodeStatusBar;
@@ -53,7 +53,7 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
 
     return {
         editorStore,
-        vsDocument: new VsCodeDocument(editorStore),
+        vsDocument: new EditorSessionDocuments(editorStore),
         vsWorkspace,
         vsSettings,
         statusBar: new VsCodeStatusBar(),

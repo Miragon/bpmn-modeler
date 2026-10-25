@@ -60,6 +60,17 @@ internal class SecretStoreRouter(private val deps: BridgeDeps) {
                     )
                 }
             }
+            .on("secretStore/getApprovedDestinations") { params, id ->
+                val origins = secretStore.getApprovedDestinations(params.get("slot").asString)
+                id?.let { deps.channel.reply(it, origins?.let { mapOf("origins" to it) }) }
+            }
+            .on("secretStore/saveApprovedDestinations") { params, id ->
+                secretStore.saveApprovedDestinations(
+                    params.get("slot").asString,
+                    params.getAsJsonArray("origins").map { it.asString },
+                )
+                id?.let { deps.channel.reply(it, null) }
+            }
             .on("secretStore/delete") { params, id ->
                 secretStore.delete(params.get("slot").asString)
                 id?.let { deps.channel.reply(it, null) }

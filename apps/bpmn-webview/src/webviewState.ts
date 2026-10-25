@@ -4,6 +4,7 @@
  */
 
 import type { ViewportData, ViewState } from "@miragon/bpmn-modeler";
+import type { PropertiesPanelUiState } from "@miragon/bpmn-modeler-shared";
 import type { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /**
@@ -20,19 +21,10 @@ export type CanvasViewState = ViewState;
 /**
  * Webview state persisted via the host's `setState` / `getState`.
  */
-export interface WebviewState {
+export interface WebviewState extends PropertiesPanelUiState {
     rootElementId?: string;
     viewport?: ViewportData;
     selectedElementIds?: string[];
-    panelScroll?: number;
-    expandedGroupIndexes?: number[];
-    /**
-     * Per-editor properties-panel visibility. Absent until the user first
-     * toggles the panel in this editor; while absent the editor follows the
-     * host's global default (`propertiesPanelVisible`). Present entry wins over
-     * that default so two tabs in one group keep independent panel state.
-     */
-    panelVisible?: boolean;
     /**
      * Per-editor surface mode (View / Design / Implement). Absent until first
      * resolved; seeded from the host's `defaultMode` on a first-ever open and

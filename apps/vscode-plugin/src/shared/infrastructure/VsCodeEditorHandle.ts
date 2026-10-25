@@ -159,12 +159,8 @@ export class VsCodeEditorHandle implements EditorHandle {
         return this.panel.onDidDispose(() => callback());
     }
 
-    onDidBecomeActive(callback: () => void): EditorSubscription {
-        return this.panel.onDidChangeViewState(() => {
-            if (this.panel.active) {
-                callback();
-            }
-        });
+    onDidChangeActive(callback: (active: boolean) => void): EditorSubscription {
+        return this.panel.onDidChangeViewState(() => callback(this.panel.active));
     }
 
     /**

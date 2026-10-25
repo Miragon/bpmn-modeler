@@ -14,7 +14,7 @@ Clipboard is on by default, one override away.
 - **Native (default).** The modeler registers `bpmn-js-native-copy-paste`'s
   `NativeCopyPaste` on every editable surface (C7, C8 and Design). Registering
   **nothing** from this package leaves it in charge — zero extra code, full wire
-  compatibility. This is what a plain browser (the demo, `serve`) gets.
+  compatibility. This is what a plain browser (the webview `serve` preview) gets.
 - **Bridged (override).** A host that can't reach the system clipboard from its
   webview calls `createClipboardModules({ element, text? })` and adds the result
   to `additionalModules`. This disables `NativeCopyPaste`

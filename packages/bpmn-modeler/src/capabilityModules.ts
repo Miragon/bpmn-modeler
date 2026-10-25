@@ -15,7 +15,7 @@ import type { ModelerCapabilities } from "./capabilities";
  * unregistered), so its port alone is not enough on C8.
  *
  * Split out of {@link BpmnModeler} so the gating is unit-testable without
- * dragging in camunda-bpmn-js.
+ * dragging in the engine stacks.
  */
 export function capabilityModules(
     engine: Engine,

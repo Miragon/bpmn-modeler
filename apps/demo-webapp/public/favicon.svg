@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" role="img">
-  <title>Miragon Modeler für BPMN</title>
-  <rect width="24" height="24" rx="5.25" fill="#335DE5"/>
-  <rect x="2" y="7" width="9" height="10" rx="2" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="11" y="11" width="5" height="2" fill="#FFFFFF"/>
-  <path d="M18 7.5L22.5 12L18 16.5L13.5 12Z" fill="#00E676"/>
-</svg>

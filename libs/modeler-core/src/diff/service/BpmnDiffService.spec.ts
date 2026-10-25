@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The service is vscode-free, but `DiffPaneStore` (constructed here as the real
-// backing registry) imports the `Disposable` *type* from vscode — erased at
-// runtime, yet the specifier must resolve under vitest.
-vi.mock("vscode", () => ({}));
-
+import { createTestHost } from "../../testing";
 import { DiffPaneHandle } from "../domain/DiffSession";
 import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
 import { BpmnDiffService } from "./BpmnDiffService";
@@ -50,15 +46,10 @@ function fakeHandle(
 }
 
 function createService() {
-    const notifier = {
-        logInfo: vi.fn(),
-        logError: vi.fn(),
-        showError: vi.fn(),
-    };
-    const vsSettings = { getLanguage: vi.fn().mockReturnValue("en") };
+    const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
-    const service = new BpmnDiffService(notifier as never, vsSettings as never, store);
-    return { service, notifier, vsSettings, store };
+    const service = new BpmnDiffService(notifier, settings, store);
+    return { service, notifier, store };
 }
 
 /** Registers a compare-files session with both panes attached. */
@@ -161,7 +152,7 @@ describe("BpmnDiffService", () => {
         await service.markReady(before);
         await service.markReady(after);
 
-        expect(notifier.logError).toHaveBeenCalled();
+        expect(notifier.logged("error")).toHaveLength(1);
         expect(messageTypes(before)).not.toContain("ApplyDiffHighlightsQuery");
         expect(messageTypes(after)).not.toContain("ApplyDiffHighlightsQuery");
     });

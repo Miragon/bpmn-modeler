@@ -5,7 +5,7 @@
  *
  * These exist so `service/` depends on *interfaces*, not the concrete `Vs*`
  * adapters. That keeps the layer boundary honest (a service can be unit-tested
- * against a tiny in-memory stub instead of a hand-rolled `vscode` mock) and
+ * against the in-memory fakes in `src/testing` instead of a `vscode` mock) and
  * names, in domain terms, exactly which host facilities the core relies on —
  * the contract any non-VS-Code host would have to satisfy. The concrete
  * `VsCode*` classes in `infrastructure/` `implements` these.
@@ -204,9 +204,10 @@ export interface WorkspacePort {
     findWorkspaceFolderForDocument(document: string): string | undefined;
     getWorkspaceFolderPaths(): string[];
     getDocumentDirectory(document: string): string;
-    findGitRoot(startDir: string): Promise<string | undefined>;
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
     readFile(path: string): Promise<string>;
+    /** `false` when `path` is absent; a dangling link still counts as a link. */
+    isSymbolicLink(path: string): Promise<boolean>;
     writeFile(path: string, content: string): Promise<void>;
     /**
      * Recursively removes the directory at `path`. A missing path is a no-op,
@@ -329,7 +330,14 @@ export interface SecretStorePort {
     getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined>;
     saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void>;
     getOAuth2(slot?: string): Promise<{ clientId: string; clientSecret: string } | undefined>;
-    /** Removes every credential kind stored under `slot` (target delete / rename). */
+    /**
+     * The origins the user approved `slot`'s credentials for; `[]` when none.
+     * Kept beside the credentials so they share a lifecycle and a resolved
+     * `.env` host is never persisted in cleartext.
+     */
+    getApprovedDestinations(slot: string): Promise<string[]>;
+    saveApprovedDestinations(slot: string, origins: string[]): Promise<void>;
+    /** Removes every credential kind and the approved destinations stored under `slot`. */
     delete(slot: string): Promise<void>;
 }
 

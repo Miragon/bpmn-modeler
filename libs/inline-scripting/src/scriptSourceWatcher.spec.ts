@@ -35,11 +35,23 @@ function scriptTaskElement(script: string | undefined) {
     return { businessObject: { $type: "bpmn:ScriptTask", script } };
 }
 
+/** A replace-menu morph keeps the element id but drops the script surface. */
+function userTaskElement() {
+    return { businessObject: { $type: "bpmn:UserTask" } };
+}
+
 const REF: OpenScriptEditorRef = {
     elementId: "Task_1",
     kind: "script-task",
     listenerIndex: undefined,
     fileName: "Task_1.groovy",
+};
+
+const REF_GONE: ScriptSourceChangedEvent = {
+    elementId: "Task_1",
+    kind: "script-task",
+    listenerIndex: undefined,
+    content: undefined,
 };
 
 describe("ScriptSourceWatcher", () => {
@@ -162,6 +174,61 @@ describe("ScriptSourceWatcher", () => {
         eventBus.fire("import.done");
 
         expect(fired[0].content).toBe("reloaded");
+    });
+
+    it("reports a surface that was already gone when its open tab is first broadcast, exactly once", () => {
+        // A webview rebuilt after the task changed type while hidden imports the
+        // morphed diagram first and only then learns which tabs the host has open.
+        elements.set("Task_1", userTaskElement());
+        eventBus.fire("import.done");
+
+        store.set([REF]);
+        store.set([REF]);
+        eventBus.fire("commandStack.changed");
+
+        expect(fired).toEqual([REF_GONE]);
+    });
+
+    it("baselines a tab broadcast before the first import on the imported content", () => {
+        elements.clear();
+        store.set([REF]);
+
+        elements.set("Task_1", scriptTaskElement("original"));
+        eventBus.fire("import.done");
+        expect(fired).toEqual([]);
+
+        elements.set("Task_1", scriptTaskElement("undone"));
+        eventBus.fire("commandStack.changed");
+        expect(fired).toEqual([
+            {
+                elementId: "Task_1",
+                kind: "script-task",
+                listenerIndex: undefined,
+                content: "undone",
+            },
+        ]);
+    });
+
+    it("reports a tab broadcast before the first import as gone when the import lacks its surface", () => {
+        elements.clear();
+        store.set([REF]);
+        expect(fired).toEqual([]);
+
+        elements.set("Task_1", userTaskElement());
+        eventBus.fire("import.done");
+        eventBus.fire("commandStack.changed");
+
+        expect(fired).toEqual([REF_GONE]);
+    });
+
+    it("keeps tabs broadcast before a failed first import open", () => {
+        elements.clear();
+        store.set([REF]);
+
+        eventBus.fire("import.done", { error: new Error("unparsable XML") });
+        store.set([REF]);
+
+        expect(fired).toEqual([]);
     });
 
     it("drops baselines for scripts whose editor closed", () => {

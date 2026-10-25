@@ -288,6 +288,21 @@ describe("ViewportManager initial-viewport decision", () => {
         expect(setterCalls(viewbox).length).toBeGreaterThan(before);
     });
 
+    it("settles the decision on centerOnElement so the delayed fit keeps the focus", () => {
+        const { manager, viewbox, zoom } = setupFocus(
+            { x: 0, y: 0, width: 1000, height: 800 },
+            { width: 1000, height: 800 },
+            { Task_1: { x: 100, y: 100, width: 100, height: 100 } },
+        );
+
+        expect(manager.centerOnElement("Task_1")).toBe(true);
+        const settersAfterFocus = setterCalls(viewbox).length;
+
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        expect(setterCalls(viewbox)).toHaveLength(settersAfterFocus);
+        expect(zoom).not.toHaveBeenCalled();
+    });
+
     it("falls back to a fit for an unusable box and latches the decision", () => {
         const { manager, viewbox } = setupResizable({ width: 1000, height: 800 });
 
@@ -380,15 +395,18 @@ function setupFocus(
     outer: { width: number; height: number },
     elements: Record<string, unknown>,
 ) {
-    const viewbox = vi.fn((box?: unknown) => (box ? undefined : { ...current, outer }));
-    const canvas = { viewbox };
+    const inner = { x: 100, y: 100, width: 400, height: 200 };
+    const viewbox = vi.fn((box?: unknown) => (box ? undefined : { ...current, inner, outer }));
+    const zoom = vi.fn();
+    const container = document.createElement("div");
+    const canvas = { viewbox, zoom, getContainer: () => container };
     const registry = { get: (id: string) => elements[id] };
     const manager = new CanvasViewportManager(((name: string) => {
         if (name === "canvas") return canvas;
         if (name === "elementRegistry") return registry;
         throw new Error(`unexpected service: ${name}`);
     }) as unknown as CoreServiceAccessor);
-    return { manager, viewbox };
+    return { manager, viewbox, zoom };
 }
 
 describe("ViewportManager.centerOnElement", () => {
@@ -448,6 +466,17 @@ describe("ViewportManager.centerOnElement", () => {
         const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
         expect(box.x + box.width / 2).toBeCloseTo(200);
         expect(box.y + box.height / 2).toBeCloseTo(200);
+    });
+
+    it("applies nothing and reports false while the canvas is unsized", () => {
+        const { manager, viewbox } = setupFocus(
+            { x: 0, y: 0, width: 0, height: 0 },
+            { width: 0, height: 0 },
+            { Task_1: { x: 100, y: 100, width: 100, height: 100 } },
+        );
+
+        expect(manager.centerOnElement("Task_1")).toBe(false);
+        expect(setterCalls(viewbox)).toHaveLength(0);
     });
 
     it("leaves the viewport untouched for an unknown element", () => {

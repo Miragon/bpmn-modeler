@@ -1,177 +1,82 @@
-# Getting Started — Standalone Desktop App
+# Get started with the desktop app
 
-The Miragon BPMN Modeler is also available as a **standalone desktop app**
-built on [Eclipse Theia](https://theia-ide.org/). Same modeler as the
-[VS Code extension](/vscode/getting-started), packaged as a native Electron
-app for when you don't want to run a full IDE.
-
-The standalone app ships for **macOS**, **Windows**, and **Linux x86_64**.
+Install the Miragon BPMN Modeler as a desktop app for macOS, Windows or Linux when you do not want to run an IDE. It
+runs the same modeler as the [VS Code extension](/vscode/getting-started) in an [Eclipse Theia](https://theia-ide.org/)
+shell.
 
 ## Install
 
-Grab the latest package for your platform from the [**Download** page](/download):
+Get the package for your system from the [Download page](/download):
 
-- macOS: signed and notarized `.dmg`
-- Windows: NSIS `.exe` installer
-- Linux x86_64: Flatpak from the Miragon repository or a `.flatpak` bundle
+| System | Package | Updates |
+|---|---|---|
+| macOS | Signed and notarized `.dmg` | In-app updater |
+| Windows | `.exe` installer | In-app updater |
+| Linux x86_64 | Flatpak from the Miragon repository, or a `.flatpak` bundle | `flatpak update` |
 
-On macOS, you can also install from the terminal with Homebrew:
+All files are also on [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
+
+### macOS with Homebrew
 
 ```bash
 brew tap miragon/tap
 brew install --cask miragon-bpmn-modeler
 ```
 
-Every asset also lives on
-[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
+Update with `brew upgrade --cask miragon-bpmn-modeler`.
 
-### Install on Linux with Flatpak
+### Linux with Flatpak
 
-Install [Flatpak](https://flatpak.org/setup/) for your Linux distribution before
-continuing.
+Install [Flatpak](https://flatpak.org/setup/) first. Miragon publishes the app in its
+[own Flatpak repository](https://miragon.github.io/bpmn-modeler-flatpak-repo/), because the
+[Flathub policy on generative AI](https://docs.flathub.org/docs/for-app-authors/requirements#generative-ai-policy)
+does not accept apps with AI-assisted code or documentation.
 
-Miragon publishes the app through a [custom Flatpak repository](https://miragon.github.io/bpmn-modeler-flatpak-repo/)
-instead of Flathub because the [Flathub Generative AI policy](https://docs.flathub.org/docs/for-app-authors/requirements#generative-ai-policy)
-does not accept applications that contain AI-generated or AI-assisted code or
-documentation.
-
-Install the app for your current user. This option does not require root
-privileges:
+Install for your user (no root needed):
 
 ```bash
 flatpak remote-add --user --if-not-exists miragon https://miragon.github.io/bpmn-modeler-flatpak-repo/miragon.flatpakrepo
 flatpak install --user miragon io.miragon.BpmnModeler
-```
-
-To make the app available to every user on the system, install it system-wide:
-
-```bash
-sudo flatpak remote-add --system --if-not-exists miragon https://miragon.github.io/bpmn-modeler-flatpak-repo/miragon.flatpakrepo
-sudo flatpak install --system miragon io.miragon.BpmnModeler
-```
-
-Launch the app:
-
-```bash
 flatpak run io.miragon.BpmnModeler
 ```
 
-The [Download page](/download) also provides a standalone `.flatpak` bundle.
-Use the repository installation when possible so Flatpak can discover updates
-automatically.
+For all users, run the same two install commands with `sudo` and `--system` instead of `--user`. Update with
+`flatpak update --user io.miragon.BpmnModeler` (or `--system`).
 
-### Update
-
-#### macOS
-
-If you installed the app with Homebrew, run:
-
-```bash
-brew upgrade --cask miragon-bpmn-modeler
-```
-
-If you installed the app from a `.dmg`, use the in-app auto-updater.
-
-#### Linux (Flatpak)
-
-Update an installation for your current user with:
-
-```bash
-flatpak update --user io.miragon.BpmnModeler
-```
-
-Update a system-wide Flatpak installation with:
-
-```bash
-sudo flatpak update --system io.miragon.BpmnModeler
-```
-
-If you installed a downloaded `.flatpak` bundle instead of using the
-repository, download the newer bundle and install it again:
-
-```bash
-flatpak install --user --bundle Miragon.BPMN.Modeler-<version>-x86_64.flatpak
-```
-
-#### Windows
-
-The Windows NSIS installation uses the in-app auto-updater.
+The `.flatpak` bundle from the Download page does not update itself. To update it, download the newer bundle and run
+`flatpak install --user --bundle Miragon.BPMN.Modeler-<version>-x86_64.flatpak`. Prefer the repository.
 
 ### Build from source
 
-If you would rather build it yourself, see
-[`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md).
-On macOS, a locally built `.dmg` without the release pipeline's Apple
-credentials is unsigned. Gatekeeper will block the first launch; right-click
-the app in `/Applications` → **Open** → confirm. After that one-time bypass,
-the app launches normally.
+See [`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md). A
+`.dmg` you build yourself is unsigned: on first launch, right-click the app in `/Applications`, choose **Open** and
+confirm.
 
-## Open a diagram
+## Open a file
 
-Use **File → Open…** to open any `.bpmn` or `.dmn` file, or drop it onto the
-app window. The modeler opens automatically as the default editor for those
-file types.
+Use **File ▸ Open…** for a `.bpmn`, `.dmn` or `.form` file, or drop it onto the window. Use **File ▸ Open Folder…**
+to work with a folder of models.
 
-To work with a folder of diagrams, use **File → Open Folder…**.
-
-## Opening files from the terminal
-
-macOS already lets you open files with any installed app. To open a
-`.bpmn` or `.dmn` file in the standalone modeler from a shell:
+On macOS you can open files from the terminal:
 
 ```bash
 open -a "Miragon BPMN Modeler" path/to/diagram.bpmn
-```
-
-You can also open a folder of diagrams as a workspace:
-
-```bash
 open -a "Miragon BPMN Modeler" path/to/diagrams/
 ```
 
-For convenience, drop a short alias into your shell config
-(`~/.zshrc` or `~/.bashrc`):
+## How it differs from VS Code
 
-```bash
-alias bpmn='open -a "Miragon BPMN Modeler"'
-```
+- **Auto-save** is on: every change is saved one second after the last edit. Change it under
+  **Settings ▸ Files: Auto Save**.
+- **Source Control** uses the VS Code Git extension, including the [BPMN diff](/vscode/features/bpmn-diff). On macOS
+  and Windows, install and configure `git` on the system. The Flatpak app brings its own `git` and forwards the
+  ssh-agent.
+- There is no Extensions view.
 
-Then:
+Everything else (modes, element templates, diff, deployment) works as in VS Code.
 
-```bash
-bpmn diagram.bpmn
-```
+## Next steps
 
-## Features
-
-Feature behaviour matches the VS Code extension one-to-one — same modeler
-engine, same element templates, same diff view, same deploy flow. Explore:
-
-- [Append Menu](/vscode/features/append-menu)
-- [BPMN Diff](/vscode/features/bpmn-diff)
-- [Deployment](/vscode/features/deployment)
-- [Element Template Chooser](/vscode/features/element-template-chooser)
-- [Language Support](/vscode/features/language-support)
-
-A few things differ from the VS Code surface — no Extensions view and no
-Command Palette keybindings for VS Code-specific commands. The modeler
-itself behaves identically.
-
-## Auto-save
-
-The standalone saves every change ~1 second after the last edit, so the file
-on disk always matches what you see in the canvas and the Source Control
-view reflects modifications immediately. Disable or change the delay in
-**Settings → Files: Auto Save**.
-
-## Source Control
-
-The standalone ships with the same VS Code Git extension that powers the
-Source Control view in VS Code, including BPMN-aware diffs for modified
-diagrams.
-
-The macOS and Windows build of the standalone app rely on the system `git` binary.
-Make sure to install and configure git on the host.
-
-The Linux (Flatpak) app runs in a sandbox and bundles `git` inside the package and
-forwards the ssh-agent.
+- [Features](/vscode/features/): what the modeler can do.
+- [Configuration](/vscode/configuration): the settings, also available in the app.
+- [Deployment](/vscode/features/deployment): deploy to Camunda 7 or Camunda 8.

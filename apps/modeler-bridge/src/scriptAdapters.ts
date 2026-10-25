@@ -35,6 +35,7 @@ import {
     ScriptLanguage,
     ScriptUri,
     ScriptVariableManifestService,
+    SettingsPort,
     TMP_SCRIPTING_SEGMENT,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
@@ -55,7 +56,6 @@ import {
     ScriptKind,
 } from "@miragon/bpmn-modeler-types";
 
-import { BridgeSettings } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 import { METHODS } from "./protocol/descriptor";
 
@@ -150,7 +150,7 @@ export class BridgeScriptEditor {
         private readonly picker: PickerPort,
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
-        private readonly settings: BridgeSettings,
+        private readonly settings: SettingsPort,
         private readonly manifestSvc: ScriptVariableManifestService,
         private readonly workspace: WorkspacePort,
         private readonly artifactSvc: ArtifactService,

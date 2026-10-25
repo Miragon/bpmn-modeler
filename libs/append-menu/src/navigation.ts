@@ -27,6 +27,11 @@ export interface Highlight {
     index: number;
 }
 
+/** The highlight's index when it sits in `column`, else -1. */
+export function indexInColumn(h: Highlight | null, column: ColumnId): number {
+    return h?.column === column ? h.index : -1;
+}
+
 function itemsOf(cols: NavColumns, column: ColumnId): readonly NavItem[] {
     return column === "templates" ? cols.templates : cols.palette;
 }

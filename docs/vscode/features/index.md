@@ -1,61 +1,38 @@
 # Features
 
-Open a `.bpmn` file and the whole modeler comes to life inside your editor.
-Here's what you get, roughly in the order you reach for it.
+Everything the modeler does, in the order you work: model, simulate, code, review and deploy. The pages describe VS Code.
+The desktop app runs the same extension, and the IntelliJ plugin shares the BPMN modeler (it does not edit DMN or forms).
 
 ## Model
 
-- **[Editor Modes](/vscode/features/modes)** — switch each editor between
-  **View** (readonly viewer), **Design** (engine-neutral editable surface),
-  and **Implement** (full Camunda modeler) from a mode strip in the
-  properties-panel header. Mode is remembered per editor and seeded from a
-  configurable default.
-- **[Append Menu](/vscode/features/append-menu)** — a two-panel popup that
-  combines element templates and standard BPMN elements. Searchable,
-  keyboard-driven, favourites pinned on top.
-- **[Flow Navigation](/vscode/features/flow-navigation)** — traverse the
-  diagram along sequence flows with Tab / Shift+Tab and follow branches
-  with Enter. Complements the append menu for fully keyboard-driven modeling.
-- **[Element Template Chooser](/vscode/features/element-template-chooser)** —
-  browse, preview, and apply Camunda element templates from the properties
-  panel. Category filters, instant search, full template preview.
-- **[Form Editing](/vscode/features/form-editing)** — create `.form`
-  files with form-js, switch to an interactive preview, test input and output
-  values, and open a referenced form directly from a User Task.
-- **[Template Marketplace](/vscode/features/template-marketplace)** — pull
-  element templates from shared GitHub/GitLab repositories or local folders
-  instead of copying JSON files into every project. Public, private (token),
-  and fully offline setups.
-- **[Inline Script Editing](/vscode/features/inline-scripting)** — edit
-  script-task and listener scripts in real VS Code editor tabs.
-  Syntax highlighting, IntelliSense for the Camunda 7 script API,
-  per-keystroke sync back into the BPMN model.
+- [Editor modes](/vscode/features/modes): switch an editor between View (read-only), Design (engine-neutral) and
+  Implement (full Camunda modeler).
+- [Append menu](/vscode/features/append-menu): add the next element from one searchable popup with BPMN elements
+  and element templates.
+- [Flow navigation](/vscode/features/flow-navigation): move along sequence flows with Tab, Shift+Tab and Enter.
+- [Element templates](/vscode/features/element-template-chooser): browse, preview and apply Camunda element
+  templates.
+- [Template marketplace](/vscode/features/template-marketplace): load templates from shared GitHub or GitLab
+  repositories or local folders.
+- [Forms](/vscode/features/form-editing): edit Camunda Forms (`.form`) and test them in a preview.
+- [Language support](/vscode/features/language-support): switch the modeler UI language.
 
-## Compare
+## Simulate and check
 
-- **[BPMN Diff](/vscode/features/bpmn-diff)** — swap VS Code's text diff
-  for two side-by-side BPMN canvases whenever git opens a comparison:
-  resolving a merge conflict, reviewing a teammate's PR, or checking what
-  you changed since the last commit. Colour-coded highlights, synced
-  panning, prev/next change navigation.
+- [Token simulation](/vscode/features/token-simulation): send tokens through the process to see which paths it
+  takes, without an engine.
+- [Linting](/vscode/features/linting): check the diagram live with bpmnlint and your own rules.
 
-## Deploy
+## Code
 
-- **[Deployment](/vscode/features/deployment)** — push BPMN/DMN diagrams and
-  start process instances directly from VS Code. Camunda 7 and 8 support,
-  three auth modes, payload file discovery by convention.
+- [Jump to code and models](/vscode/features/code-navigation): open the source file behind a task, the model a
+  call activity or business rule task refers to, or reuse messages and signals from other models.
+- [Inline scripts](/vscode/features/inline-scripting): edit script tasks and listener scripts in a real editor
+  tab.
 
-## Validate
+## Review and deploy
 
-- **[Linting](/vscode/features/linting)** — validate your diagram live with
-  [bpmnlint](https://github.com/bpmn-io/bpmnlint), the same linter you run in
-  CI. Drop a `.bpmnlintrc` in your project and rule violations show up as
-  ⚠️/❌ overlays, Problems-panel entries, and a status-bar summary while you
-  edit — including your own `bpmnlint-plugin-*` custom rules, resolved from the
-  workspace just like the CLI.
-
-## Configure
-
-- **[Language Support](/vscode/features/language-support)** — switch the
-  modeler UI to one of several locales at runtime via setting or command
-  palette.
+- [BPMN diff](/vscode/features/bpmn-diff): compare two versions of a diagram side by side, with changes
+  highlighted.
+- [Deployment](/vscode/features/deployment): deploy BPMN and DMN files to Camunda 7 or Camunda 8 and start process
+  instances.

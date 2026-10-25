@@ -15,11 +15,8 @@ import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
 import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
-import type { ViewportManager } from "./viewport";
-import type { SelectionManager } from "./selection";
-import type { RootElementManager } from "./rootElement";
-import type { ViewState } from "./viewState";
 import type { ModelerMode } from "./mode";
+import type { BpmnSurfaceHandle } from "./surfaceHandle";
 
 export type { ModelerMode } from "./mode";
 export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
@@ -248,7 +245,11 @@ export interface ModelerOptions {
      */
     onError?: (error: unknown) => void;
 
-    /** A non-fatal warning (element-not-found, missing inline script) for the host log. */
+    /**
+     * A non-fatal warning for the host log: element not found, missing inline
+     * script, or a host lint push to an instance created without a lint module.
+     * Every warning is also mirrored to `console.warn`.
+     */
     onWarning?: (message: string) => void;
 
     /**
@@ -267,25 +268,19 @@ export interface ModelerOptions {
 }
 
 /**
- * The instance handle {@link createModeler} resolves to.
+ * The instance handle {@link createModeler} resolves to. The inherited
+ * {@link BpmnSurfaceHandle} members are engine-intrinsic [A], except the
+ * opinionated `setTheme` [B].
  */
-export interface BpmnModelerHandle {
+export interface BpmnModelerHandle extends BpmnSurfaceHandle {
     // ── [A] Engine-intrinsic ────────────────────────────────────────────────
-    /** [A] Load BPMN 2.0 XML, replacing any current diagram. */
-    loadDiagram(xml: string): Promise<ImportXMLResult>;
-
-    /** [A] Serialise the current diagram to formatted XML. */
-    exportDiagram(): Promise<string>;
-
     /**
-     * [A] Replace the diagram with a fresh empty one stamped for this instance's
-     * {@link ModelerOptions.engine} (and {@link ModelerOptions.engineVersion}),
-     * so it reopens with the same engine and mode availability.
+     * [A] Replace the diagram with a fresh empty one and fit it to view. The new
+     * diagram is stamped for this instance's {@link ModelerOptions.engine} (and
+     * {@link ModelerOptions.engineVersion}), so it reopens with the same engine
+     * and mode availability.
      */
     newDiagram(): Promise<ImportXMLResult>;
-
-    /** [A] Export the current diagram as SVG markup. */
-    getDiagramSvg(): Promise<string>;
 
     /**
      * [A] Rearrange the diagram left to right and reroute its connections.
@@ -324,45 +319,15 @@ export interface BpmnModelerHandle {
      */
     setSettings(settings: Partial<BpmnModelerSetting>): void;
 
-    /** [A] Viewport (zoom/scroll/fit) accessor. */
-    readonly viewport: ViewportManager;
-
-    /** [A] Selection accessor. */
-    readonly selection: SelectionManager;
-
     /**
-     * [A] Drill-down plane accessor. Host-adapter surface for restoring the
-     * active canvas root across an instance switch; the composed
-     * {@link captureViewState}/{@link applyViewState} pair covers the common case.
+     * [A] Replace the element types pinned at the top of the append/create
+     * menu — equivalent to `setSettings({ favouriteBpmnElements })`, and
+     * present on {@link BpmnDesignerHandle} too, so a host updates either
+     * surface the same way. Only the first six types count, shown in the given
+     * order; of those, types without a plain menu entry are skipped, and an
+     * empty list clears the row. Takes effect the next time the menu opens.
      */
-    readonly rootElement: RootElementManager;
-
-    /**
-     * [A] Snapshot the drill-down plane, viewbox, and selection so they survive
-     * an instance switch — capture here, `destroy()`, create the next instance,
-     * `loadDiagram`, then {@link applyViewState}. See {@link ViewState}.
-     */
-    captureViewState(): ViewState;
-
-    /**
-     * [A] Re-apply a {@link captureViewState} snapshot: plane, viewbox, and
-     * selection are restored root → viewport → selection; a stale plane or
-     * missing element ids degrade gracefully, and an empty selection clears.
-     * A restore called right after `loadDiagram` survives the delayed initial
-     * fit — the snapshot viewport decides, not a later observer delivery.
-     */
-    applyViewState(state: ViewState): void;
-
-    /** [A] Tear the instance down and free its bpmn-js DI graph and DOM. */
-    destroy(): void;
-
-    // ── [B] Opinionated built-ins ───────────────────────────────────────────
-    /**
-     * [B] Switch the colour theme live. Toggles this instance's
-     * `data-bpmn-theme` attribute and mirrors it to a legacy `#theme-link` when
-     * present.
-     */
-    setTheme(theme: ThemeMode): void;
+    setFavouriteBpmnElements(types: readonly string[]): void;
 
     /**
      * [B] Switch the design/implement mode live on this same instance — no
@@ -377,11 +342,16 @@ export interface BpmnModelerHandle {
     getMode(): ModelerMode;
 
     /**
-     * [B] Render host-computed lint results, or clear them with `null`.
+     * [B] Render host-computed lint results, or clear them with `null`. A no-op
+     * reported through `onWarning` when the instance was created without a lint
+     * module.
      */
     applyLintResults(results: LintResults | null): void;
 
-    /** [B] Turn off the in-webview linter and clear its overlay. */
+    /**
+     * [B] Turn off the in-webview linter and clear its overlay. A no-op reported
+     * through `onWarning` when the instance was created without a lint module.
+     */
     applyLintingDisabled(): void;
 
     /**
@@ -390,7 +360,8 @@ export interface BpmnModelerHandle {
      * handed-back config to the resolved default/mode rules (e.g. after the
      * host deletes its workspace `.bpmnlintrc`). Optional `configToken` lets a
      * repeat instruction with the same version dedup while linting is live.
-     * Never re-enables a user-disabled linter.
+     * Never re-enables a user-disabled linter. A no-op reported through
+     * `onWarning` when the instance was created without a lint module.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 

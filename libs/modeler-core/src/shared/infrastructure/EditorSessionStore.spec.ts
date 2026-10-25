@@ -1,111 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Command } from "@miragon/bpmn-modeler-shared";
-import type {
-    DocumentChangeEvent,
-    EditorHandle,
-    EditorSubscription,
-    SettingChange,
-} from "../domain/EditorSession";
+
+import { FakeEditorHandle } from "../../testing";
+import type { DocumentChangeEvent, SettingChange } from "../domain/EditorSession";
 import { EditorSessionStore } from "./EditorSessionStore";
 
-/**
- * In-memory {@link EditorHandle} for testing the pure registry without a
- * `vscode` mock. Exposes `emit*` helpers so a test can drive the lifecycle
- * events the store subscribes to (dispose, message, setting change), and
- * records `disposed` so we can assert the store tears the handle down.
- */
-class FakeEditorHandle implements EditorHandle {
-    disposed = false;
-    content = "";
-    readonly reload = vi.fn();
-
-    private readonly disposeListeners: Array<() => void> = [];
-    private readonly messageListeners: Array<(message: Command) => void> = [];
-    private readonly documentListeners: Array<(event: DocumentChangeEvent) => void> = [];
-    private readonly settingListeners: Array<(event: SettingChange) => void> = [];
-    readonly subscriptions: EditorSubscription[] = [];
-
-    constructor(
-        readonly id: string,
-        private readonly scheme: string,
-        private readonly path: string,
-    ) {}
-
-    documentUriString(): string {
-        return `${this.scheme}://${this.path}`;
-    }
-    documentPath(): string {
-        return this.path;
-    }
-    documentFsPath(): string {
-        return this.path;
-    }
-    documentScheme(): string {
-        return this.scheme;
-    }
-
-    getContent(): string {
-        return this.content;
-    }
-    writeContent(content: string): Promise<boolean> {
-        this.content = content;
-        return Promise.resolve(true);
-    }
-    save(): Promise<boolean> {
-        return Promise.resolve(true);
-    }
-    postMessage(): Promise<boolean> {
-        return Promise.resolve(true);
-    }
-    isActive(): boolean {
-        return false;
-    }
-
-    addSubscription(subscription: EditorSubscription): void {
-        this.subscriptions.push(subscription);
-    }
-
-    dispose(): void {
-        if (this.disposed) return;
-        this.disposed = true;
-        this.disposeListeners.forEach((listener) => listener());
-    }
-
-    onDidReceiveMessage(callback: (message: Command) => void): EditorSubscription {
-        this.messageListeners.push(callback);
-        return { dispose: vi.fn() };
-    }
-    onDidDispose(callback: () => void): EditorSubscription {
-        this.disposeListeners.push(callback);
-        return { dispose: vi.fn() };
-    }
-    onDidBecomeActive(): EditorSubscription {
-        return { dispose: vi.fn() };
-    }
-    onDidChangeDocument(callback: (event: DocumentChangeEvent) => void): EditorSubscription {
-        this.documentListeners.push(callback);
-        return { dispose: vi.fn() };
-    }
-    onDidChangeSetting(callback: (event: SettingChange) => void): EditorSubscription {
-        this.settingListeners.push(callback);
-        return { dispose: vi.fn() };
-    }
-
-    // ─── test drivers ────────────────────────────────────────────────────────
-    emitDispose(): void {
-        this.disposeListeners.forEach((listener) => listener());
-    }
-    emitMessage(message: Command): void {
-        this.messageListeners.forEach((listener) => listener(message));
-    }
-    emitDocumentChange(event: DocumentChangeEvent): void {
-        this.documentListeners.forEach((listener) => listener(event));
-    }
-    emitSettingChange(event: SettingChange): void {
-        this.settingListeners.forEach((listener) => listener(event));
-    }
-}
+const A_PATH = "/repo/a.bpmn";
+const A_ID = "file:///repo/a.bpmn";
 
 const aCommand = { type: "command" } as unknown as Command;
 const anotherCommand = { type: "another-command" } as unknown as Command;
@@ -116,32 +18,32 @@ describe("EditorSessionStore", () => {
     it("register makes the handle active and reports the open count", () => {
         const onOpenCountChanged = vi.fn();
         const store = new EditorSessionStore(onOpenCountChanged);
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
 
         store.register(handle);
 
-        expect(store.getActiveEditorId()).toBe("a");
+        expect(store.getActiveEditorId()).toBe(A_ID);
         expect(onOpenCountChanged).toHaveBeenLastCalledWith(1);
     });
 
     it("distinguishes a replacement registered with the same editor id", () => {
         const store = new EditorSessionStore(vi.fn());
-        const original = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const original = new FakeEditorHandle(A_PATH);
         store.register(original);
         store.subscribeToDisposeEvent(original.id);
         const originalSession = store.captureEditorSession(original.id)!;
 
-        original.emitDispose();
-        const replacement = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        original.dispose();
+        const replacement = new FakeEditorHandle(A_PATH);
         store.register(replacement);
 
-        expect(store.isCurrentEditorSession("a", originalSession)).toBe(false);
-        expect(store.isCurrentEditorSession("a", store.captureEditorSession("a")!)).toBe(true);
+        expect(store.isCurrentEditorSession(A_ID, originalSession)).toBe(false);
+        expect(store.isCurrentEditorSession(A_ID, store.captureEditorSession(A_ID)!)).toBe(true);
     });
 
     it("rejects a webview revision after a host document update", () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         store.register(handle);
 
         expect(store.isHostDocumentRevisionCurrent(handle.id, 0)).toBe(true);
@@ -154,7 +56,7 @@ describe("EditorSessionStore", () => {
 
     it("restores a host-owned revision without allowing it to move backwards", () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         store.register(handle);
 
         expect(store.setHostDocumentRevision(handle.id, 4)).toBe(true);
@@ -165,15 +67,15 @@ describe("EditorSessionStore", () => {
 
     it("unregisters only the exact same-id session", () => {
         const store = new EditorSessionStore(vi.fn());
-        const original = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
-        const replacement = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const original = new FakeEditorHandle(A_PATH);
+        const replacement = new FakeEditorHandle(A_PATH);
         store.register(original);
         store.register(replacement);
 
-        expect(store.unregister("a", original)).toBe(false);
-        expect(store.hasEditor("a")).toBe(true);
-        expect(store.unregister("a", replacement)).toBe(true);
-        expect(store.hasEditor("a")).toBe(false);
+        expect(store.unregister(A_ID, original)).toBe(false);
+        expect(store.hasEditor(A_ID)).toBe(true);
+        expect(store.unregister(A_ID, replacement)).toBe(true);
+        expect(store.hasEditor(A_ID)).toBe(false);
     });
 
     // ─── findEditorIdByPath ──────────────────────────────────────────────────
@@ -181,17 +83,18 @@ describe("EditorSessionStore", () => {
     it("findEditorIdByPath returns the file: handle, never the git: counterpart", () => {
         const store = new EditorSessionStore(vi.fn());
         const path = "/repo/diagram.bpmn";
+        const file = new FakeEditorHandle(path);
         // The diff view registers both schemes for one fs path; the store must
         // hand back the writable file: session, not the readonly git: one.
-        store.register(new FakeEditorHandle("git", "git", path));
-        store.register(new FakeEditorHandle("file", "file", path));
+        store.register(new FakeEditorHandle(path, { scheme: "git" }));
+        store.register(file);
 
-        expect(store.findEditorIdByPath(path)).toBe("file");
+        expect(store.findEditorIdByPath(path)).toBe(file.id);
     });
 
     it("findEditorIdByPath returns undefined when only a git: handle exists", () => {
         const store = new EditorSessionStore(vi.fn());
-        store.register(new FakeEditorHandle("git", "git", "/repo/diagram.bpmn"));
+        store.register(new FakeEditorHandle("/repo/diagram.bpmn", { scheme: "git" }));
 
         expect(store.findEditorIdByPath("/repo/diagram.bpmn")).toBeUndefined();
     });
@@ -201,72 +104,76 @@ describe("EditorSessionStore", () => {
     it("disposing the active editor reassigns to the most recently registered remaining one", () => {
         const onOpenCountChanged = vi.fn();
         const store = new EditorSessionStore(onOpenCountChanged);
-        const first = new FakeEditorHandle("first", "file", "/repo/1.bpmn");
-        const second = new FakeEditorHandle("second", "file", "/repo/2.bpmn");
-        const third = new FakeEditorHandle("third", "file", "/repo/3.bpmn");
+        const first = new FakeEditorHandle("/repo/1.bpmn");
+        const second = new FakeEditorHandle("/repo/2.bpmn");
+        const third = new FakeEditorHandle("/repo/3.bpmn");
+        const thirdDisposeListener = vi.spyOn(third, "onDidDispose");
         [first, second, third].forEach((handle) => {
             store.register(handle);
             store.subscribeToDisposeEvent(handle.id);
         });
 
-        third.emitDispose();
+        // Fires only the dispose event, so the store itself must dispose the handle.
+        thirdDisposeListener.mock.calls[0][0]();
 
         expect(third.disposed).toBe(true);
-        expect(store.getActiveEditorId()).toBe("second");
+        expect(store.getActiveEditorId()).toBe(second.id);
         expect(onOpenCountChanged).toHaveBeenLastCalledWith(2);
     });
 
     it("disposing the last editor clears the active pointer", () => {
         const store = new EditorSessionStore(vi.fn());
-        const only = new FakeEditorHandle("only", "file", "/repo/1.bpmn");
+        const only = new FakeEditorHandle("/repo/1.bpmn");
         store.register(only);
         store.subscribeToDisposeEvent(only.id);
 
-        only.emitDispose();
+        only.dispose();
 
         expect(() => store.getActiveEditorId()).toThrow("No active editor.");
     });
 
     it("disposing a non-active editor leaves the active pointer untouched", () => {
         const store = new EditorSessionStore(vi.fn());
-        const background = new FakeEditorHandle("background", "file", "/repo/1.bpmn");
-        const active = new FakeEditorHandle("active", "file", "/repo/2.bpmn");
+        const background = new FakeEditorHandle("/repo/1.bpmn");
+        const active = new FakeEditorHandle("/repo/2.bpmn");
         store.register(background);
         store.register(active);
         store.subscribeToDisposeEvent(background.id);
 
-        background.emitDispose();
+        background.dispose();
 
-        expect(store.getActiveEditorId()).toBe("active");
+        expect(store.getActiveEditorId()).toBe(active.id);
     });
 
     it("runs the caller's onDispose after store bookkeeping", () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         const onDispose = vi.fn();
         store.register(handle);
         store.subscribeToDisposeEvent(handle.id, onDispose);
 
-        handle.emitDispose();
+        handle.dispose();
 
         expect(onDispose).toHaveBeenCalledOnce();
     });
 
     it("retires an old handle before registering a same-id replacement", () => {
         const store = new EditorSessionStore(vi.fn());
-        const original = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
-        const replacement = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const original = new FakeEditorHandle(A_PATH);
+        const replacement = new FakeEditorHandle(A_PATH);
+        const originalDisposeListener = vi.spyOn(original, "onDidDispose");
         const onDispose = vi.fn();
         store.register(original);
         store.subscribeToDisposeEvent(original.id, onDispose);
         store.register(replacement);
 
-        expect(store.captureEditorSession("a")).toBe(replacement);
+        expect(store.captureEditorSession(A_ID)).toBe(replacement);
         expect(original.disposed).toBe(true);
         expect(replacement.disposed).toBe(false);
         expect(onDispose).toHaveBeenCalledOnce();
 
-        original.emitDispose();
+        // A late dispose event from the retired handle must not run onDispose again.
+        originalDisposeListener.mock.calls[0][0]();
         expect(onDispose).toHaveBeenCalledOnce();
     });
 
@@ -274,51 +181,54 @@ describe("EditorSessionStore", () => {
 
     it("subscribeToMessageEvent reports the subscribed editorId, not the active one", () => {
         const store = new EditorSessionStore(vi.fn());
-        const subscribed = new FakeEditorHandle("subscribed", "file", "/repo/1.bpmn");
-        const laterActive = new FakeEditorHandle("later", "file", "/repo/2.bpmn");
+        const subscribed = new FakeEditorHandle("/repo/1.bpmn");
+        const laterActive = new FakeEditorHandle("/repo/2.bpmn");
         store.register(subscribed);
         const received = vi.fn();
         store.subscribeToMessageEvent(subscribed.id, received);
         // A second editor becomes active after the subscription is wired.
         store.register(laterActive);
 
-        subscribed.emitMessage(aCommand);
+        subscribed.receive(aCommand);
 
-        expect(received).toHaveBeenCalledWith(aCommand, "subscribed");
+        expect(received).toHaveBeenCalledWith(aCommand, subscribed.id);
     });
 
     it("ignores messages from an old handle after a same-id replacement", () => {
         const store = new EditorSessionStore(vi.fn());
-        const original = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
-        const replacement = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const original = new FakeEditorHandle(A_PATH);
+        const replacement = new FakeEditorHandle(A_PATH);
+        const originalMessageListener = vi.spyOn(original, "onDidReceiveMessage");
         const received = vi.fn();
         store.register(original);
         store.subscribeToMessageEvent(original.id, received);
         store.register(replacement);
 
-        original.emitMessage(aCommand);
+        // Retiring detaches the listener, so play a message the host still delivers to it.
+        originalMessageListener.mock.calls[0][0](aCommand);
 
         expect(received).not.toHaveBeenCalled();
     });
 
     it("ignores document changes from an old handle after a same-id replacement", () => {
         const store = new EditorSessionStore(vi.fn());
-        const original = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
-        const replacement = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const original = new FakeEditorHandle(A_PATH);
+        const replacement = new FakeEditorHandle(A_PATH);
+        const originalDocumentListener = vi.spyOn(original, "onDidChangeDocument");
         const received = vi.fn();
         store.register(original);
         store.subscribeToDocumentChangeEvent(original.id, received);
         store.register(replacement);
 
-        original.emitDocumentChange({} as DocumentChangeEvent);
+        // Retiring detaches the listener, so play a change the host still delivers to it.
+        originalDocumentListener.mock.calls[0][0]({} as DocumentChangeEvent);
 
         expect(received).not.toHaveBeenCalled();
     });
 
     it("tracks whether the latest normal sync reached the session document", () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
-        handle.content = "first\r\nline";
+        const handle = new FakeEditorHandle(A_PATH, { content: "first\r\nline" });
         store.register(handle);
         const session = store.captureEditorSession(handle.id)!;
 
@@ -331,7 +241,7 @@ describe("EditorSessionStore", () => {
 
     it("does not serialize unrelated webview messages", async () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         let finishFirst: () => void = () => {};
         const firstPending = new Promise<void>((resolve) => {
             finishFirst = resolve;
@@ -346,8 +256,8 @@ describe("EditorSessionStore", () => {
             processed.push(`${message.type}:end`);
         });
 
-        handle.emitMessage(aCommand);
-        handle.emitMessage(anotherCommand);
+        handle.receive(aCommand);
+        handle.receive(anotherCommand);
 
         expect(processed).toEqual([
             "command:start",
@@ -367,7 +277,7 @@ describe("EditorSessionStore", () => {
 
     it("queues host work behind earlier ordering-sensitive work", async () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         let finishMessage: () => void = () => {};
         const messagePending = new Promise<void>((resolve) => {
             finishMessage = resolve;
@@ -394,7 +304,7 @@ describe("EditorSessionStore", () => {
 
     it("drops queued work from a disposed session without blocking its replacement", async () => {
         const store = new EditorSessionStore(vi.fn());
-        const original = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const original = new FakeEditorHandle(A_PATH);
         let finishOriginal: () => void = () => {};
         const originalPending = new Promise<void>((resolve) => {
             finishOriginal = resolve;
@@ -406,10 +316,10 @@ describe("EditorSessionStore", () => {
 
         const running = store.runInEditorQueue(original.id, () => originalPending);
         const stale = store.runInEditorQueue(original.id, staleWork);
-        original.emitDispose();
-        store.register(new FakeEditorHandle("a", "file", "/repo/a.bpmn"));
+        original.dispose();
+        store.register(new FakeEditorHandle(A_PATH));
 
-        await store.runInEditorQueue("a", replacementWork);
+        await store.runInEditorQueue(A_ID, replacementWork);
         expect(replacementWork).toHaveBeenCalledOnce();
         expect(staleWork).not.toHaveBeenCalled();
 
@@ -423,37 +333,39 @@ describe("EditorSessionStore", () => {
 
     it("reload delegates to the addressed handle", () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         store.register(handle);
 
-        store.reload("a");
+        store.reload(A_ID);
 
-        expect(handle.reload).toHaveBeenCalledOnce();
+        expect(handle.reloadCount).toBe(1);
     });
 
     it("reload throws when the host's handle does not support it", () => {
         const store = new EditorSessionStore(vi.fn());
-        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        const handle = new FakeEditorHandle(A_PATH);
         // A bridge/IntelliJ handle omits reload; the store must fail loudly
         // rather than silently no-op.
         (handle as { reload?: unknown }).reload = undefined;
         store.register(handle);
 
-        expect(() => store.reload("a")).toThrow("does not support reloading");
+        expect(() => store.reload(A_ID)).toThrow("does not support reloading");
     });
 
     it("subscribeToSettingChangeEvent reports the subscribed editorId, not the active one", () => {
         const store = new EditorSessionStore(vi.fn());
-        const subscribed = new FakeEditorHandle("subscribed", "file", "/repo/1.bpmn");
-        const laterActive = new FakeEditorHandle("later", "file", "/repo/2.bpmn");
+        const subscribed = new FakeEditorHandle("/repo/1.bpmn");
+        const laterActive = new FakeEditorHandle("/repo/2.bpmn");
         store.register(subscribed);
-        const received = vi.fn();
+        const received = vi.fn<(event: SettingChange, editorId: string) => void>();
         store.subscribeToSettingChangeEvent(subscribed.id, received);
         store.register(laterActive);
 
-        const event: SettingChange = { affectsConfiguration: () => true };
-        subscribed.emitSettingChange(event);
+        subscribed.changeSetting("miragon.bpmnModeler.language");
 
-        expect(received).toHaveBeenCalledWith(event, "subscribed");
+        expect(received).toHaveBeenCalledOnce();
+        const [[event, editorId]] = received.mock.calls;
+        expect(editorId).toBe(subscribed.id);
+        expect(event.affectsConfiguration("miragon.bpmnModeler.language")).toBe(true);
     });
 });

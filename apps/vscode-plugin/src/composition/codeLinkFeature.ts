@@ -2,11 +2,11 @@ import { ExtensionContext } from "vscode";
 
 import {
     CodeLinkMapService,
+    CodeLinkParticipant,
     ImplementationLocator,
     ImplementationNavigationService,
     SourceIndex,
 } from "@miragon/bpmn-modeler-core";
-import { CodeLinkParticipant } from "../codeLink/controller/editor-participants/CodeLinkParticipant";
 import { SharedDeps } from "./sharedDeps";
 
 /**

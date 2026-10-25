@@ -1,10 +1,13 @@
-import { Command } from "@miragon/bpmn-modeler-shared";
+import { Command, MessageOfType, ProtocolCommandType } from "@miragon/bpmn-modeler-shared";
 
 /**
- * Handles a single webview command. Receives the raw {@link Command} (which it
- * casts to its concrete type internally) and the originating editor id.
+ * Handles a single webview command, narrowed to the command type it was
+ * registered for, together with the originating editor id.
  */
-export type MessageHandler = (message: Command, editorId: string) => void | Promise<void>;
+export type MessageHandler<TMessage extends Command = Command> = (
+    message: TMessage,
+    editorId: string,
+) => void | Promise<void>;
 
 /**
  * Open/closed dispatch table for webview → host messages.
@@ -19,18 +22,23 @@ export type MessageHandler = (message: Command, editorId: string) => void | Prom
  * script-task resync, and that order must be preserved.
  */
 export class WebviewMessageRouter {
-    private readonly handlers = new Map<string, MessageHandler[]>();
+    private readonly handlers = new Map<string, MessageHandler<Command>[]>();
 
     /**
      * Registers a handler for a command type. Repeated calls for the same type
      * append; handlers fire in registration order during {@link dispatch}.
      */
-    on(type: string, handler: MessageHandler): this {
+    on<TType extends ProtocolCommandType>(
+        type: TType,
+        handler: MessageHandler<MessageOfType<TType>>,
+    ): this {
+        // Sound because dispatch only hands a handler messages whose type it was registered for.
+        const untypedHandler = handler as MessageHandler<Command>;
         const existing = this.handlers.get(type);
         if (existing) {
-            existing.push(handler);
+            existing.push(untypedHandler);
         } else {
-            this.handlers.set(type, [handler]);
+            this.handlers.set(type, [untypedHandler]);
         }
         return this;
     }

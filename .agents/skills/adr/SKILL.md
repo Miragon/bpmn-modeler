@@ -1,6 +1,6 @@
 ---
 name: adr
-description: Maintain the repository's living architecture decision records in docs/adr/. Use for significant changes to package boundaries, public APIs, dependencies, runtimes, protocols, infrastructure or distribution; for documenting architectural rationale; and for the "ADR updated or added" PR checklist. Update an existing topic before creating another file.
+description: Maintains the living architecture decision records in docs/adr/. Use when a change moves a package boundary, public API, dependency, runtime, protocol or distribution choice, or for the PR's ADR checklist item.
 ---
 
 # Architecture Decision Records

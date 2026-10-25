@@ -3,7 +3,15 @@
  * protocol and persists panel/canvas UI state. Lives in the app, outside the
  * publishable `@miragon/bpmn-modeler` boundary.
  */
-import { Command, Query, HostApi, PropertiesPanelHandle } from "@miragon/bpmn-modeler-shared";
+import {
+    Command,
+    createWebviewStateStore,
+    HostApi,
+    PropertiesPanelHandle,
+    PropertiesPanelUiStateAdapter,
+    Query,
+    type WebviewStateStore,
+} from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox, type SurfaceMode } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
 import type { BpmnModelerHandle } from "@miragon/bpmn-modeler";
@@ -19,54 +27,16 @@ type StatefulSurface = Pick<
     "viewport" | "selection" | "rootElement" | "captureViewState" | "applyViewState"
 >;
 
-const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
-const PANEL_GROUP = ".bio-properties-panel-group";
-const PANEL_GROUP_HEADER = ".bio-properties-panel-group-header";
-const PANEL_GROUP_OPEN_CLASS = "open";
-const SCROLL_DEBOUNCE_MS = 100;
-
-/**
- * `@bpmn-io/properties-panel` puts the `open` class on the header child,
- * never on the group root — and the body element differs between regular
- * groups (`.bio-properties-panel-group-entries`) and list groups
- * (`.bio-properties-panel-list`). The header is the only element common to
- * both that reliably tracks expansion state.
- */
-function isGroupOpen(group: HTMLElement): boolean {
-    const header = group.querySelector<HTMLElement>(PANEL_GROUP_HEADER);
-    return header?.classList.contains(PANEL_GROUP_OPEN_CLASS) ?? false;
-}
-
-/**
- * Reads the per-editor properties-panel visibility from persisted state without
- * needing a full {@link WebviewStateManager}. Returns `undefined` when this
- * editor has no saved entry yet (so the caller falls back to the host's global
- * default); used for the pre-import early-apply before the modeler exists.
- */
-export function readSavedPanelVisibility(
-    host: HostApi<WebviewState, Command | Query>,
-): boolean | undefined {
-    try {
-        return host.getState()?.panelVisible;
-    } catch {
-        return undefined;
-    }
-}
-
 /**
  * Reads this editor's persisted surface mode without a full
  * {@link WebviewStateManager}. Returns `undefined` when no mode is saved yet
  * (first-ever open), so the caller falls back to the host default; read before
- * surface construction, like {@link readSavedPanelVisibility}.
+ * surface construction, like the shared `readSavedPanelVisibility`.
  */
 export function readSavedMode(
     host: HostApi<WebviewState, Command | Query>,
 ): SurfaceMode | undefined {
-    try {
-        return host.getState()?.mode;
-    } catch {
-        return undefined;
-    }
+    return host.getState()?.mode;
 }
 
 /**
@@ -84,50 +54,39 @@ export function readSavedMode(
  * restore the drill-down plane, viewbox, and selection.
  */
 export class WebviewStateManager {
-    /** Latches once {@link restoreViewport} has applied a viewbox. */
-    private viewportRestored = false;
+    private readonly stateStore: WebviewStateStore<WebviewState>;
+
+    private readonly panelUiState: PropertiesPanelUiStateAdapter;
 
     constructor(
-        private readonly host: HostApi<WebviewState, Command | Query>,
+        host: HostApi<WebviewState, Command | Query>,
         // Any of the three surfaces (modeler / designer / viewer) — bound
         // structurally so the manager rebinds on every mode switch.
         private readonly modeler: StatefulSurface,
-        // The properties-panel host element. The scroll container is looked up
-        // within it rather than via `document` so a second modeler's panel on
-        // the same page is never mistaken for this one's.
-        private readonly panelRoot: HTMLElement,
-    ) {}
+        panelRoot: HTMLElement,
+    ) {
+        this.stateStore = createWebviewStateStore(host);
+        this.panelUiState = new PropertiesPanelUiStateAdapter(this.stateStore, panelRoot);
+    }
 
     /**
      * Persists this editor's surface mode so a later tab-switch rebuild reopens
-     * in the same mode. The single writer is bootstrap's mode session.
+     * in the same mode. The single writer is the session's mode controller.
      */
     persistMode(mode: SurfaceMode): void {
-        this.persistPartialState({ mode });
+        this.stateStore.merge({ mode });
     }
 
     /**
      * Must be called after importXML — the canvas does not exist before that.
      *
      * A saved viewbox only exists after a tab-switch rebuild (VS Code retains
-     * `getState()`); a fresh open/reopen starts with empty state. So the
-     * absence of a saved viewport discriminates a genuine fresh open, where we
-     * fit the diagram — bpmn-js leaves the canvas at the origin on importXML,
-     * which renders a diagram moved far from the origin off-screen.
-     *
-     * Safe to call repeatedly: nothing happens until the host has laid the
-     * canvas out, and then it applies exactly once — re-fitting on every later
-     * resize would discard the zoom the user chose.
-     *
-     * @returns `true` once a viewbox has been applied, `false` while the
-     *   caller should keep retrying.
+     * `getState()`); a fresh open/reopen starts with empty state and keeps the
+     * fit the surface armed on import. A restore while the host has not laid
+     * the canvas out yet is held by the surface and applied once it has a size.
      */
-    restoreViewport(): boolean {
-        if (this.viewportRestored) {
-            return true;
-        }
-
-        const saved = this.getSavedState();
+    restoreViewport(): void {
+        const saved = this.stateStore.read();
 
         // Restore the drill-down plane before the viewbox — viewbox
         // coordinates are plane-relative, and applying them against the
@@ -139,10 +98,9 @@ export class WebviewStateManager {
             this.modeler.rootElement.setRootElementById(saved.rootElementId);
         }
 
-        this.viewportRestored = saved?.viewport
-            ? this.modeler.viewport.setViewport(saved.viewport)
-            : this.modeler.viewport.fitViewport();
-        return this.viewportRestored;
+        if (saved?.viewport) {
+            this.modeler.viewport.setViewport(saved.viewport);
+        }
     }
 
     /**
@@ -150,77 +108,27 @@ export class WebviewStateManager {
      * so their side-effects do not clear the restored selection.
      */
     restoreSelection(): void {
-        const saved = this.getSavedState();
+        const saved = this.stateStore.read();
         if (saved?.selectedElementIds && saved.selectedElementIds.length > 0) {
             this.modeler.selection.selectElementsByIds(saved.selectedElementIds);
         }
     }
 
     /**
-     * Applies the per-editor panel visibility through the resizer handle: this
-     * editor's saved entry wins, and only when it is absent does the caller's
-     * `fallbackVisible` (the host's global default) apply. Must be driven via the
-     * handle rather than raw DOM manipulation — the resizer seeds `isCollapsed`
-     * from the DOM and would otherwise desync.
+     * This editor's saved visibility wins; only when absent does the caller's
+     * `fallbackVisible` (the host's global default) apply.
      */
     restorePanelVisibility(handle: PropertiesPanelHandle, fallbackVisible: boolean): void {
-        handle.setVisible(this.getSavedState()?.panelVisible ?? fallbackVisible);
+        this.panelUiState.restorePanelVisibility(handle, fallbackVisible);
     }
 
-    /**
-     * Persists this editor's panel visibility so a later tab-switch rebuild
-     * restores it independently of the host's global default.
-     */
     persistPanelVisibility(visible: boolean): void {
-        this.persistPartialState({ panelVisible: visible });
+        this.panelUiState.persistPanelVisibility(visible);
     }
 
-    /**
-     * Must be called after the resizer has made the panel visible — the
-     * scroll container does not exist in the DOM before then.
-     *
-     * Order matters: groups are toggled first, then scroll is applied on a
-     * follow-up frame so Preact has flushed the click-induced re-renders.
-     * Applying scroll before expansion would clamp to a smaller scrollHeight.
-     */
+    /** Must be called after the resizer has made the panel visible. */
     restorePanelUiState(): void {
-        const saved = this.getSavedState();
-        if (!saved) {
-            return;
-        }
-        const wanted = saved.expandedGroupIndexes;
-        const savedScroll = saved.panelScroll;
-        if ((!wanted || wanted.length === 0) && savedScroll == null) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
-            if (!container) {
-                return;
-            }
-            if (wanted && wanted.length > 0) {
-                const target = new Set(wanted);
-                const groups = container.querySelectorAll<HTMLElement>(PANEL_GROUP);
-                groups.forEach((group, index) => {
-                    const shouldBeOpen = target.has(index);
-                    if (isGroupOpen(group) === shouldBeOpen) {
-                        return;
-                    }
-                    const header = group.querySelector<HTMLElement>(PANEL_GROUP_HEADER);
-                    header?.click();
-                });
-            }
-            if (savedScroll != null) {
-                /**
-                 * Second rAF waits for Preact to commit the click-induced
-                 * re-renders; only then has scrollHeight grown to fit the
-                 * restored open groups so scrollTop lands where the user left it.
-                 */
-                requestAnimationFrame(() => {
-                    container.scrollTop = savedScroll;
-                });
-            }
-        });
+        this.panelUiState.restoreGroupsAndScroll();
     }
 
     /**
@@ -236,7 +144,7 @@ export class WebviewStateManager {
             // captured inside a sub-process plane is meaningless against the
             // top-level plane on restore. `getRootElementId` already returns
             // `undefined` for the implicit root, so implicit ids are never saved.
-            this.persistPartialState({
+            this.stateStore.merge({
                 viewport,
                 rootElementId: this.modeler.rootElement.getRootElementId(),
             });
@@ -245,19 +153,18 @@ export class WebviewStateManager {
 
     startPersisting(): void {
         this.modeler.rootElement.onRootChanged((rootElementId) => {
-            this.persistPartialState({ rootElementId });
+            this.stateStore.merge({ rootElementId });
         });
 
         this.modeler.viewport.onViewportChanged((viewport) => {
-            this.persistPartialState({ viewport });
+            this.stateStore.merge({ viewport });
         });
 
         this.modeler.selection.onSelectionChanged((selectedElementIds) => {
-            this.persistPartialState({ selectedElementIds });
+            this.stateStore.merge({ selectedElementIds });
         });
 
-        this.subscribePanelScroll();
-        this.subscribeGroupExpansion();
+        this.panelUiState.startPersisting();
     }
 
     /**
@@ -277,89 +184,5 @@ export class WebviewStateManager {
      */
     applyViewState(snapshot: CanvasViewState): void {
         this.modeler.applyViewState(snapshot);
-        // An explicit snapshot re-apply settles the initial-restore question, so
-        // the canvas-size observer stops re-applying possibly stale saved state.
-        this.viewportRestored = true;
-    }
-
-    /**
-     * Latches the initial-viewport restore without applying one. Called when the
-     * viewport was already restored out-of-band (a mode-session recreate applies
-     * the carried snapshot directly via the handle, bypassing this manager), so
-     * the canvas-size observer does not re-apply stale saved state over it.
-     */
-    markViewportRestored(): void {
-        this.viewportRestored = true;
-    }
-
-    private getSavedState(): WebviewState | undefined {
-        try {
-            return this.host.getState();
-        } catch {
-            return undefined;
-        }
-    }
-
-    /**
-     * Falls back to a full `setState` when no prior state exists.
-     */
-    private persistPartialState(partial: Partial<WebviewState>): void {
-        try {
-            this.host.updateState(partial);
-        } catch {
-            this.host.setState(partial as WebviewState);
-        }
-    }
-
-    /**
-     * Debounced because each pixel of mouse-wheel scroll emits an event and
-     * `setState` synchronously writes to VS Code workspace storage.
-     */
-    private subscribePanelScroll(): void {
-        const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
-        if (!container) {
-            return;
-        }
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        container.addEventListener("scroll", () => {
-            if (timer) clearTimeout(timer);
-            timer = setTimeout(() => {
-                this.persistPartialState({ panelScroll: container.scrollTop });
-            }, SCROLL_DEBOUNCE_MS);
-        });
-    }
-
-    /**
-     * The library exposes no public event for expand/collapse toggles, so a
-     * MutationObserver on the group header `class` attribute is the only
-     * reliable signal. Other class mutations (input focus, hover, …) are
-     * discarded by filtering for `.bio-properties-panel-group-header`.
-     */
-    private subscribeGroupExpansion(): void {
-        const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
-        if (!container) {
-            return;
-        }
-        const observer = new MutationObserver((mutations) => {
-            const groupChanged = mutations.some(
-                (m) => m.target instanceof HTMLElement && m.target.matches(PANEL_GROUP_HEADER),
-            );
-            if (!groupChanged) {
-                return;
-            }
-            const groups = container.querySelectorAll<HTMLElement>(PANEL_GROUP);
-            const indexes: number[] = [];
-            groups.forEach((group, index) => {
-                if (isGroupOpen(group)) {
-                    indexes.push(index);
-                }
-            });
-            this.persistPartialState({ expandedGroupIndexes: indexes });
-        });
-        observer.observe(container, {
-            subtree: true,
-            attributes: true,
-            attributeFilter: ["class"],
-        });
     }
 }

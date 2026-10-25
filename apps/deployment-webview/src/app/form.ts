@@ -105,6 +105,10 @@ export class DeploymentForm {
     private detectedEngine: Engine | undefined;
     private latestDefaults: DeploymentFormDefaults | undefined;
     private connectionSnapshot = "";
+
+    private credentialRefSnapshot = "";
+
+    private requestedCredentialsId: number | undefined;
     private documentDir: string | undefined;
     private dirty = false;
     private switchingTarget = true;
@@ -118,7 +122,7 @@ export class DeploymentForm {
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
-    constructor(private readonly host: HostApi<unknown, Command | Query>) {
+    constructor(private readonly host: HostApi<WebviewState, Command | Query>) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
         this.targetSelect = this.requireElement<HTMLSelectElement>("#target-select");
         this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");
@@ -209,7 +213,22 @@ export class DeploymentForm {
     }
 
     populateCredentials(query: StoredCredentialsQuery): void {
+        if (
+            query.requestId === this.requestedCredentialsId &&
+            query.targetName === this.editingTargetName &&
+            query.auth.authType === this.authTypeSelect.value
+        ) {
+            // Snapshot even when typing has superseded the prefill, so replacing a
+            // saved ref is still recognised as a target change.
+            this.credentialRefSnapshot = credentialRefSignatureOf([
+                query.auth.username,
+                query.auth.password,
+                query.auth.clientId,
+                query.auth.clientSecret,
+            ]);
+        }
         if (this.pendingCredentials === undefined || query.requestId !== this.pendingCredentials) {
+            this.updateReadiness();
             return;
         }
         // A matching monotonic requestId is proof this is the reply to our
@@ -386,13 +405,8 @@ export class DeploymentForm {
     private initSections(): void {
         const headers = document.querySelectorAll<HTMLElement>(".section-header");
 
-        let collapsed: string[];
-        try {
-            const state = this.host.getState() as WebviewState | undefined;
-            collapsed = state?.collapsedSections ?? this.defaultCollapsedSections();
-        } catch {
-            collapsed = this.defaultCollapsedSections();
-        }
+        const collapsed =
+            this.host.getState()?.collapsedSections ?? this.defaultCollapsedSections();
 
         for (const header of headers) {
             const sectionId = header.dataset.section;
@@ -443,7 +457,7 @@ export class DeploymentForm {
             }
         }
 
-        this.host.setState({ collapsedSections } as WebviewState);
+        this.host.updateState({ collapsedSections });
     }
 
     private defaultCollapsedSections(): string[] {
@@ -716,7 +730,8 @@ export class DeploymentForm {
         if (this.pendingCredentials !== undefined) return "Loading credentials…";
         if (
             this.editingTargetName &&
-            JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot
+            (JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot ||
+                this.credentialRefSignature() !== this.credentialRefSnapshot)
         ) {
             return "Save target changes before deploying or starting an instance.";
         }
@@ -773,12 +788,26 @@ export class DeploymentForm {
         this.authPasswordInput.value = "";
         this.authClientIdInput.value = "";
         this.authClientSecretInput.value = "";
+        this.requestedCredentialsId = undefined;
+        this.credentialRefSnapshot = this.credentialRefSignature();
+    }
+
+    private credentialRefSignature(): string {
+        return credentialRefSignatureOf(
+            [
+                this.authUsernameInput,
+                this.authPasswordInput,
+                this.authClientIdInput,
+                this.authClientSecretInput,
+            ].map((input) => input.value),
+        );
     }
 
     private requestCredentials(): void {
         this.clearCredentials();
         if (this.authTypeSelect.value !== "none") {
             this.pendingCredentials = this.credentialRequestId;
+            this.requestedCredentialsId = this.credentialRequestId;
             this.updateReadiness();
             this.host.postMessage(
                 new RequestStoredCredentialsCommand(
@@ -821,4 +850,15 @@ export class DeploymentForm {
         }
         return el;
     }
+}
+
+/**
+ * Env references in credentials are saved to the shared targets file, so
+ * changing one needs Save like a connection change. Literal edits stay free;
+ * anything containing `${env:` counts, leaving the exact rule to the host.
+ */
+function credentialRefSignatureOf(values: (string | undefined)[]): string {
+    return JSON.stringify(
+        values.map((value = "") => (value.includes("${env:") ? value.trim() : "")),
+    );
 }

@@ -7,6 +7,7 @@ import {
     PickerPort,
     StatusBarPort,
 } from "../../shared/domain/hostPorts";
+import { UnreadableDotEnvError } from "../../shared/domain/errors";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import {
     contentFingerprint,
@@ -16,7 +17,10 @@ import {
     ledgerKeyFor,
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
+import { DeploymentTarget } from "../domain/deploymentTarget";
+import { EnvLookup, EnvReferencing, NO_ENV_VARIABLES } from "../domain/envRef";
 import { DeploymentTargetService } from "./DeploymentTargetService";
+import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
 
 /**
  * Owns the deployment status-bar item and the "what was last deployed where"
@@ -40,7 +44,58 @@ export class DeploymentStatusService {
         private readonly statusBar: StatusBarPort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
+        private readonly envResolver: EnvValueResolver,
     ) {}
+
+    async targetIdentity(
+        target: DeploymentTarget,
+        documentDir?: string,
+    ): Promise<DeploymentTargetIdentity> {
+        return DeploymentTargetIdentity.fromTarget(
+            target,
+            await this.identityLookup(
+                "targetsFile",
+                documentDir,
+                DeploymentTargetIdentity.envRefsOfTarget(target),
+            ),
+        );
+    }
+
+    private async adHocIdentity(
+        endpoint: string,
+        tenantId: string,
+        documentDir?: string,
+    ): Promise<DeploymentTargetIdentity> {
+        return DeploymentTargetIdentity.adHoc(
+            endpoint,
+            tenantId,
+            await this.identityLookup(
+                "workspaceFolder",
+                documentDir,
+                DeploymentTargetIdentity.envRefsOfAdHoc(endpoint, tenantId),
+            ),
+        );
+    }
+
+    /**
+     * An unreadable `.env` must not fail a status refresh or a ledger prune that
+     * runs after a target was already saved; unresolved refs then stay verbatim.
+     */
+    private async identityLookup(
+        scope: EnvScope,
+        documentDir: string | undefined,
+        subject: EnvReferencing,
+    ): Promise<EnvLookup> {
+        try {
+            return await this.envResolver.createLookup(scope, documentDir, subject);
+        } catch (error) {
+            if (error instanceof UnreadableDotEnvError) {
+                this.notifier.logDebug(`Deployment status keyed without .env: ${error.message}`);
+                return NO_ENV_VARIABLES;
+            }
+            throw error;
+        }
+    }
 
     async recordDeployment(
         filePath: string,
@@ -109,14 +164,15 @@ export class DeploymentStatusService {
             const filePath = this.documentPort.getFilePath(editorId);
             const documentDir = posix.dirname(filePath);
             const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
             const identity =
                 target !== undefined
-                    ? DeploymentTargetIdentity.fromTarget(target)
-                    : DeploymentTargetIdentity.adHoc(
+                    ? await this.targetIdentity(target, documentDir)
+                    : await this.adHocIdentity(
                           this.deploymentState.getEndpoint(),
                           this.deploymentState.getTenantId(),
+                          documentDir,
                       );
+            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
 
             const revision = this.deploymentState.getDeployedRevision(
                 ledgerKeyFor(identity, filePath),

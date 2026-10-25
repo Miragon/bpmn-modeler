@@ -18,7 +18,7 @@ export default defineConfig({
         coverage: {
             // Generated SVG arrow components; owned by scripts/generate-icons.mjs.
             ...coveragePreset(__dirname, { exclude: ["src/render/icons/index.tsx"] }),
-            thresholds: { statements: 37, branches: 37, functions: 39, lines: 39 },
+            thresholds: { statements: 89, branches: 80, functions: 89, lines: 89 },
         },
     },
 });

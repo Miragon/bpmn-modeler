@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Create a single Conventional Commit when the user asks to commit changes in this repository. Preserve the user's staging and stop after committing without pushing.
+description: Creates one Conventional Commit when the user asks to commit, keeping the user's staging and never pushing.
 ---
 
 # Commit changes

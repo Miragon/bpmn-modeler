@@ -8,11 +8,12 @@ import {
     workspace,
 } from "vscode";
 
-import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
+import { Command, GetDiagramAsSVGCommand, isMessageOfType } from "@miragon/bpmn-modeler-shared";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 
 import { EditorSubscription } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import { EditorSessionDocuments } from "@miragon/bpmn-modeler-core";
 import {
     BPMN_VIEW_TYPE,
     BpmnDocument,
@@ -22,11 +23,9 @@ import {
     FORM_VIEW_TYPE,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
-import { VsCodeDocument } from "../../../shared/infrastructure/VsCodeDocument";
-import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
-import { VsCodePicker } from "../../../shared/infrastructure/VsCodePicker";
 import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 import type { EditorFlushResult } from "../../editor-session/DocumentSaveFlushController";
 
@@ -61,12 +60,12 @@ export class CommandController {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: VsCodeDocument,
-        private readonly notifier: VsCodeNotifier,
+        private readonly vsDocument: EditorSessionDocuments,
+        private readonly notifier: NotifierPort,
         private readonly textEditor: VsCodeTextEditor,
         private readonly bpmnService: BpmnModelerService,
         private readonly migrationSvc: BpmnMigrationService,
-        private readonly picker: VsCodePicker,
+        private readonly picker: PickerPort,
         private readonly documentFlush: DocumentFlusher,
         private readonly layoutSvc: BpmnLayoutService,
     ) {}
@@ -342,8 +341,8 @@ export class CommandController {
 
         this.svgSubscription = this.editorStore.subscribeToActiveEditorMessage(
             (message: Command) => {
-                if (message.type === "GetDiagramAsSVGCommand") {
-                    const cmd = message as GetDiagramAsSVGCommand;
+                if (isMessageOfType(message, "GetDiagramAsSVGCommand")) {
+                    const cmd = message;
                     if (cmd.svg && cmd.svg.length > 0) {
                         Promise.resolve(onSvg(cmd.svg)).catch((error) => {
                             this.notifier.logError(

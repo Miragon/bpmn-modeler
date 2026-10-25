@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { executeTemplateTypeAction } from "./templateTypeAction";
+import { executeTemplateTypeAction, offersTypePick } from "./templateTypeAction";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
 const template = {
@@ -25,14 +25,28 @@ function services() {
     };
 }
 
-// The modeler runs in browsers where KeyboardEvent is global; the node test env
-// has none, so provide a minimal stand-in for the `instanceof` branch.
-class FakeKeyboardEvent {}
-beforeAll(() => {
-    (globalThis as { KeyboardEvent?: unknown }).KeyboardEvent = FakeKeyboardEvent;
-});
-afterAll(() => {
-    delete (globalThis as { KeyboardEvent?: unknown }).KeyboardEvent;
+describe("offersTypePick", () => {
+    it("offers a pick for a template applying to several types", () => {
+        expect(offersTypePick(template)).toBe(true);
+    });
+
+    it.each([
+        ["no template", undefined],
+        ["a single-type template", { ...template, appliesTo: ["bpmn:ServiceTask"] }],
+        [
+            "a template fixing its element type",
+            {
+                ...template,
+                appliesTo: ["bpmn:IntermediateCatchEvent", "bpmn:IntermediateThrowEvent"],
+                elementType: {
+                    value: "bpmn:IntermediateCatchEvent",
+                    eventDefinition: "bpmn:MessageEventDefinition",
+                },
+            },
+        ],
+    ])("offers no pick for %s", (_case, candidate) => {
+        expect(offersTypePick(candidate)).toBe(false);
+    });
 });
 
 describe("executeTemplateTypeAction", () => {
@@ -120,7 +134,7 @@ describe("executeTemplateTypeAction", () => {
             { providerId: "bpmn-create", target: {} },
             template,
             "bpmn:SendTask",
-            new FakeKeyboardEvent() as unknown as Event,
+            new KeyboardEvent("keydown", { key: "Enter" }),
             undefined,
         );
         expect(s.mouse.getLastMoveEvent).toHaveBeenCalled();

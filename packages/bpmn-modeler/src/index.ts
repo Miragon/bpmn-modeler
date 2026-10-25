@@ -27,6 +27,7 @@ export type {
     CreateModeler,
     StableModelerSurface,
 } from "./publicApi";
+export type { BpmnSurfaceHandle } from "./surfaceHandle";
 export type { ModelerCapabilities } from "./capabilities";
 export type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
 export type {

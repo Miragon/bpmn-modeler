@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { createTestHost } from "../../testing";
 import { NoAuth } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployActiveDiagramService } from "./DeployActiveDiagramService";
@@ -16,14 +17,9 @@ const target = new DeploymentTarget(
     "",
 );
 
-function createService() {
-    const editorStore = {
-        getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
-    };
-    const documentPort = {
-        getFilePath: vi.fn().mockReturnValue(FILE_PATH),
-        save: vi.fn().mockResolvedValue(true),
-    };
+function createService(diagramPath = FILE_PATH) {
+    const host = createTestHost();
+    const editor = host.openEditor(diagramPath);
     const deploymentTargetService = {
         getActiveTarget: vi.fn().mockResolvedValue(target),
         switchActiveTarget: vi.fn().mockResolvedValue(undefined),
@@ -35,58 +31,43 @@ function createService() {
     const deploymentStatusService = {
         refreshActive: vi.fn().mockResolvedValue(undefined),
     };
-    const notifier = {
-        showInfo: vi.fn(),
-        showError: vi.fn(),
-        withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
-    };
 
     const service = new DeployActiveDiagramService(
-        editorStore as never,
-        documentPort as never,
+        host.store,
+        host.documents,
         deploymentTargetService as never,
         deploymentService as never,
         deploymentStatusService as never,
-        notifier as never,
+        host.notifier,
     );
 
     return {
         service,
-        editorStore,
-        documentPort,
+        host,
+        editor,
         deploymentTargetService,
         deploymentService,
         deploymentStatusService,
-        notifier,
     };
 }
-
-beforeEach(() => vi.clearAllMocks());
 
 describe("DeployActiveDiagramService.deployActive", () => {
     it("reports when no diagram is focused", async () => {
         const c = createService();
-        c.editorStore.getActiveEditorId.mockImplementation(() => {
-            throw new Error("no active editor");
-        });
+        c.host.store.unregister(c.editor.id, c.editor);
 
         await c.service.deployActive();
 
-        expect(c.notifier.showInfo).toHaveBeenCalledWith(
-            "Open a BPMN or DMN diagram to deploy it.",
-        );
+        expect(c.host.notifier.infos).toEqual(["Open a BPMN or DMN diagram to deploy it."]);
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
     it("rejects a non-diagram file such as a form", async () => {
-        const c = createService();
-        c.documentPort.getFilePath.mockReturnValue("/work/form.form");
+        const c = createService("/work/form.form");
 
         await c.service.deployActive("/work");
 
-        expect(c.notifier.showInfo).toHaveBeenCalledWith(
-            "Open a BPMN or DMN diagram to deploy it.",
-        );
+        expect(c.host.notifier.infos).toEqual(["Open a BPMN or DMN diagram to deploy it."]);
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
@@ -114,24 +95,25 @@ describe("DeployActiveDiagramService.deployActive", () => {
             [FILE_PATH],
             target,
             expect.any(NoAuth),
+            "/work",
         );
     });
 
     it("aborts when the save throws", async () => {
         const c = createService();
-        c.documentPort.save.mockRejectedValue(new Error("read-only file system"));
+        vi.spyOn(c.editor, "save").mockRejectedValue(new Error("read-only file system"));
 
         await c.service.deployActive("/work");
 
-        expect(c.notifier.showError).toHaveBeenCalledWith(
-            expect.stringContaining("read-only file system"),
-        );
+        expect(c.host.notifier.errors).toEqual([
+            "Could not save the diagram before deploying: read-only file system",
+        ]);
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
     it("deploys an unmodified diagram whose save returns false", async () => {
         const c = createService();
-        c.documentPort.save.mockResolvedValue(false);
+        vi.spyOn(c.editor, "save").mockResolvedValue(false);
 
         await c.service.deployActive("/work");
 
@@ -139,28 +121,54 @@ describe("DeployActiveDiagramService.deployActive", () => {
             [FILE_PATH],
             target,
             expect.any(NoAuth),
+            "/work",
         );
     });
 
     it("saves before deploying and refreshes the status bar", async () => {
         const c = createService();
-        const calls: string[] = [];
-        c.documentPort.save.mockImplementation(async () => {
-            calls.push("save");
-            return true;
-        });
+        let savesBeforeDeploy: number | undefined;
         c.deploymentService.deployFiles.mockImplementation(async () => {
-            calls.push("deploy");
+            savesBeforeDeploy = c.editor.saveCount;
             return [];
         });
 
         await c.service.deployActive("/work");
 
-        expect(calls).toEqual(["save", "deploy"]);
-        expect(c.notifier.withProgress).toHaveBeenCalledWith(
-            'Deploying order-process.bpmn to "dev"',
-            expect.any(Function),
-        );
+        expect(savesBeforeDeploy).toBe(1);
+        expect(c.host.notifier.progressTitles).toEqual(['Deploying order-process.bpmn to "dev"']);
         expect(c.deploymentStatusService.refreshActive).toHaveBeenCalled();
+    });
+
+    it("hands deployFiles the directory the target was resolved from, so its .env matches", async () => {
+        const c = createService();
+
+        await c.service.deployActive("/ws/project");
+
+        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith("/ws/project");
+        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(
+            target,
+            "/ws/project",
+        );
+        expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
+            [FILE_PATH],
+            target,
+            expect.any(NoAuth),
+            "/ws/project",
+        );
+    });
+
+    it("resolves the target and deploys from the diagram's own directory when none is given", async () => {
+        const c = createService();
+
+        await c.service.deployActive();
+
+        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith("/work");
+        expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
+            [FILE_PATH],
+            target,
+            expect.any(NoAuth),
+            "/work",
+        );
     });
 });

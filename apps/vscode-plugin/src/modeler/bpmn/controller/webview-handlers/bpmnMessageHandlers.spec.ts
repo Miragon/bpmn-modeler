@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Importing the handler module pulls in `VsCodeNotifier`/`EditorSessionStore`,
-// which reference vscode; a bare stub is enough since the handlers under test
-// only ever touch their injected service doubles.
+// The handler module imports vscode for the linting switch; a bare stub is
+// enough since the handlers under test only touch their injected doubles.
 vi.mock("vscode", () => ({
     Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
 }));
@@ -11,31 +10,15 @@ import {
     Command,
     OpenScriptEditorCommand,
     OpenScriptEditorsCommand,
-    SetClipboardCommand,
-    SetPropertiesPanelStateCommand,
-    SetTextClipboardCommand,
-    SyncDocumentCommand,
-    UpdateLintResultsCommand,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { InMemorySettings, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import {
-    getBpmnFileHandler,
-    getBpmnlintConfigHandler,
-    getBpmnModelerSettingHandler,
-    getClipboardHandler,
-    getElementTemplatesHandler,
-    getPropertiesPanelStateHandler,
-    getTextClipboardHandler,
     openScriptEditorHandler,
     openScriptEditorsHandler,
     resyncScriptTasksHandler,
-    setClipboardHandler,
-    setPropertiesPanelStateHandler,
-    setTextClipboardHandler,
-    syncDocumentHandler,
-    updateLintResultsHandler,
     updateScriptSourceHandler,
     updateScriptVariablesHandler,
 } from "./bpmnMessageHandlers";
@@ -48,64 +31,6 @@ beforeEach(() => {
     vi.clearAllMocks();
 });
 
-describe("getBpmnFileHandler", () => {
-    it("logs readiness only when the diagram actually rendered", async () => {
-        const bpmnService = { display: vi.fn().mockResolvedValue(true) };
-        const notifier = { logDebug: vi.fn() };
-
-        await getBpmnFileHandler(bpmnService as never, notifier as never)(ANY, EDITOR);
-
-        expect(bpmnService.display).toHaveBeenCalledWith(EDITOR);
-        expect(notifier.logDebug).toHaveBeenCalledOnce();
-    });
-
-    it("does not log when rendering was skipped", async () => {
-        const bpmnService = { display: vi.fn().mockResolvedValue(false) };
-        const notifier = { logDebug: vi.fn() };
-
-        await getBpmnFileHandler(bpmnService as never, notifier as never)(ANY, EDITOR);
-
-        expect(notifier.logDebug).not.toHaveBeenCalled();
-    });
-});
-
-describe("read-style handlers forward the editor id", () => {
-    it("getElementTemplatesHandler → setElementTemplates", () => {
-        const svc = { setElementTemplates: vi.fn() };
-        getElementTemplatesHandler(svc as never)(ANY, EDITOR);
-        expect(svc.setElementTemplates).toHaveBeenCalledWith(EDITOR);
-    });
-
-    it("getPropertiesPanelStateHandler → sendPropertiesPanelState", () => {
-        const svc = { sendPropertiesPanelState: vi.fn() };
-        getPropertiesPanelStateHandler(svc as never)(ANY, EDITOR);
-        expect(svc.sendPropertiesPanelState).toHaveBeenCalledWith(EDITOR);
-    });
-
-    it("getClipboardHandler → readClipboard", () => {
-        const svc = { readClipboard: vi.fn() };
-        getClipboardHandler(svc as never)(ANY, EDITOR);
-        expect(svc.readClipboard).toHaveBeenCalledWith(EDITOR);
-    });
-
-    it("getTextClipboardHandler → readTextClipboard", () => {
-        const svc = { readTextClipboard: vi.fn() };
-        getTextClipboardHandler(svc as never)(ANY, EDITOR);
-        expect(svc.readTextClipboard).toHaveBeenCalledWith(EDITOR);
-    });
-});
-
-describe("getBpmnModelerSettingHandler", () => {
-    it("broadcasts both settings and language", () => {
-        const broadcaster = { setSettings: vi.fn(), setLanguage: vi.fn() };
-
-        getBpmnModelerSettingHandler(broadcaster as never)(ANY, EDITOR);
-
-        expect(broadcaster.setSettings).toHaveBeenCalledWith(EDITOR);
-        expect(broadcaster.setLanguage).toHaveBeenCalledWith(EDITOR);
-    });
-});
-
 describe("resyncScriptTasksHandler", () => {
     it("reloads open inline scripts then re-broadcasts the lock state", async () => {
         const svc = {
@@ -115,35 +40,6 @@ describe("resyncScriptTasksHandler", () => {
         await resyncScriptTasksHandler(svc as never)(ANY, EDITOR);
         expect(svc.resyncOpenDocuments).toHaveBeenCalledWith(EDITOR);
         expect(svc.syncLockState).toHaveBeenCalledWith(EDITOR);
-    });
-});
-
-describe("set-style handlers forward the command payload", () => {
-    it("setPropertiesPanelStateHandler → setPropertiesPanelVisibility(visible)", () => {
-        const svc = { setPropertiesPanelVisibility: vi.fn() };
-        setPropertiesPanelStateHandler(svc as never)(
-            new SetPropertiesPanelStateCommand(true),
-            EDITOR,
-        );
-        expect(svc.setPropertiesPanelVisibility).toHaveBeenCalledWith(true);
-    });
-
-    it("setClipboardHandler → writeClipboard(text)", () => {
-        const svc = { writeClipboard: vi.fn() };
-        setClipboardHandler(svc as never)(new SetClipboardCommand("payload"), EDITOR);
-        expect(svc.writeClipboard).toHaveBeenCalledWith("payload");
-    });
-
-    it("setTextClipboardHandler → writeClipboard(text)", () => {
-        const svc = { writeClipboard: vi.fn() };
-        setTextClipboardHandler(svc as never)(new SetTextClipboardCommand("plain"), EDITOR);
-        expect(svc.writeClipboard).toHaveBeenCalledWith("plain");
-    });
-
-    it("syncDocumentHandler → sync(editorId, content)", async () => {
-        const bpmnService = { sync: vi.fn().mockResolvedValue(true) };
-        await syncDocumentHandler(bpmnService as never)(new SyncDocumentCommand("<xml/>"), EDITOR);
-        expect(bpmnService.sync).toHaveBeenCalledWith(EDITOR, "<xml/>", 0);
     });
 });
 
@@ -225,15 +121,15 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValue({ path: "B", written: true });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = { getConfigFolder: () => CONFIG_FOLDER };
-        const notifier = { showInfo: vi.fn() };
+        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const notifier = new RecordingNotifier();
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
         const done = openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings as never,
-            notifier as never,
+            settings,
+            notifier,
         )(
             new OpenScriptEditorsCommand(
                 [script("A", "javascript", "a=1"), script("B", "groovy", "b=2")],
@@ -272,29 +168,27 @@ describe("openScriptEditorsHandler", () => {
             "b=2",
         );
         // Both written, none already open → no skipped suffix.
-        expect(notifier.showInfo).toHaveBeenCalledTimes(1);
-        expect(notifier.showInfo).toHaveBeenCalledWith(
+        expect(notifier.infos).toEqual([
             `Generated 2 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram.`,
-        );
+        ]);
     });
 
     it("shows an info message and materializes nothing for an empty batch", async () => {
         const scriptTaskSvc = { materializeScript: vi.fn() };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = { getConfigFolder: () => CONFIG_FOLDER };
-        const notifier = { showInfo: vi.fn() };
+        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const notifier = new RecordingNotifier();
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings as never,
-            notifier as never,
+            settings,
+            notifier,
         )(new OpenScriptEditorsCommand([], []), EDITOR);
 
-        expect(notifier.showInfo).toHaveBeenCalledTimes(1);
-        expect(notifier.showInfo).toHaveBeenCalledWith(
+        expect(notifier.infos).toEqual([
             "No script tasks with inline scripts found in this diagram.",
-        );
+        ]);
         expect(scriptTaskSvc.materializeScript).not.toHaveBeenCalled();
         expect(variableStore.setExtracted).not.toHaveBeenCalled();
     });
@@ -309,14 +203,14 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValueOnce({ path: "B", written: false });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = { getConfigFolder: () => CONFIG_FOLDER };
-        const notifier = { showInfo: vi.fn() };
+        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const notifier = new RecordingNotifier();
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings as never,
-            notifier as never,
+            settings,
+            notifier,
         )(
             new OpenScriptEditorsCommand(
                 [script("A", "groovy", "a=1"), script("B", "groovy", "b=2")],
@@ -325,9 +219,9 @@ describe("openScriptEditorsHandler", () => {
             EDITOR,
         );
 
-        expect(notifier.showInfo).toHaveBeenCalledWith(
+        expect(notifier.infos).toEqual([
             `Generated 1 script file(s) in ${FOLDER} (1 already open, left untouched) — open a file to edit it with live sync into the diagram.`,
-        );
+        ]);
     });
 
     it("counts a cancelled picker as neither written nor already open", async () => {
@@ -339,14 +233,14 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValueOnce({ path: "B", written: true });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = { getConfigFolder: () => CONFIG_FOLDER };
-        const notifier = { showInfo: vi.fn() };
+        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const notifier = new RecordingNotifier();
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings as never,
-            notifier as never,
+            settings,
+            notifier,
         )(
             new OpenScriptEditorsCommand(
                 [script("A", "cobol", "a=1"), script("B", "groovy", "b=2")],
@@ -355,83 +249,20 @@ describe("openScriptEditorsHandler", () => {
             EDITOR,
         );
 
-        expect(notifier.showInfo).toHaveBeenCalledWith(
+        expect(notifier.infos).toEqual([
             `Generated 1 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram.`,
-        );
+        ]);
     });
 });
 
 describe("Pattern B: a rejecting service promise propagates through the handler", () => {
-    // The router awaits each handler and ModelerEditorController's dispatch catch
-    // logs a rejection — but only if the handler actually returns/awaits the
+    // The router awaits each handler and the session lifecycle logs a rejection — but only if the handler actually returns/awaits the
     // service promise instead of dropping it on the floor.
     const boom = new Error("service failed");
-
-    it("getElementTemplatesHandler rejects when setElementTemplates rejects", async () => {
-        const svc = { setElementTemplates: vi.fn().mockRejectedValue(boom) };
-        await expect(getElementTemplatesHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
-    });
-
-    it("getBpmnlintConfigHandler rejects when setBpmnlintConfig rejects", async () => {
-        const svc = { setBpmnlintConfig: vi.fn().mockRejectedValue(boom) };
-        await expect(getBpmnlintConfigHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
-    });
 
     it("resyncScriptTasksHandler rejects when resyncOpenDocuments rejects", async () => {
         const svc = { resyncOpenDocuments: vi.fn().mockRejectedValue(boom) };
         await expect(resyncScriptTasksHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
-    });
-
-    it("getBpmnModelerSettingHandler rejects when setSettings rejects, still setting language", async () => {
-        const broadcaster = {
-            setSettings: vi.fn().mockRejectedValue(boom),
-            setLanguage: vi.fn(),
-        };
-
-        await expect(
-            getBpmnModelerSettingHandler(broadcaster as never)(ANY, EDITOR),
-        ).rejects.toThrow(boom);
-        // Language is posted before settings is awaited, so it still fires.
-        expect(broadcaster.setLanguage).toHaveBeenCalledWith(EDITOR);
-    });
-});
-
-describe("updateLintResultsHandler", () => {
-    it("forwards the webview's in-page findings to applyWebviewLintResults", () => {
-        const lintSvc = { applyWebviewLintResults: vi.fn() };
-        const results = {
-            "label-required": [{ id: "Task_1", message: "needs a label", category: "warn" }],
-        };
-        const unresolved = ["some-plugin/some-rule"];
-
-        updateLintResultsHandler(lintSvc as never)(
-            new UpdateLintResultsCommand(results, unresolved),
-            EDITOR,
-        );
-
-        expect(lintSvc.applyWebviewLintResults).toHaveBeenCalledWith(
-            EDITOR,
-            results,
-            unresolved,
-            undefined,
-        );
-    });
-
-    it("forwards the config token so the service can pair the run with its config version", () => {
-        const lintSvc = { applyWebviewLintResults: vi.fn() };
-        const results = {};
-
-        updateLintResultsHandler(lintSvc as never)(
-            new UpdateLintResultsCommand(results, [], "lint-cfg-7"),
-            EDITOR,
-        );
-
-        expect(lintSvc.applyWebviewLintResults).toHaveBeenCalledWith(
-            EDITOR,
-            results,
-            [],
-            "lint-cfg-7",
-        );
     });
 });
 

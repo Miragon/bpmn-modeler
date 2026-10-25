@@ -2,30 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
+import { createTestHost, FakeEditorHandle } from "../../testing";
 import { FormReferenceStatusService } from "./FormReferenceStatusService";
 
-interface WatchHandlers {
-    onChange?: (path: string) => void;
-    onCreate?: (path: string) => void;
-    onDelete?: (path: string) => void;
-}
-
-function setup() {
-    const postMessage = vi.fn().mockResolvedValue(true);
-    const getFilePath = vi.fn((editorId: string) => editorId.replace("file://", ""));
-    const handlers: WatchHandlers[] = [];
-    const watcherDisposes: ReturnType<typeof vi.fn>[] = [];
-    const workspace = {
-        findWorkspaceFolderForDocument: vi.fn(() => "/work"),
-        getWorkspaceFolderPaths: vi.fn(() => ["/work"]),
-        getDocumentDirectory: vi.fn(() => "/work"),
-        createWatcher: vi.fn((_root: string, _glob: string, next: WatchHandlers) => {
-            handlers.push(next);
-            const dispose = vi.fn();
-            watcherDisposes.push(dispose);
-            return { dispose };
-        }),
-    };
+function setup(folders = ["/work"]) {
+    const host = createTestHost({ folders });
     const locator = {
         findFormDeclarations: vi.fn().mockResolvedValue({
             kind: "matches",
@@ -37,101 +18,93 @@ function setup() {
             readFailures: [],
         }),
     };
-    const notifier = { logWarning: vi.fn(), logError: vi.fn() };
     const service = new FormReferenceStatusService(
-        { postMessage } as never,
-        { getFilePath } as never,
-        workspace as never,
+        host.store,
+        host.documents,
+        host.workspace,
         locator as never,
-        notifier as never,
+        host.notifier,
     );
-    return { service, postMessage, handlers, watcherDisposes, workspace, locator, notifier };
+    return { service, host, watchers: host.workspace.watchers, locator };
 }
+
+const statuses = (editor: FakeEditorHandle) =>
+    editor.postedOfType<FormReferenceStatusQuery>("FormReferenceStatusQuery");
 
 beforeEach(() => vi.useFakeTimers());
 
 describe("FormReferenceStatusService", () => {
     it("pushes a sorted, deduplicated form-id snapshot on request", async () => {
-        const { service, postMessage, workspace } = setup();
+        const { service, host, watchers } = setup();
+        const editor = host.openEditor("/work/process.bpmn");
 
-        await service.requestStatus("file:///work/process.bpmn");
+        await service.requestStatus(editor.id);
 
-        expect(workspace.createWatcher).toHaveBeenCalledWith(
-            "/work",
-            "**/*.form",
-            expect.any(Object),
-        );
-        expect(postMessage).toHaveBeenCalledWith(
-            "file:///work/process.bpmn",
-            new FormReferenceStatusQuery(["Form_A", "Form_B"]),
-        );
+        expect(watchers.map(({ root, glob }) => [root, glob])).toEqual([["/work", "**/*.form"]]);
+        expect(statuses(editor)).toEqual([new FormReferenceStatusQuery(["Form_A", "Form_B"])]);
     });
 
     it("refreshes on form changes and suppresses an unchanged watcher push", async () => {
-        const { service, postMessage, handlers, locator } = setup();
-        await service.requestStatus("file:///work/process.bpmn");
+        const { service, host, locator } = setup();
+        const editor = host.openEditor("/work/process.bpmn");
+        await service.requestStatus(editor.id);
 
-        handlers[0].onChange?.("/work/a.form");
+        await host.workspace.writeFile("/work/a.form", "{}");
         await vi.runAllTimersAsync();
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledTimes(2));
-        expect(postMessage).toHaveBeenCalledTimes(1);
+        expect(editor.posted).toHaveLength(1);
 
         locator.findFormDeclarations.mockResolvedValue({
             kind: "matches",
             declarations: [{ id: "Form_C", path: "/work/c.form" }],
             readFailures: [],
         });
-        handlers[0].onCreate?.("/work/c.form");
+        await host.workspace.writeFile("/work/c.form", "{}");
         await vi.runAllTimersAsync();
-        await vi.waitFor(() => expect(postMessage).toHaveBeenCalledTimes(2));
-        expect(postMessage).toHaveBeenLastCalledWith(
-            "file:///work/process.bpmn",
-            new FormReferenceStatusQuery(["Form_C"]),
-        );
+        await vi.waitFor(() => expect(editor.posted).toHaveLength(2));
+        expect(statuses(editor)[1]).toEqual(new FormReferenceStatusQuery(["Form_C"]));
     });
 
     it("shares one root watcher until the last editor closes", async () => {
-        const { service, workspace, watcherDisposes } = setup();
-        await service.requestStatus("file:///work/a.bpmn");
-        await service.requestStatus("file:///work/b.bpmn");
+        const { service, host, watchers } = setup();
+        const first = host.openEditor("/work/a.bpmn");
+        const second = host.openEditor("/work/b.bpmn");
+        await service.requestStatus(first.id);
+        await service.requestStatus(second.id);
 
-        expect(workspace.createWatcher).toHaveBeenCalledTimes(1);
-        service.disposeEditor("file:///work/a.bpmn");
-        expect(watcherDisposes[0]).not.toHaveBeenCalled();
-        service.disposeEditor("file:///work/b.bpmn");
-        expect(watcherDisposes[0]).toHaveBeenCalledOnce();
+        expect(watchers).toHaveLength(1);
+        service.disposeEditor(first.id);
+        expect(watchers[0].disposed).toBe(false);
+        service.disposeEditor(second.id);
+        expect(watchers[0].disposed).toBe(true);
     });
 
     it("shares one watcher refresh scan across editors with the same search scope", async () => {
-        const { service, handlers, locator } = setup();
-        await service.requestStatus("file:///work/a.bpmn");
-        await service.requestStatus("file:///work/b.bpmn");
+        const { service, host, locator } = setup();
+        await service.requestStatus(host.openEditor("/work/a.bpmn").id);
+        await service.requestStatus(host.openEditor("/work/b.bpmn").id);
 
-        handlers[0].onChange?.("/work/a.form");
+        await host.workspace.writeFile("/work/a.form", "{}");
         await vi.runAllTimersAsync();
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledTimes(3));
     });
 
     it("does not refresh editors outside the changed loose-file root", async () => {
-        const { service, handlers, locator, workspace } = setup();
-        workspace.findWorkspaceFolderForDocument.mockReturnValue(undefined);
-        workspace.getDocumentDirectory.mockImplementation((path: string) =>
-            path.includes("/first/") ? "/first" : "/second",
-        );
-        await service.requestStatus("file:///first/a.bpmn");
-        await service.requestStatus("file:///second/b.bpmn");
+        const { service, host, locator } = setup([]);
+        await service.requestStatus(host.openEditor("/first/a.bpmn").id);
+        await service.requestStatus(host.openEditor("/second/b.bpmn").id);
 
-        handlers[0].onChange?.("/first/a.form");
+        await host.workspace.writeFile("/first/a.form", "{}");
         await vi.runAllTimersAsync();
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledTimes(3));
     });
 
     it("does not reuse a scope scan that started before a watched change", async () => {
-        const { service, handlers, locator, postMessage } = setup();
-        const firstEditor = "file:///work/a.bpmn";
-        const secondEditor = "file:///work/b.bpmn";
-        await service.requestStatus(firstEditor);
-        await service.requestStatus(secondEditor);
+        const { service, host, locator } = setup();
+        const firstEditor = host.openEditor("/work/a.bpmn");
+        const secondEditor = host.openEditor("/work/b.bpmn");
+        await service.requestStatus(firstEditor.id);
+        await service.requestStatus(secondEditor.id);
         let finishStaleScan: (value: unknown) => void = () => {};
         locator.findFormDeclarations
             .mockReturnValueOnce(
@@ -145,9 +118,9 @@ describe("FormReferenceStatusService", () => {
                 readFailures: [],
             });
 
-        const staleRequest = service.requestStatus(firstEditor);
+        const staleRequest = service.requestStatus(firstEditor.id);
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledTimes(3));
-        handlers[0].onChange?.("/work/fresh.form");
+        await host.workspace.writeFile("/work/fresh.form", "{}");
         await vi.advanceTimersByTimeAsync(150);
         await Promise.resolve();
         const callsAfterChange = locator.findFormDeclarations.mock.calls.length;
@@ -160,8 +133,7 @@ describe("FormReferenceStatusService", () => {
         await staleRequest;
         await vi.runAllTimersAsync();
         await vi.waitFor(() =>
-            expect(postMessage).toHaveBeenCalledWith(
-                secondEditor,
+            expect(statuses(secondEditor)).toContainEqual(
                 new FormReferenceStatusQuery(["Form_Fresh"]),
             ),
         );
@@ -169,8 +141,8 @@ describe("FormReferenceStatusService", () => {
     });
 
     it("does not block a reopened editor on the disposed session's scan", async () => {
-        const { service, locator, postMessage } = setup();
-        const editorId = "file:///work/a.bpmn";
+        const { service, host, locator } = setup();
+        const editor = host.openEditor("/work/a.bpmn");
         let finishDisposedScan: (value: unknown) => void = () => {};
         locator.findFormDeclarations
             .mockReturnValueOnce(
@@ -184,11 +156,11 @@ describe("FormReferenceStatusService", () => {
                 readFailures: [],
             });
 
-        const disposedRequest = service.requestStatus(editorId);
+        const disposedRequest = service.requestStatus(editor.id);
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledOnce());
-        service.disposeEditor(editorId);
+        service.disposeEditor(editor.id);
 
-        const reopenedRequest = service.requestStatus(editorId);
+        const reopenedRequest = service.requestStatus(editor.id);
         for (let i = 0; i < 5; i++) await Promise.resolve();
         const callsBeforeDisposedScanFinished = locator.findFormDeclarations.mock.calls.length;
 
@@ -196,14 +168,12 @@ describe("FormReferenceStatusService", () => {
         await Promise.all([disposedRequest, reopenedRequest]);
 
         expect(callsBeforeDisposedScanFinished).toBe(2);
-        expect(postMessage).toHaveBeenCalledWith(
-            editorId,
-            new FormReferenceStatusQuery(["Form_Reopened"]),
-        );
+        expect(statuses(editor)).toContainEqual(new FormReferenceStatusQuery(["Form_Reopened"]));
     });
 
     it("does not post a scan result after the editor was disposed", async () => {
-        const { service, locator, postMessage } = setup();
+        const { service, host, locator } = setup();
+        const editor = host.openEditor("/work/process.bpmn");
         let finish: (value: unknown) => void = () => {};
         locator.findFormDeclarations.mockReturnValue(
             new Promise((resolve) => {
@@ -211,23 +181,22 @@ describe("FormReferenceStatusService", () => {
             }),
         );
 
-        const request = service.requestStatus("file:///work/process.bpmn");
+        const request = service.requestStatus(editor.id);
         await Promise.resolve();
-        service.disposeEditor("file:///work/process.bpmn");
+        service.disposeEditor(editor.id);
         finish({ kind: "matches", declarations: [], readFailures: [] });
         await request;
 
-        expect(postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("logs a watcher refresh failure without leaking a rejected promise", async () => {
-        const { service, handlers, locator, notifier } = setup();
-        await service.requestStatus("file:///work/process.bpmn");
-        const error = new Error("scan failed");
-        locator.findFormDeclarations.mockRejectedValueOnce(error);
+        const { service, host, locator } = setup();
+        await service.requestStatus(host.openEditor("/work/process.bpmn").id);
+        locator.findFormDeclarations.mockRejectedValueOnce(new Error("scan failed"));
 
-        handlers[0].onChange?.("/work/a.form");
+        await host.workspace.writeFile("/work/a.form", "{}");
         await vi.runAllTimersAsync();
-        await vi.waitFor(() => expect(notifier.logError).toHaveBeenCalledWith(error));
+        await vi.waitFor(() => expect(host.notifier.logged("error")).toEqual(["scan failed"]));
     });
 });

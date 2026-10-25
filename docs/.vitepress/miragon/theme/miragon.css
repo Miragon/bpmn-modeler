@@ -1,0 +1,505 @@
+/**
+ * Miragon-Doku-Kit: VitePress im Corporate Design, hell und dunkel.
+ *
+ * Quelle: Miragon/corporate-identity, Skill docs-site
+ * (plugins/miragon-brand/skills/docs-site/assets/miragon/theme/miragon.css). Die Doku der CI lädt
+ * genau diese Datei, jede Miragon-Doku hat sie unverändert unter docs/.vitepress/miragon/theme/.
+ * Nicht im Repo ändern, sondern in der CI.
+ *
+ * Die Marken-Tokens (--cd-blau, --cd-space-* usw.) und die Rollen (--cd-ui-*) kommen aus
+ * cd-tokens.generated.css und stammen aus brand/tokens.json. Hier steht kein Farbwert.
+ *
+ * Dark Mode: VitePress setzt die Klasse dark an <html>, die Rollen kippen in der Token-CSS über
+ * html.dark. Diese Datei ordnet die VitePress-Variablen einmal den Rollen zu, in beiden Modi gleich.
+ * Keine Fläche kippt hier von Hand. Die Doku ist eine Webseite: Sie liegt auf den Seitenrollen
+ * seite (hell Weiß, dunkel Schwarz) und abschnitt (hell Grau, dunkel 5 %).
+ */
+
+/* =========================================================
+   ROLLEN-ZUORDNUNG, IN BEIDEN MODI GLEICH
+   .dark steht dabei, damit der eigene .dark-Block von VitePress verliert.
+   [data-cd-theme] steht dabei, damit Bühnen mit eigenem Modus neu auflösen.
+   ========================================================= */
+:root,
+.dark,
+[data-cd-theme] {
+  /* Flächen */
+  --vp-c-bg: var(--cd-ui-seite);
+  --vp-c-bg-alt: var(--cd-ui-abschnitt);
+  --vp-c-bg-soft: var(--cd-ui-abschnitt);
+  --vp-c-bg-elv: var(--cd-ui-flaeche-hoch);
+  --vp-c-white: var(--cd-weiss);
+  --vp-c-black: var(--cd-schwarz);
+  --vp-c-neutral: var(--cd-ui-text);
+  --vp-c-neutral-inverse: var(--cd-ui-plot);
+
+  /* Text und Linien */
+  --vp-c-text-1: var(--cd-ui-text);
+  --vp-c-text-2: var(--cd-ui-text-leise);
+  --vp-c-text-3: var(--cd-ui-text-leise);
+  --vp-c-divider: var(--cd-ui-linie);
+  --vp-c-border: var(--cd-ui-linie); /* nicht kontur, sonst werden alle Rahmen schwer */
+  --vp-c-gutter: var(--cd-ui-linie);
+  --vp-input-border-color: var(--cd-ui-kontur);
+  --vp-input-bg-color: var(--cd-ui-seite);
+
+  /* Neutrale Zustände. gray-1 bis gray-3 speisen die alt-Buttons. */
+  --vp-c-gray-1: var(--cd-ui-linie);
+  --vp-c-gray-2: var(--cd-ui-linie);
+  --vp-c-gray-3: var(--cd-ui-hover);
+  --vp-c-gray-soft: var(--cd-ui-hover);
+  --vp-c-default-1: var(--cd-ui-linie);
+  --vp-c-default-2: var(--cd-ui-linie);
+  --vp-c-default-3: var(--cd-ui-hover);
+  --vp-c-default-soft: var(--cd-ui-hover);
+
+  /* Marke: Links hell blau-link, dunkel Grün. Buttons Blau mit Weiß, nie Grün. */
+  --vp-c-brand-1: var(--cd-ui-link);
+  --vp-c-brand-2: var(--cd-ui-link);
+  --vp-c-brand-3: var(--cd-blau);
+  --vp-c-brand-soft: var(--cd-ui-hover);
+  --vp-c-brand: var(--vp-c-brand-1);
+  --vp-c-tip-1: var(--cd-ui-link);
+  --vp-c-tip-2: var(--cd-ui-link);
+  --vp-c-tip-3: var(--cd-ui-info);
+  --vp-c-tip-soft: var(--cd-ui-hover);
+  --vp-c-note-1: var(--cd-ui-link);
+  --vp-c-note-2: var(--cd-ui-link);
+  --vp-c-note-3: var(--cd-ui-info);
+  --vp-c-note-soft: var(--cd-ui-hover);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: var(--cd-weiss);
+  --vp-button-brand-bg: var(--cd-blau);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--cd-weiss);
+  --vp-button-brand-hover-bg: var(--cd-blau-link);
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: var(--cd-weiss);
+  --vp-button-brand-active-bg: var(--cd-blau-link);
+
+  /* Statusfarben. -1 ist in VitePress Textfarbe (Titel, Links und Code im Kasten)
+     und bleibt Text, -2 und -3 tragen die Statusfarbe (Rand, Icon). Grün und Amber
+     sind hell nie Text, darum steht der Text in der Textfarbe. */
+  --vp-c-success-1: var(--cd-ui-text);
+  --vp-c-success-2: var(--cd-ui-success);
+  --vp-c-success-3: var(--cd-ui-success);
+  --vp-c-success-soft: var(--cd-ui-success-flaeche);
+  --vp-c-warning-1: var(--cd-ui-text);
+  --vp-c-warning-2: var(--cd-ui-warning);
+  --vp-c-warning-3: var(--cd-ui-warning);
+  --vp-c-warning-soft: var(--cd-ui-warning-flaeche);
+  --vp-c-danger-1: var(--cd-ui-text);
+  --vp-c-danger-2: var(--cd-ui-danger);
+  --vp-c-danger-3: var(--cd-ui-danger);
+  --vp-c-danger-soft: var(--cd-ui-danger-flaeche);
+  --vp-c-caution-1: var(--cd-ui-text);
+  --vp-c-caution-2: var(--cd-ui-danger);
+  --vp-c-caution-3: var(--cd-ui-danger);
+  --vp-c-caution-soft: var(--cd-ui-danger-flaeche);
+  /* ::: important nimmt das Blau der Hinweise statt Lila. */
+  --vp-c-important-1: var(--cd-ui-text);
+  --vp-c-important-2: var(--cd-ui-info);
+  --vp-c-important-3: var(--cd-ui-info);
+  --vp-c-important-soft: var(--cd-ui-info-flaeche);
+
+  /* Hinweis-Kästen: Fläche der Status-Rolle, Rand deckend in der Statusfarbe.
+     ::: info und ::: details sind neutral und liegen auf abschnitt. */
+  --vp-custom-block-info-bg: var(--cd-ui-abschnitt);
+  --vp-custom-block-info-border: var(--cd-ui-linie);
+  --vp-custom-block-note-bg: var(--cd-ui-abschnitt);
+  --vp-custom-block-note-border: var(--cd-ui-linie);
+  --vp-custom-block-details-bg: var(--cd-ui-abschnitt);
+  --vp-custom-block-details-border: var(--cd-ui-linie);
+  --vp-custom-block-tip-bg: var(--cd-ui-info-flaeche);
+  --vp-custom-block-tip-border: var(--cd-ui-info);
+  --vp-custom-block-important-bg: var(--cd-ui-info-flaeche);
+  --vp-custom-block-important-border: var(--cd-ui-info);
+  --vp-custom-block-warning-bg: var(--cd-ui-warning-flaeche);
+  --vp-custom-block-warning-border: var(--cd-ui-warning);
+  --vp-custom-block-danger-bg: var(--cd-ui-danger-flaeche);
+  --vp-custom-block-danger-border: var(--cd-ui-danger);
+  --vp-custom-block-caution-bg: var(--cd-ui-danger-flaeche);
+  --vp-custom-block-caution-border: var(--cd-ui-danger);
+  /* Inline-Code in Kästen eine Stufe über dem Kasten: hell Weiß, dunkel 8 %. */
+  --vp-custom-block-info-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-note-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-details-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-tip-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-important-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-warning-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-danger-code-bg: var(--cd-ui-flaeche-hoch);
+  --vp-custom-block-caution-code-bg: var(--cd-ui-flaeche-hoch);
+
+  /* Badges wie getönte Status-Badges: Fläche der Rolle, Rand deckend, Text Schwarz bzw. Weiß. */
+  --vp-badge-info-bg: var(--cd-ui-hover);
+  --vp-badge-info-text: var(--cd-ui-text);
+  --vp-badge-tip-bg: var(--cd-ui-info-flaeche);
+  --vp-badge-tip-text: var(--cd-ui-text);
+  --vp-badge-tip-border: var(--cd-ui-info);
+  --vp-badge-warning-bg: var(--cd-ui-warning-flaeche);
+  --vp-badge-warning-text: var(--cd-ui-text);
+  --vp-badge-warning-border: var(--cd-ui-warning);
+  --vp-badge-danger-bg: var(--cd-ui-danger-flaeche);
+  --vp-badge-danger-text: var(--cd-ui-text);
+  --vp-badge-danger-border: var(--cd-ui-danger);
+
+  /* Code: Inline-Code auf abschnitt in der Textfarbe, Codeblöcke auf abschnitt. */
+  --vp-code-color: var(--cd-ui-text);
+  --vp-code-bg: var(--cd-ui-abschnitt);
+  --vp-code-block-bg: var(--cd-ui-abschnitt);
+  --vp-code-line-highlight-color: var(--cd-ui-hover);
+  --vp-code-copy-code-bg: var(--cd-ui-abschnitt);
+  --vp-code-copy-code-hover-bg: var(--cd-ui-hover);
+
+  /* Suche und Backdrop: Dialog auf flaeche-hoch, Backdrop Schwarz mit Deckkraft. */
+  --vp-local-search-bg: var(--cd-ui-flaeche-hoch);
+  --vp-local-search-result-bg: var(--cd-ui-flaeche-hoch);
+  --vp-local-search-result-selected-bg: var(--cd-ui-hover);
+  --vp-local-search-result-selected-border: var(--cd-ui-interaktion);
+  --vp-backdrop-bg-color: var(--cd-ui-backdrop);
+
+  /* Schatten aus Marken-Schwarz statt reinem Schwarz. 4 und 5 nehmen die höchste Stufe. */
+  --vp-shadow-1: var(--cd-shadow-1);
+  --vp-shadow-2: var(--cd-shadow-2);
+  --vp-shadow-3: var(--cd-shadow-3);
+  --vp-shadow-4: var(--cd-shadow-3);
+  --vp-shadow-5: var(--cd-shadow-3);
+
+  /* Startseite (layout: home): Der Name im Hero steht in der Textfarbe wie die Zeile darunter.
+     Überschriften sind Schwarz oder Weiß, nie Verlaufstext, und das Bild bekommt keinen Schein. */
+  --vp-home-hero-name-color: var(--cd-ui-text);
+  --vp-home-hero-name-background: transparent;
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
+}
+
+/* Backdrops der Doku (Seitenleiste mobil, Suche) wie in Apps: Was darunter liegt,
+   wird unscharf und grau, damit Schwarz mit Deckkraft über Blau kein Dunkelblau ergibt. */
+.VPBackdrop,
+.VPLocalSearchBox .backdrop {
+  -webkit-backdrop-filter: blur(3px) grayscale(1);
+  backdrop-filter: blur(3px) grayscale(1);
+}
+.VPLocalSearchBox .shell {
+  border: 1px solid var(--vp-c-divider);
+}
+/* Lokale Suche ohne Deckkraft: VitePress blendet Auszüge, Icons und Tastenkürzel über
+   opacity ab. Dunkel ergäbe das getönte Treffer-Marken und leisen Text unter 4,5:1.
+   Leise heißt hier text-leise, der gewählte Treffer bekommt die Textfarbe.
+   Doppelte Klasse, weil die Suche ihr CSS erst beim Öffnen nachlädt. */
+.VPLocalSearchBox.VPLocalSearchBox :is(.excerpt, .title-icon, .title svg, .search-keyboard-shortcuts) {
+  opacity: 1;
+}
+.VPLocalSearchBox.VPLocalSearchBox .excerpt,
+.VPLocalSearchBox.VPLocalSearchBox .search-keyboard-shortcuts {
+  color: var(--vp-c-text-2);
+}
+.VPLocalSearchBox.VPLocalSearchBox .result.selected .excerpt {
+  color: var(--vp-c-text-1);
+}
+.VPLocalSearchBox.VPLocalSearchBox .title-icon {
+  color: var(--cd-ui-text-leise);
+}
+.VPLocalSearchBox.VPLocalSearchBox .search-keyboard-shortcuts kbd {
+  background: var(--cd-ui-hover);
+  border-color: var(--cd-ui-linie);
+  box-shadow: none;
+}
+.VPLocalSearchBox.VPLocalSearchBox .search-bar:focus-within {
+  border-color: var(--cd-ui-fokus);
+}
+/* Deaktiviert ohne Deckkraft: neutral wie in Apps. */
+.VPLocalSearchBox.VPLocalSearchBox .search-actions button.clear-button:disabled {
+  opacity: 1;
+  color: var(--cd-ui-text-leise);
+}
+
+/* Titel der Warn- und Fehlerkästen in der Textfarbe, die Farbe trägt der Rand. */
+.custom-block.warning .custom-block-title,
+.custom-block.danger .custom-block-title,
+.custom-block.caution .custom-block-title {
+  color: var(--vp-c-text-1);
+}
+/* Status-Kasten wie in Apps: 1px Rand plus links 4px deckend. */
+.custom-block:is(.tip, .important, .warning, .danger, .caution) {
+  border-left-width: 4px;
+}
+/* Link-Hover ohne zweite Farbe und ohne Deckkraft (Text mit Deckkraft ergäbe auf
+   Dunkel einen Mischton, Amber als Text auf Hell nur 1,8:1): dickerer Unterstrich. */
+.custom-block a:hover {
+  opacity: 1;
+  text-decoration-thickness: 2px;
+}
+.custom-block.custom-block:is(.warning, .danger, .caution, .important) :is(a:hover, a:hover > code) {
+  color: inherit;
+}
+
+/* Codeblöcke mit Kante: abschnitt liegt hell kaum über Weiß. */
+@media (min-width: 640px) {
+  .vp-doc div[class*='language-'] {
+    box-shadow: inset 0 0 0 1px var(--vp-c-divider);
+  }
+}
+
+/* =========================================================
+   SCHRIFT
+   Geist ist die Markenschrift, Geist Mono die für Code. Die Doku-Repos laden sie
+   über @fontsource ("Geist Variable"), die Doku der CI hostet sie selbst ("Geist").
+   ========================================================= */
+:root {
+  --vp-font-family-base: 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --vp-font-family-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SFMono-Regular', 'Menlo',
+    'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+}
+
+/* =========================================================
+   TYPE-SCALE
+   Die verbindliche Schrift-Hierarchie aus brand/tokens.json (typeScale):
+   H1 40/700, H2 28/700, H3 21/600. Auf schmalen Screens (unter 768px) ist H1
+   eine Stufe kleiner, damit lange Wörter nicht umbrechen.
+   ========================================================= */
+.vp-doc h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.vp-doc h2 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+.vp-doc h3 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+@media (min-width: 768px) {
+  .vp-doc h1 {
+    font-size: 40px;
+    line-height: 1.1;
+  }
+}
+
+/* =========================================================
+   WORTMARKE UND PRODUKTNAME
+   Produkte zeigen die Wortmarke und schreiben ihren Namen in Geist daneben, mit
+   einer Wortmarkenhöhe Abstand (Schutzraum). Bei 18px ist die Wortmarke 117px
+   breit, über der Mindestgröße von 96px. Ohne Namen (siteTitle: false) gilt nur
+   die Höhe.
+   ========================================================= */
+:root {
+  --vp-nav-logo-height: 18px;
+}
+.VPNavBarTitle .title .logo ~ span {
+  margin-left: calc(var(--vp-nav-logo-height) - 8px);
+  letter-spacing: -0.01em;
+}
+
+/* =========================================================
+   MERMAID
+   Diagramme aus ```mermaid-Blöcken (vitepress-plugin-mermaid). Mermaid malt mit
+   seinem Theme neutral (hell) bzw. dark (dunkel) und schreibt die Farben als
+   Stilblock mit ID ins SVG. Diese Regeln legen die Rollen darüber, in beiden
+   Modi gleich, wie die Rollen-Klassen des Canvas. !important ist nötig, weil der
+   Stilblock und die Formen von Mermaid Farben mit ID-Selektor oder als Attribut
+   tragen. Farben aus `style` im Diagramm stehen inline und bleiben.
+   Flowchart, Sequenz, Klassen, Zustände und ER:
+   - Knoten auf flaeche-hoch mit Rand kontur (3:1), Gruppen und Notizen auf
+     abschnitt mit Rand linie, Kopf und jede zweite Zeile im ER auf abschnitt.
+   - Kanten und Pfeile in text-leise, Lebenslinien und Schleifen in kontur,
+     Start und Ende eines Zustandsdiagramms in der Textfarbe.
+   - Text in der Textfarbe, Beschriftungen an Kanten auf seite.
+   Andere Diagrammtypen behalten das graue Theme von Mermaid.
+   ========================================================= */
+.vp-doc .mermaid {
+  margin: 16px 0;
+  overflow-x: auto;
+}
+.vp-doc .mermaid svg {
+  display: block;
+  margin: 0 auto;
+  height: auto;
+  background: transparent !important;
+}
+
+/* Text */
+.mermaid svg :is(text, tspan):not(.sequenceNumber) {
+  fill: var(--cd-ui-text) !important;
+}
+.mermaid svg foreignObject :is(div, span, p) {
+  color: var(--cd-ui-text) !important;
+}
+.mermaid svg .sequenceNumber {
+  fill: var(--cd-ui-seite) !important;
+}
+.mermaid svg :is(.edgeLabel, .labelBkg, .edgeLabel p, .edgeLabel span) {
+  background-color: var(--cd-ui-seite) !important;
+}
+.mermaid svg .edgeLabel rect {
+  fill: var(--cd-ui-seite) !important;
+}
+
+/* Knoten: einfache Formen und die zweiteiligen Formen aus Fläche und Strich */
+.mermaid svg .node > :is(rect, polygon, circle, ellipse, path),
+.mermaid svg .node > g:is(.label-container, .outer-path, .row-rect-odd) > path[stroke='none'],
+.mermaid svg :is(rect.actor, .labelBox, rect[class^='activation']) {
+  fill: var(--cd-ui-flaeche-hoch) !important;
+}
+.mermaid svg .node > :is(rect, polygon, circle, ellipse, path),
+.mermaid svg .node > g:is(.label-container, .outer-path, .row-rect-odd, .row-rect-even, .divider) > path[fill='none'],
+.mermaid svg :is(rect.actor, .labelBox, rect[class^='activation']) {
+  stroke: var(--cd-ui-kontur) !important;
+}
+.mermaid svg[aria-roledescription='er'] .node > g:is(.outer-path, .row-rect-even) > path[stroke='none'],
+.mermaid svg .node > .divider > path[stroke='none'] {
+  fill: var(--cd-ui-abschnitt) !important;
+}
+
+/* Gruppen und Notizen */
+.mermaid svg :is(.cluster > rect, .cluster > path, rect.note) {
+  fill: var(--cd-ui-abschnitt) !important;
+  stroke: var(--cd-ui-linie) !important;
+}
+
+/* Kanten */
+.mermaid svg :is(.flowchart-link, .relation, .transition, .relationshipLine, .messageLine0, .messageLine1) {
+  stroke: var(--cd-ui-text-leise) !important;
+}
+.mermaid svg :is(.actor-line, .loopLine) {
+  stroke: var(--cd-ui-kontur) !important;
+}
+
+/* Pfeile: Strich überall in der Kantenfarbe, Füllung nur dort, wo Mermaid füllt.
+   Hohle Spitzen (Vererbung, Aggregation) bleiben hohl. Die Marker im ER setzt Mermaid
+   mit !important und ID, :is(.er, #miragon) hebt die Spezifität darüber. */
+.mermaid svg marker :is(path, polygon, circle) {
+  stroke: var(--cd-ui-text-leise) !important;
+}
+.mermaid svg :is(marker.flowchart-v2, marker.composition, marker.dependency) :is(path, polygon, circle),
+.mermaid svg:is([aria-roledescription='sequence'], .statediagram) marker :is(path, polygon, circle) {
+  fill: var(--cd-ui-text-leise) !important;
+}
+.mermaid svg marker.marker:is(.er, #miragon) {
+  stroke: var(--cd-ui-text-leise) !important;
+}
+.mermaid svg marker.er circle {
+  fill: var(--cd-ui-seite) !important;
+}
+
+/* Start und Ende im Zustandsdiagramm */
+.mermaid svg .statediagram-state-start,
+.mermaid svg circle.state-start {
+  fill: var(--cd-ui-text) !important;
+  stroke: var(--cd-ui-text) !important;
+}
+.mermaid svg.statediagram .node > .outer-path > path {
+  fill: var(--cd-ui-seite) !important;
+  stroke: var(--cd-ui-text) !important;
+}
+.mermaid svg.statediagram .node > .outer-path > g > path {
+  fill: var(--cd-ui-text) !important;
+  stroke: var(--cd-ui-text) !important;
+}
+
+/* =========================================================
+   RECHTSLEISTE (theme/LegalRow.vue)
+   Copyright, Impressum und Datenschutz auf jeder Seite, leise wie der footer von
+   VitePress. Auf Seiten mit Seitenleiste rückt sie neben die Leiste, mit denselben
+   Abständen wie der Inhalt, sonst läge die feste Seitenleiste darüber.
+   ========================================================= */
+.miragon-legal {
+  position: relative;
+  z-index: var(--vp-z-index-footer);
+  border-top: 1px solid var(--vp-c-gutter);
+  padding: 16px 24px;
+  background-color: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+.miragon-legal-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin: 0 auto;
+  max-width: var(--vp-layout-max-width);
+}
+.miragon-legal-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin: 0;
+}
+.miragon-legal-links {
+  display: flex;
+  gap: 20px;
+}
+.miragon-legal-links a {
+  color: inherit;
+  text-decoration-line: underline;
+  text-underline-offset: 2px;
+  transition: color 0.25s;
+}
+.miragon-legal-links a:hover {
+  color: var(--vp-c-text-1);
+}
+@media (min-width: 768px) {
+  .miragon-legal {
+    padding: 16px 32px;
+  }
+}
+@media (min-width: 960px) {
+  .miragon-legal.has-sidebar {
+    padding-left: calc(var(--vp-sidebar-width) + 32px);
+  }
+  .miragon-legal.has-sidebar .miragon-legal-inner {
+    max-width: none;
+  }
+}
+@media (min-width: 1440px) {
+  .miragon-legal.has-sidebar {
+    padding-right: calc((100vw - var(--vp-layout-max-width)) / 2 + 32px);
+    padding-left: calc((100vw - var(--vp-layout-max-width)) / 2 + var(--vp-sidebar-width) + 32px);
+  }
+}
+
+/* =========================================================
+   FOKUS
+   Sichtbarer Tastatur-Fokus über die Rolle: hell blau-link, dunkel blau-hell.
+   :where() hält die Spezifität niedrig, damit Komponenten nicht überschrieben
+   werden. Nur bei Tastaturnutzung (:focus-visible), nicht bei Maus-Klick.
+   ========================================================= */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--cd-ui-fokus);
+  outline-offset: 2px;
+  border-radius: var(--cd-radius-sm);
+}
+
+/* =========================================================
+   DRUCK
+   Gedruckt wird hell: Die Rollen kippen nur auf dem Bildschirm (die Token-CSS
+   steht dunkel unter @media screen). VitePress setzt an html.dark aber selbst
+   color-scheme, die dunklen Shiki-Farben und die weiße Wortmarke, alles geht beim
+   Drucken auf hell. Bühnen mit Rollen-Text liegen auf Rollen-Flächen und kippen mit.
+   ========================================================= */
+@media print {
+  html.dark {
+    color-scheme: light;
+  }
+  .dark .vp-code span {
+    color: var(--shiki-light, inherit);
+  }
+  html.dark .VPNavBarTitle .VPImage.light {
+    display: block;
+  }
+  html.dark .VPNavBarTitle .VPImage.dark {
+    display: none;
+  }
+}

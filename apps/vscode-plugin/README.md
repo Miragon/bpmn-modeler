@@ -28,7 +28,7 @@ modeler.
 > [dmn-js](https://github.com/bpmn-io/dmn-js), plus
 > [form-js](https://github.com/bpmn-io/form-js).
 
-![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-preview.png)
+![Appending the missing end event to "Ship order" in VS Code clears the lint error and the modeler reports no issues](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-demo.gif)
 
 ## Getting started
 

@@ -1,4 +1,6 @@
+import { HttpTransportError } from "../../shared/domain/errors";
 import { HttpClient, HttpResponse } from "../domain/ports";
+import { loggableHost } from "../domain/urlTemplate";
 
 /**
  * {@link HttpClient} implementation backed by `globalThis.fetch`.
@@ -8,7 +10,7 @@ import { HttpClient, HttpResponse } from "../domain/ports";
  */
 export class FetchHttpClient implements HttpClient {
     async getText(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {
-        const response = await fetch(url, { method: "GET", headers });
+        const response = await send(url, { method: "GET", headers });
         return {
             status: response.status,
             body: await response.text(),
@@ -16,7 +18,7 @@ export class FetchHttpClient implements HttpClient {
     }
 
     async getJson(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {
-        const response = await fetch(url, {
+        const response = await send(url, {
             method: "GET",
             headers: {
                 Accept: "application/json",
@@ -43,7 +45,7 @@ export class FetchHttpClient implements HttpClient {
         headers: Record<string, string> = {},
     ): Promise<HttpResponse> {
         const bodyStr = JSON.stringify(body);
-        const response = await fetch(url, {
+        const response = await send(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -71,7 +73,7 @@ export class FetchHttpClient implements HttpClient {
         body: string,
         headers: Record<string, string> = {},
     ): Promise<HttpResponse> {
-        const response = await fetch(url, {
+        const response = await send(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -101,7 +103,7 @@ export class FetchHttpClient implements HttpClient {
         boundary: string,
         headers: Record<string, string> = {},
     ): Promise<HttpResponse> {
-        const response = await fetch(url, {
+        const response = await send(url, {
             method: "POST",
             headers: {
                 "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -115,4 +117,35 @@ export class FetchHttpClient implements HttpClient {
             body: await response.text(),
         };
     }
+}
+
+async function send(url: string, init: RequestInit): Promise<Response> {
+    try {
+        return await fetch(url, init);
+    } catch (error) {
+        throw new HttpTransportError(loggableHost(url), transportFailureReason(error));
+    }
+}
+
+/**
+ * Only a stable code or a fixed phrase — fetch's messages and causes can echo
+ * the URL. Node nests the code under `cause`; Bun (the IntelliJ bridge) sets it
+ * on the error itself.
+ */
+function transportFailureReason(error: unknown): string {
+    const failure = error as { code?: unknown; cause?: { code?: unknown } } | undefined;
+    const code = [failure?.code, failure?.cause?.code].find(
+        (candidate) => typeof candidate === "string",
+    );
+    if (code !== undefined) {
+        return code as string;
+    }
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("includes credentials")) {
+        return "the URL must not contain credentials; use the authentication fields";
+    }
+    if (/parse URL|Invalid URL|URL is invalid/.test(message)) {
+        return "invalid URL";
+    }
+    return "network error";
 }

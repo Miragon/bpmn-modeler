@@ -11,6 +11,8 @@ import {
 } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
+import { EnvLookup } from "../domain/envRef";
+import { loggableHost } from "../domain/urlTemplate";
 import {
     DeploymentStatePort,
     DocumentPort,
@@ -21,7 +23,9 @@ import {
 } from "../../shared/domain/hostPorts";
 import { CamundaEnginePort } from "../domain/ports";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -55,6 +59,8 @@ export class DeploymentService {
         private readonly picker: PickerPort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentStatus: DeploymentStatusService,
+        private readonly envResolver: EnvValueResolver,
+        private readonly credentialApproval: CredentialApprovalService,
     ) {}
 
     /**
@@ -145,8 +151,8 @@ export class DeploymentService {
     /**
      * Executes the complete deployment workflow:
      *   1. Reads the main BPMN file and any additional files.
-     *   2. Issues the REST deployment request.
-     *   3. Persists the endpoint and tenant ID on success.
+     *   2. Issues the REST deployment request with `${env:…}` refs expanded.
+     *   3. On success, persists the literal config and records the ledger row.
      *
      * This method never throws; all errors are captured in the returned
      * {@link DeploymentResult} with `success: false`.
@@ -156,28 +162,52 @@ export class DeploymentService {
      *   credentials are persisted, under that slot, and the legacy connection
      *   state is left untouched (it lives in the targets file). When absent, the
      *   ad-hoc path persists connection + credentials to the legacy keys.
+     * @param target The named target the ledger row is keyed by; ad-hoc when absent.
      * @returns The outcome of the deployment attempt.
      */
     async deploy(
         config: DeploymentConfig,
         secretSlot?: string,
-        targetIdentity?: DeploymentTargetIdentity,
+        target?: DeploymentTarget,
     ): Promise<DeploymentResult> {
         try {
             const fileContents = await this.readFileContents(config);
-            const result = await this.restClient.deploy(config, fileContents);
+            const documentDir = path.dirname(config.mainFilePath);
+            const lookup = await this.envResolver.createLookup(
+                target === undefined ? "workspaceFolder" : "targetsFile",
+                documentDir,
+                config,
+            );
+            const requestConfig = config.expandEnvRefs(lookup);
+            // A typed ad-hoc request is the user's own choice; one carrying `.env` values is not.
+            if (target !== undefined || requestConfig.carriesEnvValues()) {
+                await this.credentialApproval.ensureApproved(
+                    target,
+                    documentDir,
+                    requestConfig.sensitiveDestinations(),
+                );
+            }
+
+            // Breadcrumb. Only host[:port] of the resolved URL is logged — never the
+            // full URL, which can carry credentials, and never the auth payload.
+            this.notifier.logInfo(
+                `Deployment started: ${path.basename(config.mainFilePath)} -> ${config.engine} @ ${loggableHost(requestConfig.deployUrl ?? requestConfig.endpoint)}`,
+            );
+            const result = await this.restClient.deploy(requestConfig, fileContents);
 
             if (result.success) {
                 await this.persistOnSuccess(config, secretSlot);
-                if (targetIdentity !== undefined) {
-                    const content = fileContents.get(path.basename(config.mainFilePath)) ?? "";
-                    await this.deploymentStatus.recordDeployment(
-                        config.mainFilePath,
-                        content,
-                        targetIdentity,
-                        result.deploymentId,
-                    );
-                }
+                const identity =
+                    target === undefined
+                        ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId, lookup)
+                        : DeploymentTargetIdentity.fromTarget(target, lookup);
+                const content = fileContents.get(path.basename(config.mainFilePath)) ?? "";
+                await this.deploymentStatus.recordDeployment(
+                    config.mainFilePath,
+                    content,
+                    identity,
+                    result.deploymentId,
+                );
             }
 
             return result;
@@ -194,13 +224,20 @@ export class DeploymentService {
      * file yields a failed {@link DeploymentResult} so the batch always completes
      * and the caller sees a per-file outcome. Credentials are assumed already
      * stored on the target, so nothing is persisted here.
+     *
+     * @param documentDir The directory `target` was resolved from. Its `.env`
+     *   serves the whole batch, even for files from other workspace folders, so
+     *   a target's endpoint and its variables always come from the same project.
      */
     async deployFiles(
         paths: string[],
         target: DeploymentTarget,
         auth: AuthConfig,
+        documentDir: string | undefined,
     ): Promise<DeploymentResult[]> {
         const results: DeploymentResult[] = [];
+        let pendingLookup: Promise<EnvLookup> | undefined;
+        let pendingApproval: Promise<void> | undefined;
         for (const filePath of paths) {
             const name = path.basename(filePath, path.extname(filePath));
             try {
@@ -214,13 +251,23 @@ export class DeploymentService {
                     .withAuth(auth)
                     .withDeployUrl(target.deployUrl)
                     .build();
+                pendingLookup ??= this.envResolver.createLookup("targetsFile", documentDir, config);
+                const envLookup = await pendingLookup;
+                const requestConfig = config.expandEnvRefs(envLookup);
+                // One answer covers the batch: every file goes to the same target.
+                pendingApproval ??= this.credentialApproval.ensureApproved(
+                    target,
+                    documentDir,
+                    requestConfig.sensitiveDestinations(),
+                );
+                await pendingApproval;
                 const fileContents = await this.readFileContents(config);
-                const result = await this.restClient.deploy(config, fileContents);
+                const result = await this.restClient.deploy(requestConfig, fileContents);
                 if (result.success) {
                     await this.deploymentStatus.recordDeployment(
                         filePath,
                         fileContents.get(name + path.extname(filePath)) ?? "",
-                        DeploymentTargetIdentity.fromTarget(target),
+                        DeploymentTargetIdentity.fromTarget(target, envLookup),
                         result.deploymentId,
                     );
                 }
@@ -235,10 +282,11 @@ export class DeploymentService {
 
         const succeeded = results.filter((result) => result.success).length;
         const summary = `Deployed ${succeeded}/${results.length} file(s) to "${target.name}".`;
-        if (succeeded === results.length) {
+        const firstFailure = results.find((result) => !result.success);
+        if (firstFailure === undefined) {
             this.notifier.showInfo(summary);
         } else {
-            this.notifier.showError(summary);
+            this.notifier.showError(`${summary} ${firstFailure.message}`);
         }
         return results;
     }

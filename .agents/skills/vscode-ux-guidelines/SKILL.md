@@ -1,6 +1,6 @@
 ---
 name: vscode-ux-guidelines
-description: VS Code UX guidelines for this project — how to choose between notifications, status bar, quick picks, and output channels; how clipboard access works between sandboxed webviews and the extension host; webview theming; accessibility; and setContext for keybinding visibility. Use this skill whenever you are adding user-facing feedback (messages, errors, progress), wiring clipboard in webviews, implementing copy/paste, choosing how to surface information to the user, adding keyboard shortcuts or when-clause visibility, working on theming, or considering accessibility. Also use when deciding between notification types or between notifications vs. status bar vs. output channel.
+description: Project UX rules for VS Code — choosing notifications, status bar, quick picks or the output channel, webview clipboard, theming, accessibility and when-clause context keys. Use when adding user-facing feedback, shortcuts or clipboard handling.
 ---
 
 # VS Code UX Guidelines
@@ -84,7 +84,7 @@ notifier.logWarning('No element templates found in workspace');
 notifier.logError(new Error('Failed to parse element template: invalid JSON'));  // Error object, not string
 ```
 
-The webview sends `LogInfoCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler.
+The webview sends `LogInfoCommand` / `LogWarningCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler. In the BPMN webview the document lines come from `apps/bpmn-webview/src/session/documentSession.ts` (open and refresh failures) and the shared `libs/shared/src/lib/webviewDocumentSync.ts` (sync failures) and `session/surfaceDocument.ts` (import warnings), the surface-creation and mode-switch failures from `session/modeController.ts`, and a failed host message is prefixed with its type by `session/messageRouter.ts`.
 
 ## Clipboard Access
 
@@ -115,14 +115,14 @@ async readClipboard(): Promise<string>   // vscode.env.clipboard.readText()
 async writeClipboard(text: string): Promise<void>  // vscode.env.clipboard.writeText()
 ```
 
-The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
+The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
 
 ### Webview Side — Two DI Modules
 
 The webview runs two **bpmn-js DI modules** (from the shared
 `libs/bpmn-clipboard` package, `@miragon/bpmn-modeler-clipboard`) because diagram
 elements and contenteditable labels have different event handling. The webview
-only supplies the `clipboard` option (`apps/bpmn-webview/src/bootstrap.ts`);
+only supplies the `clipboard` option (`apps/bpmn-webview/src/session/protocolClipboard.ts`);
 `@miragon/bpmn-modeler` builds the DI modules from it via
 `createClipboardModules` in `packages/bpmn-modeler/src/modeler.ts`. Each module
 receives its host bridge through didi value injection — a `{ requestClipboard,
@@ -156,26 +156,27 @@ installed by `@miragon/bpmn-modeler` from the `clipboard` option).
 ### Wiring (bridge override only)
 
 The native browser clipboard is the default (#1374); the bridge modules are only
-built when the webview can't reach the system clipboard. `apps/bpmn-webview/src/bootstrap.ts`
-wires the bridges with a promise-based resolver pattern into a `ClipboardOptions`
-value and passes it as `clipboard` to `createModeler` / `createDesigner`:
+built when the webview can't reach the system clipboard.
+`resolveClipboard` (`apps/bpmn-webview/src/session/protocolClipboard.ts`) wires
+one host channel per clipboard with a promise-based resolver pattern into a
+`ClipboardOptions` value. The surface factories (`session/surfaceFactories.ts`)
+pass it as `clipboard` to `createModeler` / `createDesigner`, and the session
+router routes each `ClipboardQuery` / `TextClipboardQuery` reply to its channel:
 
 ```typescript
-const requestElementClipboard = async (): Promise<string> => {
-    elementClipboardResolver = createResolver<ClipboardQuery>();
-    host.postMessage(new GetClipboardCommand());
-    const q = await elementClipboardResolver.wait();
-    return q?.text ?? "";
+let pendingReply = createResolver<Reply>();
+const bridge: ClipboardBridge = {
+    requestClipboard: async () => {
+        pendingReply = createResolver<Reply>();
+        host.postMessage(commands.request()); // GetClipboardCommand / GetTextClipboardCommand
+        // Unanswered after HOST_REPLY_TIMEOUT_MS: logs a warning and pastes nothing.
+        return pastedText(await pendingReply.wait(HOST_REPLY_TIMEOUT_MS));
+    },
+    writeClipboard: (text) => host.postMessage(commands.write(text)), // Set(Text)ClipboardCommand
 };
-const writeElementClipboard = (text: string): void => {
-    host.postMessage(new SetClipboardCommand(text));
-};
-// (text bridge mirrors this with the *Text* commands / TextClipboardQuery)
+const receive = (reply: Reply) => pendingReply.done(reply);
 
-clipboard = {
-    bridge: { requestClipboard: requestElementClipboard, writeClipboard: writeElementClipboard },
-    text: { requestClipboard: requestTextClipboard, writeClipboard: writeTextClipboard },
-};
+options = { bridge: elementChannel.bridge, text: textChannel.bridge };
 ```
 
 `BpmnModeler.init()` turns that into
@@ -183,10 +184,10 @@ clipboard = {
 the FEEL/contenteditable polyfill off `text ?? bridge`; `BpmnDesigner`
 (`packages/bpmn-modeler/src/design/designer.ts`) does the same.
 
-bootstrap passes no `clipboard` option (native path) for dev builds and for a
-`clipboard: "native"` caller; a real host gets the protocol bridge above. The
-demo skips bootstrap and calls `createModeler` without a `clipboard` option,
-which is the native path too. The single-bridge public override (`clipboard: { bridge }`) maps onto both
+`resolveClipboard` returns no `clipboard` option (native path) for dev builds and
+for a `clipboard: "native"` caller; a real host gets the protocol bridge above. A
+consumer calling `createModeler` without a `clipboard` option gets the native
+path too. The single-bridge public override (`clipboard: { bridge }`) maps onto both
 channels because `createClipboardModules` defaults `text` to `element`.
 
 ## Webview Theming
@@ -207,6 +208,8 @@ Webviews **must** respect the user's VS Code theme:
 - The properties panel uses standard HTML form elements with labels
 - Keyboard shortcuts (Cmd/Ctrl+C/V/A) work in both diagram and properties panel via the polyfills described above
 - The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields
+- The BPMN webview makes the page `inert` while a mode switch, a destructive flush or an engine reload runs. Take every such lock from the one `createInertLockGroup(document.body)` in `apps/bpmn-webview/src/bootstrap.ts` (the document session and `session/modeController.ts` each create theirs from it), so the last release restores the page's own `inert` state
+- Escape on the closed mode strip returns focus to the canvas (`session/modeController.ts`)
 
 ### `setContext` for Keybinding Visibility
 

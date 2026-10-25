@@ -11,6 +11,7 @@ import {
     WorkspacePort,
 } from "../../shared/domain/hostPorts";
 import { ArtifactService } from "../../shared/service/ArtifactService";
+import { CredentialDestinations } from "../domain/credentialDestinations";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
 import {
     DeploymentTarget,
@@ -18,6 +19,7 @@ import {
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
 } from "../domain/deploymentTarget";
+import { CredentialRefs } from "../domain/credentialRefs";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
 
@@ -26,9 +28,11 @@ const TARGETS_FILE_NAME = "deployment-targets.json";
  * location (nearest existing file) and the write location (the same file, or a
  * fresh one under the workspace config folder when none exists yet).
  */
-interface TargetsLocation {
+export interface TargetsLocation {
     readonly filePath: string;
     readonly exists: boolean;
+    /** The directory holding the config folder; its `.env` is the only one the targets may read. */
+    readonly projectDir: string;
 }
 
 /**
@@ -59,34 +63,32 @@ export class DeploymentTargetService {
 
         if (documentDir !== undefined) {
             const workspaceRoot = await this.artifactService.getWorkspaceRoot(documentDir);
-            const found = await this.artifactService.findConfigFile(
-                documentDir,
-                configFolder,
-                TARGETS_FILE_NAME,
-                workspaceRoot,
-            );
-            if (found !== undefined) {
-                return { filePath: found, exists: true };
-            }
-            return {
-                filePath: posix.join(workspaceRoot, configFolder, TARGETS_FILE_NAME),
-                exists: false,
-            };
+            return this.locateFrom(documentDir, workspaceRoot, configFolder);
         }
 
         const workspaceRoot = this.workspace.getWorkspaceFolderPaths()[0];
         if (workspaceRoot === undefined) {
             return undefined;
         }
-        const found = await this.artifactService.findConfigFile(
-            workspaceRoot,
+        return this.locateFrom(workspaceRoot, workspaceRoot, configFolder);
+    }
+
+    private async locateFrom(
+        startDir: string,
+        workspaceRoot: string,
+        configFolder: string,
+    ): Promise<TargetsLocation> {
+        const foundIn = await this.artifactService.findConfigBaseDir(
+            startDir,
             configFolder,
             TARGETS_FILE_NAME,
             workspaceRoot,
         );
+        const projectDir = foundIn ?? workspaceRoot;
         return {
-            filePath: found ?? posix.join(workspaceRoot, configFolder, TARGETS_FILE_NAME),
-            exists: found !== undefined,
+            filePath: posix.join(projectDir, configFolder, TARGETS_FILE_NAME),
+            exists: foundIn !== undefined,
+            projectDir,
         };
     }
 
@@ -126,7 +128,7 @@ export class DeploymentTargetService {
         auth: AuthConfigPayload,
         documentDir?: string,
     ): Promise<void> {
-        await this.persistTarget(payload, auth, documentDir, (targets, target) =>
+        await this.persistTarget(payload, auth, documentDir, undefined, (targets, target) =>
             targets.add(target),
         );
     }
@@ -148,6 +150,7 @@ export class DeploymentTargetService {
             payload,
             auth,
             documentDir,
+            previousName ?? payload.name,
             (targets, next) => targets.upsert(next, previousName),
         );
         if (previousName !== undefined && previousName.trim() !== target.name) {
@@ -155,10 +158,12 @@ export class DeploymentTargetService {
         }
     }
 
+    /** @param savedName The name the target had before this save; `undefined` for a create. */
     private async persistTarget(
         payload: DeploymentTargetPayload,
         auth: AuthConfigPayload,
         documentDir: string | undefined,
+        savedName: string | undefined,
         apply: (targets: DeploymentTargets, target: DeploymentTarget) => DeploymentTarget[],
     ): Promise<{ location: TargetsLocation; target: DeploymentTarget }> {
         const location = await this.locateTargetsFile(documentDir);
@@ -166,16 +171,49 @@ export class DeploymentTargetService {
             throw new Error("Open a workspace folder before saving a deployment target.");
         }
 
-        const [target] = parseDeploymentTargetsFile({
-            targets: [toDomainTarget(payload).toJson()],
-        });
-        const current = await this.readTargets(location);
-        const next = apply(new DeploymentTargets(current), target);
+        const credentials = toAuthConfig(auth);
+        credentials.assertCredentialEnvRefsValid();
+        const draft = toDomainTarget(payload, CredentialRefs.of(credentials));
+        draft.assertEnvRefsValid();
+        // Round-tripping through the parser applies every remaining file rule.
+        const [target] = parseDeploymentTargetsFile({ targets: [draft.toJson()] });
+        const current = new DeploymentTargets(await this.readTargets(location));
+        const saved = savedName === undefined ? undefined : current.find(savedName);
+        const next = apply(current, target);
         await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
 
-        await this.saveSecrets(this.slotFor(location.filePath, target.name), auth);
+        // Refs are stored too: they overwrite any older literal, and a backend that
+        // reads an empty half back as null would drop the literal next to it.
+        const slot = this.slotFor(location.filePath, target.name);
+        await this.saveSecrets(slot, credentials);
+        await this.approveTypedDestinations(slot, target, saved, current, location.filePath);
         await this.setActiveTarget(target.name);
         return { location, target };
+    }
+
+    /**
+     * Saving approves only the hosts the user typed. A host any target in the
+     * shared file already names may have reached the form from there — the
+     * sidebar's New starts from the selected target — so it still asks at first
+     * use. A create starts from no approvals, so a stale slot can't lend its own.
+     */
+    private async approveTypedDestinations(
+        slot: string,
+        target: DeploymentTarget,
+        saved: DeploymentTarget | undefined,
+        current: DeploymentTargets,
+        filePath: string,
+    ): Promise<void> {
+        const inherited =
+            saved === undefined
+                ? CredentialDestinations.none()
+                : CredentialDestinations.fromOrigins(
+                      await this.secretStore.getApprovedDestinations(
+                          this.slotFor(filePath, saved.name),
+                      ),
+                  );
+        const typed = target.knownCredentialDestinations().without(current.knownDestinations());
+        await this.secretStore.saveApprovedDestinations(slot, [...inherited.union(typed).origins]);
     }
 
     async deleteTarget(name: string, documentDir?: string): Promise<boolean> {
@@ -249,7 +287,7 @@ export class DeploymentTargetService {
         await this.setActiveTarget(picked);
     }
 
-    /** Resolves an active target's stored credentials into an auth payload. */
+    /** The form prefill for a target: its file refs merged over its stored secrets. */
     async getStoredCredentials(
         targetName: string,
         documentDir?: string,
@@ -258,29 +296,18 @@ export class DeploymentTargetService {
         if (target === undefined) {
             return { authType: "none" };
         }
-        const location = await this.locateTargetsFile(documentDir);
-        const slot = location ? this.slotFor(location.filePath, target.name) : undefined;
-
-        if (target.authType === "basic") {
-            const creds = await this.secretStore.getBasicAuth(slot);
-            if (creds) {
-                return {
-                    authType: "basic",
-                    username: creds.username,
-                    password: creds.password,
-                };
-            }
-        } else if (target.authType === "oauth2") {
-            const creds = await this.secretStore.getOAuth2(slot);
-            if (creds) {
-                return {
-                    authType: "oauth2",
-                    clientId: creds.clientId,
-                    clientSecret: creds.clientSecret,
-                    tokenEndpoint: target.tokenEndpoint,
-                    audience: target.audience,
-                };
-            }
+        const auth = await this.getCredentials(target, documentDir);
+        if (auth.type === "basic") {
+            return { authType: "basic", username: auth.username, password: auth.password };
+        }
+        if (auth.type === "oauth2") {
+            return {
+                authType: "oauth2",
+                clientId: auth.clientId,
+                clientSecret: auth.clientSecret,
+                tokenEndpoint: auth.tokenEndpoint,
+                audience: auth.audience,
+            };
         }
         return {
             authType: target.authType,
@@ -290,25 +317,15 @@ export class DeploymentTargetService {
         };
     }
 
-    /** Resolves an active target's stored credentials into a domain auth object. */
+    /** Resolves an active target's credentials into a domain auth object. */
     async getCredentials(target: DeploymentTarget, documentDir?: string): Promise<AuthConfig> {
         const location = await this.locateTargetsFile(documentDir);
         const slot = location ? this.slotFor(location.filePath, target.name) : undefined;
-
         if (target.authType === "basic") {
-            const creds = await this.secretStore.getBasicAuth(slot);
-            return creds ? new BasicAuth(creds.username, creds.password) : new NoAuth();
+            return target.authWith(await this.secretStore.getBasicAuth(slot));
         }
         if (target.authType === "oauth2") {
-            const creds = await this.secretStore.getOAuth2(slot);
-            return creds
-                ? new OAuth2Auth(
-                      creds.clientId,
-                      creds.clientSecret,
-                      target.tokenEndpoint,
-                      target.audience,
-                  )
-                : new NoAuth();
+            return target.authWith(await this.secretStore.getOAuth2(slot));
         }
         return new NoAuth();
     }
@@ -329,16 +346,19 @@ export class DeploymentTargetService {
         return `${filePath}::${name.trim()}`;
     }
 
-    private async saveSecrets(slot: string, auth: AuthConfigPayload): Promise<void> {
-        if (auth.authType === "basic") {
-            await this.secretStore.saveBasicAuth(auth.username ?? "", auth.password ?? "", slot);
-        } else if (auth.authType === "oauth2") {
-            await this.secretStore.saveOAuth2(auth.clientId ?? "", auth.clientSecret ?? "", slot);
+    private async saveSecrets(slot: string, auth: AuthConfig): Promise<void> {
+        if (auth.type === "basic") {
+            await this.secretStore.saveBasicAuth(auth.username, auth.password, slot);
+        } else if (auth.type === "oauth2") {
+            await this.secretStore.saveOAuth2(auth.clientId, auth.clientSecret, slot);
         }
     }
 }
 
-function toDomainTarget(payload: DeploymentTargetPayload): DeploymentTarget {
+function toDomainTarget(
+    payload: DeploymentTargetPayload,
+    credentialRefs: CredentialRefs,
+): DeploymentTarget {
     return new DeploymentTarget(
         payload.name.trim(),
         payload.engine,
@@ -349,7 +369,23 @@ function toDomainTarget(payload: DeploymentTargetPayload): DeploymentTarget {
         payload.audience ?? "",
         payload.deployUrl?.trim() ? payload.deployUrl.trim() : undefined,
         payload.startInstanceUrl?.trim() ? payload.startInstanceUrl.trim() : undefined,
+        credentialRefs,
     );
+}
+
+export function toAuthConfig(payload: AuthConfigPayload): AuthConfig {
+    if (payload.authType === "basic") {
+        return new BasicAuth(payload.username ?? "", payload.password ?? "");
+    }
+    if (payload.authType === "oauth2") {
+        return new OAuth2Auth(
+            payload.clientId ?? "",
+            payload.clientSecret ?? "",
+            payload.tokenEndpoint ?? "",
+            payload.audience ?? "",
+        );
+    }
+    return new NoAuth();
 }
 
 export function toTargetPayload(target: DeploymentTarget): DeploymentTargetPayload {

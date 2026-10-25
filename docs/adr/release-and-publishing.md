@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-10-20
+- Last reviewed: 2026-10-23
 
 ## Context
 
@@ -42,7 +42,7 @@ source of truth for routing and version-stamped files.
 
 The root excludes applications, docs, CI, host libraries, the DMN package and
 root tooling files individually. It is a blocklist without globs: review new
-root files so unrelated tooling does not trigger npm releases. Demo, docs and
+root files so unrelated tooling does not trigger npm releases. Docs and
 workflow changes do not themselves release products.
 
 Tags remain `<component>-v<version>` and changelogs live with each component.

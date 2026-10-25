@@ -32,7 +32,7 @@ const DIFF_SELECTED_CLASS = "diff-selected";
  *
  * Wraps `bpmn-js/lib/NavigatedViewer` so the pane supports mouse + keyboard
  * pan/zoom but not editing. A destroyed pane throws {@link NoModelerError} from
- * every accessor.
+ * every member that reaches the diagram.
  */
 export class DiffViewer {
     private viewer: NavigatedViewer | undefined;

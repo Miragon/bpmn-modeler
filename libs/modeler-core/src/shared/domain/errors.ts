@@ -94,6 +94,70 @@ export class DuplicateDeploymentTargetError extends Error {
     }
 }
 
+/** Common base so callers can surface every `${env:…}` failure as a plain, actionable message. */
+export abstract class EnvReferenceError extends Error {}
+
+export class UnresolvedEnvVariableError extends EnvReferenceError {
+    /** @param dotEnvPath The file that was searched; absent when no `.env` applies. */
+    constructor(
+        readonly variable: string,
+        readonly field: string,
+        dotEnvPath?: string,
+    ) {
+        const remedy =
+            dotEnvPath === undefined
+                ? "References only resolve for diagrams inside a workspace folder."
+                : `Define it in ${dotEnvPath}.`;
+        super(`Environment variable "${variable}" in "${field}" is not set. ${remedy}`);
+        this.name = "UnresolvedEnvVariableError";
+    }
+}
+
+/**
+ * Never echoes the offending text: in a credential field it can be part of a
+ * literal secret (`p${env:hunter2}rest`), and these messages get logged.
+ */
+export class DisallowedEnvReferenceError extends EnvReferenceError {
+    constructor(
+        readonly field: string,
+        prefix: string,
+    ) {
+        super(
+            `"${field}" contains an invalid environment reference. Use \${env:${prefix}NAME} — only variables prefixed ${prefix} from the project's .env are resolved, and literal values must not contain "\${env:".`,
+        );
+        this.name = "DisallowedEnvReferenceError";
+    }
+}
+
+export class UnreadableDotEnvError extends EnvReferenceError {
+    constructor(
+        readonly path: string,
+        reason: string,
+    ) {
+        super(`Could not read ${path}: ${reason}`);
+        this.name = "UnreadableDotEnvError";
+    }
+}
+
+/** Common base for credentials withheld because their destination could not be trusted. */
+export abstract class CredentialDestinationError extends Error {}
+
+export class InvalidCredentialDestinationError extends CredentialDestinationError {
+    constructor() {
+        super(
+            "Credentials and .env values are only sent to a URL with a host. Check the endpoint, the URL overrides and the token endpoint.",
+        );
+        this.name = "InvalidCredentialDestinationError";
+    }
+}
+
+export class CredentialDestinationNotApprovedError extends CredentialDestinationError {
+    constructor(readonly targetName: string) {
+        super("Nothing was sent: the host is not approved.");
+        this.name = "CredentialDestinationNotApprovedError";
+    }
+}
+
 /**
  * Thrown when fetching an OAuth2 access token fails.
  */
@@ -111,12 +175,9 @@ export class TokenFetchError extends Error {
  * Thrown by {@link CamundaRestClient} when the REST API returns a non-2xx status.
  */
 export class DeploymentFailedError extends Error {
-    /**
-     * @param status HTTP status code returned by the server.
-     * @param body Response body text for diagnostic purposes.
-     */
-    constructor(status: number, body: string) {
-        super(`Deployment failed with HTTP ${status}: ${body}`);
+    /** @param detail The server's redacted explanation, never its raw body. */
+    constructor(status: number, detail?: string) {
+        super(`Deployment failed with HTTP ${status}${detailSuffix(detail)}`);
         this.name = "DeploymentFailedError";
     }
 }
@@ -126,11 +187,12 @@ export class DeploymentFailedError extends Error {
  * non-2xx, non-404 status (404 means "not deployed", not an error).
  */
 export class EngineInspectionFailedError extends Error {
+    /** @param detail The server's redacted explanation, never its raw body. */
     constructor(
         readonly status: number,
-        body: string,
+        detail?: string,
     ) {
-        super(`Deployment verification failed with HTTP ${status}: ${body}`);
+        super(`Deployment verification failed with HTTP ${status}${detailSuffix(detail)}`);
         this.name = "EngineInspectionFailedError";
     }
 
@@ -143,12 +205,27 @@ export class EngineInspectionFailedError extends Error {
  * Thrown by {@link CamundaRestClient} when starting a process instance returns a non-2xx status.
  */
 export class StartInstanceFailedError extends Error {
-    /**
-     * @param status HTTP status code returned by the server.
-     * @param body Response body text for diagnostic purposes.
-     */
-    constructor(status: number, body: string) {
-        super(`Start instance failed with HTTP ${status}: ${body}`);
+    /** @param detail The server's redacted explanation, never its raw body. */
+    constructor(status: number, detail?: string) {
+        super(`Start instance failed with HTTP ${status}${detailSuffix(detail)}`);
         this.name = "StartInstanceFailedError";
     }
+}
+
+/**
+ * A request that never got a response. The URL is deliberately left out of the
+ * message: it may embed `.env` values, and fetch's own errors echo it verbatim.
+ */
+export class HttpTransportError extends Error {
+    constructor(
+        readonly host: string,
+        readonly reason: string,
+    ) {
+        super(`Request to ${host} failed: ${reason}`);
+        this.name = "HttpTransportError";
+    }
+}
+
+function detailSuffix(detail: string | undefined): string {
+    return detail === undefined ? "." : `: ${detail}`;
 }

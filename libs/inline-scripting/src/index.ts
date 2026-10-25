@@ -16,8 +16,9 @@
  */
 import "./inlineScripting.css";
 
-import { OPEN_SCRIPT_EDITOR_EVENT, ScriptTaskContextPadModule } from "./scriptTaskContextPad";
-import type { OpenScriptEditorEvent } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
+import type { OpenScriptEditorEvent } from "./scriptEditorEvents";
+import { ScriptTaskContextPadModule } from "./scriptTaskContextPad";
 import { ScriptEditorOpenerModule } from "./scriptEditorOpener";
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
 import { ScriptEditorKeyboardModule } from "./scriptEditorKeyboard";
@@ -31,7 +32,13 @@ import {
 import type { ScriptSourceChangedEvent } from "./scriptSourceWatcher";
 import { InlineScriptingPortForwarder } from "./inlineScriptingPortForwarder";
 import type { InlineScriptingPort } from "./InlineScriptingPort";
-import { collectInlineScriptTasks, findListenerAt } from "./scriptModel";
+import {
+    collectInlineScriptTasks,
+    describeScriptSurface,
+    findListenerAt,
+    resolveScriptWriteTarget,
+} from "./scriptModel";
+import type { ScriptField } from "./scriptModel";
 
 export {
     OPEN_SCRIPT_EDITOR_EVENT,
@@ -47,9 +54,11 @@ export {
     ScriptSourceWatcherModule,
     InlineScriptingPortForwarder,
     collectInlineScriptTasks,
+    describeScriptSurface,
     findListenerAt,
+    resolveScriptWriteTarget,
 };
-export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPort };
+export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPort, ScriptField };
 export type { ScriptTaskBusinessObject } from "./bpmnTypes";
 
 /**

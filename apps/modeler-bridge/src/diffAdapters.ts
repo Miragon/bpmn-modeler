@@ -15,11 +15,7 @@
  * panes in one shot.
  */
 
-import {
-    Command,
-    CursorChangedCommand,
-    ViewportChangedCommand,
-} from "@miragon/bpmn-modeler-shared";
+import { asProtocolMessage, Command } from "@miragon/bpmn-modeler-shared";
 import { BpmnDiffService, DiffPaneHandle } from "@miragon/bpmn-modeler-core";
 
 import { Rpc } from "./rpc";
@@ -83,7 +79,8 @@ export async function dispatchDiffMessage(
     handle: DiffPaneHandle,
     message: Command,
 ): Promise<void> {
-    switch (message.type) {
+    const command = asProtocolMessage(message);
+    switch (command.type) {
         case "GetBpmnFileCommand":
             await service.sendViewerFile(handle);
             break;
@@ -91,10 +88,10 @@ export async function dispatchDiffMessage(
             await service.markReady(handle);
             break;
         case "ViewportChangedCommand":
-            await service.forwardViewport(handle, (message as ViewportChangedCommand).viewport);
+            await service.forwardViewport(handle, command.viewport);
             break;
         case "CursorChangedCommand":
-            await service.forwardCursor(handle, (message as CursorChangedCommand).index);
+            await service.forwardCursor(handle, command.index);
             break;
     }
 }

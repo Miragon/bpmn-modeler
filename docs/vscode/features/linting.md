@@ -1,79 +1,21 @@
 # Linting
 
-The BPMN Modeler can validate your diagram **while you edit** using
-[bpmnlint](https://github.com/bpmn-io/bpmnlint) — the same linter you can run in
-CI. When a `.bpmnlintrc` is found, rule violations appear as ⚠️/❌ overlays on the
-offending elements, a summary button (error/warning counts) is shown on the
-canvas, and each finding is also published to the VS Code **Problems** panel
-(searchable and clickable, even without the diagram open). Even with **no
-`.bpmnlintrc` at all**, the modeler lints against a bundled default so every
-diagram gets baseline validation for free — see
-[Zero-config default](#zero-config-default). Any `.bpmnlintrc` the workspace adds
-still takes over completely.
+Check your diagram with [bpmnlint](https://github.com/bpmn-io/bpmnlint) while you edit, with the same rules your CI runs.
 
-The lint runs in the **extension host** (a full Node.js context), not in the
-webview. That is what lets it resolve your workspace's own
-`bpmnlint-plugin-*` packages and `plugin:*` configs against `node_modules` —
-exactly like the `bpmnlint` CLI — so custom rules work in the modeler, not just
-built-ins. See [Custom rules & plugins](#custom-rules-plugins) below.
+Findings appear as overlays on the affected elements, as error and warning counts on the canvas, and in the VS Code **Problems** panel. Fix an issue and its overlay clears right away, no save needed. Hover an overlay to read its findings, or click it (or focus it and press <kbd>Enter</kbd>) to pin the list; <kbd>Esc</kbd> closes it.
 
-## Zero-config default
+## Default rules
 
-With no `.bpmnlintrc` found anywhere from the diagram's folder up to the
-workspace root, the modeler lints against a **bundled default** instead of
-staying silent. The status bar shows `$(shield) BPMNlint (default)` — distinct
-from the `$(check) BPMNlint` shown for a project's own config — so you always
-know which is in effect.
+Without a `.bpmnlintrc` the modeler lints against a bundled default, offline and without installing anything:
 
-The default is layered, and its engine layer is chosen from the diagram's
-**detected execution platform** (re-evaluated on every edit, so switching engines
-mid-model switches the rules too):
+- `bpmnlint:recommended` for every diagram (missing start or end event, disconnected elements, implicit splits and joins, …).
+- For Camunda 7 and Camunda 8 diagrams, the [`bpmnlint-plugin-camunda-compat`](https://github.com/camunda/bpmnlint-plugin-camunda-compat) rules for the target engine, so constructs it cannot run are flagged while you model.
 
-- **Shared base** — `bpmnlint:recommended`. Catches the execution-breaking basics
-  on every diagram: missing start/end event, disconnected element, fake join,
-  implicit split/join, and so on.
-- **Miragon layer** — a thin, additive slot for Miragon-specific conventions. Wired
-  into the default but currently empty; rules will be added here over time.
-- **Engine layer** — when the diagram targets Camunda 7 or Camunda 8, the
-  matching [`bpmnlint-plugin-camunda-compat`](https://github.com/camunda/bpmnlint-plugin-camunda-compat)
-  deployability rules are added (the same rules the Camunda Modeler ships), so a
-  construct the target engine can't run is flagged while you model instead of at
-  deploy time. A file with no detectable platform gets the structural base only.
+Any `.bpmnlintrc` replaces the default completely, even an empty `{}`.
 
-Everything resolves from rules bundled into the extension — no workspace
-`bpmnlint` install, and it works offline. To change or silence anything, add a
-`.bpmnlintrc` (below); even an empty `{}` fully overrides the default.
+## Use your own config
 
-## Usage
-
-1. Add a `.bpmnlintrc` at your workspace root (or under your
-   [`configFolder`](/vscode/configuration), default `.camunda/`):
-
-   ```json
-   {
-       "extends": "bpmnlint:recommended"
-   }
-   ```
-
-2. Open (or reopen) a `.bpmn` file with a known issue — e.g. a task without a
-   label or a process missing an end event. Violations show up as overlays on
-   the diagram, and the in-canvas lint button summarises the counts. Hover an
-   overlay icon to see its findings, or click it (or focus it and press
-   <kbd>Enter</kbd>) to pin the list open; <kbd>Esc</kbd> or a click elsewhere
-   closes it. The VS Code status bar shows `$(check) BPMNlint` (hover for the
-   config path).
-
-3. Fix the issue and the overlay clears **live** — no save required.
-
-## Configuring rules
-
-Discovery uses bpmnlint's nearest-config semantics: walking from the BPMN file's
-directory up to the workspace root, the first `.bpmnlintrc` found wins (checking
-`<dir>/.bpmnlintrc` then `<dir>/<configFolder>/.bpmnlintrc` at each level). No
-merging is performed, so the modeler and CI lint against the same file.
-
-Tune rules with the standard `.bpmnlintrc` syntax — turn a rule off, downgrade it
-to a warning, or start from a different built-in preset:
+Add a `.bpmnlintrc` at the workspace root or in the config folder (`.camunda/` by default):
 
 ```json
 {
@@ -85,70 +27,52 @@ to a warning, or start from a different built-in preset:
 }
 ```
 
-The built-in presets are `bpmnlint:recommended`, `bpmnlint:all`, and
-`bpmnlint:correctness`. See the
-[bpmnlint rule reference](https://github.com/bpmn-io/bpmnlint/blob/main/docs/rules/README.md)
-for the full list of rules and what each one checks.
+The modeler walks from the diagram's folder up to the workspace root and uses the first `<dir>/.bpmnlintrc` or `<dir>/<configFolder>/.bpmnlintrc` it finds. Configs are not merged, so modeler and CI read the same file. Built-in presets are `bpmnlint:recommended`, `bpmnlint:all` and `bpmnlint:correctness`; see the [rule reference](https://github.com/bpmn-io/bpmnlint/blob/main/docs/rules/README.md).
 
-## Custom rules & plugins
+## Custom rules and plugins
 
-Custom rules are where project-specific conventions live — connector result
-mapping, naming schemes, required extension properties, deployment constraints —
-the things the built-in structural rules can't check. Because the modeler lints
-in the extension host, a `bpmnlint-plugin-*` package installed in your workspace
-works with no extra setup.
+Any `bpmnlint-plugin-*` package that resolves from the folder of the `.bpmnlintrc` works, from npm or local via `file:`:
 
-1. **Add the plugin to your workspace.** Any `bpmnlint-plugin-<name>` package that
-   is resolvable from the `.bpmnlintrc`'s folder works — a normal dependency, or
-   a local one via a `file:` reference:
+```json
+{
+    "devDependencies": {
+        "bpmnlint-plugin-custom-rules": "file:./bpmnlint-custom-rules"
+    }
+}
+```
 
-   ```jsonc
-   // package.json
-   {
-     "devDependencies": {
-       "bpmnlint-plugin-custom-rules": "file:./bpmnlint-custom-rules"
-     }
-   }
-   ```
+Run `npm install`, then reference the plugin by its short name:
 
-   ```bash
-   npm install   # so node_modules/bpmnlint-plugin-custom-rules exists
-   ```
+```json
+{
+    "extends": ["bpmnlint:recommended", "plugin:custom-rules/recommended"],
+    "rules": { "custom-rules/no-todo-in-name": "error" }
+}
+```
 
-2. **Reference it from `.bpmnlintrc`** by its short name (bpmnlint expands
-   `custom-rules` to `bpmnlint-plugin-custom-rules`):
+Rules run in the extension host, which needs [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust). Check parity with `npx bpmnlint <diagram>.bpmn`. A runnable example lives in [`resources/example-process/`](https://github.com/Miragon/bpmn-modeler/tree/main/resources/example-process).
 
-   ```jsonc
-   {
-     "extends": ["bpmnlint:recommended", "plugin:custom-rules/recommended"],
-     "rules": { "custom-rules/no-todo-in-name": "error" }
-   }
-   ```
+If a referenced rule or plugin is not installed, only that entry is skipped. The status bar then shows `BPMNlint: N rules skipped` and the *bpmn.modeler* output channel names them.
 
-3. **Open a diagram.** Violations of your custom rule now show up as overlays and
-   Problems-panel entries just like the built-ins. Verify parity with
-   `npx bpmnlint <diagram>.bpmn`.
+## Status bar
 
-Resolution is anchored at the folder of the `.bpmnlintrc` that discovery picked,
-so monorepos with per-module configs and plugins keep working. Rule modules are
-`require()`d in the extension host, which VS Code already gates behind
-[Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) —
-nothing untrusted runs in the webview.
+| Status bar | Meaning |
+|---|---|
+| `BPMNlint` | Your `.bpmnlintrc` is in use (hover for its path). |
+| `BPMNlint (default)` | No `.bpmnlintrc` found, the bundled default is in use. |
+| `BPMNlint: N rules skipped` | Some rules or plugins could not be resolved. |
+| `BPMNlint: off` | Linting is turned off. |
 
-A **runnable example** lives in
-[`resources/example-process/`](https://github.com/Miragon/bpmn-modeler/tree/main/resources/example-process):
-a tiny `bpmnlint-plugin-custom-rules` plugin, a `.bpmnlintrc` that uses it, and a
-`c7/lint-demo.bpmn` whose task triggers the custom rule.
+## Turn linting off
 
-### When a plugin can't be resolved
+| Setting | Default | Description |
+|---|---|---|
+| `miragon.bpmnModeler.linting.enabled` | `true` | Turn off if you only design and do not want execution rules. |
 
-If the config references a rule or plugin config that isn't installed, the modeler
-**skips only that entry** (the rest of the config keeps linting) and makes it
-visible instead of silently dropping it: the status bar switches to
-`BPMNlint: N rules skipped` with the skipped names in the tooltip, and a warning
-is logged to the *bpmn.modeler* output channel. Install the missing
-`bpmnlint-plugin-*` package to clear it.
+**Miragon BPMN Modeler: Toggle Linting**, the `BPMNlint: off` status bar item and the lint button on the canvas switch it too. Linting covers BPMN only, not DMN.
 
-## Current scope
+## Next steps
 
-- **BPMN only.** DMN linting is not supported.
+- [Editor modes](/vscode/features/modes): Implement is the mode with linting.
+- [Deployment](/vscode/features/deployment): deploy once the diagram is clean.
+- [Configuration](/vscode/configuration): every setting in one table.

@@ -78,6 +78,22 @@ declare module "bpmn-js-create-append-anything" {
     export const CreateAppendElementTemplatesModule;
     export const CreateAppendAnythingModule;
     export const RemoveTemplatesModule;
+
+    interface CreateAppendOption {
+        readonly actionName: string;
+        readonly target: {
+            readonly type: string;
+            readonly eventDefinitionType?: string;
+            readonly triggeredByEvent?: boolean;
+            readonly isExpanded?: boolean;
+        };
+    }
+    export const TASK: readonly CreateAppendOption[];
+    export const GATEWAY: readonly CreateAppendOption[];
+    export const SUBPROCESS: readonly CreateAppendOption[];
+    export const ALL_EVENTS: readonly CreateAppendOption[];
+    export const DATA_OBJECTS: readonly CreateAppendOption[];
+    export const PARTICIPANT: readonly CreateAppendOption[];
 }
 
 declare module "camunda-transaction-boundaries/lib/index.js" {

@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
+import { registerParams, settle, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -29,41 +30,6 @@ const C7_XML = `<?xml version="1.0" encoding="UTF-8"?>
 /** A minimal Java class file body; the locator resolves `javaClass` by path alone. */
 function javaClass(packageName: string, className: string): string {
     return `package ${packageName};\n\npublic class ${className} {}\n`;
-}
-
-async function settle(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-/**
- * Waits for a frame matching `predicate`, or rejects after `timeoutMs`. The sync
- * path chains an async attach → fs.glob → per-file work before the status push,
- * so polling keeps the test deterministic without counting microtasks.
- */
-async function waitForFrame(
-    frames: any[],
-    predicate: (frame: any) => boolean,
-    timeoutMs = 2000,
-): Promise<any> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        const match = frames.find(predicate);
-        if (match) return match;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error("waitForFrame timed out");
-}
-
-function registerParams(editorId: string, root: string, fsPath: string, content: string) {
-    return {
-        editorId,
-        uriString: editorId,
-        path: editorId.replace(/^file:\/\//, ""),
-        fsPath,
-        scheme: "file",
-        workspaceRoot: root,
-        content,
-    };
 }
 
 describe("bridge code link (real core + map/locator over a fake transport)", () => {

@@ -3,7 +3,7 @@ import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ScriptModdle } from "./bpmnTypes";
 import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
-import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
 import { findListenerAt, readScriptTaskFormat } from "./scriptModel";
 

@@ -1,67 +1,47 @@
 # Configuration
 
-All settings live under the `miragon.bpmnModeler` namespace. Edit them in VS
-Code's settings UI (search for "BPMN Modeler") or directly in `settings.json`.
+Tune the modeler with settings under the `miragon.bpmnModeler` namespace. Edit them in the Settings UI (search for
+"BPMN Modeler") or in `settings.json`.
 
-## Settings reference
+## Settings
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `miragon.bpmnModeler.language` | enum | `en` | UI language for palette, context pad, and properties panel. One of `de`, `en`, `es`, `fr`, `nl-nl`, `pt-br`, `ru`, `zh-Hans`, `zh-Hant`. |
-| `miragon.bpmnModeler.configFolder` | string | `.camunda` | Name of the config folder searched from each BPMN file up to the workspace root. Element templates live under `<configFolder>/element-templates/`. |
-| `miragon.bpmnModeler.alignToOrigin` | boolean | `false` | Align the diagram to the top-left origin when opening. See [bpmn-io/align-to-origin](https://github.com/bpmn-io/align-to-origin). |
-| `miragon.bpmnModeler.colorTheme` | enum | `automatic` | `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme. |
-| `miragon.bpmnModeler.defaultMode` | enum | `implement` | Mode a BPMN editor opens in when it has no remembered mode. One of `implement` (full Camunda modeler), `design` (engine-neutral editable surface), `view` (readonly viewer). On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`. See [Editor Modes](/vscode/features/modes). |
-| `miragon.bpmnModeler.showTransactionBoundaries` | boolean | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
-| `miragon.bpmnModeler.favouriteBpmnElements` | string[] | `["bpmn:ServiceTask","bpmn:UserTask","bpmn:CallActivity","bpmn:ExclusiveGateway"]` | BPMN element types pinned at the top of the append menu (max 6). |
-| `miragon.bpmnModeler.c8ApiVersion` | string | `v2` | REST API version prefix for Camunda 8 endpoints. Change this if your cluster exposes a different API version. |
-| `miragon.bpmnModeler.marketplaces` | (string \| object)[] | `[]` | Registered [template marketplaces](/vscode/features/template-marketplace): GitHub/GitLab URLs, local folder paths, or object entries for self-hosted instances. The User- and Workspace-level lists are **merged** (User = "all my projects", Workspace = project-specific); usually managed via the `Add Marketplace` command, which asks for the scope (This workspace / All my projects) when a folder is open — user-level entries apply to all projects. |
+| Setting | Default | What it does |
+|---|---|---|
+| `miragon.bpmnModeler.defaultMode` | `implement` | Mode a BPMN editor opens in when it has no remembered mode: `implement`, `design` or `view`. On an engine-neutral model, `implement` falls back to `design`. See [Editor modes](/vscode/features/modes). |
+| `miragon.bpmnModeler.language` | `en` | UI language: `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `nl-nl`, `pt-br`, `ru`, `zh-Hans`, `zh-Hant`. See [Language support](/vscode/features/language-support). |
+| `miragon.bpmnModeler.colorTheme` | `automatic` | `automatic` follows the VS Code theme, `light` always uses the light canvas. |
+| `miragon.bpmnModeler.configFolder` | `.camunda` | Folder searched from each BPMN file up to the workspace root. Element templates live in `<configFolder>/element-templates/`. |
+| `miragon.bpmnModeler.favouriteBpmnElements` | Service task, user task, call activity, exclusive gateway | BPMN types pinned at the top of the [append menu](/vscode/features/append-menu), max 6 (for example `bpmn:ServiceTask`). |
+| `miragon.bpmnModeler.alignToOrigin` | `false` | Move the diagram to the top-left origin when opening ([align-to-origin](https://github.com/bpmn-io/align-to-origin)). |
+| `miragon.bpmnModeler.showTransactionBoundaries` | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
+| `miragon.bpmnModeler.linting.enabled` | `true` | Run [linting](/vscode/features/linting). Also toggled by **Toggle Linting**. |
+| `miragon.bpmnModeler.scripting.spin` | `true` | Offer Camunda SPIN completion in [inline scripts](/vscode/features/inline-scripting) (Camunda 7). |
+| `miragon.bpmnModeler.persistCodeLinkMap` | `false` | Also write the map behind [Go to implementation](/vscode/features/code-navigation) to `<configFolder>/code-link/<file>.json`. |
+| `miragon.bpmnModeler.c8ApiVersion` | `v2` | REST API version prefix for Camunda 8 endpoints. |
+| `miragon.bpmnModeler.marketplaces` | `[]` | [Template marketplaces](/vscode/features/template-marketplace): GitHub or GitLab URLs, local folders, or objects for self-hosted instances. User and workspace entries are merged. |
 
-## Example `settings.json`
+## Example
 
 ```json
 {
     "miragon.bpmnModeler.language": "de",
-    "miragon.bpmnModeler.configFolder": ".camunda",
-    "miragon.bpmnModeler.alignToOrigin": true,
     "miragon.bpmnModeler.defaultMode": "design",
+    "miragon.bpmnModeler.alignToOrigin": true,
     "miragon.bpmnModeler.favouriteBpmnElements": [
         "bpmn:ServiceTask",
         "bpmn:UserTask",
         "bpmn:CallActivity",
-        "bpmn:SubProcess",
-        "bpmn:ExclusiveGateway",
-        "bpmn:ParallelGateway"
+        "bpmn:ExclusiveGateway"
     ]
 }
 ```
 
-## File and editor associations
+## Files and editors
 
-`.bpmn` and `.dmn` files open in the graphical modeler by default and are
-registered as their own **BPMN** / **DMN** languages — that is what powers the
-file-explorer icons and the language-mode label. The text view (`BPMN Modeler:
-Toggle Standard Text Editor`) keeps full XML syntax highlighting and editing
-behaviour.
+`.bpmn` and `.dmn` files open in the modeler and are registered as their own BPMN and DMN languages (file icons,
+language label). **Toggle Standard Text Editor** (`Ctrl+Shift+E`) shows the XML with full highlighting.
 
-::: info XML extensions
-Extensions that activate on the `xml` language (e.g. Red Hat's *XML* extension)
-no longer auto-activate on `.bpmn`/`.dmn` files in the text view. To get that
-behaviour back, remap the files to XML in your user or workspace settings:
-
-```json
-"files.associations": {
-    "*.bpmn": "xml",
-    "*.dmn": "xml"
-}
-```
-
-Trade-off: the files are then plain XML to VS Code, so the BPMN/DMN file icons
-and language-mode label are replaced by the XML ones.
-:::
-
-To open these files in the text editor by default instead of the modeler,
-override the editor association:
+To open them in the text editor by default:
 
 ```json
 "workbench.editorAssociations": {
@@ -70,23 +50,26 @@ override the editor association:
 }
 ```
 
-## Commands
+::: info XML extensions
+Extensions that activate on the `xml` language (for example Red Hat XML) do not start on `.bpmn` and `.dmn` files.
+Map the files to XML to get them back. You then lose the BPMN and DMN icons and language label.
 
-Beyond settings, the extension contributes several commands to the palette —
-all prefixed `BPMN Modeler:`. See [Getting Started](getting-started)
-for the common ones.
+```json
+"files.associations": {
+    "*.bpmn": "xml",
+    "*.dmn": "xml"
+}
+```
+:::
 
-## Element templates
+## Config folder
 
-Element templates follow the
-[Camunda element-templates schema](https://github.com/camunda/element-templates-json-schema)
-and are resolved by convention. No project config file required. See the
-[Element Template Chooser](/vscode/features/element-template-chooser) page for
-details on template discovery and the UI for applying them.
+The `configFolder` walk also finds lint configs: at each level from the BPMN file up to the workspace root, the modeler
+checks `<dir>/.bpmnlintrc`, then `<dir>/<configFolder>/.bpmnlintrc`. The nearest match wins. Element templates follow
+the [Camunda element templates schema](https://github.com/camunda/element-templates-json-schema).
 
-## Linting
+## Next steps
 
-`.bpmnlintrc` discovery reuses the same `configFolder` walk: at each level from
-the BPMN file up to the workspace root, `<dir>/.bpmnlintrc` then
-`<dir>/<configFolder>/.bpmnlintrc` is checked, nearest match wins. See the
-[Linting](/vscode/features/linting) page for details.
+- [Element templates](/vscode/features/element-template-chooser): find and apply templates.
+- [Linting](/vscode/features/linting): rules and `.bpmnlintrc`.
+- [Get started](/vscode/getting-started): commands and first steps.

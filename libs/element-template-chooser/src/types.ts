@@ -1,5 +1,10 @@
 export type Translate = (template: string, replacements?: Record<string, string>) => string;
 
+// Used when no TranslateModule is registered (third-party bpmn-js setups):
+// echoes the template while still resolving {placeholders}, matching diagram-js.
+export const fallbackTranslate: Translate = (template, replacements = {}) =>
+    template.replace(/{([^}]+)}/g, (_, key: string) => replacements[key] ?? `{${key}}`);
+
 /** A single property (input/output, binding, or user-configurable field) an element template applies. */
 export interface TemplateProperty {
     id?: string;
@@ -103,7 +108,8 @@ export interface ImplementationDetail {
  *
  * Each entry defines a matcher: either a `property` binding with a specific
  * `name` (C7 pattern), or a direct `bindingType` match (C8 pattern where
- * the binding type itself carries the semantic, e.g. `zeebe:taskDefinition:type`).
+ * the binding type itself carries the semantic, e.g. `zeebe:taskDefinition:type`),
+ * optionally narrowed to one `binding.property` of that type.
  *
  * Checked in priority order — the first match wins.
  */
@@ -111,6 +117,7 @@ const IMPLEMENTATION_BINDINGS: {
     label: string;
     bindingType: string;
     bindingName?: string;
+    bindingProperty?: string;
 }[] = [
     // C7 bindings (binding.type === "property", identified by binding.name)
     { label: "Topic", bindingType: "property", bindingName: "camunda:topic" },
@@ -126,7 +133,7 @@ const IMPLEMENTATION_BINDINGS: {
     // Shorthand form: binding.type === "zeebe:taskDefinition:type"
     { label: "Task Type", bindingType: "zeebe:taskDefinition:type" },
     // Long form: binding.type === "zeebe:taskDefinition", binding.property === "type"
-    { label: "Task Type", bindingType: "zeebe:taskDefinition" },
+    { label: "Task Type", bindingType: "zeebe:taskDefinition", bindingProperty: "type" },
 ];
 
 /**
@@ -139,13 +146,16 @@ const IMPLEMENTATION_BINDINGS: {
 export function extractImplementationDetail(
     properties: TemplateProperty[],
 ): ImplementationDetail | undefined {
-    for (const { label, bindingType, bindingName } of IMPLEMENTATION_BINDINGS) {
+    for (const { label, bindingType, bindingName, bindingProperty } of IMPLEMENTATION_BINDINGS) {
         const prop = properties.find((p) => {
             if (p.binding.type !== bindingType) {
                 return false;
             }
             // For "property" bindings, also match on the binding name.
             if (bindingName && p.binding.name !== bindingName) {
+                return false;
+            }
+            if (bindingProperty && p.binding.property !== bindingProperty) {
                 return false;
             }
             return !!p.value;
@@ -195,4 +205,26 @@ export function classifyBinding(binding: TemplateProperty["binding"]): BindingDi
 
     // Everything else: zeebe:taskDefinition, zeebe:taskDefinition:type, camunda:errorEventDefinition, etc.
     return "hidden";
+}
+
+/** The non-Hidden template properties, grouped by the preview section they render in. */
+interface VisibleProperties {
+    properties: TemplateProperty[];
+    inputs: TemplateProperty[];
+    outputs: TemplateProperty[];
+}
+
+export function partitionVisibleProperties(properties: TemplateProperty[]): VisibleProperties {
+    const visible = properties.filter((property) => property.type !== "Hidden");
+    const inDirection = (direction: BindingDirection) =>
+        visible.filter((property) => classifyBinding(property.binding) === direction);
+    return {
+        properties: inDirection("property"),
+        inputs: inDirection("input"),
+        outputs: inDirection("output"),
+    };
+}
+
+export function propertyDisplayLabel(property: TemplateProperty): string | undefined {
+    return property.label ?? property.binding.name ?? property.binding.key;
 }

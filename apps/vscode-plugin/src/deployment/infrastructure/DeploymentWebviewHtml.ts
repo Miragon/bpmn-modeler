@@ -1,5 +1,6 @@
 import { Uri, Webview } from "vscode";
-import { getNonce } from "@miragon/bpmn-modeler-core";
+
+import { createWebviewNonce } from "../../shared/infrastructure/webviewNonce";
 
 const DEPLOYMENT_WEBVIEW_PATH = "deployment-webview";
 
@@ -17,7 +18,7 @@ export function deploymentWebviewHtml(webview: Webview, extensionUri: Uri): stri
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
-    const nonce = getNonce();
+    const nonce = createWebviewNonce();
 
     return `
         <!DOCTYPE html>

@@ -43,6 +43,7 @@ vi.mock("vscode", () => {
 import { Uri } from "vscode";
 
 import { ScriptUri, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import { ScriptDeclareVariableCodeAction } from "./ScriptDeclareVariableCodeAction";
 
@@ -66,12 +67,12 @@ function createAction(options?: { trackedEditor?: string | undefined; variables?
         })),
     );
     const manifestSvc = { upsert: vi.fn().mockResolvedValue("/ws/.camunda/vars/m.vars.json") };
-    const notifier = { notifyError: vi.fn() };
+    const notifier = new RecordingNotifier();
     const action = new ScriptDeclareVariableCodeAction(
         scriptTaskSvc as never,
         store,
         manifestSvc as never,
-        notifier as never,
+        notifier,
     );
     return { action, scriptTaskSvc, manifestSvc, notifier };
 }
@@ -167,6 +168,6 @@ describe("ScriptDeclareVariableCodeAction declare command", () => {
 
         await declare(Uri.file(SCRIPT_PATH), "orderTotal");
 
-        expect(notifier.notifyError).toHaveBeenCalled();
+        expect(notifier.errors).toEqual(["Failed to update process-variable manifest\ndisk full"]);
     });
 });

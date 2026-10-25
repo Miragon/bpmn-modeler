@@ -9,8 +9,11 @@ export default defineConfig({
         environment: "node",
         include: ["src/**/*.{spec,test}.{ts,tsx}"],
         coverage: {
-            ...coveragePreset(__dirname),
-            thresholds: { statements: 39, branches: 64, functions: 28, lines: 38 },
+            ...coveragePreset(__dirname, {
+                // DEV-only i18n harvest harness; no shipped build wires it in.
+                exclude: ["src/lib/harvestRecorder.ts"],
+            }),
+            thresholds: { statements: 93, branches: 84, functions: 95, lines: 94 },
         },
     },
 });

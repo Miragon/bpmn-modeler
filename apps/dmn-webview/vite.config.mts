@@ -3,9 +3,7 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
-// Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts. The
-// static browser demo (apps/demo-webapp) consumes the @miragon/dmn-modeler
-// package directly, not this app's bootstrap().
+// Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts.
 export default defineConfig({
     root: __dirname,
     base: "/",

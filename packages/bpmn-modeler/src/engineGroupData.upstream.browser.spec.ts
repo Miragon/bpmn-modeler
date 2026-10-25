@@ -16,6 +16,8 @@ import {
     hasEngineGroups,
 } from "@miragon/bpmn-modeler-properties-panel/modeFilter/engineGroupData";
 
+import { mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
+
 /**
  * Pins the hand-copied engine group/entry ids in engineGroupData.ts against the
  * installed bpmn-js-properties-panel providers, so a properties-panel bump that
@@ -118,25 +120,15 @@ const CASES: EngineCase[] = [
 ];
 
 let modeler: Modeler | undefined;
-let container: HTMLElement | undefined;
-let panelParent: HTMLElement | undefined;
 
 afterEach(() => {
     modeler?.destroy();
-    container?.remove();
-    panelParent?.remove();
     modeler = undefined;
-    container = undefined;
-    panelParent = undefined;
+    removeMounts();
 });
 
 async function collect(engineCase: EngineCase) {
-    container = document.createElement("div");
-    container.style.width = "800px";
-    container.style.height = "600px";
-    document.body.appendChild(container);
-    panelParent = document.createElement("div");
-    document.body.appendChild(panelParent);
+    const { container, panel } = mountWithPanel();
 
     modeler = new Modeler({
         container,
@@ -147,7 +139,7 @@ async function collect(engineCase: EngineCase) {
         ],
         // @ts-expect-error moddleExtensions is a valid bpmn-js option absent from the type
         moddleExtensions: engineCase.moddle,
-        propertiesPanel: { parent: panelParent },
+        propertiesPanel: { parent: panel },
     });
     await modeler.importXML(engineCase.xml);
 

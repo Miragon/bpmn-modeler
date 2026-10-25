@@ -7,6 +7,8 @@ import { HttpClient, HttpResponse } from "../../domain/ports";
 
 function mockHttpClient(): Mocked<HttpClient> {
     return {
+        getText: vi.fn(),
+        getJson: vi.fn(),
         postJson: vi.fn(),
         postForm: vi.fn(),
         postMultipart: vi.fn(),
@@ -125,7 +127,82 @@ describe("AuthHeaderResolver", () => {
         const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
 
         await expect(resolver.resolve(auth)).rejects.toThrow(TokenFetchError);
-        await expect(resolver.resolve(auth)).rejects.toThrow(/Invalid JSON response/);
+        await expect(resolver.resolve(auth)).rejects.toThrow(
+            "Failed to fetch OAuth2 access token: the token endpoint did not return JSON.",
+        );
+    });
+
+    // ── Token endpoint error bodies ─────────────────────────────────────
+
+    it("masks the client credentials a token endpoint echoes in its error description", async () => {
+        httpClient.postForm.mockResolvedValue({
+            status: 401,
+            body: JSON.stringify({
+                error: "invalid_client",
+                error_description:
+                    "Client authentication failed for client_id=svc-modeler&client_secret=Zx9-secret-value",
+            }),
+        });
+
+        const auth = new OAuth2Auth(
+            "svc-modeler",
+            "Zx9-secret-value",
+            "http://idp.local/token",
+            "",
+        );
+
+        const error = await resolver.resolve(auth).catch((rejection: unknown) => rejection);
+
+        expect(error).toBeInstanceOf(TokenFetchError);
+        expect((error as Error).message).toContain("HTTP 401: Client authentication failed");
+        expect((error as Error).message).not.toContain("Zx9-secret-value");
+        expect((error as Error).message).not.toContain("svc-modeler");
+    });
+
+    it("masks a client secret the token endpoint echoes back form-encoded", async () => {
+        // Form encoding escapes the "~" common in Entra ID secrets; encodeURIComponent keeps it.
+        const clientSecret = "Ab8Q~xY.z_9-Secret";
+        httpClient.postForm.mockImplementation(async (_url, formBody) => ({
+            status: 400,
+            body: `Malformed token request: ${formBody}`,
+        }));
+
+        const auth = new OAuth2Auth("svc-modeler", clientSecret, "http://idp.local/token", "");
+
+        const error = await resolver.resolve(auth).catch((rejection: unknown) => rejection);
+
+        expect(error).toBeInstanceOf(TokenFetchError);
+        expect((error as Error).message).toContain("HTTP 400: Malformed token request:");
+        expect((error as Error).message).not.toContain("Ab8Q");
+    });
+
+    it("reports only the status for an HTML error page from the token endpoint", async () => {
+        httpClient.postForm.mockResolvedValue({
+            status: 502,
+            body: "<html><body><h1>502 Bad Gateway</h1></body></html>",
+        });
+
+        const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
+
+        await expect(resolver.resolve(auth)).rejects.toThrow(
+            "Failed to fetch OAuth2 access token: HTTP 502.",
+        );
+    });
+
+    it("never echoes a successful body that is not JSON, since it may carry the token", async () => {
+        const accessToken = "gho_16C7e42F292c6912E7710c838347Ae178B4a";
+        httpClient.postForm.mockResolvedValue({
+            status: 200,
+            body: `access_token=${accessToken}&scope=repo&token_type=bearer`,
+        });
+
+        const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
+
+        const error = await resolver.resolve(auth).catch((rejection: unknown) => rejection);
+
+        expect(error).toBeInstanceOf(TokenFetchError);
+        expect((error as Error).message).not.toContain(accessToken);
+        expect((error as Error).message).not.toContain("access_token=");
     });
 
     it("should throw TokenFetchError when access_token is missing", async () => {

@@ -59,7 +59,7 @@ interface Selection {
  * "Open in Editor" icon buttons into the script group header and every
  * execution-listener / task-listener row.
  */
-class ScriptEditorButtons {
+export class ScriptEditorButtons {
     private observer: MutationObserver | undefined;
 
     private readonly store = new DisposableStore();

@@ -2,11 +2,22 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-import { NoWorkspaceFolderFoundError } from "@miragon/bpmn-modeler-core";
+import {
+    ArtifactService,
+    DeploymentTargetService,
+    EnvScope,
+    EnvValueResolver,
+    envRefsIn,
+    expandEnvRefs,
+    NO_ENV_VARIABLES,
+    NoWorkspaceFolderFoundError,
+    TargetsLocation,
+    UnreadableDotEnvError,
+} from "@miragon/bpmn-modeler-core";
 
-import { NodeWorkspace } from "./nodeAdapters";
+import { BridgeSettings, NodeWorkspace } from "./nodeAdapters";
 
 /**
  * `findFiles` is the picker's one filesystem-backed prompt. These exercise its
@@ -160,6 +171,28 @@ describe("NodeWorkspace folder lookups", () => {
         expect(ws.findWorkspaceFolderForDocument(`file://${root}/file.bpmn`)).toBe(
             `file://${root}`,
         );
+    });
+
+    it.each([
+        ["outer first", ["/ws", "/ws/nested"]],
+        ["inner first", ["/ws/nested", "/ws"]],
+    ])("resolves the innermost of nested roots (%s)", (_order, roots) => {
+        const ws = new NodeWorkspace();
+        roots.forEach((nestedRoot) => ws.registerRoot(nestedRoot));
+
+        expect(ws.findWorkspaceFolderForDocument("/ws/nested/sub/file.bpmn")).toBe("/ws/nested");
+        expect(ws.getWorkspaceFolderForDocument("file:///ws/nested/file.bpmn")).toBe(
+            "file:///ws/nested",
+        );
+        expect(ws.findWorkspaceFolderForDocument("/ws/other/file.bpmn")).toBe("/ws");
+    });
+
+    it("does not treat a sibling sharing a name prefix as nested", () => {
+        const ws = new NodeWorkspace();
+        ws.registerRoot("/ws");
+        ws.registerRoot("/ws/nested");
+
+        expect(ws.findWorkspaceFolderForDocument("/ws/nested-other/file.bpmn")).toBe("/ws");
     });
 
     it("getWorkspaceFolderForDocument still throws when no root encloses the document", () => {
@@ -416,5 +449,275 @@ describe("NodeWorkspace.writeFile", () => {
         await ws.writeFile(target, "first");
         await ws.writeFile(target, "second");
         expect(await fs.readFile(target, "utf8")).toBe("second");
+    });
+});
+
+describe("NodeWorkspace.isSymbolicLink", () => {
+    let root: string;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-symlink-"));
+    });
+
+    afterEach(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    it("is false for a regular file", async () => {
+        const file = join(root, ".env");
+        await fs.writeFile(file, "MIRAGON_TOKEN=secret");
+
+        expect(await new NodeWorkspace().isSymbolicLink(file)).toBe(false);
+    });
+
+    it("is true for a symbolic link to a file", async () => {
+        const target = join(root, "elsewhere.env");
+        await fs.writeFile(target, "MIRAGON_TOKEN=secret");
+        const link = join(root, ".env");
+        await fs.symlink(target, link);
+
+        expect(await new NodeWorkspace().isSymbolicLink(link)).toBe(true);
+    });
+
+    it("is true for a dangling symbolic link", async () => {
+        const link = join(root, ".env");
+        await fs.symlink(join(root, "deleted.env"), link);
+
+        expect(await new NodeWorkspace().isSymbolicLink(link)).toBe(true);
+    });
+
+    it("is false for a missing path", async () => {
+        expect(await new NodeWorkspace().isSymbolicLink(join(root, ".env"))).toBe(false);
+    });
+});
+
+/**
+ * A workspace-root `.env` directory (e.g. a Python virtualenv) once failed
+ * every deploy with EISDIR, even for targets that reference no variables.
+ */
+describe("EnvValueResolver over a real NodeWorkspace", () => {
+    const REFERENCES_ENV = envRefsIn("${env:MIRAGON_TOKEN}");
+    const SCOPES: EnvScope[] = ["targetsFile", "workspaceFolder"];
+
+    let root: string;
+    let workspace: NodeWorkspace;
+    let locateTargetsFile: Mock<() => Promise<TargetsLocation>>;
+    let resolver: EnvValueResolver;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-dotenv-"));
+        workspace = new NodeWorkspace();
+        workspace.registerRoot(root);
+        locateTargetsFile = vi.fn(async () => ({
+            filePath: join(root, ".camunda", "deployment-targets.json"),
+            exists: true,
+            projectDir: root,
+        }));
+        resolver = new EnvValueResolver({ locateTargetsFile }, workspace);
+    });
+
+    afterEach(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    it.each(SCOPES)(
+        "ignores a .env directory when nothing references env in the %s scope",
+        async (scope) => {
+            await fs.mkdir(join(root, ".env"));
+            const readFile = vi.spyOn(workspace, "readFile");
+
+            const lookup = await resolver.createLookup(
+                scope,
+                join(root, "processes"),
+                envRefsIn("https://engine.example/rest"),
+            );
+
+            expect(lookup).toBe(NO_ENV_VARIABLES);
+            expect(readFile).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(SCOPES)(
+        "rejects a .env directory with UnreadableDotEnvError when a reference needs it in the %s scope",
+        async (scope) => {
+            await fs.mkdir(join(root, ".env"));
+
+            const result = resolver.createLookup(scope, join(root, "processes"), REFERENCES_ENV);
+
+            await expect(result).rejects.toBeInstanceOf(UnreadableDotEnvError);
+            await expect(result).rejects.toMatchObject({
+                path: join(root, ".env"),
+                message: expect.stringContaining("EISDIR"),
+            });
+        },
+    );
+
+    it.each(SCOPES)(
+        "refuses a symlinked .env without reading its target in the %s scope",
+        async (scope) => {
+            const foreignSecrets = join(root, "other-project.env");
+            await fs.writeFile(foreignSecrets, "MIRAGON_TOKEN=foreign");
+            await fs.symlink(foreignSecrets, join(root, ".env"));
+            const readFile = vi.spyOn(workspace, "readFile");
+
+            const result = resolver.createLookup(scope, join(root, "processes"), REFERENCES_ENV);
+
+            await expect(result).rejects.toBeInstanceOf(UnreadableDotEnvError);
+            await expect(result).rejects.toMatchObject({
+                path: join(root, ".env"),
+                message: expect.stringContaining("symbolic links are not followed"),
+            });
+            expect(readFile).not.toHaveBeenCalled();
+        },
+    );
+
+    it("resolves only MIRAGON_-prefixed variables from a regular .env", async () => {
+        await fs.writeFile(
+            join(root, ".env"),
+            "MIRAGON_TOKEN=secret\nAWS_SECRET_ACCESS_KEY=foreign\n",
+        );
+
+        const lookup = await resolver.createLookup(
+            "targetsFile",
+            join(root, "processes"),
+            REFERENCES_ENV,
+        );
+
+        expect(lookup("MIRAGON_TOKEN")).toBe("secret");
+        expect(lookup("AWS_SECRET_ACCESS_KEY")).toBeUndefined();
+        expect(lookup.source).toBe(join(root, ".env"));
+    });
+
+    it.each(SCOPES)(
+        "reads the .env for a diagram directly in the workspace root in the %s scope",
+        async (scope) => {
+            await fs.writeFile(join(root, ".env"), "MIRAGON_TOKEN=secret");
+
+            const lookup = await resolver.createLookup(scope, root, REFERENCES_ENV);
+
+            expect(lookup("MIRAGON_TOKEN")).toBe("secret");
+        },
+    );
+
+    it("returns a lookup naming the .env path when the file is missing", async () => {
+        const lookup = await resolver.createLookup(
+            "targetsFile",
+            join(root, "processes"),
+            REFERENCES_ENV,
+        );
+
+        expect(lookup("MIRAGON_TOKEN")).toBeUndefined();
+        expect(lookup.source).toBe(join(root, ".env"));
+    });
+
+    it("reads an ad-hoc reference from the innermost registered root's .env", async () => {
+        const nestedRoot = join(root, "nested");
+        await fs.mkdir(nestedRoot);
+        await fs.writeFile(join(root, ".env"), "MIRAGON_TOKEN=outer");
+        await fs.writeFile(join(nestedRoot, ".env"), "MIRAGON_TOKEN=inner");
+        workspace.registerRoot(nestedRoot);
+
+        const lookup = await resolver.createLookup(
+            "workspaceFolder",
+            join(nestedRoot, "processes"),
+            REFERENCES_ENV,
+        );
+
+        expect(lookup("MIRAGON_TOKEN")).toBe("inner");
+        expect(lookup.source).toBe(join(nestedRoot, ".env"));
+    });
+
+    it.each(SCOPES)(
+        "reads no .env for a document outside every registered root in the %s scope",
+        async (scope) => {
+            await fs.writeFile(join(root, ".env"), "MIRAGON_TOKEN=secret");
+            const readFile = vi.spyOn(workspace, "readFile");
+
+            const lookup = await resolver.createLookup(
+                scope,
+                join(tmpdir(), "outside-every-root"),
+                REFERENCES_ENV,
+            );
+
+            expect(lookup).toBe(NO_ENV_VARIABLES);
+            expect(locateTargetsFile).not.toHaveBeenCalled();
+            expect(readFile).not.toHaveBeenCalled();
+        },
+    );
+});
+
+/**
+ * A vendored project's own targets file sits nearer to its diagrams than the
+ * workspace root's; its `.env` must not supply variables for an endpoint the
+ * user typed ad hoc.
+ */
+describe("EnvValueResolver beside a nested targets file", () => {
+    const ENDPOINT_TEMPLATE = "https://${env:MIRAGON_HOST}/engine-rest";
+
+    let root: string;
+    let nestedProject: string;
+    let targetsLocator: DeploymentTargetService;
+    let resolver: EnvValueResolver;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-dotenv-scope-"));
+        nestedProject = join(root, "vendor", "lib");
+        await fs.mkdir(join(nestedProject, ".camunda"), { recursive: true });
+        await fs.writeFile(join(root, ".env"), "MIRAGON_HOST=engine.corp\n");
+        await fs.writeFile(join(nestedProject, ".env"), "MIRAGON_HOST=attacker\n");
+        await fs.writeFile(
+            join(nestedProject, ".camunda", "deployment-targets.json"),
+            JSON.stringify({ targets: [] }),
+        );
+        const workspace = new NodeWorkspace();
+        workspace.registerRoot(root);
+        const settings = new BridgeSettings();
+        targetsLocator = new DeploymentTargetService(
+            new ArtifactService(workspace, settings),
+            settings,
+            workspace,
+            {} as never,
+            {} as never,
+            {} as never,
+            {} as never,
+        );
+        resolver = new EnvValueResolver(targetsLocator, workspace);
+    });
+
+    afterEach(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    it("resolves an ad-hoc reference from the workspace folder's .env", async () => {
+        await expect(targetsLocator.locateTargetsFile(nestedProject)).resolves.toMatchObject({
+            projectDir: nestedProject,
+            exists: true,
+        });
+        const locateTargetsFile = vi.spyOn(targetsLocator, "locateTargetsFile");
+
+        const lookup = await resolver.createLookup(
+            "workspaceFolder",
+            nestedProject,
+            envRefsIn(ENDPOINT_TEMPLATE),
+        );
+
+        expect(expandEnvRefs(ENDPOINT_TEMPLATE, lookup, "endpoint")).toBe(
+            "https://engine.corp/engine-rest",
+        );
+        expect(lookup.source).toBe(join(root, ".env"));
+        expect(locateTargetsFile).not.toHaveBeenCalled();
+    });
+
+    it("resolves a named target's reference from the nested project's .env", async () => {
+        const lookup = await resolver.createLookup(
+            "targetsFile",
+            nestedProject,
+            envRefsIn(ENDPOINT_TEMPLATE),
+        );
+
+        expect(expandEnvRefs(ENDPOINT_TEMPLATE, lookup, "endpoint")).toBe(
+            "https://attacker/engine-rest",
+        );
+        expect(lookup.source).toBe(join(nestedProject, ".env"));
     });
 });

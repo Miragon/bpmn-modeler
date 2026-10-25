@@ -11,9 +11,11 @@ import {
     HttpClient,
 } from "../../domain/ports";
 import { EngineDeploymentSnapshot } from "../../domain/deploymentVerification";
+import { SecretRedactor } from "../../domain/secretRedactor";
 import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
 import { expandUrlTemplate, stripTrailingSlash } from "../../domain/urlTemplate";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
+import { engineErrorDetail, requestRedactor } from "./engineError";
 import { MultipartBuilder } from "./MultipartBuilder";
 
 /**
@@ -64,7 +66,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
 
         const fullUrl =
             config.deployUrl ?? `${stripTrailingSlash(config.endpoint)}/deployment/create`;
-        const extraHeaders = await this.authResolver.resolve(config.auth);
+        const extraHeaders = await this.authResolver.resolve(config.auth, config.redactor());
 
         const { status, body: responseBody } = await this.httpClient.postMultipart(
             fullUrl,
@@ -74,7 +76,13 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         );
 
         if (status < 200 || status >= 300) {
-            throw new DeploymentFailedError(status, responseBody);
+            throw new DeploymentFailedError(
+                status,
+                engineErrorDetail(
+                    responseBody,
+                    requestRedactor(config.redactor(), extraHeaders, fullUrl, config.endpoint),
+                ),
+            );
         }
 
         let deploymentId: string | undefined;
@@ -101,7 +109,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
      * @throws {StartInstanceFailedError} If the server returns a non-2xx status.
      */
     async startInstance(config: StartInstanceConfig): Promise<StartInstanceResult> {
-        const extraHeaders = await this.authResolver.resolve(config.auth);
+        const extraHeaders = await this.authResolver.resolve(config.auth, config.redactor());
 
         const fullUrl = config.startInstanceUrl
             ? expandUrlTemplate(config.startInstanceUrl, {
@@ -119,7 +127,13 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         );
 
         if (status < 200 || status >= 300) {
-            throw new StartInstanceFailedError(status, responseBody);
+            throw new StartInstanceFailedError(
+                status,
+                engineErrorDetail(
+                    responseBody,
+                    requestRedactor(config.redactor(), extraHeaders, fullUrl, config.endpoint),
+                ),
+            );
         }
 
         let processInstanceId: string | undefined;
@@ -153,14 +167,17 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         request: DefinitionLookup,
     ): Promise<EngineDeploymentSnapshot | undefined> {
         const base = stripTrailingSlash(request.endpoint);
-        const headers = await this.authResolver.resolve(request.auth);
+        const requestSecrets = request.auth.redactor().and(SecretRedactor.of(...request.envValues));
+        const headers = await this.authResolver.resolve(request.auth, requestSecrets);
 
         const keyPath = request.tenantId.trim()
             ? `key/${encodeURIComponent(request.processKey)}/tenant-id/${encodeURIComponent(request.tenantId.trim())}`
             : `key/${encodeURIComponent(request.processKey)}`;
+        const redactor = requestRedactor(requestSecrets, headers, request.endpoint);
         const definition = await this.getJsonOrThrow(
             `${base}/process-definition/${keyPath}`,
             headers,
+            redactor,
             { undefinedOn404: true },
         );
         if (definition === undefined) {
@@ -170,6 +187,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         const xmlResponse = await this.getJsonOrThrow(
             `${base}/process-definition/${encodeURIComponent(String(definition.id))}/xml`,
             headers,
+            redactor,
         );
 
         return {
@@ -181,6 +199,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
                 base,
                 String(definition.deploymentId),
                 headers,
+                redactor,
             ),
         };
     }
@@ -190,11 +209,13 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         base: string,
         deploymentId: string,
         headers: Record<string, string>,
+        redactor: SecretRedactor,
     ): Promise<string | undefined> {
         try {
             const deployment = await this.getJsonOrThrow(
                 `${base}/deployment/${encodeURIComponent(deploymentId)}`,
                 headers,
+                redactor,
             );
             const time = deployment?.deploymentTime;
             return time !== undefined && time !== null ? String(time) : undefined;
@@ -206,6 +227,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
     private async getJsonOrThrow(
         url: string,
         headers: Record<string, string>,
+        redactor: SecretRedactor,
         opts?: { undefinedOn404: boolean },
     ): Promise<Record<string, unknown> | undefined> {
         const { status, body } = await this.httpClient.getJson(url, headers);
@@ -213,7 +235,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
             return undefined;
         }
         if (status < 200 || status >= 300) {
-            throw new EngineInspectionFailedError(status, body);
+            throw new EngineInspectionFailedError(status, engineErrorDetail(body, redactor));
         }
         try {
             return JSON.parse(body) as Record<string, unknown>;

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { NotifierPort, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
+import { settle } from "./__fixtures__/bridgeHarness";
 import {
     DocumentMirror,
     RpcClipboard,
@@ -133,7 +134,52 @@ describe("RpcEditorHandle", () => {
         expect(handle.documentPath()).toBe(META.path);
         expect(handle.documentFsPath()).toBe(META.fsPath);
         expect(handle.documentScheme()).toBe(META.scheme);
-        expect(handle.isActive()).toBe(true);
+    });
+
+    it("reports focus changes the store drives through setActive", () => {
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
+        const focus: boolean[] = [];
+        handle.onDidChangeActive((active) => focus.push(active));
+
+        handle.setActive(true);
+        handle.setActive(true);
+        handle.setActive(false);
+
+        expect(focus).toEqual([true, false]);
+        expect(handle.isActive()).toBe(false);
+    });
+
+    it("reports mirrored content changes of its own document only", () => {
+        const mirror = new DocumentMirror();
+        const handle = new RpcEditorHandle(META, mirror, new Rpc(() => {}), new BridgeSettings());
+        const changed: string[] = [];
+        handle.onDidChangeDocument((event) => changed.push(event.documentUriString()));
+
+        mirror.setContent(META.editorId, "<edited/>");
+        mirror.setContent("file:///other.bpmn", "<other/>");
+
+        expect(changed).toEqual([META.uriString]);
+    });
+
+    it("runs its dispose callbacks once", () => {
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
+        const disposed = vi.fn();
+        handle.onDidDispose(disposed);
+
+        handle.dispose();
+        handle.dispose();
+
+        expect(disposed).toHaveBeenCalledOnce();
     });
 
     it("postMessage forwards an editor/postMessage notification", async () => {
@@ -683,9 +729,6 @@ describe("RpcStatusBar", () => {
 });
 
 describe("RpcPicker", () => {
-    /** Lets a `findFiles`-then-`show` chain settle before the frame is asserted. */
-    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
     function setup() {
         const h = harness();
         const finder = { findFiles: vi.fn() };
@@ -812,7 +855,7 @@ describe("RpcPicker", () => {
             kind: "matches",
             paths: ["/w/b.bpmn", "/w/a.bpmn"],
         }));
-        await flush();
+        await settle();
 
         // No busy list on the host, so the search keeps the status-bar spinner:
         // progress brackets it, then the picker opens.
@@ -855,7 +898,7 @@ describe("RpcPicker", () => {
             kind: "matches",
             paths: ["/w/a.bpmn", "/w/b.bpmn"],
         }));
-        await flush();
+        await settle();
         await answerLast({ selected: null });
         await expect(pending).resolves.toEqual({
             outcome: { kind: "matches", paths: ["/w/a.bpmn", "/w/b.bpmn"] },
@@ -899,7 +942,7 @@ describe("RpcPicker", () => {
             exclude: "**/element-templates/**",
             placeholder: "Pick files",
         });
-        await flush();
+        await settle();
 
         expect(finder.findFiles).toHaveBeenCalledWith(
             "**/*.{form,json,dmn}",
@@ -918,7 +961,7 @@ describe("RpcPicker", () => {
         const { picker, answerLast, finder } = setup();
         finder.findFiles.mockResolvedValue(["/w/a.form"]);
         const pending = picker.pickWorkspaceFiles({ glob: "**/*.form", placeholder: "Pick" });
-        await flush();
+        await settle();
         await answerLast({ selected: null });
         await expect(pending).resolves.toEqual([]);
     });

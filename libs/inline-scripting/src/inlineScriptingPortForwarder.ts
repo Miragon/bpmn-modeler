@@ -1,5 +1,5 @@
-import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
-import type { OpenScriptEditorEvent } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
+import type { OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { SCRIPT_SOURCE_CHANGED_EVENT } from "./scriptSourceWatcher";
 import type { ScriptSourceChangedEvent } from "./scriptSourceWatcher";
 import type { InlineScriptingPort } from "./InlineScriptingPort";

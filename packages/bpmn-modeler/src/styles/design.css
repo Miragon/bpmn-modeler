@@ -7,7 +7,7 @@
  * chrome (hide-until-configured, so it costs nothing unless a host
  * injects linting) — plus the dark-theme overrides scoped under
  * `[data-bpmn-theme="dark"]`. It loads none of the Camunda editor chrome
- * (camunda-bpmn-js, element templates) the full `styles.css` carries.
+ * (element templates) the full `styles.css` carries.
  * Do not also load `styles.css` on a design-only page; the two overlap.
  */
 @import "diagram-js/assets/diagram-js.css";

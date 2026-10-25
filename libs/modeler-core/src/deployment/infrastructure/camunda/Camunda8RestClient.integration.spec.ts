@@ -10,6 +10,15 @@ import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/de
 import { StartInstanceConfig } from "../../domain/startInstance";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
 
+function escapeHtml(value: string | undefined): string {
+    return (value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 /**
  * Integration tests for {@link Camunda8RestClient}.
  *
@@ -489,5 +498,102 @@ describe("Camunda8RestClient (integration)", () => {
         await client.deploy(config, new Map([["p.bpmn", "<b/>"]]));
 
         expect(authHeader).toBeUndefined();
+    });
+
+    // ── Error bodies ────────────────────────────────────────────────────
+
+    describe("error bodies", () => {
+        const apiKey = "q-SECRET-4711";
+
+        async function rejectionOf(operation: Promise<unknown>): Promise<Error> {
+            return operation.then(
+                () => {
+                    throw new Error("expected the request to fail");
+                },
+                (error: Error) => error,
+            );
+        }
+
+        it("masks the query secret and the bearer token a gateway echoes in a problem detail", async () => {
+            const accessToken = "eyJhbGciOiJSUzI1NiJ9.access-token";
+            handler = (req, _body, res) => {
+                if (req.url === "/oauth/token") {
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ access_token: accessToken }));
+                    return;
+                }
+                res.writeHead(401, { "Content-Type": "application/problem+json" });
+                res.end(
+                    JSON.stringify({
+                        type: "about:blank",
+                        title: "UNAUTHORIZED",
+                        status: 401,
+                        detail: `Rejected ${req.url} with ${req.headers.authorization}`,
+                    }),
+                );
+            };
+            const config = new DeploymentConfig(
+                "my-deploy",
+                "",
+                baseUrl,
+                "c8",
+                "/tmp/proc.bpmn",
+                [],
+                new OAuth2Auth("cid", "csec", `${baseUrl}/oauth/token`, ""),
+                `${baseUrl}/custom/deploy?apikey=${apiKey}`,
+            );
+
+            const error = await rejectionOf(
+                createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
+            );
+
+            expect(error).toBeInstanceOf(DeploymentFailedError);
+            expect(error.message).toMatch(
+                /^Deployment failed with HTTP 401: Rejected \/custom\/deploy/,
+            );
+            expect(error.message).not.toContain(apiKey);
+            expect(error.message).not.toContain(accessToken);
+        });
+
+        it("reports only the status when an echo service returns the request as JSON", async () => {
+            handler = (req, _body, res) => {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ url: req.url, headers: req.headers }));
+            };
+            const config = new StartInstanceConfig(
+                "myProc",
+                baseUrl,
+                "c8",
+                new BasicAuth("deployer", "pa55-word"),
+                null,
+                `${baseUrl}/custom/{processDefinitionKey}/start?apikey=${apiKey}`,
+            );
+
+            await expect(createClient().startInstance(config)).rejects.toThrow(
+                /^Start instance failed with HTTP 400\.$/,
+            );
+        });
+
+        it("reports only the status for an HTML error page", async () => {
+            handler = (req, _body, res) => {
+                res.writeHead(502, { "Content-Type": "text/html" });
+                res.end(
+                    `<html><head><title>502 Bad Gateway</title></head><body>${escapeHtml(req.url)} ${escapeHtml(req.headers.authorization)}</body></html>`,
+                );
+            };
+            const config = new DeploymentConfig(
+                "my-deploy",
+                "",
+                baseUrl,
+                "c8",
+                "/tmp/proc.bpmn",
+                [],
+                new BasicAuth("deployer", "pa55-word"),
+            );
+
+            await expect(
+                createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
+            ).rejects.toThrow(/^Deployment failed with HTTP 502\.$/);
+        });
     });
 });

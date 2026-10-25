@@ -108,13 +108,21 @@ describe("createViewer (runtime, jsdom)", () => {
         expect(() => viewer!.getService("canvas")).toThrow(NoModelerError);
     });
 
+    it("rejects an export on a destroyed viewer with NoModelerError", async () => {
+        container = mount();
+        viewer = await createViewer(container);
+        viewer.destroy();
+
+        await expect(viewer.exportDiagram()).rejects.toBeInstanceOf(NoModelerError);
+    });
+
     describe("readonly properties panel (opt-in, #1443)", () => {
         // Entry-level readonly behaviour (every input disabled, no add/remove
         // affordances) is proven in the lib's own specs
         // (`propertiesPanelRenderer.spec.tsx`, `applyReadonly.spec.ts`); the AC
         // "interact with every entry, export unchanged" needs a rendered panel
-        // body and thus `importXML` — the jsdom SVG wall above. The demo page
-        // (`viewer.html`) is the manual/browser proof for that path.
+        // body and thus `importXML` — the jsdom SVG wall above — so only a
+        // browser spec can prove that path.
         let parent: HTMLElement;
 
         afterEach(() => {

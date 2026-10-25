@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskService } from "../../../../scriptTask/index";
-import { EditorSessionContext } from "../../../editor-session/EditorSessionParticipant";
+import { EditorSessionContext } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskTeardownParticipant } from "./ScriptTaskTeardownParticipant";
 
 const EDITOR_ID = "file:///diagram.bpmn";
@@ -11,8 +11,10 @@ function createContext() {
     const captured: { dispose?: () => void } = {};
     const context: EditorSessionContext = {
         editorId: EDITOR_ID,
-        panel: {} as never,
         isCurrent: () => true,
+        isFocused: () => true,
+        onFocusChange: vi.fn(),
+        onReseed: vi.fn(),
         onDocumentChange: vi.fn(),
         onSettingChange: vi.fn(),
         onDispose: (cb) => void (captured.dispose = cb),

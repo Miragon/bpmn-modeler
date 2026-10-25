@@ -5,6 +5,7 @@ import {
     TokenStorePort,
 } from "../../shared/domain/hostPorts";
 import {
+    expandHomePath,
     InvalidMarketplaceError,
     marketplaceEntryLabel,
     MarketplaceLocation,
@@ -694,22 +695,7 @@ export class TemplateMarketplaceService {
                 baseUrl: source.baseUrl,
             };
         }
-        return { kind: "local", rootDir: this.expandHome(source.path), path: "" };
-    }
-
-    /**
-     * Expands a leading `~` against the injected home directory. The join uses
-     * `/` (never `node:path`) to keep the core host-agnostic; the adapter
-     * normalises separators when it reads the directory.
-     */
-    private expandHome(path: string): string {
-        if (path === "~") {
-            return this.homeDir;
-        }
-        if (path.startsWith("~/") || path.startsWith("~\\")) {
-            return `${this.homeDir}/${path.slice(2)}`;
-        }
-        return path;
+        return { kind: "local", rootDir: expandHomePath(source.path, this.homeDir), path: "" };
     }
 
     /**

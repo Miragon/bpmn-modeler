@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
 import { SCRIPT_SOURCE_CHANGED_EVENT } from "./scriptSourceWatcher";
 import { InlineScriptingPortForwarder } from "./inlineScriptingPortForwarder";
 

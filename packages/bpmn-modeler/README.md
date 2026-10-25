@@ -11,7 +11,7 @@ the Camunda element-template stack.
 npm install @miragon/bpmn-modeler
 ```
 
-The bpmn-io stack (`bpmn-js`, `diagram-js`, `camunda-bpmn-js`, …) ships as real
+The bpmn-io stack (`bpmn-js`, `diagram-js`, `bpmn-js-properties-panel`, …) ships as real
 `dependencies`, so a single install pulls everything the modeler needs.
 
 > `tiny-svg@4.1.4` is currently a direct runtime dependency as a compatibility
@@ -303,6 +303,11 @@ Semantics:
 - **Stale references degrade gracefully.** A `rootElementId` whose sub-process no longer exists
   falls back to the top-level plane, and `selectedElementIds` that are gone are silently skipped — a
   snapshot taken against a since-edited diagram still applies without throwing.
+- **An explicit viewport wins over the initial fit.** Every surface fits a loaded (or new) diagram
+  to view once its container has a size. An `applyViewState`, `viewport.setViewport` or
+  `viewport.centerOnElement` right after the load decides the viewport instead. A viewbox restored
+  while the container is still unsized is held and applied once it is laid out;
+  `centerOnElement` returns `false` until then.
 
 ## Clipboard wire format
 
@@ -475,17 +480,18 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 
 | Method                                                                                         | Meaning                                                                               |
 |------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `loadDiagram(xml)` / `exportDiagram()` / `getDiagramSvg()`                                     | Load / serialise the diagram.                                                         |
-| `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode. |
+| `loadDiagram(xml)` / `exportDiagram()` / `getDiagramSvg()`                                     | Load / serialise the diagram; a load [fits it to view](#view-state-capture--restore). |
+| `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode; fits it to view like a load. |
 | `setElementTemplates(templates)`                                                               | Push a new template set (data, never a path).                                         |
 | `setSettings(settings)`                                                                        | Merge a partial settings update (`colorTheme` excluded — theme is host policy).       |
+| `setFavouriteBpmnElements(types)`                                                              | Replace the append/create-menu favourites live; same as `setSettings({ favouriteBpmnElements })`. Also on `BpmnDesignerHandle`. |
 | `viewport` / `selection`                                                                       | Viewport (zoom/scroll/fit) and selection accessors.                                   |
 | `captureViewState()` / `applyViewState(state)`                                                 | [View state](#view-state-capture--restore) capture/restore across an instance switch. |
-| `setTheme(theme)`                                                                              | Switch the colour theme live.                                                         |
+| `setTheme(theme)`                                                                              | Switch the colour theme live; a no-op once destroyed.                                 |
 | `setMode(mode)` / `getMode()`                                                                  | Switch / read the design-implement mode live (fires `onModeChanged`).                 |
 | `applyLintResults(results)` / `applyLintingDisabled()` / `startInPageLinting(config?, token?)` | Host-driven lint state.                                                               |
 | `getService(name)`                                                                             | Reach a [core service](#core-services--escape-hatch) or the escape hatch.             |
-| `destroy()`                                                                                    | Tear the instance down.                                                               |
+| `destroy()`                                                                                    | Tear the instance down. Idempotent; every other member except the no-op `setTheme` then throws `NoModelerError`, including host pushes. |
 
 ### Surviving design mode
 
@@ -568,8 +574,7 @@ throws too.
 
 ### Kept out of the module graph
 
-`camunda-bpmn-js`, `bpmnlint` /
-`bpmn-js-bpmnlint`, `bpmn-js-create-append-anything`,
+`bpmnlint` / `bpmn-js-bpmnlint`, `bpmn-js-create-append-anything`,
 `camunda-transaction-boundaries`, and `minisearch` — the Camunda editor stack.
 `bpmn-js-token-simulation` (its viewer module) and `diagram-js-minimap` **are**
 present: engine-neutral canvas chrome shared by every surface ([BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)). The shared i18n translator
@@ -594,8 +599,10 @@ two overlap, so do **not** load both on a viewer-only page.
 conceptual modelling. It wraps the base bpmn-js `Modeler`
 (palette, context pad, modelling, copy-paste, keyboard, search) plus an engine-neutral properties
 panel (general / documentation groups only), a minimap, and the neutral UX modules (translate,
-append menu, flow navigation). It loads **none** of the Camunda editor stack — no camunda-bpmn-js,
-element templates, or transaction boundaries — so it never carries an execution platform. Linting is
+append menu, flow navigation). The create, append and replace menus describe each element and
+find it by engine-neutral keywords ("child process" finds the call activity); the C7/C8 modelers
+add their engine's wording and keywords ("java delegate", "job worker") on top. It loads **none** of the Camunda editor stack — no Camunda moddles or
+behaviors, element templates, or transaction boundaries — so it never carries an execution platform. Linting is
 available on the same injection-only seam as the root (omit for none; the engine-neutral Design
 config applies), and the lint *stack* still stays out of the design chunk unless you inject it via
 `/lint`.
@@ -647,7 +654,7 @@ designer.getService( "commandStack" ); // editable: modelling services are prese
 | `propertiesPanel`                    | `{ parent: HTMLElement }`          | — (required)  | The panel host, as in `createModeler`. Shows only the general / documentation groups.                                                                                             |
 | `theme`                              | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme; toggles a per-instance `data-bpmn-theme` attribute.                                                                                                                 |
 | `locale`                             | `string`                           | `"en"`        | UI locale — Design mode has translatable UI (unlike the viewer).                                                                                                                  |
-| `favouriteBpmnElements`              | `string[]`                         | —             | Element types offered first in the append/create menu.                                                                                                                            |
+| `favouriteBpmnElements`              | `string[]`                         | —             | Element types offered first in the append/create menu (at most six); change them live with `setFavouriteBpmnElements`.                                                            |
 | `clipboard`                          | `ClipboardOptions`                 | native        | Clipboard override for sandboxed hosts.                                                                                                                                           |
 | `moddleExtensions`                   | `Record<string, object>`           | —             | Extra moddle extensions for a host's own BPMN namespace.                                                                                                                          |
 | `additionalModules`                  | `unknown[]`                        | —             | Escape hatch: extra bpmn-js DI modules.                                                                                                                                           |
@@ -675,9 +682,10 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 
 `loadDiagram`, `exportDiagram`, `newDiagram`, `getDiagramSvg`, `viewport`,
 `selection`, `captureViewState`, `applyViewState`, `setTheme`, `getService`,
-`applyLintResults`, `applyLintingDisabled`, `startInPageLinting`, and
-`destroy` — each **signature-identical** to its `BpmnModelerHandle` counterpart, so a modeler handle
-narrows to a designer handle with no adapter.
+`applyLintResults`, `applyLintingDisabled`, `startInPageLinting`,
+`setFavouriteBpmnElements`, and `destroy` — each **signature-identical** to its
+`BpmnModelerHandle` counterpart, so a modeler handle narrows to a designer
+handle with no adapter.
 `captureViewState` / `applyViewState` (see
 [View state](#view-state-capture--restore)) carry the user's plane, viewbox, and selection across a
 mode switch. `getService` is typed against `CoreDesignerServices`, which equals the full
@@ -688,8 +696,7 @@ which carries **no** `modeler:executionPlatform`, so a fresh diagram stays engin
 
 ### Guaranteed absent from the module graph
 
-`camunda-bpmn-js`, `camunda-bpmn-moddle` / `zeebe-bpmn-moddle`,
-`camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
+`camunda-bpmn-moddle` / `zeebe-bpmn-moddle`, `camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
 `bpmn-js-element-templates`, `@miragon/create-append-c7`, and `minisearch`. The lint stack
 (`bpmnlint` / `bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`)
 is **also** absent from the design chunk **unless you inject it** via `/lint` — the designer
@@ -872,9 +879,9 @@ brings no extra stylesheet wiring.
   history.
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
   `preact`, the bpmn-js / diagram-js / moddle core, and the properties-panel / CodeMirror
-  stack. `camunda-bpmn-js` declares caret ranges for bpmn-js and diagram-js, so package
-  managers that resolve each range independently (Yarn Berry, pnpm) can install a second,
-  newer copy next to the one this package pins. If you build with Vite, add these to
+  stack. bpmn-js declares a caret range for diagram-js, so package managers that resolve
+  each range independently (Yarn Berry, pnpm) can install a second, newer diagram-js next
+  to the one this package pins. If you build with Vite, add these to
   `resolve.dedupe`:
 
   ```ts
@@ -904,7 +911,7 @@ brings no extra stylesheet wiring.
 ## License
 
 Apache-2.0 — see [`LICENSE`](./LICENSE). This package bundles and depends on third-party software
-(bpmn-js, diagram-js, camunda-bpmn-js and the bpmn.io ecosystem, bpmnlint, and others); their
+(bpmn-js, diagram-js and the bpmn.io ecosystem, bpmnlint, and others); their
 respective licenses and the bpmn.io watermark requirement continue to apply to your usage.
 
 The engine-neutral properties panel shipped in the `/design` subpath is a fork

@@ -4,6 +4,7 @@ import { CamundaEnginePort, HttpClient } from "../../domain/ports";
 import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
 import { expandUrlTemplate, stripTrailingSlash } from "../../domain/urlTemplate";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
+import { engineErrorDetail, requestRedactor } from "./engineError";
 import { MultipartBuilder } from "./MultipartBuilder";
 
 /**
@@ -55,7 +56,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
         const fullUrl =
             config.deployUrl ??
             `${stripTrailingSlash(config.endpoint)}/${this.apiVersion}/deployments`;
-        const extraHeaders = await this.authResolver.resolve(config.auth);
+        const extraHeaders = await this.authResolver.resolve(config.auth, config.redactor());
 
         const { status, body: responseBody } = await this.httpClient.postMultipart(
             fullUrl,
@@ -65,7 +66,13 @@ export class Camunda8RestClient implements CamundaEnginePort {
         );
 
         if (status < 200 || status >= 300) {
-            throw new DeploymentFailedError(status, responseBody);
+            throw new DeploymentFailedError(
+                status,
+                engineErrorDetail(
+                    responseBody,
+                    requestRedactor(config.redactor(), extraHeaders, fullUrl, config.endpoint),
+                ),
+            );
         }
 
         let deploymentId: string | undefined;
@@ -96,7 +103,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
      * @throws {StartInstanceFailedError} If the server returns a non-2xx status.
      */
     async startInstance(config: StartInstanceConfig): Promise<StartInstanceResult> {
-        const extraHeaders = await this.authResolver.resolve(config.auth);
+        const extraHeaders = await this.authResolver.resolve(config.auth, config.redactor());
 
         const fullUrl = config.startInstanceUrl
             ? expandUrlTemplate(config.startInstanceUrl, {
@@ -115,7 +122,13 @@ export class Camunda8RestClient implements CamundaEnginePort {
         );
 
         if (status < 200 || status >= 300) {
-            throw new StartInstanceFailedError(status, responseBody);
+            throw new StartInstanceFailedError(
+                status,
+                engineErrorDetail(
+                    responseBody,
+                    requestRedactor(config.redactor(), extraHeaders, fullUrl, config.endpoint),
+                ),
+            );
         }
 
         let processInstanceId: string | undefined;

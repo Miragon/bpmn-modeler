@@ -15,7 +15,7 @@ export default defineConfig({
         coverage: {
             // The stdio entry point binds process streams on import.
             ...coveragePreset(__dirname, { exclude: ["src/server.ts"] }),
-            thresholds: { statements: 87, branches: 78, functions: 84, lines: 87 },
+            thresholds: { statements: 89, branches: 79, functions: 88, lines: 89 },
         },
     },
 });

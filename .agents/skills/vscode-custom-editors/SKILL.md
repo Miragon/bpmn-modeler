@@ -1,6 +1,6 @@
 ---
 name: vscode-custom-editors
-description: VS Code CustomTextEditorProvider pattern — registration, document sync, lifecycle, disposables, the generic ModelerEditorController + EditorSessionParticipant pattern, BPMN/DMN differences. Use this skill whenever working on the editor controller, document synchronization, CustomTextEditorProvider, webview lifecycle, editor registration, resolveCustomTextEditor, EditorSessionStore, session participants, or understanding how BPMN/DMN files are opened and edited. Also consult this skill when debugging issues with editor state, hidden webviews, tab switching, or disposable cleanup — even if the user doesn't mention "custom editors" explicitly.
+description: How the BPMN, DMN and Form custom editors open, sync their document and run their session lifecycle. Use when working on editor registration, document sync, session participants, hidden webviews or disposal.
 ---
 
 # VS Code Custom Editors
@@ -38,22 +38,21 @@ VS Code calls this each time a file matching the selector is opened. The `editor
 
 1. **Diff branch (BPMN only)** — if `options.delegateResolve` returns true the diff controller owns the pane and no session is created.
 2. **Registers the editor** — `editorStore.register(VsCodeEditorHandle.create(...))`, which sets webview HTML and the active pointer.
-3. **Wires dispatch/tab/dispose** synchronously (before participants run, since the webview is already loading): message dispatch into the router, tab-change tracking, and a single aggregated dispose subscription.
-4. **Runs participants** — `for (const p of options.participants) await p.onResolve(ctx)`. Each participant registers its own concern (render + service session, element-template watcher, settings broadcast, status bar, script-task teardown).
+3. **Hands the session to `EditorSessionLifecycle.open`** (`libs/modeler-core`, the same lifecycle the IntelliJ bridge runs). It wires dispatch/focus/dispose synchronously (before participants run, since the webview is already loading): message dispatch into the router in document order, tab-change tracking, and a single aggregated dispose subscription. Then it runs every participant in isolation — a throw in one is shown and logged, and the rest still run.
 
 ### Per-editor concerns (participants + router)
 
-Lifecycle is split into independently testable `EditorSessionParticipant`s; webview messages go through a `WebviewMessageRouter` (not a `switch`):
+Lifecycle is split into independently testable `EditorSessionParticipant`s (contract and the host-free participants in `libs/modeler-core`; a participant sees focus, document, setting, re-seed and dispose events through its `EditorSessionContext`, never the panel); webview messages go through a `WebviewMessageRouter` (not a `switch`):
 
 | Concern | Where | Notes |
 |---|---|---|
-| Webview messages | `WebviewMessageRouter.dispatch` → handler factories in `<feature>/controller/webview-handlers/` | Replaces the old `switch(message.type)` |
-| Render + service session | `BpmnRenderParticipant` / `DmnRenderParticipant` | `service.registerSession` + doc-change → `service.display()` |
+| Webview messages | `WebviewMessageRouter.dispatch` → handler factories (host-agnostic ones in `libs/modeler-core`, VS Code-only ones in `<feature>/controller/webview-handlers/`) | Replaces the old `switch(message.type)` |
+| Render + service session | `DocumentRenderParticipant` (one per editor type, with the file extension) | `service.registerSession` + doc-change → `service.display()`; the services share `EditorDocumentSync` (echo guard, revision check, empty-file init) |
 | Element templates | `ElementTemplatesParticipant` (BPMN only) | config-folder watch via `ArtifactService.createWatcher()` |
-| Settings / language | `SettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (watches `miragon.bpmnModeler.*`) |
-| Engine-version status bar | `EngineVersionStatusBarParticipant` (BPMN only) | view-state → show/hide |
+| Settings / language | `BpmnSettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (watches `miragon.bpmnModeler.*`) |
+| Engine-version status bar | `EngineVersionStatusBarParticipant` (BPMN only) | focus → show/hide |
 | Tab tracking | `editorStore.subscribeToTabChangeEvent` | updates the active-editor pointer |
-| Dispose | controller aggregates every participant's `onDispose` into one `subscribeToDisposeEvent` | `disposeEditor` runs once, after store bookkeeping |
+| Dispose | the lifecycle aggregates every participant's `onDispose` into one `subscribeToDisposeEvent` | `disposeEditor` runs once, after store bookkeeping |
 
 ## Document Synchronization
 
@@ -72,8 +71,8 @@ When the user edits the diagram in the webview:
 1. `commandStack.changed` fires in bpmn-js
 2. Webview exports current XML, sends `SyncDocumentCommand` to extension host
 3. The editor's `WebviewMessageRouter` dispatches it to `syncDocumentHandler`, which calls `service.sync(editorId, content)`
-4. Service acquires echo-prevention guard, writes XML to document via `VsCodeDocument`
-5. `VsCodeDocument` uses `WorkspaceEdit.replace()` to update the full document content
+4. Service acquires echo-prevention guard, writes XML to document via `EditorSessionDocuments`
+5. `EditorSessionDocuments` delegates to the editor's `VsCodeEditorHandle`, which uses `WorkspaceEdit.replace()` to update the full document content
 
 ### WorkspaceEdit.replace() Pattern
 
@@ -94,7 +93,7 @@ Both editors share `ModelerEditorController`; the difference is purely in the `o
 | Concern | BPMN editor | DMN editor |
 |---|---|---|
 | **Router handlers** | full set (get-file, element-templates, settings + script resync, properties-panel get/set, structured + text clipboard, sync, open-script-editor, navigate-to-referenced-model) | 5 (`GetDmnFileCommand`, `GetDmnModelerSettingCommand`, `GetPropertiesPanelStateCommand`, `SetPropertiesPanelStateCommand`, `SyncDocumentCommand`) |
-| **Participants** | `BpmnRenderParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `SettingsParticipant`, `EngineVersionStatusBarParticipant`, `ScriptTaskTeardownParticipant`, `ScriptManifestParticipant`, `CodeLinkParticipant` | `DmnRenderParticipant`, `DmnSettingsParticipant` |
+| **Participants** | `DocumentRenderParticipant`, `FormReferenceStatusParticipant`, `DefinitionSearchParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `BpmnSettingsParticipant`, `EngineVersionStatusBarParticipant`, `DeploymentStatusParticipant`, `ScriptTaskTeardownParticipant`, `ScriptManifestParticipant`, `CodeLinkParticipant` | `DocumentRenderParticipant`, `DmnSettingsParticipant` |
 | **Diff delegation** | yes (`delegateResolve` → `BpmnDiffController`) | no |
 
 DMN files don't use element templates, BPMN settings, inline scripts, or the diff viewer, so the DMN editor simply gets fewer handlers and one participant.
@@ -103,9 +102,9 @@ DMN files don't use element templates, BPMN settings, inline scripts, or the dif
 
 Each editor instance gets its own disposable list managed by `EditorSessionStore`. When the editor is closed:
 
-1. `WebviewPanel.onDidDispose` fires the controller's single aggregated dispose subscription
+1. `WebviewPanel.onDidDispose` fires the lifecycle's single aggregated dispose subscription
 2. `EditorSessionStore.disposeEditor()` disposes all per-editor subscriptions and removes the entry
-3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTaskSvc.disposeForEditor(editorId)`) — collected by the controller and run **once**, after the store's bookkeeping
+3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTaskSvc.disposeForEditor(editorId)`) — collected by the lifecycle and run **once**, after the store's bookkeeping
 4. `EditorSessionStore` moves the active-editor pointer to the most recently registered remaining editor, or clears it
 
 This per-editor cleanup prevents memory leaks when editors are opened and closed repeatedly.
@@ -116,7 +115,7 @@ Multiple editors can be open simultaneously (e.g., two `.bpmn` files side by sid
 - A `Map` of all open editor handles keyed by `editorId` (the full `document.uri.toString()`)
 - An `activeEditorId` pointer updated via `onDidChangeViewState`
 - Per-editor isolation — each editor has its own webview, subscriptions, and session
-- An `onDidChangeActiveEditor` event that `DeploymentController` listens to for refreshing form defaults
+- An `onDidChangeActiveEditor` event that the core `DeploymentFeature` listens to for refreshing the open deployment panel's form defaults
 - A VS Code context variable (`bpmn-modeler.openCustomEditors`) tracking the count of open editors, used in keybinding/menu `when` clauses
 
 Services operate on the active editor by default. The echo-prevention guard is per-session, so concurrent edits in different editors don't interfere.
@@ -124,14 +123,15 @@ Services operate on the active editor by default. The echo-prevention guard is p
 ## Key Files
 
 - **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
-- **Session participant interface**: `apps/vscode-plugin/src/modeler/editor-session/EditorSessionParticipant.ts`
-- **BPMN participants / handlers**: `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts`
+- **Session lifecycle + participant contract**: `libs/modeler-core/src/shared/infrastructure/EditorSessionLifecycle.ts`, `libs/modeler-core/src/shared/domain/EditorSessionParticipant.ts`
+- **Shared participants / handlers**: `libs/modeler-core/src/<feature>/session/`, `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch` `infrastructure/*MessageHandlers.ts`)
+- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/*/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts` (inline scripts, linting switch)
 - **Message router**: `libs/modeler-core/src/shared/infrastructure/WebviewMessageRouter.ts` (host-agnostic; moved to modeler-core)
 - **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
 - **Editor session store**: `libs/modeler-core/src/shared/infrastructure/EditorSessionStore.ts` (`vscode`-free registry; moved to modeler-core)
 - **Editor handle**: `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts` (concrete VS Code adapter; stays in the app)
-- **Document Adapter**: `apps/vscode-plugin/src/shared/infrastructure/VsCodeDocument.ts`
+- **Document Adapter**: `libs/modeler-core/src/shared/infrastructure/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store; moved to modeler-core)
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`
 - **Editor wiring**: `apps/vscode-plugin/src/composition/editorFeature.ts`; **activation**: `apps/vscode-plugin/src/main.ts`

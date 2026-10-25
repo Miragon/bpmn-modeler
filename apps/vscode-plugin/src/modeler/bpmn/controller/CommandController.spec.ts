@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
+import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
 
 // The i18n-extras package declares no `main`/`exports`, so Vite cannot resolve
 // its real entry under vitest. A small fixture keeps the language list
@@ -72,69 +72,50 @@ vi.mock("vscode", () => ({
 }));
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { getLatestVersion } from "@miragon/bpmn-modeler-core";
+import { createTestHost, PickerAnswers } from "@miragon/bpmn-modeler-core/testing";
 
 import { CommandController } from "./CommandController";
 
 /**
- * Assembles the controller over bare port doubles. `subscribeToActiveEditorMessage`
- * captures the live callback into `captured.onMessage` and hands back a disposable
- * spy, so tests can both drive a simulated webview reply and assert the
- * subscription's dispose lifecycle.
+ * Assembles the controller over an in-memory host with `/work/diagram.bpmn` open
+ * and active. The document flush reports that editor's session as safe, so a
+ * test can replace the session to exercise the stale-session guard.
  */
-function createController() {
-    const captured: { onMessage?: (message: unknown) => void } = {};
-    const subscriptionDisposes: ReturnType<typeof vi.fn>[] = [];
-    const session = {};
-
-    const editorStore = {
-        getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
-        hasEditor: vi.fn().mockReturnValue(true),
-        isCurrentEditorSession: vi.fn().mockReturnValue(true),
-        postMessage: vi.fn().mockResolvedValue(true),
-        reload: vi.fn(),
-        subscribeToActiveEditorMessage: vi.fn((cb: (message: unknown) => void) => {
-            captured.onMessage = cb;
-            const dispose = vi.fn();
-            subscriptionDisposes.push(dispose);
-            return { dispose };
-        }),
-    };
-    const vsDocument = { getFilePath: vi.fn().mockReturnValue("/work/diagram.bpmn") };
-    const notifier = { openLoggingConsole: vi.fn(), logError: vi.fn(), logInfo: vi.fn() };
+function createController(answers: PickerAnswers = {}) {
+    const host = createTestHost({ answers });
+    const editor = host.openEditor("/work/diagram.bpmn");
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
-    const picker = { pickNewModelEngine: vi.fn() };
     const documentFlush = {
-        flush: vi.fn().mockResolvedValue({ status: "safe" as const, session }),
+        flush: vi.fn().mockResolvedValue({ status: "safe" as const, session: editor }),
         release: vi.fn(),
     };
+    const layoutSvc = { format: vi.fn(), inspectCleanup: vi.fn() };
 
     const controller = new CommandController(
-        editorStore as never,
-        vsDocument as never,
-        notifier as never,
+        host.store,
+        host.documents,
+        host.notifier,
         textEditor as never,
         bpmnService as never,
         migrationSvc as never,
-        picker as never,
+        host.picker,
         documentFlush as never,
+        layoutSvc as never,
     );
 
     return {
         controller,
-        editorStore,
-        vsDocument,
-        notifier,
+        host,
+        editor,
+        notifier: host.notifier,
         textEditor,
         bpmnService,
         migrationSvc,
-        picker,
+        picker: host.picker,
         documentFlush,
-        session,
-        captured,
-        subscriptionDisposes,
     };
 }
 
@@ -152,66 +133,65 @@ beforeEach(() => {
 
 describe("CommandController.toggle", () => {
     it("toggles the text editor for the active document's path", async () => {
-        const { controller, editorStore, vsDocument, textEditor } = createController();
+        const { controller, host, textEditor } = createController();
+        host.openEditor("/work/other.bpmn");
 
         await controller.toggle();
 
-        expect(vsDocument.getFilePath).toHaveBeenCalledWith("editor-1");
-        expect(textEditor.toggle).toHaveBeenCalledWith("/work/diagram.bpmn");
-        expect(editorStore.getActiveEditorId).toHaveBeenCalled();
+        expect(textEditor.toggle).toHaveBeenCalledWith("/work/other.bpmn");
     });
 });
 
 describe("CommandController.reloadModeler", () => {
     it("flushes the active document before reloading its webview", async () => {
-        const { controller, editorStore, documentFlush } = createController();
+        const { controller, editor, documentFlush } = createController();
         let finishFlush: () => void = () => {};
         documentFlush.flush.mockReturnValue(
             new Promise((resolve) => {
-                finishFlush = () => resolve({ status: "safe", session: {} });
+                finishFlush = () => resolve({ status: "safe", session: editor });
             }),
         );
 
         const reloading = Promise.resolve(controller.reloadModeler());
 
-        expect(documentFlush.flush).toHaveBeenCalledWith("editor-1", true);
-        expect(editorStore.reload).not.toHaveBeenCalled();
+        expect(documentFlush.flush).toHaveBeenCalledWith(editor.id, true);
+        expect(editor.reloadCount).toBe(0);
         finishFlush();
         await reloading;
 
-        expect(editorStore.reload).toHaveBeenCalledWith("editor-1");
-        expect(documentFlush.release).toHaveBeenCalledWith("editor-1", expect.any(Object));
-        expect(editorStore.getActiveEditorId).toHaveBeenCalled();
+        expect(editor.reloadCount).toBe(1);
+        expect(documentFlush.release).toHaveBeenCalledWith(editor.id, editor);
     });
 
     it("does not reload when the webview cannot confirm the flush", async () => {
-        const { controller, editorStore, documentFlush } = createController();
+        const { controller, editor, documentFlush } = createController();
         documentFlush.flush.mockResolvedValueOnce({ status: "unavailable" });
 
         await controller.reloadModeler();
 
-        expect(editorStore.reload).not.toHaveBeenCalled();
+        expect(editor.reloadCount).toBe(0);
     });
 
     it("does not reload a replacement session with the same editor id", async () => {
-        const { controller, editorStore, documentFlush, session } = createController();
-        editorStore.isCurrentEditorSession.mockReturnValue(false);
+        const { controller, host, editor, documentFlush } = createController();
+        const replacement = host.openEditor("/work/diagram.bpmn");
 
         await controller.reloadModeler();
 
-        expect(editorStore.reload).not.toHaveBeenCalled();
-        expect(documentFlush.release).toHaveBeenCalledWith("editor-1", session);
+        expect(editor.reloadCount).toBe(0);
+        expect(replacement.reloadCount).toBe(0);
+        expect(documentFlush.release).toHaveBeenCalledWith(editor.id, editor);
     });
 
     it("releases the mutation lock when reloading throws", async () => {
-        const { controller, editorStore, documentFlush, session } = createController();
-        editorStore.reload.mockImplementation(() => {
+        const { controller, editor, documentFlush } = createController();
+        vi.spyOn(editor, "reload").mockImplementation(() => {
             throw new Error("reload failed");
         });
 
         await expect(controller.reloadModeler()).rejects.toThrow("reload failed");
 
-        expect(documentFlush.release).toHaveBeenCalledWith("editor-1", session);
+        expect(documentFlush.release).toHaveBeenCalledWith(editor.id, editor);
     });
 });
 
@@ -221,17 +201,17 @@ describe("CommandController.showLogging", () => {
 
         controller.showLogging();
 
-        expect(notifier.openLoggingConsole).toHaveBeenCalledOnce();
+        expect(notifier.loggingConsoleOpened).toBe(true);
     });
 });
 
 describe("CommandController.changeEngineVersion", () => {
     it("delegates to the bpmn service for the active editor", async () => {
-        const { controller, bpmnService } = createController();
+        const { controller, editor, bpmnService } = createController();
 
         await controller.changeEngineVersion();
 
-        expect(bpmnService.changeEngineVersion).toHaveBeenCalledWith("editor-1");
+        expect(bpmnService.changeEngineVersion).toHaveBeenCalledWith(editor.id);
     });
 });
 
@@ -288,80 +268,79 @@ describe("CommandController.changeLanguage", () => {
 
 describe("CommandController SVG request lifecycle", () => {
     it("posts a GetDiagramAsSVGCommand and subscribes to the active editor", () => {
-        const { controller, editorStore } = createController();
+        const { controller, editor } = createController();
 
         controller.writeToClipboard();
 
-        const posted = editorStore.postMessage.mock.calls[0][1] as GetDiagramAsSVGCommand;
-        expect(editorStore.postMessage).toHaveBeenCalledWith("editor-1", posted);
-        expect(posted.type).toBe("GetDiagramAsSVGCommand");
-        expect(editorStore.subscribeToActiveEditorMessage).toHaveBeenCalledOnce();
+        expect(editor.posted.map((message) => message.type)).toEqual(["GetDiagramAsSVGCommand"]);
+        editor.receive(svgReply("<svg/>"));
+        expect(clipboardWriteTextMock).toHaveBeenCalledWith("<svg/>");
     });
 
     it("logs an error when posting the SVG request rejects", async () => {
-        const { controller, editorStore, notifier } = createController();
-        const failure = new Error("hidden editor");
-        editorStore.postMessage.mockRejectedValueOnce(failure);
+        const { controller, editor, notifier } = createController();
+        editor.hidden = true;
 
         controller.writeToClipboard();
         await Promise.resolve();
 
-        expect(notifier.logError).toHaveBeenCalledWith(failure);
+        expect(notifier.logged("error")).toEqual(["The active editor is hidden."]);
     });
 
     it("disposes the prior subscription before re-subscribing", () => {
-        const { controller, subscriptionDisposes } = createController();
+        const { controller, editor } = createController();
 
         controller.writeToClipboard();
         controller.writeToClipboard();
+        editor.receive(svgReply("<svg/>"));
 
-        // The first subscription must be torn down so listeners do not accumulate.
-        expect(subscriptionDisposes[0]).toHaveBeenCalledOnce();
-        expect(subscriptionDisposes).toHaveLength(2);
+        // A leaked first subscription would copy the reply a second time.
+        expect(clipboardWriteTextMock).toHaveBeenCalledOnce();
     });
 
     it("ignores messages that are not a GetDiagramAsSVGCommand", () => {
-        const { controller, captured, subscriptionDisposes } = createController();
+        const { controller, editor } = createController();
         controller.writeToClipboard();
 
-        captured.onMessage?.({ type: "SomeOtherCommand" });
+        editor.receive({ type: "SomeOtherCommand" } as Command);
 
         expect(clipboardWriteTextMock).not.toHaveBeenCalled();
         // Still subscribed: the matching reply has not arrived yet.
-        expect(subscriptionDisposes[0]).not.toHaveBeenCalled();
+        editor.receive(svgReply("<svg/>"));
+        expect(clipboardWriteTextMock).toHaveBeenCalledWith("<svg/>");
     });
 
     it("ignores a GetDiagramAsSVGCommand carrying an empty svg but still disposes", () => {
-        const { controller, captured, subscriptionDisposes } = createController();
+        const { controller, editor } = createController();
         controller.writeToClipboard();
 
-        captured.onMessage?.(svgReply(""));
+        editor.receive(svgReply(""));
 
         expect(clipboardWriteTextMock).not.toHaveBeenCalled();
         // The response arrived, so the subscription is torn down regardless of payload.
-        expect(subscriptionDisposes[0]).toHaveBeenCalledOnce();
+        editor.receive(svgReply("<svg/>"));
+        expect(clipboardWriteTextMock).not.toHaveBeenCalled();
     });
 });
 
 describe("CommandController.writeToClipboard", () => {
     it("writes the received svg to the clipboard and disposes the subscription", () => {
-        const { controller, captured, subscriptionDisposes } = createController();
+        const { controller, editor } = createController();
         controller.writeToClipboard();
 
-        captured.onMessage?.(svgReply("<svg/>"));
+        editor.receive(svgReply("<svg/>"));
+        editor.receive(svgReply("<svg/>"));
 
-        expect(clipboardWriteTextMock).toHaveBeenCalledWith("<svg/>");
-        expect(subscriptionDisposes[0]).toHaveBeenCalledOnce();
+        expect(clipboardWriteTextMock).toHaveBeenCalledExactlyOnceWith("<svg/>");
     });
 });
 
 describe("CommandController.writeToFile", () => {
     it("writes the svg to a sibling .svg file and logs the export path", async () => {
-        const { controller, captured, vsDocument, notifier } = createController();
-        vsDocument.getFilePath.mockReturnValue("/work/diagram.bpmn");
+        const { controller, editor, notifier } = createController();
         controller.writeToFile();
 
-        captured.onMessage?.(svgReply("<svg/>"));
+        editor.receive(svgReply("<svg/>"));
         // The write + info log run on a microtask chain; flush before asserting.
         await Promise.resolve();
         await Promise.resolve();
@@ -371,28 +350,28 @@ describe("CommandController.writeToFile", () => {
         expect((uriArg as { path: string }).path).toBe("/work/diagram.svg");
         expect(Buffer.isBuffer(bufferArg)).toBe(true);
         expect((bufferArg as Buffer).toString()).toBe("<svg/>");
-        expect(notifier.logInfo).toHaveBeenCalledWith("Diagram SVG exported to /work/diagram.svg");
+        expect(notifier.logged("info")).toEqual(["Diagram SVG exported to /work/diagram.svg"]);
     });
 
     it("logs an error when the file write rejects", async () => {
-        const { controller, captured, notifier } = createController();
+        const { controller, editor, notifier } = createController();
         const failure = new Error("EACCES");
         fsWriteFileMock.mockRejectedValueOnce(failure);
         controller.writeToFile();
 
-        captured.onMessage?.(svgReply("<svg/>"));
+        editor.receive(svgReply("<svg/>"));
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(notifier.logError).toHaveBeenCalledWith(failure);
-        expect(notifier.logInfo).not.toHaveBeenCalled();
+        expect(notifier.logged("error")).toEqual(["EACCES"]);
+        expect(notifier.logged("info")).toEqual([]);
     });
 
     it("does not write a file when the svg payload is empty", () => {
-        const { controller, captured } = createController();
+        const { controller, editor } = createController();
         controller.writeToFile();
 
-        captured.onMessage?.(svgReply(""));
+        editor.receive(svgReply(""));
 
         expect(fsWriteFileMock).not.toHaveBeenCalled();
     });
@@ -406,7 +385,7 @@ describe("CommandController command error surfacing", () => {
         configUpdateMock.mockRejectedValueOnce(failure);
 
         await expect(controller.changeLanguage()).rejects.toThrow(failure);
-        expect(notifier.logError).toHaveBeenCalledWith(failure);
+        expect(notifier.logged("error")).toEqual(["update denied"]);
     });
 
     it("logs and rethrows when changeEngineVersion rejects", async () => {
@@ -415,7 +394,7 @@ describe("CommandController command error surfacing", () => {
         bpmnService.changeEngineVersion.mockRejectedValueOnce(failure);
 
         await expect(controller.changeEngineVersion()).rejects.toThrow(failure);
-        expect(notifier.logError).toHaveBeenCalledWith(failure);
+        expect(notifier.logged("error")).toEqual(["engine change failed"]);
     });
 });
 
@@ -426,16 +405,15 @@ describe("CommandController.newBpmnModel", () => {
 
         await controller.newBpmnModel();
 
-        expect(picker.pickNewModelEngine).not.toHaveBeenCalled();
+        expect(picker.prompts).toEqual([]);
         expect(fsWriteFileMock).not.toHaveBeenCalled();
         expect(executeCommandMock).not.toHaveBeenCalled();
     });
 
     it("scaffolds a c7 model at the chosen target and opens it in the bpmn editor", async () => {
-        const { controller, picker } = createController();
+        const { controller } = createController({ newModelEngine: "c7" });
         const target = fakeUri("/work/new-diagram.bpmn");
         showSaveDialogMock.mockResolvedValue(target);
-        picker.pickNewModelEngine.mockResolvedValue("c7");
 
         await controller.newBpmnModel();
 
@@ -453,10 +431,9 @@ describe("CommandController.newBpmnModel", () => {
     });
 
     it("scaffolds an engine-neutral model when the neutral choice is picked", async () => {
-        const { controller, picker } = createController();
+        const { controller } = createController({ newModelEngine: "neutral" });
         const target = fakeUri("/work/new-diagram.bpmn");
         showSaveDialogMock.mockResolvedValue(target);
-        picker.pickNewModelEngine.mockResolvedValue("neutral");
 
         await controller.newBpmnModel();
 
@@ -473,9 +450,9 @@ describe("CommandController.newBpmnModel", () => {
     it("creates nothing and does not rethrow when the engine pick is cancelled", async () => {
         const { controller, picker } = createController();
         showSaveDialogMock.mockResolvedValue(fakeUri("/work/new-diagram.bpmn"));
-        picker.pickNewModelEngine.mockRejectedValue(new UserCancelledError());
 
         await expect(controller.newBpmnModel()).resolves.toBeUndefined();
+        expect(picker.prompts.map((prompt) => prompt.method)).toEqual(["pickNewModelEngine"]);
         expect(fsWriteFileMock).not.toHaveBeenCalled();
         expect(executeCommandMock).not.toHaveBeenCalled();
     });

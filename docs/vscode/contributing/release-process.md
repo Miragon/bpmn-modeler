@@ -68,9 +68,9 @@ see `INLINED_LIBS` in `packages/bpmn-modeler/vite.config.mts`):
 (never inlined into the npm package) and are excluded from the root along with
 `libs/standalone-extension` — they reach the hosts via markers.
 
-**Unwatched by everyone** — `apps/demo-webapp`, `docs`, `.github` and all
+**Unwatched by everyone** — `docs`, `.github` and all
 repo-root tooling files (`yarn.lock`, `package.json`, `tsconfig.base.json`,
-`README.md`, …). Tooling and demo churn never releases anything. The root
+`README.md`, …). Tooling churn never releases anything. The root
 component is a blocklist (`exclude-paths` has no globs), so **a newly added
 root-level file or directory must also be added to `exclude-paths`** in
 `release-please-config.json` — otherwise commits touching it start feeding the

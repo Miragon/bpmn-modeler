@@ -17,7 +17,12 @@ import { BpmnLayoutService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
-import { DmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
+import { DmnSettingsBroadcaster, DmnSettingsParticipant } from "@miragon/bpmn-modeler-core";
+import {
+    displayDocumentHandler,
+    DocumentRenderParticipant,
+    getDmnModelerSettingHandler,
+} from "@miragon/bpmn-modeler-core";
 import { FormModelerService } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
 import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
@@ -27,56 +32,51 @@ import {
     FocusLintElementController,
     FOCUS_LINT_ELEMENT_CMD,
 } from "../modeler/bpmn/controller/FocusLintElementController";
-import { NodeBpmnLinter } from "@miragon/bpmn-modeler-core";
+import {
+    BpmnlintParticipant,
+    BpmnSettingsParticipant,
+    DefinitionSearchParticipant,
+    DeploymentStatusParticipant,
+    ElementTemplatesParticipant,
+    EngineVersionStatusBarParticipant,
+    FormReferenceStatusParticipant,
+    NodeBpmnLinter,
+} from "@miragon/bpmn-modeler-core";
 import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
-import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
-import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-participants/ElementTemplatesParticipant";
-import { BpmnlintParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnlintParticipant";
-import { SettingsParticipant } from "../modeler/bpmn/controller/editor-participants/SettingsParticipant";
-import { EngineVersionStatusBarParticipant } from "../modeler/bpmn/controller/editor-participants/EngineVersionStatusBarParticipant";
 import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant";
 import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
-import { DmnRenderParticipant } from "../modeler/dmn/controller/editor-participants/DmnRenderParticipant";
-import { DmnSettingsParticipant } from "../modeler/dmn/controller/editor-participants/DmnSettingsParticipant";
-import { FormRenderParticipant } from "../modeler/form/controller/editor-participants/FormRenderParticipant";
 import { FormValuesParticipant } from "../modeler/form/controller/editor-participants/FormValuesParticipant";
 import { FormValuesController } from "../modeler/form/controller/FormValuesController";
 import {
-    getBpmnFileHandler,
-    getElementTemplatesHandler,
-    getBpmnlintConfigHandler,
-    getBpmnModelerSettingHandler,
-    resyncScriptTasksHandler,
-    getPropertiesPanelStateHandler,
-    setPropertiesPanelStateHandler,
-    setLintingEnabledHandler,
-    updateLintResultsHandler,
-    getClipboardHandler,
-    setClipboardHandler,
-    getTextClipboardHandler,
-    setTextClipboardHandler,
-    syncDocumentHandler,
-    openScriptEditorHandler,
     cleanupReportHandler,
     diagramFormattedHandler,
+    getBpmnlintConfigHandler,
+    getBpmnModelerSettingHandler,
+    getClipboardHandler,
+    getElementTemplatesHandler,
+    getFormReferenceStatusHandler,
+    getPropertiesPanelStateHandler,
+    getTextClipboardHandler,
+    navigateToImplementationHandler,
+    navigateToReferencedModelHandler,
+    searchWorkspaceDefinitionsHandler,
+    setClipboardHandler,
+    setPropertiesPanelStateHandler,
+    setTextClipboardHandler,
+    syncActivitiesHandler,
+    syncDocumentHandler,
+    updateLintResultsHandler,
+} from "@miragon/bpmn-modeler-core";
+import {
+    openScriptEditorHandler,
     openScriptEditorsHandler,
+    resyncScriptTasksHandler,
+    setLintingEnabledHandler,
     updateScriptSourceHandler,
     updateScriptVariablesHandler,
-    navigateToReferencedModelHandler,
-    navigateToImplementationHandler,
-    syncActivitiesHandler,
-    getFormReferenceStatusHandler,
-    searchWorkspaceDefinitionsHandler,
 } from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import {
-    getDmnFileHandler,
-    getDmnModelerSettingHandler,
-    syncDmnDocumentHandler,
-} from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
-import {
-    getFormFileHandler,
     getFormInputValuesHandler,
-    syncFormDocumentHandler,
     updateFormOutputValuesHandler,
 } from "../modeler/form/controller/webview-handlers/formMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
@@ -89,12 +89,9 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { TemplateMarketplaceService } from "@miragon/bpmn-modeler-core";
 import { CodeLinkHandles } from "./codeLinkFeature";
-import { DeploymentStatusParticipant } from "../deployment/controller/editor-participants/DeploymentStatusParticipant";
 import { SharedDeps } from "./sharedDeps";
 import { FormReferenceStatusService } from "../navigation";
 import { DefinitionSearchService, WorkspaceDefinitionIndex } from "../definitionSearch";
-import { FormReferenceStatusParticipant } from "../navigation/controller/editor-participants/FormReferenceStatusParticipant";
-import { DefinitionSearchParticipant } from "../definitionSearch/controller/editor-participants/DefinitionSearchParticipant";
 
 /**
  * Lifecycle-bearing collaborators owned by sibling features that the editor
@@ -244,7 +241,10 @@ export function register(
     // `GetBpmnModelerSettingCommand` registers two handlers, run in order:
     // broadcast settings/language, then resync scripts edited while hidden.
     const bpmnMessageRouter = new WebviewMessageRouter()
-        .on("GetBpmnFileCommand", getBpmnFileHandler(bpmnService, deps.notifier))
+        .on(
+            "GetBpmnFileCommand",
+            displayDocumentHandler(bpmnService, deps.notifier, "Bpmn modeler is ready"),
+        )
         .on("GetElementTemplatesCommand", getElementTemplatesHandler(templatesSvc))
         .on("GetBpmnlintConfigCommand", getBpmnlintConfigHandler(lintConfigSvc))
         .on("GetBpmnModelerSettingCommand", getBpmnModelerSettingHandler(settingsBroadcaster))
@@ -316,20 +316,26 @@ export function register(
     registerWebviewNotificationHandlers(bpmnMessageRouter, deps.notifier);
     registerWebviewFocusHandlers(bpmnMessageRouter, deps.editorStore);
     const dmnMessageRouter = new WebviewMessageRouter()
-        .on("GetDmnFileCommand", getDmnFileHandler(dmnService, deps.notifier))
+        .on(
+            "GetDmnFileCommand",
+            displayDocumentHandler(dmnService, deps.notifier, "Dmn modeler is ready"),
+        )
         .on("GetDmnModelerSettingCommand", getDmnModelerSettingHandler(dmnSettingsBroadcaster))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
-        .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService))
+        .on("SyncDocumentCommand", syncDocumentHandler(dmnService))
         .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
     registerWebviewLogHandlers(dmnMessageRouter, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(dmnMessageRouter, deps.notifier);
     registerWebviewFocusHandlers(dmnMessageRouter, deps.editorStore);
     const formMessageRouter = new WebviewMessageRouter()
-        .on("GetFormFileCommand", getFormFileHandler(formService, deps.notifier))
+        .on(
+            "GetFormFileCommand",
+            displayDocumentHandler(formService, deps.notifier, "Form editor is ready"),
+        )
         .on("GetFormInputValuesCommand", getFormInputValuesHandler(formValues))
         .on("UpdateFormOutputValuesCommand", updateFormOutputValuesHandler(formValues))
-        .on("SyncDocumentCommand", syncFormDocumentHandler(formService))
+        .on("SyncDocumentCommand", syncDocumentHandler(formService))
         .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
     registerWebviewLogHandlers(formMessageRouter, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(formMessageRouter, deps.notifier);
@@ -338,7 +344,7 @@ export function register(
         viewType: BPMN_VIEW_TYPE,
         messageRouter: bpmnMessageRouter,
         participants: [
-            new BpmnRenderParticipant(bpmnService, deps.notifier),
+            new DocumentRenderParticipant(bpmnService, ".bpmn", deps.notifier),
             new FormReferenceStatusParticipant(formReferenceStatusService),
             new DefinitionSearchParticipant(definitionSearchService),
             new ElementTemplatesParticipant(templatesSvc, deps.artifactSvc, deps.notifier),
@@ -348,7 +354,7 @@ export function register(
                 deps.statusBar,
                 deps.notifier,
             ),
-            new SettingsParticipant(settingsBroadcaster),
+            new BpmnSettingsParticipant(settingsBroadcaster),
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
             deploymentStatusParticipant,
             new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),
@@ -370,7 +376,7 @@ export function register(
         viewType: DMN_VIEW_TYPE,
         messageRouter: dmnMessageRouter,
         participants: [
-            new DmnRenderParticipant(dmnService, deps.notifier),
+            new DocumentRenderParticipant(dmnService, ".dmn", deps.notifier),
             new DmnSettingsParticipant(dmnSettingsBroadcaster),
         ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
@@ -379,7 +385,7 @@ export function register(
         viewType: FORM_VIEW_TYPE,
         messageRouter: formMessageRouter,
         participants: [
-            new FormRenderParticipant(formService, deps.notifier),
+            new DocumentRenderParticipant(formService, ".form", deps.notifier),
             new FormValuesParticipant(formValues),
         ],
     }).register(context);

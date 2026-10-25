@@ -4,7 +4,7 @@ import { coveragePreset, workspaceAliases } from "../../vitest.shared";
 
 // Kept apart so the PR coverage action, which regex-reads the first unquoted
 // `statements:` in this file, reports the global gate rather than a glob tier.
-const overallThresholds = { statements: 70, branches: 64, functions: 62, lines: 71 };
+const overallThresholds = { statements: 81, branches: 75, functions: 77, lines: 83 };
 
 export default defineConfig({
     resolve: { alias: workspaceAliases },
@@ -23,7 +23,7 @@ export default defineConfig({
             ...coveragePreset(__dirname, {
                 // Wiring only; the Extension-Host smoke test (test/e2e) covers it,
                 // and feature barrels are re-exports enforced by architecture.spec.
-                exclude: ["src/composition/**", "src/**/index.ts"],
+                exclude: ["src/main.ts", "src/composition/**", "src/**/index.ts"],
             }),
             // Per-layer gates, tiered by how much logic each layer carries and
             // how cheaply it can be tested. Controllers mix routing with vscode
@@ -32,9 +32,9 @@ export default defineConfig({
             // integration tests).
             thresholds: {
                 ...overallThresholds,
-                "**/controller/**": { statements: 84, branches: 78, functions: 79, lines: 86 },
+                "**/controller/**": { statements: 87, branches: 80, functions: 85, lines: 89 },
                 "**/editor-session/**": { statements: 76, branches: 65, functions: 78, lines: 83 },
-                "**/infrastructure/**": { statements: 43, branches: 42, functions: 34, lines: 43 },
+                "**/infrastructure/**": { statements: 70, branches: 69, functions: 64, lines: 70 },
             },
         },
     },

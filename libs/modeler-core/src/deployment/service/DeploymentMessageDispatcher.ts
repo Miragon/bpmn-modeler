@@ -2,17 +2,16 @@ import {
     AdditionalFilesQuery,
     Command,
     CreateTargetCommand,
-    DeleteTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
     DeploymentTargetsQuery,
+    exhaustiveMessageGuard,
     FormDefaultsQuery,
+    MessageOfType,
     ProcessDefinitionKeyQuery,
     Query,
-    RequestStoredCredentialsCommand,
     SaveTargetCommand,
     SelectedPayloadFileQuery,
-    SelectTargetCommand,
     StartInstanceCommand,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
@@ -21,8 +20,7 @@ import {
 
 import { posix } from "path";
 
-import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
-import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
+import { AuthConfig, DeploymentConfigBuilder } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import {
     DeploymentTargetChangedError,
@@ -33,8 +31,23 @@ import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionSto
 import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
-import { DeploymentTargetService, toTargetPayload } from "./DeploymentTargetService";
+import { DeploymentTargetService, toAuthConfig, toTargetPayload } from "./DeploymentTargetService";
 import { StartInstanceService } from "./StartInstanceService";
+
+type DeploymentWebviewCommand = MessageOfType<
+    | "RequestFormDefaultsCommand"
+    | "RequestStoredCredentialsCommand"
+    | "SelectTargetCommand"
+    | "CreateTargetCommand"
+    | "SaveTargetCommand"
+    | "DeleteTargetCommand"
+    | "OpenTargetsFileCommand"
+    | "RequestAdditionalFilesCommand"
+    | "DeployCommand"
+    | "RequestProcessDefinitionKeyCommand"
+    | "RequestPayloadFilesCommand"
+    | "StartInstanceCommand"
+>;
 
 /**
  * Host-agnostic dispatch core for the deployment webview's message protocol.
@@ -83,27 +96,28 @@ export class DeploymentMessageDispatcher {
             return;
         }
         this.notifier.logDebug(`Deployment message received -> ${message.type}`);
-        switch (message.type) {
+        const command = message as DeploymentWebviewCommand;
+        switch (command.type) {
             case "RequestFormDefaultsCommand":
                 this.sendFormDefaults();
                 break;
             case "RequestStoredCredentialsCommand":
                 await this.handleStoredCredentialsRequest(
-                    (message as RequestStoredCredentialsCommand).targetName ?? "",
-                    (message as RequestStoredCredentialsCommand).requestId ?? 0,
+                    command.targetName ?? "",
+                    command.requestId ?? 0,
                 );
                 break;
             case "SelectTargetCommand":
-                await this.handleSelectTarget((message as SelectTargetCommand).name);
+                await this.handleSelectTarget(command.name);
                 break;
             case "CreateTargetCommand":
-                await this.handleCreateTarget(message as CreateTargetCommand);
+                await this.handleCreateTarget(command);
                 break;
             case "SaveTargetCommand":
-                await this.handleSaveTarget(message as SaveTargetCommand);
+                await this.handleSaveTarget(command);
                 break;
             case "DeleteTargetCommand":
-                await this.handleDeleteTarget((message as DeleteTargetCommand).name);
+                await this.handleDeleteTarget(command.name);
                 break;
             case "OpenTargetsFileCommand":
                 await this.handleOpenTargetsFile();
@@ -112,7 +126,7 @@ export class DeploymentMessageDispatcher {
                 await this.handleAdditionalFilesRequest();
                 break;
             case "DeployCommand":
-                await this.handleDeploy((message as DeployCommand).config);
+                await this.handleDeploy(command.config);
                 break;
             case "RequestProcessDefinitionKeyCommand":
                 this.handleProcessDefinitionKeyRequest();
@@ -121,8 +135,10 @@ export class DeploymentMessageDispatcher {
                 await this.handlePayloadFilesRequest();
                 break;
             case "StartInstanceCommand":
-                await this.handleStartInstance((message as StartInstanceCommand).config);
+                await this.handleStartInstance(command.config);
                 break;
+            default:
+                exhaustiveMessageGuard(command);
         }
     }
 
@@ -279,7 +295,7 @@ export class DeploymentMessageDispatcher {
             );
             if (renamedFrom !== undefined) {
                 await this.deploymentStatusService.pruneTarget(
-                    DeploymentTargetIdentity.fromTarget(renamedFrom),
+                    await this.deploymentStatusService.targetIdentity(renamedFrom, documentDir),
                 );
             }
             this.post(
@@ -302,7 +318,7 @@ export class DeploymentMessageDispatcher {
             if (deleted) {
                 if (target !== undefined) {
                     await this.deploymentStatusService.pruneTarget(
-                        DeploymentTargetIdentity.fromTarget(target),
+                        await this.deploymentStatusService.targetIdentity(target, documentDir),
                     );
                 }
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
@@ -329,6 +345,7 @@ export class DeploymentMessageDispatcher {
 
     private async resolveRequestTarget(
         payload: DeployCommand["config"] | StartInstanceCommand["config"],
+        auth: AuthConfig,
         documentDir: string | undefined,
     ): Promise<DeploymentTarget | undefined> {
         if (!payload.targetName?.trim()) return undefined;
@@ -356,6 +373,11 @@ export class DeploymentMessageDispatcher {
         if (!matches) {
             throw new DeploymentTargetChangedError(
                 "The deployment target changed. Save or reload the target before continuing.",
+            );
+        }
+        if (!target.credentialRefs.admits(auth)) {
+            throw new DeploymentTargetChangedError(
+                "Credential environment references differ from the saved target. Save or reload the target before continuing.",
             );
         }
         return target;
@@ -429,13 +451,9 @@ export class DeploymentMessageDispatcher {
         configPayload: StartInstanceCommand["config"],
     ): Promise<void> {
         try {
-            await this.resolveRequestTarget(configPayload, this.activeDocumentDir());
-            const auth = this.buildAuth(configPayload.auth);
-
-            // Breadcrumb. Host[:port] only — never the full URL or auth payload.
-            this.notifier.logInfo(
-                `Instance start requested: ${configPayload.processDefinitionKey} @ ${this.endpointHost(configPayload.startInstanceUrl ?? configPayload.endpoint)}`,
-            );
+            const documentDir = this.activeDocumentDir();
+            const auth = toAuthConfig(configPayload.auth);
+            const target = await this.resolveRequestTarget(configPayload, auth, documentDir);
 
             const result = await this.startInstanceService.startInstance(
                 configPayload.processDefinitionKey,
@@ -444,6 +462,8 @@ export class DeploymentMessageDispatcher {
                 auth,
                 configPayload.payloadFilePath,
                 configPayload.startInstanceUrl,
+                documentDir,
+                target,
             );
 
             if (result.success) {
@@ -480,7 +500,7 @@ export class DeploymentMessageDispatcher {
      */
     private async handleDeploy(configPayload: DeployCommand["config"]): Promise<void> {
         try {
-            const auth = this.buildAuth(configPayload.auth);
+            const auth = toAuthConfig(configPayload.auth);
 
             // Trust only the active editor's document for the file being deployed,
             // never the webview payload's mainFilePath.
@@ -499,23 +519,13 @@ export class DeploymentMessageDispatcher {
                 .build();
 
             const documentDir = posix.dirname(mainFilePath);
-            const target = await this.resolveRequestTarget(configPayload, documentDir);
+            const target = await this.resolveRequestTarget(configPayload, auth, documentDir);
             const secretSlot =
                 target === undefined
                     ? undefined
                     : await this.deploymentTargetService.resolveSlot(target.name, documentDir);
-            const identity =
-                target === undefined
-                    ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId)
-                    : DeploymentTargetIdentity.fromTarget(target);
 
-            // Breadcrumb. Only host[:port] is logged (never the full URL, which can
-            // carry credentials, and never the auth payload) — see endpointHost.
-            this.notifier.logInfo(
-                `Deployment started: ${this.fileBasename(mainFilePath)} -> ${configPayload.engine} @ ${this.endpointHost(config.deployUrl ?? configPayload.endpoint)}`,
-            );
-
-            const result = await this.deploymentService.deploy(config, secretSlot, identity);
+            const result = await this.deploymentService.deploy(config, secretSlot, target);
 
             if (result.success) {
                 this.notifier.logInfo(`Deployment succeeded: ${result.message}`);
@@ -541,41 +551,5 @@ export class DeploymentMessageDispatcher {
             this.notifier.showError(message);
             this.post(new DeploymentResultQuery(false, message));
         }
-    }
-
-    /**
-     * Host[:port] of `endpoint` for a breadcrumb — never the path, query, or
-     * userinfo. `URL.host` deliberately excludes any `user:pass@` prefix, so a
-     * credentialled endpoint can't leak into the channel.
-     */
-    private endpointHost(endpoint: string): string {
-        try {
-            return new URL(endpoint).host || "unknown-host";
-        } catch {
-            return "unknown-host";
-        }
-    }
-
-    /** Basename for logging; separator-agnostic so Windows paths don't leak a full path. */
-    private fileBasename(filePath: string): string {
-        return filePath.split(/[\\/]/).pop() || filePath;
-    }
-
-    /** Maps the webview's auth payload to the domain auth value object. */
-    private buildAuth(
-        authPayload: DeployCommand["config"]["auth"],
-    ): NoAuth | BasicAuth | OAuth2Auth {
-        if (authPayload.authType === "basic") {
-            return new BasicAuth(authPayload.username ?? "", authPayload.password ?? "");
-        }
-        if (authPayload.authType === "oauth2") {
-            return new OAuth2Auth(
-                authPayload.clientId ?? "",
-                authPayload.clientSecret ?? "",
-                authPayload.tokenEndpoint ?? "",
-                authPayload.audience ?? "",
-            );
-        }
-        return new NoAuth();
     }
 }

@@ -1,8 +1,8 @@
 import { commands, ExtensionContext, Uri, window } from "vscode";
 
 import { CompareSelectionStore } from "../infrastructure/CompareSelectionStore";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { BpmnDiffController } from "./BpmnDiffController";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 // VS Code command ID for the first step of a two-file BPMN compare.
 export const SELECT_FOR_COMPARE_CMD = "bpmn-modeler.selectForCompare";
@@ -50,7 +50,7 @@ export class BpmnCompareController {
     constructor(
         private readonly selection: CompareSelectionStore,
         private readonly diffController: BpmnDiffController,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     /**

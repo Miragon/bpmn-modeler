@@ -6,6 +6,7 @@ import { BrowserLinter } from "./bpmnlint/browserLinter";
 import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
+import { animationFrames, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 // Pinned values are today's behaviour, not targets: a fix that removes redundant work
 // updates its number in the same change, so improvements show up and regressions fail.
@@ -45,31 +46,12 @@ interface PhaseCounters {
 }
 
 let modeler: BpmnModeler | undefined;
-const mountedNodes: HTMLElement[] = [];
 
 afterEach(() => {
     modeler?.destroy();
     modeler = undefined;
-    mountedNodes.forEach((node) => node.remove());
-    mountedNodes.length = 0;
+    removeMounts();
 });
-
-function mount(): { container: HTMLElement; panel: HTMLElement } {
-    const container = document.createElement("div");
-    const panel = document.createElement("div");
-    container.style.cssText = "position:absolute;width:1200px;height:800px";
-    document.body.append(container, panel);
-    mountedNodes.push(container, panel);
-    return { container, panel };
-}
-
-function animationFrames(count: number): Promise<void> {
-    return new Promise((resolve) => {
-        const step = (remaining: number) =>
-            remaining === 0 ? resolve() : requestAnimationFrame(() => step(remaining - 1));
-        step(count);
-    });
-}
 
 // `linting.completed` fires only for the newest run; superseded runs still finish after it.
 async function settleAfter(eventBus: EventBus, action: () => unknown): Promise<void> {
@@ -87,7 +69,7 @@ async function settleAfter(eventBus: EventBus, action: () => unknown): Promise<v
 }
 
 async function openLargeModel(lintPath: LintPath) {
-    const { container, panel } = mount();
+    const { container, panel } = mountWithPanel(1200, 800);
     const handle = await createModeler(container, {
         engine: "c7",
         propertiesPanel: { parent: panel },

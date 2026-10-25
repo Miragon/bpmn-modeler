@@ -19,6 +19,7 @@ export type {
     ReferenceKind,
 } from "@miragon/bpmn-model-navigation";
 
+export type { BpmnSurfaceHandle } from "../surfaceHandle";
 export type { ViewportManager } from "../viewport";
 export type { ViewportData } from "../viewport";
 export type { SelectionManager } from "../selection";

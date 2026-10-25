@@ -17,10 +17,15 @@ owns it.
   fields read-only with a badge and a "click to focus the tab" hint.
 - **Divergence watch** — `ScriptSourceWatcher` detects when an open script's
   model content changed underneath its tab (canvas undo/redo, reload, element
-  deletion) and asks the host to overwrite or close the tab.
-- **Model helpers** — `collectInlineScriptTasks` / `findListenerAt` read and
-  address inline scripts consistently with the host-side rewrite fallback
-  (`libs/modeler-core/src/scriptTask/service/ScriptXmlService.ts`).
+  deletion) and asks the host to overwrite or close the tab. A tab the host
+  reports open for a surface the imported diagram no longer has (the task
+  changed type while the webview was hidden) is closed the same way; before
+  the first successful import no surface counts as gone.
+- **Model helpers** — `collectInlineScriptTasks` / `findListenerAt` /
+  `resolveScriptWriteTarget` read and address inline scripts. The host-side
+  rewrite fallback mirrors the write addressing in
+  `libs/modeler-core/src/scriptTask/domain/scriptBodyTarget.ts`; keep the two
+  in step.
 
 ## Event contract
 

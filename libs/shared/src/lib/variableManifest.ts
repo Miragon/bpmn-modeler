@@ -64,8 +64,7 @@ export function parseVariableManifest(jsonText: string, manifestName: string): V
             name,
             origin: `declared in ${manifestName}`,
             typeHint: typeof type === "string" && type ? type : undefined,
-            description:
-                typeof description === "string" && description ? description : undefined,
+            description: typeof description === "string" && description ? description : undefined,
             confidence: "authored",
         });
     }

@@ -14,8 +14,8 @@ vi.mock("vscode", () => ({
 
 import { ScriptVariableManifestService, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { VariableDef } from "@miragon/bpmn-modeler-shared";
-import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
-import { EditorSessionContext } from "../../../editor-session/EditorSessionParticipant";
+import { EditorSessionContext } from "@miragon/bpmn-modeler-core";
+import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { ScriptManifestParticipant } from "./ScriptManifestParticipant";
 
 const EDITOR_ID = "file:///work/diagram.bpmn";
@@ -33,8 +33,10 @@ const VARIABLE: VariableDef = {
 function createContext(isCurrent: () => boolean = () => true): EditorSessionContext {
     return {
         editorId: EDITOR_ID,
-        panel: {} as never,
         isCurrent,
+        isFocused: () => true,
+        onFocusChange: vi.fn(),
+        onReseed: vi.fn(),
         onDocumentChange: vi.fn(),
         onSettingChange: vi.fn(),
         onDispose: vi.fn(),
@@ -48,7 +50,7 @@ describe("ScriptManifestParticipant", () => {
         createWatcher: ReturnType<typeof vi.fn>;
     };
     let store: { setManifest: ReturnType<typeof vi.fn> };
-    let notifier: { logInfo: ReturnType<typeof vi.fn>; notifyError: ReturnType<typeof vi.fn> };
+    let notifier: RecordingNotifier;
 
     beforeEach(() => {
         manifestSvc = {
@@ -56,14 +58,14 @@ describe("ScriptManifestParticipant", () => {
             createWatcher: vi.fn().mockResolvedValue({ dispose: vi.fn() }),
         };
         store = { setManifest: vi.fn() };
-        notifier = { logInfo: vi.fn(), notifyError: vi.fn() };
+        notifier = new RecordingNotifier();
     });
 
     function participant(): ScriptManifestParticipant {
         return new ScriptManifestParticipant(
             manifestSvc as unknown as ScriptVariableManifestService,
             store as unknown as ScriptVariableStore,
-            notifier as unknown as VsCodeNotifier,
+            notifier,
         );
     }
 
@@ -77,10 +79,10 @@ describe("ScriptManifestParticipant", () => {
         await participant().onResolve(createContext());
 
         expect(store.setManifest).toHaveBeenCalledWith(EDITOR_ID, [VARIABLE]);
-        expect(notifier.logInfo).toHaveBeenCalledWith(
+        expect(notifier.logged("info")).toEqual([
             `Variable manifest loaded: ${MANIFEST_PATH} (1 variable(s))`,
-        );
-        expect(notifier.notifyError).not.toHaveBeenCalled();
+        ]);
+        expect(notifier.errors).toEqual([]);
     });
 
     it("logs the lookup path when no manifest exists (so a mislocation is debuggable)", async () => {
@@ -93,7 +95,7 @@ describe("ScriptManifestParticipant", () => {
         await participant().onResolve(createContext());
 
         expect(store.setManifest).toHaveBeenCalledWith(EDITOR_ID, []);
-        expect(notifier.logInfo).toHaveBeenCalledWith(`No variable manifest at ${MANIFEST_PATH}`);
+        expect(notifier.logged("info")).toEqual([`No variable manifest at ${MANIFEST_PATH}`]);
     });
 
     it("surfaces a read error and leaves the store untouched", async () => {
@@ -102,10 +104,7 @@ describe("ScriptManifestParticipant", () => {
 
         await participant().onResolve(createContext());
 
-        expect(notifier.notifyError).toHaveBeenCalledWith(
-            "Failed to read process-variable manifest",
-            error,
-        );
+        expect(notifier.errors).toEqual(["Failed to read process-variable manifest\nEACCES"]);
         expect(store.setManifest).not.toHaveBeenCalled();
     });
 
@@ -157,7 +156,7 @@ describe("ScriptManifestParticipant", () => {
         await resolving;
 
         expect(store.setManifest).not.toHaveBeenCalled();
-        expect(notifier.logInfo).not.toHaveBeenCalled();
+        expect(notifier.logged("info")).toEqual([]);
         expect(manifestSvc.createWatcher).not.toHaveBeenCalled();
     });
 });

@@ -4,20 +4,27 @@ const findFilesMock = vi.fn();
 const createDirectoryMock = vi.fn();
 const writeFileMock = vi.fn();
 const readFileMock = vi.fn();
+const statMock = vi.fn();
 const deleteMock = vi.fn();
 const createFileSystemWatcherMock = vi.fn();
+const readDirectoryMock = vi.fn();
+let workspaceFolders: { uri: { path: string } }[] | undefined;
 
 vi.mock("vscode", () => ({
     workspace: {
         fs: {
-            readDirectory: vi.fn(),
+            readDirectory: (...args: unknown[]) => readDirectoryMock(...args),
             readFile: (...args: unknown[]) => readFileMock(...args),
+            stat: (...args: unknown[]) => statMock(...args),
             writeFile: (...args: unknown[]) => writeFileMock(...args),
             createDirectory: (...args: unknown[]) => createDirectoryMock(...args),
             delete: (...args: unknown[]) => deleteMock(...args),
         },
         findFiles: (...args: unknown[]) => findFilesMock(...args),
         getWorkspaceFolder: vi.fn(),
+        get workspaceFolders() {
+            return workspaceFolders;
+        },
         createFileSystemWatcher: (...args: unknown[]) => createFileSystemWatcherMock(...args),
     },
     // Mirrors `vscode.FileSystemError`: an `Error` carrying a `.code`
@@ -45,14 +52,17 @@ vi.mock("vscode", () => ({
     FileType: { File: 1, Directory: 2, SymbolicLink: 64 },
 }));
 
-import { FileSystemError, workspace } from "vscode";
+import { FileSystemError, FileType, workspace } from "vscode";
 
-import { FileNotFound } from "@miragon/bpmn-modeler-core";
+import { DirectoryNotFound, FileNotFound } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 const getWorkspaceFolderMock = workspace.getWorkspaceFolder as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+    readDirectoryMock.mockReset();
+    workspaceFolders = undefined;
+    getWorkspaceFolderMock.mockReset();
     findFilesMock.mockReset();
     findFilesMock.mockResolvedValue([{ path: "/a.bpmn" }, { path: "/b.bpmn" }]);
     createDirectoryMock.mockReset();
@@ -60,6 +70,7 @@ beforeEach(() => {
     writeFileMock.mockReset();
     writeFileMock.mockResolvedValue(undefined);
     readFileMock.mockReset();
+    statMock.mockReset();
     deleteMock.mockReset();
     deleteMock.mockResolvedValue(undefined);
     createFileSystemWatcherMock.mockReset();
@@ -150,6 +161,69 @@ describe("VsCodeWorkspace.getWorkspaceFolderForDocument", () => {
     });
 });
 
+describe("VsCodeWorkspace.findWorkspaceFolderForDocument", () => {
+    it("returns the canonical folder path for a document inside a workspace folder", () => {
+        getWorkspaceFolderMock.mockReturnValueOnce({ uri: { path: "/C:/ws" } });
+
+        expect(new VsCodeWorkspace().findWorkspaceFolderForDocument("/c:/ws/a.bpmn")).toBe(
+            "/c:/ws",
+        );
+    });
+
+    it("returns undefined for a loose file instead of throwing", () => {
+        getWorkspaceFolderMock.mockReturnValueOnce(undefined);
+
+        expect(new VsCodeWorkspace().findWorkspaceFolderForDocument("/tmp/a.bpmn")).toBeUndefined();
+    });
+});
+
+describe("VsCodeWorkspace.getWorkspaceFolderPaths", () => {
+    it("lists every open folder in canonical form", () => {
+        workspaceFolders = [{ uri: { path: "/C:/ws" } }, { uri: { path: "/home/me/other" } }];
+
+        expect(new VsCodeWorkspace().getWorkspaceFolderPaths()).toEqual([
+            "/c:/ws",
+            "/home/me/other",
+        ]);
+    });
+
+    it("returns no folders in a single-file window", () => {
+        expect(new VsCodeWorkspace().getWorkspaceFolderPaths()).toEqual([]);
+    });
+});
+
+describe("VsCodeWorkspace.getDocumentDirectory", () => {
+    it("returns the directory of a `file://`-form document as a canonical path", () => {
+        expect(new VsCodeWorkspace().getDocumentDirectory("file:///C%3A/ws/proc/order.bpmn")).toBe(
+            "/c:/ws/proc",
+        );
+    });
+});
+
+describe("VsCodeWorkspace.readDirectory", () => {
+    it("lists files and directories and drops links and other entry types", async () => {
+        readDirectoryMock.mockResolvedValueOnce([
+            ["order.bpmn", 1],
+            ["element-templates", 2],
+            ["linked", 64],
+            ["socket", 0],
+        ]);
+
+        await expect(new VsCodeWorkspace().readDirectory("/ws/.camunda")).resolves.toEqual([
+            ["order.bpmn", "file"],
+            ["element-templates", "directory"],
+        ]);
+    });
+
+    it("reports an unreadable directory as DirectoryNotFound so config walks keep going", async () => {
+        readDirectoryMock.mockRejectedValueOnce(new FileSystemError("FileNotFound"));
+
+        await expect(new VsCodeWorkspace().readDirectory("/ws/.camunda")).rejects.toBeInstanceOf(
+            DirectoryNotFound,
+        );
+    });
+});
+
 describe("VsCodeWorkspace.createWatcher", () => {
     it("builds the RelativePattern from a real Uri base when the root is a `file://` string", () => {
         const sut = new VsCodeWorkspace();
@@ -161,6 +235,27 @@ describe("VsCodeWorkspace.createWatcher", () => {
         // resolve — the watcher would silently never fire otherwise.
         expect(pattern.base).toEqual(expect.objectContaining({ path: "/c:/ws" }));
         expect(pattern.pattern).toBe("**/*.json");
+    });
+
+    it("subscribes only the supplied handlers and disposes them with the watcher", () => {
+        const subscription = { dispose: vi.fn() };
+        const watcher = {
+            onDidCreate: vi.fn(),
+            onDidChange: vi.fn(),
+            onDidDelete: vi.fn(() => subscription),
+            dispose: vi.fn(),
+        };
+        createFileSystemWatcherMock.mockReturnValueOnce(watcher);
+
+        const handle = new VsCodeWorkspace().createWatcher("/ws", "**/*.json", {
+            onDelete: vi.fn(),
+        });
+        handle.dispose();
+
+        expect(watcher.onDidCreate).not.toHaveBeenCalled();
+        expect(watcher.onDidChange).not.toHaveBeenCalled();
+        expect(subscription.dispose).toHaveBeenCalledOnce();
+        expect(watcher.dispose).toHaveBeenCalledOnce();
     });
 
     it("delivers canonicalized event paths to handlers", () => {
@@ -247,6 +342,37 @@ describe("VsCodeWorkspace.readFile", () => {
 
         await expect(sut.readFile("/work/x.txt")).rejects.not.toBeInstanceOf(FileNotFound);
         await expect(sut.readFile("/work/x.txt")).rejects.toThrow(/boom/);
+    });
+});
+
+describe("VsCodeWorkspace.isSymbolicLink", () => {
+    it("is true when the stat type carries the SymbolicLink bit", async () => {
+        statMock.mockResolvedValueOnce({ type: FileType.File | FileType.SymbolicLink });
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.isSymbolicLink("/work/.env")).resolves.toBe(true);
+        expect(statMock).toHaveBeenCalledWith(expect.objectContaining({ path: "/work/.env" }));
+    });
+
+    it("is false for a plain file", async () => {
+        statMock.mockResolvedValueOnce({ type: FileType.File });
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.isSymbolicLink("/work/.env")).resolves.toBe(false);
+    });
+
+    it("is false when the path does not exist", async () => {
+        statMock.mockRejectedValueOnce(new FileSystemError("FileNotFound"));
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.isSymbolicLink("/work/.env")).resolves.toBe(false);
+    });
+
+    it("rethrows a non-FileNotFound filesystem error", async () => {
+        statMock.mockRejectedValueOnce(new FileSystemError("NoPermissions"));
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.isSymbolicLink("/work/.env")).rejects.toThrow(/NoPermissions/);
     });
 });
 

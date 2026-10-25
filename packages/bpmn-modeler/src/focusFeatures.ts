@@ -13,6 +13,12 @@ interface CanvasService {
     isFocused(): boolean;
 }
 
+export interface SurfaceFocusOptions {
+    extraRoots?: HTMLElement[];
+    handleGlobalEscape?: boolean;
+    hasSearchPad: boolean;
+}
+
 /**
  * Installs the shared canvas focus features — keyboard-focus/Escape handling and
  * the canvas focus indicator — every surface wires identically. Services resolve
@@ -27,11 +33,7 @@ interface CanvasService {
  */
 export function installSurfaceFocusFeatures(
     getService: <T>(name: string) => T,
-    options: {
-        extraRoots?: HTMLElement[];
-        handleGlobalEscape?: boolean;
-        hasSearchPad: boolean;
-    },
+    options: SurfaceFocusOptions,
 ): Disposer {
     const canvas = getService<CanvasService>("canvas");
     const canvasContainer = canvas.getContainer();

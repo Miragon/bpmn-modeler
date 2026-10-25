@@ -7,8 +7,8 @@ modeling surfaces; `modeler-core` provides the shared services behind the IDEs.
 
 ## Platform map
 
-The same BPMN and DMN packages power the IDE webviews and the browser demo.
-Browser applications call their APIs directly. IDE integrations add document
+The same BPMN and DMN packages power the IDE webviews and external browser
+applications. Browser applications call their APIs directly. IDE integrations add document
 management and host capabilities through a private message bridge.
 
 ```mermaid
@@ -19,7 +19,7 @@ flowchart TB
     extension <-->|postMessage| webviews["BPMN / DMN<br/>webview adapters"]
     intellij <-->|JCEF messages: BPMN| webviews
     webviews -->|imports| packages["Browser modeler packages<br/>BPMN / DMN"]
-    browser["Browser demo /<br/>external applications"] -->|imports| packages
+    browser["External browser<br/>applications"] -->|imports| packages
     packages -->|composes| libraries["Reusable browser libraries<br/>types, features, styles"]
 ```
 
@@ -39,7 +39,7 @@ by `apps/standalone` and `libs/standalone-extension`.
 | `libs/modeler-types` | Public-facing model types and browser utilities suitable for inclusion in the published packages. |
 | `libs/shared` | Private Command/Query protocol, `HostApi`, document-flush helpers, and webview chrome such as panel resizing and host-theme adaptation. |
 | Other `libs/` | Reusable feature modules: menus, properties panel, clipboard, navigation, code links, scripting, diff, and translation overlays. |
-| `apps/` | Runnable applications and host adapters: IDE integrations, webviews, bridge, standalone shell, and browser demo. |
+| `apps/` | Runnable applications and host adapters: IDE integrations, webviews, bridge, and standalone shell. |
 
 The `libs/` workspaces are private and are not published individually. Browser
 packages inline the reusable workspace code they need while keeping the upstream
@@ -48,10 +48,9 @@ bpmn-io stack as npm dependencies. Shared translations come from the external
 overlay.
 
 `apps/bpmn-webview` and `apps/dmn-webview` adapt the public modeler APIs to host
-messages, theme signals, and persisted view state. `apps/demo-webapp` demonstrates
-direct package embedding. `apps/form-webview` integrates form-js editing and
-preview; `apps/deployment-webview` renders the deployment UI, with its markup
-owned by `src/app/formTemplate.ts`.
+messages, theme signals, and persisted view state. `apps/form-webview` integrates
+form-js editing and preview; `apps/deployment-webview` renders the deployment UI,
+with its markup owned by `src/app/formTemplate.ts`.
 
 ## Boundaries and extension points
 
@@ -88,11 +87,13 @@ feature-barrel boundaries.
 
 ## Editor communication and lifecycle
 
-Each IDE editor has a browser surface and a host-managed session. VS Code's
-generic `ModelerEditorController` serves BPMN, DMN, and Forms; participants add
-per-editor concerns such as rendering, settings, and cleanup. The core's
-`EditorSessionStore` tracks editor handles, and `WebviewMessageRouter` dispatches
-incoming messages to registered handlers. BPMN diff uses coordinated viewer panes.
+Each IDE editor has a browser surface and a host-managed session. The core's
+`EditorSessionLifecycle` runs each session the same way on VS Code and in the
+IntelliJ bridge; participants add per-editor concerns such as rendering,
+settings, linting, and cleanup. VS Code's generic `ModelerEditorController`
+serves BPMN, DMN, and Forms through it. The core's `EditorSessionStore` tracks
+editor handles, and `WebviewMessageRouter` dispatches incoming messages to
+registered handlers. BPMN diff uses coordinated viewer panes.
 
 The private protocol lives in `libs/shared/src/lib/`: `messages.ts` defines
 base and cross-cutting messages, while feature files define their payloads.

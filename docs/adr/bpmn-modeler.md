@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-20
+- Last reviewed: 2026-10-24
 
 ## Context
 
@@ -112,7 +112,11 @@ survives a live toggle but not destruction/recreation of its instance.
 `/design` stays free of Camunda moddles/behaviors, element templates and
 transaction boundaries; it has no engine settings, engine conversion helpers,
 or Camunda align-to-origin/grid/color-picker chrome. `favouriteBpmnElements` is
-a direct designer option. Its optional lint module comes from the consumer.
+a direct designer option with a live `setFavouriteBpmnElements` setter. The
+modeler handle carries the same setter beside `setSettings`, sharing its
+favourites path, so a host updates either editable surface the same way and the
+modeler handle still narrows to the designer handle. The designer's optional
+lint module comes from the consumer.
 The viewer has no engine, clipboard, lint option or `locale` option, but its
 entry includes translated diff labels and optional panel dependencies. It has
 no broad viewer-purity allowlist; readonly is enforced by the absence of editing
@@ -123,29 +127,42 @@ Viewer and designer entries import no CSS. Consumers load `viewer.css` or
 editor stylesheet through the shared CSS build. Viewer panel imports bypass
 the library barrel's CSS side effect. `/mode` likewise has its own `mode.css`.
 
-The root modeler constructs `bpmn-js/lib/Modeler` itself; it does not use
-camunda-bpmn-js's C7/C8 Modeler classes. Each engine stack is data: upstream
-plugin modules in camunda-bpmn-js's registration order, with the shared leading
-and trailing modules spliced around them by one helper, the engine's moddle
-extension, and the properties-panel/popup-menu option defaults. Those classes
-added popup-menu providers across releases that the custom append menu then had
-to disable, and they declare bpmn-js and diagram-js as regular dependencies
-rather than peers. Owning the composition makes upstream features opt-in.
-Options and features we do not use stay unwired: `disableAdjustOrigin` /
-`disableGrid`, the upstream template chooser (ours replaces it), the
-create/append group and tab providers, and C8 external resources (inert without
-a resources provider). The group and tab providers would regroup the flat
-`bpmn-create`/`bpmn-append` entries the custom append menu reads; the C8 stack
-registers only the replace tabs provider, so the append menu disables no
-upstream providers. A
-[browser spec](../../packages/bpmn-modeler/src/engineStacks/engineStacks.upstream.browser.spec.ts)
-pins each stack's composition and option defaults, net of these deliberate
-differences, against the installed camunda-bpmn-js C7/C8 Modeler classes, so a
-camunda-bpmn-js bump that adds or reorders modules fails instead of drifting
-silently; it stays until #1672 drops the dependency.
-Proposed (#1672): vendor the remaining camunda-bpmn-js features — element
-descriptions, C8 search keywords and C8 replace tabs, still deep-imported — and
-drop the dependency.
+The root modeler constructs `bpmn-js/lib/Modeler` itself. Each engine stack is
+data: upstream plugin modules, with the shared leading and trailing modules
+spliced around them by one helper, the engine's moddle extension, the
+properties-panel option defaults, and the engine's popup-menu annotation
+overrides. The stacks started from camunda-bpmn-js 5.36.0's C7/C8 Modeler
+composition and keep its order, but no longer track it: the package does not
+depend on camunda-bpmn-js. Its Modeler classes added popup-menu providers across
+releases that the custom append menu then had to disable, and its caret ranges
+overlap most of our exact pins, so Yarn Berry consumers got a second bpmn-js and
+diagram-js nested under it. Upstream options and features we do not use stay
+unwired: `disableAdjustOrigin` / `disableGrid`, the upstream template chooser
+(ours replaces it), the create/append group providers, which would regroup the
+flat `bpmn-create`/`bpmn-append` entries the custom append menu reads, and C8
+external resources (inert without a resources provider).
+
+The popup-menu annotations camunda-bpmn-js used to supply are ours
+([`popupMenuAnnotations/`](../../packages/bpmn-modeler/src/popupMenuAnnotations/)).
+A pure module holds element descriptions and search keywords keyed by the bpmn-js
+popup entry id, and the one mapping from `create-`/`append-`/`replace-with-`
+entry ids onto that key. A single diagram-js provider attaches them to the
+`bpmn-create`, `bpmn-append` and `bpmn-replace` entries and translates the
+descriptions. The data is layered: an engine-neutral base set, which `/design`
+loads as is, plus per-engine overrides only where semantics differ — the
+service-task wording, "job worker" on C8, "java delegate" and "external task" on
+C7 — so Design, C7 and C8 get the same menus. The English descriptions reuse
+camunda-bpmn-js's strings where they are engine-neutral, because the shared i18n
+package is keyed by them; `THIRD_PARTY_NOTICES` attributes them. On C7 and C8
+the replace menu moves element-template entries into a "Templates" tab beside
+the default "BPMN" tab. Copying upstream's implementation would have carried its
+C8-only wording and keywords into roughly 650 lines of code for what diagram-js
+entries already support (`description`, `search`, `tab`); bundling it at build
+time would still ship upstream internals without an API contract. A
+[coverage test](../../packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.coverage.browser.spec.ts)
+requires every bpmn-js replace action and create option to resolve to a
+description on all three surfaces, bar an explicit exception list, so a bpmn-js
+bump that adds an element fails until it is described.
 
 The stack loads through a dynamic import inside the modeler's already
 asynchronous construction, so the factory contract is unchanged.
@@ -236,13 +253,15 @@ the canvas and panel roots. Theme always engages; `automatic` is the default.
 Overlays mounted outside those roots copy the attribute onto their own root.
 The host themes its page chrome through the private shared `hostTheme` adapter.
 A host root theme must not be allowed to override differently themed instances.
+A destroyed instance ignores `setTheme` rather than throwing `NoModelerError`:
+a mode session forwards theme changes to the outgoing surface while a recreate
+is in flight, then applies its current theme to the surface it builds.
 
 Author dark overrides once, scoped under the attribute. The main stylesheet
 combines them with the upstream light base; derive unscoped legacy light/dark
 sheets by stripping that scope. The light base imports each plugin's own
 stylesheet at the pinned version, never another package's prebuilt copy
-(camunda-bpmn-js's `dist/assets`, bpmn-js's `diagram-js.css`): those are frozen
-at that package's build and drift from the JS we run (#1670). An architecture
+(bpmn-js's `diagram-js.css`): those are frozen at that package's build and drift from the JS we run (#1670). An architecture
 test rejects such imports. Mirroring an existing `#theme-link` remains a
 supported silent fallback. Removing it would break existing consumers; authoring
 two independent theme sources would invite drift. The attribute/custom-property
@@ -434,8 +453,10 @@ because hosts can render the strip before a surface exists for harvesting.
 Tagged Design/Implement switches toggle live. Recreate transitions capture view
 state, export XML, await `beforeDestroy` (host flush), destroy the old surface,
 construct/load the new one and restore plane, viewport and selection. Bind
-recreated surfaces before loading carried XML; initial host binding retains
-first-open fit behavior. Recreation loses instance undo and simulation state.
+recreated surfaces before loading carried XML. The surface fits a fresh open
+itself; the host only restores its persisted plane and viewport, on first open
+and after a fallback, which carries no snapshot. Recreation loses instance undo
+and simulation state.
 
 A session owns at most one live surface. Failed preparation retains the old
 surface; failed construction/load disposes the candidate before trying a
@@ -453,10 +474,29 @@ implementers must honor its promise-returning signature.
 Surfaces compose lifecycle primitives instead of inheriting a base class:
 published `DisposableStore`, `MutableDisposable` and `subscribe` support
 idempotent LIFO cleanup; internal `createSurface` disposes partial construction
-on failure. A shared initial-viewport policy prevents delayed fit from
-overwriting restored state. These primitives live in `modeler-types` so the
+on failure. Every surface (modeler, designer, viewer, diff panes) arms one
+shared initial-viewport policy on every import: it fits once the container has
+a size and keeps the cached canvas box in sync on resize. An explicit
+`setViewport`/`applyViewState`, or a `ViewportManager.centerOnElement` focus,
+settles it, so the delayed fit never overwrites restored state; hosts need no
+initial fit of their own. Lifecycle primitives live in `modeler-types` so the
 restricted `/mode` graph and inlined feature libraries can reuse them.
-Post-destroy DiffViewer operations throw `NoModelerError`.
+After `destroy()`, every surface (modeler, designer, viewer, DiffViewer) throws
+`NoModelerError` from each member that reaches the diagram or its services,
+host pushes included; `setTheme` is the one exception and becomes a no-op.
+Host pushes for an optional capability (lint, code-link status, open script
+editors) no-op only when the surface was built without that capability, never
+because it was destroyed: a use-after-destroy bug stays visible, and hosts
+whose pushes can race teardown catch the error.
+
+The modeler, designer and viewer facades delegate shared plumbing (bpmn-js
+instance, managers, view state, initial fit, focus, theme) to an internal
+`SurfaceCore`; the two editable facades add the `editableSurface` helpers. Each
+facade still owns its store, and with it its LIFO teardown order. The three
+handle interfaces extend one type-only `BpmnSurfaceHandle` that declares and
+documents the members they share (document I/O, view state, theme, `destroy`).
+The theme controller lives in `modeler-types` and takes the attribute name, so
+the DMN package uses the same one.
 
 Editable surfaces share debounced content-out (300 ms, 1000 ms max wait).
 `onContentSaved({ xml })` accepts and awaits `void | Promise<void>`. Catch
@@ -471,7 +511,8 @@ available to consumers that need it.
 The public facade, signatures and declared subpaths require compatibility
 discipline; IDE protocol adaptation stays private. Optional surfaces add API
 and stylesheet contracts, and the readonly panel adds dependencies to `/viewer`.
-The fork, layout alpha and engine descriptors carry explicit maintenance costs.
+The fork, layout alpha, engine descriptors and popup-menu annotation data carry
+explicit maintenance costs.
 
 Use [API conformance tests](../../packages/bpmn-modeler/src/publicApi.spec.ts),
 [architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
@@ -479,7 +520,9 @@ Use [API conformance tests](../../packages/bpmn-modeler/src/publicApi.spec.ts),
 the [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs)
 and [mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) import
 checks. [Lifecycle browser tests](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
-exercise all four surfaces;
+exercise all four surfaces, and the
+[editable-surface contract](../../packages/bpmn-modeler/src/editableSurfaceContract.browser.spec.ts)
+pins that post-destroy lint pushes throw;
 [session tests](../../packages/bpmn-modeler/src/modeSession/modeSession.spec.ts)
 cover transition failures and teardown. The test-environment limits and upstream
 shape gates are recorded in [Engineering practices](engineering-practices.md).

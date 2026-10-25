@@ -1,11 +1,6 @@
 ---
 name: bpmn-browser-testing
-description: >
-  Test and inspect the BPMN modeler in a real browser, including the embeddable
-  package demo and IDE webview preview. Use when opening the modeler, creating or
-  connecting elements, checking properties, View/Design/Implement modes, themes,
-  diff rendering, clipboard, or multiple modeler instances. Guides browser tool
-  discovery, selecting the right preview, SVG interactions, and verification limits.
+description: Tests and inspects the BPMN modeler in a real browser through the webview previews and the Vitest browser specs. Use when verifying modeler interactions, modes, themes, diff, clipboard or linting.
 ---
 
 # BPMN Browser Testing
@@ -23,36 +18,47 @@ portless, including its scheme, rather than Vite's internal localhost port.
 
 | Target | Command | What it exercises |
 |---|---|---|
-| Embeddable package demo | `corepack yarn demo` | Public package surfaces, mode switching, native clipboard, in-page linting |
-| IDE webview preview | `corepack yarn workspace @miragon/bpmn-modeler-webview dev` | Webview bootstrap, panel chrome, and protocol adapters against `MockHost` |
+| BPMN webview preview | `corepack yarn dev:bpmn-webview` | Webview bootstrap, mode strip, panel chrome, and protocol adapters against `MockHost` |
+| DMN webview preview | `corepack yarn dev:dmn-webview` | DMN bootstrap and dmn-js views against a sample decision |
+| Form / deployment previews | `corepack yarn dev:form-webview`, `corepack yarn dev:deployment-webview` | Form editor/preview and the deployment sidebar against their mock hosts |
+| BPMN package browser specs | `corepack yarn workspace @miragon/bpmn-modeler test:browser` | Public package surfaces in headless Chromium, without a host |
 
-Both commands use the existing `portless.json` configuration. The demo builds
-BPMN and DMN before serving static files; after source changes, run
-`corepack yarn build:demo` and reload. The webview's `dev` runs Vite with live
-updates through portless.
+Each `dev` script runs Vite with live updates through the workspace's own
+`portless.json`. Every preview runs a development build whose `getHostApi()`
+returns a `MockHost`; production bundles never contain it.
 
-For parallel sessions, check `corepack yarn exec portless list` and reuse a
-running app in the same worktree. Separate instances within one worktree need
-distinct portless `--name` values. Keep handles for processes you start, stop
-only those processes, and leave the shared proxy running. Avoid `--force`, which
-takes over another process's route. If portless needs setup, inspect
-`corepack yarn exec portless service status` and report the missing prerequisite.
+For parallel sessions, check
+`corepack yarn workspace @miragon/bpmn-modeler-webview exec portless list` and
+reuse a running app in the same worktree. Separate instances within one worktree
+need distinct portless `--name` values. Keep handles for processes you start,
+stop only those processes, and leave the shared proxy running. Avoid `--force`,
+which takes over another process's route. If portless needs setup, inspect
+`portless service status` through the same workspace `exec` and report the
+missing prerequisite.
 
-The demo opens at `/bpmn/`. Its model picker includes C7 examples and an untagged
-**Onboarding (Draft)** model. Additional pages on that server are:
+The BPMN preview opens at `/`. Its development host in
+`apps/bpmn-webview/src/host.ts` serves a C7 fixture with the C7 and C8 sample
+element templates. `?mode=neutral` opens an untagged model in Design with
+Implement greyed out; `?mode=diff-before` and `?mode=diff-after` each show one
+read-only diff pane with real `bpmn-js-differ` highlights. These panes have no
+partner for synchronized navigation. Workspace definition search answers from
+`__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
+decision from `apps/dmn-webview/src/host.ts`.
 
-| Path | Purpose |
-|---|---|
-| `/bpmn/viewer.html` | Read-only viewer and properties |
-| `/bpmn/design.html` | Engine-neutral designer |
-| `/bpmn/diff.html` | Two-pane comparison |
-| `/bpmn/dual.html` | Independent C7/C8 instances, panels, and theme toggles |
+### Not available in a browser preview
 
-The webview preview opens at `/`. Its development host in
-`apps/bpmn-webview/src/host.ts` serves a C7 fixture by default. `?mode=neutral`
-opens an untagged model; `?mode=diff-before` and `?mode=diff-after` each show one
-read-only diff pane. These panes have no partner for synchronized navigation.
-Fixture URLs belong to the webview preview; the demo has its own routing.
+- A C8 model: MockHost serves only the C7 and untagged fixtures, so C8
+  Implement properties need a host or a browser spec.
+- Lint findings: MockHost answers the lint-config request with no config, so no
+  bpmnlint overlays or results appear.
+- Two-pane diff, synchronized diff navigation, and several modelers on one page:
+  each preview hosts a single instance.
+- The public viewer and designer factories outside the webview bootstrap.
+
+Cover these with the package browser specs in `packages/bpmn-modeler/src/**/*.browser.spec.ts`
+(lifecycle, designer contract, viewer round trip, `DiffViewer`, clipboard
+bridge, bpmnlint) or with a host integration check. The specs need Playwright's
+Chromium installed.
 
 Use a plain `serve` script only when portless is unavailable or direct Vite was
 explicitly requested; use its printed URL and avoid hard-coded ports. `watch`
@@ -95,8 +101,8 @@ properties depend on engine, mode, templates, and locale.
 | `#js-properties-panel-mount` | Current surface's properties |
 | `#js-panel-resizer` | Resize and collapse controls |
 
-Other demo pages use different containers. Scope selectors to the intended pane
-on diff/dual pages; avoid global `.first()` selectors that hide ambiguity.
+In a diff pane the palette, panel, and resizer are hidden. Avoid global
+`.first()` selectors that hide ambiguity.
 
 Prefer click-then-click creation over HTML drag-and-drop: bpmn-js uses its own
 SVG dragging lifecycle. Choose an empty placement point from a screenshot,
@@ -127,14 +133,13 @@ definition / Job type** fields exist in the default C7 preview.
 - Exercise the requested behavior through UI controls, checking the result after
   each meaningful action. For property edits, verify the displayed value and any
   affected label; wait for debounced updates before inspecting outbound sync.
-- Test themes with the demo's theme picker, and instance isolation with the dual
-  page's per-pane buttons. Check `data-bpmn-theme` on the actual canvas/panel.
-  The webview shell's `?theme=dark` adds a body class, but MockHost currently sends
-  `colorTheme: "light"`, which can override it. Use an explicit mock settings
-  message when testing that adapter and verify the effective theme.
-- Record console errors and failed requests. The demo does not replace the
-  webview preview: it never runs the webview bootstrap, MockHost, or the
-  webview's Vite config. A blank preview with an unresolved
+- Check `data-bpmn-theme` on the actual canvas/panel. The BPMN shell's
+  `?theme=dark` adds a body class, but MockHost sends `colorTheme: "light"`,
+  which overrides it. To test dark mode, post a settings message after load and
+  verify the effective theme:
+  `window.postMessage({ type: "BpmnModelerSettingQuery", setting: { alignToOrigin: false, showTransactionBoundaries: true, colorTheme: "dark" } }, "*")`.
+  The DMN preview's MockHost sends `automatic`, so `?theme=dark` applies there.
+- Record console errors and failed requests. A blank preview with an unresolved
   `@bpmn-io/properties-panel/preact/jsx-dev-runtime` import means the
   `jsx-dev-runtime` → `jsx-runtime` alias is missing from that app's Vite config.
   Missing theme-link errors are not an expected baseline for current theming.
@@ -152,12 +157,12 @@ definition / Job type** fields exist in the default C7 preview.
 Do not assume a public modeler object on `window`. The webview's development-only
 translation recorder exposes `window.__injector` and `window.__harvested` and
 substitutes English translation templates. These are diagnostic hooks, absent
-from the package demo and production entry, and do not prove UI behavior. For
+from the production entry, and do not prove UI behavior. For
 translation harvesting, follow [i18n](../i18n-translate/SKILL.md).
 
 Report the preview URL, fixture/engine, mode, actions, observed results, and any
 unverified host behavior. Keep screenshots in the ignored `.context/` directory
 when available. For deeper debugging, start at `apps/bpmn-webview/src/main.ts`,
 `src/bootstrap.ts`, and `src/host.ts` within that app, or
-`apps/demo-webapp/bpmn/main.ts` for package composition; consult
+`packages/bpmn-modeler/src/index.ts` for package composition; consult
 [bpmn-js](../bpmn-js/SKILL.md) for interaction internals.

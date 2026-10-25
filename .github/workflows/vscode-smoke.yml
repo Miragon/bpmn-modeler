@@ -1,0 +1,102 @@
+name: VS Code smoke
+
+# The packaged extension in a real VS Code, driven through its webviews
+# (apps/vscode-plugin/test/smoke, `test:vscode`). A workflow of its own and not
+# a required check, so it neither delays nor blocks the Build workflow. Pull
+# requests run it when they change the extension, a webview or library it
+# bundles, the lockfile or the test's setup; the weekly run catches a new
+# VS Code release breaking the extension without a change here.
+on:
+  pull_request:
+    paths:
+      - 'apps/vscode-plugin/**'
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/form-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'libs/**'
+      - '!libs/standalone-extension/**'
+      - 'packages/bpmn-modeler/**'
+      - 'packages/dmn-modeler/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - 'tsconfig.base.json'
+      - '.github/workflows/vscode-smoke.yml'
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      vscode-version:
+        description: 'VS Code version, at least 1.78 (older Electron is too old for Playwright); empty for the newest stable'
+        required: false
+        default: ''
+
+permissions: {}
+
+concurrency:
+  group: vscode-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vscode-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install xvfb and Linux build deps for native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libx11-dev libxkbfile-dev libsecret-1-dev
+      - name: Install dependencies
+        run: corepack yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: corepack yarn build
+
+      # The cache key needs the version before the test resolves it; the test then runs exactly it.
+      - id: vscode
+        name: Resolve the VS Code version and its cache folder
+        env:
+          REQUESTED: ${{ inputs.vscode-version }}
+        run: |
+          version="${REQUESTED:-$(curl -fsSL https://update.code.visualstudio.com/api/releases/stable | jq -r '.[0]')}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "cache=${XDG_CACHE_HOME:-$HOME/.cache}/bpmn-modeler-vscode-smoke" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.vscode.outputs.cache }}
+          key: vscode-smoke-${{ runner.os }}-${{ runner.arch }}-${{ steps.vscode.outputs.version }}
+
+      # Not test:vscode:docker: the runner already is a throwaway Linux machine,
+      # and the cache above keeps VS Code where a container volume would start empty.
+      - name: Run the VS Code smoke test
+        run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:vscode
+        env:
+          VSCODE_SMOKE_VERSION: ${{ steps.vscode.outputs.version }}
+
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vscode-smoke-screenshots
+          path: test-results/vscode-smoke/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vscode-smoke-logs
+          path: test-results/vscode-smoke/vscode-logs/
+          if-no-files-found: ignore
+          retention-days: 7

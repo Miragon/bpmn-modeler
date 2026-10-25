@@ -15,7 +15,7 @@ vi.mock("vscode", () => ({
     workspace: {
         applyEdit: (...args: unknown[]) => applyEditMock(...args),
         fs: { isWritableFileSystem: (scheme: string) => isWritableFileSystemMock(scheme) },
-        onDidChangeTextDocument: vi.fn(),
+        onDidChangeTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
         onDidChangeConfiguration: vi.fn(),
     },
     WorkspaceEdit: class {
@@ -40,6 +40,8 @@ vi.mock("./bootstrapWebview", () => ({
     bootstrapWebview: vi.fn(() => nextPanel),
 }));
 
+import { workspace } from "vscode";
+
 import { bootstrapWebview } from "./bootstrapWebview";
 import { VsCodeEditorHandle } from "./VsCodeEditorHandle";
 
@@ -48,6 +50,8 @@ interface FakePanel {
     visible: boolean;
     active: boolean;
     webview: { postMessage: ReturnType<typeof vi.fn> };
+    dispose: ReturnType<typeof vi.fn>;
+    onDidChangeViewState: ReturnType<typeof vi.fn>;
 }
 
 function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
@@ -56,6 +60,8 @@ function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
         visible: true,
         active: false,
         webview: { postMessage: vi.fn().mockResolvedValue(true) },
+        dispose: vi.fn(),
+        onDidChangeViewState: vi.fn(() => ({ dispose: vi.fn() })),
         ...overrides,
     };
 }
@@ -249,5 +255,79 @@ describe("VsCodeEditorHandle.postMessage", () => {
         await expect(handle.postMessage(message)).rejects.toThrow(
             "Failed to send message to the webview.",
         );
+    });
+});
+
+describe("VsCodeEditorHandle.documentPath", () => {
+    it("lowercases a Windows drive letter so it matches workspace-root paths", () => {
+        const document = makeDocument({
+            uri: {
+                scheme: "file",
+                path: "/C:/ws/order.bpmn",
+                fsPath: "C:\\ws\\order.bpmn",
+                toString: () => "file:///c%3A/ws/order.bpmn",
+            },
+        });
+
+        expect(createHandle(makePanel(), document).documentPath()).toBe("/c:/ws/order.bpmn");
+    });
+});
+
+describe("VsCodeEditorHandle.dispose", () => {
+    it("disposes the panel and every subscription only once", () => {
+        const panel = makePanel();
+        const subscription = { dispose: vi.fn() };
+        const handle = createHandle(panel, makeDocument());
+        handle.addSubscription(subscription);
+
+        handle.dispose();
+        handle.dispose();
+
+        expect(panel.dispose).toHaveBeenCalledOnce();
+        expect(subscription.dispose).toHaveBeenCalledOnce();
+    });
+});
+
+describe("VsCodeEditorHandle.onDidChangeActive", () => {
+    it("reports the panel's focus state on every view-state change", () => {
+        const panel = makePanel();
+        const activeChanged = vi.fn();
+        createHandle(panel, makeDocument()).onDidChangeActive(activeChanged);
+        const viewStateChanged = panel.onDidChangeViewState.mock.calls[0][0] as () => void;
+
+        panel.active = false;
+        viewStateChanged();
+        panel.active = true;
+        viewStateChanged();
+
+        expect(activeChanged.mock.calls).toEqual([[false], [true]]);
+    });
+});
+
+describe("VsCodeEditorHandle.onDidChangeDocument", () => {
+    function emitTextDocumentChange(contentChanges: unknown[]) {
+        const listener = vi.mocked(workspace.onDidChangeTextDocument).mock.calls[0][0] as (
+            event: unknown,
+        ) => void;
+        listener({
+            contentChanges,
+            document: {
+                uri: { path: "/ws/other.bpmn", toString: () => "file:///ws/other.bpmn" },
+            },
+        });
+    }
+
+    it("reports which document changed and whether its content did", () => {
+        const received = vi.fn();
+        createHandle(makePanel(), makeDocument()).onDidChangeDocument(received);
+
+        emitTextDocumentChange([{ text: "x" }]);
+        emitTextDocumentChange([]);
+
+        const [edit, saveOnly] = received.mock.calls.map(([event]) => event);
+        expect(edit.documentUriString()).toBe("file:///ws/other.bpmn");
+        expect(edit.documentPath()).toBe("/ws/other.bpmn");
+        expect(edit.hasContentChanges()).toBe(true);
+        expect(saveOnly.hasContentChanges()).toBe(false);
     });
 });

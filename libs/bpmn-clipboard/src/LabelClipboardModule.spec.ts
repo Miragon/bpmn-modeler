@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // LabelClipboard is not exported; reach the class through the DI tuple.
 import { LabelClipboardModule } from "./LabelClipboardModule";
+import { FakeClipboardEvent, FakeDataTransfer } from "./__fixtures__/clipboardEvents";
 
 type Bridge = {
     requestClipboard: () => Promise<string>;
@@ -110,5 +111,79 @@ describe("LabelClipboard", () => {
         content.dispatchEvent(ctrl("v"));
 
         expect(bridge.requestClipboard).not.toHaveBeenCalled();
+    });
+
+    it("ignores keys pressed without Ctrl or Cmd", () => {
+        emit("directEditing.activate");
+
+        const event = new KeyboardEvent("keydown", { key: "v", bubbles: true, cancelable: true });
+        content.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(bridge.requestClipboard).not.toHaveBeenCalled();
+    });
+
+    it("keeps the clipboard untouched when Ctrl+C is pressed without a selection", () => {
+        emit("directEditing.activate");
+        vi.spyOn(window, "getSelection").mockReturnValue({
+            toString: () => "",
+        } as unknown as Selection);
+
+        content.dispatchEvent(ctrl("c"));
+
+        expect(bridge.writeClipboard).not.toHaveBeenCalled();
+    });
+});
+
+describe("LabelClipboard paste into the label", () => {
+    const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+    let insertText: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        vi.stubGlobal("DataTransfer", FakeDataTransfer);
+        vi.stubGlobal("ClipboardEvent", FakeClipboardEvent);
+        // jsdom does not implement execCommand.
+        insertText = vi.fn();
+        Object.defineProperty(document, "execCommand", { value: insertText, configurable: true });
+        bridge.requestClipboard.mockResolvedValue("pasted text");
+        content.tabIndex = 0;
+        content.focus();
+        emit("directEditing.activate");
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        delete (document as { execCommand?: unknown }).execCommand;
+        content.remove();
+    });
+
+    it("hands the host clipboard text to a paste handler on the label", async () => {
+        const pastedTexts: string[] = [];
+        content.addEventListener("paste", (event) => {
+            event.preventDefault();
+            pastedTexts.push((event as FakeClipboardEvent).clipboardData!.getData("text/plain"));
+        });
+
+        content.dispatchEvent(ctrl("v"));
+        await flush();
+
+        expect(pastedTexts).toEqual(["pasted text"]);
+        expect(insertText).not.toHaveBeenCalled();
+    });
+
+    it("inserts the text itself when no handler consumes the paste", async () => {
+        content.dispatchEvent(ctrl("v"));
+        await flush();
+
+        expect(insertText).toHaveBeenCalledWith("insertText", false, "pasted text");
+    });
+
+    it("pastes nothing when the host clipboard is empty", async () => {
+        bridge.requestClipboard.mockResolvedValue("");
+
+        content.dispatchEvent(ctrl("v"));
+        await flush();
+
+        expect(insertText).not.toHaveBeenCalled();
     });
 });

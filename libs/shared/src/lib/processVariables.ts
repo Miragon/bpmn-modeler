@@ -170,6 +170,38 @@ function preferred(a: VariableDef, b: VariableDef): VariableDef {
     return a;
 }
 
+// Structural slivers of the moddle tree read below. bpmn-js types the tree as
+// `any`, so every member is optional and each read keeps its runtime guard.
+interface ModdleDefinitions {
+    readonly rootElements?: readonly ModdleFlowElement[];
+}
+
+interface ModdleFlowElement {
+    readonly $type?: string;
+    readonly id?: string;
+    readonly flowElements?: readonly ModdleFlowElement[];
+    readonly resultVariable?: string;
+    readonly script?: string;
+    readonly conditionExpression?: { readonly body?: string };
+    readonly extensionElements?: { readonly values?: readonly ModdleExtension[] };
+}
+
+interface ModdleExtension {
+    readonly $type?: string;
+    readonly inputParameters?: readonly ModdleParameter[];
+    readonly outputParameters?: readonly ModdleParameter[];
+    readonly fields?: readonly { readonly id?: string; readonly type?: string }[];
+    readonly source?: string;
+    readonly sourceExpression?: string;
+    readonly target?: string;
+    readonly script?: { readonly value?: string };
+}
+
+interface ModdleParameter {
+    readonly name?: string;
+    readonly value?: string;
+}
+
 /**
  * Walks every `bpmn:Process` root (recursing into sub-process `flowElements`)
  * and assembles the deduplicated process-variable model.
@@ -178,9 +210,9 @@ function preferred(a: VariableDef, b: VariableDef): VariableDef {
  * element-local, but per-element scoping is cheap to add later because the
  * script URI already carries the `elementId`.
  */
-export function extractProcessVariables(definitions: any): VariableDef[] {
+export function extractProcessVariables(definitions: ModdleDefinitions | undefined): VariableDef[] {
     const out: VariableDef[] = [];
-    const rootElements: any[] = definitions?.rootElements ?? [];
+    const rootElements = definitions?.rootElements ?? [];
     for (const root of rootElements) {
         if (root?.$type === "bpmn:Process") {
             collectFromFlowElements(root.flowElements ?? [], out);
@@ -190,7 +222,10 @@ export function extractProcessVariables(definitions: any): VariableDef[] {
 }
 
 /** Recurses the flow-element tree, collecting evidence from each element. */
-function collectFromFlowElements(flowElements: any[], out: VariableDef[]): void {
+function collectFromFlowElements(
+    flowElements: readonly ModdleFlowElement[],
+    out: VariableDef[],
+): void {
     for (const element of flowElements) {
         collectFromElement(element, out);
         // Sub-processes (`bpmn:SubProcess`, `bpmn:Transaction`, …) nest their
@@ -202,7 +237,7 @@ function collectFromFlowElements(flowElements: any[], out: VariableDef[]): void 
 }
 
 /** Collects every evidence kind carried directly on a single flow element. */
-function collectFromElement(element: any, out: VariableDef[]): void {
+function collectFromElement(element: ModdleFlowElement, out: VariableDef[]): void {
     const label = elementLabel(element);
 
     // `camunda:resultVariable` on Script/Service/BusinessRule tasks.
@@ -246,7 +281,7 @@ function collectFromElement(element: any, out: VariableDef[]): void {
 }
 
 /** Collects evidence from one `extensionElements` child. */
-function collectFromExtension(extension: any, label: string, out: VariableDef[]): void {
+function collectFromExtension(extension: ModdleExtension, label: string, out: VariableDef[]): void {
     switch (extension?.$type) {
         case "camunda:InputOutput": {
             for (const param of extension.inputParameters ?? []) {
@@ -324,14 +359,14 @@ function collectFromExtension(extension: any, label: string, out: VariableDef[])
 }
 
 /** A mapped parameter's `name` is a declared variable (output) or local (input). */
-function pushParameterName(param: any, origin: string, out: VariableDef[]): void {
+function pushParameterName(param: ModdleParameter, origin: string, out: VariableDef[]): void {
     if (typeof param?.name === "string" && param.name) {
         out.push({ name: param.name, origin, confidence: "declared" });
     }
 }
 
 /** A mapped parameter's `value` may read other variables via `${...}`. */
-function pushParameterValueRefs(param: any, origin: string, out: VariableDef[]): void {
+function pushParameterValueRefs(param: ModdleParameter, origin: string, out: VariableDef[]): void {
     if (typeof param?.value === "string") {
         for (const name of collectExpressionRefs(param.value)) {
             out.push({ name, origin, confidence: "referenced" });
@@ -340,6 +375,6 @@ function pushParameterValueRefs(param: any, origin: string, out: VariableDef[]):
 }
 
 /** Quoted element id for an origin string, falling back when no id is present. */
-function elementLabel(element: any): string {
+function elementLabel(element: ModdleFlowElement): string {
     return typeof element?.id === "string" && element.id ? `"${element.id}"` : "an element";
 }

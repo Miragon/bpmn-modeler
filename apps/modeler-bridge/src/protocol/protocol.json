@@ -359,6 +359,26 @@
         ]
     },
     {
+        "method": "secretStore/getApprovedDestinations",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "slot"
+        ],
+        "resultKeys": [
+            "origins"
+        ]
+    },
+    {
+        "method": "secretStore/saveApprovedDestinations",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "origins",
+            "slot"
+        ]
+    },
+    {
         "method": "secretStore/delete",
         "direction": "coreToHost",
         "kind": "request",

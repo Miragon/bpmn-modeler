@@ -16,7 +16,8 @@ thin host adapter that consumes it.
 The adapter is a flat `src/` layout mirroring
 [`apps/bpmn-webview`](../bpmn-webview/README.md): `bootstrap.ts` runs the
 protocol dispatch and handshake, `host.ts` selects the `HostApi`, and
-`state.ts` + `webviewState.ts` hold the persisted properties-panel UI state.
+`webviewState.ts` types the persisted properties-panel UI state, whose
+restore/persist logic lives in `libs/shared` (`propertiesPanelUiState.ts`).
 
 ## Local development
 

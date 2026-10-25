@@ -1,4 +1,4 @@
-import type { OpenScriptEditorEvent } from "./scriptTaskContextPad";
+import type { OpenScriptEditorEvent } from "./scriptEditorEvents";
 import type { ScriptSourceChangedEvent } from "./scriptSourceWatcher";
 
 /**

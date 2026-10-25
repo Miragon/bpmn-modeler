@@ -89,8 +89,14 @@ import { TabInputText, Uri } from "vscode";
 import { ScriptTaskService } from "./ScriptTaskService";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
 import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import {
+    createTestHost,
+    FakeEditorHandle,
+    PickerAnswers,
+} from "@miragon/bpmn-modeler-core/testing";
 
-const EDITOR_ID = "file:///repo/process.bpmn";
+const EDITOR_PATH = "/repo/process.bpmn";
+const EDITOR_ID = `file://${EDITOR_PATH}`;
 const ELEMENT_ID = "Task_1";
 const KIND: ScriptKind = "script-task";
 const BASE_DIR = "/repo/.camunda/tmp/scripting";
@@ -148,13 +154,11 @@ const STREAM_DEBOUNCE_MS = 300;
  * listener callbacks the subject hands to vscode so tests can fire document
  * and tab events directly.
  */
-function createService() {
-    // `getEditorIds` backs adoption's reverse hash→editor lookup; default to the
-    // canonical editor being live so an opened script resolves to a session.
-    const editorStore = {
-        postMessage: vi.fn().mockResolvedValue(true),
-        getEditorIds: vi.fn().mockReturnValue([EDITOR_ID]),
-    };
+function createService(answers: PickerAnswers = {}) {
+    // The canonical editor is live so adoption's reverse hash→editor lookup
+    // resolves an opened script to a session.
+    const host = createTestHost({ answers });
+    const editor = host.openEditor(EDITOR_PATH);
     const scriptFiles = {
         resolveBaseDir: vi.fn().mockResolvedValue(BASE_DIR),
         prepareBaseDir: vi.fn().mockResolvedValue(undefined),
@@ -164,9 +168,6 @@ function createService() {
         deleteDir: vi.fn().mockResolvedValue(undefined),
         ensureGitignore: vi.fn().mockResolvedValue(undefined),
     };
-    const settings = { getScriptingSpin: () => true };
-    const notifier = { logError: vi.fn() };
-    const picker = { pickScriptLanguage: vi.fn() };
     // Default: nothing diverged, so the dispose-time write-back is a no-op.
     const scriptXml = { applyScriptContents: vi.fn().mockResolvedValue(undefined) };
 
@@ -184,11 +185,11 @@ function createService() {
     applyEditMock.mockResolvedValue(true);
 
     const service = new ScriptTaskService(
-        editorStore as never,
+        host.store,
         scriptFiles as never,
-        settings as never,
-        notifier as never,
-        picker as never,
+        host.settings,
+        host.notifier,
+        host.picker,
         scriptXml as never,
     );
     service.register({ subscriptions: [] } as never);
@@ -201,10 +202,10 @@ function createService() {
 
     return {
         service,
-        editorStore,
+        host,
+        editor,
         scriptFiles,
-        notifier,
-        picker,
+        notifier: host.notifier,
         scriptXml,
         fireDocChange,
         fireSave,
@@ -249,22 +250,21 @@ function diagramChangeEvent(isDirty: boolean) {
     };
 }
 
-/** Content-update posts only, filtering out lock broadcasts that share the mock. */
-function contentQueryCalls(postMessage: { mock: { calls: unknown[][] } }): unknown[][] {
-    return postMessage.mock.calls.filter(
-        ([, message]) => (message as { type: string }).type === "UpdateScriptContentQuery",
-    );
+/** Content-update posts only, filtering out lock broadcasts to the same webview. */
+function contentQueries(editor: FakeEditorHandle): UpdateScriptContentQuery[] {
+    return editor.postedOfType<UpdateScriptContentQuery>("UpdateScriptContentQuery");
 }
 
 /** The `openScripts` array of the most recent lock broadcast, or `undefined`. */
-function lastBroadcastRefs(postMessage: {
-    mock: { calls: unknown[][] };
-}): OpenScriptEditorRef[] | undefined {
-    const calls = postMessage.mock.calls.filter(
-        ([, message]) => (message as { type: string }).type === "UpdateOpenScriptEditorsQuery",
+function lastBroadcastRefs(editor: FakeEditorHandle): OpenScriptEditorRef[] | undefined {
+    const broadcasts = editor.postedOfType<UpdateOpenScriptEditorsQuery>(
+        "UpdateOpenScriptEditorsQuery",
     );
-    const last = calls[calls.length - 1];
-    return last ? (last[1] as UpdateOpenScriptEditorsQuery).openScripts : undefined;
+    return broadcasts[broadcasts.length - 1]?.openScripts;
+}
+
+function clearPosted(editor: FakeEditorHandle): void {
+    editor.posted.length = 0;
 }
 
 async function openCanonicalScript(
@@ -340,8 +340,7 @@ describe("ScriptTaskService.openScriptEditor", () => {
     });
 
     it("returns silently when the format is unsupported and the user cancels the picker", async () => {
-        const { service, scriptFiles, editorStore, picker } = createService();
-        picker.pickScriptLanguage.mockResolvedValue(undefined);
+        const { service, scriptFiles, editor, host } = createService();
 
         await service.openScriptEditor(
             EDITOR_ID,
@@ -353,14 +352,13 @@ describe("ScriptTaskService.openScriptEditor", () => {
             "x",
         );
 
-        expect(picker.pickScriptLanguage).toHaveBeenCalledWith("cobol");
+        expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: ["cobol"] }]);
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("persists the picked format then opens with its extension when the format is unsupported", async () => {
-        const { service, scriptFiles, editorStore, picker } = createService();
-        picker.pickScriptLanguage.mockResolvedValue("groovy");
+        const { service, scriptFiles, editor } = createService({ scriptLanguage: "groovy" });
 
         await service.openScriptEditor(
             EDITOR_ID,
@@ -372,8 +370,7 @@ describe("ScriptTaskService.openScriptEditor", () => {
             "x",
         );
 
-        expect(editorStore.postMessage).toHaveBeenCalledWith(
-            EDITOR_ID,
+        expect(editor.posted).toContainEqual(
             expect.objectContaining({ type: "UpdateScriptFormatQuery", scriptFormat: "groovy" }),
         );
         expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath("groovy"), "x");
@@ -443,7 +440,7 @@ describe("ScriptTaskService.openScriptEditor", () => {
 
 describe("ScriptTaskService.onScriptDocumentChanged", () => {
     it("ignores documents outside the file scheme", async () => {
-        const { fireDocChange, editorStore } = createService();
+        const { fireDocChange, editor } = createService();
 
         await fireDocChange({
             document: {
@@ -453,46 +450,46 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
             contentChanges: [{}],
         });
 
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("ignores events with no content changes", async () => {
-        const { service, fireDocChange, editorStore } = createService();
+        const { service, fireDocChange, editor } = createService();
         await openCanonicalScript(service);
         // Drop the open-time lock broadcast so the assertion isolates this event.
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await fireDocChange({
             document: { uri: Uri.file(scriptPath()), getText: () => "next" },
             contentChanges: [],
         });
 
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("skips the echo of our own write while the path is in the writing guard", async () => {
-        const { service, fireDocChange, editorStore } = createService();
+        const { service, fireDocChange, editor } = createService();
         await openCanonicalScript(service);
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         // Pre-seed the guard so the change looks like the echo of our own write.
         (service as never as { writingGuard: Set<string> }).writingGuard.add(scriptPath());
 
         await fireDocChange(docChangeEvent(scriptPath(), "next"));
 
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("ignores changes to a path that is not tracked", async () => {
-        const { fireDocChange, editorStore } = createService();
+        const { fireDocChange, editor } = createService();
 
         await fireDocChange(docChangeEvent(scriptPath(), "next"));
 
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("posts an update for a tracked document without mirroring to disk", async () => {
-        const { service, fireDocChange, scriptFiles, editorStore } = createService();
+        const { service, fireDocChange, scriptFiles, editor } = createService();
         await openCanonicalScript(service, "groovy");
         scriptFiles.writeFile.mockClear();
 
@@ -501,101 +498,98 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
         // The buffer is authoritative; disk freshness follows the user's
         // save behaviour, so a keystroke never writes the file.
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
-        expect(editorStore.postMessage).toHaveBeenCalledWith(
-            EDITOR_ID,
+        expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "next"),
         );
     });
 
     it("buffers for resync instead of erroring when the webview is hidden", async () => {
-        const { service, fireDocChange, editorStore, notifier, scriptFiles } = createService();
+        const { service, fireDocChange, editor, notifier, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
-        editorStore.postMessage.mockRejectedValueOnce(new Error("The active editor is hidden."));
+        editor.hidden = true;
         scriptFiles.readFile.mockResolvedValue("buffered");
 
         await typeInScript(fireDocChange, scriptPath("groovy"), "buffered");
 
-        expect(notifier.logError).not.toHaveBeenCalled();
+        expect(notifier.logged("error")).toEqual([]);
 
         // The editor is now armed: a resync replays the buffered edit.
-        editorStore.postMessage.mockResolvedValue(true);
+        editor.hidden = false;
         await service.resyncOpenDocuments(EDITOR_ID);
         // The lock re-broadcast is posted last; assert the content replay landed.
-        expect(editorStore.postMessage).toHaveBeenCalledWith(
-            EDITOR_ID,
+        expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "buffered"),
         );
     });
 
     it("logs any non-hidden error and does not buffer it", async () => {
-        const { service, fireDocChange, editorStore, notifier } = createService();
+        const { service, fireDocChange, editor, notifier } = createService();
         await openCanonicalScript(service, "groovy");
         const failure = new Error("boom");
-        editorStore.postMessage.mockRejectedValueOnce(failure);
+        vi.spyOn(editor, "postMessage").mockRejectedValueOnce(failure);
 
         await typeInScript(fireDocChange, scriptPath("groovy"), "next");
 
-        expect(notifier.logError).toHaveBeenCalledWith(failure);
+        expect(notifier.logged("error")).toEqual(["boom"]);
         expect(
             (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
         ).toBe(false);
     });
 
     it("coalesces a keystroke burst into a single trailing query", async () => {
-        const { service, fireDocChange, editorStore } = createService();
+        const { service, fireDocChange, editor } = createService();
         await openCanonicalScript(service, "groovy", "a");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "ab"));
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "abc"));
         // Nothing streams while still inside the window.
         await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS - 1);
-        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
+        expect(contentQueries(editor)).toHaveLength(0);
 
         await vi.advanceTimersByTimeAsync(1);
-        const calls = contentQueryCalls(editorStore.postMessage);
-        expect(calls).toHaveLength(1);
-        expect((calls[0][1] as UpdateScriptContentQuery).content).toBe("abc");
+        const queries = contentQueries(editor);
+        expect(queries).toHaveLength(1);
+        expect(queries[0].content).toBe("abc");
     });
 });
 
 describe("ScriptTaskService.resyncOpenDocuments", () => {
     it("is a no-op when the editor is not pending resync", async () => {
-        const { service, editorStore, scriptFiles } = createService();
+        const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await service.resyncOpenDocuments(EDITOR_ID);
 
         expect(scriptFiles.readFile).not.toHaveBeenCalled();
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
     });
 
     it("replays from the open buffer, preferring it over the (possibly stale) file", async () => {
-        const { service, editorStore, scriptFiles } = createService();
+        const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         setOpenTabs([scriptPath("groovy")]);
         stageDocument(scriptPath("groovy"), "buffer-content");
         scriptFiles.readFile.mockResolvedValue("stale-disk-content");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
 
-        expect(editorStore.postMessage).toHaveBeenCalledWith(
-            EDITOR_ID,
+        expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "buffer-content"),
         );
         expect(scriptFiles.readFile).not.toHaveBeenCalled();
     });
 
     it("replays only the pending editor's docs from disk and clears the flag", async () => {
-        const { service, editorStore, scriptFiles } = createService();
+        const { service, host, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         // A doc for a different editor must be skipped during replay.
-        const otherEditor = "file:///repo/other.bpmn";
+        const otherEditor = host.openEditor("/repo/other.bpmn");
         await service.openScriptEditor(
-            otherEditor,
+            otherEditor.id,
             "Task_2",
             KIND,
             undefined,
@@ -605,15 +599,15 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         );
         setOpenTabs([scriptPath("groovy")]);
         scriptFiles.readFile.mockResolvedValue("decoded");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
+        clearPosted(otherEditor);
 
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
 
-        // One content replay (the lock re-broadcast rides on the same mock).
-        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(1);
-        expect(editorStore.postMessage).toHaveBeenCalledWith(
-            EDITOR_ID,
+        expect(contentQueries(editor)).toHaveLength(1);
+        expect(contentQueries(otherEditor)).toEqual([]);
+        expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "decoded"),
         );
         expect(
@@ -622,7 +616,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
     });
 
     it("skips an entry whose readFile rejects and continues the loop", async () => {
-        const { service, editorStore, scriptFiles, notifier } = createService();
+        const { service, editor, scriptFiles, notifier } = createService();
         await openCanonicalScript(service, "groovy");
         await service.openScriptEditor(
             EDITOR_ID,
@@ -636,22 +630,22 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         setOpenTabs([scriptPath("groovy"), scriptPath("groovy", "Task_2")]);
         scriptFiles.readFile.mockRejectedValueOnce(new Error("gone"));
         scriptFiles.readFile.mockResolvedValue("ok");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
 
-        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(1);
-        expect(notifier.logError).not.toHaveBeenCalled();
+        expect(contentQueries(editor)).toHaveLength(1);
+        expect(notifier.logged("error")).toEqual([]);
     });
 
     it("finishes a deferred cleanup when the replayed tab is no longer open anywhere", async () => {
-        const { service, editorStore, scriptFiles } = createService();
+        const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         scriptFiles.readFile.mockResolvedValue("c");
         // Tab was closed while hidden: not present in any group during replay.
         setOpenTabs([]);
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
@@ -667,11 +661,13 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
     });
 
     it("re-arms the pending flag when the webview hides again mid-replay", async () => {
-        const { service, editorStore, scriptFiles } = createService();
+        const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         setOpenTabs([scriptPath("groovy")]);
         scriptFiles.readFile.mockResolvedValue("c");
-        editorStore.postMessage.mockRejectedValueOnce(new Error("The active editor is hidden."));
+        vi.spyOn(editor, "postMessage").mockRejectedValueOnce(
+            new Error("The active editor is hidden."),
+        );
 
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
@@ -796,10 +792,10 @@ describe("ScriptTaskService reopen after close", () => {
 
 describe("ScriptTaskService.applyModelChange", () => {
     it("overwrites the open buffer through a workspace edit under the writing guard", async () => {
-        const { service, editorStore } = createService();
+        const { service, editor } = createService();
         await openCanonicalScript(service, "groovy", "old");
         stageDocument(scriptPath("groovy"), "old");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "undone");
 
@@ -807,7 +803,7 @@ describe("ScriptTaskService.applyModelChange", () => {
         const edit = applyEditMock.mock.calls[0][0] as { replacements: { newText: string }[] };
         expect(edit.replacements[0].newText).toBe("undone");
         // The overwrite must not stream back to the webview as a keystroke.
-        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
+        expect(contentQueries(editor)).toHaveLength(0);
     });
 
     it("skips the edit when the buffer already matches", async () => {
@@ -841,11 +837,11 @@ describe("ScriptTaskService.applyModelChange", () => {
     });
 
     it("closes the tab, saves a dirty buffer first, and deletes the file on element deletion", async () => {
-        const { service, editorStore, scriptFiles } = createService();
+        const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy", "a");
         setOpenTabs([scriptPath("groovy")]);
         const doc = stageDocument(scriptPath("groovy"), "a", true);
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, undefined);
         await flushAsync();
@@ -856,7 +852,7 @@ describe("ScriptTaskService.applyModelChange", () => {
         expect(scriptFiles.deleteDir).toHaveBeenCalledWith(
             path.substring(0, path.lastIndexOf("/")),
         );
-        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([]);
+        expect(lastBroadcastRefs(editor)).toEqual([]);
         expect(
             (service as never as { openDocuments: Map<string, unknown> }).openDocuments.size,
         ).toBe(0);
@@ -865,13 +861,13 @@ describe("ScriptTaskService.applyModelChange", () => {
 
 describe("ScriptTaskService lock broadcast", () => {
     it("broadcasts the open script (fileName + addressing) when a tab opens", async () => {
-        const { service, editorStore } = createService();
+        const { service, editor } = createService();
 
         await openCanonicalScript(service);
 
         const filename = new ScriptUri(EDITOR_ID, ELEMENT_ID, KIND, undefined, undefined, "js")
             .filename;
-        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([
+        expect(lastBroadcastRefs(editor)).toEqual([
             {
                 elementId: ELEMENT_ID,
                 kind: KIND,
@@ -882,7 +878,7 @@ describe("ScriptTaskService lock broadcast", () => {
     });
 
     it("broadcasts an empty set when the last script tab is cleaned up", async () => {
-        const { service, fireTabsChange, editorStore } = createService();
+        const { service, fireTabsChange, editor } = createService();
         await openCanonicalScript(service, "groovy");
         setOpenTabs([]);
 
@@ -890,30 +886,30 @@ describe("ScriptTaskService lock broadcast", () => {
         // Cleanup is async now (flushes the sender before the lock re-broadcast).
         await flushAsync();
 
-        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([]);
+        expect(lastBroadcastRefs(editor)).toEqual([]);
     });
 
     it("re-broadcasts the current open set on the reload handshake (syncLockState)", async () => {
-        const { service, editorStore } = createService();
+        const { service, editor } = createService();
         await openCanonicalScript(service, "groovy");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         service.syncLockState(EDITOR_ID);
 
-        const refs = lastBroadcastRefs(editorStore.postMessage);
+        const refs = lastBroadcastRefs(editor);
         expect(refs).toHaveLength(1);
         expect(refs?.[0].elementId).toBe(ELEMENT_ID);
     });
 
     it("tolerates a hidden webview during the lock broadcast without logging", async () => {
-        const { service, editorStore, notifier } = createService();
-        editorStore.postMessage.mockRejectedValue(new Error("The active editor is hidden."));
+        const { service, editor, notifier } = createService();
+        editor.hidden = true;
 
         await openCanonicalScript(service, "groovy");
         // Let the fire-and-forget broadcast's rejection settle.
         await Promise.resolve();
 
-        expect(notifier.logError).not.toHaveBeenCalled();
+        expect(notifier.logged("error")).toEqual([]);
     });
 });
 
@@ -977,10 +973,10 @@ describe("ScriptTaskService.disposeForEditor", () => {
 
 describe("ScriptTaskService keystroke debounce", () => {
     it("cancels a pending keystroke when a model change overwrites the buffer", async () => {
-        const { service, fireDocChange, editorStore } = createService();
+        const { service, fireDocChange, editor } = createService();
         await openCanonicalScript(service, "groovy", "a");
         stageDocument(scriptPath("groovy"), "a");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         // Type, then let a canvas undo overwrite the buffer before the window ends.
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "stale"));
@@ -988,16 +984,15 @@ describe("ScriptTaskService keystroke debounce", () => {
         await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
 
         // The stale keystroke was cancelled: it never streamed back as a query.
-        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
+        expect(contentQueries(editor)).toHaveLength(0);
         // The overwrite itself lands via a workspace edit, not a post.
         expect(applyEditMock).toHaveBeenCalledTimes(1);
     });
 
     it("flushes the last keystroke before releasing a closed script tab", async () => {
-        const { service, fireDocChange, fireTabsChange, editorStore, scriptFiles } =
-            createService();
+        const { service, fireDocChange, fireTabsChange, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy", "a");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         // Type, then close the tab within the debounce window.
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
@@ -1006,18 +1001,17 @@ describe("ScriptTaskService keystroke debounce", () => {
         await flushAsync();
 
         // The flush delivered the last keystroke before tracking was released…
-        const calls = contentQueryCalls(editorStore.postMessage);
-        expect(calls).toHaveLength(1);
-        expect((calls[0][1] as UpdateScriptContentQuery).content).toBe("typed");
+        const queries = contentQueries(editor);
+        expect(queries).toHaveLength(1);
+        expect(queries[0].content).toBe("typed");
         // …but the file itself survives the close.
         expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
     });
 
     it("arms pendingResync and defers cleanup when the flush hits a hidden webview", async () => {
-        const { service, fireDocChange, fireTabsChange, editorStore, scriptFiles } =
-            createService();
+        const { service, fireDocChange, fireTabsChange, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy", "a");
-        editorStore.postMessage.mockRejectedValue(new Error("The active editor is hidden."));
+        editor.hidden = true;
 
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
         setOpenTabs([]);
@@ -1054,16 +1048,16 @@ describe("ScriptTaskService keystroke debounce", () => {
     });
 
     it("cancels pending keystrokes on dispose without posting or logging", async () => {
-        const { service, fireDocChange, editorStore, notifier } = createService();
+        const { service, fireDocChange, editor, notifier } = createService();
         await openCanonicalScript(service, "groovy", "a");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
         service.disposeForEditor(EDITOR_ID);
         await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
 
-        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
-        expect(notifier.logError).not.toHaveBeenCalled();
+        expect(contentQueries(editor)).toHaveLength(0);
+        expect(notifier.logged("error")).toEqual([]);
     });
 });
 
@@ -1150,7 +1144,7 @@ describe("ScriptTaskService dispose write-back", () => {
         service.disposeForEditor(EDITOR_ID);
         await flushAsync();
 
-        expect(notifier.logError).toHaveBeenCalled();
+        expect(notifier.logged("error")).toEqual(["boom"]);
         expect(scriptFiles.deleteDir).toHaveBeenCalled();
     });
 
@@ -1223,7 +1217,7 @@ function slugDirOf(path: string): string {
 
 describe("ScriptTaskService.materializeScript", () => {
     it("writes the script and its JS ambient files without opening, tracking, or locking", async () => {
-        const { service, scriptFiles, editorStore } = createService();
+        const { service, scriptFiles, editor } = createService();
 
         const result = await service.materializeScript(
             EDITOR_ID,
@@ -1244,7 +1238,7 @@ describe("ScriptTaskService.materializeScript", () => {
         // Generation is disk-only: no tab is revealed, the panel lock is not
         // broadcast, and nothing is tracked — live sync starts only on adoption.
         expect(showTextDocumentMock).not.toHaveBeenCalled();
-        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(editor.posted).toEqual([]);
         expect(openDocumentsOf(service).size).toBe(0);
     });
 
@@ -1267,8 +1261,7 @@ describe("ScriptTaskService.materializeScript", () => {
     });
 
     it("returns undefined and writes nothing when the language picker is cancelled", async () => {
-        const { service, scriptFiles, picker } = createService();
-        picker.pickScriptLanguage.mockResolvedValue(undefined);
+        const { service, scriptFiles } = createService();
 
         const result = await service.materializeScript(
             EDITOR_ID,
@@ -1343,13 +1336,13 @@ describe("ScriptTaskService adoption", () => {
     }
 
     it("adopts an untracked script: tracks it, sets its language, and broadcasts the lock", async () => {
-        const { service, fireTabsChange, editorStore } = createService();
+        const { service, fireTabsChange, editor } = createService();
 
         await fireOpen(fireTabsChange, scriptPath());
 
         expect(openDocumentsOf(service).has(scriptPath())).toBe(true);
         expect(setTextDocumentLanguageMock).toHaveBeenCalledWith(expect.anything(), "javascript");
-        const refs = lastBroadcastRefs(editorStore.postMessage);
+        const refs = lastBroadcastRefs(editor);
         expect(refs).toHaveLength(1);
         expect(refs?.[0]).toMatchObject({ elementId: ELEMENT_ID, kind: KIND });
     });
@@ -1366,44 +1359,43 @@ describe("ScriptTaskService adoption", () => {
     });
 
     it("streams a subsequent keystroke into the model once the script is adopted", async () => {
-        const { fireTabsChange, fireDocChange, editorStore } = createService();
+        const { fireTabsChange, fireDocChange, editor } = createService();
         await fireOpen(fireTabsChange, scriptPath());
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await typeInScript(fireDocChange, scriptPath(), "typed");
 
-        expect(editorStore.postMessage).toHaveBeenCalledWith(
-            EDITOR_ID,
+        expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "typed"),
         );
     });
 
     it("does not re-adopt our own open (no duplicate tracking or broadcast)", async () => {
-        const { service, fireTabsChange, editorStore } = createService();
+        const { service, fireTabsChange, editor } = createService();
         // openScriptEditor tracks before revealing, so the opened-tab event it
         // would trigger must be a no-op for the adoption listener.
         await openCanonicalScript(service, "groovy");
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         await fireOpen(fireTabsChange, scriptPath("groovy"));
 
         expect(openDocumentsOf(service).size).toBe(1);
-        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+        expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
     it("ignores an opened script whose editor hash matches no live session", async () => {
-        const { service, fireTabsChange, editorStore } = createService();
+        const { service, fireTabsChange, editor } = createService();
         // A well-formed script path under a hash no open editor owns.
         const orphanPath = `${BASE_DIR}/deadbeef/${ELEMENT_ID}/script-task/${ELEMENT_ID}.js`;
 
         await fireOpen(fireTabsChange, orphanPath);
 
         expect(openDocumentsOf(service).has(orphanPath)).toBe(false);
-        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+        expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
     it("ignores an opened script that resolves outside the editor's base directory", async () => {
-        const { service, fireTabsChange, editorStore } = createService();
+        const { service, fireTabsChange, editor } = createService();
         // Right editor hash and slug shape, but a different tmp/scripting root:
         // the containment check against the resolved base dir must reject it.
         const hash = ScriptUri.hashEditorId(EDITOR_ID);
@@ -1412,23 +1404,23 @@ describe("ScriptTaskService adoption", () => {
         await fireOpen(fireTabsChange, outsidePath);
 
         expect(openDocumentsOf(service).has(outsidePath)).toBe(false);
-        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+        expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
     it("ignores the camunda.d.ts ambient sibling (not a script language)", async () => {
-        const { service, fireTabsChange, editorStore } = createService();
+        const { service, fireTabsChange, editor } = createService();
         const dtsPath = `${slugDirOf(scriptPath())}/camunda.d.ts`;
 
         await fireOpen(fireTabsChange, dtsPath);
 
         expect(openDocumentsOf(service).has(dtsPath)).toBe(false);
-        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+        expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
     it("releases the lock but leaves the file on disk when an adopted tab is closed", async () => {
-        const { service, fireTabsChange, editorStore, scriptFiles } = createService();
+        const { service, fireTabsChange, editor, scriptFiles } = createService();
         await fireOpen(fireTabsChange, scriptPath());
-        editorStore.postMessage.mockClear();
+        clearPosted(editor);
 
         // Close the adopted tab: tracking is released and the lock re-broadcast
         // empties, but adoption never owns deletion — the file survives.
@@ -1437,7 +1429,7 @@ describe("ScriptTaskService adoption", () => {
         await flushAsync();
 
         expect(openDocumentsOf(service).has(scriptPath())).toBe(false);
-        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([]);
+        expect(lastBroadcastRefs(editor)).toEqual([]);
         expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
     });
 });

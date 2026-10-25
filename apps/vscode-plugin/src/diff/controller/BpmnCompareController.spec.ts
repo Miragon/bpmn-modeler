@@ -11,6 +11,8 @@ vi.mock("vscode", () => ({
     window: { setStatusBarMessage: (...args: unknown[]) => setStatusBarMessageMock(...args) },
 }));
 
+import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
+
 import { BpmnCompareController } from "./BpmnCompareController";
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
@@ -25,12 +27,12 @@ function uri(path: string) {
 function createController() {
     const selection = { get: vi.fn(), set: vi.fn(), clear: vi.fn() };
     const diffController = { openCompareFilesDiff: vi.fn() };
-    const notifier = { showInfo: vi.fn() };
+    const notifier = new RecordingNotifier();
     return {
         controller: new BpmnCompareController(
             selection as never,
             diffController as never,
-            notifier as never,
+            notifier,
         ),
         selection,
         diffController,
@@ -73,7 +75,7 @@ describe("BpmnCompareController.compareWithSelected", () => {
         const { controller, selection, notifier, diffController } = createController();
         await controller.compareWithSelected(uri("/repo/diagram.dmn"));
         expect(selection.get).not.toHaveBeenCalled();
-        expect(notifier.showInfo).not.toHaveBeenCalled();
+        expect(notifier.infos).toEqual([]);
         expect(diffController.openCompareFilesDiff).not.toHaveBeenCalled();
     });
 
@@ -81,7 +83,9 @@ describe("BpmnCompareController.compareWithSelected", () => {
         const { controller, selection, notifier, diffController } = createController();
         selection.get.mockReturnValue(undefined);
         await controller.compareWithSelected(uri("/repo/right.bpmn"));
-        expect(notifier.showInfo).toHaveBeenCalledOnce();
+        expect(notifier.infos).toEqual([
+            'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare (BPMN)" first.',
+        ]);
         expect(diffController.openCompareFilesDiff).not.toHaveBeenCalled();
     });
 
@@ -89,7 +93,7 @@ describe("BpmnCompareController.compareWithSelected", () => {
         const { controller, selection, notifier, diffController } = createController();
         selection.get.mockReturnValue(uri("/repo/same.bpmn"));
         await controller.compareWithSelected(uri("/repo/same.bpmn"));
-        expect(notifier.showInfo).toHaveBeenCalledWith("Cannot compare a file with itself.");
+        expect(notifier.infos).toEqual(["Cannot compare a file with itself."]);
         expect(diffController.openCompareFilesDiff).not.toHaveBeenCalled();
     });
 
@@ -109,18 +113,14 @@ describe("BpmnCompareController.compareSelected", () => {
         const { controller, notifier, diffController } = createController();
         // A single .bpmn plus a non-.bpmn collapses to one after the filter.
         await controller.compareSelected(undefined, [uri("/repo/a.bpmn"), uri("/repo/b.dmn")]);
-        expect(notifier.showInfo).toHaveBeenCalledWith(
-            "Select exactly two .bpmn files to compare.",
-        );
+        expect(notifier.infos).toEqual(["Select exactly two .bpmn files to compare."]);
         expect(diffController.openCompareFilesDiff).not.toHaveBeenCalled();
     });
 
     it("treats an undefined uris argument as an empty selection", async () => {
         const { controller, notifier, diffController } = createController();
         await controller.compareSelected(undefined, undefined);
-        expect(notifier.showInfo).toHaveBeenCalledWith(
-            "Select exactly two .bpmn files to compare.",
-        );
+        expect(notifier.infos).toEqual(["Select exactly two .bpmn files to compare."]);
         expect(diffController.openCompareFilesDiff).not.toHaveBeenCalled();
     });
 
@@ -128,7 +128,7 @@ describe("BpmnCompareController.compareSelected", () => {
         const { controller, notifier, diffController } = createController();
         const same = uri("/repo/same.bpmn");
         await controller.compareSelected(undefined, [same, same]);
-        expect(notifier.showInfo).toHaveBeenCalledWith("Cannot compare a file with itself.");
+        expect(notifier.infos).toEqual(["Cannot compare a file with itself."]);
         expect(diffController.openCompareFilesDiff).not.toHaveBeenCalled();
     });
 

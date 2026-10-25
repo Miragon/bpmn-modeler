@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Fails when a Vitest workspace would silently drop out of CI: every
 // apps|libs|packages workspace with a Vitest config must be a target in
-// .github/vitest-targets.json, its focused install must provide Vitest, and its
-// trigger paths must cover every workspace and file its tests import.
+// .github/vitest-targets.json, its focused install must provide Vitest, its
+// trigger paths must cover every workspace and file its tests import, and a
+// build script that only typechecks must be its typecheck.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,7 @@ const IMPORT_SPECIFIER =
 const TYPE_ONLY_STATEMENT =
     /^\s*(?:import|export)\s+type\s+(?!from\b)[^;]*?\bfrom\s*["'][^"'\n]+["']\s*;?\s*$/gm;
 const SUPPORTED_GLOB = /^(?:[^*?[\]!]|\*(?!\*)|(?<=^|\/)\*\*(?=\/|$))+$/;
+const TYPECHECK_ONLY_SCRIPT = /^tsc(?=\s[^&|;]*--noEmit\b)[^&|;]*$/;
 
 const problems = [];
 const targets = Object.entries(registry.targets);
@@ -69,6 +71,10 @@ function checkTarget(id, target) {
     }
     if (target.typecheck && !manifest.scripts?.[target.typecheck]) {
         problems.push(`${id}: typecheck script "${target.typecheck}" is missing`);
+    }
+    // Most typecheck-only builds run in no other CI job.
+    if (!target.typecheck && TYPECHECK_ONLY_SCRIPT.test(manifest.scripts?.build ?? "")) {
+        problems.push(`${id}: the "build" script only typechecks; set "typecheck": "build"`);
     }
     // `yarn workspaces focus` installs only what the focused workspaces declare;
     // vite is vitest's required peer, so it must be declared too.

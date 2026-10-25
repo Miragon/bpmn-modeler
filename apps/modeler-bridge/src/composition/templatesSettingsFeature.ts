@@ -1,22 +1,25 @@
-import { Command } from "@miragon/bpmn-modeler-shared";
 import {
     BpmnElementTemplatesService,
     BpmnSettingsBroadcaster,
+    BpmnSettingsParticipant,
     CachedTemplateProvider,
+    EditorSessionParticipant,
+    ElementTemplatesParticipant,
+    getBpmnModelerSettingHandler,
+    getElementTemplatesHandler,
 } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../protocol/descriptor";
-import { RegisterParams, SettingsDidChangeParams } from "../protocol/types";
+import { SettingsDidChangeParams } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
-import { SessionHooks } from "./sessionHooks";
 
 /**
  * The templates/settings feature owns element-template discovery
- * ({@link BpmnElementTemplatesService}), the settings broadcaster, and the
- * per-session template watchers. The diff dependency arrives as a plain
- * `onSettingsApplied` callback so this module never imports diff types — the
- * route is named in `createBridge`. Its session hook arms the per-session
- * settings/template wiring on register and disposes the watcher on dispose.
+ * ({@link BpmnElementTemplatesService}) and the settings broadcaster. The diff
+ * dependency arrives as a plain `onSettingsApplied` callback so this module never
+ * imports diff types — the route is named in `createBridge`. Per session, the
+ * core template and settings participants — the ones VS Code runs — arm the
+ * template watcher and keep settings in sync.
  *
  * Webview messages: GetElementTemplatesCommand, GetBpmnModelerSettingCommand.
  * RPC (Host → Core): settings/didChange.
@@ -28,7 +31,7 @@ import { SessionHooks } from "./sessionHooks";
 export function register(
     deps: BridgeSharedDeps,
     handles: { onSettingsApplied: () => void; marketplaceSvc?: CachedTemplateProvider },
-): { sessionHooks: SessionHooks; templatesSvc: BpmnElementTemplatesService } {
+): { participants: EditorSessionParticipant[]; templatesSvc: BpmnElementTemplatesService } {
     const templatesSvc = new BpmnElementTemplatesService(
         deps.store,
         deps.documentPort,
@@ -48,33 +51,9 @@ export function register(
         deps.notifier,
     );
 
-    const watchers = new Map<string, { dispose(): void }[]>();
-    const latestWatcherArming = new Map<string, number>();
-    const refreshWatcher = async (params: RegisterParams): Promise<void> => {
-        const arming = (latestWatcherArming.get(params.editorId) ?? 0) + 1;
-        latestWatcherArming.set(params.editorId, arming);
-        const { disposables } = await deps.artifactSvc.createWatcher(params.editorId, templatesSvc);
-        // A newer arming or the session's disposal overtook this one.
-        if (latestWatcherArming.get(params.editorId) !== arming) {
-            disposables.forEach((disposable) => disposable.dispose());
-            return;
-        }
-        watchers.get(params.editorId)?.forEach((disposable) => disposable.dispose());
-        watchers.set(params.editorId, disposables);
-    };
-
     deps.router
-        // Inlined rather than importing the VS Code element-templates handler,
-        // whose module pulls in `VsCodeNotifier` → `vscode`, which we must avoid.
-        .on("GetElementTemplatesCommand", (_m: Command, editorId: string) => {
-            void templatesSvc.setElementTemplates(editorId);
-        })
-        // The webview re-requests settings on every (re)load; push the live snapshot
-        // and language, mirroring the VS Code `getBpmnModelerSettingHandler`.
-        .on("GetBpmnModelerSettingCommand", (_m: Command, editorId: string) => {
-            void settingsBroadcaster.setSettings(editorId);
-            settingsBroadcaster.setLanguage(editorId);
-        });
+        .on("GetElementTemplatesCommand", getElementTemplatesHandler(templatesSvc))
+        .on("GetBpmnModelerSettingCommand", getBpmnModelerSettingHandler(settingsBroadcaster));
 
     // One host frame updates every open editor: `apply` fires a SettingChange that
     // each session's broadcaster + configFolder listener turn into webview pushes.
@@ -87,38 +66,9 @@ export function register(
 
     return {
         templatesSvc,
-        sessionHooks: {
-            onSessionRegistered: async (params: RegisterParams) => {
-                // Mirrors SettingsParticipant + ElementTemplatesParticipant: re-push
-                // modeler/language settings on change, and reload templates when the
-                // config folder moves. Both ride the BridgeSettings change hub via the
-                // handle's onDidChangeSetting; disposed with the session by the store.
-                settingsBroadcaster.subscribe(params.editorId);
-                deps.store.subscribeToSettingChangeEvent(params.editorId, (event, editorId) => {
-                    if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
-                        // The watcher glob embeds the config folder.
-                        refreshWatcher(params).catch((error) =>
-                            deps.notifier.logError(error as Error),
-                        );
-                        templatesSvc.refreshElementTemplates(editorId);
-                    }
-                });
-
-                // Arm the live-reload watcher (the production `ArtifactService`
-                // wiring, reused verbatim). The authoritative root is registered by
-                // the editor-session feature before this hook runs.
-                await refreshWatcher(params);
-            },
-            onSessionReseeded: async (params: RegisterParams) => {
-                await refreshWatcher(params);
-                await templatesSvc.setElementTemplates(params.editorId);
-            },
-            onSessionDisposed: (editorId) => {
-                latestWatcherArming.delete(editorId);
-                watchers.get(editorId)?.forEach((d) => d.dispose());
-                watchers.delete(editorId);
-                templatesSvc.releaseEditor(editorId);
-            },
-        },
+        participants: [
+            new ElementTemplatesParticipant(templatesSvc, deps.artifactSvc, deps.notifier),
+            new BpmnSettingsParticipant(settingsBroadcaster),
+        ],
     };
 }

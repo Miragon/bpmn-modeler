@@ -3,7 +3,11 @@
  * selected element template, including its input/output parameters.
  */
 import type { ElementTemplate, TemplateProperty, Translate } from "../types";
-import { classifyBinding, extractImplementationDetail } from "../types";
+import {
+    extractImplementationDetail,
+    partitionVisibleProperties,
+    propertyDisplayLabel,
+} from "../types";
 
 interface TemplatePreviewProps {
     template: ElementTemplate;
@@ -21,15 +25,7 @@ interface TemplatePreviewProps {
  * @param props.onApply Callback invoked when the user clicks "Apply Template".
  */
 export function TemplatePreview({ template, translate, onApply }: TemplatePreviewProps) {
-    const inputs = template.properties.filter(
-        (p) => classifyBinding(p.binding) === "input" && p.type !== "Hidden",
-    );
-    const outputs = template.properties.filter(
-        (p) => classifyBinding(p.binding) === "output" && p.type !== "Hidden",
-    );
-    const props = template.properties.filter(
-        (p) => classifyBinding(p.binding) === "property" && p.type !== "Hidden",
-    );
+    const { properties, inputs, outputs } = partitionVisibleProperties(template.properties);
 
     const implDetail = extractImplementationDetail(template.properties);
 
@@ -77,10 +73,10 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
 
                 {/* Parameter sections */}
                 <div class="etc-preview-params">
-                    {props.length > 0 && (
+                    {properties.length > 0 && (
                         <ParameterSection
                             title={translate("Properties")}
-                            items={props}
+                            items={properties}
                             translate={translate}
                         />
                     )}
@@ -98,7 +94,7 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                             translate={translate}
                         />
                     )}
-                    {props.length === 0 && inputs.length === 0 && outputs.length === 0 && (
+                    {properties.length === 0 && inputs.length === 0 && outputs.length === 0 && (
                         <div class="etc-preview-no-params">
                             <p>{translate("No visible parameters")}</p>
                         </div>
@@ -139,7 +135,7 @@ function ParameterSection({
                     <li key={i} class="etc-param-item">
                         <div class="etc-param-header">
                             <span class="etc-param-label">
-                                {p.label ?? p.binding.name ?? p.binding.key ?? translate("Unnamed")}
+                                {propertyDisplayLabel(p) ?? translate("Unnamed")}
                             </span>
                             <div class="etc-param-badges">
                                 {p.constraints?.notEmpty && (

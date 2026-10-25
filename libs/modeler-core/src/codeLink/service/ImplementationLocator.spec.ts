@@ -1,57 +1,24 @@
-import { posix } from "path";
-
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
+import { InMemoryWorkspace, RecordingNotifier } from "../../testing";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
 
-/**
- * `findFiles` is driven per test by a `glob → paths` function so each test
- * controls exactly what the (mocked) workspace search returns for the
- * filename/source globs the locator builds. `readFile` reads from a content map.
- */
-function createLocator(opts: {
-    findFiles?: (glob: string) => string[];
-    fileContents?: Record<string, string>;
-    folders?: string[];
-}) {
-    const fileContents = opts.fileContents ?? {};
-    const folders = opts.folders ?? ["/"];
-    const vsWorkspace = {
-        findFiles: vi
-            .fn()
-            .mockImplementation((glob: string) =>
-                Promise.resolve(opts.findFiles ? opts.findFiles(glob) : []),
-            ),
-        readFile: vi
-            .fn()
-            .mockImplementation((path: string) =>
-                path in fileContents
-                    ? Promise.resolve(fileContents[path])
-                    : Promise.reject(new Error("not found")),
-            ),
-        readDirectory: vi.fn().mockRejectedValue(new Error("ENOENT")),
-        findWorkspaceFolderForDocument: vi.fn(() => folders[0]),
-        getWorkspaceFolderPaths: vi.fn(() => folders),
-        getDocumentDirectory: vi.fn((document: string) => posix.dirname(document)),
-        createWatcher: vi.fn(() => ({ dispose: vi.fn() })),
-    };
-    const notifier = { logInfo: vi.fn(), logWarning: vi.fn() };
-    const locator = new ImplementationLocator(vsWorkspace as never, notifier as never);
-    return { locator, vsWorkspace, notifier };
+function createLocator(opts: { files?: Record<string, string>; folders?: string[] } = {}) {
+    const workspace = new InMemoryWorkspace(opts.folders ?? ["/"], opts.files);
+    const notifier = new RecordingNotifier();
+    const locator = new ImplementationLocator(workspace, notifier);
+    return { locator, workspace, notifier };
 }
-
-beforeEach(() => {
-    vi.clearAllMocks();
-});
 
 describe("ImplementationLocator — javaClass", () => {
     it("resolves the FQCN to the matching class file without reading content", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => ["/src/main/java/com/example/MyDelegate.java"],
+        const { locator, workspace } = createLocator({
+            files: { "/src/main/java/com/example/MyDelegate.java": "class MyDelegate {}" },
         });
+        const readFile = vi.spyOn(workspace, "readFile");
 
         const result = await locator.resolve("com.example.MyDelegate", "javaClass");
 
@@ -61,21 +28,20 @@ describe("ImplementationLocator — javaClass", () => {
             readFailures: [],
         });
         // The path is the answer; the file content is irrelevant.
-        expect(vsWorkspace.readFile).not.toHaveBeenCalled();
+        expect(readFile).not.toHaveBeenCalled();
     });
 
     it("builds a package-path glob across the JVM source extensions", async () => {
-        const { locator, vsWorkspace } = createLocator({ findFiles: () => [] });
+        const { locator, workspace } = createLocator();
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         await locator.resolve("com.example.MyDelegate", "javaClass");
 
-        expect(vsWorkspace.findFiles).toHaveBeenCalledWith(
-            "**/com/example/MyDelegate.{java,kt,groovy,scala}",
-        );
+        expect(findFiles).toHaveBeenCalledWith("**/com/example/MyDelegate.{java,kt,groovy,scala}");
     });
 
     it("returns empty matches when no class file is found", async () => {
-        const { locator } = createLocator({ findFiles: () => [] });
+        const { locator } = createLocator();
 
         const result = await locator.resolve("com.example.Missing", "javaClass");
 
@@ -84,7 +50,7 @@ describe("ImplementationLocator — javaClass", () => {
 
     it("returns multiple matches when the class exists under several roots", async () => {
         const { locator } = createLocator({
-            findFiles: () => ["/a/com/example/X.java", "/b/com/example/X.kt"],
+            files: { "/a/com/example/X.java": "", "/b/com/example/X.kt": "" },
         });
 
         const result = await locator.resolve("com.example.X", "javaClass");
@@ -98,9 +64,8 @@ describe("ImplementationLocator — javaClass", () => {
 
 describe("ImplementationLocator — delegateExpression / expression", () => {
     it("finds the implementing class by capitalised bean name", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: (glob) => (glob.includes("MyBean") ? ["/src/MyBean.java"] : []),
-        });
+        const { locator, workspace } = createLocator({ files: { "/src/MyBean.java": "" } });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("${myBean}", "delegateExpression");
 
@@ -108,25 +73,23 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/src/MyBean.java"]);
         }
-        expect(vsWorkspace.findFiles).toHaveBeenCalledWith("**/MyBean.{java,kt,groovy,scala}");
+        expect(findFiles).toHaveBeenCalledWith("**/MyBean.{java,kt,groovy,scala}");
     });
 
     it("derives the class from the leading id of an expression", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: (glob) => (glob.includes("Svc") ? ["/src/Svc.java"] : []),
-        });
+        const { locator, workspace } = createLocator({ files: { "/src/Svc.java": "" } });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("${svc.run()}", "expression");
 
         expect(result.kind).toBe("matches");
-        expect(vsWorkspace.findFiles).toHaveBeenCalledWith("**/Svc.{java,kt,groovy,scala}");
+        expect(findFiles).toHaveBeenCalledWith("**/Svc.{java,kt,groovy,scala}");
     });
 
     it("falls back to a bean-annotation content search when no class file matches", async () => {
         const { locator } = createLocator({
-            // Filename glob (contains "MyBean") finds nothing; the source scan does.
-            findFiles: (glob) => (glob.includes("MyBean") ? [] : ["/src/CustomName.java"]),
-            fileContents: {
+            // No MyBean class file exists; only the source scan finds the annotated class.
+            files: {
                 "/src/CustomName.java": '@Service("myBean")\nclass CustomName {}',
             },
         });
@@ -141,25 +104,26 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
     });
 
     it("returns empty matches when the expression has no leading bean id", async () => {
-        const { locator, vsWorkspace } = createLocator({ findFiles: () => [] });
+        const { locator, workspace } = createLocator();
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("${ 1 + 2 }", "expression");
 
         expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
         // No bean id → nothing to search for.
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
     });
 });
 
 describe("ImplementationLocator — externalTopic / jobType", () => {
     it("finds a job worker by the quoted job type literal", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => ["/src/Worker.java", "/src/Other.java"],
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            files: {
                 "/src/Worker.java": '@JobWorker(type = "payment-service")\nvoid handle() {}',
                 "/src/Other.java": "class Other {}",
             },
         });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("payment-service", "jobType");
 
@@ -169,13 +133,12 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
             readFailures: [],
         });
         // Source scan spans JVM + JS/TS worker extensions.
-        expect(vsWorkspace.findFiles).toHaveBeenCalledWith("**/*.{java,kt,groovy,scala,js,ts}");
+        expect(findFiles).toHaveBeenCalledWith("**/*.{java,kt,groovy,scala,js,ts}");
     });
 
     it("finds a JS/TS worker by its taskType literal", async () => {
         const { locator } = createLocator({
-            findFiles: () => ["/src/worker.ts"],
-            fileContents: { "/src/worker.ts": 'createWorker({ taskType: "payment-service" })' },
+            files: { "/src/worker.ts": 'createWorker({ taskType: "payment-service" })' },
         });
 
         const result = await locator.resolve("payment-service", "jobType");
@@ -188,8 +151,7 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
 
     it("finds an external-task subscription by topic literal", async () => {
         const { locator } = createLocator({
-            findFiles: () => ["/src/Sub.java"],
-            fileContents: {
+            files: {
                 "/src/Sub.java": '@ExternalTaskSubscription("payment-topic")\nclass Sub {}',
             },
         });
@@ -204,8 +166,7 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
 
     it("returns multiple matches when several files declare the literal", async () => {
         const { locator } = createLocator({
-            findFiles: () => ["/src/A.java", "/src/B.java"],
-            fileContents: {
+            files: {
                 "/src/A.java": '@JobWorker(type="t")',
                 "/src/B.java": 'taskType: "t"',
             },
@@ -220,10 +181,8 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
     });
 
     it("reports all-unreadable when every candidate read fails", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => ["/src/A.java"],
-        });
-        vsWorkspace.readFile.mockRejectedValue(new Error("EACCES"));
+        const { locator, workspace } = createLocator({ files: { "/src/A.java": "" } });
+        vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("EACCES"));
 
         const result = await locator.resolve("t", "jobType");
 
@@ -235,11 +194,10 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
     });
 
     it("includes partial read failures alongside a successful match", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => ["/src/bad.java", "/src/good.java"],
-            fileContents: { "/src/good.java": 'type = "t"' },
+        const { locator, workspace } = createLocator({
+            files: { "/src/bad.java": "", "/src/good.java": 'type = "t"' },
         });
-        vsWorkspace.readFile.mockImplementationOnce(() => Promise.reject(new Error("EACCES")));
+        vi.spyOn(workspace, "readFile").mockRejectedValueOnce(new Error("EACCES"));
 
         const result = await locator.resolve("t", "jobType");
 
@@ -253,29 +211,29 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
 
 describe("ImplementationLocator — no search scope", () => {
     it("returns no-search-scope when no folder is open and no source uri given", async () => {
-        const { locator, vsWorkspace } = createLocator({ folders: [], findFiles: () => [] });
+        const { locator, workspace } = createLocator({ folders: [] });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("com.example.X", "javaClass");
 
         expect(result).toEqual({ kind: "no-search-scope" });
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
     });
 });
 
 describe("ImplementationLocator — resolveMany", () => {
     it("returns an empty map and does no search for an empty entry list", async () => {
-        const { locator, vsWorkspace } = createLocator({ findFiles: () => [] });
+        const { locator, workspace } = createLocator();
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolveMany([]);
 
         expect(result.size).toBe(0);
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
     });
 
     it("maps every input id, with unresolved references mapping to []", async () => {
-        const { locator } = createLocator({
-            findFiles: () => ["/src/com/example/Charge.java"],
-        });
+        const { locator } = createLocator({ files: { "/src/com/example/Charge.java": "" } });
 
         const result = await locator.resolveMany([
             { activityId: "A", kind: "javaClass", reference: "com.example.Charge" },
@@ -287,30 +245,27 @@ describe("ImplementationLocator — resolveMany", () => {
     });
 
     it("settles javaClass by path alone — no file reads", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => ["/src/com/example/Charge.java", "/src/Other.java"],
+        const { locator, workspace } = createLocator({
+            files: { "/src/com/example/Charge.java": "", "/src/Other.java": "" },
         });
+        const readFile = vi.spyOn(workspace, "readFile");
 
         await locator.resolveMany([
             { activityId: "A", kind: "javaClass", reference: "com.example.Charge" },
         ]);
 
-        expect(vsWorkspace.readFile).not.toHaveBeenCalled();
+        expect(readFile).not.toHaveBeenCalled();
     });
 
     it("resolves all kinds in a single candidate scan", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => [
-                "/src/com/example/Charge.java",
-                "/src/MyBean.java",
-                "/src/Worker.java",
-            ],
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            files: {
                 "/src/com/example/Charge.java": "class Charge {}",
                 "/src/MyBean.java": "class MyBean {}",
                 "/src/Worker.java": '@JobWorker(type = "pay")',
             },
         });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolveMany([
             { activityId: "A", kind: "javaClass", reference: "com.example.Charge" },
@@ -322,13 +277,12 @@ describe("ImplementationLocator — resolveMany", () => {
         expect(result.get("B")).toEqual(["/src/MyBean.java"]);
         expect(result.get("C")).toEqual(["/src/Worker.java"]);
         // One candidate scan, not one per entry.
-        expect(vsWorkspace.findFiles).toHaveBeenCalledTimes(1);
+        expect(findFiles).toHaveBeenCalledTimes(1);
     });
 
     it("falls back to a bean annotation when the class file name differs", async () => {
         const { locator } = createLocator({
-            findFiles: () => ["/src/Renamed.java"],
-            fileContents: { "/src/Renamed.java": '@Service("myBean")\nclass Renamed {}' },
+            files: { "/src/Renamed.java": '@Service("myBean")\nclass Renamed {}' },
         });
 
         const result = await locator.resolveMany([
@@ -339,27 +293,27 @@ describe("ImplementationLocator — resolveMany", () => {
     });
 
     it("reads no files when only path-decidable entries are present", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            findFiles: () => ["/src/MyBean.java"],
-        });
+        const { locator, workspace } = createLocator({ files: { "/src/MyBean.java": "" } });
+        const readFile = vi.spyOn(workspace, "readFile");
 
         await locator.resolveMany([
             { activityId: "A", kind: "delegateExpression", reference: "${myBean}" },
         ]);
 
         // MyBean matches by file name, so the content pass is skipped entirely.
-        expect(vsWorkspace.readFile).not.toHaveBeenCalled();
+        expect(readFile).not.toHaveBeenCalled();
     });
 
     it("returns all-empty when there is no search scope", async () => {
-        const { locator, vsWorkspace } = createLocator({ folders: [], findFiles: () => [] });
+        const { locator, workspace } = createLocator({ folders: [] });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolveMany([
             { activityId: "A", kind: "javaClass", reference: "com.example.X" },
         ]);
 
         expect(result.get("A")).toEqual([]);
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
     });
 });
 
@@ -379,11 +333,8 @@ describe("ImplementationLocator — resolveMany through a shared source index", 
     ];
 
     function createIndexedLocator() {
-        const created = createLocator({
-            findFiles: () => Object.keys(SOURCES),
-            fileContents: SOURCES,
-        });
-        const index = new SourceIndex(created.vsWorkspace as never, created.notifier as never);
+        const created = createLocator({ files: SOURCES });
+        const index = new SourceIndex(created.workspace, created.notifier);
         const resolveFor = (editorId: string, entries: ImplementationEntry[]) =>
             created.locator.resolveMany(
                 entries,
@@ -394,10 +345,7 @@ describe("ImplementationLocator — resolveMany through a shared source index", 
     }
 
     it("resolves exactly what a direct search resolves", async () => {
-        const direct = createLocator({
-            findFiles: () => Object.keys(SOURCES),
-            fileContents: SOURCES,
-        });
+        const direct = createLocator({ files: SOURCES });
         const { resolveFor } = createIndexedLocator();
 
         const expected = await direct.locator.resolveMany(ENTRIES, "/doc.bpmn");
@@ -409,29 +357,29 @@ describe("ImplementationLocator — resolveMany through a shared source index", 
     });
 
     it("lets a second editor resolve without listing or reading the workspace again", async () => {
-        const { resolveFor, vsWorkspace } = createIndexedLocator();
+        const { resolveFor, workspace } = createIndexedLocator();
 
         await resolveFor("editor1", ENTRIES);
-        vsWorkspace.findFiles.mockClear();
-        vsWorkspace.readFile.mockClear();
+        const findFiles = vi.spyOn(workspace, "findFiles");
+        const readFile = vi.spyOn(workspace, "readFile");
         const second = await resolveFor("editor2", ENTRIES);
 
         expect(second.get("D")).toEqual(["/src/Worker.java"]);
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
-        expect(vsWorkspace.readFile).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
+        expect(readFile).not.toHaveBeenCalled();
     });
 
     it("reads the content again for a literal the indexed facts cannot decide", async () => {
-        const { resolveFor, vsWorkspace } = createIndexedLocator();
+        const { resolveFor, workspace } = createIndexedLocator();
         const spacedTopic: ImplementationEntry[] = [
             { activityId: "F", kind: "jobType", reference: "pay later" },
         ];
 
         await resolveFor("editor1", ENTRIES);
-        vsWorkspace.readFile.mockClear();
+        const readFile = vi.spyOn(workspace, "readFile");
         const result = await resolveFor("editor2", spacedTopic);
 
         expect(result.get("F")).toEqual(["/src/Worker.java"]);
-        expect(vsWorkspace.readFile).toHaveBeenCalledTimes(Object.keys(SOURCES).length);
+        expect(readFile).toHaveBeenCalledTimes(Object.keys(SOURCES).length);
     });
 });

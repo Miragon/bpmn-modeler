@@ -1,24 +1,20 @@
 import {
     AdditionalFilesQuery,
+    asProtocolMessage,
     Command,
-    CreateTargetCommand,
-    DeleteTargetCommand,
     DeploymentResultQuery,
     DeploymentTargetPayload,
     DeploymentTargetsQuery,
     FormDefaultsQuery,
-    ProcessDefinitionKeyQuery,
-    Query,
-    RequestStoredCredentialsCommand,
-    SaveTargetCommand,
-    SelectedPayloadFileQuery,
-    SelectTargetCommand,
-    StartInstanceResultQuery,
-    StoredCredentialsQuery,
-    TargetSavedQuery,
     HostApi,
     HostApiImpl,
     MockHostApi,
+    ProcessDefinitionKeyQuery,
+    Query,
+    SelectedPayloadFileQuery,
+    StartInstanceResultQuery,
+    StoredCredentialsQuery,
+    TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 declare const process: { env: { NODE_ENV: string } };
@@ -29,6 +25,7 @@ declare const process: { env: { NODE_ENV: string } };
 export interface WebviewState {
     formData?: Record<string, string>;
     collapsedSections?: string[];
+    activeTab?: string;
 }
 
 type StateType = WebviewState;
@@ -84,7 +81,8 @@ class MockHost extends MockHostApi<StateType, MessageType> {
      * @param message The outbound command sent by the webview.
      */
     override postMessage(message: MessageType): void {
-        switch (message.type) {
+        const command = asProtocolMessage(message);
+        switch (command.type) {
             case "RequestFormDefaultsCommand": {
                 dispatchEvent(
                     new FormDefaultsQuery({
@@ -99,12 +97,12 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case "SelectTargetCommand": {
-                this.mockActiveTarget = (message as SelectTargetCommand).name;
+                this.mockActiveTarget = command.name;
                 dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
                 break;
             }
             case "CreateTargetCommand": {
-                const { target } = message as CreateTargetCommand;
+                const { target } = command;
                 if (this.mockTargets.some((t) => t.name === target.name)) {
                     dispatchEvent(
                         new TargetSavedQuery(
@@ -123,7 +121,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case "SaveTargetCommand": {
-                const { target, previousName } = message as SaveTargetCommand;
+                const { target, previousName } = command;
                 const isRename = previousName !== undefined && previousName !== target.name;
                 if (isRename && this.mockTargets.some((t) => t.name === target.name)) {
                     dispatchEvent(
@@ -144,7 +142,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case "DeleteTargetCommand": {
-                const { name } = message as DeleteTargetCommand;
+                const { name } = command;
                 this.mockTargets = this.mockTargets.filter((t) => t.name !== name);
                 if (this.mockActiveTarget === name) {
                     this.mockActiveTarget = "";
@@ -158,7 +156,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case "RequestStoredCredentialsCommand": {
-                const { targetName, requestId } = message as RequestStoredCredentialsCommand;
+                const { targetName, requestId } = command;
                 const target = this.mockTargets.find((entry) => entry.name === targetName);
                 dispatchEvent(
                     new StoredCredentialsQuery(
@@ -204,20 +202,6 @@ class MockHost extends MockHostApi<StateType, MessageType> {
 
         function dispatchEvent(event: MessageType) {
             window.dispatchEvent(new MessageEvent("message", { data: event }));
-        }
-    }
-
-    /**
-     * Merges `state` into the current mock state, initialising it when no
-     * state has been set yet (i.e. when {@link getState} would throw).
-     *
-     * @param state Partial state to merge.
-     */
-    override updateState(state: Partial<WebviewState>): void {
-        try {
-            this.setState({ ...this.getState(), ...state });
-        } catch {
-            this.setState(state as WebviewState);
         }
     }
 }

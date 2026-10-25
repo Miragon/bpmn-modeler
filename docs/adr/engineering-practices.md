@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-10-21
+- Last reviewed: 2026-10-24
 
 ## Context
 
@@ -40,6 +40,17 @@ static moddle-extension check have their specs in `libs/bpmn-clipboard` and
 `libs/modeler-types`; the package keeps only the Chromium round trips and
 installed-shape pins that need a real modeler.
 
+Specs reach the core's host ports through the in-memory adapters in
+`@miragon/bpmn-modeler-core/testing` (`createTestHost`, `FakeEditorHandle` and
+one fake per port), not through hand-rolled partial mocks cast to the port.
+The fakes keep state, so specs assert what the host shows or holds rather than
+which methods were called. They follow each port's documented conventions, so a
+port change breaks every spec that relies on it. Each fake is a third adapter
+beside VS Code and the bridge. The entry is test-only: production code
+does not import it, and specs that test a host adapter itself keep mocking the
+host API underneath. A spec spies on a fake only to inject a failure or hang,
+or when the call itself is the behaviour under test.
+
 Real browser tests are necessary for SVG geometry, viewbox transforms and
 ResizeObserver delivery. Mocks can test viewport-latch decisions but cannot
 prove that a delayed initial fit leaves a restored view state intact.
@@ -53,8 +64,36 @@ coverage merges into a single report; measured separately, code that only the
 browser specs exercise (modeler composition, engine stacks, linting) reads as
 uncovered. The browser project incurs a Chromium installation and startup cost;
 a separate Playwright test runner would duplicate the Vite module graph, aliases
-and test conventions. Manual demo
-testing remains useful but does not replace automated timing-sensitive cases.
+and test conventions. Manual checks in the webview previews remain useful but do
+not replace automated timing-sensitive cases.
+
+Two layers run the VS Code extension in a real VS Code. The Extension-Host test
+(`test:e2e`, `@vscode/test-cli`) activates the built extension on the
+`engines.vscode` floor and the newest stable release and stays at the VS Code
+API boundary: commands, custom-editor resolution and diff routing. It cannot see
+inside a webview. The [VS Code smoke test](../../apps/vscode-plugin/test/smoke/vscode-smoke.test.ts)
+(`test:vscode`) covers the seam that neither it nor the browser tests reach: the
+packaged VSIX, the webview bundles loaded under the host's CSP, the host ↔
+webview protocol and the `TextDocument` behind the custom editor. It packs the
+extension with `vsce`, unpacks it outside the repository and drives desktop
+VS Code through `playwright-core`'s Electron driver. One canvas edit, save, undo
+and VS Code's theme switch are checked in the webview, and the DMN and form
+editors are opened. Playwright cannot drive VS Code before 1.78, whose Chromium
+lacks APIs its injected script uses, so the `engines.vscode` floor stays with
+the Extension-Host test. The smoke test keeps Vitest as its runner with its own
+config, `vitest.smoke.config.ts`, so `yarn test` and the coverage gates exclude
+it; the Playwright test runner is not used, for the same reasons as above. The
+pattern follows Miragon's other modelers, but the driver is ported rather than
+imported from `@miragon/modeler-shell`: that driver's checks expect the shell's
+chrome and theme attributes, and its container command assumes npm. Locally the
+test runs in a Linux container
+([`run-in-container.mjs`](../../apps/vscode-plugin/test/smoke/run-in-container.mjs),
+Podman or Docker), because a native run on macOS opens a window that takes the
+focus. In CI it has a [workflow of its own](../../.github/workflows/vscode-smoke.yml)
+with plain path filters, a weekly run against the newest stable VS Code and a
+manual version input. It is not part of the required `ci` check: it needs a full
+install and build, and it drives workbench DOM that VS Code does not keep
+stable between releases.
 
 The vendored properties panel requires production Preact JSX transforms in both
 test pipelines. Check [browser configuration](../../packages/bpmn-modeler/vitest.browser.config.ts),
@@ -105,8 +144,10 @@ the same target ids.
 [`check-vitest-targets.mjs`](../../.github/scripts/check-vitest-targets.mjs)
 runs in the lint job and pre-push. It fails when a workspace with a Vitest
 config is not a target, when a target does not declare the Vitest packages its
-focused install needs (including Vitest's `vite` peer), or when its trigger
-paths miss a workspace or file its tests import. Before the registry, each workspace needed a hand-written job,
+focused install needs (including Vitest's `vite` peer), when its trigger
+paths miss a workspace or file its tests import, or when its `build` script
+only runs `tsc --noEmit` but the target names no `typecheck` (most such builds
+run in no other CI job). Before the registry, each workspace needed a hand-written job,
 filter and `ci.needs` entry, and twelve workspaces' specs never ran in CI.
 
 Only `<id>-src` matches upload coverage, so the release-please PR (changelogs,
@@ -238,9 +279,11 @@ Vitest workspace means adding a registry entry; the guard makes forgetting it
 a lint failure rather than a silently untested workspace.
 Tests run in the environment capable of exposing the failure: browser layout in
 Chromium, pure logic in unit tests, private shapes against installed dependencies,
-and archive compatibility through real extraction. This adds browser/runtime
-maintenance and explicit upstream pin reviews, but catches failures that compile
-checks or import mocks would miss. Security overrides add a new dependency tree
-and do not imply that all lower-severity findings have been remediated.
+archive compatibility through real extraction, and the packaged extension in a
+real VS Code. This adds browser/runtime maintenance and explicit upstream pin
+reviews, but catches failures that compile checks or import mocks would miss.
+A red VS Code smoke run blocks no merge, so reviewers have to check it, and its
+workbench selectors need updating when VS Code changes its DOM. Security
+overrides add a new dependency tree and do not imply that all lower-severity findings have been remediated.
 The compiler transition temporarily retains two TypeScript implementations and
 requires checking both CLI compilation and API-based tooling when upgrading.

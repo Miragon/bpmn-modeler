@@ -287,10 +287,19 @@ export class EditorSessionStore {
         );
     }
 
+    subscribeToFocusChangeEvent(editorId: string, callback: (focused: boolean) => void): void {
+        const handle = this.requireHandle(editorId);
+        handle.addSubscription(
+            handle.onDidChangeActive((active) => {
+                if (this.editors.get(editorId) === handle) callback(active);
+            }),
+        );
+    }
+
     subscribeToTabChangeEvent(editorId: string): void {
         const handle = this.requireHandle(editorId);
-        handle.onDidBecomeActive(() => {
-            if (this.editors.get(editorId) === handle) this.setActiveEditor(editorId);
+        handle.onDidChangeActive((active) => {
+            if (active && this.editors.get(editorId) === handle) this.setActiveEditor(editorId);
         });
     }
 

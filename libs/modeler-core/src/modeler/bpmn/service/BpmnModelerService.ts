@@ -1,6 +1,5 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { ModelerSession } from "../../../shared/domain/session";
 import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
 import { getVersions } from "../../../shared/domain/engineVersions";
 import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
@@ -11,16 +10,16 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../shared/domain/hostPorts";
+import { EditorDocumentSync } from "../../../shared/infrastructure/EditorDocumentSync";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 
 /**
- * Owns the per-editor {@link ModelerSession} map that drives echo
- * prevention: writes initiated by the webview acquire a guard before the
- * extension writes back, so the resulting `onDidChangeTextDocument` event
- * is skipped by {@link display} instead of being re-rendered.
+ * Displays, initialises and syncs BPMN documents on top of the shared
+ * {@link EditorDocumentSync}; adds the engine choice for an empty file and the
+ * engine-version status.
  */
 export class BpmnModelerService {
-    private readonly sessions: Map<string, ModelerSession> = new Map();
+    private readonly documents: EditorDocumentSync;
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -29,45 +28,38 @@ export class BpmnModelerService {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
-    ) {}
+    ) {
+        this.documents = new EditorDocumentSync(editorStore, vsDocument);
+    }
 
     registerSession(editorId: string): void {
-        this.sessions.set(editorId, new ModelerSession(editorId));
+        this.documents.register(editorId);
     }
 
     disposeSession(editorId: string): void {
-        this.sessions.delete(editorId);
+        this.documents.dispose(editorId);
     }
 
     async display(editorId: string, hostUpdated = false): Promise<boolean> {
         try {
-            const session = this.sessions.get(editorId);
-            const content = this.vsDocument.getContent(editorId);
-            if (session?.isGuarded(content)) return false;
-            if (hostUpdated) this.editorStore.markHostDocumentUpdated(editorId);
-            const documentRevision = this.editorStore.currentHostDocumentRevision(editorId);
-            const editorSession = this.editorStore.captureEditorSession(editorId);
-            let doc = new BpmnDocument(content);
+            const snapshot = this.documents.read(editorId, hostUpdated);
+            if (!snapshot) return false;
+            let doc = new BpmnDocument(snapshot.content);
 
             if (doc.isEmpty()) {
-                const choice = await this.picker.pickNewModelEngine(
-                    "Select the execution platform.",
+                const xml = await this.documents.initializeEmpty(
+                    editorId,
+                    snapshot,
+                    hostUpdated,
+                    async () => {
+                        const choice = await this.picker.pickNewModelEngine(
+                            "Select the execution platform.",
+                        );
+                        return BpmnDocument.forNewModel(choice).xml;
+                    },
                 );
-                if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision)) {
-                    return false;
-                }
-
-                doc = BpmnDocument.forNewModel(choice);
-                if (!(await this.writeGuarded(session, editorId, doc.xml, documentRevision))) {
-                    return false;
-                }
-                if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision)) {
-                    return false;
-                }
-                await this.vsDocument.save(editorId);
-                if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision)) {
-                    return false;
-                }
+                if (xml === undefined) return false;
+                doc = new BpmnDocument(xml);
             }
 
             try {
@@ -81,7 +73,7 @@ export class BpmnModelerService {
                         doc.xml,
                         engine,
                         "modeler",
-                        documentRevision,
+                        snapshot.revision,
                         this.settings.getDefaultMode(),
                         this.settings.getLanguage(),
                     ),
@@ -110,14 +102,8 @@ export class BpmnModelerService {
     }
 
     async sync(editorId: string, content: string, documentRevision?: number): Promise<boolean> {
-        const session = this.sessions.get(editorId);
-        if (!this.editorStore.isHostDocumentRevisionCurrent(editorId, documentRevision)) {
-            return false;
-        }
-        // Guard around the write so the resulting document-change event is
-        // recognised as our own echo and not re-rendered.
         try {
-            return await this.writeGuarded(session, editorId, content, documentRevision);
+            return await this.documents.sync(editorId, content, documentRevision);
         } catch (error) {
             return this.handleSyncError(error as Error);
         }
@@ -125,10 +111,8 @@ export class BpmnModelerService {
 
     async changeEngineVersion(editorId: string): Promise<boolean> {
         try {
-            const editorSession = this.editorStore.captureEditorSession(editorId);
-            const documentRevision = this.editorStore.currentHostDocumentRevision(editorId);
-            const session = this.sessions.get(editorId);
-            const doc = new BpmnDocument(this.vsDocument.getContent(editorId));
+            const snapshot = this.documents.snapshot(editorId);
+            const doc = new BpmnDocument(snapshot.content);
             const platform = doc.detectEngine();
             if (!platform) {
                 this.notifier.showInfo(
@@ -139,14 +123,14 @@ export class BpmnModelerService {
             const versions = getVersions(platform);
 
             const newVersion = await this.picker.pickEngineVersion(platform, versions);
-            if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision)) {
+            if (!snapshot.isCurrent()) {
                 return false;
             }
 
             const updatedDoc = doc.withVersion(newVersion);
             if (
-                !(await this.writeGuarded(session, editorId, updatedDoc.xml, documentRevision)) ||
-                !this.isSnapshotCurrent(editorId, editorSession, documentRevision)
+                !(await this.documents.write(editorId, updatedDoc.xml, snapshot.revision)) ||
+                !snapshot.isCurrent()
             ) {
                 return false;
             }
@@ -172,31 +156,5 @@ export class BpmnModelerService {
     private handleSyncError(error: Error): boolean {
         this.notifier.notifyError("A problem occurred while trying to sync the BPMN file.", error);
         return false;
-    }
-
-    private isSnapshotCurrent(
-        editorId: string,
-        editorSession: object | undefined,
-        documentRevision: number,
-    ): boolean {
-        return (
-            editorSession !== undefined &&
-            this.editorStore.isCurrentEditorSession(editorId, editorSession) &&
-            this.editorStore.isHostDocumentRevisionCurrent(editorId, documentRevision)
-        );
-    }
-
-    private async writeGuarded(
-        session: ModelerSession | undefined,
-        editorId: string,
-        content: string,
-        documentRevision?: number,
-    ): Promise<boolean> {
-        session?.acquireGuard(content);
-        try {
-            return await this.vsDocument.write(editorId, content, documentRevision);
-        } finally {
-            session?.releaseGuard(content);
-        }
     }
 }

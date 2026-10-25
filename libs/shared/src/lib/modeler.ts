@@ -79,7 +79,7 @@ import type {
 } from "@miragon/bpmn-modeler-types";
 
 // =================================== Queries ==================================>
-export class BpmnFileQuery extends Query {
+export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
     public readonly content: string;
 
     /**
@@ -127,7 +127,7 @@ export class BpmnFileQuery extends Query {
     }
 }
 
-export class DmnFileQuery extends Query {
+export class DmnFileQuery extends Query<"DmnFileQuery"> {
     public readonly content: string;
     public readonly documentRevision: number;
 
@@ -138,7 +138,7 @@ export class DmnFileQuery extends Query {
     }
 }
 
-export class FormFileQuery extends Query {
+export class FormFileQuery extends Query<"FormFileQuery"> {
     public readonly content: string;
     public readonly documentRevision: number;
 
@@ -150,7 +150,7 @@ export class FormFileQuery extends Query {
 }
 
 /** Delivers the current in-memory process variables used to render a form preview. */
-export class FormInputValuesQuery extends Query {
+export class FormInputValuesQuery extends Query<"FormInputValuesQuery"> {
     public readonly content: string;
 
     constructor(content: string) {
@@ -159,10 +159,10 @@ export class FormInputValuesQuery extends Query {
     }
 }
 
-export class ElementTemplatesQuery extends Query {
-    public readonly elementTemplates: JSON[];
+export class ElementTemplatesQuery extends Query<"ElementTemplatesQuery"> {
+    public readonly elementTemplates: object[];
 
-    constructor(elementTemplates: any[]) {
+    constructor(elementTemplates: object[]) {
         super("ElementTemplatesQuery");
         this.elementTemplates = elementTemplates;
     }
@@ -179,7 +179,7 @@ export class ElementTemplatesQuery extends Query {
  * webview to deactivate linting and hide the lint button (no `.bpmnlintrc` found,
  * or a read/parse failure), keeping the no-config experience identical to today.
  */
-export class BpmnlintResultsQuery extends Query {
+export class BpmnlintResultsQuery extends Query<"BpmnlintResultsQuery"> {
     public readonly results: LintResults | null;
 
     constructor(results: LintResults | null) {
@@ -199,7 +199,7 @@ export class BpmnlintResultsQuery extends Query {
  * chip so the user can turn it back on from inside the canvas — the pill they
  * would otherwise use is gone. Carries no payload; the state is the message.
  */
-export class BpmnLintDisabledQuery extends Query {
+export class BpmnLintDisabledQuery extends Query<"BpmnLintDisabledQuery"> {
     constructor() {
         super("BpmnLintDisabledQuery");
     }
@@ -232,7 +232,7 @@ export class BpmnLintDisabledQuery extends Query {
  * {@link BpmnLintDisabledQuery} switch the webview back to the external tier and
  * supersede an in-page run.
  */
-export class BpmnlintInPageQuery extends Query {
+export class BpmnlintInPageQuery extends Query<"BpmnlintInPageQuery"> {
     public readonly config?: BpmnlintConfig;
 
     public readonly configToken?: string;
@@ -249,7 +249,7 @@ export class BpmnlintInPageQuery extends Query {
  * editors and fires no diagnostic-click event, so a Problems-panel bpmnlint
  * finding reaches its element through a command link that posts this instead.
  */
-export class FocusElementQuery extends Query {
+export class FocusElementQuery extends Query<"FocusElementQuery"> {
     public readonly elementId: string;
 
     constructor(elementId: string) {
@@ -258,7 +258,7 @@ export class FocusElementQuery extends Query {
     }
 }
 
-export class BpmnModelerSettingQuery extends Query {
+export class BpmnModelerSettingQuery extends Query<"BpmnModelerSettingQuery"> {
     public readonly setting: BpmnModelerSetting;
 
     constructor(setting: BpmnModelerSetting) {
@@ -267,7 +267,7 @@ export class BpmnModelerSettingQuery extends Query {
     }
 }
 
-export class DmnModelerSettingQuery extends Query {
+export class DmnModelerSettingQuery extends Query<"DmnModelerSettingQuery"> {
     public readonly setting: DmnModelerSetting;
 
     constructor(setting: DmnModelerSetting) {
@@ -283,7 +283,7 @@ export class DmnModelerSettingQuery extends Query {
  * its own state, it ignores further global changes so that toggling the panel
  * on one side-by-side diagram does not affect its neighbour.
  */
-export class PropertiesPanelStateQuery extends Query {
+export class PropertiesPanelStateQuery extends Query<"PropertiesPanelStateQuery"> {
     public readonly visible: boolean;
 
     constructor(visible: boolean) {
@@ -292,7 +292,11 @@ export class PropertiesPanelStateQuery extends Query {
     }
 }
 
-export class ClipboardQuery extends Query {
+/**
+ * Answers a {@link GetClipboardCommand} with the system clipboard text. Every
+ * request is answered; a failed read answers with empty text.
+ */
+export class ClipboardQuery extends Query<"ClipboardQuery"> {
     public readonly text: string;
 
     constructor(text: string) {
@@ -301,7 +305,11 @@ export class ClipboardQuery extends Query {
     }
 }
 
-export class TextClipboardQuery extends Query {
+/**
+ * Answers a {@link GetTextClipboardCommand} with the system clipboard text.
+ * Every request is answered; a failed read answers with empty text.
+ */
+export class TextClipboardQuery extends Query<"TextClipboardQuery"> {
     public readonly text: string;
 
     constructor(text: string) {
@@ -316,7 +324,7 @@ export class TextClipboardQuery extends Query {
  * opens skip the prompt. Mirrors {@link UpdateScriptContentQuery}'s
  * addressing scheme.
  */
-export class UpdateScriptFormatQuery extends Query {
+export class UpdateScriptFormatQuery extends Query<"UpdateScriptFormatQuery"> {
     public readonly elementId: string;
 
     public readonly kind: ScriptKind;
@@ -347,7 +355,7 @@ export class UpdateScriptFormatQuery extends Query {
  * For listener kinds, {@link listenerIndex} addresses the listener within
  * the parent's filtered list of listeners of that specific type.
  */
-export class UpdateScriptContentQuery extends Query {
+export class UpdateScriptContentQuery extends Query<"UpdateScriptContentQuery"> {
     public readonly elementId: string;
 
     public readonly kind: ScriptKind;
@@ -382,7 +390,7 @@ export class UpdateScriptContentQuery extends Query {
  * incremental lock state, so only an idempotent replace stays correct across
  * reloads. An empty array means nothing is open — the panel is fully editable.
  */
-export class UpdateOpenScriptEditorsQuery extends Query {
+export class UpdateOpenScriptEditorsQuery extends Query<"UpdateOpenScriptEditorsQuery"> {
     public readonly openScripts: OpenScriptEditorRef[];
 
     constructor(openScripts: OpenScriptEditorRef[]) {
@@ -394,7 +402,7 @@ export class UpdateOpenScriptEditorsQuery extends Query {
 /**
  * Delivers the user's language selection to the webview for live translation.
  */
-export class LanguageQuery extends Query {
+export class LanguageQuery extends Query<"LanguageQuery"> {
     public readonly locale: string;
 
     constructor(locale: string) {
@@ -420,7 +428,7 @@ export class LanguageQuery extends Query {
  * flash-free (show, never flash-to-hidden) while still hiding once the host has
  * confirmed there is nothing to navigate to.
  */
-export class ImplementationStatusQuery extends Query {
+export class ImplementationStatusQuery extends Query<"ImplementationStatusQuery"> {
     public readonly resolved: Record<string, boolean>;
 
     constructor(resolved: Record<string, boolean>) {
@@ -430,7 +438,7 @@ export class ImplementationStatusQuery extends Query {
 }
 
 /** Resolvable top-level form ids in the current workspace search scope. */
-export class FormReferenceStatusQuery extends Query {
+export class FormReferenceStatusQuery extends Query<"FormReferenceStatusQuery"> {
     public readonly formIds: string[];
 
     constructor(formIds: string[]) {
@@ -445,7 +453,7 @@ export class FormReferenceStatusQuery extends Query {
  * the user types, so the id pairs each answer with its request. Every request is
  * answered, with {@link failed} set when the host could not search.
  */
-export class WorkspaceDefinitionsQuery extends Query {
+export class WorkspaceDefinitionsQuery extends Query<"WorkspaceDefinitionsQuery"> {
     public readonly requestId: number;
 
     public readonly definitions: WorkspaceDefinition[];
@@ -465,13 +473,13 @@ export class WorkspaceDefinitionsQuery extends Query {
  *
  * =================================== Commands ==================================>
  */
-export class GetBpmnFileCommand extends Command {
+export class GetBpmnFileCommand extends Command<"GetBpmnFileCommand"> {
     constructor() {
         super("GetBpmnFileCommand");
     }
 }
 
-export class GetDiagramAsSVGCommand extends Command {
+export class GetDiagramAsSVGCommand extends Command<"GetDiagramAsSVGCommand"> {
     svg?: string;
 
     constructor() {
@@ -479,27 +487,27 @@ export class GetDiagramAsSVGCommand extends Command {
     }
 }
 
-export class GetDmnFileCommand extends Command {
+export class GetDmnFileCommand extends Command<"GetDmnFileCommand"> {
     constructor() {
         super("GetDmnFileCommand");
     }
 }
 
-export class GetFormFileCommand extends Command {
+export class GetFormFileCommand extends Command<"GetFormFileCommand"> {
     constructor() {
         super("GetFormFileCommand");
     }
 }
 
 /** Requests the non-persistent input JSON associated with this form editor session. */
-export class GetFormInputValuesCommand extends Command {
+export class GetFormInputValuesCommand extends Command<"GetFormInputValuesCommand"> {
     constructor() {
         super("GetFormInputValuesCommand");
     }
 }
 
 /** Publishes the form preview's current submit data to its read-only virtual document. */
-export class UpdateFormOutputValuesCommand extends Command {
+export class UpdateFormOutputValuesCommand extends Command<"UpdateFormOutputValuesCommand"> {
     public readonly content: string;
 
     constructor(content: string) {
@@ -508,7 +516,7 @@ export class UpdateFormOutputValuesCommand extends Command {
     }
 }
 
-export class GetElementTemplatesCommand extends Command {
+export class GetElementTemplatesCommand extends Command<"GetElementTemplatesCommand"> {
     constructor() {
         super("GetElementTemplatesCommand");
     }
@@ -521,19 +529,19 @@ export class GetElementTemplatesCommand extends Command {
  * the IntelliJ bridge) simply have no handler for it, so linting stays dormant
  * and the webview is unaffected.
  */
-export class GetBpmnlintConfigCommand extends Command {
+export class GetBpmnlintConfigCommand extends Command<"GetBpmnlintConfigCommand"> {
     constructor() {
         super("GetBpmnlintConfigCommand");
     }
 }
 
-export class GetBpmnModelerSettingCommand extends Command {
+export class GetBpmnModelerSettingCommand extends Command<"GetBpmnModelerSettingCommand"> {
     constructor() {
         super("GetBpmnModelerSettingCommand");
     }
 }
 
-export class GetDmnModelerSettingCommand extends Command {
+export class GetDmnModelerSettingCommand extends Command<"GetDmnModelerSettingCommand"> {
     constructor() {
         super("GetDmnModelerSettingCommand");
     }
@@ -544,7 +552,7 @@ export class GetDmnModelerSettingCommand extends Command {
  * global default for the properties-panel visibility.  The host answers with
  * {@link PropertiesPanelStateQuery}.
  */
-export class GetPropertiesPanelStateCommand extends Command {
+export class GetPropertiesPanelStateCommand extends Command<"GetPropertiesPanelStateCommand"> {
     constructor() {
         super("GetPropertiesPanelStateCommand");
     }
@@ -556,7 +564,7 @@ export class GetPropertiesPanelStateCommand extends Command {
  * the next freshly opened BPMN webview picks it up.  Existing, already-open
  * webviews keep their own in-memory state and are intentionally not updated.
  */
-export class SetPropertiesPanelStateCommand extends Command {
+export class SetPropertiesPanelStateCommand extends Command<"SetPropertiesPanelStateCommand"> {
     public readonly visible: boolean;
 
     constructor(visible: boolean) {
@@ -574,7 +582,7 @@ export class SetPropertiesPanelStateCommand extends Command {
  * never flips its own overlays optimistically. Hosts without the setting (e.g.
  * the IntelliJ bridge) simply ignore it and linting is unaffected.
  */
-export class SetLintingEnabledCommand extends Command {
+export class SetLintingEnabledCommand extends Command<"SetLintingEnabledCommand"> {
     public readonly enabled: boolean;
 
     constructor(enabled: boolean) {
@@ -600,7 +608,7 @@ export class SetLintingEnabledCommand extends Command {
  * (absent for the payload-free default tier) so the host can pair a run with the
  * config version it linted and drop a stale run against a superseded config.
  */
-export class UpdateLintResultsCommand extends Command {
+export class UpdateLintResultsCommand extends Command<"UpdateLintResultsCommand"> {
     public readonly results: LintResults;
 
     public readonly unresolved: readonly string[];
@@ -615,7 +623,12 @@ export class UpdateLintResultsCommand extends Command {
     }
 }
 
-export class GetClipboardCommand extends Command {
+/**
+ * Asks the host to read the system clipboard for an element paste, which the
+ * webview's sandbox cannot do itself. The host always answers with a
+ * {@link ClipboardQuery}.
+ */
+export class GetClipboardCommand extends Command<"GetClipboardCommand"> {
     constructor() {
         super("GetClipboardCommand");
     }
@@ -631,7 +644,7 @@ export class GetClipboardCommand extends Command {
  */
 export type ReferenceKind = "process" | "decision" | "form";
 
-export class NavigateToReferencedModelCommand extends Command {
+export class NavigateToReferencedModelCommand extends Command<"NavigateToReferencedModelCommand"> {
     public readonly referenceId: string;
 
     public readonly referenceKind: ReferenceKind;
@@ -644,7 +657,7 @@ export class NavigateToReferencedModelCommand extends Command {
 }
 
 /** Requests the resolvable Camunda Form ids for context-pad visibility. */
-export class GetFormReferenceStatusCommand extends Command {
+export class GetFormReferenceStatusCommand extends Command<"GetFormReferenceStatusCommand"> {
     constructor() {
         super("GetFormReferenceStatusCommand");
     }
@@ -655,7 +668,7 @@ export class GetFormReferenceStatusCommand extends Command {
  * {@link kind} whose name or code contains {@link text}. The host answers with a
  * {@link WorkspaceDefinitionsQuery} carrying the same {@link requestId}.
  */
-export class SearchWorkspaceDefinitionsCommand extends Command {
+export class SearchWorkspaceDefinitionsCommand extends Command<"SearchWorkspaceDefinitionsCommand"> {
     public readonly requestId: number;
 
     public readonly kind: DefinitionKind;
@@ -680,7 +693,7 @@ export class SearchWorkspaceDefinitionsCommand extends Command {
  * Only the reference string and its kind cross the boundary — workspace file
  * paths never leave the host. Resolution happens on click, on demand.
  */
-export class NavigateToImplementationCommand extends Command {
+export class NavigateToImplementationCommand extends Command<"NavigateToImplementationCommand"> {
     public readonly reference: string;
 
     public readonly kind: ImplementationKind;
@@ -701,7 +714,7 @@ export class NavigateToImplementationCommand extends Command {
  * This is intentionally a cheap list of id/kind/reference strings, never
  * resolved paths — resolution is the host's job and stays on the host.
  */
-export class SyncActivitiesCommand extends Command {
+export class SyncActivitiesCommand extends Command<"SyncActivitiesCommand"> {
     public readonly entries: ImplementationEntry[];
 
     constructor(entries: ImplementationEntry[]) {
@@ -710,7 +723,7 @@ export class SyncActivitiesCommand extends Command {
     }
 }
 
-export class SetClipboardCommand extends Command {
+export class SetClipboardCommand extends Command<"SetClipboardCommand"> {
     public readonly text: string;
 
     constructor(text: string) {
@@ -719,13 +732,18 @@ export class SetClipboardCommand extends Command {
     }
 }
 
-export class GetTextClipboardCommand extends Command {
+/**
+ * Asks the host to read the system clipboard for a text paste into a label or
+ * properties-panel field. The host always answers with a
+ * {@link TextClipboardQuery}.
+ */
+export class GetTextClipboardCommand extends Command<"GetTextClipboardCommand"> {
     constructor() {
         super("GetTextClipboardCommand");
     }
 }
 
-export class SetTextClipboardCommand extends Command {
+export class SetTextClipboardCommand extends Command<"SetTextClipboardCommand"> {
     public readonly text: string;
 
     constructor(text: string) {
@@ -752,7 +770,7 @@ export class SetTextClipboardCommand extends Command {
  * accurate from the first keystroke; it is an optional trailing parameter so
  * older webview/host pairs that don't send it stay compatible.
  */
-export class OpenScriptEditorCommand extends Command {
+export class OpenScriptEditorCommand extends Command<"OpenScriptEditorCommand"> {
     public readonly elementId: string;
 
     public readonly kind: ScriptKind;
@@ -793,7 +811,7 @@ export class OpenScriptEditorCommand extends Command {
  * command can materialise them all at once. Carries no payload — the webview
  * owns the element scan and replies with a single {@link OpenScriptEditorsCommand}.
  */
-export class OpenAllScriptTasksQuery extends Query {
+export class OpenAllScriptTasksQuery extends Query<"OpenAllScriptTasksQuery"> {
     constructor() {
         super("OpenAllScriptTasksQuery");
     }
@@ -804,7 +822,7 @@ export class OpenAllScriptTasksQuery extends Query {
  * connections. Carries no payload; the webview owns the layout and replies with
  * a {@link DiagramFormattedCommand} whether it succeeded or not.
  */
-export class FormatDiagramQuery extends Query {
+export class FormatDiagramQuery extends Query<"FormatDiagramQuery"> {
     constructor() {
         super("FormatDiagramQuery");
     }
@@ -818,7 +836,7 @@ export class FormatDiagramQuery extends Query {
  * remarks, which belong in the log rather than in a notification: they are
  * common and rarely actionable.
  */
-export class DiagramFormattedCommand extends Command {
+export class DiagramFormattedCommand extends Command<"DiagramFormattedCommand"> {
     constructor(
         public readonly status: LayoutStatus,
         public readonly diagnostics: LayoutDiagnostic[],
@@ -837,7 +855,7 @@ export class DiagramFormattedCommand extends Command {
  * confirms the report first. The webview recomputes on apply rather than acting
  * on the ids it reported, because the user may have edited in between.
  */
-export class CleanupDiagramQuery extends Query {
+export class CleanupDiagramQuery extends Query<"CleanupDiagramQuery"> {
     constructor(public readonly apply: boolean) {
         super("CleanupDiagramQuery");
     }
@@ -850,7 +868,7 @@ export class CleanupDiagramQuery extends Query {
  * request this answers: a failed apply and a failed report are the same status
  * but must not lead to the same prompt.
  */
-export class CleanupReportCommand extends Command {
+export class CleanupReportCommand extends Command<"CleanupReportCommand"> {
     constructor(
         public readonly outcome: CleanupOutcome,
         public readonly applied: boolean,
@@ -872,7 +890,7 @@ export class CleanupReportCommand extends Command {
  * {@link variables} is sent once because it is identical for every script in the
  * same diagram.
  */
-export class OpenScriptEditorsCommand extends Command {
+export class OpenScriptEditorsCommand extends Command<"OpenScriptEditorsCommand"> {
     public readonly scripts: ScriptTaskScript[];
 
     public readonly variables: VariableDef[];
@@ -898,7 +916,7 @@ export class OpenScriptEditorsCommand extends Command {
  * applied or received for that script, so keystrokes the tab itself streamed
  * in via {@link UpdateScriptContentQuery} never echo back.
  */
-export class UpdateScriptSourceCommand extends Command {
+export class UpdateScriptSourceCommand extends Command<"UpdateScriptSourceCommand"> {
     public readonly elementId: string;
 
     public readonly kind: ScriptKind;
@@ -927,7 +945,7 @@ export class UpdateScriptSourceCommand extends Command {
  * completion without reopening. Carries the full re-extracted model — the host
  * replaces, never merges.
  */
-export class UpdateScriptVariablesCommand extends Command {
+export class UpdateScriptVariablesCommand extends Command<"UpdateScriptVariablesCommand"> {
     public readonly variables: VariableDef[];
 
     constructor(variables: VariableDef[]) {
@@ -1009,7 +1027,7 @@ export interface DeploymentFormDefaults {
 /**
  * Sent by the deployment webview on load to request pre-populated form defaults.
  */
-export class RequestFormDefaultsCommand extends Command {
+export class RequestFormDefaultsCommand extends Command<"RequestFormDefaultsCommand"> {
     constructor() {
         super("RequestFormDefaultsCommand");
     }
@@ -1018,7 +1036,7 @@ export class RequestFormDefaultsCommand extends Command {
 /**
  * Sent by the deployment webview when the user clicks Deploy.
  */
-export class DeployCommand extends Command {
+export class DeployCommand extends Command<"DeployCommand"> {
     public readonly config: DeploymentConfigPayload;
 
     constructor(config: DeploymentConfigPayload) {
@@ -1030,7 +1048,7 @@ export class DeployCommand extends Command {
 /**
  * Sent by the deployment webview when the user clicks the + button for additional files.
  */
-export class RequestAdditionalFilesCommand extends Command {
+export class RequestAdditionalFilesCommand extends Command<"RequestAdditionalFilesCommand"> {
     constructor() {
         super("RequestAdditionalFilesCommand");
     }
@@ -1040,7 +1058,7 @@ export class RequestAdditionalFilesCommand extends Command {
  * Sent by the deployment webview to request previously stored credentials.
  * `targetName` scopes the lookup to a saved target; `""`/absent = ad-hoc mode.
  */
-export class RequestStoredCredentialsCommand extends Command {
+export class RequestStoredCredentialsCommand extends Command<"RequestStoredCredentialsCommand"> {
     public readonly targetName: string;
 
     constructor(
@@ -1056,7 +1074,7 @@ export class RequestStoredCredentialsCommand extends Command {
  * Sent by the deployment webview when the user picks a target in the select.
  * `name` is `""` for the ad-hoc "(none — use form values)" entry.
  */
-export class SelectTargetCommand extends Command {
+export class SelectTargetCommand extends Command<"SelectTargetCommand"> {
     public readonly name: string;
 
     constructor(name: string) {
@@ -1069,7 +1087,7 @@ export class SelectTargetCommand extends Command {
  * Sent by the deployment webview to persist a target. `previousName` marks a
  * rename so the host can drop the old entry and migrate its secret slot.
  */
-export class SaveTargetCommand extends Command {
+export class SaveTargetCommand extends Command<"SaveTargetCommand"> {
     public readonly target: DeploymentTargetPayload;
 
     public readonly auth: AuthConfigPayload;
@@ -1089,7 +1107,7 @@ export class SaveTargetCommand extends Command {
  * A name that already exists is rejected; unlike {@link SaveTargetCommand} it
  * never overwrites.
  */
-export class CreateTargetCommand extends Command {
+export class CreateTargetCommand extends Command<"CreateTargetCommand"> {
     public readonly target: DeploymentTargetPayload;
 
     public readonly auth: AuthConfigPayload;
@@ -1104,7 +1122,7 @@ export class CreateTargetCommand extends Command {
 /**
  * Sent by the deployment webview to delete a saved target by name.
  */
-export class DeleteTargetCommand extends Command {
+export class DeleteTargetCommand extends Command<"DeleteTargetCommand"> {
     public readonly name: string;
 
     constructor(name: string) {
@@ -1117,7 +1135,7 @@ export class DeleteTargetCommand extends Command {
  * Sent by the deployment webview to open `deployment-targets.json` in the host
  * editor for direct editing. The host creates an empty file first if none exists.
  */
-export class OpenTargetsFileCommand extends Command {
+export class OpenTargetsFileCommand extends Command<"OpenTargetsFileCommand"> {
     constructor() {
         super("OpenTargetsFileCommand");
     }
@@ -1128,7 +1146,7 @@ export class OpenTargetsFileCommand extends Command {
 /**
  * Sent by the extension host to pre-populate the deployment form.
  */
-export class FormDefaultsQuery extends Query {
+export class FormDefaultsQuery extends Query<"FormDefaultsQuery"> {
     public readonly defaults: DeploymentFormDefaults;
 
     constructor(defaults: DeploymentFormDefaults) {
@@ -1140,7 +1158,7 @@ export class FormDefaultsQuery extends Query {
 /**
  * Sent by the extension host after a deployment attempt completes.
  */
-export class DeploymentResultQuery extends Query {
+export class DeploymentResultQuery extends Query<"DeploymentResultQuery"> {
     public readonly success: boolean;
 
     public readonly message: string;
@@ -1158,7 +1176,7 @@ export class DeploymentResultQuery extends Query {
 /**
  * Sent by the extension host with previously stored credentials.
  */
-export class StoredCredentialsQuery extends Query {
+export class StoredCredentialsQuery extends Query<"StoredCredentialsQuery"> {
     public readonly auth: AuthConfigPayload;
 
     constructor(
@@ -1174,7 +1192,7 @@ export class StoredCredentialsQuery extends Query {
 /**
  * Sent by the extension host with the paths selected via QuickPick.
  */
-export class AdditionalFilesQuery extends Query {
+export class AdditionalFilesQuery extends Query<"AdditionalFilesQuery"> {
     public readonly filePaths: string[];
 
     constructor(filePaths: string[]) {
@@ -1188,7 +1206,7 @@ export class AdditionalFilesQuery extends Query {
  * so the sidebar select can render and pre-select. `activeTargetName` is `""`
  * for ad-hoc mode.
  */
-export class DeploymentTargetsQuery extends Query {
+export class DeploymentTargetsQuery extends Query<"DeploymentTargetsQuery"> {
     public readonly targets: readonly DeploymentTargetPayload[];
 
     public readonly activeTargetName: string;
@@ -1207,7 +1225,7 @@ export class DeploymentTargetsQuery extends Query {
 /**
  * Sent by the extension host after a save/delete target attempt completes.
  */
-export class TargetSavedQuery extends Query {
+export class TargetSavedQuery extends Query<"TargetSavedQuery"> {
     public readonly success: boolean;
 
     public readonly message: string;
@@ -1243,7 +1261,7 @@ export interface StartInstanceConfigPayload {
 /**
  * Sent by the webview when the user clicks Start Instance.
  */
-export class StartInstanceCommand extends Command {
+export class StartInstanceCommand extends Command<"StartInstanceCommand"> {
     public readonly config: StartInstanceConfigPayload;
 
     constructor(config: StartInstanceConfigPayload) {
@@ -1255,7 +1273,7 @@ export class StartInstanceCommand extends Command {
 /**
  * Sent by the webview to request payload file discovery and QuickPick selection.
  */
-export class RequestPayloadFilesCommand extends Command {
+export class RequestPayloadFilesCommand extends Command<"RequestPayloadFilesCommand"> {
     constructor() {
         super("RequestPayloadFilesCommand");
     }
@@ -1264,7 +1282,7 @@ export class RequestPayloadFilesCommand extends Command {
 /**
  * Sent by the webview to request the process definition key from the current BPMN file.
  */
-export class RequestProcessDefinitionKeyCommand extends Command {
+export class RequestProcessDefinitionKeyCommand extends Command<"RequestProcessDefinitionKeyCommand"> {
     constructor() {
         super("RequestProcessDefinitionKeyCommand");
     }
@@ -1275,7 +1293,7 @@ export class RequestProcessDefinitionKeyCommand extends Command {
 /**
  * Sent by the extension host after a start-instance attempt completes.
  */
-export class StartInstanceResultQuery extends Query {
+export class StartInstanceResultQuery extends Query<"StartInstanceResultQuery"> {
     public readonly success: boolean;
 
     public readonly message: string;
@@ -1293,7 +1311,7 @@ export class StartInstanceResultQuery extends Query {
 /**
  * Sent by the extension host with the single payload file selected via QuickPick.
  */
-export class SelectedPayloadFileQuery extends Query {
+export class SelectedPayloadFileQuery extends Query<"SelectedPayloadFileQuery"> {
     public readonly filePath: string;
 
     public readonly label: string;
@@ -1308,7 +1326,7 @@ export class SelectedPayloadFileQuery extends Query {
 /**
  * Sent by the extension host with the process definition key extracted from BPMN.
  */
-export class ProcessDefinitionKeyQuery extends Query {
+export class ProcessDefinitionKeyQuery extends Query<"ProcessDefinitionKeyQuery"> {
     public readonly processDefinitionKey: string;
 
     constructor(processDefinitionKey: string) {
@@ -1328,7 +1346,7 @@ export class ProcessDefinitionKeyQuery extends Query {
  * side only; `_added` on `after` only; `_changed` and `_layoutChanged` on
  * both because the elements exist in both versions).
  */
-export class ApplyDiffHighlightsQuery extends Query {
+export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> {
     public readonly side: DiffSide;
 
     public readonly added: readonly string[];
@@ -1394,7 +1412,7 @@ export class ApplyDiffHighlightsQuery extends Query {
  * receiving pane must suppress its next outgoing `ViewportChangedCommand` to
  * avoid a feedback loop.
  */
-export class SyncViewportQuery extends Query {
+export class SyncViewportQuery extends Query<"SyncViewportQuery"> {
     public readonly viewport: Viewport;
 
     constructor(viewport: Viewport) {
@@ -1407,7 +1425,7 @@ export class SyncViewportQuery extends Query {
  * Sent from a viewer pane after a user-initiated pan or zoom.  The host
  * forwards the viewport to the partner pane via {@link SyncViewportQuery}.
  */
-export class ViewportChangedCommand extends Command {
+export class ViewportChangedCommand extends Command<"ViewportChangedCommand"> {
     public readonly viewport: Viewport;
 
     constructor(viewport: Viewport) {
@@ -1422,7 +1440,7 @@ export class ViewportChangedCommand extends Command {
  * so both panes' steppers stay in lockstep.  The index refers to a position in
  * the shared `navigationOrder` array carried on {@link ApplyDiffHighlightsQuery}.
  */
-export class CursorChangedCommand extends Command {
+export class CursorChangedCommand extends Command<"CursorChangedCommand"> {
     public readonly index: number;
 
     constructor(index: number) {
@@ -1437,7 +1455,7 @@ export class CursorChangedCommand extends Command {
  * its local `navigationOrder` and must NOT re-emit `CursorChangedCommand`,
  * otherwise the two panes would ping-pong indefinitely.
  */
-export class SyncCursorQuery extends Query {
+export class SyncCursorQuery extends Query<"SyncCursorQuery"> {
     public readonly index: number;
 
     constructor(index: number) {
@@ -1451,7 +1469,7 @@ export class SyncCursorQuery extends Query {
  * diagram.  The host tracks this per pane to know when a diff pair is armed
  * (both panes ready) and it can safely post {@link ApplyDiffHighlightsQuery}.
  */
-export class DiffReadyCommand extends Command {
+export class DiffReadyCommand extends Command<"DiffReadyCommand"> {
     constructor() {
         super("DiffReadyCommand");
     }
@@ -1463,7 +1481,7 @@ export class DiffReadyCommand extends Command {
  * verifies the origin is `compare-files`, and reopens the diff with the two
  * URIs swapped.  SCM panes never emit this — the button is hidden there.
  */
-export class SwapCompareSidesCommand extends Command {
+export class SwapCompareSidesCommand extends Command<"SwapCompareSidesCommand"> {
     constructor() {
         super("SwapCompareSidesCommand");
     }

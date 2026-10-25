@@ -5,27 +5,19 @@
  */
 import {
     ApplyDiffHighlightsQuery,
+    asProtocolMessage,
     BpmnFileQuery,
-    BpmnModelerSettingQuery,
     BpmnlintResultsQuery,
+    BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
-    CursorChangedCommand,
     ElementTemplatesQuery,
-    LogDebugCommand,
-    LogErrorCommand,
-    LogInfoCommand,
-    LogWarningCommand,
-    PropertiesPanelStateQuery,
-    Query,
-    ShowInfoCommand,
-    SyncDocumentCommand,
-    TakeFocusQuery,
     HostApi,
     HostApiImpl,
     MockHostApi,
-    ViewportChangedCommand,
-    SearchWorkspaceDefinitionsCommand,
+    PropertiesPanelStateQuery,
+    Query,
+    TakeFocusQuery,
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
 import { matchesDefinitionQuery } from "@miragon/bpmn-modeler-types";
@@ -109,33 +101,20 @@ class MockHost extends MockHostApi<StateType, MessageType> {
     }
 
     /**
-     * Merges `state` into the current mock state, initialising it when no
-     * state has been set yet (i.e. when {@link getState} would throw).
-     *
-     * @param state Partial state to merge.
-     */
-    override updateState(state: Partial<WebviewState>): void {
-        try {
-            this.setState({ ...this.getState(), ...state });
-        } catch {
-            this.setState(state as WebviewState);
-        }
-    }
-
-    /**
      * Intercepts outbound messages and dispatches the corresponding inbound
      * response so the webview can operate without a real host.
      *
      * @param message The outbound command sent by the webview.
      */
     override postMessage(message: MessageType): void {
-        switch (true) {
-            case message.type === "GetBpmnFileCommand": {
+        const command = asProtocolMessage(message);
+        switch (command.type) {
+            case "GetBpmnFileCommand": {
                 console.debug("[DEBUG] GetBpmnFileCommand", message);
                 this.handleGetBpmnFile();
                 break;
             }
-            case message.type === "GetElementTemplatesCommand": {
+            case "GetElementTemplatesCommand": {
                 console.debug("[DEBUG] GetElementTemplatesCommand", message);
                 dispatchEvent(
                     new ElementTemplatesQuery([
@@ -145,7 +124,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 );
                 break;
             }
-            case message.type === "GetBpmnModelerSettingCommand": {
+            case "GetBpmnModelerSettingCommand": {
                 console.debug("[DEBUG] GetBpmnModelerSettingCommand", message);
                 dispatchEvent(
                     new BpmnModelerSettingQuery({
@@ -156,86 +135,80 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 );
                 break;
             }
-            case message.type === "GetPropertiesPanelStateCommand": {
+            case "GetPropertiesPanelStateCommand": {
                 console.debug("[DEBUG] GetPropertiesPanelStateCommand", message);
                 dispatchEvent(new PropertiesPanelStateQuery(true));
                 break;
             }
-            case message.type === "SetPropertiesPanelStateCommand": {
+            case "SetPropertiesPanelStateCommand": {
                 console.debug("[DEBUG] SetPropertiesPanelStateCommand", message);
                 break;
             }
-            case message.type === "RequestFocusCommand": {
+            case "RequestFocusCommand": {
                 // The preview page is always the active editor.
                 dispatchEvent(new TakeFocusQuery());
                 break;
             }
-            case message.type === "GetClipboardCommand": {
+            case "GetClipboardCommand": {
                 console.debug("[DEBUG] GetClipboardCommand", message);
                 dispatchEvent(new ClipboardQuery(""));
                 break;
             }
-            case message.type === "SetClipboardCommand": {
+            case "SetClipboardCommand": {
                 console.debug("[DEBUG] SetClipboardCommand", message);
                 break;
             }
-            case message.type === "SyncDocumentCommand": {
-                console.debug(
-                    "[DEBUG] SyncDocumentCommand",
-                    (message as SyncDocumentCommand).content,
-                );
+            case "SyncDocumentCommand": {
+                console.debug("[DEBUG] SyncDocumentCommand", command.content);
                 break;
             }
-            case message.type === "LogDebugCommand": {
-                console.debug((message as LogDebugCommand).message);
+            case "LogDebugCommand": {
+                console.debug(command.message);
                 break;
             }
-            case message.type === "LogInfoCommand": {
-                console.info((message as LogInfoCommand).message);
+            case "LogInfoCommand": {
+                console.info(command.message);
                 break;
             }
-            case message.type === "LogWarningCommand": {
-                console.warn((message as LogWarningCommand).message);
+            case "LogWarningCommand": {
+                console.warn(command.message);
                 break;
             }
-            case message.type === "LogErrorCommand": {
-                console.error((message as LogErrorCommand).message);
+            case "LogErrorCommand": {
+                console.error(command.message);
                 break;
             }
-            case message.type === "ShowInfoCommand": {
-                console.info("[INFO] ShowInfoCommand", (message as ShowInfoCommand).message);
+            case "ShowInfoCommand": {
+                console.info("[INFO] ShowInfoCommand", command.message);
                 break;
             }
-            case message.type === "LanguageQuery": {
+            case "LanguageQuery": {
                 console.debug("[DEBUG] LanguageQuery", message);
                 break;
             }
-            case message.type === "DiffReadyCommand": {
+            case "DiffReadyCommand": {
                 console.debug("[DEBUG] DiffReadyCommand");
                 void this.handleDiffReady();
                 break;
             }
-            case message.type === "ViewportChangedCommand": {
+            case "ViewportChangedCommand": {
                 // Single-pane preview: there's no partner to sync with.
                 console.debug(
                     "[DEBUG] ViewportChangedCommand (no partner in dev)",
-                    (message as ViewportChangedCommand).viewport,
+                    command.viewport,
                 );
                 break;
             }
-            case message.type === "CursorChangedCommand": {
+            case "CursorChangedCommand": {
                 // Single-pane preview: stepper advances locally only.
-                console.debug(
-                    "[DEBUG] CursorChangedCommand (no partner in dev)",
-                    (message as CursorChangedCommand).index,
-                );
+                console.debug("[DEBUG] CursorChangedCommand (no partner in dev)", command.index);
                 break;
             }
-            case message.type === "GetBpmnlintConfigCommand": {
+            case "GetBpmnlintConfigCommand": {
                 dispatchEvent(new BpmnlintResultsQuery(null));
                 break;
             }
-            case message.type === "SetLintingEnabledCommand": {
+            case "SetLintingEnabledCommand": {
                 console.debug("[DEBUG] SetLintingEnabledCommand", message);
                 break;
             }
@@ -243,32 +216,40 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             // feature's UI stays testable; there is no real host to act on them,
             // so log-only cases replace the default throw that used to crash the
             // first SyncActivitiesCommand on load.
-            case message.type === "NavigateToReferencedModelCommand": {
+            case "NavigateToReferencedModelCommand": {
                 console.debug("[DEBUG] NavigateToReferencedModelCommand", message);
                 break;
             }
-            case message.type === "NavigateToImplementationCommand": {
+            case "NavigateToImplementationCommand": {
                 console.debug("[DEBUG] NavigateToImplementationCommand", message);
                 break;
             }
-            case message.type === "SyncActivitiesCommand": {
+            case "SyncActivitiesCommand": {
                 console.debug("[DEBUG] SyncActivitiesCommand", message);
                 break;
             }
-            case message.type === "OpenScriptEditorCommand": {
+            case "OpenScriptEditorCommand": {
                 console.debug("[DEBUG] OpenScriptEditorCommand", message);
                 break;
             }
-            case message.type === "UpdateScriptSourceCommand": {
+            case "UpdateScriptSourceCommand": {
                 console.debug("[DEBUG] UpdateScriptSourceCommand", message);
                 break;
             }
-            case message.type === "UpdateScriptVariablesCommand": {
+            case "UpdateScriptVariablesCommand": {
                 console.debug("[DEBUG] UpdateScriptVariablesCommand", message);
                 break;
             }
-            case message.type === "SearchWorkspaceDefinitionsCommand": {
-                const { requestId, kind, text } = message as SearchWorkspaceDefinitionsCommand;
+            case "DiagramFormattedCommand": {
+                console.debug("[DEBUG] DiagramFormattedCommand", message);
+                break;
+            }
+            case "SwapCompareSidesCommand": {
+                console.debug("[DEBUG] SwapCompareSidesCommand (no partner in dev)", message);
+                break;
+            }
+            case "SearchWorkspaceDefinitionsCommand": {
+                const { requestId, kind, text } = command;
                 const definitions = MOCK_WORKSPACE_DEFINITIONS.filter((definition) =>
                     matchesDefinitionQuery(definition, { kind, text }),
                 );
@@ -276,7 +257,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             default: {
-                throw new Error(`Unknown message type: ${(message as MessageType).type}`);
+                throw new Error(`Unknown message type: ${message.type}`);
             }
         }
 

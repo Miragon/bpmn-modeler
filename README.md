@@ -25,7 +25,7 @@ re-open in your IDE, commit, repeat.
 We wanted to skip the round trip. **Open a `.bpmn` file. Model. Commit.
 Done.** Same editor, same git workflow, same diff in code review.
 
-![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-preview.png)
+![Appending the missing end event to "Ship order" in VS Code clears the lint error and the modeler reports no issues](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-demo.gif)
 
 That first idea — *bring BPMN modeling to where engineers already are* —
 turned into the VS Code modeler you see above. From there, the same core

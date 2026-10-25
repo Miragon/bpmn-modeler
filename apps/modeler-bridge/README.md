@@ -25,10 +25,10 @@ isn't talking to VS Code.
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/*`                           | `StatusBarPort` → `StatusBarWidget`s (engine version + template count; active deployment target) |
-| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one |
+| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one with its approved destinations |
 | host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings)              |
 | host → core | `deployment/open`                       | deployment tool-window visibility → refresh form defaults on open                             |
-| host → core | `deployment/webviewMessage`             | inbound deployment `Command` → `DeploymentMessageDispatcher`                                  |
+| host → core | `deployment/webviewMessage`             | inbound deployment `Command` → the core `DeploymentFeature`'s panel                            |
 | core → host | `deployment/postMessage`                | deployment `Query` → tool-window webview (`window.postMessage`)                               |
 | host → core | `deployment/switchTarget`, `deployment/deployFiles` | status-bar/action → switch the active target, or pick + deploy files to it (carries `workspaceRoot`) |
 | host → core | `deployment/verify`, `deployment/statusBarMenu` | verify the active diagram against the C7 engine; status-bar click menu (switch/verify) (carries `workspaceRoot`) |
@@ -80,7 +80,7 @@ checklist for adding the next synchronous port) is written up once in
 
 BPMN editor render + `Ctrl+S` write-back + element templates (real, filesystem-
 backed) + the Notifier/StatusBar display ports + diff + Camunda 7/8 deployment
-(the shared `DeploymentMessageDispatcher` + REST stack, driven by the IntelliJ
+(the shared core `DeploymentFeature` + REST stack, driven by the IntelliJ
 deployment tool window) + the template marketplace (add/update GitHub/GitLab/local
 sources into the element-template cache, with per-host PATs in `PasswordSafe`) +
 inline script editing (C7 script tasks/listeners, via `scriptFeature`). The DMN

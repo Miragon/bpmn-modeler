@@ -32,6 +32,7 @@
             "@miragon/bpmn-modeler-types": ["./libs/modeler-types/src/index.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-core": ["./libs/modeler-core/src/index.ts"],
+            "@miragon/bpmn-modeler-core/testing": ["./libs/modeler-core/src/testing/index.ts"],
             "@miragon/bpmn-modeler-clipboard": ["./libs/bpmn-clipboard/src/index.ts"],
             "@miragon/bpmn-modeler-i18n-extras": ["./libs/bpmn-i18n-extras/src/index.ts"],
             "@miragon/bpmn-modeler-element-template-chooser": [
@@ -52,5 +53,5 @@
             "@miragon/bpmn-modeler-webview": ["./apps/bpmn-webview/src/index.ts"]
         }
     },
-    "exclude": ["node_modules", "tmp", "dist", "**/lib", "**/src-gen"]
+    "exclude": ["node_modules", "tmp", "dist", "**/src-gen"]
 }

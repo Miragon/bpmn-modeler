@@ -1,7 +1,7 @@
 /**
  * The three canvas surfaces the webview can host — the full Camunda modeler
  * (Implement), the engine-neutral designer (Design), and the readonly viewer
- * (View) — plus the narrowing guards bootstrap uses to reach the methods only
+ * (View) — plus the narrowing guards the webview uses to reach the methods only
  * some of them carry.
  */
 import type { BpmnModeler } from "@miragon/bpmn-modeler";

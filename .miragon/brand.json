@@ -1,0 +1,21 @@
+{
+  "_comment": "Activates brand-lint from the miragon-brand plugin (Claude Code hook and CI). The repo is English, so the German-only copy rules are off: du (A1), umlauts (A3), German passive (A4), German claim (A7), gender forms (A11). C5 stays on: in a modeler repo it checks that the whole tool speaks one language. The docs kit in docs/.vitepress/miragon/ is linted at its source in Miragon/corporate-identity. Only the published docs are linted: code, maintainer docs (ADRs, contributing) and GitHub templates are ignored.",
+  "ignorieren": [
+    "docs/.vitepress/miragon/",
+    "docs/adr/",
+    "docs/vscode/contributing/",
+    "apps/",
+    "libs/",
+    "packages/",
+    ".github/",
+    "CHANGELOG.md",
+    ".context/"
+  ],
+  "aus": [
+    "A1",
+    "A3",
+    "A4",
+    "A7",
+    "A11"
+  ]
+}

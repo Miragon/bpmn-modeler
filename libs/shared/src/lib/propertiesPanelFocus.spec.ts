@@ -23,6 +23,7 @@ function createHandle(
         isVisible: () => state,
         setVisible,
         onVisibilityChanged: () => {},
+        dispose: () => {},
     };
 }
 

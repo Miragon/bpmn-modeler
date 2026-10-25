@@ -76,9 +76,11 @@ export interface ViewportManager {
     fitViewport(): boolean;
 
     /**
-     * Centres the viewport on `id`, enforcing a minimum focus zoom. Returns
-     * `false` when the element is not on the canvas (e.g. a stale lint
-     * finding), leaving the viewport untouched.
+     * Centres the viewport on `id`, enforcing a minimum focus zoom. Like
+     * {@link setViewport}, a focus decides the initial viewport, so a focus
+     * right after `loadDiagram` survives the delayed initial fit. Returns
+     * `false`, leaving the viewport untouched, when the element is not on the
+     * canvas (e.g. a stale lint finding) or the canvas has no size yet.
      */
     centerOnElement(id: string): boolean;
 
@@ -244,9 +246,10 @@ export class CanvasViewportManager implements ViewportManager {
     }
 
     /**
-     * Centres the viewport on `id`, enforcing {@link MIN_FOCUS_ZOOM}. Returns
-     * `false` when the element is not on the canvas (e.g. a stale lint finding),
-     * leaving the viewport untouched. Unlike the diff pane's variant it lets the
+     * Centres the viewport on `id`, enforcing {@link MIN_FOCUS_ZOOM}, and settles
+     * the initial-viewport decision. Returns `false` when the element is not on
+     * the canvas (e.g. a stale lint finding) or the canvas is unsized, leaving
+     * the viewport untouched. Unlike the diff pane's variant it lets the
      * `viewbox.changed` event through, so the focused position is persisted.
      */
     centerOnElement(id: string): boolean {
@@ -257,6 +260,10 @@ export class CanvasViewportManager implements ViewportManager {
         }
         const centre = centreOf(element as PositionedElement);
         if (!centre) {
+            return false;
+        }
+        // Centring against a zero-sized box scales by a non-finite factor.
+        if (!this.isCanvasSized()) {
             return false;
         }
 
@@ -272,6 +279,7 @@ export class CanvasViewportManager implements ViewportManager {
             width,
             height,
         });
+        this.latch.markDecided();
         return true;
     }
 

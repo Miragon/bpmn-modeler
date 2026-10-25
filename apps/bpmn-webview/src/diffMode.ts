@@ -1,14 +1,13 @@
 import {
     ApplyDiffHighlightsQuery,
+    asProtocolMessage,
     Command,
     CursorChangedCommand,
     DiffReadyCommand,
+    HostApi,
     LogErrorCommand,
     Query,
     SwapCompareSidesCommand,
-    SyncCursorQuery,
-    SyncViewportQuery,
-    HostApi,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -80,15 +79,16 @@ export class DiffMode {
     }
 
     private async onMessage(message: MessageType): Promise<void> {
-        switch (message.type) {
+        const query = asProtocolMessage(message);
+        switch (query.type) {
             case "ApplyDiffHighlightsQuery":
-                this.paint(message as ApplyDiffHighlightsQuery);
+                this.paint(query);
                 break;
             case "SyncViewportQuery":
-                this.viewer.setViewport((message as SyncViewportQuery).viewport);
+                this.viewer.setViewport(query.viewport);
                 break;
             case "SyncCursorQuery":
-                this.navigator.applyCursor((message as SyncCursorQuery).index);
+                this.navigator.applyCursor(query.index);
                 break;
         }
     }

@@ -1,9 +1,10 @@
 import {
-    Command,
-    SetClipboardCommand,
-    SetTextClipboardCommand,
-} from "@miragon/bpmn-modeler-shared";
-import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
+    BpmnClipboardMediator,
+    getClipboardHandler,
+    getTextClipboardHandler,
+    setClipboardHandler,
+    setTextClipboardHandler,
+} from "@miragon/bpmn-modeler-core";
 
 import { RpcClipboard } from "../adapters";
 import { BridgeSharedDeps } from "./sharedDeps";
@@ -22,16 +23,8 @@ export function register(deps: BridgeSharedDeps): void {
     const clipboardMediator = new BpmnClipboardMediator(deps.store, clipboard, deps.notifier);
 
     deps.router
-        .on("GetClipboardCommand", (_m: Command, editorId: string) => {
-            void clipboardMediator.readClipboard(editorId);
-        })
-        .on("SetClipboardCommand", (message: Command) => {
-            void clipboardMediator.writeClipboard((message as SetClipboardCommand).text);
-        })
-        .on("GetTextClipboardCommand", (_m: Command, editorId: string) => {
-            void clipboardMediator.readTextClipboard(editorId);
-        })
-        .on("SetTextClipboardCommand", (message: Command) => {
-            void clipboardMediator.writeClipboard((message as SetTextClipboardCommand).text);
-        });
+        .on("GetClipboardCommand", getClipboardHandler(clipboardMediator))
+        .on("SetClipboardCommand", setClipboardHandler(clipboardMediator))
+        .on("GetTextClipboardCommand", getTextClipboardHandler(clipboardMediator))
+        .on("SetTextClipboardCommand", setTextClipboardHandler(clipboardMediator));
 }

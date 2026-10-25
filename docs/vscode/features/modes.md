@@ -1,61 +1,40 @@
-# Editor Modes (View / Design / Implement)
+# Editor modes
 
-Every BPMN editor runs in one of three modes. The mode decides which surface
-you get on the canvas — from a plain readonly viewer up to the full Camunda
-modeler — so you can dial the tooling up or down without leaving the tab.
+Switch a BPMN editor between a read-only viewer, an engine-neutral editor and the full Camunda modeler.
 
 ## The three modes
 
-- **View** — a readonly bpmn-js viewer. No palette, no editing; pan, zoom, and
-  read the diagram. Good for reviewing a model you don't want to change.
-- **Design** — an engine-neutral, editable surface. Model the process shape
-  (tasks, gateways, flows, lanes) without any Camunda execution properties.
-  This is what engine-neutral `.bpmn` files open in.
-- **Implement** — the full Camunda modeler: the complete properties panel,
-  element templates, linting, and inline script editing for the model's
-  execution platform (Camunda 7 or Camunda 8).
+| Mode | What you get |
+|---|---|
+| **View** | Read-only viewer. Pan, zoom and read; no palette, no editing. |
+| **Design** | Editable, engine-neutral surface. Model tasks, gateways, flows and lanes without Camunda execution properties. Engine-neutral `.bpmn` files open here. |
+| **Implement** | The full Camunda modeler: properties panel, element templates, linting and inline scripts for Camunda 7 or Camunda 8. |
 
-## Availability
+View and Design are always available. Implement needs an execution platform (Camunda 7 or Camunda 8) on the model. On an engine-neutral model it is greyed out, and opening such a model never adds a platform on its own.
 
-**View** and **Design** are always available. **Implement** requires a Camunda
-execution platform stamped on the model — on an untagged (engine-neutral)
-model there is nothing to implement against, so it is greyed out with an
-explanatory tooltip.
+## Switch modes
 
-| Model | View | Design | Implement |
-|---|---|---|---|
-| Untagged (engine-neutral) | ✅ | ✅ | ⛔ greyed out |
-| Tagged (Camunda 7 / Camunda 8) | ✅ | ✅ | ✅ |
+The **mode chip** in the top-left corner of the canvas (right of the Token Simulation toggle) shows the active mode. Click it and pick **View**, **Design** or **Implement**. The chip stays reachable while the properties panel is collapsed.
 
-Implement stays greyed out for as long as the model carries no execution
-platform. Opening an untagged model never stamps one on automatically — the
-document is left exactly as it is.
+- Design ↔ Implement keeps the model loaded and the undo history intact.
+- Any switch to or from View rebuilds the canvas but keeps viewport and selection.
 
-## Switching modes
+## Default mode
 
-A **mode chip** sits in the top-left corner of the canvas, right of the Token
-Simulation toggle, and shows the active mode. Click it and pick **View**,
-**Design**, or **Implement** from the menu to switch the current editor's
-surface; each entry carries a one-line description. The chip stays reachable
-while the properties panel is collapsed.
+Each editor remembers its mode: leave a tab in Design and it reopens in Design. An editor without a remembered mode starts in the mode set by `miragon.bpmnModeler.defaultMode`.
 
-Switching between **Design** and **Implement** on a tagged model is a live
-toggle — the model stays loaded and undo history survives. Any switch that
-involves **View** recreates the surface, preserving the viewport and selection.
+| Setting | Values | Default |
+|---|---|---|
+| `miragon.bpmnModeler.defaultMode` | `implement`, `design`, `view` | `implement` |
 
-## Persistence and the default mode
+On an engine-neutral model `implement` falls back to **Design**.
 
-Mode is remembered **per editor**: switch a tab to Design, move away, and it
-reopens in Design when you come back.
+## Create an engine-neutral file
 
-An editor that has no remembered mode is seeded from the
-[`miragon.bpmnModeler.defaultMode`](/vscode/configuration) setting
-(`implement` | `design` | `view`, default `implement`). On an untagged model
-`implement` is unavailable, so the seed falls back to **Design**.
+**Miragon BPMN Modeler: New BPMN Model** offers **Camunda 7**, **Camunda 8** and **Engine-neutral**. Engine-neutral creates a model without a platform, which opens in Design. Pick Camunda 7 or Camunda 8 if you want Implement from the start.
 
-## Creating an engine-neutral file
+## Next steps
 
-**BPMN Modeler: New BPMN Model** offers three choices: **Camunda 7**,
-**Camunda 8**, and **Engine-neutral**. The Engine-neutral choice scaffolds an
-untagged model, which opens directly in **Design**. Choose Camunda 7 or
-Camunda 8 instead if you want Implement available from the start.
+- [Append menu](/vscode/features/append-menu): add elements in Design and Implement.
+- [Linting](/vscode/features/linting): the engine checks in Implement.
+- [Configuration](/vscode/configuration): set the default mode.

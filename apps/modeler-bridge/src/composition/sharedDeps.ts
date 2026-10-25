@@ -66,8 +66,8 @@ export function buildSharedDeps(
     const artifactSvc = new ArtifactService(nodeWorkspace, settings, notifier);
 
     // One router shared across features: each feature registers its own
-    // webview-message surface on it. The core enforces one handler per type, so
-    // the registrations are order-independent (see the protocol table in bridge.ts).
+    // webview-message surface on it. Handlers registered for the same type run
+    // in registration order.
     const router = new WebviewMessageRouter();
 
     return {

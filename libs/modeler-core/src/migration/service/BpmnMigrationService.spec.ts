@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { UserCancelledError } from "../../shared/domain/errors";
+import { createTestHost, TestHostOptions } from "../../testing";
 import { BpmnMigrationService } from "./BpmnMigrationService";
 
 // ─── Sample BPMN XML ────────────────────────────────────────────────────────
@@ -34,231 +34,205 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:modeler="http://camunda.org/schema/modeler/1.0">
 </bpmn:definitions>`;
 
-// ─── Mocks ──────────────────────────────────────────────────────────────────
+// ─── Host ───────────────────────────────────────────────────────────────────
 
-function createMocks() {
-    const editorStore = {
-        findEditorIdByPath: vi.fn().mockReturnValue(undefined),
-    };
-
-    const vsDocument = {
-        write: vi.fn().mockResolvedValue(true),
-    };
-
-    const vsWorkspace = {
-        findFiles: vi.fn().mockResolvedValue([]),
-        readFile: vi.fn(),
-        writeFile: vi.fn().mockResolvedValue(undefined),
-    };
-
-    const picker = {
-        pickEngineVersion: vi.fn(),
-        pickMigrationScope: vi.fn(),
-    };
-
-    const notifier = {
-        showInfo: vi.fn(),
-        showError: vi.fn(),
-        logInfo: vi.fn(),
-        logWarning: vi.fn(),
-        logError: vi.fn(),
-    };
-
+function createHost(files: Record<string, string>, answers: TestHostOptions["answers"] = {}) {
+    const host = createTestHost({ folders: ["/work"], files, answers });
     const service = new BpmnMigrationService(
-        editorStore as any,
-        vsDocument as any,
-        vsWorkspace as any,
-        picker as any,
-        notifier as any,
+        host.store,
+        host.documents,
+        host.workspace,
+        host.picker,
+        host.notifier,
     );
-
-    return { service, editorStore, vsDocument, notifier, picker, vsWorkspace };
+    const writtenPaths: string[] = [];
+    host.workspace.createWatcher("/work", "**/*.bpmn", {
+        onChange: (path) => writtenPaths.push(path),
+    });
+    return { service, writtenPaths, ...host };
 }
+
+const promptedMethods = (picker: { prompts: { method: string }[] }) =>
+    picker.prompts.map((prompt) => prompt.method);
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe("migrateAllDiagrams", () => {
     it("should show info and return false when no BPMN files are found", async () => {
-        const { service, vsWorkspace, notifier } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue([]);
+        const { service, notifier } = createHost({});
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
-        expect(notifier.showInfo).toHaveBeenCalledWith("No BPMN files found in the workspace.");
+        expect(notifier.infos).toEqual(["No BPMN files found in the workspace."]);
     });
 
     it("should show info and return false when no engine is detectable", async () => {
-        const { service, vsWorkspace, notifier } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn"]);
-        vsWorkspace.readFile.mockResolvedValue(unknownBpmn);
+        const { service, notifier } = createHost({ "/work/a.bpmn": unknownBpmn });
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
-        expect(notifier.showInfo).toHaveBeenCalledWith(
+        expect(notifier.infos).toEqual([
             "Could not detect the engine for any BPMN file in the workspace.",
-        );
+        ]);
     });
 
     it("should migrate C8-only workspace without scope picker", async () => {
-        const { service, vsWorkspace, notifier, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn", "/b.bpmn"]);
-        vsWorkspace.readFile
-            .mockResolvedValueOnce(c8Bpmn("8.5.0"))
-            .mockResolvedValueOnce(c8Bpmn("8.6.0"));
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+        const { service, notifier, picker, workspace, writtenPaths } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.5.0"), "/work/b.bpmn": c8Bpmn("8.6.0") },
+            { engineVersion: "8.8.0" },
+        );
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(picker.pickMigrationScope).not.toHaveBeenCalled();
-        expect(picker.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
-        expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(2);
-        expect(notifier.showInfo).toHaveBeenCalledWith(
-            expect.stringContaining("2 diagram(s) to Camunda 8 (8.8.0)"),
+        expect(promptedMethods(picker)).toEqual(["pickEngineVersion"]);
+        expect(picker.prompts[0].args[0]).toBe("c8");
+        expect(writtenPaths).toEqual(["/work/a.bpmn", "/work/b.bpmn"]);
+        expect(workspace.files.get("/work/a.bpmn")).toContain(
+            'modeler:executionPlatformVersion="8.8.0"',
         );
+        expect(workspace.files.get("/work/b.bpmn")).toContain(
+            'modeler:executionPlatformVersion="8.8.0"',
+        );
+        expect(notifier.infos).toEqual(["Updated 2 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
     it("should migrate C7-only workspace without scope picker", async () => {
-        const { service, vsWorkspace, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/c7.bpmn"]);
-        vsWorkspace.readFile.mockResolvedValue(c7Bpmn("7.20.0"));
-        picker.pickEngineVersion.mockResolvedValue("7.24.0");
+        const { service, picker, workspace, writtenPaths } = createHost(
+            { "/work/c7.bpmn": c7Bpmn("7.20.0") },
+            { engineVersion: "7.24.0" },
+        );
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(picker.pickMigrationScope).not.toHaveBeenCalled();
-        expect(picker.pickEngineVersion).toHaveBeenCalledWith("c7", expect.any(Object));
-        expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
+        expect(promptedMethods(picker)).toEqual(["pickEngineVersion"]);
+        expect(picker.prompts[0].args[0]).toBe("c7");
+        expect(writtenPaths).toEqual(["/work/c7.bpmn"]);
+        expect(workspace.files.get("/work/c7.bpmn")).toContain(
+            'modeler:executionPlatformVersion="7.24.0"',
+        );
     });
 
     it("should show scope picker when both platforms are present", async () => {
-        const { service, vsWorkspace, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/c7.bpmn", "/c8.bpmn"]);
-        vsWorkspace.readFile
-            .mockResolvedValueOnce(c7Bpmn("7.20.0"))
-            .mockResolvedValueOnce(c8Bpmn("8.5.0"));
-        picker.pickMigrationScope.mockResolvedValue("c8");
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+        const { service, picker, writtenPaths } = createHost(
+            { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
+            { migrationScope: "c8", engineVersion: "8.8.0" },
+        );
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(picker.pickMigrationScope).toHaveBeenCalledWith(1, 1);
         /**
          * Only C8 was selected, so only one version picker
          */
-        expect(picker.pickEngineVersion).toHaveBeenCalledTimes(1);
-        expect(picker.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
+        expect(picker.prompts).toEqual([
+            { method: "pickMigrationScope", args: [1, 1] },
+            { method: "pickEngineVersion", args: ["c8", expect.any(Object)] },
+        ]);
+        expect(writtenPaths).toEqual(["/work/c8.bpmn"]);
     });
 
     it("should pick two versions when scope is 'both'", async () => {
-        const { service, vsWorkspace, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/c7.bpmn", "/c8.bpmn"]);
-        vsWorkspace.readFile
-            .mockResolvedValueOnce(c7Bpmn("7.20.0"))
-            .mockResolvedValueOnce(c8Bpmn("8.5.0"));
-        picker.pickMigrationScope.mockResolvedValue("both");
-        picker.pickEngineVersion.mockResolvedValueOnce("7.24.0").mockResolvedValueOnce("8.8.0");
+        const { service, picker, writtenPaths } = createHost(
+            { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
+            { migrationScope: "both" },
+        );
+        const writesSeenAtVersionPick: number[] = [];
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async (platform) => {
+            writesSeenAtVersionPick.push(writtenPaths.length);
+            return platform === "c7" ? "7.24.0" : "8.8.0";
+        });
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(picker.pickEngineVersion).toHaveBeenCalledTimes(2);
-        expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(2);
+        expect(writtenPaths).toEqual(["/work/c7.bpmn", "/work/c8.bpmn"]);
 
         // Both version picks must complete before any write occurs.
         // This prevents document-change listeners from dismissing the QuickPick.
-        const pickOrder = picker.pickEngineVersion.mock.invocationCallOrder;
-        const writeOrder = vsWorkspace.writeFile.mock.invocationCallOrder;
-        const lastPick = Math.max(...pickOrder);
-        const firstWrite = Math.min(...writeOrder);
-        expect(lastPick).toBeLessThan(firstWrite);
+        expect(writesSeenAtVersionPick).toEqual([0, 0]);
     });
 
     it("should skip files already at the target version", async () => {
-        const { service, vsWorkspace, notifier, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn", "/b.bpmn"]);
-        vsWorkspace.readFile
-            .mockResolvedValueOnce(c8Bpmn("8.8.0")) // already at target
-            .mockResolvedValueOnce(c8Bpmn("8.5.0")); // needs update
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+        const { service, notifier, writtenPaths } = createHost(
+            {
+                "/work/a.bpmn": c8Bpmn("8.8.0"), // already at target
+                "/work/b.bpmn": c8Bpmn("8.5.0"), // needs update
+            },
+            { engineVersion: "8.8.0" },
+        );
 
         await service.migrateAllDiagrams();
 
-        expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
-        expect(notifier.showInfo).toHaveBeenCalledWith(expect.stringContaining("1 diagram(s)"));
+        expect(writtenPaths).toEqual(["/work/b.bpmn"]);
+        expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
     it("should show 'already at version' when all files match target", async () => {
-        const { service, vsWorkspace, notifier, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn"]);
-        vsWorkspace.readFile.mockResolvedValue(c8Bpmn("8.8.0"));
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+        const { service, notifier, writtenPaths } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.8.0") },
+            { engineVersion: "8.8.0" },
+        );
 
         await service.migrateAllDiagrams();
 
-        expect(vsWorkspace.writeFile).not.toHaveBeenCalled();
-        expect(notifier.showInfo).toHaveBeenCalledWith(
-            "All diagrams are already at the selected version.",
-        );
+        expect(writtenPaths).toEqual([]);
+        expect(notifier.infos).toEqual(["All diagrams are already at the selected version."]);
     });
 
-    it("should use VsCodeDocument.write for files open in an editor", async () => {
-        const { service, vsWorkspace, picker, vsDocument, editorStore } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/open.bpmn"]);
-        vsWorkspace.readFile.mockResolvedValue(c8Bpmn("8.5.0"));
-        editorStore.findEditorIdByPath.mockReturnValue("editor-1");
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+    it("should use DocumentPort.write for files open in an editor", async () => {
+        const { service, openEditor, workspace, writtenPaths } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0") },
+            { engineVersion: "8.8.0" },
+        );
+        const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
 
         await service.migrateAllDiagrams();
 
-        expect(vsDocument.write).toHaveBeenCalledWith("editor-1", expect.stringContaining("8.8.0"));
-        expect(vsWorkspace.writeFile).not.toHaveBeenCalled();
+        expect(editor.content).toContain('modeler:executionPlatformVersion="8.8.0"');
+        expect(writtenPaths).toEqual([]);
+        expect(workspace.files.get("/work/open.bpmn")).toBe(c8Bpmn("8.5.0"));
     });
 
     it("should use withExecutionPlatform for files without version attribute", async () => {
-        const { service, vsWorkspace, notifier, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/noversion.bpmn"]);
-        vsWorkspace.readFile.mockResolvedValue(c8BpmnNoVersion);
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+        const { service, notifier, workspace, writtenPaths } = createHost(
+            { "/work/noversion.bpmn": c8BpmnNoVersion },
+            { engineVersion: "8.8.0" },
+        );
 
         await service.migrateAllDiagrams();
 
-        expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
-        const writtenContent = vsWorkspace.writeFile.mock.calls[0][1] as string;
+        expect(writtenPaths).toEqual(["/work/noversion.bpmn"]);
+        const writtenContent = workspace.files.get("/work/noversion.bpmn");
         expect(writtenContent).toContain('modeler:executionPlatformVersion="8.8.0"');
         expect(writtenContent).toContain('modeler:executionPlatform="Camunda Cloud"');
-        expect(notifier.logWarning).toHaveBeenCalledWith(
-            expect.stringContaining("Added missing executionPlatform attribute"),
-        );
+        expect(notifier.logged("warning")).toEqual([
+            "Added missing executionPlatform attribute to: /work/noversion.bpmn",
+        ]);
     });
 
     it("should return false when user cancels", async () => {
-        const { service, vsWorkspace, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn"]);
-        vsWorkspace.readFile.mockResolvedValue(c8Bpmn("8.5.0"));
-        picker.pickEngineVersion.mockRejectedValue(new UserCancelledError());
+        const { service, writtenPaths } = createHost({ "/work/a.bpmn": c8Bpmn("8.5.0") });
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
+        expect(writtenPaths).toEqual([]);
     });
 
     it("should log undetected files as warnings", async () => {
-        const { service, vsWorkspace, notifier, picker } = createMocks();
-        vsWorkspace.findFiles.mockResolvedValue(["/ok.bpmn", "/unknown.bpmn"]);
-        vsWorkspace.readFile
-            .mockResolvedValueOnce(c8Bpmn("8.5.0"))
-            .mockResolvedValueOnce(unknownBpmn);
-        picker.pickEngineVersion.mockResolvedValue("8.8.0");
+        const { service, notifier } = createHost(
+            { "/work/ok.bpmn": c8Bpmn("8.5.0"), "/work/unknown.bpmn": unknownBpmn },
+            { engineVersion: "8.8.0" },
+        );
 
         await service.migrateAllDiagrams();
 
-        expect(notifier.logWarning).toHaveBeenCalledWith(
-            expect.stringContaining("Skipped 1 file(s)"),
-        );
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped 1 file(s) with undetectable engine: /work/unknown.bpmn",
+        ]);
     });
 });

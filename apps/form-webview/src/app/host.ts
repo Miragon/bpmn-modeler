@@ -25,15 +25,6 @@ export function getHostApi(): FormHost {
 }
 
 class MockHost extends MockHostApi<WebviewState, Command | Query> {
-    constructor() {
-        super();
-        this.state = { mode: "edit" };
-    }
-
-    override updateState(state: Partial<WebviewState>): void {
-        this.setState({ ...this.getState(), ...state });
-    }
-
     override postMessage(message: Command | Query): void {
         if (message instanceof GetFormFileCommand) {
             window.dispatchEvent(

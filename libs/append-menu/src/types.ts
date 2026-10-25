@@ -4,7 +4,7 @@
  */
 import type { ElementTemplate, TemplateStep } from "@miragon/bpmn-modeler-element-template-chooser";
 
-export type Translate = (template: string, replacements?: Record<string, string>) => string;
+export type { Translate } from "@miragon/bpmn-modeler-element-template-chooser/types";
 
 /**
  * Action shape for a popup menu entry.
@@ -27,7 +27,7 @@ export interface PopupMenuEntry {
     className?: string;
     description?: string;
     group?: { id: string; name: string };
-    search?: string[];
+    search?: string | string[];
     rank?: number;
     action?: PopupMenuEntryAction;
     imageUrl?: string;
@@ -113,7 +113,7 @@ function flattenTemplateEntry(
                 label: `${entry.label} › ${step.label}`,
                 description: step.description ?? entry.description,
                 documentationRef: step.documentationRef ?? entry.documentationRef,
-                search: [...(entry.search ?? []), ...(step.search ?? [])],
+                search: [...searchTermsOf(entry), ...searchTermsOf(step)],
             },
             template,
             node?.steps?.[index],
@@ -186,6 +186,14 @@ export function classifyEntries(
         templates,
         bpmnGroups: Array.from(groupMap.values()),
     };
+}
+
+/** The entry's search keywords as a list, whichever of the two shapes its provider used. */
+export function searchTermsOf(entry: PopupMenuEntry): string[] {
+    if (entry.search === undefined) {
+        return [];
+    }
+    return typeof entry.search === "string" ? [entry.search] : entry.search;
 }
 
 /**

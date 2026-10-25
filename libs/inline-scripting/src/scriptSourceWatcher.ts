@@ -1,4 +1,4 @@
-import type { ScriptKind } from "@miragon/bpmn-modeler-types";
+import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { ElementLookup } from "./bpmnTypes";
 import {
@@ -41,13 +41,20 @@ export interface ScriptSourceChangedEvent {
  * genuinely model-originated changes (undo, reload) differ from the baseline.
  */
 interface EventBus {
-    on(event: string, callback: () => void): void;
+    on(event: string, callback: (event: unknown) => void): void;
     fire(event: string, payload?: unknown): void;
+}
+
+interface ImportDoneEvent {
+    error?: unknown;
 }
 
 export class ScriptSourceWatcher {
     /** Last model content per open script key — the divergence baseline. */
     private lastKnown = new Map<string, string | undefined>();
+
+    // Until an import succeeds every surface reads as absent, which says nothing about an open tab.
+    private diagramImported = false;
 
     static $inject = ["eventBus", "elementRegistry", "openScriptEditorsStore"];
 
@@ -62,7 +69,12 @@ export class ScriptSourceWatcher {
         eventBus.on(OPEN_SCRIPT_EDITORS_CHANGED_EVENT, () => this.rebaseline());
         eventBus.on("commandStack.changed", () => this.detectChanges());
         // A document reload re-imports the XML without command-stack events.
-        eventBus.on("import.done", () => this.detectChanges());
+        eventBus.on("import.done", (event) => {
+            if (!(event as ImportDoneEvent | undefined)?.error) {
+                this.diagramImported = true;
+            }
+            this.detectChanges();
+        });
     }
 
     /**
@@ -84,23 +96,42 @@ export class ScriptSourceWatcher {
     }
 
     private rebaseline(): void {
-        const next = new Map<string, string | undefined>();
+        const stillOpen = new Map<string, string | undefined>();
         for (const ref of this.store.all()) {
             const key = openScriptKey(ref.elementId, ref.kind, ref.listenerIndex);
-            next.set(key, this.lastKnown.has(key) ? this.lastKnown.get(key) : this.read(ref));
+            if (this.lastKnown.has(key)) {
+                stillOpen.set(key, this.lastKnown.get(key));
+            }
         }
-        this.lastKnown = next;
+        this.lastKnown = stillOpen;
+        this.baselineNewlyOpened();
+    }
+
+    // A surface already gone on first sight (e.g. its task changed type while the
+    // webview was hidden) is reported, or nothing would ever close its tab.
+    private baselineNewlyOpened(): void {
+        for (const ref of this.store.all()) {
+            const key = openScriptKey(ref.elementId, ref.kind, ref.listenerIndex);
+            if (this.lastKnown.has(key)) {
+                continue;
+            }
+            const current = this.read(ref);
+            if (current === undefined && !this.diagramImported) {
+                continue;
+            }
+            this.lastKnown.set(key, current);
+            if (current === undefined) {
+                this.reportSourceChanged(ref, undefined);
+            }
+        }
     }
 
     private detectChanges(): void {
+        this.baselineNewlyOpened();
         for (const ref of this.store.all()) {
             const key = openScriptKey(ref.elementId, ref.kind, ref.listenerIndex);
             const current = this.read(ref);
-            if (!this.lastKnown.has(key)) {
-                this.lastKnown.set(key, current);
-                continue;
-            }
-            if (this.lastKnown.get(key) === current) {
+            if (!this.lastKnown.has(key) || this.lastKnown.get(key) === current) {
                 continue;
             }
             this.lastKnown.set(key, current);
@@ -112,14 +143,18 @@ export class ScriptSourceWatcher {
             // (`OpenScriptEditorsStore` is a mirror the host re-broadcasts). The
             // inline script survives in the diagram under the new id — reopening
             // regenerates the file — so this is a UX gap, not data loss.
-            const event: ScriptSourceChangedEvent = {
-                elementId: ref.elementId,
-                kind: ref.kind,
-                listenerIndex: ref.listenerIndex,
-                content: current,
-            };
-            this.eventBus.fire(SCRIPT_SOURCE_CHANGED_EVENT, event);
+            this.reportSourceChanged(ref, current);
         }
+    }
+
+    private reportSourceChanged(ref: OpenScriptEditorRef, content: string | undefined): void {
+        const event: ScriptSourceChangedEvent = {
+            elementId: ref.elementId,
+            kind: ref.kind,
+            listenerIndex: ref.listenerIndex,
+            content,
+        };
+        this.eventBus.fire(SCRIPT_SOURCE_CHANGED_EVENT, event);
     }
 
     private read(ref: {

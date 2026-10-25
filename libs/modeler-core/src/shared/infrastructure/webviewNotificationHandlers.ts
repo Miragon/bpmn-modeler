@@ -1,5 +1,3 @@
-import { Command, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
-
 import { NotifierPort } from "../domain/hostPorts";
 import { WebviewMessageRouter } from "./WebviewMessageRouter";
 
@@ -13,7 +11,7 @@ export function registerWebviewNotificationHandlers(
     router: WebviewMessageRouter,
     notifier: NotifierPort,
 ): void {
-    router.on("ShowInfoCommand", (message: Command) => {
-        notifier.showInfo((message as ShowInfoCommand).message);
+    router.on("ShowInfoCommand", (message) => {
+        notifier.showInfo(message.message);
     });
 }

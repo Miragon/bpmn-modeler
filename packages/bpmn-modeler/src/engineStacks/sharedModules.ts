@@ -16,7 +16,7 @@ const sharedLeadingModules: readonly ModuleDeclaration[] = [
     CopyAsImageModule,
 ];
 
-// camunda-bpmn-js appended these after the engine modules; keep that order.
+// After the engine modules: the order the C7/C8 Modelers of camunda-bpmn-js shipped and we kept.
 const sharedTrailingModules: readonly ModuleDeclaration[] = [AlignToOriginModule, GridModule];
 
 export function composeUpstreamModules(

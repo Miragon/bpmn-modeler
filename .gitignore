@@ -13,6 +13,9 @@ packages/*/dist
 apps/vscode-plugin/test/e2e/out
 .vscode-test/
 
+# Screenshots and logs of the real-VS-Code smoke test (`test:vscode`).
+/test-results
+
 # dependencies
 node_modules
 .yarn/install-state.gz
@@ -62,6 +65,7 @@ vitest.config.*.timestamp*
 # Vitest browser-mode run artifacts (failure screenshots, attachments)
 **/__screenshots__/
 **/.vitest-attachments/
+**/.vitest/
 
 docs/.vitepress/dist
 docs/.vitepress/cache

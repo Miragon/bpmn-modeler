@@ -7,7 +7,7 @@ import {
     EditorSessionStore,
     FormModelerService,
 } from "@miragon/bpmn-modeler-core";
-import type { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 type ModelerService = BpmnModelerService | DmnModelerService | FormModelerService;
 
@@ -46,7 +46,7 @@ export class DocumentSaveFlushController {
         private readonly bpmnService: BpmnModelerService,
         private readonly dmnService: DmnModelerService,
         private readonly formService: FormModelerService,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     register(context: ExtensionContext): void {

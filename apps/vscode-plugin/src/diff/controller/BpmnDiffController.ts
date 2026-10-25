@@ -9,11 +9,7 @@ import {
     workspace,
 } from "vscode";
 
-import {
-    Command,
-    CursorChangedCommand,
-    ViewportChangedCommand,
-} from "@miragon/bpmn-modeler-shared";
+import { asProtocolMessage, Command } from "@miragon/bpmn-modeler-shared";
 
 import {
     DiffPaneHandle,
@@ -23,9 +19,9 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { WebviewPaneHandle } from "../infrastructure/WebviewPaneHandle";
 import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 // VS Code view-type identifier for the BPMN custom editor.
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
@@ -63,7 +59,7 @@ export class BpmnDiffController {
     constructor(
         private readonly store: DiffPaneStore,
         private readonly diffService: BpmnDiffService,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     /**
@@ -271,7 +267,9 @@ export class BpmnDiffController {
         if (routeWebviewLogCommand(this.notifier, message, basenameOfUriString(handle.uri))) {
             return;
         }
-        switch (message.type) {
+
+        const command = asProtocolMessage(message);
+        switch (command.type) {
             case "GetBpmnFileCommand":
                 await this.diffService.sendViewerFile(handle);
                 break;
@@ -279,16 +277,10 @@ export class BpmnDiffController {
                 await this.diffService.markReady(handle);
                 break;
             case "ViewportChangedCommand":
-                await this.diffService.forwardViewport(
-                    handle,
-                    (message as ViewportChangedCommand).viewport,
-                );
+                await this.diffService.forwardViewport(handle, command.viewport);
                 break;
             case "CursorChangedCommand":
-                await this.diffService.forwardCursor(
-                    handle,
-                    (message as CursorChangedCommand).index,
-                );
+                await this.diffService.forwardCursor(handle, command.index);
                 break;
             case "SwapCompareSidesCommand":
                 await this.swapCompareFilesSides(handle);

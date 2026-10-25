@@ -20,6 +20,14 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+    hostErrorReply,
+    hostNotification,
+    hostReply,
+    registerParams,
+    settle,
+    waitForFrame,
+} from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -36,37 +44,9 @@ const TEMPLATE_JSON = JSON.stringify({
     properties: [],
 });
 
-async function settle(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-/** Polls for a frame matching `predicate`, or rejects after `timeoutMs`. */
-async function waitForFrame(
-    frames: any[],
-    predicate: (frame: any) => boolean,
-    timeoutMs = 2000,
-): Promise<any> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        const match = frames.find(predicate);
-        if (match) return match;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error("waitForFrame timed out");
-}
-
-function registerParams(editorId: string, root: string, fsPath: string, content: string) {
-    return {
-        editorId,
-        uriString: editorId,
-        path: editorId.replace(/^file:\/\//, ""),
-        fsPath,
-        scheme: "file",
-        workspaceRoot: root,
-        content,
-        settings: {},
-    };
-}
+const isSaveRequest = (f: any) => f.method === "marketplaceState/save" && f.id != null;
+const isShowInfo = (message: string) => (f: any) =>
+    f.method === "notifier/showInfo" && f.params.message === message;
 
 const isTemplatesQuery = (name: string) => (f: any) =>
     f.method === "editor/postMessage" &&
@@ -111,16 +91,16 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         );
         const editorId = `file://${sourcePath}`;
         await rpc.handleLine(
-            JSON.stringify({
-                method: "session/register",
-                params: registerParams(editorId, workspaceRoot, sourcePath, BPMN_XML),
-            }),
+            hostNotification(
+                "session/register",
+                registerParams(editorId, workspaceRoot, sourcePath, BPMN_XML),
+            ),
         );
         // A marketplace change refreshes only editors whose modeler asked for templates.
         await rpc.handleLine(
-            JSON.stringify({
-                method: "webview/message",
-                params: { editorId, message: { type: "GetElementTemplatesCommand" } },
+            hostNotification("webview/message", {
+                editorId,
+                message: { type: "GetElementTemplatesCommand" },
             }),
         );
         await waitForFrame(
@@ -156,32 +136,23 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const folder = await writeLocalMarketplace(tmp);
 
         await rpc.handleLine(
-            JSON.stringify({
-                method: "marketplace/add",
-                params: { location: folder, settings: {} },
-            }),
+            hostNotification("marketplace/add", { location: folder, settings: {} }),
         );
 
         // The persist is an acknowledged request: it must surface as a frame with
         // both a method and an id, carrying the added location.
-        const save = await waitForFrame(
-            frames,
-            (f) => f.method === "marketplaceState/save" && f.id != null,
-        );
+        const save = await waitForFrame(frames, isSaveRequest);
         expect(save.params.location).toBe(folder);
         // An add that carried no scope must not invent one — the host defaults it.
         expect(save.params.scope).toBeUndefined();
 
         // Ack it so the flow proceeds to the refresh + success toast.
-        await rpc.handleLine(JSON.stringify({ id: save.id, result: null }));
+        await rpc.handleLine(hostReply(save.id, null));
 
         // The refresh re-pushes templates; the cached marketplace template must be
         // present in the merged set the editor receives.
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
-        await waitForFrame(
-            frames,
-            (f) => f.method === "notifier/showInfo" && f.params.message === "Marketplace added.",
-        );
+        await waitForFrame(frames, isShowInfo("Marketplace added."));
 
         // The template actually landed on disk under the injected cache root.
         const marketplaceDirs = await fs.readdir(cacheRoot);
@@ -193,18 +164,16 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const folder = await writeLocalMarketplace(tmp);
 
         await rpc.handleLine(
-            JSON.stringify({
-                method: "marketplace/add",
-                params: { location: folder, settings: {}, scope: "application" },
+            hostNotification("marketplace/add", {
+                location: folder,
+                settings: {},
+                scope: "application",
             }),
         );
 
         // The bridge treats scope as opaque: whatever the add carried must ride the
         // round trip back to the host, which alone knows what it means.
-        const save = await waitForFrame(
-            frames,
-            (f) => f.method === "marketplaceState/save" && f.id != null,
-        );
+        const save = await waitForFrame(frames, isSaveRequest);
         expect(save.params.scope).toBe("application");
     });
 
@@ -215,10 +184,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         await fs.mkdir(folder, { recursive: true });
 
         await rpc.handleLine(
-            JSON.stringify({
-                method: "marketplace/add",
-                params: { location: folder, settings: {} },
-            }),
+            hostNotification("marketplace/add", { location: folder, settings: {} }),
         );
 
         await waitForFrame(frames, (f) => f.method === "notifier/notifyError");
@@ -232,18 +198,10 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const folder = await writeLocalMarketplace(tmp);
 
         await rpc.handleLine(
-            JSON.stringify({
-                method: "marketplace/update",
-                params: { settings: { marketplaces: [folder] } },
-            }),
+            hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
         );
 
-        await waitForFrame(
-            frames,
-            (f) =>
-                f.method === "notifier/showInfo" &&
-                f.params.message === "Updated 1 marketplace(s).",
-        );
+        await waitForFrame(frames, isShowInfo("Updated 1 marketplace(s)."));
         // Update never persists — the list already lives in settings.
         expect(frames.find((f) => f.method === "marketplaceState/save")).toBeUndefined();
         // The cached template reached the open editor.
@@ -256,10 +214,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
 
         // Cache the marketplace first, then confirm its slot is on disk.
         await rpc.handleLine(
-            JSON.stringify({
-                method: "marketplace/update",
-                params: { settings: { marketplaces: [folder] } },
-            }),
+            hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
         );
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
         expect((await fs.readdir(cacheRoot)).length).toBe(1);
@@ -267,21 +222,77 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         // Remove it: the host already dropped it from settings, so the post-removal
         // snapshot is empty and the prune sweeps the orphaned slot.
         await rpc.handleLine(
-            JSON.stringify({
-                method: "marketplace/remove",
-                params: { settings: { marketplaces: [] }, removedCount: 1 },
+            hostNotification("marketplace/remove", {
+                settings: { marketplaces: [] },
+                removedCount: 1,
             }),
         );
 
-        await waitForFrame(
-            frames,
-            (f) =>
-                f.method === "notifier/showInfo" &&
-                f.params.message === "Removed 1 marketplace(s).",
-        );
+        await waitForFrame(frames, isShowInfo("Removed 1 marketplace(s)."));
         // Remove never persists — the host already unregistered the entries.
         expect(frames.find((f) => f.method === "marketplaceState/save")).toBeUndefined();
         // The orphaned cache slot is gone.
         expect((await fs.readdir(cacheRoot)).length).toBe(0);
+    });
+
+    it("expands a leading ~ against the home dir before fetching and persisting", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+
+        await rpc.handleLine(
+            hostNotification("marketplace/add", { location: "  ~/marketplace  ", settings: {} }),
+        );
+
+        const save = await waitForFrame(frames, isSaveRequest);
+        expect(save.params.location).toBe(folder);
+    });
+
+    it("still refreshes editors and confirms the add when persisting it fails", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+
+        await rpc.handleLine(
+            hostNotification("marketplace/add", { location: folder, settings: {} }),
+        );
+        const save = await waitForFrame(frames, isSaveRequest);
+        await rpc.handleLine(hostErrorReply(save.id, "disk full"));
+
+        await waitForFrame(frames, isShowInfo("Marketplace added."));
+        expect(frames).toContainEqual({
+            method: "notifier/log",
+            params: {
+                level: "error",
+                message: "Failed to persist marketplace registration: disk full",
+            },
+        });
+        expect(frames.some(isTemplatesQuery(TEMPLATE_NAME))).toBe(true);
+    });
+
+    it("says so when no marketplace is configured to update", async () => {
+        const { rpc, frames } = await setup();
+
+        await rpc.handleLine(
+            hostNotification("marketplace/update", { settings: { marketplaces: [] } }),
+        );
+
+        await waitForFrame(frames, isShowInfo("No marketplaces configured to update."));
+    });
+
+    it("names every marketplace that failed to update", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+        const missingFolder = join(tmp, "missing");
+
+        await rpc.handleLine(
+            hostNotification("marketplace/update", {
+                settings: { marketplaces: [folder, missingFolder] },
+            }),
+        );
+
+        const error = await waitForFrame(frames, (f) => f.method === "notifier/showError");
+        const [summary, ...failedLines] = error.params.message.split("\n");
+        expect(summary).toBe("Updated 1 of 2 marketplaces. Failed:");
+        expect(failedLines).toHaveLength(1);
+        expect(failedLines[0]).toContain(missingFolder);
     });
 });

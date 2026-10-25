@@ -11,6 +11,12 @@ const LOG_LEVELS = {
     LogErrorCommand: "logError",
 } as const;
 
+function isLogMessageCommand(
+    command: Command,
+): command is LogMessageCommand<keyof typeof LOG_LEVELS> {
+    return command.type in LOG_LEVELS;
+}
+
 /**
  * Logs `command` onto `logger` iff it is one of the four webview `Log*Command`s,
  * returning `true` when it handled it and `false` for any other type.
@@ -32,19 +38,17 @@ export function routeWebviewLogCommand(
     command: Command,
     source?: string,
 ): boolean {
-    const method = LOG_LEVELS[command.type as keyof typeof LOG_LEVELS];
-    if (!method) {
+    if (!isLogMessageCommand(command)) {
         return false;
     }
-
+    const method = LOG_LEVELS[command.type];
     const tag = source ? `[webview:${source}]` : "[webview]";
-    const log = command as LogMessageCommand;
 
     if (method === "logError") {
-        const body = log.stack ? `${log.message}\n${log.stack}` : log.message;
+        const body = command.stack ? `${command.message}\n${command.stack}` : command.message;
         logger.logError(`${tag} ${body}`);
     } else {
-        logger[method](`${tag} ${log.message}`);
+        logger[method](`${tag} ${command.message}`);
     }
     return true;
 }

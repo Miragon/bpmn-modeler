@@ -14,6 +14,15 @@ import {
     StartInstanceFailedError,
 } from "../../../shared/domain/errors";
 
+function escapeHtml(value: string | undefined): string {
+    return (value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 /**
  * Integration tests for {@link Camunda7RestClient}.
  *
@@ -377,6 +386,7 @@ describe("Camunda7RestClient (integration)", () => {
             tenantId: "",
             processKey: "order",
             auth: new NoAuth(),
+            envValues: [],
         });
 
         expect(snapshot).toEqual({
@@ -396,6 +406,7 @@ describe("Camunda7RestClient (integration)", () => {
             tenantId: "acme",
             processKey: "order",
             auth: new NoAuth(),
+            envValues: [],
         });
 
         expect(urls[0]).toBe("/process-definition/key/order/tenant-id/acme");
@@ -413,6 +424,7 @@ describe("Camunda7RestClient (integration)", () => {
             tenantId: "",
             processKey: "missing",
             auth: new NoAuth(),
+            envValues: [],
         });
 
         expect(snapshot).toBeUndefined();
@@ -429,6 +441,7 @@ describe("Camunda7RestClient (integration)", () => {
             tenantId: "",
             processKey: "order",
             auth: new NoAuth(),
+            envValues: [],
         });
 
         await expect(lookup).rejects.toSatisfy(
@@ -444,9 +457,163 @@ describe("Camunda7RestClient (integration)", () => {
             tenantId: "",
             processKey: "order",
             auth: new NoAuth(),
+            envValues: [],
         });
 
         expect(snapshot?.deploymentTime).toBeUndefined();
         expect(snapshot?.xml).toBe(DEPLOYED_XML);
+    });
+
+    // ── Error bodies ────────────────────────────────────────────────────
+
+    describe("error bodies", () => {
+        const apiKey = "q-SECRET-4711";
+        const basicAuth = new BasicAuth("deployer", "pa55-word");
+        const encodedCredentials = Buffer.from("deployer:pa55-word").toString("base64");
+
+        function echoRequestAsEngineError(status: number) {
+            handler = (req, _body, res) => {
+                res.writeHead(status, { "Content-Type": "application/json" });
+                res.end(
+                    JSON.stringify({
+                        type: "AuthorizationException",
+                        message: `Rejected ${req.method} ${req.url} with ${req.headers.authorization}`,
+                    }),
+                );
+            };
+        }
+
+        async function rejectionOf(operation: Promise<unknown>): Promise<Error> {
+            return operation.then(
+                () => {
+                    throw new Error("expected the request to fail");
+                },
+                (error: Error) => error,
+            );
+        }
+
+        it("masks the query secret and the Authorization header a gateway echoes on deploy", async () => {
+            echoRequestAsEngineError(403);
+            const config = new DeploymentConfig(
+                "my-deploy",
+                "",
+                `${baseUrl}/engine-rest?apikey=${apiKey}`,
+                "c7",
+                "/tmp/proc.bpmn",
+                [],
+                basicAuth,
+            );
+
+            const error = await rejectionOf(
+                createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
+            );
+
+            expect(error).toBeInstanceOf(DeploymentFailedError);
+            expect(error.message).toMatch(/^Deployment failed with HTTP 403: Rejected POST /);
+            expect(error.message).not.toContain(apiKey);
+            expect(error.message).not.toContain(encodedCredentials);
+        });
+
+        it("masks the basic password a server echoes in a plain-text start-instance error", async () => {
+            handler = (_req, _body, res) => {
+                res.writeHead(401, { "Content-Type": "text/plain" });
+                res.end("Bad credentials: deployer / pa55-word");
+            };
+            const config = new StartInstanceConfig("myProc", baseUrl, "c7", basicAuth);
+
+            const error = await rejectionOf(createClient().startInstance(config));
+
+            expect(error).toBeInstanceOf(StartInstanceFailedError);
+            expect(error.message).toContain("HTTP 401: Bad credentials:");
+            expect(error.message).not.toContain("pa55-word");
+        });
+
+        it("masks the query secret and the Authorization header in an inspection error", async () => {
+            echoRequestAsEngineError(403);
+
+            const error = await rejectionOf(
+                createClient().fetchLatestDefinition({
+                    endpoint: `${baseUrl}/engine-rest?apikey=${apiKey}`,
+                    tenantId: "",
+                    processKey: "order",
+                    auth: basicAuth,
+                    envValues: [],
+                }),
+            );
+
+            expect(error).toBeInstanceOf(EngineInspectionFailedError);
+            expect(error.message).toMatch(
+                /^Deployment verification failed with HTTP 403: Rejected GET /,
+            );
+            expect(error.message).not.toContain(apiKey);
+            expect(error.message).not.toContain(encodedCredentials);
+        });
+
+        it("masks a .env value a gateway echoes from the deploy URL path", async () => {
+            const envValue = "t3nant-gw-key";
+            echoRequestAsEngineError(403);
+            const config = new DeploymentConfig(
+                "my-deploy",
+                "",
+                `${baseUrl}/engine-rest`,
+                "c7",
+                "/tmp/proc.bpmn",
+                [],
+                new NoAuth(),
+                `${baseUrl}/gw/${envValue}/deployment/create`,
+                [envValue],
+            );
+
+            const error = await rejectionOf(
+                createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
+            );
+
+            expect(error).toBeInstanceOf(DeploymentFailedError);
+            expect(error.message).toMatch(/^Deployment failed with HTTP 403: Rejected POST /);
+            expect(error.message).not.toContain(envValue);
+        });
+
+        it("masks a .env value a server echoes in an inspection error", async () => {
+            const envValue = "t3nant-gw-key";
+            echoRequestAsEngineError(403);
+
+            const error = await rejectionOf(
+                createClient().fetchLatestDefinition({
+                    endpoint: `${baseUrl}/gw/${envValue}/engine-rest`,
+                    tenantId: "",
+                    processKey: "order",
+                    auth: new NoAuth(),
+                    envValues: [envValue],
+                }),
+            );
+
+            expect(error).toBeInstanceOf(EngineInspectionFailedError);
+            expect(error.message).toMatch(
+                /^Deployment verification failed with HTTP 403: Rejected GET \/gw\//,
+            );
+            expect(error.message).not.toContain(envValue);
+        });
+
+        it("reports only the status for an HTML error page", async () => {
+            handler = (req, _body, res) => {
+                res.writeHead(502, { "Content-Type": "text/html" });
+                res.end(
+                    `<html><head><title>502 Bad Gateway</title></head><body>${escapeHtml(req.url)} ${escapeHtml(req.headers.authorization)}</body></html>`,
+                );
+            };
+            const config = new DeploymentConfig(
+                "my-deploy",
+                "",
+                baseUrl,
+                "c7",
+                "/tmp/proc.bpmn",
+                [],
+                basicAuth,
+            );
+
+            await expect(
+                createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
+            ).rejects.toThrow(/^Deployment failed with HTTP 502\.$/);
+        });
     });
 });

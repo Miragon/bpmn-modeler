@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// `DiffPaneStore` imports the `Disposable` *type* from vscode; it is erased at
-// runtime, but the module specifier must still resolve under vitest.
-vi.mock("vscode", () => ({}));
-
 import { DiffPaneHandle } from "../domain/DiffSession";
 import { DiffPaneStore } from "./DiffPaneStore";
 

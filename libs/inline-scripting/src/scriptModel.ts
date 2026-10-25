@@ -4,6 +4,7 @@ import type {
     ElementCollection,
     ElementLookup,
     ListenerModdle,
+    ScriptModdle,
     ScriptTaskBusinessObject,
 } from "./bpmnTypes";
 
@@ -13,6 +14,35 @@ import type {
  * the exact same addressing rules and can never disagree about which listener
  * a `(kind, listenerIndex)` pair means.
  */
+
+type ScriptListenerKind = Exclude<ScriptKind, "script-task">;
+
+type ScriptListenerType = "camunda:ExecutionListener" | "camunda:TaskListener";
+
+/** Which half of an inline script a host edit replaces. */
+export type ScriptField = "content" | "format";
+
+/** The moddle element and property a host edit of one {@link ScriptField} writes to. */
+export interface ScriptWriteTarget {
+    readonly moddleElement: ScriptTaskBusinessObject | ScriptModdle;
+    readonly propertyName: "script" | "scriptFormat" | "value";
+}
+
+function scriptListenerType(kind: ScriptListenerKind): ScriptListenerType {
+    return kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
+}
+
+/** Names the addressed script surface for host-log messages. */
+export function describeScriptSurface(
+    elementId: string,
+    kind: ScriptKind,
+    listenerIndex: number | undefined,
+): string {
+    if (kind === "script-task") {
+        return elementId;
+    }
+    return `${scriptListenerType(kind)} #${listenerIndex} on ${elementId}`;
+}
 
 /**
  * Returns the `index`-th listener of `listenerType` from the element's
@@ -24,7 +54,7 @@ import type {
  */
 export function findListenerAt(
     bo: ScriptTaskBusinessObject | undefined,
-    listenerType: "camunda:ExecutionListener" | "camunda:TaskListener",
+    listenerType: ScriptListenerType,
     index: number | undefined,
 ): ListenerModdle | undefined {
     if (index === undefined) {
@@ -33,6 +63,40 @@ export function findListenerAt(
     const values = bo?.extensionElements?.values ?? [];
     const filtered = values.filter((v) => v.$type === listenerType);
     return filtered[index];
+}
+
+/**
+ * The write counterpart of {@link readScriptContent}: where a host edit of a
+ * script's content or format lands. A script task carries both on itself; a
+ * listener carries them on its nested `camunda:Script`. `undefined` means the
+ * addressed surface has no inline script to write to — mirroring
+ * {@link readScriptContent}, which reports the same surfaces as absent.
+ * modeler-core's `resolveScriptBodyTarget` mirrors the content half for the
+ * host-side XML fallback; keep the two in step.
+ */
+export function resolveScriptWriteTarget(
+    bo: ScriptTaskBusinessObject,
+    kind: ScriptKind,
+    listenerIndex: number | undefined,
+    field: ScriptField,
+): ScriptWriteTarget | undefined {
+    if (kind === "script-task") {
+        // A replace-menu morph keeps the element id; writing anyway would leave a
+        // stray `script`/`scriptFormat` attribute on the new element type.
+        if (bo.$type !== "bpmn:ScriptTask") {
+            return undefined;
+        }
+        // The plain BPMN `scriptFormat`: the panel ignores `camunda:scriptFormat`.
+        return { moddleElement: bo, propertyName: field === "content" ? "script" : "scriptFormat" };
+    }
+    const listener = findListenerAt(bo, scriptListenerType(kind), listenerIndex);
+    if (!listener?.script) {
+        return undefined;
+    }
+    return {
+        moddleElement: listener.script,
+        propertyName: field === "content" ? "value" : "scriptFormat",
+    };
 }
 
 /**
@@ -65,9 +129,11 @@ export function readScriptContent(
         }
         return element.businessObject?.script ?? "";
     }
-    const listenerType =
-        kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
-    const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
+    const listener = findListenerAt(
+        element.businessObject,
+        scriptListenerType(kind),
+        listenerIndex,
+    );
     if (!listener?.script) {
         return undefined;
     }

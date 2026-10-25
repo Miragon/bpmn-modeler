@@ -17,7 +17,7 @@ import {
  */
 
 /** Wraps flow elements in a single-process definitions object. */
-function definitionsOf(...flowElements: any[]): any {
+function definitionsOf(...flowElements: object[]) {
     return {
         rootElements: [{ $type: "bpmn:Process", id: "Process_1", flowElements }],
     };

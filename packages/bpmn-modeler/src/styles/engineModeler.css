@@ -1,6 +1,6 @@
 /*
- * Each plugin's own stylesheet at the version we pin — camunda-bpmn-js and
- * bpmn-js ship copies frozen at their build, which drift from the JS we run.
+ * Each plugin's own stylesheet at the version we pin — bpmn-js ships copies
+ * frozen at its build, which drift from the JS we run.
  */
 @import "diagram-js/assets/diagram-js.css";
 @import "bpmn-js/dist/assets/bpmn-js.css";

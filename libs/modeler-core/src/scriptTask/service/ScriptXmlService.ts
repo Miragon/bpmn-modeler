@@ -1,5 +1,7 @@
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
+import { resolveScriptBodyTarget, type ScriptHolder } from "../domain/scriptBodyTarget";
+
 /**
  * One script surface's new content, addressed exactly as the webview addresses
  * it (see `libs/inline-scripting/src/scriptModel.ts`): element id + kind, plus
@@ -13,35 +15,14 @@ export interface ScriptContentUpdate {
     content: string;
 }
 
-/** A parsed `camunda:Script` element — only its body `value` matters here. */
-interface ModdleScript {
-    value?: string;
-}
-
-/** A parsed listener extension element carrying an optional inline script. */
-interface ModdleListener {
-    $type: string;
-    script?: ModdleScript;
-}
-
-/** The subset of a parsed moddle element this service reads or mutates. */
-interface ModdleElement {
-    $type: string;
-    // `bpmn:ScriptTask.script` is the inline body String property, not a nested
-    // element — moddle exposes it as a plain string (unset ⇒ `undefined`).
-    script?: string;
-    extensionElements?: { values?: ModdleListener[] };
-    [key: string]: unknown;
-}
-
 type BpmnModdleFactory = (additionalPackages?: Record<string, unknown>) => ModdleInstance;
 
 interface ModdleInstance {
     fromXML(xml: string): Promise<{
-        rootElement: ModdleElement;
-        elementsById: Record<string, ModdleElement>;
+        rootElement: unknown;
+        elementsById: Record<string, ScriptHolder>;
     }>;
-    toXML(element: ModdleElement, options?: { format?: boolean }): Promise<{ xml: string }>;
+    toXML(element: unknown, options?: { format?: boolean }): Promise<{ xml: string }>;
 }
 
 /**
@@ -52,9 +33,8 @@ interface ModdleInstance {
  * normally stream into the *webview's* model. When the diagram tab is closed
  * before a buffered edit can be replayed, that path is gone; this service is
  * the host-only fallback that re-parses the `.bpmn`, applies the pending script
- * values through the same addressing the webview uses
- * (`libs/inline-scripting/src/scriptModel.ts` /
- * `modeler.ts#updateScriptContent`), and re-serialises.
+ * values through the same addressing the webview uses (inline-scripting's
+ * `resolveScriptWriteTarget`), and re-serialises.
  *
  * It compares *parsed values*, never strings, and returns `undefined` when
  * nothing diverged: a round-trip of already-current XML must be a no-op so an
@@ -100,58 +80,23 @@ export class ScriptXmlService {
 
     /** Applies one update in place; returns whether it actually changed a value. */
     private applyOne(
-        elementsById: Record<string, ModdleElement>,
+        elementsById: Record<string, ScriptHolder>,
         update: ScriptContentUpdate,
     ): boolean {
         const element = elementsById[update.elementId];
-        if (!element) {
-            // The element was deleted since the tab opened — nothing to write.
+        const target =
+            element && resolveScriptBodyTarget(element, update.kind, update.listenerIndex);
+        if (!target) {
             return false;
         }
-
-        if (update.kind === "script-task") {
-            // Unset `script` maps to "" (mirrors `readScriptContent`), so an
-            // untouched empty script never counts as a divergence.
-            const current = element.script ?? "";
-            if (current === update.content) {
-                return false;
-            }
-            element.script = update.content;
-            return true;
-        }
-
-        const listenerType =
-            update.kind === "execution-listener"
-                ? "camunda:ExecutionListener"
-                : "camunda:TaskListener";
-        const listener = this.findListenerAt(element, listenerType, update.listenerIndex);
-        if (!listener?.script) {
-            // Missing listener or a listener without an inline script — skip,
-            // matching the webview's warn-and-skip in `updateScriptContent`.
-            return false;
-        }
-        const current = listener.script.value ?? "";
+        // Unset maps to "" (mirrors `readScriptContent`), so an untouched empty
+        // script never counts as a divergence.
+        const current = target.holder[target.propertyName] ?? "";
         if (current === update.content) {
             return false;
         }
-        listener.script.value = update.content;
+        target.holder[target.propertyName] = update.content;
         return true;
-    }
-
-    /**
-     * Returns the `index`-th listener of `listenerType`, mirroring the upstream
-     * properties-panel filtering so indices align with what the user saw.
-     */
-    private findListenerAt(
-        element: ModdleElement,
-        listenerType: "camunda:ExecutionListener" | "camunda:TaskListener",
-        index: number | undefined,
-    ): ModdleListener | undefined {
-        if (index === undefined) {
-            return undefined;
-        }
-        const values = element.extensionElements?.values ?? [];
-        return values.filter((value) => value.$type === listenerType)[index];
     }
 
     private getModdle(): Promise<ModdleInstance> {

@@ -5,14 +5,9 @@ import {
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
+import { createTestHost } from "../../testing";
 import { DefinitionSearchService } from "./DefinitionSearchService";
 import { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";
-
-interface WatchHandlers {
-    onChange?: (path: string) => void;
-    onCreate?: (path: string) => void;
-    onDelete?: (path: string) => void;
-}
 
 function model(definitions: string, usage = ""): string {
     return `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
@@ -20,49 +15,39 @@ function model(definitions: string, usage = ""): string {
 }
 
 function setup(initialFiles: Record<string, string>) {
-    const files = new Map(Object.entries(initialFiles));
-    const watchers: WatchHandlers[] = [];
-    const disposeWatcher = vi.fn();
-    const workspace = {
-        findWorkspaceFolderForDocument: vi.fn(() => "/work"),
-        getWorkspaceFolderPaths: vi.fn(() => ["/work"]),
-        getDocumentDirectory: vi.fn(() => "/work"),
-        findFiles: vi.fn(async () => [...files.keys()]),
-        readFile: vi.fn(async (path: string) => {
-            const content = files.get(path);
-            if (content === undefined) throw new Error("FileNotFound");
-            return content;
-        }),
-        readDirectory: vi.fn(async () => []),
-        createWatcher: vi.fn((_root: string, _glob: string, handlers: WatchHandlers) => {
-            watchers.push(handlers);
-            return { dispose: disposeWatcher };
-        }),
-    };
-    const notifier = { logInfo: vi.fn(), logWarning: vi.fn(), logError: vi.fn() };
-    const postMessage = vi.fn().mockResolvedValue(true);
-    const document = { getFilePath: vi.fn(() => "/work/current.bpmn") };
-    const index = new WorkspaceDefinitionIndex(workspace as never, notifier as never);
+    const host = createTestHost({ folders: ["/work"], files: initialFiles });
+    const editor = host.openEditor("/work/current.bpmn");
+    const findFiles = vi.spyOn(host.workspace, "findFiles");
+    const readFile = vi.spyOn(host.workspace, "readFile");
+    const index = new WorkspaceDefinitionIndex(host.workspace, host.notifier);
     const service = new DefinitionSearchService(
-        { postMessage } as never,
-        document as never,
-        workspace as never,
+        host.store,
+        host.documents,
+        host.workspace,
         index,
-        notifier as never,
+        host.notifier,
     );
 
     const answer = async (kind: "message" | "signal" | "error" | "escalation", text: string) => {
-        postMessage.mockClear();
-        await service.search("editor", new SearchWorkspaceDefinitionsCommand(7, kind, text));
-        const [[editorId, query]] = postMessage.mock.calls as [[string, WorkspaceDefinitionsQuery]];
-        expect(editorId).toBe("editor");
-        expect(query.requestId).toBe(7);
-        return query;
+        const postedBefore = editor.posted.length;
+        await service.search(editor.id, new SearchWorkspaceDefinitionsCommand(7, kind, text));
+        const answers = editor.posted.slice(postedBefore) as WorkspaceDefinitionsQuery[];
+        expect(answers.map(({ type }) => type)).toEqual(["WorkspaceDefinitionsQuery"]);
+        expect(answers[0].requestId).toBe(7);
+        return answers[0];
     };
     const search = async (kind: "message" | "signal" | "error" | "escalation", text: string) =>
         (await answer(kind, text)).definitions;
 
-    return { files, watchers, disposeWatcher, workspace, notifier, service, answer, search };
+    return {
+        host,
+        editor,
+        findFiles,
+        readFile,
+        service,
+        answer,
+        search,
+    };
 }
 
 describe("DefinitionSearchService", () => {
@@ -100,57 +85,58 @@ describe("DefinitionSearchService", () => {
     });
 
     it("re-reads a changed file and forgets a deleted one", async () => {
-        const { files, watchers, workspace, search } = setup({
+        const { host, findFiles, search } = setup({
             "/work/a.bpmn": model('<bpmn:message id="M" name="before" />'),
             "/work/b.bpmn": model('<bpmn:message id="M" name="other" />'),
         });
         await search("message", "");
 
-        files.set("/work/a.bpmn", model('<bpmn:message id="M" name="after" />'));
-        watchers[0].onChange?.("/work/a.bpmn");
-        files.delete("/work/b.bpmn");
-        watchers[0].onDelete?.("/work/b.bpmn");
+        await host.workspace.writeFile(
+            "/work/a.bpmn",
+            model('<bpmn:message id="M" name="after" />'),
+        );
+        host.workspace.deleteFile("/work/b.bpmn");
 
         expect((await search("message", "")).map(({ name }) => name)).toEqual(["after"]);
-        expect(workspace.findFiles).toHaveBeenCalledTimes(2);
+        expect(findFiles).toHaveBeenCalledTimes(2);
     });
 
     it("serves repeated searches from the index", async () => {
-        const { workspace, search } = setup({
+        const { findFiles, readFile, search } = setup({
             "/work/a.bpmn": model('<bpmn:message id="M" name="x" />'),
         });
 
         await search("message", "x");
         await search("message", "");
 
-        expect(workspace.findFiles).toHaveBeenCalledTimes(1);
-        expect(workspace.readFile).toHaveBeenCalledTimes(1);
+        expect(findFiles).toHaveBeenCalledTimes(1);
+        expect(readFile).toHaveBeenCalledTimes(1);
     });
 
     it("answers a failed search as failed, and retries on the next search", async () => {
-        const { workspace, notifier, answer, search } = setup({
+        const { host, findFiles, answer, search } = setup({
             "/work/a.bpmn": model('<bpmn:message id="M" name="x" />'),
         });
-        workspace.findFiles.mockRejectedValueOnce(new Error("boom"));
+        findFiles.mockRejectedValueOnce(new Error("boom"));
 
         expect(await answer("message", "")).toMatchObject({ definitions: [], failed: true });
-        expect(notifier.logError).toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual(["boom"]);
         expect(await search("message", "")).toHaveLength(1);
     });
 
     it("answers a malformed search as failed without touching the workspace", async () => {
-        const { workspace, answer } = setup({});
+        const { findFiles, answer } = setup({});
 
         expect(await answer("bogus" as "message", "x")).toMatchObject({ failed: true });
-        expect(workspace.findFiles).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
     });
 
     it("stops watching once the last editor of the scope is released", async () => {
-        const { service, disposeWatcher, search } = setup({});
+        const { host, service, editor, search } = setup({});
         await search("message", "");
 
-        service.releaseEditor("editor");
+        service.releaseEditor(editor.id);
 
-        expect(disposeWatcher).toHaveBeenCalledTimes(1);
+        expect(host.workspace.watchers.map((watcher) => watcher.disposed)).toEqual([true]);
     });
 });

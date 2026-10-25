@@ -44,11 +44,40 @@ export class ArtifactService {
             return this.vsWorkspace.getWorkspaceFolderForDocument(documentDir);
         } catch (error) {
             if (error instanceof NoWorkspaceFolderFoundError) {
-                const gitRoot = await this.vsWorkspace.findGitRoot(documentDir);
+                const gitRoot = await this.findGitRoot(documentDir);
                 return gitRoot ?? documentDir;
             }
             throw error;
         }
+    }
+
+    private async findGitRoot(startDir: string): Promise<string | undefined> {
+        let current = startDir;
+        while (true) {
+            if (await this.holdsGitEntry(current)) {
+                return current;
+            }
+
+            const parent = posix.dirname(current);
+            if (parent === current) {
+                return undefined;
+            }
+            current = parent;
+        }
+    }
+
+    /**
+     * Probes `.git` instead of listing `directory`: every ancestor of an opened
+     * document can be traversed, but not necessarily listed. `.git` is a
+     * directory in a clone and a file in worktrees and submodules.
+     */
+    private async holdsGitEntry(directory: string): Promise<boolean> {
+        // Not `posix.join`: it collapses the `file:///` of URI-form directories.
+        const gitEntry = directory.endsWith("/") ? `${directory}.git` : `${directory}/.git`;
+        return (
+            (await succeeds(() => this.vsWorkspace.readDirectory(gitEntry))) ||
+            (await succeeds(() => this.vsWorkspace.readFile(gitEntry)))
+        );
     }
 
     async collectTemplateDirs(
@@ -105,12 +134,12 @@ export class ArtifactService {
     }
 
     /**
-     * Walks from `documentDir` to `workspaceRoot` (inclusive), nearest-first,
-     * returning the absolute path of the first `<configFolder>/<fileName>` that
-     * exists, or `undefined` if none does. The generalised sibling of
-     * {@link collectSubDirs} for single-file config lookups (deployment targets).
+     * Walks from `documentDir` to `workspaceRoot` (inclusive), nearest-first, and
+     * returns the first directory whose `<configFolder>/<fileName>` exists. The
+     * generalised sibling of {@link collectSubDirs} for single-file config
+     * lookups (deployment targets).
      */
-    async findConfigFile(
+    async findConfigBaseDir(
         documentDir: string,
         configFolder: string,
         fileName: string,
@@ -120,9 +149,8 @@ export class ArtifactService {
         let current = documentDir;
 
         while (current === root || current.startsWith(root + "/")) {
-            const candidate = posix.join(current, configFolder, fileName);
-            if (await this.fileExists(candidate)) {
-                return candidate;
+            if (await this.fileExists(posix.join(current, configFolder, fileName))) {
+                return current;
             }
 
             if (current === root) {
@@ -251,5 +279,14 @@ export class ArtifactService {
             }
         }
         return files;
+    }
+}
+
+async function succeeds(operation: () => Promise<unknown>): Promise<boolean> {
+    try {
+        await operation();
+        return true;
+    } catch {
+        return false;
     }
 }

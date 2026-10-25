@@ -189,7 +189,9 @@ yarn watch
 yarn docs:dev
 ```
 
-Opens the VitePress docs site in your browser.
+Opens the VitePress docs site in your browser. The site is built on the Miragon docs kit
+(`docs/.vitepress/miragon/`, vendored from Miragon/corporate-identity); do not edit the kit
+files, `corepack yarn workspace @miragon/bpmn-modeler-docs check:kit` reports drift.
 
 ### Run the extension in VS Code
 
@@ -229,7 +231,7 @@ A URL query parameter selects what the mock serves:
 | `/?mode=diff-after`                      | Readonly **after** (right) pane, with highlights for added / changed / moved elements.                     |
 
 The diff modes run `bpmn-js-differ` against two fixture XMLs
-(`apps/bpmn-webview/src/app/__fixtures__/mock-diff.ts`) so highlights reflect
+(`apps/bpmn-webview/src/__fixtures__/mock-diff.ts`) so highlights reflect
 the real differ's output. All mock code and its dependencies are gated on
 `NODE_ENV === "development"` and tree-shaken out of the production webview
 bundle.
@@ -254,6 +256,84 @@ CI runs one test job per affected workspace, each failing below the
 thresholds in its `vitest.config.ts`. A new Vitest workspace must be added to
 `.github/vitest-targets.json`; the lint job fails otherwise. Coverage reports
 are uploaded to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-modeler).
+
+### VS Code smoke test
+
+`test:vscode` checks the packaged extension in a real desktop VS Code
+(`apps/vscode-plugin/test/smoke/`). It is not part of `yarn test`: its Vitest
+config is `vitest.smoke.config.ts`, which neither the root multi-project run
+nor the workspace's coverage-gated `test` picks up.
+
+1. It packs `dist/apps/vscode-plugin` with `vsce package --yarn --no-dependencies`
+   as the publish workflow does, and unpacks the VSIX into a temporary folder
+   outside the repository. No `node_modules` sits next to the bundle there, so
+   a module webpack did not bundle fails the activation as it would for a user.
+   Run `yarn build` first.
+2. It downloads VS Code with `@vscode/test-electron`: the newest stable release
+   that satisfies `engines.vscode`, or `VSCODE_SMOKE_VERSION`. Playwright's
+   Electron driver starts it on a throwaway profile, with the unpacked
+   extension as `--extensionDevelopmentPath`. The oldest version it can drive
+   is 1.78: VS Code 1.76 and 1.77 ship a Chromium without
+   `Element.checkVisibility`, which Playwright's injected script needs. The
+   `engines.vscode` floor itself stays covered by the Extension-Host test.
+3. It opens `smoke.bpmn` in the BPMN custom editor and checks that the diagram
+   renders. It renames the task through direct editing, checks the dirty tab,
+   saves with Ctrl/Cmd+S and parses the file with `bpmn-moddle`. Undo has to
+   restore the canvas and, saved again, the file. It then switches to Default
+   Light+, Dark+ and High Contrast and checks the webview's body class and
+   `data-bpmn-theme`. Finally it opens `smoke.dmn` and `smoke.form`.
+
+The results go to `test-results/vscode-smoke/` (git-ignored, emptied on every
+run): `bpmn-light.png`, `bpmn-dark.png`, `bpmn-high-contrast.png`, `dmn.png`
+and `form.png`. A failed step adds `failure-<step>.png` and VS Code's logs in
+`vscode-logs/`.
+
+Run it in a container locally, where no VS Code window opens and nothing takes
+the focus:
+
+```bash
+corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+VSCODE_SMOKE_VERSION=1.78.2 corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+CONTAINER_ENGINE=docker corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+```
+
+The script uses `CONTAINER_ENGINE`, else Podman when it is on `PATH`, else
+Docker. A shell alias such as `docker=podman` does not reach the script. On
+macOS, start the Podman machine first (`podman machine start`). Once per
+`apps/vscode-plugin/test/smoke/Containerfile` it builds the image
+`localhost/bpmn-modeler-vscode-smoke:<recipe hash>`: Node 22 on Debian bookworm
+with Xvfb, Electron's libraries and the native-module toolchain. Each
+run mounts the repository read-only and copies the files Git sees into the
+container, uncommitted changes included, without ignored files such as
+`node_modules`, `dist` and `.git`. There it runs `yarn install --immutable`,
+`yarn build` and the test under `xvfb-run`, then copies `test-results/vscode-smoke/`
+back. The host's `node_modules` and `dist` stay as they are. VS Code's download
+and Yarn's cache live in the volumes `bpmn-modeler-vscode-smoke-vscode` and
+`bpmn-modeler-vscode-smoke-yarn`. The image is built for the host's
+architecture, arm64 on Apple silicon, x64 elsewhere. With the image and both
+volumes warm, a run takes about 80 s on an Apple silicon Mac: about 40 s
+install, 30 s build and 10 s for the test itself. The first run also builds the
+image and downloads VS Code, a few minutes more.
+
+On the host, the same test opens a VS Code window for some seconds, which takes
+the focus on macOS. On Linux, run it under an X server:
+
+```bash
+corepack yarn build
+corepack yarn workspace vs-code-bpmn-modeler test:vscode
+xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:vscode   # Linux
+```
+
+VS Code is cached in `~/.cache/bpmn-modeler-vscode-smoke` (`~/Library/Caches/…`
+on macOS). Let the first download finish before starting a second run.
+
+In CI, `.github/workflows/vscode-smoke.yml` runs it on `ubuntu-latest` under
+`xvfb-run -a`. It runs weekly, on demand (Actions → VS
+Code smoke → Run workflow, optionally with a VS Code version) and on pull
+requests that change the extension, a webview, a library or package it bundles,
+the lockfile or the workflow. It is not a required check. The downloaded VS Code
+is cached per version; the screenshots are uploaded as `vscode-smoke-screenshots`
+and, when a step failed, VS Code's logs as `vscode-smoke-logs` (7 days each).
 
 ## Performance harness
 
@@ -403,10 +483,11 @@ Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 | Workflow            | Trigger                                                  | Purpose                                                                       |
 |---------------------|----------------------------------------------------------|-------------------------------------------------------------------------------|
 | **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules)         |
+| **VS Code smoke**   | PR touching the extension or what it bundles, weekly, manual | packaged extension in a real VS Code (not a required check)             |
 | **PR Labeler**      | PR opened / updated                                      | auto-labels PRs by changed workspace                                          |
 | **Prepare Release ***| manual (`workflow_dispatch`)                            | bump version, sanity build, commit, tag, create GitHub Release                |
 | **Publish ***       | `release: published` (or `workflow_dispatch` + dry-run)  | build artefact, attach to release, push to Marketplace / GitHub Release        |
-| **Deploy Docs**     | `release: published` / manual                            | VitePress build + GitHub Pages deploy                                         |
+| **Deploy Docs**     | push to `main` / PR touching `docs/**`, manual           | Miragon docs-kit check + VitePress build; deploys to GitHub Pages from `main` |
 
 There are two `prepare-*` and two `publish-*` workflows — one pair
 per artefact (VS Code extension, standalone macOS app). See
@@ -426,7 +507,7 @@ apps/vscode-plugin/src/
   shared/          # Cross-feature substrate: domain/ service/ infrastructure/
                    #   (EditorSessionStore, VsCode* adapters, WebviewMessageRouter, …)
   modeler/
-    editor-session/  # Generic ModelerEditorController + EditorSessionParticipant
+    editor-session/  # Generic ModelerEditorController (runs the core EditorSessionLifecycle)
     bpmn/ dmn/       # domain/ service/ controller/ infrastructure/  index.ts
   diff/ deployment/ scriptTask/ navigation/ migration/   # same per-feature layout
 ```

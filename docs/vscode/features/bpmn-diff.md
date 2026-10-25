@@ -1,73 +1,38 @@
-# BPMN Diff View
+# BPMN diff
 
-The BPMN Modeler extension replaces VS Code's default text-based diff for `.bpmn` files with two side-by-side readonly BPMN canvases. Element-level changes are highlighted with colour-coded markers driven by [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ) — the same library that powers [demo.bpmn.io/diff](https://demo.bpmn.io/diff) — and panning/zooming in one pane is mirrored to the other.
+See what changed between two versions of a `.bpmn` file as two diagrams side by side, not as an XML diff.
 
-The diff view opens from two entry points, which share the same UI:
+<figure class="shot"><img src="/shots/bpmn-diff.png" alt="Two BPMN diagrams side by side with added, removed, changed and moved elements highlighted and a change counter above each pane"><figcaption>Before on the left, after on the right. Pan and zoom in one pane and the other follows.</figcaption></figure>
 
-- **Source Control / Git** — any place VS Code opens a text diff for a `.bpmn` file.
-- **Explorer context menu** — pick two `.bpmn` files, either with a multi-selection or one right-click at a time.
+## Open a diff
 
-> **Note:** Since VS Code 1.129 custom editors are no longer used for diffs unless they opt in. The extension declares `"priority": { "textEditor": "default", "diffEditor": "default" }` for `.bpmn` so both Git diffs and `vscode.diff` render in the BPMN viewer. If you ever see a plain XML diff instead, check `workbench.diffEditorAssociations` in your settings — a `*.bpmn` entry there overrides the extension's default.
+**From Source Control.** Click a modified `.bpmn` file in the Source Control view, or open any Git diff of one (history, pull-request review). The left pane shows the old version, the right pane the new one.
 
-## Usage — Source Control
+**Compare two files.** In the Explorer:
 
-1. Open the **Source Control** panel in VS Code.
-2. Click any modified `.bpmn` file, or open a diff from `git diff`, `git log`, or a pull-request review.
-3. VS Code opens the diff pair in a split editor; both sides render as BPMN canvases instead of XML text.
+- Select two `.bpmn` files, right-click, **Compare Selected (BPMN)**. The first selected file is the before side.
+- Or right-click one file, **Select for Compare (BPMN)**, then right-click the other, **Compare with Selected (BPMN)**. The pick is kept until you compare or reload the window.
 
-The left pane shows the **before** version (e.g. `HEAD` or the merge-base) and the right pane shows the **after** version (e.g. the working tree).
+File comparisons also show each file name above its pane and a **Swap sides** (⇄) button.
 
-## Usage — Compare two files
+If a Git diff still opens as XML, check `workbench.diffEditorAssociations` in your settings: a `*.bpmn` entry there overrides the modeler.
 
-### Pick both in one click
+In IntelliJ, **Show Diff** and **Compare Files** open the same view.
 
-When the two files are visible side by side in the Explorer:
+## Read the highlights
 
-1. Hold <kbd>Cmd</kbd> / <kbd>Ctrl</kbd> and click the two `.bpmn` files so both are selected.
-2. Right-click either one → **Compare Selected (BPMN)**.
-3. A diff tab opens with two BPMN canvases — the first-selected file on the left (`before`), the second on the right (`after`).
+| Highlight | Shown in | Meaning |
+|---|---|---|
+| Green | After pane | Added |
+| Red | Before pane | Removed |
+| Blue | Both panes | Changed attribute (name, condition, implementation, …) |
+| Dashed outline | Both panes | Moved: only the layout changed |
 
-### Pick them one at a time
+The legend above each pane counts the changes per type. **Prev change** and **Next change** step through all changes in flow order and move both panes together; the current element glows gold. Both panes are read-only but you can pan, zoom and use the keyboard.
 
-Useful when the two files live in different Explorer folders, or when you want to pair a file you selected earlier against another one you find later.
+The comparison uses [bpmn-js-differ](https://github.com/bpmn-io/bpmn-js-differ) with the same colours as [demo.bpmn.io/diff](https://demo.bpmn.io/diff).
 
-1. Right-click the first `.bpmn` file → **Select for Compare (BPMN)**. A status-bar note confirms the pick.
-2. Right-click the second `.bpmn` file → **Compare with Selected (BPMN)**.
-3. The diff tab opens as above.
+## Next steps
 
-Selection is in-memory only; reloading the window or running the compare clears it. The menu mirrors VS Code's built-in compare UX: **Select for Compare** and **Compare with Selected** disappear while two files are multi-selected — **Compare Selected** takes their place. Selecting three or more `.bpmn` files hides every compare entry (there is no meaningful three-way compare).
-
-Compare-files diffs carry two extras the SCM diff does not need:
-
-- **Filename subtitle** on each pane's legend, so you can tell at a glance which file is rendered on which side.
-- **Swap button** on the legend (`⇄ Swap sides`) that closes the diff tab and reopens it with the two files reversed.
-
-The viewport/cursor sync and highlight legend otherwise match the Git-diff view. Each pane is a `NavigatedViewer`: read-only but fully navigable with mouse wheel, drag, and keyboard.
-
-## Highlights
-
-`bpmn-js-differ` classifies every element into one of four categories. Each category has its own marker style:
-
-| Category        | Stroke colour      | Visible on     | Meaning                                                            |
-|-----------------|--------------------|----------------|--------------------------------------------------------------------|
-| **Added**       | Green (`#52b415`)  | After pane     | Element does not exist in the before diagram.                      |
-| **Removed**     | Red (`#cc0000`)    | Before pane    | Element was deleted in the after diagram.                          |
-| **Changed**     | Blue (`#316fbe`)   | Both panes     | An attribute changed (name, condition, implementation, …).         |
-| **Moved**       | Dashed stroke      | Both panes     | Only the layout (`x`, `y`, waypoints) changed — semantics are identical. |
-
-Colours intentionally match the bpmn.io/diff demo so users familiar with that UI see the same visual cues. Sequence flows receive the same stroke colour on their path and arrowhead.
-
-## Legend Chip
-
-A floating legend sits at the top-centre of **both panes**:
-
-- Four count slots — Added / Removed / Changed / Moved — each with its colour swatch.  Counts are symmetric across the two sides; both panes show the same numbers.
-- A **Prev change** / **Next change** navigator that cycles through the shared change list in sequence-flow order.
-- Clicking a nav button on either pane advances **both** cursors.  The pane that owns the current id paints a gold glow; the other pane anchors its viewport on the nearest neighbour that does exist locally and clears its own selection marker so the user is not misled.  For elements that exist on both panes, both will glow simultaneously.
-- Buttons are disabled when there are no changes at all.
-- For compare-files diffs, each pane's legend additionally shows the file's **basename** as a subtitle and a **Swap sides** (`⇄`) button.  SCM diffs hide both — VS Code's tab title already carries the filename/ref metadata, and swapping refs isn't an operation the extension owns.
-
-## Viewport and Cursor Sync
-
-Pan or zoom in either pane and the other pane follows. Click **Prev** / **Next** in either legend and both panes advance together — keeping the same element (or its nearest neighbour) centred on both sides.
-
+- [Linting](/vscode/features/linting): check the new version for errors.
+- [Deployment](/vscode/features/deployment): ship the reviewed diagram.

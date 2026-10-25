@@ -5,8 +5,8 @@
  */
 
 /**
- * Minimum width (px) the properties panel can be resized to.
- * Dragging below this threshold collapses the panel entirely.
+ * Narrowest width (px) a drag renders the open panel at, and the width a
+ * collapsed panel reappears at when dragged open.
  */
 const MIN_PANEL_WIDTH = 200;
 // Maximum width (px) the properties panel can be dragged to.
@@ -41,8 +41,11 @@ export interface PropertiesPanelResizerOptions {
     /** Toggle-button label per state. Applied to both `aria-label` and `title`. */
     getToggleLabel: (state: "open" | "collapsed") => string;
 
-    /** Re-apply the label on change (e.g. language switch); wire to i18n. */
-    onLabelChange?: (apply: () => void) => void;
+    /**
+     * Re-apply the label on change (e.g. language switch); wire to i18n. A
+     * returned unsubscribe is called on {@link PropertiesPanelHandle.dispose}.
+     */
+    onLabelChange?: (apply: () => void) => void | (() => void);
 }
 
 /**
@@ -66,10 +69,19 @@ export interface PropertiesPanelHandle {
      * Subscribe to visibility transitions.  Listeners are invoked with the
      * new visibility (`true` = visible) immediately after a transition, both
      * from programmatic {@link setVisible} calls and from user drag / toggle
-     * interactions.  There is no unsubscribe helper because the single
-     * consumer lives for the webview's entire lifetime.
+     * interactions.  There is no per-listener unsubscribe; {@link dispose}
+     * drops them all.
      */
     onVisibilityChanged(callback: (visible: boolean) => void): void;
+
+    /**
+     * Ends an open drag, removes every listener the resizer installed and the
+     * toggle button it appended. The panel keeps its current visibility and
+     * width, so a later {@link initResizer} on the same markup takes over
+     * from there; {@link setVisible} on the disposed handle no longer changes
+     * it. Repeated calls are no-ops.
+     */
+    dispose(): void;
 }
 
 /**
@@ -82,6 +94,7 @@ const NOOP_HANDLE: PropertiesPanelHandle = {
     isVisible: () => true,
     setVisible: () => undefined,
     onVisibilityChanged: () => undefined,
+    dispose: () => undefined,
 };
 
 /**
@@ -90,14 +103,12 @@ const NOOP_HANDLE: PropertiesPanelHandle = {
  * {@link PropertiesPanelHandle} that exposes the panel's visibility as
  * observable state.
  *
- * Dragging left widens the panel; dragging right narrows it.
- * Width is clamped between {@link MIN_PANEL_WIDTH} and {@link MAX_PANEL_WIDTH}
- * when the panel is visible.
- *
- * When the user drags below {@link MIN_PANEL_WIDTH} the panel collapses to
- * zero width (hidden). The resizer stays visible so the user can drag it back
- * to the left to restore the panel. The panel reappears once the intended
- * width crosses {@link MIN_PANEL_WIDTH} again.
+ * Dragging left widens the panel up to {@link MAX_PANEL_WIDTH}; dragging right
+ * narrows it, but a drag never renders the open panel narrower than
+ * {@link MIN_PANEL_WIDTH}. Dragging on until the intended width reaches zero
+ * collapses the panel (hidden). The resizer stays visible so the user can drag
+ * it back to the left: the panel reappears at {@link MIN_PANEL_WIDTH} right
+ * away and follows the pointer once the intended width exceeds it.
  *
  * Strategy: track the intended width in `targetWidth` (initialised once at
  * mousedown from `panel.offsetWidth`) and accumulate incremental deltas on it.
@@ -136,6 +147,9 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
 
     // Subscribers notified after every visibility transition.
     const visibilityListeners: Array<(visible: boolean) => void> = [];
+
+    const listenerScope = new AbortController();
+    const { signal } = listenerScope;
 
     /**
      * Fires all subscribers with the current visibility.  Called only from
@@ -176,11 +190,7 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         button.title = label;
     }
 
-    // Prevent the click from starting a resize drag on the surrounding resizer.
-    button.addEventListener("mousedown", (e: MouseEvent) => {
-        e.stopPropagation();
-    });
-    button.addEventListener("click", (e: MouseEvent) => {
+    function toggleFromButton(e: MouseEvent): void {
         e.stopPropagation();
         if (isCollapsed) {
             expand();
@@ -190,10 +200,14 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         } else {
             collapse();
         }
-    });
+    }
+
+    // Prevent the click from starting a resize drag on the surrounding resizer.
+    button.addEventListener("mousedown", (e: MouseEvent) => e.stopPropagation(), { signal });
+    button.addEventListener("click", toggleFromButton, { signal });
     resizer.appendChild(button);
     applyToggleButtonState();
-    opts.onLabelChange?.(applyToggleButtonState);
+    const unsubscribeLabelChange = opts.onLabelChange?.(applyToggleButtonState);
 
     /**
      * Collapse the panel to zero width and mark both the panel and the resizer
@@ -232,16 +246,14 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
      * Reading `offsetWidth` only once here avoids the flex feedback loop during
      * the drag.
      */
-    resizer.addEventListener("mousedown", (e: MouseEvent) => {
+    function startResize(e: MouseEvent): void {
         isResizing = true;
         lastX = e.clientX;
-        // When collapsed the panel has zero offsetWidth — start from 0 so the
-        // user must drag past MIN_PANEL_WIDTH to uncollapse.
         targetWidth = isCollapsed ? 0 : panel.offsetWidth;
 
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
-    });
+    }
 
     /**
      * Update the panel width as the pointer moves.
@@ -251,7 +263,8 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
      * the way down to 0 so the collapse/expand logic can use
      * {@link MIN_PANEL_WIDTH} as the snap threshold:
      *
-     * - Below MIN_PANEL_WIDTH and dragging right → panel collapses.
+     * - Below MIN_PANEL_WIDTH while open → panel is held at MIN_PANEL_WIDTH and
+     *   collapses only once targetWidth reaches 0.
      * - Below MIN_PANEL_WIDTH, collapsed, and dragging left → panel appears
      *   immediately at MIN_PANEL_WIDTH (preview). It stays at that width until
      *   targetWidth catches up and exceeds MIN_PANEL_WIDTH.
@@ -260,7 +273,7 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
      * `lastX` resets every frame so reversing at a boundary takes effect
      * immediately with no dead zone.
      */
-    document.addEventListener("mousemove", (e: MouseEvent) => {
+    function resizeTowardsPointer(e: MouseEvent): void {
         if (!isResizing) {
             return;
         }
@@ -283,6 +296,8 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
                  * User dragged all the way back to the starting point — collapse.
                  */
                 collapse();
+            } else if (!isCollapsed) {
+                panel.style.width = `${MIN_PANEL_WIDTH}px`;
             }
         } else {
             if (isCollapsed) {
@@ -290,10 +305,10 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
             }
             panel.style.width = `${targetWidth}px`;
         }
-    });
+    }
 
     // End the resize operation and restore default pointer behaviour.
-    document.addEventListener("mouseup", () => {
+    function endResize(): void {
         if (!isResizing) {
             return;
         }
@@ -301,12 +316,16 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         isResizing = false;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-    });
+    }
+
+    resizer.addEventListener("mousedown", startResize, { signal });
+    document.addEventListener("mousemove", resizeTowardsPointer, { signal });
+    document.addEventListener("mouseup", endResize, { signal });
 
     return {
         isVisible: () => !isCollapsed,
         setVisible: (visible: boolean) => {
-            if (visible === !isCollapsed) {
+            if (signal.aborted || visible === !isCollapsed) {
                 return;
             }
             if (visible) {
@@ -320,6 +339,16 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         },
         onVisibilityChanged: (callback) => {
             visibilityListeners.push(callback);
+        },
+        dispose: () => {
+            if (signal.aborted) {
+                return;
+            }
+            endResize();
+            listenerScope.abort();
+            unsubscribeLabelChange?.();
+            visibilityListeners.length = 0;
+            button.remove();
         },
     };
 }

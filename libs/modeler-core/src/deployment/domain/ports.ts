@@ -52,6 +52,8 @@ export interface DefinitionLookup {
     readonly tenantId: string;
     readonly processKey: string;
     readonly auth: AuthConfig;
+    /** The `.env` values the lookup may carry, which an error must never echo. */
+    readonly envValues: readonly string[];
 }
 
 /**

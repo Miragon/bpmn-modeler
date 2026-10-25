@@ -310,6 +310,22 @@ function isHomePath(path: string): boolean {
     return path === "~" || path.startsWith("~/") || path.startsWith("~\\");
 }
 
+/**
+ * `~user` is left untouched (not portably resolvable) so the parser rejects it.
+ * The default `/` join keeps the core free of `node:path`; hosts pass their
+ * platform join so a persisted location keeps its native separators.
+ */
+export function expandHomePath(
+    path: string,
+    homeDir: string,
+    joinPath: (base: string, rest: string) => string = (base, rest) => `${base}/${rest}`,
+): string {
+    if (path === "~") {
+        return homeDir;
+    }
+    return isHomePath(path) ? joinPath(homeDir, path.slice(2)) : path;
+}
+
 function toLocalFsPath(input: string): string | undefined {
     if (/^file:\/\//i.test(input)) {
         return fileUrlToPath(input);

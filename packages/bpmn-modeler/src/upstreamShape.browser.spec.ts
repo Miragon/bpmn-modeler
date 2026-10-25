@@ -1,20 +1,23 @@
 import Modeler from "bpmn-js/lib/Modeler";
 import bpmnLintingModule from "bpmn-js-bpmnlint";
 import type { ModuleDeclaration } from "didi";
+import type EventBus from "diagram-js/lib/core/EventBus";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDirectEditingContent } from "@miragon/bpmn-modeler-clipboard";
 import { getPopupMenuContext } from "@miragon/bpmn-modeler-append-menu";
 
 import { LintingInternals } from "./bpmnlint/lintingInternals";
+import { mountCanvas, removeMounts } from "./__fixtures__/surfaceMount";
 
 /**
  * Pins the private upstream shapes the typed adapters (WP1) reach into against
  * the *installed* bpmn-js / diagram-js / bpmn-js-bpmnlint — so a renovate bump
- * that moves `directEditing._textbox.content`, `popupMenu._getContext` or the
- * `linting` overlay bookkeeping fails here loudly
- * rather than silently no-op'ing in production. Runs against real Chromium
- * because direct editing and the popup menu need layout and focus jsdom lacks.
+ * that moves `directEditing._textbox.content`, `popupMenu._getContext`, the
+ * `linting` overlay bookkeeping or the `saveXML` result contract fails here
+ * loudly rather than silently no-op'ing in production. Runs against real
+ * Chromium because direct editing and the popup menu need layout and focus
+ * jsdom lacks.
  */
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -32,16 +35,10 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 let modeler: Modeler | undefined;
-let container: HTMLElement | undefined;
 
 beforeEach(async () => {
-    container = document.createElement("div");
-    container.style.width = "800px";
-    container.style.height = "600px";
-    container.style.position = "absolute";
-    document.body.appendChild(container);
     modeler = new Modeler({
-        container,
+        container: mountCanvas(),
         additionalModules: [bpmnLintingModule as ModuleDeclaration],
     });
     await modeler.importXML(XML);
@@ -49,9 +46,8 @@ beforeEach(async () => {
 
 afterEach(() => {
     modeler?.destroy();
-    container?.remove();
     modeler = undefined;
-    container = undefined;
+    removeMounts();
 });
 
 function task(): unknown {
@@ -116,5 +112,24 @@ describe("LintingInternals (bpmn-js-bpmnlint linting shape pin)", () => {
         expect(
             () => new LintingInternals({ lint: vi.fn(), update: vi.fn(), isActive: vi.fn() }),
         ).toThrow(/bpmn-js-bpmnlint linting/);
+    });
+});
+
+describe("saveXML (bpmn-js export contract pin)", () => {
+    it("resolves with the XML, preamble included", async () => {
+        const { xml } = await modeler!.saveXML({ format: true });
+
+        expect(xml).toMatch(/^<\?xml /);
+    });
+
+    it("rejects with a serialisation failure instead of resolving it as { error }", async () => {
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+        const failure = new Error("serialisation failed");
+        modeler!.get<EventBus>("eventBus").once("saveXML.serialized", () => {
+            throw failure;
+        });
+
+        await expect(modeler!.saveXML({ format: true })).rejects.toBe(failure);
+        consoleError.mockRestore();
     });
 });

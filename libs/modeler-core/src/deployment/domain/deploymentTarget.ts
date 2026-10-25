@@ -1,16 +1,40 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import {
+    DisallowedEnvReferenceError,
     DuplicateDeploymentTargetError,
+    InvalidDeploymentConfigError,
     InvalidDeploymentTargetsFileError,
 } from "../../shared/domain/errors";
+import { CredentialDestinations } from "./credentialDestinations";
+import { CredentialRefs } from "./credentialRefs";
+import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "./deployment";
+import {
+    assertEnvRefsValid,
+    containsEnvRef,
+    ENV_VARIABLE_PREFIX,
+    EnvLookup,
+    EnvReferencing,
+    envRefsIn,
+    expandEnvRefs,
+    isWholeEnvRef,
+    wholeEnvRefOf,
+} from "./envRef";
 
 export type TargetAuthType = "none" | "basic" | "oauth2";
+
+export interface StoredCredentials {
+    readonly username?: string;
+    readonly password?: string;
+    readonly clientId?: string;
+    readonly clientSecret?: string;
+}
 
 /**
  * A named, team-shareable deployment connection persisted in
  * `deployment-targets.json`. Holds only non-secret connection metadata —
- * credentials live in the host secret store keyed by the target's slot.
+ * literal credentials live in the host secret store keyed by the target's slot,
+ * whole-value `${env:…}` credentials in {@link credentialRefs}.
  */
 export class DeploymentTarget {
     constructor(
@@ -23,7 +47,80 @@ export class DeploymentTarget {
         readonly audience: string,
         readonly deployUrl?: string,
         readonly startInstanceUrl?: string,
+        readonly credentialRefs: CredentialRefs = CredentialRefs.none(),
     ) {}
+
+    /**
+     * File refs win over stored values, so a stale secret can't shadow a committed
+     * ref. A ref found only in the store is ignored: the file is the sole
+     * authority for refs, so one a teammate removed must not survive locally.
+     */
+    authWith(stored: StoredCredentials | undefined): AuthConfig {
+        if (this.authType === "basic") {
+            const username = this.credentialRefs.username ?? storedLiteral(stored?.username);
+            const password = this.credentialRefs.password ?? storedLiteral(stored?.password);
+            if (username === undefined && password === undefined) {
+                return new NoAuth();
+            }
+            return new BasicAuth(username ?? "", password ?? "");
+        }
+        if (this.authType === "oauth2") {
+            const clientId = this.credentialRefs.clientId ?? storedLiteral(stored?.clientId);
+            const clientSecret =
+                this.credentialRefs.clientSecret ?? storedLiteral(stored?.clientSecret);
+            if (clientId === undefined && clientSecret === undefined) {
+                return new NoAuth();
+            }
+            return new OAuth2Auth(
+                clientId ?? "",
+                clientSecret ?? "",
+                this.tokenEndpoint,
+                this.audience,
+            );
+        }
+        return new NoAuth();
+    }
+
+    /** What {@link expandConnection} reads, so a lookup is only built when it needs one. */
+    connectionEnvRefs(): EnvReferencing {
+        return envRefsIn(this.endpoint, this.tenantId);
+    }
+
+    /**
+     * Request-only expansion of the connection the engine inspection talks to.
+     * A variable set to an empty value is rejected like an empty field.
+     */
+    expandConnection(lookup: EnvLookup): { endpoint: string; tenantId: string } {
+        const endpoint = expandEnvRefs(this.endpoint, lookup, "endpoint");
+        if (!endpoint.trim()) {
+            throw new InvalidDeploymentConfigError(["endpoint"]);
+        }
+        return { endpoint, tenantId: expandEnvRefs(this.tenantId, lookup, "tenantId") };
+    }
+
+    /**
+     * Where this target may send credentials, as far as is known without its
+     * `.env`: what saving it through the form can approve.
+     */
+    knownCredentialDestinations(): CredentialDestinations {
+        const urls = [this.endpoint, this.deployUrl, this.startInstanceUrl];
+        if (this.authType === "oauth2") {
+            urls.push(this.tokenEndpoint);
+        }
+        return CredentialDestinations.ofKnown(
+            ...urls.filter((url): url is string => url !== undefined && !containsEnvRef(url)),
+        );
+    }
+
+    /** @throws {DisallowedEnvReferenceError} naming the JSON field of the offending reference. */
+    assertEnvRefsValid(): void {
+        assertEnvRefsValid(this.endpoint, "endpoint");
+        assertEnvRefsValid(this.tenantId, "tenantId");
+        assertEnvRefsValid(this.tokenEndpoint, "auth.tokenEndpoint");
+        assertEnvRefsValid(this.audience, "auth.audience");
+        assertEnvRefsValid(this.deployUrl, "endpoints.deploy");
+        assertEnvRefsValid(this.startInstanceUrl, "endpoints.startInstance");
+    }
 
     toJson(): Record<string, unknown> {
         const auth: Record<string, unknown> = { type: this.authType };
@@ -31,6 +128,7 @@ export class DeploymentTarget {
             auth.tokenEndpoint = this.tokenEndpoint;
             auth.audience = this.audience;
         }
+        this.credentialRefs.writeTo(auth);
 
         const json: Record<string, unknown> = {
             name: this.name,
@@ -65,6 +163,13 @@ export class DeploymentTargets {
     find(name: string): DeploymentTarget | undefined {
         const normalized = name.trim();
         return this.targets.find((target) => target.name === normalized);
+    }
+
+    knownDestinations(): CredentialDestinations {
+        return this.targets.reduce(
+            (destinations, target) => destinations.union(target.knownCredentialDestinations()),
+            CredentialDestinations.none(),
+        );
     }
 
     /**
@@ -154,10 +259,10 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
     const endpoint = parseRequiredString(source.endpoint, index, "endpoint");
     const tenantId = parseOptionalString(source.tenantId, index, "tenantId") ?? "";
 
-    const { authType, tokenEndpoint, audience } = parseAuth(source.auth, index);
+    const { authType, tokenEndpoint, audience, credentialRefs } = parseAuth(source.auth, index);
     const { deployUrl, startInstanceUrl } = parseEndpoints(source.endpoints, index);
 
-    return new DeploymentTarget(
+    const target = new DeploymentTarget(
         name,
         engine,
         endpoint,
@@ -167,15 +272,34 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
         audience,
         deployUrl,
         startInstanceUrl,
+        credentialRefs,
     );
+    try {
+        target.assertEnvRefsValid();
+    } catch (error) {
+        if (error instanceof DisallowedEnvReferenceError) {
+            throw new InvalidDeploymentTargetsFileError(`targets[${index}] ${error.message}`);
+        }
+        throw error;
+    }
+    return target;
 }
 
-function parseAuth(
-    raw: unknown,
-    index: number,
-): { authType: TargetAuthType; tokenEndpoint: string; audience: string } {
+interface ParsedAuth {
+    authType: TargetAuthType;
+    tokenEndpoint: string;
+    audience: string;
+    credentialRefs: CredentialRefs;
+}
+
+function parseAuth(raw: unknown, index: number): ParsedAuth {
     if (raw === undefined) {
-        return { authType: "none", tokenEndpoint: "", audience: "" };
+        return {
+            authType: "none",
+            tokenEndpoint: "",
+            audience: "",
+            credentialRefs: CredentialRefs.none(),
+        };
     }
     if (typeof raw !== "object" || raw === null) {
         throw new InvalidDeploymentTargetsFileError(`targets[${index}] "auth" must be an object`);
@@ -187,11 +311,55 @@ function parseAuth(
             `targets[${index}] "auth.type" must be "none", "basic", or "oauth2"`,
         );
     }
+    const tokenEndpoint = parseOptionalString(auth.tokenEndpoint, index, "auth.tokenEndpoint");
+    const audience = parseOptionalString(auth.audience, index, "auth.audience");
+    // Kept only where they are used: a hidden token endpoint would otherwise be
+    // prefilled and count as typed once the form switches the target to OAuth2.
     return {
         authType: type,
-        tokenEndpoint: parseOptionalString(auth.tokenEndpoint, index, "auth.tokenEndpoint") ?? "",
-        audience: parseOptionalString(auth.audience, index, "auth.audience") ?? "",
+        tokenEndpoint: type === "oauth2" ? (tokenEndpoint ?? "") : "",
+        audience: type === "oauth2" ? (audience ?? "") : "",
+        credentialRefs: parseCredentialRefs(auth, type, index),
     };
+}
+
+/**
+ * Every field is validated so a literal secret under another auth type's key
+ * still fails loudly; only the active type's refs are kept.
+ */
+function parseCredentialRefs(
+    auth: Record<string, unknown>,
+    type: TargetAuthType,
+    index: number,
+): CredentialRefs {
+    const username = parseCredentialRef(auth.username, index, "auth.username");
+    const password = parseCredentialRef(auth.password, index, "auth.password");
+    const clientId = parseCredentialRef(auth.clientId, index, "auth.clientId");
+    const clientSecret = parseCredentialRef(auth.clientSecret, index, "auth.clientSecret");
+    if (type === "basic") {
+        return CredentialRefs.basic(username, password);
+    }
+    if (type === "oauth2") {
+        return CredentialRefs.oauth2(clientId, clientSecret);
+    }
+    return CredentialRefs.none();
+}
+
+function parseCredentialRef(raw: unknown, index: number, field: string): string | undefined {
+    if (raw === undefined) {
+        return undefined;
+    }
+    if (typeof raw !== "string") {
+        throw new InvalidDeploymentTargetsFileError(
+            `targets[${index}] "${field}" must be a string`,
+        );
+    }
+    if (!isWholeEnvRef(raw)) {
+        throw new InvalidDeploymentTargetsFileError(
+            `targets[${index}] "${field}" must be a single environment reference like "\${env:${ENV_VARIABLE_PREFIX}NAME}" — use the form to store a literal secret`,
+        );
+    }
+    return raw;
 }
 
 function parseEndpoints(
@@ -241,4 +409,8 @@ function parseOptionalString(raw: unknown, index: number, field: string): string
 export function serializeDeploymentTargets(targets: readonly DeploymentTarget[]): string {
     const json = { targets: targets.map((target) => target.toJson()) };
     return `${JSON.stringify(json, null, 2)}\n`;
+}
+
+function storedLiteral(value: string | undefined): string | undefined {
+    return wholeEnvRefOf(value) === undefined ? value : undefined;
 }

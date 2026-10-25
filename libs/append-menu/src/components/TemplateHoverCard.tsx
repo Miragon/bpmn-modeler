@@ -1,26 +1,28 @@
 /**
  * Floating hover card that displays detailed template information.
  *
- * Appears to the right of the template panel when the user hovers or
- * focuses a template card, overlaying the BPMN palette.  Structured
- * similarly to the TemplatePreview in element-template-chooser.
+ * Opens beside the menu when the user hovers or keyboard-highlights a
+ * template card. Structured similarly to the TemplatePreview in
+ * element-template-chooser.
  */
 // Deep import: the chooser barrel value-imports the DI module (and with it
 // minisearch), which must stay out of the engine-neutral /design graph.
 import {
     applyTemplatePreset,
-    classifyBinding,
     extractImplementationDetail,
+    partitionVisibleProperties,
+    propertyDisplayLabel,
     type TemplateProperty,
 } from "@miragon/bpmn-modeler-element-template-chooser/types";
+import type { HoverCardPosition } from "../positioning";
 import type { EnrichedTemplateEntry, Translate } from "../types";
+import { HoverCard } from "./HoverCard";
 
 interface TemplateHoverCardProps {
     enrichedEntry: EnrichedTemplateEntry;
     translate: Translate;
-    style: { top: number; left: number; maxHeight: number };
-    onMouseEnter: () => void;
-    onMouseLeave: () => void;
+    position: HoverCardPosition;
+    onHoverChange: (hovered: boolean) => void;
 }
 
 /**
@@ -31,16 +33,14 @@ interface TemplateHoverCardProps {
  * (properties, inputs, outputs).
  *
  * @param props.enrichedEntry The template entry to preview.
- * @param props.style Positioning: top/left in viewport coords, maxHeight for clamping.
- * @param props.onMouseEnter Called when the mouse enters the card (keeps it visible).
- * @param props.onMouseLeave Called when the mouse leaves the card (triggers hide delay).
+ * @param props.position Top/left in viewport coords, maxHeight for clamping.
+ * @param props.onHoverChange Called when the mouse enters (keeps it visible) or leaves the card.
  */
 export function TemplateHoverCard({
     enrichedEntry,
     translate,
-    style,
-    onMouseEnter,
-    onMouseLeave,
+    position,
+    onHoverChange,
 }: TemplateHoverCardProps) {
     const { entry, presetId } = enrichedEntry;
     const template =
@@ -48,100 +48,75 @@ export function TemplateHoverCard({
 
     const implDetail = template ? extractImplementationDetail(template.properties) : undefined;
 
-    const inputs =
-        template?.properties.filter(
-            (p) => classifyBinding(p.binding) === "input" && p.type !== "Hidden",
-        ) ?? [];
-    const outputs =
-        template?.properties.filter(
-            (p) => classifyBinding(p.binding) === "output" && p.type !== "Hidden",
-        ) ?? [];
-    const props =
-        template?.properties.filter(
-            (p) => classifyBinding(p.binding) === "property" && p.type !== "Hidden",
-        ) ?? [];
+    const { properties, inputs, outputs } = partitionVisibleProperties(template?.properties ?? []);
 
     return (
-        <div
-            class="am-hover-card"
-            style={{
-                position: "fixed",
-                top: `${style.top}px`,
-                left: `${style.left}px`,
-                maxHeight: `${style.maxHeight}px`,
-            }}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-        >
-            <div class="am-hover-card-scroll">
-                {/* Header: name + implementation detail */}
-                <div class="am-hover-card-header">
-                    <h4 class="am-hover-card-name">{entry.label}</h4>
-                    {implDetail && (
-                        <div class="am-impl-detail">
-                            <span class="am-impl-label">{translate(implDetail.label)}</span>
-                            <code class="am-impl-value">{implDetail.value}</code>
-                        </div>
-                    )}
-                </div>
-
-                {/* Description + metadata */}
-                <div class="am-hover-card-details">
-                    {entry.description && <p class="am-hover-card-desc">{entry.description}</p>}
-                    {entry.documentationRef && (
-                        <a
-                            class="am-card-docs-link"
-                            href={entry.documentationRef}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
-                                <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 0 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243L6.586 4.672z" />
-                            </svg>
-                            {translate("Documentation")}
-                        </a>
-                    )}
-                    <div class="am-hover-card-meta">
-                        {template?.category && (
-                            <span class="am-badge am-badge--category">
-                                {template.category.name}
-                            </span>
-                        )}
-                        {template && <span class="am-hover-card-id">{template.id}</span>}
+        <HoverCard position={position} onHoverChange={onHoverChange}>
+            {/* Header: name + implementation detail */}
+            <div class="am-hover-card-header">
+                <h4 class="am-hover-card-name">{entry.label}</h4>
+                {implDetail && (
+                    <div class="am-impl-detail">
+                        <span class="am-impl-label">{translate(implDetail.label)}</span>
+                        <code class="am-impl-value">{implDetail.value}</code>
                     </div>
-                </div>
+                )}
+            </div>
 
-                {/* Parameter sections */}
-                <div class="am-hover-card-params">
-                    {props.length > 0 && (
-                        <ParameterSection
-                            title={translate("Properties")}
-                            items={props}
-                            translate={translate}
-                        />
+            {/* Description + metadata */}
+            <div class="am-hover-card-details">
+                {entry.description && <p class="am-hover-card-desc">{entry.description}</p>}
+                {entry.documentationRef && (
+                    <a
+                        class="am-card-docs-link"
+                        href={entry.documentationRef}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
+                            <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 0 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243L6.586 4.672z" />
+                        </svg>
+                        {translate("Documentation")}
+                    </a>
+                )}
+                <div class="am-hover-card-meta">
+                    {template?.category && (
+                        <span class="am-badge am-badge--category">{template.category.name}</span>
                     )}
-                    {inputs.length > 0 && (
-                        <ParameterSection
-                            title={translate("Input Parameters")}
-                            items={inputs}
-                            translate={translate}
-                        />
-                    )}
-                    {outputs.length > 0 && (
-                        <ParameterSection
-                            title={translate("Output Parameters")}
-                            items={outputs}
-                            translate={translate}
-                        />
-                    )}
-                    {props.length === 0 && inputs.length === 0 && outputs.length === 0 && (
-                        <p class="am-hover-card-no-params">{translate("No visible parameters")}</p>
-                    )}
+                    {template && <span class="am-hover-card-id">{template.id}</span>}
                 </div>
             </div>
-        </div>
+
+            {/* Parameter sections */}
+            <div class="am-hover-card-params">
+                {properties.length > 0 && (
+                    <ParameterSection
+                        title={translate("Properties")}
+                        items={properties}
+                        translate={translate}
+                    />
+                )}
+                {inputs.length > 0 && (
+                    <ParameterSection
+                        title={translate("Input Parameters")}
+                        items={inputs}
+                        translate={translate}
+                    />
+                )}
+                {outputs.length > 0 && (
+                    <ParameterSection
+                        title={translate("Output Parameters")}
+                        items={outputs}
+                        translate={translate}
+                    />
+                )}
+                {properties.length === 0 && inputs.length === 0 && outputs.length === 0 && (
+                    <p class="am-hover-card-no-params">{translate("No visible parameters")}</p>
+                )}
+            </div>
+        </HoverCard>
     );
 }
 
@@ -168,7 +143,7 @@ function ParameterSection({
                     <li key={i} class="am-hover-param-item">
                         <div class="am-hover-param-header">
                             <span class="am-hover-param-label">
-                                {p.label ?? p.binding.name ?? p.binding.key ?? translate("Unnamed")}
+                                {propertyDisplayLabel(p) ?? translate("Unnamed")}
                             </span>
                             <div class="am-hover-param-badges">
                                 {p.constraints?.notEmpty && (

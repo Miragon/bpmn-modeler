@@ -83,8 +83,8 @@ export interface EditorHandle {
 
     onDidReceiveMessage(callback: (message: Command) => void): EditorSubscription;
     onDidDispose(callback: () => void): EditorSubscription;
-    /** Fires when the panel transitions into the focused/active state. */
-    onDidBecomeActive(callback: () => void): EditorSubscription;
+    /** Fires with the new state whenever the panel gains or loses focus. */
+    onDidChangeActive(callback: (active: boolean) => void): EditorSubscription;
     onDidChangeDocument(callback: (event: DocumentChangeEvent) => void): EditorSubscription;
     onDidChangeSetting(callback: (event: SettingChange) => void): EditorSubscription;
 }

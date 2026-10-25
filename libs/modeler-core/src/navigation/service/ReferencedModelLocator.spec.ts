@@ -1,23 +1,7 @@
-import { posix } from "path";
+import { describe, expect, it, vi } from "vitest";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { InMemoryWorkspace, RecordingNotifier } from "../../testing";
 import { ReferencedModelLocator } from "./ReferencedModelLocator";
-
-interface FakeWorkspaceFolder {
-    uri: { scheme: string; path: string; fsPath: string };
-}
-
-// The locator now reads workspace-folder state through the `VsCodeWorkspace`
-// adapter (mocked below) instead of importing `vscode` directly; this state
-// drives that mock's `findWorkspaceFolderForDocument` / `getWorkspaceFolderPaths`.
-const workspaceState: {
-    folders: FakeWorkspaceFolder[];
-    folderForUri: (uri: { path: string }) => FakeWorkspaceFolder | undefined;
-} = {
-    folders: [{ uri: { scheme: "file", path: "/", fsPath: "/" } }],
-    folderForUri: () => ({ uri: { scheme: "file", path: "/", fsPath: "/" } }),
-};
 
 const bpmnWithProcess = (id: string) =>
     `<?xml version="1.0"?>
@@ -31,60 +15,17 @@ const dmnWithDecision = (id: string) =>
   <decision id="${id}" name="d"/>
 </definitions>`;
 
-/**
- * `tree` describes a directory layout:
- *   { "/work": ["parent.bpmn", { name: "sub", type: "directory" }],
- *     "/work/sub": ["child.bpmn"] }
- * Every file path that appears as a key in `fileContents` is readable.
- */
-type DirTree = Record<string, Array<string | { name: string; type: "directory" }>>;
-
-function createLocator(opts: { fileContents: Record<string, string>; tree?: DirTree }) {
-    const { fileContents, tree = {} } = opts;
-    const vsWorkspace = {
-        findFiles: vi.fn().mockImplementation((glob: string) => {
-            const extension = glob.endsWith(".bpmn")
-                ? ".bpmn"
-                : glob.endsWith(".dmn")
-                  ? ".dmn"
-                  : ".form";
-            return Promise.resolve(
-                Object.keys(fileContents).filter((path) => path.endsWith(extension)),
-            );
-        }),
-        readDirectory: vi.fn().mockImplementation((dir: string) => {
-            const entries = tree[dir];
-            if (!entries) return Promise.reject(new Error("ENOENT"));
-            return Promise.resolve(
-                entries.map((e) => (typeof e === "string" ? [e, "file"] : [e.name, e.type])),
-            );
-        }),
-        readFile: vi.fn().mockImplementation((path: string) => {
-            if (path in fileContents) return Promise.resolve(fileContents[path]);
-            return Promise.reject(new Error("not found"));
-        }),
-        findWorkspaceFolderForDocument: vi.fn(
-            (document: string) => workspaceState.folderForUri({ path: document })?.uri.path,
-        ),
-        getWorkspaceFolderPaths: vi.fn(() => workspaceState.folders.map((f) => f.uri.path)),
-        getDocumentDirectory: vi.fn((document: string) => posix.dirname(document)),
-    };
-    const notifier = { logInfo: vi.fn(), logWarning: vi.fn() };
-    const locator = new ReferencedModelLocator(vsWorkspace as never, notifier as never);
-    return { locator, vsWorkspace, notifier };
+function createLocator(opts: { files: Record<string, string>; folders?: string[] }) {
+    const workspace = new InMemoryWorkspace(opts.folders ?? ["/"], opts.files);
+    const notifier = new RecordingNotifier();
+    const locator = new ReferencedModelLocator(workspace, notifier);
+    return { locator, workspace, notifier };
 }
-
-beforeEach(() => {
-    workspaceState.folders = [{ uri: { scheme: "file", path: "/", fsPath: "/" } }];
-    workspaceState.folderForUri = () => ({
-        uri: { scheme: "file", path: "/", fsPath: "/" },
-    });
-});
 
 describe("findDeclaringFiles — workspace folder open (findFiles path)", () => {
     it("returns the single matching path", async () => {
         const { locator } = createLocator({
-            fileContents: {
+            files: {
                 "/a.bpmn": bpmnWithProcess("ProcessB"),
                 "/b.bpmn": bpmnWithProcess("Other"),
             },
@@ -101,7 +42,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("returns multiple matches in workspace order", async () => {
         const { locator } = createLocator({
-            fileContents: {
+            files: {
                 "/a.bpmn": bpmnWithProcess("Shared"),
                 "/b.bpmn": bpmnWithProcess("Shared"),
             },
@@ -117,7 +58,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("matches DMN decisions via the .dmn extension", async () => {
         const { locator } = createLocator({
-            fileContents: {
+            files: {
                 "/a.dmn": dmnWithDecision("Decision_1"),
                 "/b.bpmn": bpmnWithProcess("Decision_1"),
             },
@@ -133,7 +74,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("matches an exact top-level form id via the .form extension", async () => {
         const { locator } = createLocator({
-            fileContents: {
+            files: {
                 "/request.form": JSON.stringify({ id: "Form_Request", components: [] }),
                 "/other.form": JSON.stringify({ id: "Form_Other", components: [] }),
             },
@@ -150,7 +91,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("ignores malformed JSON, nested ids, and empty top-level form ids", async () => {
         const { locator } = createLocator({
-            fileContents: {
+            files: {
                 "/malformed.form": "{",
                 "/nested.form": JSON.stringify({ components: [{ id: "Form_Request" }] }),
                 "/empty.form": JSON.stringify({ id: "" }),
@@ -164,7 +105,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("returns all duplicate form-id declarations for picker disambiguation", async () => {
         const { locator } = createLocator({
-            fileContents: {
+            files: {
                 "/a.form": JSON.stringify({ id: "Form_Shared" }),
                 "/b.form": JSON.stringify({ id: "Form_Shared" }),
             },
@@ -178,7 +119,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("returns no matches when nothing declares the id (empty paths array)", async () => {
         const { locator } = createLocator({
-            fileContents: { "/a.bpmn": bpmnWithProcess("Other") },
+            files: { "/a.bpmn": bpmnWithProcess("Other") },
         });
 
         const result = await locator.findDeclaringFiles("Missing", "process");
@@ -191,21 +132,19 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
     });
 
     it("passes undefined as exclude — VS Code layers files.exclude and search.exclude", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: { "/a.bpmn": bpmnWithProcess("ProcessB") },
+        const { locator, workspace } = createLocator({
+            files: { "/a.bpmn": bpmnWithProcess("ProcessB") },
         });
+        const findFiles = vi.spyOn(workspace, "findFiles");
 
         await locator.findDeclaringFiles("ProcessB", "process");
 
-        /**
-         * Only one positional arg → second is implicitly undefined.
-         */
-        expect(vsWorkspace.findFiles).toHaveBeenCalledWith("**/*.bpmn");
+        expect(findFiles.mock.calls).toEqual([["**/*.bpmn"]]);
     });
 
     it("filters out paths inside build/output dirs that VS Code defaults miss", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            files: {
                 "/work/wanted.bpmn": bpmnWithProcess("Wanted"),
                 "/work/dist/inner.bpmn": bpmnWithProcess("Wanted"),
                 "/work/build/inner.bpmn": bpmnWithProcess("Wanted"),
@@ -217,6 +156,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
                 "/work/nested/dist/deep.bpmn": bpmnWithProcess("Wanted"),
             },
         });
+        const readFile = vi.spyOn(workspace, "readFile");
 
         const result = await locator.findDeclaringFiles("Wanted", "process");
 
@@ -224,33 +164,24 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/work/wanted.bpmn"]);
         }
-        /**
-         * Excluded paths should not even be read.
-         */
-        expect(vsWorkspace.readFile).toHaveBeenCalledTimes(1);
-        expect(vsWorkspace.readFile).toHaveBeenCalledWith("/work/wanted.bpmn");
+        // Excluded paths should not even be read.
+        expect(readFile.mock.calls).toEqual([["/work/wanted.bpmn"]]);
     });
 
     it("falls back to fs-walk when every findFiles result is excluded", async () => {
-        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            folders: ["/work"],
+            files: {
                 "/work/dist/stale.bpmn": bpmnWithProcess("Wanted"),
                 "/work/src/real.bpmn": bpmnWithProcess("Wanted"),
             },
-            tree: {
-                "/work": [
-                    { name: "dist", type: "directory" },
-                    { name: "src", type: "directory" },
-                ],
-                "/work/src": ["real.bpmn"],
-            },
         });
-        vsWorkspace.findFiles.mockResolvedValue(["/work/dist/stale.bpmn"]);
+        vi.spyOn(workspace, "findFiles").mockResolvedValue(["/work/dist/stale.bpmn"]);
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
 
         const result = await locator.findDeclaringFiles("Wanted", "process");
 
-        expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");
+        expect(readDirectory).toHaveBeenCalledWith("/work");
         expect(result.kind).toBe("matches");
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/work/src/real.bpmn"]);
@@ -258,23 +189,14 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
     });
 
     it("walks every workspace root when findFiles fails silently", async () => {
-        workspaceState.folders = [
-            { uri: { scheme: "file", path: "/first", fsPath: "/first" } },
-            { uri: { scheme: "file", path: "/second", fsPath: "/second" } },
-        ];
-        workspaceState.folderForUri = ({ path }) =>
-            workspaceState.folders.find((folder) => path.startsWith(folder.uri.path));
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            folders: ["/first", "/second"],
+            files: {
                 "/first/a.form": JSON.stringify({ id: "Form_A" }),
                 "/second/b.form": JSON.stringify({ id: "Form_B" }),
             },
-            tree: {
-                "/first": ["a.form"],
-                "/second": ["b.form"],
-            },
         });
-        vsWorkspace.findFiles.mockResolvedValue([]);
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
 
         const result = await locator.findFormDeclarations("/first/process.bpmn");
 
@@ -289,10 +211,10 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
     });
 
     it("returns kind=all-unreadable when every candidate read fails", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: { "/bad.bpmn": bpmnWithProcess("ProcessB") },
+        const { locator, workspace } = createLocator({
+            files: { "/bad.bpmn": bpmnWithProcess("ProcessB") },
         });
-        vsWorkspace.readFile.mockRejectedValue(new Error("EACCES"));
+        vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("EACCES"));
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
@@ -304,13 +226,13 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
     });
 
     it("includes partial read failures alongside successful matches", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            files: {
                 "/bad.bpmn": bpmnWithProcess("anything"),
                 "/good.bpmn": bpmnWithProcess("ProcessB"),
             },
         });
-        vsWorkspace.readFile.mockImplementationOnce(() => Promise.reject(new Error("EACCES")));
+        vi.spyOn(workspace, "readFile").mockRejectedValueOnce(new Error("EACCES"));
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
@@ -328,7 +250,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
   <docs><![CDATA[<bpmn:process id="ProcessB"/>]]></docs>
   <bpmn:process id="Other"/>
 </bpmn:definitions>`;
-        const { locator } = createLocator({ fileContents: { "/a.bpmn": xml } });
+        const { locator } = createLocator({ files: { "/a.bpmn": xml } });
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
@@ -336,15 +258,15 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
     });
 
     it("reads candidate files in parallel", async () => {
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            files: {
                 "/a.bpmn": "<doc/>",
                 "/b.bpmn": "<doc/>",
                 "/c.bpmn": "<doc/>",
             },
         });
         const pending: ((value: string) => void)[] = [];
-        vsWorkspace.readFile.mockImplementation(
+        vi.spyOn(workspace, "readFile").mockImplementation(
             () => new Promise<string>((resolve) => pending.push(resolve)),
         );
 
@@ -361,26 +283,24 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
 describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () => {
     it("falls back to fs walk when findFiles returns [] and a workspace folder is open", async () => {
-        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            folders: ["/work"],
+            files: {
                 "/work/parent.bpmn": bpmnWithProcess("Parent"),
                 "/work/child.bpmn": bpmnWithProcess("ChildProcess"),
             },
-            tree: { "/work": ["parent.bpmn", "child.bpmn"] },
         });
-        vsWorkspace.findFiles.mockResolvedValue([]);
-        workspaceState.folderForUri = () => ({
-            uri: { scheme: "file", path: "/work", fsPath: "/work" },
-        });
+        const findFiles = vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
+
         const result = await locator.findDeclaringFiles(
             "ChildProcess",
             "process",
             "/work/parent.bpmn",
         );
 
-        expect(vsWorkspace.findFiles).toHaveBeenCalledTimes(1);
-        expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");
+        expect(findFiles).toHaveBeenCalledTimes(1);
+        expect(readDirectory).toHaveBeenCalledWith("/work");
         expect(result).toEqual({
             kind: "matches",
             paths: ["/work/child.bpmn"],
@@ -389,15 +309,11 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
     });
 
     it("recurses into subdirectories", async () => {
-        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: { "/work/sub/child.bpmn": bpmnWithProcess("Nested") },
-            tree: {
-                "/work": [{ name: "sub", type: "directory" }],
-                "/work/sub": ["child.bpmn"],
-            },
+        const { locator, workspace } = createLocator({
+            folders: ["/work"],
+            files: { "/work/sub/child.bpmn": bpmnWithProcess("Nested") },
         });
-        vsWorkspace.findFiles.mockResolvedValue([]);
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
 
         const result = await locator.findDeclaringFiles("Nested", "process");
 
@@ -408,22 +324,19 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
     });
 
     it("skips baseline-excluded directories (node_modules, dist, .git, …)", async () => {
-        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            folders: ["/work"],
+            files: {
                 "/work/wanted.bpmn": bpmnWithProcess("Wanted"),
                 "/work/node_modules/inner.bpmn": bpmnWithProcess("Wanted"),
             },
-            tree: {
-                "/work": ["wanted.bpmn", { name: "node_modules", type: "directory" }],
-                "/work/node_modules": ["inner.bpmn"],
-            },
         });
-        vsWorkspace.findFiles.mockResolvedValue([]);
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
 
         const result = await locator.findDeclaringFiles("Wanted", "process");
 
-        expect(vsWorkspace.readDirectory).not.toHaveBeenCalledWith("/work/node_modules");
+        expect(readDirectory).not.toHaveBeenCalledWith("/work/node_modules");
         expect(result.kind).toBe("matches");
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/work/wanted.bpmn"]);
@@ -431,15 +344,18 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
     });
 
     it("tolerates unreadable subdirectories", async () => {
-        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: { "/work/ok.bpmn": bpmnWithProcess("Wanted") },
-            tree: {
-                "/work": ["ok.bpmn", { name: "denied", type: "directory" }],
-                // "/work/denied" intentionally absent → readDirectory rejects
+        const { locator, workspace } = createLocator({
+            folders: ["/work"],
+            files: {
+                "/work/ok.bpmn": bpmnWithProcess("Wanted"),
+                "/work/denied/hidden.bpmn": bpmnWithProcess("Wanted"),
             },
         });
-        vsWorkspace.findFiles.mockResolvedValue([]);
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+        const readDirectory = workspace.readDirectory.bind(workspace);
+        vi.spyOn(workspace, "readDirectory").mockImplementation((path) =>
+            path === "/work/denied" ? Promise.reject(new Error("EACCES")) : readDirectory(path),
+        );
 
         const result = await locator.findDeclaringFiles("Wanted", "process");
 
@@ -452,24 +368,24 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
 
 describe("findDeclaringFiles — loose file (no workspace folder)", () => {
     it("walks the source document's directory via readDirectory (not findFiles)", async () => {
-        workspaceState.folders = [];
-        workspaceState.folderForUri = () => undefined;
-
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: {
+        const { locator, workspace } = createLocator({
+            folders: [],
+            files: {
                 "/work/parent.bpmn": bpmnWithProcess("Parent"),
                 "/work/child.bpmn": bpmnWithProcess("ChildProcess"),
             },
-            tree: { "/work": ["parent.bpmn", "child.bpmn"] },
         });
+        const findFiles = vi.spyOn(workspace, "findFiles");
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
+
         const result = await locator.findDeclaringFiles(
             "ChildProcess",
             "process",
             "/work/parent.bpmn",
         );
 
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
-        expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");
+        expect(findFiles).not.toHaveBeenCalled();
+        expect(readDirectory).toHaveBeenCalledWith("/work");
         expect(result).toEqual({
             kind: "matches",
             paths: ["/work/child.bpmn"],
@@ -478,25 +394,25 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
     });
 
     it("returns no-search-scope when no source URI and no workspace folders", async () => {
-        workspaceState.folders = [];
-        workspaceState.folderForUri = () => undefined;
-
-        const { locator, vsWorkspace } = createLocator({
-            fileContents: { "/a.bpmn": bpmnWithProcess("ProcessB") },
+        const { locator, workspace } = createLocator({
+            folders: [],
+            files: { "/a.bpmn": bpmnWithProcess("ProcessB") },
         });
+        const findFiles = vi.spyOn(workspace, "findFiles");
+        const readDirectory = vi.spyOn(workspace, "readDirectory");
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
         expect(result).toEqual({ kind: "no-search-scope" });
-        expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
-        expect(vsWorkspace.readDirectory).not.toHaveBeenCalled();
+        expect(findFiles).not.toHaveBeenCalled();
+        expect(readDirectory).not.toHaveBeenCalled();
     });
 });
 
 describe("id regex semantics", () => {
     const expectFinds = (id: string, xml: string, kind: "process" | "decision") => {
         const { locator } = createLocator({
-            fileContents: { "/a.bpmn": xml, "/a.dmn": xml },
+            files: { "/a.bpmn": xml, "/a.dmn": xml },
         });
         return locator.findDeclaringFiles(id, kind);
     };

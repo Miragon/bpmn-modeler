@@ -1,10 +1,6 @@
-import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { CoreModelerServices, ThemeMode } from "../publicApi";
-import type { ViewportManager } from "../viewport";
-import type { SelectionManager } from "../selection";
-import type { RootElementManager } from "../rootElement";
-import type { ViewState } from "../viewState";
+import type { BpmnSurfaceHandle } from "../surfaceHandle";
 
 /**
  * The public TypeScript surface of `@miragon/bpmn-modeler/viewer`: the readonly
@@ -103,51 +99,7 @@ export interface ViewerOptions {
  * The instance handle {@link createViewer} resolves to — the readonly subset of
  * {@link BpmnModelerHandle}.
  */
-export interface BpmnViewerHandle {
-    /** Load BPMN 2.0 XML, replacing any current diagram, and fit it to view. */
-    loadDiagram(xml: string): Promise<ImportXMLResult>;
-
-    /** Serialise the current diagram to formatted XML. */
-    exportDiagram(): Promise<string>;
-
-    /** Export the current diagram as SVG markup. */
-    getDiagramSvg(): Promise<string>;
-
-    /** Viewport (zoom/scroll/fit) accessor. */
-    readonly viewport: ViewportManager;
-
-    /** Selection accessor — the viewer's base modules ship visible selection. */
-    readonly selection: SelectionManager;
-
-    /**
-     * Drill-down plane accessor. Host-adapter surface for restoring the active
-     * canvas root across an instance switch; the composed
-     * {@link captureViewState}/{@link applyViewState} pair covers the common case.
-     */
-    readonly rootElement: RootElementManager;
-
-    /**
-     * Snapshot the drill-down plane, viewbox, and selection so they survive an
-     * instance switch — capture here, `destroy()`, create the next instance,
-     * `loadDiagram`, then {@link applyViewState}. See {@link ViewState}.
-     */
-    captureViewState(): ViewState;
-
-    /**
-     * Re-apply a {@link captureViewState} snapshot: plane, viewbox, and
-     * selection are restored root → viewport → selection; a stale plane or
-     * missing element ids degrade gracefully, and an empty selection clears.
-     * A restore called right after `loadDiagram` survives the delayed initial
-     * fit — the snapshot viewport decides, not a later observer delivery.
-     */
-    applyViewState(state: ViewState): void;
-
-    /**
-     * Switch the colour theme live. Toggles this instance's `data-bpmn-theme`
-     * attribute and mirrors it to a legacy `#theme-link` when present.
-     */
-    setTheme(theme: ThemeMode): void;
-
+export interface BpmnViewerHandle extends BpmnSurfaceHandle {
     /**
      * Resolve a core diagram-js/bpmn-js service by name. The
      * {@link CoreViewerServices} names — `canvas`, `elementRegistry`,
@@ -157,9 +109,6 @@ export interface BpmnViewerHandle {
      */
     getService<K extends keyof CoreViewerServices>(name: K): CoreViewerServices[K];
     getService<T = unknown>(name: string): T;
-
-    /** Tear the instance down and free its bpmn-js DI graph and DOM. */
-    destroy(): void;
 }
 
 /**

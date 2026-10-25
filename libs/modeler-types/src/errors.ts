@@ -18,14 +18,22 @@ export class UnsupportedEngineError extends Error {
 
 /**
  * Create a list of information that will be sent to the backend and get logged.
- * @param errors A list of further information.
+ * @param errors A list of further information. bpmn-js types its import
+ *   warnings as `string[]` but reports `{ message, ... }` objects.
  */
-export function formatErrors(errors: string[]): string {
+export function formatErrors(errors: readonly unknown[]): string {
     let msg = "";
     if (errors && errors.length > 0) {
-        for (const message of errors) {
-            msg += `\n- ${message}`;
+        for (const entry of errors) {
+            msg += `\n- ${describeEntry(entry)}`;
         }
     }
     return msg;
+}
+
+function describeEntry(entry: unknown): string {
+    if (typeof entry === "object" && entry !== null && "message" in entry) {
+        return String(entry.message);
+    }
+    return String(entry);
 }

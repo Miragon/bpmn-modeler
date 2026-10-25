@@ -36,6 +36,7 @@ import {
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
+    globToRegExp,
     NoWorkspaceFolderFoundError,
     SettingChange,
     SettingsPort,
@@ -46,53 +47,6 @@ import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 /** Strips a leading `file://` so the string is a real OS path Node `fs` accepts. */
 function toFsPath(path: string): string {
     return path.replace(/^file:\/\//, "");
-}
-
-/** Backslash-escapes every regex-special character in a literal glob run. */
-function escapeRegExpLiteral(literal: string): string {
-    return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Compiles a glob into a path-matching `RegExp`. Two callers rely on it: the
- * `exclude` argument of {@link NodeWorkspace.findFiles} (Node's `fs.glob` accepts
- * the positive pattern natively, but its `exclude` option shape differs across
- * Node and Bun, so we match excluded paths ourselves to stay portable) and
- * {@link NodeWorkspace.createWatcher}, which honours its `glob` param this way.
- *
- * Supports the operators the callers use: a double-star (across path segments,
- * with a trailing slash swallowed so a leading double-star also matches at the
- * root), single `*` / `?` within one segment, and `{a,b,c}` brace alternation —
- * the code-link source glob (extensions `{java,kt,…}`) needs the last one.
- */
-function globToRegExp(glob: string): RegExp {
-    let re = "";
-    for (let i = 0; i < glob.length; i++) {
-        const c = glob[i];
-        if (c === "*" && glob[i + 1] === "*") {
-            re += ".*";
-            i++;
-            if (glob[i + 1] === "/") i++;
-        } else if (c === "*") {
-            re += "[^/]*";
-        } else if (c === "?") {
-            re += "[^/]";
-        } else if (c === "{") {
-            // `{a,b,c}` → `(?:a|b|c)`. An unterminated brace degrades to a literal
-            // so a stray `{` can't produce an invalid regex.
-            const end = glob.indexOf("}", i);
-            if (end === -1) {
-                re += "\\{";
-            } else {
-                const alternatives = glob.slice(i + 1, end).split(",");
-                re += `(?:${alternatives.map(escapeRegExpLiteral).join("|")})`;
-                i = end;
-            }
-        } else {
-            re += escapeRegExpLiteral(c);
-        }
-    }
-    return new RegExp(`^${re}$`);
 }
 
 /**
@@ -209,17 +163,26 @@ export class NodeWorkspace implements WorkspacePort {
      * variants below: returns the enclosing registered root re-prefixed into
      * `document`'s own scheme space (URI in → URI out, clean in → clean out),
      * or `undefined` when no root covers it.
+     *
+     * The innermost root wins regardless of registration order, as in VS Code:
+     * an outer root would widen config and `.env` discovery to a tree the
+     * document's own project does not own.
      */
     private enclosingRoot(document: string): string | undefined {
         const hadScheme = document.startsWith("file://");
         const normDoc = toFsPath(document);
+        let innermostRoot: string | undefined;
         for (const root of this.roots.keys()) {
             const normRoot = toFsPath(root);
-            if (normDoc === normRoot || normDoc.startsWith(normRoot + "/")) {
-                return hadScheme ? "file://" + normRoot : normRoot;
+            const encloses = normDoc === normRoot || normDoc.startsWith(normRoot + "/");
+            if (encloses && normRoot.length > (innermostRoot?.length ?? -1)) {
+                innermostRoot = normRoot;
             }
         }
-        return undefined;
+        if (innermostRoot === undefined) {
+            return undefined;
+        }
+        return hadScheme ? "file://" + innermostRoot : innermostRoot;
     }
 
     /**
@@ -232,31 +195,6 @@ export class NodeWorkspace implements WorkspacePort {
             throw new NoWorkspaceFolderFoundError();
         }
         return match;
-    }
-
-    /**
-     * Walks upward from `startDir` for a directory containing `.git`. Ported
-     * verbatim from `VsCodeWorkspace`; scheme handling is delegated to
-     * {@link readDirectory}, so `current` stays in the caller's input space.
-     */
-    async findGitRoot(startDir: string): Promise<string | undefined> {
-        let current = startDir;
-        while (true) {
-            try {
-                const entries = await this.readDirectory(current);
-                if (entries.some(([name]) => name === ".git")) {
-                    return current;
-                }
-            } catch {
-                return undefined;
-            }
-            const parent = posix.dirname(current);
-            // dirname returns the same path at the filesystem root.
-            if (parent === current) {
-                return undefined;
-            }
-            current = parent;
-        }
     }
 
     /**
@@ -304,6 +242,17 @@ export class NodeWorkspace implements WorkspacePort {
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
                 throw new FileNotFound(path);
+            }
+            throw error;
+        }
+    }
+
+    async isSymbolicLink(path: string): Promise<boolean> {
+        try {
+            return (await fs.lstat(toFsPath(path))).isSymbolicLink();
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+                return false;
             }
             throw error;
         }

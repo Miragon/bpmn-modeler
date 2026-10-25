@@ -7,9 +7,10 @@
  *
  * The overlay owns all filter *inputs* (search, category, template selection)
  * and derives both columns' navigable order once (see {@link ../filtering}),
- * driving a single keyboard highlight (see {@link ../navigation}). The panels
- * are thin renderers. Keyboard: the search input keeps focus permanently while
- * ↑/↓ move a highlight in the active column, ←/→ switch columns, Enter selects.
+ * driving a single keyboard highlight (see {@link ../navigation}) and a single
+ * previewed item. The panels are thin renderers. Keyboard: the search input
+ * keeps focus permanently while ↑/↓ move a highlight in the active column,
+ * ←/→ switch columns, Enter selects.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
 import type {
@@ -28,14 +29,18 @@ import {
     resolveSelectedType,
 } from "../filtering";
 import {
+    indexInColumn,
     initialHighlight,
     moveVertical,
     moveHorizontal,
     type Highlight,
     type NavColumns,
 } from "../navigation";
+import { clampToCanvas, type CanvasBounds } from "../positioning";
+import { offersTypePick } from "../templateTypeAction";
 import { TemplatePanel } from "./TemplatePanel";
 import { BpmnElementPalette } from "./BpmnElementPalette";
+import { useHoverPreview } from "./useHoverPreview";
 
 interface AppendMenuOverlayProps {
     templateEntries: EnrichedTemplateEntry[];
@@ -43,7 +48,7 @@ interface AppendMenuOverlayProps {
     favourites: string[];
     translate: Translate;
     position: { x: number; y: number };
-    canvasBounds: { right: number; bottom: number };
+    canvasBounds: CanvasBounds;
     onSelect: (action: PopupMenuEntryAction | undefined, event: Event) => void;
     onTemplateTypeSelect: (
         template: ElementTemplate,
@@ -52,34 +57,6 @@ interface AppendMenuOverlayProps {
         presetId: string | undefined,
     ) => void;
     onCancel: () => void;
-}
-
-// Margin from viewport edges when clamping the panel position.
-const VIEWPORT_MARGIN = 8;
-
-/**
- * Clamps the panel position so it stays within the canvas area.
- *
- * Uses the canvas container's bounds rather than the full viewport
- * to avoid overlapping the properties panel on the right.
- *
- * @param pos The desired top-left position in viewport coordinates.
- * @param panelRect The panel's bounding rect after initial render.
- * @param canvasBounds The right and bottom edges of the canvas container.
- * @returns Clamped `{ left, top }` values for CSS.
- */
-function clampToCanvas(
-    pos: { x: number; y: number },
-    panelRect: { width: number; height: number },
-    canvasBounds: { right: number; bottom: number },
-): { left: number; top: number } {
-    const maxLeft = canvasBounds.right - panelRect.width - VIEWPORT_MARGIN;
-    const maxTop = canvasBounds.bottom - panelRect.height - VIEWPORT_MARGIN;
-
-    return {
-        left: Math.max(VIEWPORT_MARGIN, Math.min(pos.x, maxLeft)),
-        top: Math.max(VIEWPORT_MARGIN, Math.min(pos.y, maxTop)),
-    };
 }
 
 /**
@@ -117,6 +94,7 @@ export function AppendMenuOverlay({
     // never a palette the user pinned via chevron/keyboard/template selection.
     const [palettePeek, setPalettePeek] = useState(false);
     const [highlight, setHighlight] = useState<Highlight | null>(null);
+    const hoverPreview = useHoverPreview<Highlight>();
     const searchRef = useRef<HTMLInputElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(null);
@@ -177,10 +155,8 @@ export function AppendMenuOverlay({
         searchRef.current?.focus();
     }, []);
 
-    // A signature of the *visible* items in both columns. Changes only when
-    // filtering reshuffles membership (search/category), not when selecting a
-    // template merely toggles palette entries' disabled state — so an
-    // intentional programmatic highlight move survives a template selection.
+    // A signature of the *visible* items in both columns, so the highlight is
+    // re-seeded only when membership changes, not on every re-render.
     const listsSignature = useMemo(
         () =>
             filteredTemplates.map((t) => t.id).join("|") +
@@ -199,10 +175,17 @@ export function AppendMenuOverlay({
         setHighlight(initialHighlight(navColumnsRef.current));
     }, [listsSignature]);
 
+    // A hovered index would point at a different item once the lists change.
+    useEffect(hoverPreview.clear, [listsSignature, hoverPreview.clear]);
+
     /**
      * Selecting a multi-type template always leads to picking the concrete
      * type next, so expand the palette and move the highlight to its first
      * enabled item (icon-only highlight would be unreadable).
+     *
+     * Must stay declared after the re-seed effect: the appliesTo filter hides
+     * palette entries, so a selection also changes `listsSignature`, and this
+     * highlight has to win.
      */
     useEffect(() => {
         if (!selectedTemplate) {
@@ -238,13 +221,11 @@ export function AppendMenuOverlay({
         return () => document.removeEventListener("keydown", handleKey, true);
     }, [onCancel]);
 
-    // Single-type templates apply immediately; multi-type ones become selected
-    // so the palette can be filtered (see the selection effect).
+    // Templates offering a type pick become selected so the palette can be
+    // filtered (see the selection effect); all others apply immediately.
     const handleTemplateClick = useCallback(
         (enriched: EnrichedTemplateEntry, event: Event) => {
-            const appliesTo = enriched.template?.appliesTo ?? [];
-
-            if (appliesTo.length <= 1) {
+            if (!offersTypePick(enriched.template)) {
                 onSelect(enriched.entry.action, event);
             } else {
                 setSelectedTemplate(enriched);
@@ -262,11 +243,7 @@ export function AppendMenuOverlay({
     const handleBpmnSelect = useCallback(
         (item: { id: string; entry: PopupMenuEntry }, event: Event) => {
             if (selectedTemplate?.template) {
-                const bpmnType = resolveSelectedType(
-                    item.id,
-                    item.entry.label,
-                    selectedTemplate.template.appliesTo,
-                );
+                const bpmnType = resolveSelectedType(item.id, selectedTemplate.template.appliesTo);
                 if (bpmnType) {
                     onTemplateTypeSelect(
                         selectedTemplate.template,
@@ -357,9 +334,21 @@ export function AppendMenuOverlay({
     // Pinned expansion OR a transient hover-peek both render the palette expanded.
     const paletteExpandedVisual = paletteExpanded || palettePeek;
 
-    const highlightedTemplateIndex = highlight?.column === "templates" ? highlight.index : -1;
-    const highlightedPaletteKey =
-        highlight?.column === "palette" ? (paletteNav[highlight.index]?.key ?? null) : null;
+    const handlePaletteHover = useCallback(
+        (navKey: string, hovered: boolean) => {
+            const index = paletteNav.findIndex((item) => item.key === navKey);
+            hoverPreview.hoverItem({ column: "palette", index }, hovered);
+        },
+        [paletteNav, hoverPreview.hoverItem],
+    );
+
+    const highlightedTemplateIndex = indexInColumn(highlight, "templates");
+    const highlightedPaletteKey = paletteNav[indexInColumn(highlight, "palette")]?.key ?? null;
+
+    // Mouse hover takes priority; the keyboard highlight is the fallback.
+    const previewed = hoverPreview.hovered ?? highlight;
+    const previewedTemplateIndex = indexInColumn(previewed, "templates");
+    const previewedPaletteItem = paletteNav[indexInColumn(previewed, "palette")] ?? null;
 
     return (
         <div class="am-click-away" onClick={onCancel}>
@@ -419,8 +408,13 @@ export function AppendMenuOverlay({
                             activeCategory={activeCategory}
                             selectedTemplateId={selectedTemplate?.id ?? null}
                             highlightedIndex={highlightedTemplateIndex}
+                            previewIndex={previewedTemplateIndex}
                             onCategoryChange={setActiveCategory}
                             onTemplateClick={handleTemplateClick}
+                            onCardHover={(index, hovered) =>
+                                hoverPreview.hoverItem({ column: "templates", index }, hovered)
+                            }
+                            onPreviewHover={hoverPreview.hoverCard}
                         />
                     )}
                     <BpmnElementPalette
@@ -429,8 +423,12 @@ export function AppendMenuOverlay({
                         translate={translate}
                         expanded={paletteExpandedVisual}
                         highlightedKey={highlightedPaletteKey}
+                        previewedItem={previewedPaletteItem}
+                        previewAnchorRef={panelRef}
                         onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
                         onPeekChange={setPalettePeek}
+                        onEntryHover={handlePaletteHover}
+                        onPreviewHover={hoverPreview.hoverCard}
                         onSelect={handleBpmnSelect}
                     />
                 </div>

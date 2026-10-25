@@ -16,9 +16,9 @@ import {
 } from "vscode";
 
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { FormInputValuesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
 import { InMemoryJsonFileSystemProvider } from "../infrastructure/InMemoryJsonFileSystemProvider";
 
 export const TOGGLE_FORM_INPUT_VALUES_CMD = "bpmn-modeler.toggleFormInputValues";
@@ -54,7 +54,7 @@ export class FormValuesController {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     register(context: ExtensionContext): void {

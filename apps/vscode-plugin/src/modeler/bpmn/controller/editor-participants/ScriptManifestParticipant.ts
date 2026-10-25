@@ -1,11 +1,8 @@
 import { Uri } from "vscode";
 
 import { ScriptVariableManifestService, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
-import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
-import {
-    EditorSessionContext,
-    EditorSessionParticipant,
-} from "../../../editor-session/EditorSessionParticipant";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
+import { EditorSessionContext, EditorSessionParticipant } from "@miragon/bpmn-modeler-core";
 
 /**
  * Feeds the `*.bpmn.vars.json` manifest model into the {@link ScriptVariableStore}
@@ -22,7 +19,7 @@ export class ScriptManifestParticipant implements EditorSessionParticipant {
     constructor(
         private readonly manifestSvc: ScriptVariableManifestService,
         private readonly store: ScriptVariableStore,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async onResolve(session: EditorSessionContext): Promise<void> {

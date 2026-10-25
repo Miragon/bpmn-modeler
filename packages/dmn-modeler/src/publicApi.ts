@@ -153,7 +153,8 @@ export interface DmnModelerHandle {
 
     /**
      * Switch the colour theme live. Toggles this instance's `data-dmn-theme`
-     * attribute and mirrors it to a legacy `#theme-link` when present.
+     * attribute and mirrors it to a legacy `#theme-link` when present. A no-op
+     * once the instance is destroyed.
      */
     setTheme(theme: DmnThemeMode): void;
 
@@ -166,7 +167,11 @@ export interface DmnModelerHandle {
      */
     setLocale(locale: string): Promise<void>;
 
-    /** Tear down this instance and all of its listeners and observers. */
+    /**
+     * Tear down this instance and all of its listeners and observers. Idempotent.
+     * Afterwards every other member except the no-op `setTheme` throws
+     * `NoModelerError` (async members reject with it).
+     */
     destroy(): void;
 
     /**

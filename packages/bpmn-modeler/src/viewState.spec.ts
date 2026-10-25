@@ -1,34 +1,33 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { applyViewState, captureViewState, type ViewStateManagers } from "./viewState";
+import type { CoreServiceAccessor } from "./coreServices";
+import { CanvasViewportManager } from "./viewport";
+import { DrilldownFit, DrilldownFitModule, SurfaceView } from "./viewState";
 
-/**
- * Hand-rolled fakes for the three managers (same pattern as
- * `rootElement.spec.ts`) — the composition is tiny, so faking is clearer than
- * standing up real bpmn-js. `getRootElementId` defaults to a drilled-in plane;
- * override per test for the top-level case.
- */
-function setup() {
-    const getViewport = vi.fn().mockReturnValue({ x: 10, y: 20, width: 800, height: 600 });
-    const setViewport = vi.fn();
-    const getRootElementId = vi.fn().mockReturnValue("SubProcess_1_plane");
-    const setRootElementById = vi.fn();
-    const getSelectedElementIds = vi.fn().mockReturnValue(["Task_1", "Task_2"]);
-    const selectElementsByIds = vi.fn();
-
-    const managers = {
-        viewport: { getViewport, setViewport },
-        rootElement: { getRootElementId, setRootElementById },
-        selection: { getSelectedElementIds, selectElementsByIds },
-    } as unknown as ViewStateManagers;
-
+function surfaceView() {
+    const view = new SurfaceView((() => {
+        throw new Error("services are faked per manager");
+    }) as unknown as CoreServiceAccessor);
+    const getViewport = vi
+        .spyOn(view.viewport, "getViewport")
+        .mockReturnValue({ x: 10, y: 20, width: 800, height: 600 });
+    const setViewport = vi.spyOn(view.viewport, "setViewport").mockReturnValue(true);
+    const getRootElementId = vi
+        .spyOn(view.rootElement, "getRootElementId")
+        .mockReturnValue("SubProcess_1_plane");
+    const setRootElementById = vi
+        .spyOn(view.rootElement, "setRootElementById")
+        .mockReturnValue(true);
+    vi.spyOn(view.selection, "getSelectedElementIds").mockReturnValue(["Task_1", "Task_2"]);
+    const selectElementsByIds = vi
+        .spyOn(view.selection, "selectElementsByIds")
+        .mockImplementation(() => {});
     return {
-        managers,
+        view,
         getViewport,
         setViewport,
         getRootElementId,
         setRootElementById,
-        getSelectedElementIds,
         selectElementsByIds,
     };
 }
@@ -37,30 +36,28 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe("captureViewState", () => {
-    it("composes the plane, viewbox, and selection into a single snapshot", () => {
-        const { managers } = setup();
+describe("SurfaceView", () => {
+    it("captures the plane, viewbox, and selection into a single snapshot", () => {
+        const { view } = surfaceView();
 
-        expect(captureViewState(managers)).toEqual({
+        expect(view.capture()).toEqual({
             rootElementId: "SubProcess_1_plane",
             viewport: { x: 10, y: 20, width: 800, height: 600 },
             selectedElementIds: ["Task_1", "Task_2"],
         });
     });
 
-    it("captures undefined rootElementId on the top-level (implicit) plane", () => {
-        const { managers, getRootElementId } = setup();
+    it("captures an undefined rootElementId on the top-level (implicit) plane", () => {
+        const { view, getRootElementId } = surfaceView();
         getRootElementId.mockReturnValue(undefined);
 
-        expect(captureViewState(managers).rootElementId).toBeUndefined();
+        expect(view.capture().rootElementId).toBeUndefined();
     });
-});
 
-describe("applyViewState", () => {
     it("applies root before viewport before selection", () => {
-        const { managers, setRootElementById, setViewport, selectElementsByIds } = setup();
+        const { view, setRootElementById, setViewport, selectElementsByIds } = surfaceView();
 
-        applyViewState(managers, {
+        view.apply({
             rootElementId: "SubProcess_1_plane",
             viewport: { x: 0, y: 0, width: 1000, height: 800 },
             selectedElementIds: ["Task_1"],
@@ -69,9 +66,8 @@ describe("applyViewState", () => {
         expect(setRootElementById).toHaveBeenCalledWith("SubProcess_1_plane");
         expect(setViewport).toHaveBeenCalledWith({ x: 0, y: 0, width: 1000, height: 800 });
         expect(selectElementsByIds).toHaveBeenCalledWith(["Task_1"]);
-
-        // Order is load-bearing: viewbox coordinates are plane-relative, and the
-        // drill-down centring on `root.set` must be overwritten by the viewbox.
+        // Viewbox coordinates are plane-relative, and the drill-down fit on
+        // `root.set` must be overwritten by the restored viewbox.
         const rootOrder = setRootElementById.mock.invocationCallOrder[0]!;
         const viewportOrder = setViewport.mock.invocationCallOrder[0]!;
         const selectionOrder = selectElementsByIds.mock.invocationCallOrder[0]!;
@@ -80,15 +76,89 @@ describe("applyViewState", () => {
     });
 
     it("passes an undefined rootElementId through (top-level plane, no switch)", () => {
-        const { managers, setRootElementById } = setup();
+        const { view, getRootElementId, setRootElementById } = surfaceView();
+        getRootElementId.mockReturnValue(undefined);
 
-        const snapshot = captureViewState({
-            ...managers,
-            rootElement: { getRootElementId: () => undefined } as never,
-        });
-        applyViewState(managers, snapshot);
+        view.apply(view.capture());
 
-        expect(snapshot.rootElementId).toBeUndefined();
         expect(setRootElementById).toHaveBeenCalledWith(undefined);
+    });
+});
+
+type PlaneRoot = { id: string; businessObject?: { $instanceOf(type: string): boolean } };
+
+function plane(id: string, type = "bpmn:SubProcess"): PlaneRoot {
+    return { id, businessObject: { $instanceOf: (t: string) => t === type } };
+}
+
+function drilldownFit() {
+    const fitViewport = vi
+        .spyOn(CanvasViewportManager.prototype, "fitViewport")
+        .mockReturnValue(true);
+    const handlers: Record<string, (event: { element?: PlaneRoot }) => void> = {};
+    let rootSetPriority: number | undefined;
+    const eventBus = {
+        on: (
+            event: string,
+            priorityOrCallback: number | (() => void),
+            callback?: (event: { element?: PlaneRoot }) => void,
+        ) => {
+            if (typeof priorityOrCallback === "number") {
+                rootSetPriority = priorityOrCallback;
+                handlers[event] = callback!;
+            } else {
+                handlers[event] = priorityOrCallback;
+            }
+        },
+    };
+    new DrilldownFit(eventBus, { get: vi.fn() });
+    return {
+        fitViewport,
+        rootSetPriority,
+        rootSet: (element: PlaneRoot | undefined) => handlers["root.set"]!({ element }),
+        clear: () => handlers["diagram.clear"]!({}),
+    };
+}
+
+describe("DrilldownFit", () => {
+    it("fits after drilldown centering", () => {
+        expect(drilldownFit().rootSetPriority).toBe(500);
+    });
+
+    it("fits a sub-process plane on its first visit only", () => {
+        const { fitViewport, rootSet } = drilldownFit();
+
+        rootSet(plane("sub_plane"));
+        rootSet(plane("other_plane"));
+        rootSet(plane("sub_plane"));
+
+        expect(fitViewport).toHaveBeenCalledTimes(2);
+    });
+
+    it("ignores the top-level root, which the host positions itself", () => {
+        const { fitViewport, rootSet } = drilldownFit();
+
+        rootSet(plane("Process_1", "bpmn:Process"));
+        rootSet({ id: "no-business-object" });
+        rootSet(undefined);
+
+        expect(fitViewport).not.toHaveBeenCalled();
+    });
+
+    it("fits the same plane again after the diagram is cleared", () => {
+        const { fitViewport, clear, rootSet } = drilldownFit();
+
+        rootSet(plane("sub_plane"));
+        clear();
+        rootSet(plane("sub_plane"));
+
+        expect(fitViewport).toHaveBeenCalledTimes(2);
+    });
+
+    it("registers the service under a stable DI name", () => {
+        expect(DrilldownFitModule).toEqual({
+            __init__: ["drilldownFit"],
+            drilldownFit: ["type", DrilldownFit],
+        });
     });
 });

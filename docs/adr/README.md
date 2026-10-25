@@ -57,6 +57,6 @@ history for superseded choices; the working tree is the current reference.
 
 ## Publication
 
-ADRs are contributor documentation. `docs/.vitepress/config.mts` excludes
+ADRs are contributor documentation. `docs/.vitepress/config.ts` excludes
 `adr/**` from the published site. Do not add these records to its sidebar;
 published contributor guides can link to their GitHub source.

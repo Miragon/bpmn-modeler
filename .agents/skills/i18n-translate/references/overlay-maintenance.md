@@ -47,7 +47,7 @@ corepack yarn vitest run --project bpmn-i18n-extras
 corepack yarn format --loglevel warn
 ```
 
-The recorder seam lives in `apps/bpmn-webview/src/app/harvestRecorder.ts`, wired only under
+The recorder seam lives in `libs/shared/src/lib/harvestRecorder.ts`, wired only under
 `import.meta.env.DEV` in `apps/bpmn-webview/src/main.ts` (tree-shaken out of production builds).
 
 ## The `SOURCE_ONLY` allowlist

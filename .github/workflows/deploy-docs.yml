@@ -1,27 +1,34 @@
 name: Deploy Docs
 
+# The docs (docs/) as a VitePress site on GitHub Pages: https://miragon.github.io/bpmn-modeler/.
+# A pull request that touches docs/ checks the vendored Miragon docs kit and builds the site
+# (VitePress fails the build on a dead link). A push to main also deploys it.
+
 on:
   push:
     branches: [main]
     paths:
       - 'docs/**'
       - '.github/workflows/deploy-docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # VitePress reads "last updated" from the git history.
+          fetch-depth: 0
+          persist-credentials: false
       - uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
       - run: corepack enable
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -29,15 +36,28 @@ jobs:
           node-version: 22
           cache: yarn
       - run: corepack yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-docs
+      # The kit in docs/.vitepress/miragon/ and the logos in docs/public/logo/ come unchanged
+      # from Miragon/corporate-identity. Fails when someone edited them in this repo.
+      - run: corepack yarn workspace @miragon/bpmn-modeler-docs check:kit
       - run: corepack yarn docs:test
       - run: corepack yarn docs:build
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        env:
+          DOCS_BASE: /bpmn-modeler/
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: docs/.vitepress/dist
 
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

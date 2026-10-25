@@ -1,6 +1,6 @@
 ---
 name: intellij-plugin
-description: The IntelliJ host for the BPMN modeler (apps/intellij-plugin, Kotlin/Gradle) and the apps/modeler-bridge stdio JSON-RPC Bun binary that runs the unmodified @miragon/bpmn-modeler-core out-of-process. Covers the Gradle build/run order (build:libs → build:bpmn-webview → bridge compile → ./gradlew runIde), webview bundle staging and the blank-webview trap, the version-keyed bridge-binary cache trap and the -Dmiragon.bridge dev override, the JCEF editor + JBCefJSQuery message relay, the RPC method contract and host-replicated mirrors (document/settings/deployment), plugin.xml extension points, and the process supervisor. Use this skill whenever working on the IntelliJ plugin, the modeler-bridge, JCEF editors/tool windows, plugin.xml, Gradle tasks, RPC adapters, a blank IntelliJ webview, verifyPlugin, or debugging the IntelliJ↔bridge seam. See the architecture skill for the host-agnostic core these two consume.
+description: The IntelliJ host (apps/intellij-plugin) and the modeler-bridge binary that runs modeler-core over stdio JSON-RPC. Use when working on its Gradle build, JCEF editors, plugin.xml, the RPC protocol or a blank IntelliJ webview.
 ---
 
 # IntelliJ Plugin + Modeler Bridge

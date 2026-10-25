@@ -2,7 +2,7 @@ import { commands, ExtensionContext } from "vscode";
 
 import { OpenAllScriptTasksQuery } from "@miragon/bpmn-modeler-shared";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 /** VS Code command ID for opening every inline script task of the active diagram. */
 export const OPEN_ALL_SCRIPT_TASKS_CMD = "bpmn-modeler.openAllScriptTasks";
@@ -28,7 +28,7 @@ export class ScriptTaskCommandController {
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     /**

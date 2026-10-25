@@ -4,13 +4,7 @@ import { ExtensionContext } from "vscode";
 
 import {
     BpmnElementTemplatesService,
-    FetchHttpClient,
-    GitHubSource,
-    GitLabSource,
-    LocalFileSource,
-    MarketplaceCache,
-    RepositorySource,
-    RepositorySourceConfig,
+    createTemplateMarketplaceService,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../shared/infrastructure/extensionContext";
@@ -29,36 +23,21 @@ export function register(
     _context: ExtensionContext,
     deps: SharedDeps,
 ): { marketplaceSvc: TemplateMarketplaceService } {
-    const httpClient = new FetchHttpClient();
-    const sourceFactory = (config: RepositorySourceConfig): RepositorySource => {
-        switch (config.kind) {
-            case "github":
-                return new GitHubSource(httpClient, config);
-            case "gitlab":
-                return new GitLabSource(httpClient, config);
-            case "local":
-                return new LocalFileSource(deps.vsWorkspace, config);
-        }
-    };
-
     // Per-workspace cache root so a prune only ever evicts *this* window's slots:
     // marketplaces can be workspace-scoped, so an Update/Remove in another window
     // must not delete a marketplace registered only here. `storageUri` is VS
     // Code's stable per-workspace directory; a no-folder window has none, so fall
     // back to the shared global root there. `writeFile` mkdirps it on first use.
     const base = getContext().storageUri ?? getContext().globalStorageUri;
-    const cache = new MarketplaceCache(`${base.fsPath}/marketplaces`, deps.vsWorkspace);
-
-    const marketplaceSvc = new TemplateMarketplaceService(
-        sourceFactory,
-        cache,
-        deps.vsSettings,
-        deps.notifier,
-        new VsCodeTokenStore(),
-        new VsCodeTokenPrompt(),
-        // Injected so the host-agnostic core can expand `~` in a local source.
-        homedir(),
-    );
+    const marketplaceSvc = createTemplateMarketplaceService({
+        workspace: deps.vsWorkspace,
+        settings: deps.vsSettings,
+        notifier: deps.notifier,
+        tokens: new VsCodeTokenStore(),
+        tokenPrompt: new VsCodeTokenPrompt(),
+        cacheRoot: `${base.fsPath}/marketplaces`,
+        homeDir: homedir(),
+    });
 
     return { marketplaceSvc };
 }

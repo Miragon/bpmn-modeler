@@ -1,6 +1,8 @@
 import { AuthConfig, OAuth2Auth } from "../../domain/deployment";
 import { TokenFetchError } from "../../../shared/domain/errors";
 import { HttpClient } from "../../domain/ports";
+import { SecretRedactor } from "../../domain/secretRedactor";
+import { engineErrorDetail, requestRedactor } from "./engineError";
 
 /**
  * Resolves an {@link AuthConfig} into concrete HTTP headers.
@@ -22,12 +24,16 @@ export class AuthHeaderResolver {
      * formatting via `toHeaders()` and are delegated to.
      *
      * @param auth Authentication configuration to resolve.
+     * @param requestSecrets What a token endpoint's error must not echo back.
      * @returns A record of HTTP headers to merge into the outgoing request.
      * @throws {TokenFetchError} If the OAuth2 token fetch fails.
      */
-    async resolve(auth: AuthConfig): Promise<Record<string, string>> {
+    async resolve(
+        auth: AuthConfig,
+        requestSecrets: SecretRedactor = auth.redactor(),
+    ): Promise<Record<string, string>> {
         if (auth.type === "oauth2") {
-            const accessToken = await this.fetchAccessToken(auth);
+            const accessToken = await this.fetchAccessToken(auth, requestSecrets);
             return { Authorization: `Bearer ${accessToken}` };
         }
         return auth.toHeaders();
@@ -41,7 +47,10 @@ export class AuthHeaderResolver {
      * @throws {TokenFetchError} If the request fails, returns non-2xx,
      *   invalid JSON, or a response missing `access_token`.
      */
-    private async fetchAccessToken(auth: OAuth2Auth): Promise<string> {
+    private async fetchAccessToken(
+        auth: OAuth2Auth,
+        requestSecrets: SecretRedactor,
+    ): Promise<string> {
         const params = new URLSearchParams({
             grant_type: "client_credentials",
             client_id: auth.clientId,
@@ -61,14 +70,23 @@ export class AuthHeaderResolver {
         }
 
         if (response.status < 200 || response.status >= 300) {
-            throw new TokenFetchError(`HTTP ${response.status}: ${response.body}`);
+            const detail = engineErrorDetail(
+                response.body,
+                requestRedactor(requestSecrets, {}, auth.tokenEndpoint),
+            );
+            throw new TokenFetchError(
+                detail === undefined
+                    ? `HTTP ${response.status}.`
+                    : `HTTP ${response.status}: ${detail}`,
+            );
         }
 
+        // A successful body may carry the token in another format, so it is never echoed.
         let json: Record<string, unknown>;
         try {
             json = JSON.parse(response.body);
         } catch {
-            throw new TokenFetchError(`Invalid JSON response: ${response.body}`);
+            throw new TokenFetchError("the token endpoint did not return JSON.");
         }
 
         if (typeof json.access_token !== "string") {

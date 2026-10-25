@@ -161,6 +161,37 @@ describe("architecture", () => {
         });
     });
 
+    // ─── A2. Ports, not adapters — regression lock, must stay GREEN ──────────
+    //
+    // A class implementing a core port is an adapter, built once by the
+    // composition root and handed to controllers, participants and handlers as
+    // the port. A controller importing the adapter would bind to VS Code where
+    // the in-memory test kit — and a future core feature — expect the port.
+    describe("ports, not adapters (regression lock — green)", () => {
+        it("only composition and infrastructure import a port adapter", async () => {
+            const graph = await extractGraph(TSCONFIG);
+            const adapters = new Set(
+                productionSourceFiles(graph).filter((file) =>
+                    /\bimplements\s+\w+Port\b/.test(readSource({ path: file } as FileInfo)),
+                ),
+            );
+            const offenders = graph
+                .filter(
+                    (edge) =>
+                        isProductionSource(edge.source) &&
+                        adapters.has(edge.target) &&
+                        !edge.source.startsWith("src/composition/") &&
+                        !edge.source.includes("/infrastructure/"),
+                )
+                .map((edge) => `${edge.source} → ${edge.target}`);
+            expect(adapters.size).toBeGreaterThan(0);
+            expect(
+                [...new Set(offenders)],
+                `take the core port instead of the concrete adapter:\n${offenders.join("\n")}`,
+            ).toEqual([]);
+        });
+    });
+
     // ─── B. No cycles — regression lock, must stay GREEN ─────────────────────
     describe("no cycles (regression lock — green)", () => {
         it("the source tree is free of import cycles", async () => {
@@ -181,18 +212,11 @@ describe("architecture", () => {
     // others are common substrate, so none is subject to isolation. Do NOT relax
     // the rules to make CI green; that defeats the gate.
     describe("feature isolation (regression lock — green)", () => {
-        // `migration` is intentionally absent: after the engine extraction its
-        // only plugin-side file is an `index.ts` barrel.
-        const FEATURE_FOLDERS = [
-            "diff",
-            "deployment",
-            "scriptTask",
-            "codeLink",
-            "navigation",
-            "definitionSearch",
-            "modeler/bpmn",
-            "modeler/dmn",
-        ];
+        // `migration`, `codeLink`, `navigation` and `definitionSearch` are
+        // intentionally absent: after the engine extraction their only
+        // plugin-side file is an `index.ts` barrel. The DMN editor has no
+        // plugin-side code left at all.
+        const FEATURE_FOLDERS = ["diff", "deployment", "scriptTask", "modeler/bpmn"];
 
         for (const sourceFeature of FEATURE_FOLDERS) {
             for (const targetFeature of FEATURE_FOLDERS) {

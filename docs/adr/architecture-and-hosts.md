@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-14
+- Last reviewed: 2026-10-24
 
 ## Context
 
@@ -67,10 +67,34 @@ through ports. It sends private Query/Command messages through
 The protocol can change across all in-repo hosts in one change without becoming
 a public browser API commitment.
 
+Each message class fixes its `type` as a string literal (`Command<"X">`), and
+`libs/shared` derives the discriminated unions `ProtocolQuery`,
+`ProtocolCommand` and `MessageOfType<"X">` from those classes. The router's
+`on(type, handler)` hands each handler the narrowed message, and webview and
+host switches narrow on `type` instead of casting, so a misspelt type or a
+payload mismatch fails to compile. Inbound messages stay untrusted JSON: a
+switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
+handler table finds no entry for them. Code that owns a closed set makes a
+missing type a compile error. A switch ends in `exhaustiveMessageGuard` (the
+deployment dispatcher). A handler table has a mapped type that needs an entry
+for every type (the BPMN webview's session messages in
+`apps/bpmn-webview/src/session/messageRouter.ts`). TypeScript does not check
+the keys a table gets through spreads, so a spec checks that no two spread
+handler groups name the same type. The classes remain the constructors and the
+wire format is unchanged: the same `type` strings and fields, which the
+IntelliJ host matches.
+
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while
 several requests can be in flight carries a request id that the host echoes,
 as `SearchWorkspaceDefinitionsCommand` and `WorkspaceDefinitionsQuery` do.
+Hosts answer an awaited request even when they cannot serve it, with an empty
+or `failed` answer, as the clipboard reads and the definition search do. The
+BPMN and DMN webviews still bound every awaited answer (`HOST_REPLY_TIMEOUT_MS`,
+`createReplyRegistry` in `libs/shared`) because IntelliJ's
+[best-effort frames](#process-lifecycle) can lose a request or its answer, and
+treat a missed deadline as no answer. Only their initial file request waits
+without a bound, since a cold first open can outlast any backstop.
 
 Enforcement lives in the [core architecture tests](../../libs/modeler-core/src/architecture.spec.ts),
 [VS Code architecture tests](../../apps/vscode-plugin/src/architecture.spec.ts),
@@ -85,6 +109,38 @@ Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
 Its host also integrates diff, deployment and scripting; its visual editor does
 not currently provide DMN or Forms parity.
+
+A feature both hosts offer is built once in the core from ports, not wired per
+host. `EditorSessionLifecycle` runs every editor session: it routes webview
+messages in document order, tracks focus, and runs each
+`EditorSessionParticipant` in isolation, so one failing participant cannot skip
+the others or their teardown. Participants see focus, document, setting,
+re-seed and dispose events, never a host panel. The host-free participants
+(element templates, bpmnlint, settings, engine version, deployment status,
+code-link, form-reference status, definition search) and the webview message
+handlers live in the core. `DeploymentFeature` and `MarketplaceCommands` own
+the deployment and marketplace flows. A host supplies adapters and maps its
+own surface (VS Code commands and views, bridge RPC) onto these modules. It
+keeps only what is genuinely host-specific: VS Code's input UI, settings
+writes and reload hint; the bridge's workspace-root registration, acknowledged
+marketplace persistence and rendering on `document/didChange`, because the host
+owns the document revision there. Host classes depend on the core ports, not
+on concrete adapters, so the in-memory test kit fits every one of them; the VS
+Code architecture test lets only the composition root and infrastructure
+import a class that implements a port.
+
+The BPMN, DMN and Form editors synchronize their document through one core
+module, `EditorDocumentSync`: own-write echo suppression, revision-checked
+syncs, and a single, snapshot-checked initialization of an empty file that a
+webview reload or a host edit cannot race. Each modeler service adds only its
+document type (the empty content, BPMN's engine prompt, the query it posts),
+and one `DocumentRenderParticipant` re-renders any of them on a host change.
+On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
+`libs/shared` (host revisions, the serialized import queue, debounced host
+import and outbound sync, the flush protocol); BPMN adds its engine reload and
+deferred actions on top. The Form webview shares the revisions, flush lock and
+serialized import, but keeps posting each change at once instead of
+debouncing: its JSON export is synchronous and cheap.
 
 The BPMN webview ships an `index.js` entry, one `index.css` and lazily loaded
 `chunks/**` that resolve relative to the entry (`base: "./"`), so every host
@@ -242,6 +298,11 @@ a cached result must equal an uncached run.
 
 - Leaving the core or its registries inside the VS Code plugin would couple
   other hosts to plugin internals or force them to duplicate session logic.
+- Wiring each feature per host kept the hosts simple to read but let the copies
+  drift: the bridge stopped re-linting on edits and setting changes, and did not
+  isolate failing session hooks. Feature modules in the core cost a little
+  indirection — a host reads its surface mapping, not the flow — in exchange for
+  one place per fix.
 - A WebSocket relay would add a second reconnect lifecycle and a server to the
   bridge. Stdio uses the browser the JVM already owns and gives one recovery
   boundary. A browser-only host may need a different transport.

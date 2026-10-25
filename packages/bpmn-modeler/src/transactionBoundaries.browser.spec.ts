@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
+import { mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 interface TransactionBoundariesService {
     readonly active: boolean;
@@ -75,21 +76,15 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 const FIXTURE_MARK_COUNT = 6;
 
 const handles: BpmnModeler[] = [];
-const mountedNodes: HTMLElement[] = [];
 
 afterEach(() => {
     handles.forEach((handle) => handle.destroy());
     handles.length = 0;
-    mountedNodes.forEach((node) => node.remove());
-    mountedNodes.length = 0;
+    removeMounts();
 });
 
 async function openModeler(): Promise<BpmnModeler> {
-    const container = document.createElement("div");
-    const panel = document.createElement("div");
-    container.style.cssText = "position:absolute;width:1200px;height:800px";
-    document.body.append(container, panel);
-    mountedNodes.push(container, panel);
+    const { container, panel } = mountWithPanel(1200, 800);
     const handle = await createModeler(container, {
         engine: "c7",
         propertiesPanel: { parent: panel },

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const showQuickPickMock = vi.fn();
+const showWarningMessageMock = vi.fn();
 const asRelativePathMock = vi.fn();
 
 interface FakeQuickPick {
@@ -65,6 +66,7 @@ vi.mock("vscode", () => ({
         showInformationMessage: vi.fn(),
         showErrorMessage: vi.fn(),
         showQuickPick: (...args: unknown[]) => showQuickPickMock(...args),
+        showWarningMessage: (...args: unknown[]) => showWarningMessageMock(...args),
         createQuickPick: () => createQuickPickMock(),
         createOutputChannel: () => ({
             clear: vi.fn(),
@@ -92,6 +94,8 @@ vi.mock("./extensionContext", () => ({
     setContext: vi.fn(),
 }));
 
+import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+
 import { VsCodePicker } from "./VsCodePicker";
 import type { VsCodeWorkspace } from "./VsCodeWorkspace";
 
@@ -101,8 +105,34 @@ function stubWorkspace(findFilesResult: string[] = []): VsCodeWorkspace {
     } as unknown as VsCodeWorkspace;
 }
 
+interface ShownItem {
+    label: string;
+    description?: string;
+}
+
+function acceptQuickPickItemStartingWith(labelPrefix: string): void {
+    showQuickPickMock.mockImplementation(async (items: (ShownItem | string)[]) =>
+        items.find((item) =>
+            (typeof item === "string" ? item : item.label).startsWith(labelPrefix),
+        ),
+    );
+}
+
+function dismissQuickPick(): void {
+    showQuickPickMock.mockResolvedValue(undefined);
+}
+
+function shownItems(): ShownItem[] {
+    return showQuickPickMock.mock.calls[0][0];
+}
+
+function shownPlaceholder(): string {
+    return showQuickPickMock.mock.calls[0][1].placeHolder;
+}
+
 beforeEach(() => {
     showQuickPickMock.mockReset();
+    showWarningMessageMock.mockReset();
     createQuickPickMock.mockClear();
     quickPicks = [];
     pickBehavior = { action: "hide" };
@@ -317,5 +347,204 @@ describe("VsCodePicker.pickWorkspaceFiles", () => {
         expect(items[0].label).toBe("order.form");
         expect(items[0].description).toBe("/repo/src/order.form");
         expect(items[0].filePath).toBe("/repo/src/order.form");
+    });
+});
+
+describe("VsCodePicker cancel conventions", () => {
+    const picker = () => new VsCodePicker(stubWorkspace());
+
+    it("throws UserCancelledError when a required choice is dismissed", async () => {
+        dismissQuickPick();
+
+        await expect(picker().pickNewModelEngine("Engine")).rejects.toBeInstanceOf(
+            UserCancelledError,
+        );
+        await expect(picker().pickMigrationScope(1, 1)).rejects.toBeInstanceOf(UserCancelledError);
+        await expect(picker().pickEngineVersion("c8", ["8.7"])).rejects.toBeInstanceOf(
+            UserCancelledError,
+        );
+    });
+
+    it("resolves to an empty result when an optional choice is dismissed", async () => {
+        dismissQuickPick();
+
+        await expect(picker().pickPayloadFile(["/payloads/order.json"])).resolves.toBeNull();
+        await expect(picker().pickScriptLanguage("groovy")).resolves.toBeUndefined();
+        await expect(picker().pickDeploymentTarget(["dev"])).resolves.toBeUndefined();
+        await expect(
+            picker().pickDeploymentStatusAction({ targetName: "dev", canVerify: true }),
+        ).resolves.toBeUndefined();
+    });
+});
+
+describe("VsCodePicker.pickNewModelEngine", () => {
+    it("returns the id of the chosen engine", async () => {
+        acceptQuickPickItemStartingWith("Engine-neutral");
+
+        await expect(new VsCodePicker(stubWorkspace()).pickNewModelEngine("Engine")).resolves.toBe(
+            "neutral",
+        );
+    });
+});
+
+describe("VsCodePicker.pickMigrationScope", () => {
+    it.each([
+        ["Camunda 7", "c7"],
+        ["Camunda 8", "c8"],
+        ["Both", "both"],
+    ])("maps the %s entry to the %s scope", async (labelPrefix, scope) => {
+        acceptQuickPickItemStartingWith(labelPrefix);
+
+        await expect(new VsCodePicker(stubWorkspace()).pickMigrationScope(1, 2)).resolves.toBe(
+            scope,
+        );
+    });
+
+    it("counts the diagrams per engine in singular and plural", async () => {
+        acceptQuickPickItemStartingWith("Both");
+
+        await new VsCodePicker(stubWorkspace()).pickMigrationScope(1, 0);
+
+        expect(shownItems()).toEqual([
+            "Camunda 7 only (1 diagram)",
+            "Camunda 8 only (0 diagrams)",
+            "Both (1 diagram)",
+        ]);
+    });
+});
+
+describe("VsCodePicker.pickPayloadFile", () => {
+    it("returns the chosen payload's path and file name", async () => {
+        acceptQuickPickItemStartingWith("invoice.json");
+
+        await expect(
+            new VsCodePicker(stubWorkspace()).pickPayloadFile([
+                "/payloads/order.json",
+                "/payloads/invoice.json",
+            ]),
+        ).resolves.toEqual({ filePath: "/payloads/invoice.json", label: "invoice.json" });
+    });
+});
+
+describe("VsCodePicker.pickScriptLanguage", () => {
+    it("offers every supported language with its file extension", async () => {
+        acceptQuickPickItemStartingWith("Python");
+
+        const format = await new VsCodePicker(stubWorkspace()).pickScriptLanguage("");
+
+        expect(format).toBe("python");
+        expect(shownItems()).toEqual([
+            expect.objectContaining({ label: "Javascript", description: ".js" }),
+            expect.objectContaining({ label: "Groovy", description: ".groovy" }),
+            expect.objectContaining({ label: "Python", description: ".py" }),
+            expect.objectContaining({ label: "Ruby", description: ".rb" }),
+        ]);
+    });
+
+    it("pins the diagram's current language first, ignoring case and whitespace", async () => {
+        acceptQuickPickItemStartingWith("Groovy");
+
+        await new VsCodePicker(stubWorkspace()).pickScriptLanguage(" Groovy ");
+
+        expect(shownItems()[0].label).toBe("Groovy");
+    });
+});
+
+describe("VsCodePicker.pickDeploymentTarget", () => {
+    it("offers ad-hoc mode above the saved targets", async () => {
+        acceptQuickPickItemStartingWith("(none");
+
+        const picked = await new VsCodePicker(stubWorkspace()).pickDeploymentTarget([
+            "dev",
+            "prod",
+        ]);
+
+        expect(picked).toBe("");
+        expect(shownItems().map((item) => item.label)).toEqual([
+            "(none — use form values)",
+            "dev",
+            "prod",
+        ]);
+    });
+
+    it("returns the name of a chosen target", async () => {
+        acceptQuickPickItemStartingWith("prod");
+
+        await expect(
+            new VsCodePicker(stubWorkspace()).pickDeploymentTarget(["dev", "prod"]),
+        ).resolves.toBe("prod");
+    });
+});
+
+describe("VsCodePicker.pickDeploymentStatusAction", () => {
+    it("offers verification only for a target that supports it", async () => {
+        acceptQuickPickItemStartingWith("$(cloud)");
+
+        const action = await new VsCodePicker(stubWorkspace()).pickDeploymentStatusAction({
+            targetName: "dev",
+            canVerify: true,
+        });
+
+        expect(action).toBe("verify");
+        expect(shownPlaceholder()).toBe('Deployment target "dev"');
+        expect(shownItems().map((item) => item.label)).toEqual([
+            "$(arrow-swap) Switch deployment target…",
+            "$(cloud) Verify on dev",
+        ]);
+    });
+
+    it("offers only switching when no target is selected", async () => {
+        acceptQuickPickItemStartingWith("$(arrow-swap)");
+
+        const action = await new VsCodePicker(stubWorkspace()).pickDeploymentStatusAction({
+            canVerify: false,
+        });
+
+        expect(action).toBe("switch");
+        expect(shownPlaceholder()).toBe("No deployment target selected");
+        expect(shownItems()).toHaveLength(1);
+    });
+});
+
+describe("VsCodePicker.confirmDestructive", () => {
+    const details = (count: number) =>
+        Array.from({ length: count }, (_, index) => `target-${index + 1}`);
+
+    it("asks in a modal dialog and confirms only with the confirm button", async () => {
+        const picker = new VsCodePicker(stubWorkspace());
+        const options = { title: "Delete target?", confirmLabel: "Delete", details: ["dev"] };
+
+        showWarningMessageMock.mockResolvedValueOnce("Delete");
+        await expect(picker.confirmDestructive(options)).resolves.toBe(true);
+        showWarningMessageMock.mockResolvedValueOnce(undefined);
+        await expect(picker.confirmDestructive(options)).resolves.toBe(false);
+
+        expect(showWarningMessageMock).toHaveBeenCalledWith(
+            "Delete target?",
+            { modal: true, detail: "dev" },
+            "Delete",
+        );
+    });
+
+    it("lists up to twelve details in full", async () => {
+        await new VsCodePicker(stubWorkspace()).confirmDestructive({
+            title: "Remove?",
+            confirmLabel: "Remove",
+            details: details(12),
+        });
+
+        expect(showWarningMessageMock.mock.calls[0][1].detail).toBe(details(12).join("\n"));
+    });
+
+    it("summarises details beyond the twelfth", async () => {
+        await new VsCodePicker(stubWorkspace()).confirmDestructive({
+            title: "Remove?",
+            confirmLabel: "Remove",
+            details: details(14),
+        });
+
+        expect(showWarningMessageMock.mock.calls[0][1].detail).toBe(
+            [...details(12), "…and 2 more"].join("\n"),
+        );
     });
 });

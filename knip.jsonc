@@ -6,7 +6,6 @@
         "preact", // provided via `jsxImportSource: "preact"` in tsconfig.base.json
         "lint-staged", // invoked by .githooks/pre-commit, which knip does not parse
         "@types/vscode-webview", // ambient types for `acquireVsCodeApi`, no import site
-        "@vscode/test-electron", // runtime of the @vscode/test-cli e2e toolchain
         "@bpmn-io/cm-theme", // version pin: @bpmn-io/feelers-editor needs 0.2.2's feelLight/feelDark
         "@bpmn-io/form-js", // copied into the extension package by webpack
         "@bpmn-io/form-json-schema" // copied into the extension package by webpack
@@ -40,11 +39,27 @@
         "packages/bpmn-modeler/scripts/check-dts.d.mts",
         "packages/bpmn-modeler/scripts/check-consumer-types.d.mts",
         "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
-        "scripts/perf/largeBpmnModel.d.mts"
+        "scripts/perf/largeBpmnModel.d.mts",
+        // Miragon docs kit, vendored unchanged from corporate-identity and
+        // hash-checked by `check:kit`; its unused exports are not ours to trim.
+        "docs/.vitepress/miragon/**"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {
+        "docs": {
+            // Mermaid's own imports, pre-bundled by vitepress-plugin-mermaid's
+            // optimizeDeps; they must be resolvable from the docs workspace.
+            "ignoreDependencies": [
+                "@braintree/sanitize-url",
+                "cytoscape",
+                "cytoscape-cose-bilkent",
+                "dayjs",
+                "debug"
+            ]
+        },
         "apps/vscode-plugin": {
+            // The VS Code smoke test runs vsce's bin through `require.resolve`.
+            "ignoreDependencies": ["@vscode/vsce"],
             "entry": [
                 "src/**/index.ts",
                 "test/e2e/.vscode-test.mjs",
@@ -59,18 +74,6 @@
             "ignoreDependencies": ["bpmn-auto-layout"],
             // Wired in by the `lazy-svg-to-image` resolveId plugin, not by an import.
             "entry": ["src/index.ts", "src/lazySvgToImage.ts"]
-        },
-        "apps/demo-webapp": {
-            // dual.ts / diff.ts are reached only via their .html files, which the
-            // vite plugin does not walk (single-mode root), so list them.
-            "entry": [
-                "dmn/main.ts",
-                "bpmn/dual.ts",
-                "bpmn/diff.ts",
-                "bpmn/diffRegressions.ts",
-                "bpmn/viewer.ts",
-                "bpmn/design.ts"
-            ]
         },
         "packages/bpmn-modeler": {
             // `src/bpmnlint/index.ts` is the public `@miragon/bpmn-modeler/lint`
@@ -101,11 +104,6 @@
                 "@lezer/lr",
                 "tiny-svg"
             ]
-        },
-        "libs/properties-panel": {
-            // engineGroupData.upstream.spec reads the installed dist through
-            // createRequire to pin its group prefix, which knip cannot trace.
-            "ignoreDependencies": ["bpmn-js-element-templates"]
         },
         "packages/dmn-modeler": {
             // `src/index.ts` is the public `@miragon/dmn-modeler` entry (in

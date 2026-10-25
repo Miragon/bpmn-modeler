@@ -182,6 +182,18 @@ describe("classifyEntries", () => {
             });
         });
 
+        it("inherits search terms an ancestor gives as a single string", () => {
+            const { templates } = classifyEntries({
+                "append.template-mail": {
+                    label: "Mail",
+                    search: "smtp relay",
+                    entries: { "step-0": { label: "Send", search: ["outbox"], action: noop } },
+                },
+            });
+
+            expect(templates[0].entry.search).toEqual(["smtp relay", "outbox"]);
+        });
+
         it("keeps a step's own description over the inherited one", () => {
             const { templates } = classifyEntries(entries(), [rest, mail] as never);
             const get = templates.find((t) => t.id === "append.template-rest/step-0");

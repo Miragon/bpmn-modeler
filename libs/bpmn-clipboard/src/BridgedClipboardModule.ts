@@ -49,6 +49,14 @@ interface PasteElementsContext {
 
 const CLIP_PREFIX = "bpmn-js-clip----";
 
+function isTextEditingElement(element: Element | null): boolean {
+    return (
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement ||
+        (element as HTMLElement | null)?.isContentEditable === true
+    );
+}
+
 /**
  * Intercepts `copyPaste.elementsCopied` and `copyPaste.pasteElements` at
  * priority 2051 (above NativeCopyPaste's 2050) to route element clipboard
@@ -97,12 +105,19 @@ class BridgedClipboard {
         // race condition where VS Code's handler would otherwise copy the
         // DOM text selection (e.g. a stale line break after Cmd+A).
         const onDocumentCopy = (e: ClipboardEvent): void => {
-            if (pendingClipData) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                e.clipboardData?.setData("text/plain", pendingClipData);
-                pendingClipData = null;
+            const elementsPayload = pendingClipData;
+            pendingClipData = null;
+            // diagram-js copies elements only from a keydown on the focused canvas
+            // and prevents its default, so hosts that don't re-dispatch a copy
+            // leave the payload stale. Focus decides, not e.target: Chromium
+            // targets the copy at the DOM selection, which stays in a field
+            // after a canvas click.
+            if (!elementsPayload || !canvas.isFocused()) {
+                return;
             }
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.clipboardData?.setData("text/plain", elementsPayload);
         };
         document.addEventListener("copy", onDocumentCopy, true);
         eventBus.on("diagram.destroy", () => {
@@ -176,12 +191,7 @@ class BridgedClipboard {
                 if (!document.hasFocus()) {
                     return;
                 }
-                const active = document.activeElement;
-                if (
-                    active instanceof HTMLInputElement ||
-                    active instanceof HTMLTextAreaElement ||
-                    (active as HTMLElement)?.isContentEditable === true
-                ) {
+                if (isTextEditingElement(document.activeElement)) {
                     return;
                 }
                 canvas.focus();

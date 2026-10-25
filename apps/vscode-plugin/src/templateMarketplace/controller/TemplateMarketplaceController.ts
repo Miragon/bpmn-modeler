@@ -4,34 +4,33 @@ import { join } from "node:path";
 import { commands, ExtensionContext, QuickPickItem, window, workspace } from "vscode";
 
 import {
-    BpmnElementTemplatesService,
+    expandHomePath,
+    MarketplaceCommands,
     marketplaceEntryLabel,
     MarketplaceSettingsEntry,
+    MarketplaceTemplates,
+    NotifierPort,
     parseMarketplaceUrl,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
-import { VsCodeSettings } from "../../shared/infrastructure/VsCodeSettings";
+
+type SettingsScope = "user" | "workspace";
+
+/** The notifier plus VS Code's error toast that offers to reload the window. */
+export interface ReloadingNotifier extends NotifierPort {
+    showErrorWithReload(message: string): Promise<void>;
+}
+
+/** Where VS Code keeps the marketplace registrations, per settings scope. */
+export interface MarketplaceRegistrations {
+    getMarketplacesWithScopes(): { entry: MarketplaceSettingsEntry; scopes: SettingsScope[] }[];
+    addMarketplace(location: string, scope: SettingsScope): Promise<void>;
+    removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void>;
+}
 
 export const ADD_MARKETPLACE_CMD = "bpmn-modeler.addMarketplace";
 export const UPDATE_MARKETPLACES_CMD = "bpmn-modeler.updateMarketplaces";
 export const REMOVE_MARKETPLACE_CMD = "bpmn-modeler.removeMarketplace";
-
-/**
- * Expands a leading `~` at the host boundary — a shell convention neither the
- * filesystem APIs nor the host-agnostic core resolve — so the core only ever
- * sees an absolute path. `~user` is left untouched (not portably resolvable) so
- * the parser rejects it.
- */
-export function expandHomePath(input: string): string {
-    if (input === "~") {
-        return homedir();
-    }
-    if (input.startsWith("~/") || input.startsWith("~\\")) {
-        return join(homedir(), input.slice(2));
-    }
-    return input;
-}
 
 /**
  * Renders a marketplace's scope membership for the Remove picker's description,
@@ -48,18 +47,26 @@ function describeScopes(scopes: readonly ("user" | "workspace")[]): string {
 
 /**
  * Host glue for the marketplace commands: owns the `vscode` input box, quick
- * picks, progress, and command registration, delegating all fetch/cache logic to
- * the host-agnostic {@link TemplateMarketplaceService}. After any add, update, or
- * removal it re-pushes templates to open editors so the change (newly cached
- * templates, or pruned ones) appears without reopening.
+ * picks, and command registration, and persists registrations in the VS Code
+ * settings. The flows themselves are the host-agnostic {@link MarketplaceCommands}.
  */
 export class TemplateMarketplaceController {
+    private readonly marketplaces: MarketplaceCommands;
+
     constructor(
-        private readonly marketplaceSvc: TemplateMarketplaceService,
-        private readonly templatesSvc: BpmnElementTemplatesService,
-        private readonly settings: VsCodeSettings,
-        private readonly notifier: VsCodeNotifier,
-    ) {}
+        marketplaceSvc: TemplateMarketplaceService,
+        templates: MarketplaceTemplates,
+        private readonly settings: MarketplaceRegistrations,
+        private readonly notifier: ReloadingNotifier,
+    ) {
+        this.marketplaces = new MarketplaceCommands(
+            marketplaceSvc,
+            templates,
+            notifier,
+            homedir(),
+            (error) => this.explainAddFailure(error),
+        );
+    }
 
     register(context: ExtensionContext): void {
         context.subscriptions.push(
@@ -83,7 +90,7 @@ export class TemplateMarketplaceController {
             // can never drift from what the service resolves.
             validateInput: (value) => {
                 try {
-                    parseMarketplaceUrl(expandHomePath(value.trim()));
+                    parseMarketplaceUrl(expandHomePath(value.trim(), homedir(), join));
                     return undefined;
                 } catch {
                     return (
@@ -104,46 +111,23 @@ export class TemplateMarketplaceController {
             return;
         }
 
-        // Persist the expanded path so a re-fetch via Update (which re-reads
-        // settings) never sees a `~`.
-        const location = expandHomePath(input.trim());
-        try {
-            await this.notifier.withProgress("Adding marketplace…", () =>
-                this.marketplaceSvc.addMarketplace(location),
-            );
-            await this.settings.addMarketplace(location, scope);
-            this.notifier.logDebug(`Marketplace registration persisted to settings: ${location}`);
-            await this.templatesSvc.reloadMarketplaceTemplates();
-            this.notifier.showInfo("Marketplace added.");
-        } catch (error) {
-            await this.handleAddFailure(error as Error);
-        }
+        await this.marketplaces.add(input, (location) =>
+            this.settings.addMarketplace(location, scope),
+        );
     }
 
     /**
-     * The fetch caches templates *before* the settings write, so a failed
-     * persist leaves an orphaned cache entry — prune it first so a failed add
-     * leaves no residue. Then, when the write failed because the `marketplaces`
-     * key is not yet in the window's configuration registry (an in-place update
-     * from ≤1.3.x whose window hasn't reloaded), steer the user to the one fix
-     * that works — a window reload — instead of the generic failure toast.
+     * A `marketplaces` key added by an in-place update from ≤1.3.x only enters
+     * the window's configuration registry on reload; until then the settings
+     * write fails, and a reload is the one fix that works.
      */
-    private async handleAddFailure(error: Error): Promise<void> {
-        try {
-            await this.marketplaceSvc.pruneOrphanedCaches();
-        } catch (pruneError) {
-            // A prune failure must not mask the original add failure below.
-            this.notifier.logError(pruneError as Error);
-        }
-
-        if ((error.message ?? "").includes("not a registered configuration")) {
-            await this.notifier.showErrorWithReload(
-                "The BPMN Modeler extension was just updated. Reload the window to " +
-                    "finish enabling marketplaces, then add it again.",
-            );
-            return;
-        }
-        this.notifier.notifyError("Failed to add marketplace.", error);
+    private async explainAddFailure(error: Error): Promise<boolean> {
+        if (!(error.message ?? "").includes("not a registered configuration")) return false;
+        await this.notifier.showErrorWithReload(
+            "The BPMN Modeler extension was just updated. Reload the window to " +
+                "finish enabling marketplaces, then add it again.",
+        );
+        return true;
     }
 
     /**
@@ -174,41 +158,14 @@ export class TemplateMarketplaceController {
         return picked?.scope;
     }
 
-    /**
-     * {@link TemplateMarketplaceService.updateAll} swallows per-marketplace
-     * errors itself, so this never blocks even fully offline. Its outcome is
-     * folded into one summary toast — success count on the happy path, an error
-     * toast listing each failed marketplace and why on partial failure.
-     */
     private async updateMarketplaces(): Promise<void> {
-        const outcome = await this.notifier.withProgress("Updating marketplaces…", () =>
-            this.marketplaceSvc.updateAll(),
-        );
-        await this.templatesSvc.reloadMarketplaceTemplates();
-
-        const total = outcome.succeeded + outcome.failures.length;
-        if (total === 0) {
-            this.notifier.showInfo("No marketplaces configured to update.");
-            return;
-        }
-        if (outcome.failures.length === 0) {
-            this.notifier.showInfo(`Updated ${outcome.succeeded} marketplace(s).`);
-            return;
-        }
-        const details = outcome.failures.map((f) => `${f.label}: ${f.reason}`).join("\n");
-        this.notifier.showError(
-            `Updated ${outcome.succeeded} of ${total} marketplaces. Failed:\n${details}`,
-        );
+        await this.marketplaces.update();
     }
 
     /**
      * Unregisters one or more marketplaces via a multi-select quick pick. The
      * pick's OK is the confirmation (re-adding is cheap), so there is no extra
-     * dialog. Cache eviction goes through the prune-only
-     * {@link TemplateMarketplaceService.pruneOrphanedCaches} — never `updateAll`,
-     * which would re-fetch every survivor over the network. The toast reports the
-     * **selection** count, not the prune count: a removed entry may have had no
-     * cache slot, and a remaining malformed entry suppresses pruning for the run.
+     * dialog.
      */
     private async removeMarketplace(): Promise<void> {
         this.notifier.logInfo("Remove Marketplace command invoked");
@@ -236,15 +193,8 @@ export class TemplateMarketplaceController {
             return;
         }
 
-        try {
-            await this.settings.removeMarketplaces(picked.map((item) => item.entry));
-            // Local-only and fast — no progress indicator needed, unlike a fetch.
-            const pruned = await this.marketplaceSvc.pruneOrphanedCaches();
-            this.notifier.logDebug(`Pruned marketplace cache(s): ${pruned.join(", ") || "none"}`);
-            await this.templatesSvc.reloadMarketplaceTemplates();
-            this.notifier.showInfo(`Removed ${picked.length} marketplace(s).`);
-        } catch (error) {
-            this.notifier.notifyError("Failed to remove marketplace(s).", error as Error);
-        }
+        await this.marketplaces.remove(picked.length, () =>
+            this.settings.removeMarketplaces(picked.map((item) => item.entry)),
+        );
     }
 }

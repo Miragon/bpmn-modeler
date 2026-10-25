@@ -1,6 +1,6 @@
 ---
 name: vscode-webviews
-description: VS Code webview internals — HTML serving, CSP, postMessage protocol, state persistence, theming. Use when working on webview HTML, postMessage, CSP, theme handling, vscode.getState/setState, acquireVsCodeApi, webview.asWebviewUri, retainContextWhenHidden, nonce generation, content security policy, or the Query/Command message protocol between extension host and webview.
+description: VS Code webview internals — HTML serving, CSP and nonces, the Query/Command postMessage protocol, state persistence and theming. Use when changing webview HTML, messaging or getState/setState.
 ---
 
 # VS Code Webviews
@@ -108,12 +108,14 @@ host.postMessage(command);
 
 ### Receiving Messages
 
-**Host receives Commands** — the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The generic `ModelerEditorController` forwards every message into the router; handlers are small factories registered in `composition/editorFeature.ts`:
+**Host receives Commands** — the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`, registered in `composition/editorFeature.ts`:
 ```typescript
-// handler factory (modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts)
-export function syncDocumentHandler(bpmnService: BpmnModelerService): MessageHandler {
-  return async (message, editorId) =>
-    bpmnService.sync(editorId, (message as SyncDocumentCommand).content);
+// handler factory (libs/modeler-core/src/shared/infrastructure/documentMessageHandlers.ts),
+// shared by the BPMN, DMN and Form editors
+export function syncDocumentHandler(service: ModelerDocumentService): MessageHandler<SyncDocumentCommand> {
+  return async (sync, editorId) => {
+    await service.sync(editorId, sync.content, sync.documentRevision);
+  };
 }
 
 // wiring (composition/editorFeature.ts)
@@ -122,25 +124,23 @@ const router = new WebviewMessageRouter()
   .on('GetClipboardCommand', getClipboardHandler(clipboardMediator))
   .on('SetClipboardCommand', setClipboardHandler(clipboardMediator));
 
-// dispatch (ModelerEditorController) — bracketed by received/processed log lines
+// dispatch (EditorSessionLifecycle) — bracketed by received/processed log lines
 editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(message, id));
 ```
 Adding a webview command is "register one more handler" — no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order.
 
-**Webview receives Queries** (in main.ts):
+**Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript
-window.addEventListener('message', (event) => {
-  const message = event.data;
-  switch (message.type) {
-    case 'BpmnFileQuery':
-      openXml(message.content);
-      break;
-    case 'ClipboardQuery':
-      clipboardResolver.done(message.data as ClipboardQuery);
-      break;
-    // ...
-  }
-});
+const inbound = asProtocolMessage(message);
+switch (inbound.type) {
+  case 'DmnFileQuery':
+    await session.receiveHostFile(inbound);
+    break;
+  case 'PropertiesPanelStateQuery':
+    replies.panelState.done(inbound);
+    break;
+  // ...
+}
 ```
 
 ### Request-Response Pattern
@@ -148,21 +148,23 @@ window.addEventListener('message', (event) => {
 Some operations need a response (e.g., clipboard read). The webview sends a Command and waits for a Query response using the `createResolver` utility from `@miragon/bpmn-modeler-shared`:
 
 ```typescript
-// Webview side (main.ts) — sends request, awaits response via resolver
+// Webview side (simplified from apps/bpmn-webview/src/session/protocolClipboard.ts)
 let clipboardResolver = createResolver<ClipboardQuery>();
 
 const requestClipboard = async (): Promise<string> => {
   clipboardResolver = createResolver<ClipboardQuery>();
   vscode.postMessage(new GetClipboardCommand());
-  const q = await clipboardResolver.wait();
+  const q = await clipboardResolver.wait(HOST_REPLY_TIMEOUT_MS);
   return q?.text ?? "";
 };
 
-// When the host responds with a ClipboardQuery, resolve the promise:
-// clipboardResolver.done(message.data as ClipboardQuery);
+// The router hands the ClipboardQuery reply to its handler, which resolves the promise:
+// ClipboardQuery: (reply) => clipboardResolver.done(reply)
 ```
 
-The extension host handles `GetClipboardCommand` by reading the system clipboard via `vscode.env.clipboard.readText()`, then posts a `ClipboardQuery` back to the webview with the text.
+The extension host handles `GetClipboardCommand` by reading the system clipboard via `vscode.env.clipboard.readText()`, then posts a `ClipboardQuery` back to the webview with the text — with empty text when the read fails, so every request is answered.
+
+Bound every awaited host reply, because a reply can still be lost (e.g. IntelliJ drops best-effort frames while the bridge respawns): `wait(HOST_REPLY_TIMEOUT_MS)` for a single-slot reply, or `createReplyRegistry` (both in `libs/shared/src/lib/utils.ts`) when several requests are in flight and each reply carries a `requestId` (workspace definition search). An unanswered request then settles as `undefined`. The initial file requests (`BpmnDocumentSession.waitForInitialHostFile` in `apps/bpmn-webview/src/session/documentSession.ts`, `DmnDocumentSession.openInitialDocument`) deliberately wait indefinitely, since a cold first open can take longer than any backstop.
 
 ## State Persistence
 
@@ -203,12 +205,12 @@ IntelliJ, or a plain browser. Two implementations back it:
 - **`HostApiImpl`** — wraps the real `acquireVsCodeApi()` singleton for
   production use inside VS Code.
 - **`MockHostApi`** — abstract base for development mocks. The bpmn-webview
-  defines `MockHost` (in `apps/bpmn-webview/src/app/host.ts`) which extends
+  defines `MockHost` (in `apps/bpmn-webview/src/host.ts`) which extends
   `MockHostApi` and dispatches synthetic responses so the webview can run
   standalone in a browser via `vite serve`.
 
 ```typescript
-// apps/bpmn-webview/src/app/host.ts
+// apps/bpmn-webview/src/host.ts
 export function getHostApi(): HostApi<StateType, MessageType> {
   if (process.env.NODE_ENV === "development") {
     return new MockHost();               // standalone browser
@@ -220,8 +222,9 @@ export function getHostApi(): HostApi<StateType, MessageType> {
 The API surface (the wrapped handle is conventionally named `host`):
 ```typescript
 host.postMessage(message);       // Send to host
-host.getState();                 // Read persisted state
-host.setState(state);            // Write persisted state
+host.getState();                 // Read persisted state; undefined until the first write
+host.setState(state);            // Replace persisted state
+host.updateState(partial);       // Merge into persisted state, seeding it when empty
 ```
 
 ## Theme Handling
@@ -248,7 +251,9 @@ folded into the main `index.css` bundle, so there is no `#theme-link`. The share
 `libs/shared/src/lib/hostTheme.ts` adapter resolves the IDE kind from the body
 classes (`vscode-dark` / `vscode-high-contrast`, watched by a `MutationObserver`)
 and drives two sinks: the page-level scope on `<html>` (host chrome + surfaces
-with no live instance) and the modeler instance's `setTheme`. The scope attribute
+with no live instance) and the modeler instance's `setTheme` (BPMN: through
+`apps/bpmn-webview/src/session/modeController.ts`, so a mode switch builds the
+next surface in the current theme). The scope attribute
 name is passed in per package (`applyPageThemeScope("data-dmn-theme", kind)`), so
 each package's CSS stays self-contained. The package still mirrors the resolved
 kind onto a legacy `#theme-link` when a consumer links one (a silent no-op
@@ -281,5 +286,5 @@ See `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`.
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`
 - **Host API interface + implementations** (`HostApi`/`HostApiImpl`/`MockHostApi`): `libs/shared/src/lib/host.ts`
-- **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/app/host.ts`
-- **Resolver utility**: `libs/shared/src/lib/utils.ts` (`createResolver`)
+- **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/host.ts`
+- **Resolver utilities**: `libs/shared/src/lib/utils.ts` (`createResolver`, `createReplyRegistry`, `HOST_REPLY_TIMEOUT_MS`)

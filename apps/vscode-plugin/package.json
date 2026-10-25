@@ -5,7 +5,9 @@
         "dev": "webpack --mode development --watch",
         "test": "vitest run --coverage",
         "compile:e2e": "tsc -p test/e2e/tsconfig.json",
-        "test:e2e": "tsc -p test/e2e/tsconfig.json && vscode-test --config test/e2e/.vscode-test.mjs"
+        "test:e2e": "tsc -p test/e2e/tsconfig.json && vscode-test --config test/e2e/.vscode-test.mjs",
+        "test:vscode": "tsc -p test/smoke/tsconfig.json && vitest run --config vitest.smoke.config.ts",
+        "test:vscode:docker": "node test/smoke/run-in-container.mjs"
     },
     "dependencies": {
         "@miragon/bpmn-modeler-core": "workspace:*",
@@ -24,14 +26,17 @@
         "@vitest/coverage-v8": "5.0.5",
         "@vscode/test-cli": "0.0.15",
         "@vscode/test-electron": "3.1.0",
+        "@vscode/vsce": "4.0.0",
         "archunit": "2.5.4",
+        "bpmn-moddle": "10.3.1",
         "copy-webpack-plugin": "14.0.0",
+        "playwright-core": "1.64.1",
         "ts-loader": "9.6.2",
         "tsconfig-paths-webpack-plugin": "4.2.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.3.4",
         "vitest": "5.0.5",
-        "webpack": "5.111.1",
+        "webpack": "5.112.0",
         "webpack-cli": "7.2.3"
     },
     "displayName": "BPMN Modeler",

@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { createViewer } from "./createViewer";
 import type { BpmnViewer } from "./viewer";
+import { START_EVENT_XML } from "../__fixtures__/bpmnXml";
+import { mountCanvas, removeMounts } from "../__fixtures__/surfaceMount";
 
 /**
  * The viewer's rendered round trip — load, select, export XML/SVG. Render-
@@ -11,43 +14,18 @@ import type { BpmnViewer } from "./viewer";
  * which covers view-state restore, a different concern.
  */
 
-const XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true">
-    <bpmn:startEvent id="StartEvent_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
-        <dc:Bounds x="173" y="102" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
-
 let viewer: BpmnViewer | undefined;
-const nodes: HTMLElement[] = [];
-
-function mount(): HTMLElement {
-    const container = document.createElement("div");
-    container.style.cssText = "position:absolute;width:800px;height:600px";
-    document.body.appendChild(container);
-    nodes.push(container);
-    return container;
-}
-
 afterEach(() => {
     viewer?.destroy();
     viewer = undefined;
-    nodes.forEach((node) => node.remove());
-    nodes.length = 0;
+    removeMounts();
 });
 
 describe("createViewer (rendered round trip)", () => {
     it("loads a diagram, selects an element, and round-trips XML/SVG", async () => {
-        viewer = await createViewer(mount());
+        viewer = await createViewer(mountCanvas());
 
-        const result = await viewer.loadDiagram(XML);
+        const result = await viewer.loadDiagram(START_EVENT_XML);
         expect(result.warnings).toEqual([]);
 
         const changes: string[][] = [];
@@ -58,5 +36,27 @@ describe("createViewer (rendered round trip)", () => {
 
         expect(await viewer.exportDiagram()).toContain("StartEvent_1");
         expect(await viewer.getDiagramSvg()).toContain("<svg");
+    });
+
+    it("rejects an export before any import with bpmn-js's own error", async () => {
+        viewer = await createViewer(mountCanvas());
+
+        await expect(viewer.exportDiagram()).rejects.toThrow("no definitions loaded");
+    });
+
+    it("rejects an unparsable import with the parser warnings as the cause", async () => {
+        viewer = await createViewer(mountCanvas());
+
+        const rejection = await viewer.loadDiagram("<not-bpmn/>").catch((error: unknown) => error);
+
+        expect(rejection).toBeInstanceOf(Error);
+        expect((rejection as Error).cause).toHaveProperty("warnings", expect.any(Array));
+    });
+
+    it("rejects a load on a destroyed viewer with NoModelerError", async () => {
+        viewer = await createViewer(mountCanvas());
+        viewer.destroy();
+
+        await expect(viewer.loadDiagram(START_EVENT_XML)).rejects.toBeInstanceOf(NoModelerError);
     });
 });

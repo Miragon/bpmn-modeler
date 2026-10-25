@@ -51,6 +51,10 @@ corepack yarn test libs/modeler-core/src/shared/domain/BpmnDocument.spec.ts
 
 # One workspace with its coverage gate (what its CI test leg runs)
 corepack yarn workspace @miragon/bpmn-modeler-core test
+
+# The packaged extension in a real VS Code, in a Podman/Docker container (no
+# window, no focus stealing; installs and builds inside). Not part of `test`.
+corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 ```
 
 For the full IntelliJ dev/verify loop (prerequisites, sandbox behaviour, and how

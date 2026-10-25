@@ -16,3 +16,19 @@ export function expandUrlTemplate(
         encodeURIComponent(values.processDefinitionKey),
     );
 }
+
+export function hostOf(url: string): string | undefined {
+    try {
+        return new URL(url).host || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * Host[:port] for breadcrumbs — never the path, query, or userinfo. `URL.host`
+ * excludes any `user:pass@` prefix, so a credentialled URL can't leak into logs.
+ */
+export function loggableHost(url: string): string {
+    return hostOf(url) ?? "unknown-host";
+}

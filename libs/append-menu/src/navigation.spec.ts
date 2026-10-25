@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    indexInColumn,
     initialHighlight,
     moveHorizontal,
     moveVertical,
@@ -47,6 +48,16 @@ describe("initialHighlight", () => {
     it("returns null when nothing is navigable", () => {
         expect(initialHighlight(cols(col(true), col(true)))).toBeNull();
         expect(initialHighlight(cols(col(), col()))).toBeNull();
+    });
+});
+
+describe("indexInColumn", () => {
+    it("projects a highlight onto its own column only", () => {
+        const highlight = { column: "palette" as const, index: 2 };
+
+        expect(indexInColumn(highlight, "palette")).toBe(2);
+        expect(indexInColumn(highlight, "templates")).toBe(-1);
+        expect(indexInColumn(null, "palette")).toBe(-1);
     });
 });
 

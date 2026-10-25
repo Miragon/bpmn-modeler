@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { hostNotification, settle } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -28,19 +29,10 @@ const TWO_TASKS = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
-/** Spins past pending microtasks/timers so the service's async dispatch settles. */
-async function settle(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 function setup(): { rpc: Rpc; frames: any[] } {
     const frames: any[] = [];
     const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
     return { rpc, frames };
-}
-
-function line(method: string, params: unknown): string {
-    return JSON.stringify({ method, params });
 }
 
 /** All `diff/postMessage` frames sent to a given pane, in order. */
@@ -57,7 +49,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
     /** Opens a compare-files diff and walks both panes to ready. */
     async function openAndReady(rpc: Rpc, frames: any[]): Promise<void> {
         await rpc.handleLine(
-            line("diff/open", {
+            hostNotification("diff/open", {
                 diffId: "d1",
                 origin: "compare-files",
                 before: { uri: BEFORE, content: ONE_TASK },
@@ -66,7 +58,10 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         );
         for (const paneUri of [BEFORE, AFTER]) {
             await rpc.handleLine(
-                line("diff/webviewMessage", { paneUri, message: { type: "GetBpmnFileCommand" } }),
+                hostNotification("diff/webviewMessage", {
+                    paneUri,
+                    message: { type: "GetBpmnFileCommand" },
+                }),
             );
         }
         await vi.waitFor(
@@ -78,7 +73,10 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         );
         for (const paneUri of [BEFORE, AFTER]) {
             await rpc.handleLine(
-                line("diff/webviewMessage", { paneUri, message: { type: "DiffReadyCommand" } }),
+                hostNotification("diff/webviewMessage", {
+                    paneUri,
+                    message: { type: "DiffReadyCommand" },
+                }),
             );
         }
         await vi.waitFor(
@@ -125,7 +123,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         const baseline = frames.length;
 
         await rpc.handleLine(
-            line("diff/webviewMessage", {
+            hostNotification("diff/webviewMessage", {
                 paneUri: BEFORE,
                 message: {
                     type: "ViewportChangedCommand",
@@ -134,7 +132,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
             }),
         );
         await rpc.handleLine(
-            line("diff/webviewMessage", {
+            hostNotification("diff/webviewMessage", {
                 paneUri: BEFORE,
                 message: { type: "CursorChangedCommand", index: 5 },
             }),
@@ -157,11 +155,11 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         const { rpc, frames } = setup();
         await openAndReady(rpc, frames);
 
-        await rpc.handleLine(line("diff/dispose", { diffId: "d1" }));
+        await rpc.handleLine(hostNotification("diff/dispose", { diffId: "d1" }));
         const baseline = frames.length;
 
         await rpc.handleLine(
-            line("diff/webviewMessage", {
+            hostNotification("diff/webviewMessage", {
                 paneUri: BEFORE,
                 message: { type: "GetBpmnFileCommand" },
             }),
@@ -176,7 +174,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         // Same underlying file, but the host scopes each pane URI with the diff id,
         // so the two diffs never share a routing key.
         await rpc.handleLine(
-            line("diff/open", {
+            hostNotification("diff/open", {
                 diffId: "dA",
                 origin: "compare-files",
                 before: { uri: "file:///x.bpmn#dA-before", content: ONE_TASK },
@@ -184,7 +182,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
             }),
         );
         await rpc.handleLine(
-            line("diff/open", {
+            hostNotification("diff/open", {
                 diffId: "dB",
                 origin: "compare-files",
                 before: { uri: "file:///x.bpmn#dB-before", content: TWO_TASKS },
@@ -192,7 +190,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
             }),
         );
         await rpc.handleLine(
-            line("diff/webviewMessage", {
+            hostNotification("diff/webviewMessage", {
                 paneUri: "file:///x.bpmn#dB-before",
                 message: { type: "GetBpmnFileCommand" },
             }),

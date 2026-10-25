@@ -1,0 +1,16 @@
+{
+  "components": [
+    {
+      "label": "Customer name",
+      "type": "textfield",
+      "layout": { "row": "Row_Name", "columns": null },
+      "id": "Field_Name",
+      "key": "customerName"
+    }
+  ],
+  "type": "default",
+  "id": "Form_Smoke",
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.8.0",
+  "schemaVersion": 18
+}

@@ -34,6 +34,7 @@ export { extractModelDefinitions } from "../extractModelDefinitions";
 export { detectEngine } from "../detectEngine";
 export type { DetectedEngine } from "../detectEngine";
 
+export type { BpmnSurfaceHandle } from "../surfaceHandle";
 export type { ViewportManager } from "../viewport";
 export type { ViewportData } from "../viewport";
 export type { SelectionManager } from "../selection";

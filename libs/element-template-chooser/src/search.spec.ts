@@ -1,20 +1,8 @@
 import { describe, it, expect } from "vitest";
+
+import { template } from "./__fixtures__/templates";
 import { TemplateSearchIndex } from "./search";
 import type { ElementTemplate } from "./types";
-
-/**
- * Minimal template factory: fills the required `appliesTo`/`properties` fields
- * so each fixture can focus on the searchable text under test.
- */
-function template(
-    partial: Partial<ElementTemplate> & Pick<ElementTemplate, "id" | "name">,
-): ElementTemplate {
-    return {
-        appliesTo: ["bpmn:ServiceTask"],
-        properties: [],
-        ...partial,
-    };
-}
 
 // The issue's repro template: "resources" is edit-distance 1 from "Resourcen".
 const repro = template({

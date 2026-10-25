@@ -6,7 +6,8 @@ user clicks **Append element** on the context pad (or presses **A**) or
 Preact overlay**. The left panel is a searchable, category-filterable list of
 **element templates** with hover-to-expand detail cards (implementation
 binding, property preview); the right panel is a category-grouped palette of
-standard **BPMN elements** with optional pinned favourites.
+standard **BPMN elements** with optional pinned favourites and a description
+card for the hovered or keyboard-highlighted element.
 
 ## How it works
 

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+    expandHomePath,
     InvalidMarketplaceError,
     marketplaceEntryLabel,
     parseMarketplace,
@@ -302,6 +303,38 @@ describe("parseMarketplaceUrl (local)", () => {
         // not parse as the repo `~/templates`.
         expect(() => parseMarketplaceUrl("~/templates")).toThrow(InvalidMarketplaceError);
         expect(() => parseMarketplaceUrl("~")).toThrow(InvalidMarketplaceError);
+    });
+});
+
+describe("expandHomePath", () => {
+    const HOME = "/home/me";
+
+    it("expands a bare ~ to the home directory", () => {
+        expect(expandHomePath("~", HOME)).toBe(HOME);
+    });
+
+    it("joins a ~/ or ~\\ path onto the home directory with / by default", () => {
+        expect(expandHomePath("~/templates", HOME)).toBe("/home/me/templates");
+        expect(expandHomePath("~\\templates", HOME)).toBe("/home/me/templates");
+    });
+
+    it("joins with the host's path join when one is given", () => {
+        const windowsJoin = (base: string, rest: string) => `${base}\\${rest}`;
+
+        expect(expandHomePath("~/templates", "C:\\Users\\me", windowsJoin)).toBe(
+            "C:\\Users\\me\\templates",
+        );
+    });
+
+    it("leaves ~user and paths without a leading ~ untouched", () => {
+        const joinPath = vi.fn();
+
+        expect(expandHomePath("~bob/x", HOME, joinPath)).toBe("~bob/x");
+        expect(expandHomePath("/abs/path", HOME, joinPath)).toBe("/abs/path");
+        expect(expandHomePath("https://github.com/a/b", HOME, joinPath)).toBe(
+            "https://github.com/a/b",
+        );
+        expect(joinPath).not.toHaveBeenCalled();
     });
 });
 

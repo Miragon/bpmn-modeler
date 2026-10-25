@@ -63,34 +63,6 @@ export class VsCodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Walks upward from `startDir` for a directory containing a `.git` entry.
-     * Returns `undefined` at the filesystem root or when a directory cannot be
-     * read.
-     */
-    async findGitRoot(startDir: string): Promise<string | undefined> {
-        let current = startDir;
-
-        while (true) {
-            try {
-                const entries = await this.readDirectory(current);
-                if (entries.some(([name]) => name === ".git")) {
-                    return current;
-                }
-            } catch {
-                // Cannot read directory — stop walking.
-                return undefined;
-            }
-
-            const parent = posix.dirname(current);
-            // Filesystem root reached — dirname is a fixed point here.
-            if (parent === current) {
-                return undefined;
-            }
-            current = parent;
-        }
-    }
-
-    /**
      * Lists the direct children of a directory as `[name, type]` tuples;
      * symbolic links and other non-file/directory entries are excluded.
      */
@@ -124,6 +96,18 @@ export class VsCodeWorkspace implements WorkspacePort {
         } catch (error) {
             if (error instanceof FileSystemError && error.code === "FileNotFound") {
                 throw new FileNotFound(path);
+            }
+            throw error;
+        }
+    }
+
+    async isSymbolicLink(path: string): Promise<boolean> {
+        try {
+            const stat = await fs.stat(toUri(path));
+            return (stat.type & FileType.SymbolicLink) !== 0;
+        } catch (error) {
+            if (error instanceof FileSystemError && error.code === "FileNotFound") {
+                return false;
             }
             throw error;
         }

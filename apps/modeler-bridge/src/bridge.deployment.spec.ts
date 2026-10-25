@@ -23,6 +23,7 @@ describe("deployment commands over the bridge", () => {
         await fs.writeFile(join(root, "order.bpmn"), "<process/>");
         const frames: { method: string; params: unknown; id?: number }[] = [];
         let pick: (params: PickerShowParams) => number[] | null = () => [0];
+        let confirm = () => true;
         const deps = buildSharedDeps(
             (line) => {
                 const frame: (typeof frames)[number] = JSON.parse(line);
@@ -31,9 +32,11 @@ describe("deployment commands over the bridge", () => {
                     const result =
                         frame.method === METHODS.pickerShow
                             ? { selected: pick(frame.params as PickerShowParams) }
-                            : frame.method === METHODS.secretStoreGetBasicAuth
-                              ? { username: "test", password: "test" }
-                              : null;
+                            : frame.method === METHODS.confirmShow
+                              ? { confirmed: confirm() }
+                              : frame.method === METHODS.secretStoreGetBasicAuth
+                                ? { username: "test", password: "test" }
+                                : null;
                     void deps.rpc.handleLine(JSON.stringify({ id: frame.id, result }));
                 }
             },
@@ -80,6 +83,9 @@ describe("deployment commands over the bridge", () => {
             setPicker: (fn: typeof pick) => {
                 pick = fn;
             },
+            setConfirm: (fn: typeof confirm) => {
+                confirm = fn;
+            },
         };
     }
 
@@ -96,6 +102,34 @@ describe("deployment commands over the bridge", () => {
             c.frames.some((frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision),
         ).toBe(true);
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    it("asks before sending a target's credentials to a host not approved for them, and remembers the answer", async () => {
+        const c = await setup();
+        await c.seed("dev");
+        await c.command(METHODS.deploymentDeployFiles);
+
+        const confirmation = c.frames.find((frame) => frame.method === METHODS.confirmShow)!;
+        expect((confirmation.params as { title: string }).title).toContain("https://root.test");
+        expect(
+            c.frames.find((frame) => frame.method === METHODS.secretStoreSaveApprovedDestinations)
+                ?.params,
+        ).toEqual({
+            slot: `${c.root}/.camunda/deployment-targets.json::dev`,
+            origins: ["https://root.test"],
+        });
+    });
+
+    it("sends nothing when the user declines a host not approved for the credentials", async () => {
+        const c = await setup();
+        c.setConfirm(() => false);
+        await c.seed("dev");
+        await c.command(METHODS.deploymentDeployFiles);
+
+        expect(c.post).not.toHaveBeenCalled();
+        expect(
+            c.frames.some((frame) => frame.method === METHODS.secretStoreSaveApprovedDestinations),
+        ).toBe(false);
     });
 
     it("uses the focused diagram's nearest target and secret slot while preserving session roots", async () => {

@@ -134,6 +134,8 @@ describe("RPC protocol descriptor", () => {
                     "  secretStore/getBasicAuth",
                     "  secretStore/saveOAuth2",
                     "  secretStore/getOAuth2",
+                    "  secretStore/getApprovedDestinations",
+                    "  secretStore/saveApprovedDestinations",
                     "  secretStore/delete",
                     "  deploymentState/saveAuthType",
                     "  deploymentState/saveOAuth2Config",

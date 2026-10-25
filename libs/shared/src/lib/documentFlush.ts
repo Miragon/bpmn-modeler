@@ -1,8 +1,4 @@
-import {
-    DocumentFlushedCommand,
-    FlushDocumentQuery,
-    ReleaseDocumentFlushQuery,
-} from "./messages";
+import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery } from "./messages";
 
 /**
  * The webview-side capabilities the flush responder drives, named in domain
@@ -11,9 +7,9 @@ import {
  * unit-testable from the `shared` vitest project independently of either webview.
  */
 export interface FlushSource {
-    /** Whether the modeler has finished bootstrapping (`modelerIsInitialized`). */
+    /** Whether the modeler has finished bootstrapping. */
     isReady(): boolean;
-    /** Whether a debounced sync is scheduled or in flight (`debouncedSend.pending()`). */
+    /** Whether a debounced sync is scheduled or in flight. */
     hasPendingSync(): boolean;
     /** Whether host-authoritative content is waiting to finish importing. */
     hasPendingHostUpdate(): boolean;
@@ -60,12 +56,11 @@ export function createFlushResponder(
         source.endDestructiveFlush();
     };
 
-    return async (query: FlushDocumentQuery | ReleaseDocumentFlushQuery): Promise<void> => {
-        if (query.type === "ReleaseDocumentFlushQuery") {
-            release(query.token);
+    return async (flush: FlushDocumentQuery | ReleaseDocumentFlushQuery): Promise<void> => {
+        if (flush.type === "ReleaseDocumentFlushQuery") {
+            release(flush.token);
             return;
         }
-        const flush = query as FlushDocumentQuery;
         if (!source.isReady()) {
             post(new DocumentFlushedCommand(flush.token, undefined, "unavailable"));
             return;

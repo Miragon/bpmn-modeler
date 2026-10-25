@@ -39,7 +39,7 @@ export const FORM_TEMPLATE = `
                 <div class="form-group">
                     <label for="endpoint">REST Endpoint</label>
                     <input id="endpoint" type="text" placeholder="http://localhost:8080/engine-rest" />
-                    <div class="hint">Should point to a running Camunda REST API.</div>
+                    <div class="hint">Should point to a running Camunda REST API. Fields accept <code>\${env:MIRAGON_NAME}</code>, resolved at deploy time from the project <code>.env</code>.</div>
                 </div>
                 <div class="form-group">
                     <label for="engine">Engine</label>
@@ -73,6 +73,7 @@ export const FORM_TEMPLATE = `
                     </div>
                 </div>
                 <div id="basic-auth-fields" class="auth-fields">
+                    <div class="hint">Accepts <code>\${env:MIRAGON_NAME}</code>, resolved at deploy time from the project <code>.env</code>. When saved as a named target, a field that is exactly one reference is also written to <code>deployment-targets.json</code> (shareable).</div>
                     <div class="form-group">
                         <label for="auth-username">Username</label>
                         <input id="auth-username" type="text" placeholder="Username" />
@@ -91,6 +92,7 @@ export const FORM_TEMPLATE = `
                     </div>
                 </div>
                 <div id="oauth2-auth-fields" class="auth-fields">
+                    <div class="hint">Accepts <code>\${env:MIRAGON_NAME}</code>, resolved at deploy time from the project <code>.env</code>. When saved as a named target, a field that is exactly one reference is also written to <code>deployment-targets.json</code> (shareable).</div>
                     <div class="form-group">
                         <label for="auth-client-id">Client ID</label>
                         <input id="auth-client-id" type="text" placeholder="Client ID" />
@@ -131,12 +133,12 @@ export const FORM_TEMPLATE = `
                 <div class="form-group">
                     <label for="deploy-url">Deploy URL override</label>
                     <input id="deploy-url" type="text" />
-                    <div class="hint">Full URL for the deploy call. Leave blank to use the convention path.</div>
+                    <div class="hint">Full URL for the deploy call. Leave blank to use the convention path. Accepts <code>\${env:MIRAGON_NAME}</code>.</div>
                 </div>
                 <div class="form-group">
                     <label for="start-instance-url">Start-instance URL override</label>
                     <input id="start-instance-url" type="text" />
-                    <div class="hint">Full URL; <code>{processDefinitionKey}</code> is substituted.</div>
+                    <div class="hint">Full URL; <code>{processDefinitionKey}</code> is substituted. Accepts <code>\${env:MIRAGON_NAME}</code>.</div>
                 </div>
             </div>
         </div>

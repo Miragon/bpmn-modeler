@@ -1,6 +1,6 @@
 import { Uri, Webview } from "vscode";
 
-import { getNonce } from "@miragon/bpmn-modeler-core";
+import { createWebviewNonce } from "./webviewNonce";
 
 const BPMN_WEBVIEW_PATH = "bpmn-webview";
 const DMN_WEBVIEW_PATH = "dmn-webview";
@@ -30,7 +30,7 @@ export function bpmnEditorUi(
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
-    const nonce = getNonce();
+    const nonce = createWebviewNonce();
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";
@@ -80,7 +80,7 @@ export function dmnModelerHtml(
     const styleResetUri = webview.asWebviewUri(Uri.joinPath(extensionUri, "assets", "reset.css"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
-    const nonce = getNonce();
+    const nonce = createWebviewNonce();
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";
@@ -116,7 +116,7 @@ export function formEditorHtml(webview: Webview, extensionUri: Uri): string {
     const baseUri = Uri.joinPath(extensionUri, FORM_WEBVIEW_PATH);
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "styles.css"));
-    const nonce = getNonce();
+    const nonce = createWebviewNonce();
 
     return `
         <!DOCTYPE html>
