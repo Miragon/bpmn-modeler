@@ -4,6 +4,8 @@ import {
     DmnFileQuery,
     DmnModelerSettingQuery,
     FlushDocumentQuery,
+    HOST_REPLY_TIMEOUT_MS,
+    initResizer,
     LanguageQuery,
     PropertiesPanelStateQuery,
     ReleaseDocumentFlushQuery,
@@ -29,19 +31,11 @@ const mocks = vi.hoisted(() => {
         destroy: vi.fn(),
         getService: vi.fn(),
     };
-    const panelHandle = {
-        isVisible: vi.fn(() => true),
-        setVisible: vi.fn(),
-        onVisibilityChanged: vi.fn(),
-        dispose: vi.fn(),
-    };
     return {
         handle,
-        panelHandle,
         createModeler: vi.fn(
             async (_container: HTMLElement, _options: DmnModelerOptions) => handle,
         ),
-        initResizer: vi.fn(() => panelHandle),
         installPanelShortcuts: vi.fn(),
         installCanvasAutoFocus: vi.fn((_options: { focusCanvas(): void }) => () => undefined),
         setLanguage: vi.fn(),
@@ -61,10 +55,12 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
 }));
 
 vi.mock("@miragon/bpmn-modeler-shared", async () => {
-    const actual = await vi.importActual<Record<string, unknown>>("@miragon/bpmn-modeler-shared");
+    const actual = await vi.importActual<typeof import("@miragon/bpmn-modeler-shared")>(
+        "@miragon/bpmn-modeler-shared",
+    );
     return {
         ...actual,
-        initResizer: mocks.initResizer,
+        initResizer: vi.fn(actual.initResizer),
         installPanelShortcuts: mocks.installPanelShortcuts,
         installCanvasAutoFocus: mocks.installCanvasAutoFocus,
     };
@@ -104,6 +100,7 @@ function dispatch(data: unknown): void {
 function renderShell(panelContent = ""): void {
     document.body.innerHTML = `
         <main id="js-canvas"></main>
+        <div id="js-panel-resizer"></div>
         <aside id="js-properties-panel">${panelContent}</aside>
     `;
 }
@@ -190,7 +187,7 @@ describe("DMN bootstrap", () => {
         // The host adapter scoped the page on `<html>` off the (light) VS Code signal.
         expect(document.documentElement.getAttribute("data-dmn-theme")).toBe("light");
         expect(mocks.createModeler.mock.invocationCallOrder[0]).toBeLessThan(
-            mocks.initResizer.mock.invocationCallOrder[0],
+            vi.mocked(initResizer).mock.invocationCallOrder[0],
         );
 
         options().onWarning?.("recovered warning");
@@ -414,7 +411,7 @@ describe("DMN bootstrap", () => {
             stop();
 
             expect(mocks.handle.destroy).toHaveBeenCalledOnce();
-            expect(mocks.panelHandle.dispose).toHaveBeenCalledOnce();
+            expect(document.querySelector(".panel-resizer-toggle")).toBeNull();
             expect(document.body.inert).toBe(false);
             expect(removeCanvasAutoFocus).toHaveBeenCalledOnce();
             expect(mocks.installPanelShortcuts.mock.calls[0][0].isEnabled()).toBe(false);
@@ -693,32 +690,51 @@ describe("DMN bootstrap", () => {
     });
 
     describe("properties panel", () => {
-        it("applies the editor's saved visibility instead of the host default", async () => {
-            await startReady({ savedState: { panelVisible: false } });
+        const panel = () => document.getElementById("js-properties-panel")!;
+        const isCollapsed = () => panel().classList.contains("collapsed");
 
-            expect(mocks.panelHandle.setVisible).toHaveBeenCalledWith(false);
-            expect(mocks.panelHandle.setVisible).not.toHaveBeenCalledWith(true);
+        it("applies the editor's saved visibility instead of the host default", async () => {
+            const { ofType } = await startReady({ savedState: { panelVisible: false } });
+
+            expect(isCollapsed()).toBe(true);
+            expect(ofType("SetPropertiesPanelStateCommand")).toEqual([]);
         });
 
-        it("falls back to a visible panel when the host never answers", async () => {
+        it("applies the host default to a new editor without reporting it back", async () => {
+            const { host, ofType } = await startReady({
+                replies: {
+                    ...defaultReplies,
+                    GetPropertiesPanelStateCommand: () => new PropertiesPanelStateQuery(false),
+                },
+            });
+
+            expect(isCollapsed()).toBe(true);
+            expect(ofType("SetPropertiesPanelStateCommand")).toEqual([]);
+            expect(host.updateState).not.toHaveBeenCalledWith({ panelVisible: false });
+        });
+
+        it("opens a pre-collapsed panel without reporting it when the host never answers", async () => {
             vi.useFakeTimers();
+            panel().classList.add("collapsed");
             const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
             const { ofType } = await startBootstrap({ replies: withoutPanelState });
             await vi.advanceTimersByTimeAsync(0);
-            expect(mocks.panelHandle.setVisible).not.toHaveBeenCalled();
 
-            await vi.advanceTimersByTimeAsync(5000);
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS - 1);
+            expect(isCollapsed()).toBe(true);
 
-            expect(mocks.panelHandle.setVisible).toHaveBeenCalledWith(true);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(isCollapsed()).toBe(false);
+            expect(ofType("SetPropertiesPanelStateCommand")).toEqual([]);
             expect(ofType("RequestFocusCommand")).toHaveLength(1);
         });
 
         it("persists a toggle per editor and as the new host default", async () => {
             const { host, ofType } = await startReady();
-            const onVisibilityChanged = mocks.panelHandle.onVisibilityChanged.mock.calls[0][0];
 
-            onVisibilityChanged(false);
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
 
+            expect(isCollapsed()).toBe(true);
             expect(host.updateState).toHaveBeenCalledWith({ panelVisible: false });
             expect(ofType("SetPropertiesPanelStateCommand")).toEqual([
                 expect.objectContaining({ visible: false }),

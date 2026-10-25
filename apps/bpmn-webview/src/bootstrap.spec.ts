@@ -42,12 +42,11 @@ const mocks = vi.hoisted(() => ({
     persistMode: vi.fn(),
     startPersisting: vi.fn(),
     persistPanelVisibility: vi.fn(),
-    restorePanelVisibility: vi.fn(),
+    restorePanelVisibility: vi.fn(
+        (panel: { setVisible(visible: boolean): void }, fallbackVisible: boolean) =>
+            panel.setVisible(fallbackVisible),
+    ),
     savedMode: undefined as string | undefined,
-    initResizer: vi.fn(() => ({
-        setVisible: vi.fn(),
-        onVisibilityChanged: vi.fn(),
-    })),
     stateManagerCreated: vi.fn(),
     prefetchSurfaceModules: vi.fn(),
     viewStateSnapshot: {
@@ -74,7 +73,6 @@ vi.mock("@miragon/bpmn-modeler-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-shared")>();
     return {
         ...actual,
-        initResizer: mocks.initResizer,
         installPanelShortcuts: vi.fn(),
         installCanvasAutoFocus: vi.fn(),
     };
@@ -121,6 +119,7 @@ import { bootstrap } from "./bootstrap";
 import { installHostEditorActions } from "./hostEditorActions";
 import { DEFINITION_SEARCH_TIMEOUT_MS } from "./session/protocolCapabilities";
 import { loadDesignerModule, loadViewerModule } from "./surfaceModules";
+import type { WebviewState } from "./webviewState";
 
 function dispatch(data: unknown): void {
     window.dispatchEvent(new MessageEvent("message", { data }));
@@ -2154,41 +2153,153 @@ describe("bootstrap mode switching", () => {
         });
     });
 
-    describe("session callbacks", () => {
-        it("persists a panel toggle per editor and as the new host default", async () => {
-            mocks.createModeler.mockResolvedValue(makeModeler());
+    describe("properties panel", () => {
+        const panelHost = () => document.getElementById("js-properties-panel")!;
+        const isCollapsed = () => panelHost().classList.contains("collapsed");
+
+        function makePanelHost(
+            replyVisible: boolean | undefined,
+            savedState: Partial<WebviewState> = {},
+        ) {
             const host = makeHost(tagged());
+            const answerDefaults = host.postMessage.getMockImplementation()!;
+            host.getState.mockReturnValue(savedState);
+            host.postMessage.mockImplementation((message: { type: string }) => {
+                if (message.type !== "GetPropertiesPanelStateCommand") {
+                    answerDefaults(message);
+                } else if (replyVisible !== undefined) {
+                    dispatch(new PropertiesPanelStateQuery(replyVisible));
+                }
+            });
+            return host;
+        }
+
+        it.each([
+            ["the host default hides it", false, {}],
+            ["the editor saved it hidden", true, { panelVisible: false }],
+        ])(
+            "collapses the panel without reporting it back when %s",
+            async (_, replyVisible, savedState) => {
+                mocks.createModeler.mockResolvedValue(makeModeler());
+                const host = makePanelHost(replyVisible, savedState);
+
+                boot(host);
+                await drainAsyncWork();
+
+                expect(isCollapsed()).toBe(true);
+                expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
+                expect(mocks.persistPanelVisibility).not.toHaveBeenCalled();
+            },
+        );
+
+        it("persists a toggle per editor and as the new host default", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makePanelHost(true);
             boot(host);
             await drainAsyncWork();
-            const panel = mocks.initResizer.mock.results[0].value;
 
-            panel.onVisibilityChanged.mock.calls[0][0](false);
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
 
-            expect(mocks.persistPanelVisibility).toHaveBeenCalledWith(false);
+            expect(isCollapsed()).toBe(true);
+            expect(mocks.persistPanelVisibility).toHaveBeenCalledExactlyOnceWith(false);
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
                 expect.objectContaining({ visible: false }),
             ]);
         });
 
-        it("falls back to a visible panel when the host never sends its default", async () => {
+        it("opens a pre-collapsed panel without reporting it when the host never answers", async () => {
+            panelHost().classList.add("collapsed");
             mocks.createModeler.mockResolvedValue(makeModeler());
             const host = makeHost(tagged());
             host.postMessage.mockImplementation((message: { type: string }) => {
                 if (message.type === "GetBpmnFileCommand") dispatch(tagged());
             });
             boot(host);
-            await drainMicrotasks();
-            await vi.advanceTimersByTimeAsync(4999);
-            expect(mocks.restorePanelVisibility).not.toHaveBeenCalled();
+
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS - 1);
+            expect(isCollapsed()).toBe(true);
 
             await vi.advanceTimersByTimeAsync(1);
+            expect(isCollapsed()).toBe(false);
+            expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
+        });
+    });
 
-            expect(mocks.restorePanelVisibility).toHaveBeenCalledWith(
-                mocks.initResizer.mock.results[0].value,
-                true,
+    describe("boot restore chain", () => {
+        const settingsQuery = () =>
+            new BpmnModelerSettingQuery({
+                alignToOrigin: false,
+                showTransactionBoundaries: false,
+                colorTheme: "light",
+            });
+
+        type RestoringStateManager = Record<
+            "restoreSelection" | "restorePanelUiState",
+            ReturnType<typeof vi.fn>
+        >;
+        const stateManager = () =>
+            mocks.stateManagerCreated.mock.calls[0][0] as RestoringStateManager;
+        const settle = () => vi.advanceTimersByTimeAsync(0);
+        const firstCall = (fn: ReturnType<typeof vi.fn>) => fn.mock.invocationCallOrder[0];
+
+        // Templates and settings stay unanswered, so each test decides when they arrive.
+        async function bootAwaitingReplies() {
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+            const host = makeHost(tagged("c8"));
+            const answerDefaults = host.postMessage.getMockImplementation()!;
+            host.postMessage.mockImplementation((message: { type: string }) => {
+                if (
+                    message.type !== "GetElementTemplatesCommand" &&
+                    message.type !== "GetBpmnModelerSettingCommand"
+                ) {
+                    answerDefaults(message);
+                }
+            });
+            boot(host);
+            await settle();
+            return modeler;
+        }
+
+        it("restores selection and panel UI only after templates and settings were applied", async () => {
+            const modeler = await bootAwaitingReplies();
+            expect(stateManager().restoreSelection).not.toHaveBeenCalled();
+
+            dispatch(new ElementTemplatesQuery([]));
+            await settle();
+            expect(stateManager().restoreSelection).not.toHaveBeenCalled();
+
+            dispatch(settingsQuery());
+            await settle();
+
+            const { restoreSelection, restorePanelUiState } = stateManager();
+            expect(firstCall(modeler.setElementTemplates)).toBeLessThan(
+                firstCall(restoreSelection),
             );
+            expect(firstCall(modeler.setSettings)).toBeLessThan(firstCall(restoreSelection));
+            expect(firstCall(restoreSelection)).toBeLessThan(firstCall(restorePanelUiState));
+            expect(firstCall(restorePanelUiState)).toBeLessThan(firstCall(mocks.startPersisting));
         });
 
+        it.each([
+            ["ElementTemplatesQuery", settingsQuery],
+            ["BpmnModelerSettingQuery", () => new ElementTemplatesQuery([])],
+        ])("still starts persisting when the host drops the %s reply", async (_, answered) => {
+            await bootAwaitingReplies();
+            dispatch(answered());
+            await settle();
+
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS - 1);
+            expect(stateManager().restoreSelection).not.toHaveBeenCalled();
+            expect(mocks.startPersisting).not.toHaveBeenCalled();
+
+            await vi.advanceTimersByTimeAsync(1);
+            expect(stateManager().restoreSelection).toHaveBeenCalledOnce();
+            expect(mocks.startPersisting).toHaveBeenCalledOnce();
+        });
+    });
+
+    describe("session callbacks", () => {
         it("lets the host trigger undo on an editable surface only", async () => {
             const editorActions = { trigger: vi.fn() };
             const modeler = modelerWithServices({ editorActions });

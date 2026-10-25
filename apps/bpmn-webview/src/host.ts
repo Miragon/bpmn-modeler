@@ -18,6 +18,7 @@ import {
     PropertiesPanelStateQuery,
     Query,
     TakeFocusQuery,
+    TextClipboardQuery,
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
 import { matchesDefinitionQuery } from "@miragon/bpmn-modeler-types";
@@ -158,8 +159,21 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 console.debug("[DEBUG] SetClipboardCommand", message);
                 break;
             }
+            case "GetTextClipboardCommand": {
+                console.debug("[DEBUG] GetTextClipboardCommand", message);
+                dispatchEvent(new TextClipboardQuery(""));
+                break;
+            }
+            case "SetTextClipboardCommand": {
+                console.debug("[DEBUG] SetTextClipboardCommand", message);
+                break;
+            }
             case "SyncDocumentCommand": {
                 console.debug("[DEBUG] SyncDocumentCommand", command.content);
+                break;
+            }
+            case "DocumentFlushedCommand": {
+                console.debug("[DEBUG] DocumentFlushedCommand", message);
                 break;
             }
             case "LogDebugCommand": {
@@ -212,6 +226,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 console.debug("[DEBUG] SetLintingEnabledCommand", message);
                 break;
             }
+            case "UpdateLintResultsCommand": {
+                console.debug("[DEBUG] UpdateLintResultsCommand", message);
+                break;
+            }
             // Capability-port commands. Dev keeps all capabilities so every
             // feature's UI stays testable; there is no real host to act on them,
             // so log-only cases replace the default throw that used to crash the
@@ -232,6 +250,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 console.debug("[DEBUG] OpenScriptEditorCommand", message);
                 break;
             }
+            case "OpenScriptEditorsCommand": {
+                console.debug("[DEBUG] OpenScriptEditorsCommand", message);
+                break;
+            }
             case "UpdateScriptSourceCommand": {
                 console.debug("[DEBUG] UpdateScriptSourceCommand", message);
                 break;
@@ -242,6 +264,18 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             case "DiagramFormattedCommand": {
                 console.debug("[DEBUG] DiagramFormattedCommand", message);
+                break;
+            }
+            case "CleanupReportCommand": {
+                console.debug("[DEBUG] CleanupReportCommand", message);
+                break;
+            }
+            case "GetFormReferenceStatusCommand": {
+                console.debug("[DEBUG] GetFormReferenceStatusCommand", message);
+                break;
+            }
+            case "GetDiagramAsSVGCommand": {
+                console.debug("[DEBUG] GetDiagramAsSVGCommand", message);
                 break;
             }
             case "SwapCompareSidesCommand": {

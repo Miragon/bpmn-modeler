@@ -2,19 +2,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     ApplyDiffHighlightsQuery,
+    CleanupReportCommand,
+    CursorChangedCommand,
     DiagramFormattedCommand,
     DiffReadyCommand,
+    DocumentFlushedCommand,
     GetBpmnFileCommand,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
+    GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
+    GetFormReferenceStatusCommand,
     GetPropertiesPanelStateCommand,
+    GetTextClipboardCommand,
     HostApiImpl,
+    LogErrorCommand,
+    LogWarningCommand,
     MockHostApi,
+    NavigateToImplementationCommand,
+    NavigateToReferencedModelCommand,
+    OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
     RequestFocusCommand,
     SearchWorkspaceDefinitionsCommand,
+    SetClipboardCommand,
+    SetLintingEnabledCommand,
+    SetPropertiesPanelStateCommand,
+    SetTextClipboardCommand,
+    ShowInfoCommand,
     SwapCompareSidesCommand,
+    SyncActivitiesCommand,
+    SyncDocumentCommand,
+    UpdateLintResultsCommand,
+    UpdateScriptSourceCommand,
+    UpdateScriptVariablesCommand,
+    ViewportChangedCommand,
     WorkspaceDefinitionsQuery,
     type Command,
 } from "@miragon/bpmn-modeler-shared";
@@ -127,6 +150,7 @@ describe("development preview host", () => {
         [new GetPropertiesPanelStateCommand(), "PropertiesPanelStateQuery"],
         [new RequestFocusCommand(), "TakeFocusQuery"],
         [new GetClipboardCommand(), "ClipboardQuery"],
+        [new GetTextClipboardCommand(), "TextClipboardQuery"],
         [new GetBpmnlintConfigCommand(), "BpmnlintResultsQuery"],
     ])("answers %o with a %s", (request, replyType) => {
         previewHost().postMessage(request);
@@ -219,13 +243,46 @@ describe("development preview host", () => {
         });
     });
 
-    it.each<[string, string, Command]>([
-        ["a format report", "", new DiagramFormattedCommand("formatted", [])],
-        ["a compare-sides swap", "?mode=diff-before", new SwapCompareSidesCommand()],
-    ])("takes %s without throwing or replying", (_, search, command) => {
-        const host = previewHost(search);
+    it.each<Command>([
+        new GetBpmnFileCommand(),
+        new GetBpmnModelerSettingCommand(),
+        new GetPropertiesPanelStateCommand(),
+        new SetPropertiesPanelStateCommand(false),
+        new GetElementTemplatesCommand(),
+        new GetBpmnlintConfigCommand(),
+        new SetLintingEnabledCommand(false),
+        new UpdateLintResultsCommand({}, []),
+        new RequestFocusCommand(),
+        new GetClipboardCommand(),
+        new SetClipboardCommand("<copied />"),
+        new GetTextClipboardCommand(),
+        new SetTextClipboardCommand("label"),
+        new SyncDocumentCommand("<edited />", 1),
+        new DocumentFlushedCommand(1),
+        new LogWarningCommand("warning"),
+        new LogErrorCommand("error"),
+        new ShowInfoCommand("info"),
+        new NavigateToReferencedModelCommand("Form_1", "form"),
+        new NavigateToImplementationCommand("com.example.Delegate", "javaClass"),
+        new SyncActivitiesCommand([]),
+        new GetFormReferenceStatusCommand(),
+        new SearchWorkspaceDefinitionsCommand(1, "message", "order"),
+        new OpenScriptEditorCommand("Task_1", "script-task", undefined, undefined, "js", "x"),
+        new OpenScriptEditorsCommand([]),
+        new UpdateScriptSourceCommand("Task_1", "script-task", undefined, "x"),
+        new UpdateScriptVariablesCommand([]),
+        new DiagramFormattedCommand("formatted", []),
+        new CleanupReportCommand({ status: "reported", items: [] }, false),
+        new GetDiagramAsSVGCommand(),
+        new DiffReadyCommand(),
+        new ViewportChangedCommand({ x: 0, y: 0, width: 1, height: 1 }),
+        new CursorChangedCommand(0),
+        new SwapCompareSidesCommand(),
+    ])("takes a $type from the webview without throwing", (command) => {
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const host = previewHost();
 
         expect(() => host.postMessage(command)).not.toThrow();
-        expect(replies).toEqual([]);
     });
 });

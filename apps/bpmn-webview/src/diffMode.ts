@@ -44,6 +44,10 @@ export class DiffMode {
 
     private readonly navigator: DiffNavigator;
 
+    private initialImportSettled = false;
+
+    private highlightsBeforeImport: ApplyDiffHighlightsQuery | undefined;
+
     constructor(
         canvas: HTMLElement,
         legendParent: HTMLElement,
@@ -82,7 +86,12 @@ export class DiffMode {
         const query = asProtocolMessage(message);
         switch (query.type) {
             case "ApplyDiffHighlightsQuery":
-                this.paint(query);
+                // An empty canvas would drop the markers but keep the legend counts.
+                if (this.initialImportSettled) {
+                    this.paint(query);
+                } else {
+                    this.highlightsBeforeImport = query;
+                }
                 break;
             case "SyncViewportQuery":
                 this.viewer.setViewport(query.viewport);
@@ -97,12 +106,19 @@ export class DiffMode {
         try {
             await this.viewer.importXML(content);
         } catch (error) {
+            this.initialImportSettled = true;
+            this.highlightsBeforeImport = undefined;
             console.error("DiffViewer import failed", error);
             const e = error instanceof Error ? error : new Error(String(error));
             this.host.postMessage(
                 new LogErrorCommand(`DiffViewer import failed: ${e.message}`, e.stack),
             );
             return;
+        }
+        this.initialImportSettled = true;
+        if (this.highlightsBeforeImport) {
+            this.paint(this.highlightsBeforeImport);
+            this.highlightsBeforeImport = undefined;
         }
         this.host.postMessage(new DiffReadyCommand());
     }
