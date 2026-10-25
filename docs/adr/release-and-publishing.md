@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-10-23
+- Last reviewed: 2026-10-25
 
 ## Context
 
@@ -147,6 +147,21 @@ Vite configs dedupe the core of the identity-sensitive set as a second line of
 defence. Immutable CI installs additionally catch lockfile drift. Package build/declaration checks and the consumer smoke scripts
 enforce the distribution boundary.
 
+Published packages keep exact pins even where an upstream regular dependency
+declares the same identity-sensitive package with a caret range: bpmn-js for
+`diagram-js` and `bpmn-moddle`, `@bpmn-io/diagram-js-ui` for `preact`, and the
+dmn-js packages for `diagram-js`. Yarn Berry resolves each descriptor to its
+highest match, so a consumer's fresh Yarn install nests a second copy under the
+upstream package whenever upstream has released past our pin. npm and pnpm
+reuse the pinned version. The package READMEs give Yarn consumers root
+`resolutions` at our pins. The grouped Dependabot bpmn-io updates bound the lag
+window to cooldown, merge and release. Caret ranges would break the exact-pin
+rule. An exact peer dependency would not help, because the upstream caret
+descriptor still resolves on its own. Bundling would break plugin
+interoperability. Moving the monorepo to another package manager does not
+change a consumer's resolver; [#1780](https://github.com/Miragon/bpmn-modeler/issues/1780)
+evaluates pnpm on other grounds.
+
 ### Standalone Linux Git
 
 Use `org.freedesktop.Platform` at runtime and `org.freedesktop.Sdk` only for
@@ -172,7 +187,9 @@ publishing uses short-lived identity with provenance; package bootstrap and
 trusted publisher registration remain explicit setup steps.
 
 External dependencies permit consumer plugin interoperability but make version
-alignment and declared dependencies part of release correctness. BPMN currently
+alignment and declared dependencies part of release correctness. Yarn Berry
+consumers who skip the README `resolutions` can run two copies of diagram-js,
+bpmn-moddle or preact while our pins lag upstream. BPMN currently
 declares `tiny-svg` and `@lezer/lr` directly to cover upstream undeclared imports;
 remove those bridges only when the corresponding upstream packages declare or
 stop using them. Hoisted installs can hide those gaps, and strict Yarn PnP

@@ -877,12 +877,35 @@ brings no extra stylesheet wiring.
   `destroy()` + create, but the bpmn-js command stack belongs to the destroyed instance — the new
   instance starts with an empty undo history. Only the view state is preserved, not the edit
   history.
+- **Yarn Berry installs.** This package pins its dependencies exactly, but some upstream packages
+  declare the same libraries with caret ranges (bpmn-js → `diagram-js` and `bpmn-moddle`,
+  `@bpmn-io/diagram-js-ui` → `preact`). Yarn 2+ resolves each range to the newest matching
+  version, so once upstream publishes a release newer than this package's pin, a second copy is
+  nested under the upstream package and the modeler splits across two versions. npm and pnpm
+  reuse the pinned version. With Yarn, pin the three in your root `package.json`:
+
+  ```json
+  {
+      "resolutions": {
+          "diagram-js": "<pin from @miragon/bpmn-modeler>",
+          "bpmn-moddle": "<pin from @miragon/bpmn-modeler>",
+          "preact": "<pin from @miragon/bpmn-modeler>"
+      }
+  }
+  ```
+
+  Print the pins of the installed version with:
+
+  ```sh
+  node -p 'const { dependencies: d } = require("@miragon/bpmn-modeler/package.json"); JSON.stringify({ "diagram-js": d["diagram-js"], "bpmn-moddle": d["bpmn-moddle"], preact: d.preact }, null, 4)'
+  ```
+
+  Update them whenever you upgrade `@miragon/bpmn-modeler`. `yarn why diagram-js` should list a
+  single version.
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
   `preact`, the bpmn-js / diagram-js / moddle core, and the properties-panel / CodeMirror
-  stack. bpmn-js declares a caret range for diagram-js, so package managers that resolve
-  each range independently (Yarn Berry, pnpm) can install a second, newer diagram-js next
-  to the one this package pins. If you build with Vite, add these to
-  `resolve.dedupe`:
+  stack. A stale lockfile or a linked workspace can still leave two copies on disk. If you
+  build with Vite, add these to `resolve.dedupe`:
 
   ```ts
   resolve: {

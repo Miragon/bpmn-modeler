@@ -112,6 +112,22 @@ const eventBus = modeler.getService( "eventBus" );
 - **Locale is page-global** in this release (the i18n instance is a singleton); theming is
   per-instance via the `data-dmn-theme` attribute (see
   [Theming](#theming)).
+- **Yarn Berry installs.** This package pins `diagram-js` exactly, but the dmn-js packages
+  declare it with caret ranges. Yarn 2+ resolves each range to the newest matching version, so
+  once diagram-js publishes a release newer than this package's pin, a second copy is nested
+  under dmn-js and the modeler splits across two versions. npm and pnpm reuse the pinned
+  version. With Yarn, pin it in your root `package.json` to the version that
+  `node_modules/@miragon/dmn-modeler/package.json` declares, and update it whenever you upgrade
+  `@miragon/dmn-modeler`:
+
+    ```json
+    {
+        "resolutions": {
+            "diagram-js": "<pin from @miragon/dmn-modeler>"
+        }
+    }
+    ```
+
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
   `inferno` and the properties-panel / CodeMirror stack. If you build with Vite, add these to
   `resolve.dedupe`:
