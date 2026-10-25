@@ -188,6 +188,59 @@ describe("DiffMode", () => {
         });
     });
 
+    describe("highlights during the initial import", () => {
+        function startGatedDiffPane() {
+            const diffMode = new DiffMode(
+                document.createElement("div"),
+                document.createElement("div"),
+                host,
+            );
+            let finishImport!: () => void;
+            let failImport!: (reason: Error) => void;
+            viewer().importXML.mockReturnValueOnce(
+                new Promise((resolve, reject) => {
+                    finishImport = () => resolve({ warnings: [] });
+                    failImport = reject;
+                }),
+            );
+            const started = diffMode.startWith("<before />");
+            return { started, finishImport: () => finishImport(), failImport };
+        }
+
+        it("paints highlights that arrive during the initial import once it finishes", async () => {
+            const { started, finishImport } = startGatedDiffPane();
+
+            dispatch(highlights("compare-files"));
+            dispatch(highlights("scm"));
+            expect(viewer().applyHighlights).not.toHaveBeenCalled();
+            expect(legend().update).not.toHaveBeenCalled();
+
+            finishImport();
+            await started;
+
+            expect(viewer().clearHighlights).toHaveBeenCalledOnce();
+            expect(legend().update).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ showSwap: false }),
+            );
+            expect(posted()).toEqual([expect.objectContaining({ type: "DiffReadyCommand" })]);
+            expect(legend().update.mock.invocationCallOrder[0]).toBeLessThan(
+                host.postMessage.mock.invocationCallOrder[0],
+            );
+        });
+
+        it("drops highlights held for an import that failed", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => undefined);
+            const { started, failImport } = startGatedDiffPane();
+
+            dispatch(highlights("compare-files"));
+            failImport(new Error("bad"));
+            await started;
+
+            expect(viewer().applyHighlights).not.toHaveBeenCalled();
+            expect(legend().update).not.toHaveBeenCalled();
+        });
+    });
+
     describe("partner pane sync", () => {
         it("follows the partner's viewport without echoing it", async () => {
             await startDiffPane();
