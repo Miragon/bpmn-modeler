@@ -120,6 +120,13 @@ const SOURCE_ONLY = new Set([
     "read-only",
     "required",
     "{count} properties",
+    // Popup-menu annotations: the harvest snapshot predates them, and the
+    // Design- and C8-only strings are out of the C7 driver's reach anyway.
+    "Automated work carried out by a Java delegate, expression, or external task",
+    "Automated work carried out by a system",
+    "Child process",
+    "Human",
+    "Java delegate",
 ]);
 
 const load = async (locale) => (await import(join(LANG_DIR, `${locale}.ts`))).default;

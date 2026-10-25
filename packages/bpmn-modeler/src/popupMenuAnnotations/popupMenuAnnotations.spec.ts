@@ -83,6 +83,12 @@ describe("PopupMenuAnnotations", () => {
         });
     });
 
+    it("lists every description and keyword once as translatable text", () => {
+        const engine = base.withOverrides({ additionalKeywords: { "user-task": ["automation"] } });
+
+        expect(engine.translatableTexts()).toEqual(["Neutral", "Person", "automation"]);
+    });
+
     it("treats no overrides as the base set", () => {
         expect(base.withOverrides({}).forKey("service-task")).toEqual(base.forKey("service-task"));
     });
@@ -99,7 +105,13 @@ describe("annotateEntry", () => {
         ).toEqual({
             label: "Call activity",
             description: "CALLS A PROCESS",
-            search: ["child process"],
+            search: ["child process", "CHILD PROCESS"],
+        });
+    });
+
+    it("adds a keyword once where its translation is the same", () => {
+        expect(annotateEntry({}, { keywords: ["Java delegate"] }, (text) => text)).toEqual({
+            search: ["Java delegate"],
         });
     });
 
@@ -114,8 +126,8 @@ describe("annotateEntry", () => {
     });
 
     it.each([
-        ["one string", "or", ["or", "decision"]],
-        ["a list", ["or", "either"], ["or", "either", "decision"]],
+        ["one string", "or", ["or", "decision", "DECISION"]],
+        ["a list", ["or", "either"], ["or", "either", "decision", "DECISION"]],
     ])("appends the keywords to existing search terms given as %s", (_shape, search, expected) => {
         expect(annotateEntry({ search }, { keywords: ["decision"] }, upperCase)).toEqual({
             search: expected,
@@ -144,11 +156,11 @@ describe("base annotations", () => {
     });
 
     it.each([
-        ["call-activity", "child process"],
-        ["receive-task", "message"],
-        ["rule-task", "dmn decision"],
-        ["user-task", "form human"],
-    ])("make %s findable by the engine-neutral keyword %s", (key, keyword) => {
-        expect(BASE_POPUP_MENU_ANNOTATIONS.forKey(key)?.keywords).toEqual([keyword]);
+        ["call-activity", ["Child process"]],
+        ["receive-task", ["Message"]],
+        ["rule-task", ["DMN decision"]],
+        ["user-task", ["Form", "Human"]],
+    ])("make %s findable by the engine-neutral keywords %j", (key, keywords) => {
+        expect(BASE_POPUP_MENU_ANNOTATIONS.forKey(key)?.keywords).toEqual(keywords);
     });
 });

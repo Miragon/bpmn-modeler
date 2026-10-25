@@ -81,11 +81,12 @@ const BASE_DESCRIPTIONS = {
     "conditional-flow": "Taken only when its condition is met",
 };
 
+// Keywords are translated too, so they are spelled exactly like the i18n dictionary keys.
 const BASE_KEYWORDS = {
-    "call-activity": ["child process"],
-    "receive-task": ["message"],
-    "rule-task": ["dmn decision"],
-    "user-task": ["form human"],
+    "call-activity": ["Child process"],
+    "receive-task": ["Message"],
+    "rule-task": ["DMN decision"],
+    "user-task": ["Form", "Human"],
 };
 
 export const BASE_POPUP_MENU_ANNOTATIONS = PopupMenuAnnotations.of(

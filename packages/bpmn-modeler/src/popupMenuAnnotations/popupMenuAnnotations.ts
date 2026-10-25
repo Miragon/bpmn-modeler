@@ -67,6 +67,10 @@ export class PopupMenuAnnotations {
         return new PopupMenuAnnotations(descriptions, keywords);
     }
 
+    translatableTexts(): readonly string[] {
+        return [...new Set([...this.descriptions.values(), ...[...this.keywords.values()].flat()])];
+    }
+
     forEntry(entryId: string): PopupMenuAnnotation | undefined {
         const key = popupEntryKeyOf(entryId);
         return key === undefined ? undefined : this.forKey(key);
@@ -93,7 +97,13 @@ export function annotateEntry<Entry extends AnnotatableEntry>(
     const search =
         annotation.keywords.length === 0
             ? entry.search
-            : [...searchTermsOf(entry), ...annotation.keywords];
+            : [
+                  ...new Set([
+                      ...searchTermsOf(entry),
+                      ...annotation.keywords,
+                      ...annotation.keywords.map(translate),
+                  ]),
+              ];
     return {
         ...entry,
         ...(description === undefined ? {} : { description }),

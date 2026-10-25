@@ -8,8 +8,12 @@
  */
 const dictionary: Record<string, string> = {
     "Apply Template": "Применить шаблон",
+    "Automated work carried out by a Java delegate, expression, or external task":
+        "Автоматизированная работа, выполняемая Java delegate, выражением или внешней задачей",
+    "Automated work carried out by a system": "Автоматизированная работа, выполняемая системой",
     "Being edited in": "Редактируется в",
     "Camunda properties, templates and lint": "Свойства Camunda, шаблоны и линтинг",
+    "Child process": "Дочерний процесс",
     "Clear search": "Очистить поиск",
     "Close": "Закрыть",
     "Collapse": "Свернуть",
@@ -20,9 +24,11 @@ const dictionary: Record<string, string> = {
     "Engine-neutral modeling": "Моделирование без привязки к движку",
     "Expand": "Развернуть",
     "Favourites": "Избранное",
+    "Human": "Человек",
     "Implement": "Реализация",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "Для «Реализации» нужна платформа исполнения Camunda, но у этой модели её нет. Назначьте её, чтобы включить.",
+    "Java delegate": "Java delegate",
     "Mode": "Режим",
     "Mode: {mode}": "Режим: {mode}",
     "Name or code": "Имя или код",

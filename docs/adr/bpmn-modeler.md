@@ -148,10 +148,13 @@ A pure module holds element descriptions and search keywords keyed by the bpmn-j
 popup entry id, and the one mapping from `create-`/`append-`/`replace-with-`
 entry ids onto that key. A single diagram-js provider attaches them to the
 `bpmn-create`, `bpmn-append` and `bpmn-replace` entries and translates the
-descriptions. The data is layered: an engine-neutral base set, which `/design`
-loads as is, plus per-engine overrides only where semantics differ — the
-service-task wording, "job worker" on C8, "java delegate" and "external task" on
-C7 — so Design, C7 and C8 get the same menus. The English descriptions reuse
+descriptions and keywords, keeping each English keyword beside its translation so
+both languages match. Keywords are therefore spelled as i18n dictionary keys
+("Form", "Message"), because the translator looks keys up verbatim. The data is
+layered: an engine-neutral base set, which `/design` loads as is, plus
+per-engine overrides only where semantics differ — the service-task wording,
+"Job worker" on C8, "Java delegate" and "External task" on C7 — so Design, C7
+and C8 get the same menus. The English descriptions reuse
 camunda-bpmn-js's strings where they are engine-neutral, because the shared i18n
 package is keyed by them; `THIRD_PARTY_NOTICES` attributes them. On C7 and C8
 the replace menu moves element-template entries into a "Templates" tab beside
@@ -162,7 +165,9 @@ time would still ship upstream internals without an API contract. A
 [coverage test](../../packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.coverage.browser.spec.ts)
 requires every bpmn-js replace action and create option to resolve to a
 description on all three surfaces, bar an explicit exception list, so a bpmn-js
-bump that adds an element fails until it is described.
+bump that adds an element fails until it is described. The same test requires
+every description and keyword to have a translation in every locale, from the
+shared i18n package or the `bpmn-i18n-extras` overlay.
 
 The stack loads through a dynamic import inside the modeler's already
 asynchronous construction, so the factory contract is unchanged.

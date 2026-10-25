@@ -18,7 +18,7 @@ import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/inde
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
 
-const JAVA_IMPLEMENTATION_KEYWORDS = ["java delegate", "external task"];
+const JAVA_IMPLEMENTATION_KEYWORDS = ["Java delegate", "External task"];
 
 export const c7Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([

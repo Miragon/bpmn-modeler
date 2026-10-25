@@ -8,8 +8,12 @@
  */
 const dictionary: Record<string, string> = {
     "Apply Template": "Aplicar modelo",
+    "Automated work carried out by a Java delegate, expression, or external task":
+        "Trabalho automatizado executado por um Java delegate, uma expressão ou uma tarefa externa",
+    "Automated work carried out by a system": "Trabalho automatizado executado por um sistema",
     "Being edited in": "Sendo editado em",
     "Camunda properties, templates and lint": "Propriedades do Camunda, modelos e linting",
+    "Child process": "Processo filho",
     "Clear search": "Limpar pesquisa",
     "Close": "Fechar",
     "Collapse": "Recolher",
@@ -20,9 +24,11 @@ const dictionary: Record<string, string> = {
     "Engine-neutral modeling": "Modelagem independente do motor",
     "Expand": "Expandir",
     "Favourites": "Favoritos",
+    "Human": "Humano",
     "Implement": "Implementar",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "Implementar precisa de uma plataforma de execução Camunda; este modelo não tem nenhuma. Atribua uma para habilitá-la.",
+    "Java delegate": "Java delegate",
     "Mode": "Modo",
     "Mode: {mode}": "Modo: {mode}",
     "Name or code": "Nome ou código",
