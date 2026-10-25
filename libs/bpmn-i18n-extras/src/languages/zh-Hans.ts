@@ -8,8 +8,12 @@
  */
 const dictionary: Record<string, string> = {
     "Apply Template": "应用模板",
+    "Automated work carried out by a Java delegate, expression, or external task":
+        "由 Java delegate、表达式或外部任务执行的自动化工作",
+    "Automated work carried out by a system": "由系统执行的自动化工作",
     "Being edited in": "正在编辑于",
     "Camunda properties, templates and lint": "Camunda 属性、模板和校验",
+    "Child process": "子流程",
     "Clear search": "清除搜索",
     "Close": "关闭",
     "Collapse": "折叠",
@@ -20,9 +24,11 @@ const dictionary: Record<string, string> = {
     "Engine-neutral modeling": "与引擎无关的建模",
     "Expand": "展开",
     "Favourites": "收藏夹",
+    "Human": "人工",
     "Implement": "实现",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "“实现”需要 Camunda 执行平台，但此模型没有。请分配一个以启用。",
+    "Java delegate": "Java delegate",
     "Mode": "模式",
     "Mode: {mode}": "模式：{mode}",
     "Name or code": "名称或代码",

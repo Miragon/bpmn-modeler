@@ -600,8 +600,9 @@ conceptual modelling. It wraps the base bpmn-js `Modeler`
 (palette, context pad, modelling, copy-paste, keyboard, search) plus an engine-neutral properties
 panel (general / documentation groups only), a minimap, and the neutral UX modules (translate,
 append menu, flow navigation). The create, append and replace menus describe each element and
-find it by engine-neutral keywords ("child process" finds the call activity); the C7/C8 modelers
-add their engine's wording and keywords ("java delegate", "job worker") on top. It loads **none** of the Camunda editor stack — no Camunda moddles or
+find it by engine-neutral keywords ("child process" finds the call activity) in English and in the
+active locale ("Kindprozess" with `locale: "de"`); the C7/C8 modelers add their engine's wording
+and keywords ("java delegate", "job worker") on top. It loads **none** of the Camunda editor stack — no Camunda moddles or
 behaviors, element templates, or transaction boundaries — so it never carries an execution platform. Linting is
 available on the same injection-only seam as the root (omit for none; the engine-neutral Design
 config applies), and the lint *stack* still stays out of the design chunk unless you inject it via

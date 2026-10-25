@@ -8,8 +8,12 @@
  */
 const dictionary: Record<string, string> = {
     "Apply Template": "템플릿 적용",
+    "Automated work carried out by a Java delegate, expression, or external task":
+        "Java 델리게이트, 표현식 또는 외부 작업이 수행하는 자동화된 작업입니다",
+    "Automated work carried out by a system": "시스템이 수행하는 자동화된 작업입니다",
     "Being edited in": "편집 중:",
     "Camunda properties, templates and lint": "Camunda 속성, 템플릿 및 린트",
+    "Child process": "자식 프로세스",
     "Clear search": "검색 지우기",
     "Close": "닫기",
     "Collapse": "접기",
@@ -20,9 +24,11 @@ const dictionary: Record<string, string> = {
     "Engine-neutral modeling": "엔진 중립적 모델링",
     "Expand": "펼치기",
     "Favourites": "즐겨찾기",
+    "Human": "사람",
     "Implement": "구현",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "구현하려면 Camunda 실행 플랫폼이 필요하지만 이 모델에는 없습니다. 사용하려면 하나를 지정하세요.",
+    "Java delegate": "Java 델리게이트",
     "Mode": "모드",
     "Mode: {mode}": "모드: {mode}",
     "Name or code": "이름 또는 코드",

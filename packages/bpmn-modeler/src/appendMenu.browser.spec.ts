@@ -266,6 +266,19 @@ describe("append menu", () => {
         },
     );
 
+    it("finds an element by its translated keyword in a German UI", async () => {
+        await openAppendMenu({ locale: "de", settings: CALL_ACTIVITY_FAVOURITE });
+
+        await userEvent.type(
+            document.querySelector<HTMLInputElement>(".am-search-input")!,
+            "Kindprozess",
+        );
+
+        await expect
+            .poll(() => navKeys(".am-panel"))
+            .toEqual(["fav:append-call-activity", "grp:subprocess:append-call-activity"]);
+    });
+
     it("leaves the collapsed palette collapsed while the mouse rests on a description", async () => {
         await openAppendMenu({
             engine: "c8",

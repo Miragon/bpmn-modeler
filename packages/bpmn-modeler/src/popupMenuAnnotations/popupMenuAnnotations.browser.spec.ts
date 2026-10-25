@@ -168,6 +168,21 @@ describe("replace-menu search", () => {
         expect(results).toContain("replace-with-call-activity");
     });
 
+    it.each(
+        ALL_SURFACES.flatMap(
+            (name) =>
+                [
+                    [name, "Formular", "replace-with-user-task"],
+                    [name, "Kindprozess", "replace-with-call-activity"],
+                    [name, "child process", "replace-with-call-activity"],
+                ] as const,
+        ),
+    )("finds on %s in German by %s the entry %s", async (name, query, entryId) => {
+        const results = await searchReplaceMenu(await openSurface(name, { locale: "de" }), query);
+
+        expect(results).toContain(entryId);
+    });
+
     it.each([
         ["Design", []],
         ["C7", []],

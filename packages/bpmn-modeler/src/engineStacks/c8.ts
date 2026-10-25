@@ -24,7 +24,7 @@ const FEEL_POPUP_LINKS = {
     },
 } as const;
 
-const JOB_WORKER_KEYWORDS = ["job worker"];
+const JOB_WORKER_KEYWORDS = ["Job worker"];
 
 export const c8Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([

@@ -10,6 +10,9 @@ import {
 } from "bpmn-js-create-append-anything";
 import { describe, expect, it } from "vitest";
 
+import { dictionaries, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
+import { extras } from "@miragon/bpmn-modeler-i18n-extras";
+
 import { loadEngineStack } from "../engineStacks";
 import { createPopupMenuAnnotationsModule } from "./index";
 import type { PopupMenuAnnotationOverrides, PopupMenuAnnotations } from "./popupMenuAnnotations";
@@ -52,6 +55,20 @@ function annotationsWith(overrides: PopupMenuAnnotationOverrides): PopupMenuAnno
         .popupMenuAnnotations[1] as PopupMenuAnnotations;
 }
 
+// The translator looks keys up verbatim, so a casing variant of a dictionary key stays English.
+function untranslatedTexts(annotations: PopupMenuAnnotations): string[] {
+    return Object.entries(dictionaries).flatMap(([locale, sharedDictionary]) => {
+        const dictionary: Record<string, string | undefined> = {
+            ...sharedDictionary,
+            ...extras[locale as SupportedLocale],
+        };
+        return annotations
+            .translatableTexts()
+            .filter((text) => !dictionary[text])
+            .map((text) => `${locale}: ${text}`);
+    });
+}
+
 function undescribedEntryIds(annotations: PopupMenuAnnotations): string[] {
     return [...REPLACE_ENTRY_IDS, ...CREATE_ENTRY_IDS].filter(
         (entryId) => annotations.forEntry(entryId)?.description === undefined,
@@ -67,6 +84,12 @@ describe.each(SURFACE_OVERRIDES)("%s popup-menu annotations", (_surface, loadOve
                 (entryId) => !INTENDED_EXCEPTIONS.includes(entryId),
             ),
         ).toEqual([]);
+    });
+
+    it("translate every description and keyword in every locale", async () => {
+        const annotations = annotationsWith(await loadOverrides());
+
+        expect(untranslatedTexts(annotations)).toEqual([]);
     });
 
     it("list only exceptions that are still undescribed", async () => {

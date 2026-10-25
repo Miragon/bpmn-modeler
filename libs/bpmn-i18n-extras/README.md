@@ -7,9 +7,10 @@ library.
 The shared library ships this modeler's Camunda-7 (Platform) palette /
 context-pad / properties-panel strings (`en` ≈ 1016 keys, 12 locales), so this
 overlay covers **only the handful of modeler-internal strings the shared library
-lacks** — today just the script-lock badge labels the webview emits (`Read-only`,
-`Being edited in`). The webviews merge them onto the shared dictionaries at
-startup:
+lacks** — for example the script-lock badge labels the webview emits (`Read-only`,
+`Being edited in`) and the popup-menu keywords and descriptions `@miragon/bpmn-modeler`
+adds (`Child process`, `Automated work carried out by a system`). The webviews merge
+them onto the shared dictionaries at startup:
 
 ```ts
 import { i18n } from "@miragon/bpmn-modeler-i18n";
