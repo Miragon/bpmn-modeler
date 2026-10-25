@@ -21,6 +21,24 @@ class Listeners<T> {
 }
 
 /**
+ * One host's document-change stream. VS Code fires its change event for every
+ * open document, so each handle of a test host shares one stream and a
+ * participant that forgets to filter by document reacts to foreign edits here
+ * as it would in VS Code.
+ */
+export class DocumentChangeStream {
+    private readonly listeners = new Listeners<DocumentChangeEvent>();
+
+    subscribe(callback: (event: DocumentChangeEvent) => void): EditorSubscription {
+        return this.listeners.add(callback);
+    }
+
+    publish(event: DocumentChangeEvent): void {
+        this.listeners.emit(event);
+    }
+}
+
+/**
  * An open editor whose document and webview live in memory. `posted` records
  * what reached the webview; the `receive`/`change*`/`becomeActive`/`loseFocus` methods play
  * the host events a session subscribes to.
@@ -41,16 +59,21 @@ export class FakeEditorHandle implements EditorHandle {
     private readonly messages = new Listeners<Command>();
     private readonly disposals = new Listeners<void>();
     private readonly activations = new Listeners<boolean>();
-    private readonly documentChanges = new Listeners<DocumentChangeEvent>();
     private readonly settingChanges = new Listeners<SettingChange>();
+    private readonly documentChanges: DocumentChangeStream;
 
     constructor(
         private readonly path: string,
-        { content = "", scheme = "file" }: { content?: string; scheme?: string } = {},
+        {
+            content = "",
+            scheme = "file",
+            documentChanges = new DocumentChangeStream(),
+        }: { content?: string; scheme?: string; documentChanges?: DocumentChangeStream } = {},
     ) {
         this.id = `${scheme}://${path}`;
         this.content = content;
         this.scheme = scheme;
+        this.documentChanges = documentChanges;
     }
 
     documentUriString(): string {
@@ -74,9 +97,9 @@ export class FakeEditorHandle implements EditorHandle {
     }
 
     async writeContent(content: string): Promise<boolean> {
-        const changed = content !== this.content;
-        this.content = content;
-        return changed;
+        if (content === this.content) return false;
+        this.changeDocument(content);
+        return true;
     }
 
     async save(): Promise<boolean> {
@@ -111,8 +134,8 @@ export class FakeEditorHandle implements EditorHandle {
     dispose(): void {
         if (this.disposed) return;
         this.disposed = true;
-        this.subscriptions.forEach((subscription) => subscription.dispose());
         this.disposals.emit();
+        this.subscriptions.forEach((subscription) => subscription.dispose());
     }
 
     onDidReceiveMessage(callback: (message: Command) => void): EditorSubscription {
@@ -128,7 +151,7 @@ export class FakeEditorHandle implements EditorHandle {
     }
 
     onDidChangeDocument(callback: (event: DocumentChangeEvent) => void): EditorSubscription {
-        return this.documentChanges.add(callback);
+        return this.documentChanges.subscribe(callback);
     }
 
     onDidChangeSetting(callback: (event: SettingChange) => void): EditorSubscription {
@@ -152,7 +175,7 @@ export class FakeEditorHandle implements EditorHandle {
     /** Plays an external edit: replaces the content and fires the document change. */
     changeDocument(content: string): void {
         this.content = content;
-        this.documentChanges.emit({
+        this.documentChanges.publish({
             hasContentChanges: () => true,
             documentUriString: () => this.id,
             documentPath: () => this.path,

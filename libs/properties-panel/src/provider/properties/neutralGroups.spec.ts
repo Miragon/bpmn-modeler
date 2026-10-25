@@ -16,6 +16,8 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:collaboration>
   <bpmn:process id="Process_Main" name="Main">
     <bpmn:task id="Task_Plain" />
+    <bpmn:task id="Task_Documented"><bpmn:documentation>Old notes</bpmn:documentation></bpmn:task>
+    <bpmn:textAnnotation id="Annotation_1"><bpmn:text>Note</bpmn:text></bpmn:textAnnotation>
     <bpmn:task id="Task_MultiInstance"><bpmn:multiInstanceLoopCharacteristics id="Task_MultiInstance_Loop" /></bpmn:task>
     <bpmn:task id="Task_StandardLoop"><bpmn:standardLoopCharacteristics /></bpmn:task>
     <bpmn:adHocSubProcess id="AdHoc" />
@@ -99,8 +101,84 @@ describe("neutral property groups", () => {
     }
 
     const bodyOf = (expression: ModdleElement | undefined) => expression?.get("body");
+    const documentationOf = (element: ModdleElement) =>
+        element
+            .get("documentation")
+            .map((documentation: ModdleElement) => documentation.get("text"));
 
     const EDITS: EditCase[] = [
+        {
+            label: "name",
+            element: "Task_Plain",
+            entry: "name",
+            edit: (panel) => panel.typeText("name", "Approve order"),
+            read: (byId) => byId.Task_Plain.get("name"),
+            expected: "Approve order",
+        },
+        {
+            label: "text annotation text",
+            element: "Annotation_1",
+            entry: "name",
+            edit: (panel) => panel.typeText("name", "Revised note"),
+            read: (byId) => byId.Annotation_1.get("text"),
+            expected: "Revised note",
+        },
+        {
+            label: "id",
+            element: "Task_Plain",
+            entry: "id",
+            edit: (panel) => panel.typeText("id", "Task_Approve"),
+            read: (byId) => byId.Task_Plain.id,
+            expected: "Task_Approve",
+        },
+        {
+            label: "process executable",
+            element: "Process_Main",
+            entry: "isExecutable",
+            edit: (panel) => panel.toggleCheckbox("isExecutable"),
+            read: (byId) => byId.Process_Main.get("isExecutable"),
+            expected: true,
+        },
+        {
+            label: "participant's process executable",
+            element: "Participant_WithProcess",
+            entry: "isExecutable",
+            edit: (panel) => panel.toggleCheckbox("isExecutable"),
+            read: (byId) => byId.Process_Main.get("isExecutable"),
+            expected: true,
+        },
+        {
+            label: "new documentation",
+            element: "Task_Plain",
+            entry: "documentation",
+            edit: (panel) => panel.typeText("documentation", "Checks the stock"),
+            read: (byId) => documentationOf(byId.Task_Plain),
+            expected: ["Checks the stock"],
+        },
+        {
+            label: "changed documentation",
+            element: "Task_Documented",
+            entry: "documentation",
+            edit: (panel) => panel.typeText("documentation", "New notes"),
+            read: (byId) => documentationOf(byId.Task_Documented),
+            expected: ["New notes"],
+        },
+        {
+            label: "cleared documentation",
+            element: "Task_Documented",
+            entry: "documentation",
+            edit: (panel) => panel.typeText("documentation", ""),
+            read: (byId) => documentationOf(byId.Task_Documented),
+            expected: [],
+        },
+        {
+            label: "participant's process documentation",
+            element: "Participant_WithProcess",
+            entry: "processDocumentation",
+            edit: (panel) => panel.typeText("processDocumentation", "Bills the customer"),
+            read: (byId) => documentationOf(byId.Process_Main),
+            expected: ["Bills the customer"],
+        },
         {
             label: "link name",
             element: "LinkCatch",
@@ -261,6 +339,20 @@ describe("neutral property groups", () => {
                 ["timeDate", "timeDuration", "timeCycle"].map((type) => timer.get(type)),
             ).toEqual([undefined, undefined, undefined]);
             expect(panel.entryIds("timer")).toEqual(["timerEventDefinitionType"]);
+        });
+    });
+
+    describe("element id", () => {
+        it.each([
+            { value: "has space", error: "ID must not contain spaces." },
+            { value: "Task_Compensable", error: "ID must be unique." },
+        ])("rejects $value and keeps the old id", async ({ value, error }) => {
+            const panel = await renderPanel(XML, "Task_Plain");
+
+            await panel.typeText("id", value);
+
+            expect(panel.elementsById.Task_Plain.id).toBe("Task_Plain");
+            expect(panel.entry("id")!.textContent).toContain(error);
         });
     });
 

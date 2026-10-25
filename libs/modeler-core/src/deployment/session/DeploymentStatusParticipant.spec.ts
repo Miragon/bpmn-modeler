@@ -30,6 +30,16 @@ describe("deployment status focus ownership", () => {
         expect(status.hide).toHaveBeenCalledOnce();
     });
 
+    it("ignores edits to another open document", async () => {
+        const { host, status, participant } = createParticipant();
+        await host.openSession("/work/a.bpmn", [participant]);
+        const b = await host.openSession("/work/b.bpmn", [participant], { focused: false });
+        status.refresh.mockClear();
+        b.changeDocument("<edit/>");
+        vi.advanceTimersByTime(301);
+        expect(status.refresh).not.toHaveBeenCalled();
+    });
+
     it("keeps the new editor's status when an old editor blurs or closes later", async () => {
         const { host, status, participant } = createParticipant();
         const a = await host.openSession("/work/a.bpmn", [participant]);
