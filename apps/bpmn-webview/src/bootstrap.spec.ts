@@ -27,11 +27,6 @@ const mocks = vi.hoisted(() => ({
     reload: vi.fn(),
     flushViewport: vi.fn(),
     startPersisting: vi.fn(),
-    persistPanelVisibility: vi.fn(),
-    restorePanelVisibility: vi.fn(
-        (panel: { setVisible(visible: boolean): void }, fallbackVisible: boolean) =>
-            panel.setVisible(fallbackVisible),
-    ),
     savedMode: undefined as string | undefined,
     stateManagerCreated: vi.fn(),
     prefetchSurfaceModules: vi.fn(),
@@ -87,8 +82,6 @@ vi.mock("./state", () => ({
         restoreViewport = vi.fn();
         restoreSelection = vi.fn();
         restorePanelUiState = vi.fn();
-        restorePanelVisibility = mocks.restorePanelVisibility;
-        persistPanelVisibility = mocks.persistPanelVisibility;
         persistMode = vi.fn();
         startPersisting = mocks.startPersisting;
         flushViewport = mocks.flushViewport;
@@ -730,7 +723,7 @@ describe("bootstrap", () => {
 
                 expect(isCollapsed()).toBe(true);
                 expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
-                expect(mocks.persistPanelVisibility).not.toHaveBeenCalled();
+                expect(host.updateState).not.toHaveBeenCalledWith({ panelVisible: false });
             },
         );
 
@@ -743,7 +736,7 @@ describe("bootstrap", () => {
             document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
 
             expect(isCollapsed()).toBe(true);
-            expect(mocks.persistPanelVisibility).toHaveBeenCalledExactlyOnceWith(false);
+            expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelVisible: false });
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
                 expect.objectContaining({ visible: false }),
             ]);
@@ -765,6 +758,58 @@ describe("bootstrap", () => {
             await vi.advanceTimersByTimeAsync(1);
             expect(isCollapsed()).toBe(false);
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
+        });
+
+        it("focuses a re-shown editor without waiting for the host default", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetPropertiesPanelStateCommand: unanswered },
+                state: { panelVisible: false },
+            });
+            boot(host);
+            await settle();
+
+            expect(isCollapsed()).toBe(true);
+            expect(sentOfType(host, "RequestFocusCommand")).toHaveLength(1);
+        });
+
+        it("keeps and reports a toggle made while the host default is pending", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetPropertiesPanelStateCommand: unanswered },
+            });
+            boot(host);
+            await settle();
+
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS);
+
+            expect(isCollapsed()).toBe(true);
+            expect(host.updateState).toHaveBeenCalledWith({ panelVisible: false });
+            expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
+                expect.objectContaining({ visible: false }),
+            ]);
+        });
+
+        it("keeps a toggle made during the import even when the host already answered", async () => {
+            const modeler = makeModeler();
+            const releaseImport = gateFirstImport(modeler);
+            mocks.createModeler.mockResolvedValue(modeler);
+            const host = makeHost({ file: tagged() });
+            boot(host);
+            await settle();
+
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
+            releaseImport();
+            await settle();
+
+            expect(isCollapsed()).toBe(true);
+            expect(host.updateState).toHaveBeenCalledWith({ panelVisible: false });
+            expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
+                expect.objectContaining({ visible: false }),
+            ]);
         });
     });
 

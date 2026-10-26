@@ -271,53 +271,6 @@ describe("WebviewStateManager.persistMode", () => {
     });
 });
 
-describe("WebviewStateManager panel visibility", () => {
-    function panelHandle() {
-        const setVisible = vi.fn();
-        const handle = {
-            isVisible: () => true,
-            setVisible,
-            onVisibilityChanged: vi.fn(),
-        } as any;
-        return { handle, setVisible };
-    }
-
-    it("applies the saved panelVisible entry over the fallback (saved false)", () => {
-        const { manager } = setup({ panelVisible: false });
-        const { handle, setVisible } = panelHandle();
-
-        manager.restorePanelVisibility(handle, true);
-
-        expect(setVisible).toHaveBeenCalledWith(false);
-    });
-
-    it("applies the saved panelVisible entry over the fallback (saved true)", () => {
-        const { manager } = setup({ panelVisible: true });
-        const { handle, setVisible } = panelHandle();
-
-        manager.restorePanelVisibility(handle, false);
-
-        expect(setVisible).toHaveBeenCalledWith(true);
-    });
-
-    it("falls back to the host default when no saved entry exists", () => {
-        const { manager } = setup(undefined);
-        const { handle, setVisible } = panelHandle();
-
-        manager.restorePanelVisibility(handle, false);
-
-        expect(setVisible).toHaveBeenCalledWith(false);
-    });
-
-    it("merges the panel visibility into persisted state", () => {
-        const { manager, updateState } = setup({ viewport: { x: 0, y: 0, width: 1, height: 1 } });
-
-        manager.persistPanelVisibility(true);
-
-        expect(updateState).toHaveBeenCalledWith({ panelVisible: true });
-    });
-});
-
 describe("WebviewStateManager.restoreSelection", () => {
     it("re-selects the saved elements", () => {
         const { manager, selectElementsByIds } = setup({
@@ -373,9 +326,8 @@ describe("WebviewStateManager on a first-ever open", () => {
         const { manager } = setup(undefined, true, undefined, new HostApiImpl());
 
         manager.persistMode("view");
-        manager.persistPanelVisibility(false);
 
-        expect(persisted).toEqual({ mode: "view", panelVisible: false });
+        expect(persisted).toEqual({ mode: "view" });
         vi.unstubAllGlobals();
     });
 });

@@ -1,9 +1,12 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
+    bindPanelVisibility,
+    createWebviewStateStore,
     initResizer,
     LogErrorCommand,
+    type PanelVisibilityBinding,
     type PropertiesPanelHandle,
-    readSavedPanelVisibility,
+    SetPropertiesPanelStateCommand,
     type WebviewStateHost,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -18,8 +21,7 @@ export interface EditorChrome {
     /** The properties-panel parent and the panel-shortcut root. */
     panelMount: HTMLElement;
     panel: PropertiesPanelHandle;
-    /** Already applied; `undefined` leaves the panel to the host's global default. */
-    savedPanelVisible: boolean | undefined;
+    panelVisibility: PanelVisibilityBinding;
 }
 
 /**
@@ -58,12 +60,11 @@ export function mountEditorChrome(
         onLabelChange: (apply) => i18n.onChange(apply),
     });
 
-    // Before the import, so the panel never flashes the stale default baked into the
-    // shell; through the handle, so the resizer's DOM-seeded collapse state follows.
-    const savedPanelVisible = readSavedPanelVisibility(host);
-    if (savedPanelVisible !== undefined) {
-        panel.setVisible(savedPanelVisible);
-    }
+    // Bound with the resizer, so the saved visibility shows before the import and a
+    // toggle while the editor opens is already remembered and reported.
+    const panelVisibility = bindPanelVisibility(panel, createWebviewStateStore(host), (visible) =>
+        host.postMessage(new SetPropertiesPanelStateCommand(visible)),
+    );
 
-    return { canvas, panelHost, stripEl, panelMount, panel, savedPanelVisible };
+    return { canvas, panelHost, stripEl, panelMount, panel, panelVisibility };
 }
