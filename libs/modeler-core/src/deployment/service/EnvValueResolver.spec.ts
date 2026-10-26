@@ -355,6 +355,22 @@ describe("EnvValueResolver", () => {
             expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/second/.env");
         });
 
+        it("reads the .env of a workspace folder on a UNC share", async () => {
+            const { resolver } = setup({
+                dotEnvFiles: { "//server/share/ws/.env": { MIRAGON_TOKEN: "share-secret" } },
+                workspaceFolders: ["//server/share/ws"],
+            });
+
+            const lookup = await resolver.createLookup(
+                "workspaceFolder",
+                "//server/share/ws/processes",
+                REFERENCES_ENV,
+            );
+
+            expect(lookup("MIRAGON_TOKEN")).toBe("share-secret");
+            expect(lookup.source).toBe("//server/share/ws/.env");
+        });
+
         it("uses the first workspace folder when no documentDir is given", async () => {
             const { resolver, targetsLocator, workspace } = setup({
                 dotEnvFiles: {

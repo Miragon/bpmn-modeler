@@ -22,16 +22,18 @@ function createService(
         persist?: boolean;
         resolveMap?: Record<string, string[]>;
         fileContents?: Record<string, string>;
+        root?: string;
     } = {},
 ) {
     const resolveMap = opts.resolveMap ?? {};
+    const root = opts.root ?? ROOT;
     const host = createTestHost({
-        folders: [ROOT],
+        folders: [root],
         files: opts.fileContents,
         settings: { persistCodeLinkMap: opts.persist ?? false },
     });
-    const editor = host.openEditor(DOC);
-    const secondEditor = host.openEditor(SECOND_DOC);
+    const editor = host.openEditor(opts.root ? `${root}/order.bpmn` : DOC);
+    const secondEditor = host.openEditor(opts.root ? `${root}/invoice.bpmn` : SECOND_DOC);
     const watchers = host.workspace.watchers;
 
     const locator = {
@@ -51,7 +53,7 @@ function createService(
         dispose: vi.fn(),
     };
 
-    const artifactSvc = { getWorkspaceRoot: vi.fn(() => Promise.resolve(ROOT)) };
+    const artifactSvc = { getWorkspaceRoot: vi.fn(() => Promise.resolve(root)) };
 
     const service = new CodeLinkMapService(
         host.store,
@@ -405,6 +407,22 @@ describe("CodeLinkMapService — persistence", () => {
         const written = JSON.parse(host.workspace.files.get(ARTIFACT)!);
         expect(written.bpmnFile).toBe("order.bpmn");
         expect(written.entries[0].paths).toEqual(["src/main/java/com/example/A.java"]);
+    });
+
+    it("writes the artifact under the UNC root of a workspace on a share", async () => {
+        const root = "//server/share/proj";
+        const { service, host, editor } = createService({
+            persist: true,
+            root,
+            resolveMap: { "com.example.A": [`${root}/src/main/java/com/example/A.java`] },
+        });
+
+        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
+        await service.writeArtifact(editor.id);
+
+        expect([...host.workspace.files.keys()]).toEqual([
+            `${root}/.camunda/code-link/order.bpmn.json`,
+        ]);
     });
 
     it("does not persist when the setting is off", async () => {

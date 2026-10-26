@@ -3,6 +3,7 @@ import { posix } from "path";
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { DirectoryNotFound } from "../domain/errors";
 import { SettingsPort, WorkspacePort } from "../domain/hostPorts";
+import { joinWorkspacePath } from "../domain/workspacePath";
 import { ArtifactService, WatcherResult } from "./ArtifactService";
 
 export interface BpmnlintChangeTarget {
@@ -39,11 +40,11 @@ export class BpmnLintConfigLocator {
 
         for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
             if (await this.hasFile(directory, ".bpmnlintrc")) {
-                return posix.join(directory, ".bpmnlintrc");
+                return joinWorkspacePath(directory, ".bpmnlintrc");
             }
-            const configDir = posix.join(directory, configFolder);
+            const configDir = joinWorkspacePath(directory, configFolder);
             if (await this.hasFile(configDir, ".bpmnlintrc")) {
-                return posix.join(configDir, ".bpmnlintrc");
+                return joinWorkspacePath(configDir, ".bpmnlintrc");
             }
         }
 

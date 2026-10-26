@@ -1,8 +1,7 @@
-import { posix } from "path";
-
 import { EXCLUDED_DIRS, pathIsInsideExcludedDir } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
 import { SearchScope } from "../domain/searchScope";
+import { joinWorkspacePath } from "../domain/workspacePath";
 
 /**
  * Reusable workspace-search primitives shared by the navigation and code-link
@@ -157,7 +156,7 @@ async function walkWorkspaceTree(
         const nextLevel: string[] = [];
         for (const [dir, entries] of reads) {
             for (const [name, type] of entries) {
-                const full = posix.join(dir, name);
+                const full = joinWorkspacePath(dir, name);
                 if (type === "directory") {
                     if (!EXCLUDED_DIRS.has(name)) {
                         nextLevel.push(full);

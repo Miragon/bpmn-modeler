@@ -10,12 +10,13 @@ import { NodeWorkspace } from "./nodeAdapters";
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */
-const { watchSpy, closeSpy, chokidarListeners } = vi.hoisted(() => {
+const { watchSpy, closeSpy, chokidarListeners, globSpy } = vi.hoisted(() => {
     const closeSpy = vi.fn(() => Promise.resolve());
     const chokidarListeners = new Map<string, (path: string) => void>();
     return {
         closeSpy,
         chokidarListeners,
+        globSpy: vi.fn(),
         watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
             on(event: string, listener: (path: string) => void) {
                 chokidarListeners.set(event, listener);
@@ -27,6 +28,12 @@ const { watchSpy, closeSpy, chokidarListeners } = vi.hoisted(() => {
 });
 
 vi.mock("chokidar", () => ({ watch: watchSpy }));
+
+// A UNC root cannot be globbed on the macOS/Linux CI, so `fs.glob` is stubbed.
+vi.mock("node:fs", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("node:fs")>();
+    return { ...actual, promises: { ...actual.promises, glob: globSpy } };
+});
 
 describe("NodeWorkspace.createWatcher chokidar options", () => {
     afterEach(() => {
@@ -108,7 +115,7 @@ describe("NodeWorkspace.createWatcher sharing", () => {
     });
 });
 
-describe("NodeWorkspace.createWatcher path contract", () => {
+describe("NodeWorkspace path spelling", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -116,13 +123,13 @@ describe("NodeWorkspace.createWatcher path contract", () => {
     afterEach(() => {
         vi.useRealTimers();
         watchSpy.mockClear();
+        globSpy.mockReset();
         chokidarListeners.clear();
         vi.unstubAllGlobals();
     });
 
     /** Emits each chokidar event for `emittedPath` and records what every handler receives. */
-    function pathsHandedToTheCore(platform: string, root: string, emittedPath: string) {
-        vi.stubGlobal("process", { ...process, platform });
+    function pathsHandedToTheCore(root: string, emittedPath: string) {
         const received = {
             deleted: [] as string[],
             changed: [] as string[],
@@ -140,28 +147,61 @@ describe("NodeWorkspace.createWatcher path contract", () => {
         return received;
     }
 
-    it("hands Windows watcher paths to the core with forward slashes", () => {
-        const received = pathsHandedToTheCore(
-            "win32",
-            "C:/repo",
-            "C:\\repo\\src\\main\\java\\com\\acme\\Foo.java",
-        );
-
-        const portablePath = "C:/repo/src/main/java/com/acme/Foo.java";
-        expect(received).toEqual({
-            deleted: [portablePath],
-            changed: [portablePath],
-            created: [portablePath],
+    async function pathsFound(root: string, relativeMatch: string): Promise<string[]> {
+        globSpy.mockImplementation(async function* () {
+            yield relativeMatch;
         });
-    });
+        const workspace = new NodeWorkspace();
+        workspace.registerRoot(root);
+        return workspace.findFiles("**/*.java");
+    }
 
-    it("keeps a POSIX path unchanged", () => {
-        const received = pathsHandedToTheCore("linux", "/repo", "/repo/a/Foo.java");
+    it.each([
+        {
+            rootForm: "a POSIX root",
+            platform: "linux",
+            root: "/repo",
+            emittedPath: "/repo/src/A.java",
+            spelled: "/repo/src/A.java",
+        },
+        {
+            rootForm: "a drive-letter root",
+            platform: "win32",
+            root: "C:/repo",
+            emittedPath: "C:\\repo\\src\\A.java",
+            spelled: "C:/repo/src/A.java",
+        },
+        {
+            rootForm: "a UNC root with forward slashes",
+            platform: "win32",
+            root: "//server/share/repo",
+            emittedPath: "\\\\server\\share\\repo\\src\\A.java",
+            spelled: "//server/share/repo/src/A.java",
+        },
+        {
+            rootForm: "a UNC root with backslashes",
+            platform: "win32",
+            root: "\\\\server\\share\\repo",
+            emittedPath: "\\\\server\\share\\repo\\src\\A.java",
+            spelled: "//server/share/repo/src/A.java",
+        },
+        {
+            rootForm: "a UNC root with mixed separators",
+            platform: "win32",
+            root: "\\\\server/share\\repo",
+            emittedPath: "//server/share\\repo\\src/A.java",
+            spelled: "//server/share/repo/src/A.java",
+        },
+    ])(
+        "spells a file under $rootForm the same in findFiles and the watcher",
+        async ({ platform, root, emittedPath, spelled }) => {
+            vi.stubGlobal("process", { ...process, platform });
 
-        expect(received).toEqual({
-            deleted: ["/repo/a/Foo.java"],
-            changed: ["/repo/a/Foo.java"],
-            created: ["/repo/a/Foo.java"],
-        });
-    });
+            const watched = pathsHandedToTheCore(root, emittedPath);
+            const found = await pathsFound(root, "src/A.java");
+
+            expect(found).toEqual([spelled]);
+            expect(watched).toEqual({ deleted: [spelled], changed: [spelled], created: [spelled] });
+        },
+    );
 });

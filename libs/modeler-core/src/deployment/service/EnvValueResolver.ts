@@ -2,6 +2,7 @@ import { posix } from "path";
 
 import { FileNotFound, UnreadableDotEnvError } from "../../shared/domain/errors";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { joinWorkspacePath } from "../../shared/domain/workspacePath";
 import { parseDotEnv } from "../domain/dotEnv";
 import {
     emptyEnvLookup,
@@ -58,7 +59,7 @@ export class EnvValueResolver {
         if (projectDir === undefined) {
             return NO_ENV_VARIABLES;
         }
-        return this.readDotEnv(posix.join(projectDir, DOT_ENV_FILE_NAME));
+        return this.readDotEnv(joinWorkspacePath(projectDir, DOT_ENV_FILE_NAME));
     }
 
     /**

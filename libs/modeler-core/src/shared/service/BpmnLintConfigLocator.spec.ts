@@ -76,6 +76,15 @@ describe("BpmnLintConfigLocator.findNearestConfig", () => {
 
         await expect(locator.findNearestConfig("/proj")).resolves.toBe("/.bpmnlintrc");
     });
+
+    it.each([
+        { location: "<dir>", config: "//server/share/work/.bpmnlintrc" },
+        { location: "<configFolder>", config: "//server/share/work/.camunda/.bpmnlintrc" },
+    ])("finds a $location/.bpmnlintrc in a workspace on a UNC share", async ({ config }) => {
+        const { locator } = createLocator({ [config]: "{}" }, ["//server/share/work"]);
+
+        await expect(locator.findNearestConfig("//server/share/work/a")).resolves.toBe(config);
+    });
 });
 
 describe("BpmnLintConfigLocator.readConfig", () => {

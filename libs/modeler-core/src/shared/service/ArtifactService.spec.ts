@@ -94,6 +94,21 @@ describe("ArtifactService.findConfigBaseDir", () => {
         expect(baseDir).toBe("/");
     });
 
+    it("finds the file in a workspace on a UNC share", async () => {
+        const { service } = createService({
+            files: { "//server/share/root/.camunda/deployment-targets.json": "{}" },
+        });
+
+        const baseDir = await service.findConfigBaseDir(
+            "//server/share/root/nested",
+            ".camunda",
+            "deployment-targets.json",
+            "//server/share/root",
+        );
+
+        expect(baseDir).toBe("//server/share/root");
+    });
+
     it("does not skip an unreadable nearest file in favor of another destination", async () => {
         const { service, workspace } = createService({
             files: { "/root/.camunda/deployment-targets.json": "{}" },
@@ -182,6 +197,16 @@ describe("ArtifactService.getWorkspaceRoot", () => {
 
         await expect(service.getWorkspaceRoot("file:///repo/processes")).resolves.toBe(
             "file:///repo",
+        );
+    });
+
+    it("finds the .git file of a worktree whose directory is in URI form", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "file:///worktrees/feature/.git": "file",
+        });
+
+        await expect(service.getWorkspaceRoot("file:///worktrees/feature/src")).resolves.toBe(
+            "file:///worktrees/feature",
         );
     });
 
@@ -317,6 +342,22 @@ describe("ArtifactService.collectTemplateDirs", () => {
         await expect(service.collectTemplateDirs("/proj", "/", ".camunda")).resolves.toEqual([
             "/proj/.camunda/element-templates",
             "/.camunda/element-templates",
+        ]);
+    });
+
+    it("keeps the UNC root of the dirs it collects in a workspace on a share", async () => {
+        const { service } = createService({
+            files: {
+                "//server/share/proj/a/.camunda/element-templates/t.json": "[]",
+                "//server/share/proj/.camunda/element-templates/t.json": "[]",
+            },
+        });
+
+        await expect(
+            service.collectTemplateDirs("//server/share/proj/a", "//server/share/proj", ".camunda"),
+        ).resolves.toEqual([
+            "//server/share/proj/a/.camunda/element-templates",
+            "//server/share/proj/.camunda/element-templates",
         ]);
     });
 

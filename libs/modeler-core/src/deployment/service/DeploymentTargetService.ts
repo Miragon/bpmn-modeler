@@ -1,5 +1,3 @@
-import { posix } from "path";
-
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
 
 import {
@@ -10,6 +8,7 @@ import {
     SettingsPort,
     WorkspacePort,
 } from "../../shared/domain/hostPorts";
+import { joinWorkspacePath } from "../../shared/domain/workspacePath";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
@@ -86,7 +85,7 @@ export class DeploymentTargetService {
         );
         const projectDir = foundIn ?? workspaceRoot;
         return {
-            filePath: posix.join(projectDir, configFolder, TARGETS_FILE_NAME),
+            filePath: joinWorkspacePath(projectDir, configFolder, TARGETS_FILE_NAME),
             exists: foundIn !== undefined,
             projectDir,
         };

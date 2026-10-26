@@ -3,6 +3,7 @@ import { posix } from "path";
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
+import { joinWorkspacePath } from "../domain/workspacePath";
 
 /**
  * Implemented by {@link import("../../modeler/bpmn/service/BpmnElementTemplatesService").BpmnElementTemplatesService}
@@ -73,8 +74,7 @@ export class ArtifactService {
      * directory in a clone and a file in worktrees and submodules.
      */
     private async holdsGitEntry(directory: string): Promise<boolean> {
-        // Not `posix.join`: it collapses the `file:///` of URI-form directories.
-        const gitEntry = directory.endsWith("/") ? `${directory}.git` : `${directory}/.git`;
+        const gitEntry = joinWorkspacePath(directory, ".git");
         return (
             (await succeeds(() => this.vsWorkspace.readDirectory(gitEntry))) ||
             (await succeeds(() => this.vsWorkspace.readFile(gitEntry)))
@@ -101,7 +101,7 @@ export class ArtifactService {
         const dirs: string[] = [];
 
         for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
-            const targetDir = posix.join(directory, configFolder, subFolder);
+            const targetDir = joinWorkspacePath(directory, configFolder, subFolder);
             try {
                 await this.vsWorkspace.readDirectory(targetDir);
                 dirs.push(targetDir);
@@ -128,7 +128,7 @@ export class ArtifactService {
         workspaceRoot: string,
     ): Promise<string | undefined> {
         for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
-            if (await this.fileExists(posix.join(directory, configFolder, fileName))) {
+            if (await this.fileExists(joinWorkspacePath(directory, configFolder, fileName))) {
                 return directory;
             }
         }

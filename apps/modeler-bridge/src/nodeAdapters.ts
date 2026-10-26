@@ -25,7 +25,8 @@
  * Both hosts send system-independent, forward-slash paths (VS Code URIs and
  * IntelliJ's `VirtualFile.path`/`url`, which is always `/`-separated even on
  * Windows), so `posix.*` is the correct path algebra here — never the
- * platform-dependent `path.*`.
+ * platform-dependent `path.*`. Joins go through `joinWorkspacePath` instead of
+ * `posix.join`, which drops the leading `//` of a UNC root.
  */
 
 import { watch } from "chokidar";
@@ -37,9 +38,11 @@ import {
     EditorSubscription,
     FileNotFound,
     globToRegExp,
+    joinWorkspacePath,
     NoWorkspaceFolderFoundError,
     SettingChange,
     SettingsPort,
+    toWorkspacePath,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
@@ -302,8 +305,8 @@ export class NodeWorkspace implements WorkspacePort {
             nativePath: string,
         ): void => {
             // chokidar emits OS-native paths; the core compares them with
-            // `findFiles` results, which are always `/`-separated.
-            const changed = nativePath.replace(/\\/g, "/");
+            // `findFiles` results.
+            const changed = toWorkspacePath(nativePath);
             if (!handler || !matcher.test(changed)) {
                 return;
             }
@@ -434,13 +437,12 @@ export class NodeWorkspace implements WorkspacePort {
         for (const root of this.roots.keys()) {
             const cwd = toFsPath(root);
             for await (const match of fs.glob(pattern, { cwd })) {
-                // fs.glob yields paths relative to cwd using the OS separator;
-                // normalise to posix so the exclude matcher and join are stable.
+                // fs.glob yields the OS separator; the exclude glob expects `/`.
                 const relative = match.split(sep).join("/");
                 if (excludeRe?.test(relative)) {
                     continue;
                 }
-                results.push(posix.join(cwd, relative));
+                results.push(joinWorkspacePath(cwd, relative));
                 if (limit !== undefined && results.length >= limit) {
                     return results;
                 }
