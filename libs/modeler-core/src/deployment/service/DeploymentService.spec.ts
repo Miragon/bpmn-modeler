@@ -601,6 +601,56 @@ describe("DeploymentService.deploy", () => {
         expect(restClient.deploy).not.toHaveBeenCalled();
     });
 
+    it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
+        const { service, host, restClient, deploymentStatus } = createService({
+            files: MAIN_FILE,
+        });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        vi.spyOn(host.secrets, "saveBasicAuth").mockRejectedValue(new Error("no OS keyring"));
+
+        const result = await service.deploy(
+            buildConfig({ endpoint: "https://c/api", auth: new BasicAuth("admin", "secret") }),
+        );
+
+        expect(result).toEqual(
+            new DeploymentResult(true, "ok Not saved: credentials (no OS keyring).", "dep-1"),
+        );
+        expect(host.deploymentState.endpoint).toBe("https://c/api");
+        expect(deploymentStatus.recordDeployment).toHaveBeenCalledOnce();
+        expect(host.notifier.logged("warning")).toEqual([expect.stringContaining("no OS keyring")]);
+    });
+
+    it("reports an engine-accepted deploy as deployed when recording the ledger row throws", async () => {
+        const { service, host, restClient, deploymentStatus } = createService({
+            files: MAIN_FILE,
+        });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        deploymentStatus.recordDeployment.mockRejectedValue(
+            new Error("workspace state unavailable"),
+        );
+
+        const result = await service.deploy(
+            buildConfig({ auth: new BasicAuth("admin", "secret") }),
+            TARGET_SLOT,
+            targetAt("http://localhost:8080/engine-rest"),
+        );
+
+        expect(result).toEqual(
+            new DeploymentResult(
+                true,
+                "ok Not saved: deployment status (workspace state unavailable).",
+                "dep-1",
+            ),
+        );
+        await expect(host.secrets.getBasicAuth(TARGET_SLOT)).resolves.toEqual({
+            username: "admin",
+            password: "secret",
+        });
+        expect(host.notifier.logged("warning")).toEqual([
+            expect.stringContaining("workspace state unavailable"),
+        ]);
+    });
+
     it("logs the resolved endpoint host as a breadcrumb, never its credentials or path", async () => {
         const { service, host, restClient } = createService({
             files: MAIN_FILE,
@@ -1080,6 +1130,28 @@ describe("DeploymentService.deployFiles", () => {
         expect(results.map((r) => r.success)).toEqual([true, false, false]);
         expect(results[1].message).toBe("b: boom");
         expect(host.notifier.errors).toEqual(['Deployed 1/3 file(s) to "dev". b: boom']);
+    });
+
+    it("counts a file the engine accepted as deployed when recording its ledger row throws", async () => {
+        const { service, host, restClient, deploymentStatus } = createService({
+            files: xmlFiles("/work/a.bpmn"),
+        });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        deploymentStatus.recordDeployment.mockRejectedValue(
+            new Error("workspace state unavailable"),
+        );
+
+        const results = await service.deployFiles(["/work/a.bpmn"], target, new NoAuth(), "/work");
+
+        expect(results).toEqual([
+            new DeploymentResult(
+                true,
+                "ok Not saved: deployment status (workspace state unavailable).",
+                "dep-1",
+            ),
+        ]);
+        expect(host.notifier.infos).toEqual(['Deployed 1/1 file(s) to "dev".']);
+        expect(host.notifier.errors).toEqual([]);
     });
 
     it("never throws: an unreadable .env fails every file that references it and names the .env in the summary", async () => {

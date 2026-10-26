@@ -493,20 +493,15 @@ describe("RpcDeploymentState", () => {
         await expect(pending).resolves.toBeUndefined();
     });
 
-    it("logs and does not reject when the host's persist fails", async () => {
+    it("rejects when the host fails to persist and keeps the optimistic snapshot", async () => {
         const { frames, rpc } = harness();
-        const notifier = fakeNotifier();
-        const state = new RpcDeploymentState(rpc, notifier);
+        const state = new RpcDeploymentState(rpc, fakeNotifier());
 
         const pending = state.save("https://engine", "t1");
-        // The host rejects the persist; the deploy must still succeed.
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
 
-        await expect(pending).resolves.toBeUndefined();
-        expect(notifier.logError).toHaveBeenCalledOnce();
-        expect(notifier.logError.mock.calls[0][0]).toBeInstanceOf(Error);
-        expect((notifier.logError.mock.calls[0][0] as Error).message).toContain("disk full");
-        // The optimistic snapshot is intentionally not rolled back; the next seed reconciles.
+        await expect(pending).rejects.toThrow("disk full");
+        // Rolling back would show stale form values mid-session; the next seed reconciles.
         expect(state.getEndpoint()).toBe("https://engine");
     });
 });
