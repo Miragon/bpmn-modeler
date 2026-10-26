@@ -746,6 +746,49 @@ class EditorSessionRouterTest {
         assertFalse("ReleaseDocumentFlushQuery" in page.received, "a closed page's browser is gone")
     }
 
+    @Test
+    fun `pages that answer from another thread while the host waits get their edits written`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageShowing(EDITED_XML, whileHostWaits = replyOnceHostWaits())
+        val second = createSecondBpmnFile()
+        f.openPageShowing(SECOND_EDIT_XML, second, whileHostWaits = replyOnceHostWaits())
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(EDITED_XML, f.bpmn.document.text)
+        assertEquals(SECOND_EDIT_XML, second.document.text, "both replies land within the one shared wait")
+    }
+
+    @Test
+    fun `a recovery interrupted while it waits writes nothing and still re-registers every page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val answered = f.openPageShowing(EDITED_XML)
+        val second = createSecondBpmnFile()
+        val unanswered = f.openPageShowing(SECOND_EDIT_XML, second) { Thread.currentThread().interrupt() }
+
+        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        PlatformTestUtil.waitForFuture(respawn, 10_000)
+
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "an interrupted recovery leaves every Document alone")
+        assertEquals(
+            mapOf(answered.sessionId to REREGISTRATION_FRAMES, unanswered.sessionId to REREGISTRATION_FRAMES),
+            f.reregistrationFrames(sessionCount = 2).bySession(),
+            "the replay still goes out after an interrupted wait",
+        )
+    }
+
+    /** Replies from another thread once the host thread parks to wait for the reply. */
+    private fun replyOnceHostWaits(): (reply: () -> Unit) -> Unit =
+        { reply ->
+            val host = Thread.currentThread()
+            ApplicationManager.getApplication().executeOnPooledThread {
+                val giveUpAt = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+                while (host.state != Thread.State.TIMED_WAITING && System.nanoTime() < giveUpAt) Thread.onSpinWait()
+                reply()
+            }
+        }
+
     /**
      * Opens a page on [file] (by default replacing the fixture's page) that
      * answers a flush the way the page's flush responder does when it exports
