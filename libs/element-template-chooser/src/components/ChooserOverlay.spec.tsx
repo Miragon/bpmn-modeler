@@ -80,7 +80,28 @@ describe("ChooserOverlay", () => {
         expect(container.querySelector(".etc-card-impl")?.textContent).toBe(
             "Task Type:io.camunda:http-json:1",
         );
-        expect(container.querySelector(".etc-badge--props")?.textContent).toBe("1 properties");
+        expect(container.querySelector(".etc-badge--props")?.textContent).toBe("1 property");
+    });
+
+    it("uses the plural property label for every count other than one", () => {
+        const webhook = template({
+            id: "webhook",
+            name: "Webhook",
+            properties: [
+                { label: "URL", type: "String", binding: { type: "zeebe:input", name: "url" } },
+                {
+                    label: "Secret",
+                    type: "String",
+                    binding: { type: "zeebe:input", name: "secret" },
+                },
+            ],
+        });
+        renderOverlay([webhook, audit]);
+
+        const badges = [...container.querySelectorAll(".etc-badge--props")].map(
+            (badge) => badge.textContent,
+        );
+        expect(badges).toEqual(["2 properties", "0 properties"]);
     });
 
     it("narrows the list to the search results and restores it when the search is cleared", () => {

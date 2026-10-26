@@ -82,6 +82,7 @@ const SOURCE_ONLY = new Set([
     "read-only",
     "required",
     "{count} properties",
+    "{count} property",
     // Popup-menu annotations: the harvest snapshot predates them, and the
     // Design- and C8-only strings are out of the C7 driver's reach anyway.
     "Automated work carried out by a Java delegate, expression, or external task",
