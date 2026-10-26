@@ -27,7 +27,6 @@ export interface DeploymentTargetStatus {
 export class RecordingStatusBar implements StatusBarPort {
     elementTemplates: ElementTemplatesStatus = { state: "hidden" };
     engineVersion: { platform: Engine; version: string } | undefined;
-    engineVersionDisposed = false;
     bpmnlint: BpmnlintStatus = { state: "hidden" };
     deploymentTarget: DeploymentTargetStatus | undefined;
 
@@ -49,11 +48,6 @@ export class RecordingStatusBar implements StatusBarPort {
 
     hideEngineVersion(): void {
         this.engineVersion = undefined;
-    }
-
-    disposeEngineVersionStatus(): void {
-        this.engineVersion = undefined;
-        this.engineVersionDisposed = true;
     }
 
     showBpmnlintActive(configPath: string): void {

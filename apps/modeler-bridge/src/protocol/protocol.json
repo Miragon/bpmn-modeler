@@ -587,12 +587,6 @@
         "paramKeys": []
     },
     {
-        "method": "statusBar/disposeEngineVersion",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
         "method": "statusBar/showDeploymentTarget",
         "direction": "coreToHost",
         "kind": "notification",

@@ -163,7 +163,6 @@ describe("RPC protocol descriptor", () => {
                     "  statusBar/templatesHide",
                     "  statusBar/showEngineVersion",
                     "  statusBar/hideEngineVersion",
-                    "  statusBar/disposeEngineVersion",
                     "  statusBar/showDeploymentTarget",
                     "  statusBar/hideDeploymentTarget",
                     "  diff/postMessage",

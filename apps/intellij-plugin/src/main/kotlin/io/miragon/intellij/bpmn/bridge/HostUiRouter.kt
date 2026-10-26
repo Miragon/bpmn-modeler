@@ -44,7 +44,6 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
                 EngineStatusBarWidget.updateEngine(project, "$label ${params.get("version")?.asString}")
             }
             .on("statusBar/hideEngineVersion") { _, _ -> EngineStatusBarWidget.updateEngine(project, null) }
-            .on("statusBar/disposeEngineVersion") { _, _ -> EngineStatusBarWidget.updateEngine(project, null) }
             .on("statusBar/templatesReady") { params, _ ->
                 EngineStatusBarWidget.updateTemplateCount(project, params.get("count")?.asInt ?: 0)
             }

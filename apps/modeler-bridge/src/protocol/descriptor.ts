@@ -167,7 +167,6 @@ export const METHODS = {
     statusBarTemplatesHide: "statusBar/templatesHide",
     statusBarShowEngineVersion: "statusBar/showEngineVersion",
     statusBarHideEngineVersion: "statusBar/hideEngineVersion",
-    statusBarDisposeEngineVersion: "statusBar/disposeEngineVersion",
     statusBarShowDeploymentTarget: "statusBar/showDeploymentTarget",
     statusBarHideDeploymentTarget: "statusBar/hideDeploymentTarget",
     diffPostMessage: "diff/postMessage",
@@ -700,12 +699,6 @@ export const PROTOCOL = [
     },
     {
         method: METHODS.statusBarHideEngineVersion,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.statusBarDisposeEngineVersion,
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: {} satisfies EmptyParams,
