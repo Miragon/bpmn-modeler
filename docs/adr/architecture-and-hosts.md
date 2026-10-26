@@ -65,12 +65,16 @@ splits into `domain/`, an application layer of `service/` and `session/` (the
 editor-session participants), `infrastructure/` and root files that compose the
 feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
 and Node `path`. Features reach each other only through `shared/`. Services and
-participants import infrastructure only for the editor-session core in
-`shared/infrastructure/` and two stores (`MarketplaceCache`, `DiffPaneStore`);
-in infrastructure only the inbound `*MessageHandlers` adapters import services.
-The core has no import cycles. The core architecture test lists each known
-violation with the change that removes it, and fails when an entry is no longer
-needed, so the list only shrinks.
+participants import no infrastructure; in infrastructure only the inbound
+`*MessageHandlers` adapters import services. A relative import resolves to a
+feature module, never to the package entry or the test kit, and the core has no
+import cycles. The core architecture test enforces these rules. Today's listed
+exceptions are the protocol imports of three domain files, the template
+marketplace's use of the deployment `HttpClient`, `hostPorts.ts` naming
+deployment and migration types, and services using the editor-session core in
+`shared/infrastructure/`, `MarketplaceCache` and `DiffPaneStore`. Each names the
+issue that removes it, and the test fails when one is no longer needed, so the
+list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities

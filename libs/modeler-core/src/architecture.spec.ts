@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
-import { preProcessFile } from "typescript";
+import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -10,8 +10,8 @@ import { describe, expect, it } from "vitest";
  * (`path`, `Buffer`) are allowed; they are not host capabilities.
  *
  * Inside the core, layers point inward and features meet only in `shared/`.
- * Each exception below names what removes it, and an exception the code no
- * longer needs fails the gate, so the lists only shrink.
+ * Each exception below names the issue that removes it, and an exception the
+ * code no longer needs fails the gate, so the lists only shrink.
  */
 const SRC_ROOT = __dirname;
 
@@ -64,17 +64,22 @@ const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
 const CROSS_FEATURE_EXCEPTIONS: readonly KnownException[] = [
     {
         from: "template-marketplace",
-        to: "deployment",
+        to: "deployment/domain/ports.ts",
         until: "#1828 moves HttpClient into the kernel",
     },
     {
-        from: "shared",
-        to: "deployment",
+        from: "template-marketplace",
+        to: "deployment/infrastructure/FetchHttpClient.ts",
+        until: "#1828 moves HttpClient, with its fetch adapter, into the kernel",
+    },
+    {
+        from: "shared/domain/hostPorts.ts",
+        to: "deployment/domain/deploymentLedger.ts",
         until: "#1828 shapes the status-bar and deployment-state ports by intent",
     },
     {
-        from: "shared",
-        to: "migration",
+        from: "shared/domain/hostPorts.ts",
+        to: "migration/domain/MigrationPlan.ts",
         until: "#1828 replaces the migration-scope prompt with a generic picker",
     },
 ];
@@ -103,12 +108,12 @@ const SERVICE_INFRASTRUCTURE_EXCEPTIONS: readonly KnownException[] = [
     {
         from: "*",
         to: "template-marketplace/infrastructure/MarketplaceCache.ts",
-        until: "no issue yet: the store becomes a port or a service",
+        until: "#1845 makes the store a port or moves it out of infrastructure",
     },
     {
         from: "*",
         to: "diff/infrastructure/DiffPaneStore.ts",
-        until: "no issue yet: the store becomes a port or a service",
+        until: "#1845 makes the store a port or moves it out of infrastructure",
     },
 ];
 
@@ -143,8 +148,42 @@ function readImports(files: readonly string[]): Map<string, string[]> {
     );
 }
 
+/** Walks the syntax tree, which leaves comments (JSDoc included) and strings out. */
 function importSpecifiers(source: string): string[] {
-    return preProcessFile(source, true, true).importedFiles.map((file) => file.fileName);
+    const specifiers: string[] = [];
+    const visit = (node: ts.Node): void => {
+        const specifier = moduleSpecifierOf(node);
+        if (specifier !== undefined) {
+            specifiers.push(specifier);
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(ts.createSourceFile("module.ts", source, ts.ScriptTarget.Latest));
+    return specifiers;
+}
+
+function moduleSpecifierOf(node: ts.Node): string | undefined {
+    let literal: ts.Node | undefined;
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+        literal = node.moduleSpecifier;
+    } else if (
+        ts.isImportEqualsDeclaration(node) &&
+        ts.isExternalModuleReference(node.moduleReference)
+    ) {
+        literal = node.moduleReference.expression;
+    } else if (ts.isCallExpression(node) && isImportOrRequire(node.expression)) {
+        literal = node.arguments[0];
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
+        literal = node.argument.literal;
+    }
+    return literal !== undefined && ts.isStringLiteralLike(literal) ? literal.text : undefined;
+}
+
+function isImportOrRequire(callee: ts.Expression): boolean {
+    return (
+        callee.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(callee) && callee.text === "require")
+    );
 }
 
 /** `vscode` and the Node platform — what the host-agnostic core must not name. */
@@ -283,11 +322,12 @@ function adapterToServiceViolations(edges: readonly ImportEdge[]): ImportEdge[] 
     );
 }
 
-function unresolvedImportViolations(_edges: readonly ImportEdge[]): ImportEdge[] {
-    return [];
+/** No other rule sees such an edge, so it could hide a cycle or a cross-feature import. */
+function unresolvedImportViolations(edges: readonly ImportEdge[]): ImportEdge[] {
+    return edges.filter(({ specifier, to }) => specifier.startsWith(".") && to === undefined);
 }
 
-/** One cycle per back edge of a depth-first walk, so a single bad import can list several. */
+/** One sorted entry per strongly connected component, however many imports close it. */
 function importCycles(edges: readonly ImportEdge[]): string[][] {
     const successors = new Map<string, string[]>();
     for (const { from, to } of edges) {
@@ -295,26 +335,35 @@ function importCycles(edges: readonly ImportEdge[]): string[][] {
             successors.set(from.path, [...(successors.get(from.path) ?? []), to.path]);
         }
     }
-    const finished = new Set<string>();
+    const reachableFrom = new Map(
+        [...successors.keys()].map((file) => [file, reachable(file, successors)]),
+    );
+    const grouped = new Set<string>();
     const cycles: string[][] = [];
-    const visit = (file: string, trail: readonly string[]): void => {
-        const repeatsAt = trail.indexOf(file);
-        if (repeatsAt >= 0) {
-            cycles.push([...trail.slice(repeatsAt), file]);
-            return;
+    for (const file of [...reachableFrom.keys()].sort()) {
+        if (grouped.has(file) || !reachableFrom.get(file)!.has(file)) {
+            continue;
         }
-        if (finished.has(file)) {
-            return;
-        }
-        for (const next of successors.get(file) ?? []) {
-            visit(next, [...trail, file]);
-        }
-        finished.add(file);
-    };
-    for (const file of successors.keys()) {
-        visit(file, []);
+        const cycle = [...reachableFrom.get(file)!]
+            .filter((other) => reachableFrom.get(other)?.has(file))
+            .sort();
+        cycle.forEach((member) => grouped.add(member));
+        cycles.push(cycle);
     }
     return cycles;
+}
+
+function reachable(start: string, successors: ReadonlyMap<string, readonly string[]>): Set<string> {
+    const seen = new Set<string>();
+    const queue = [...(successors.get(start) ?? [])];
+    while (queue.length > 0) {
+        const file = queue.pop()!;
+        if (!seen.has(file)) {
+            seen.add(file);
+            queue.push(...(successors.get(file) ?? []));
+        }
+    }
+    return seen;
 }
 
 function inScope(scope: string, path: string): boolean {
@@ -461,6 +510,10 @@ describe("import reading", () => {
         {
             form: "a call to a function other than require",
             source: 'const label = translate("./x");\nimport { a } from "./a";',
+        },
+        {
+            form: "a dynamic import of a computed path",
+            source: 'const x = import(modulePath);\nimport { a } from "./a";',
         },
     ])("ignores $form", ({ source }) => {
         expect(importSpecifiers(source)).toEqual(["./a"]);
@@ -780,7 +833,7 @@ describe("modeler-core architecture", () => {
     });
 
     it("has no import cycles", () => {
-        expect(importCycles(edges).map((cycle) => cycle.join(" -> "))).toEqual([]);
+        expect(importCycles(edges).map((cycle) => cycle.join(", "))).toEqual([]);
     });
 
     it("lists no exception the code no longer needs", () => {
