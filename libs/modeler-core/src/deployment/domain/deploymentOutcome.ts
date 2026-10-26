@@ -9,6 +9,17 @@ export interface NotRemembered {
 
 export type DeploymentOutcomeKind = "deployed" | "deployedNotRemembered" | "failed";
 
+const PART_LABELS: Record<RememberedPart, string> = {
+    connection: "connection settings",
+    credentials: "credentials",
+    ledgerRow: "deployment status",
+};
+
+/**
+ * The engine's answer is final: a deploy it accepted stays deployed even when
+ * saving its connection, credentials or ledger row afterwards fails, because the
+ * deployment is live either way.
+ */
 export class DeploymentOutcome {
     private constructor(
         private readonly engineResult: DeploymentResult,
@@ -20,7 +31,8 @@ export class DeploymentOutcome {
     }
 
     get kind(): DeploymentOutcomeKind {
-        return this.engineResult.success ? "deployed" : "failed";
+        if (!this.succeeded) return "failed";
+        return this.notRemembered.length === 0 ? "deployed" : "deployedNotRemembered";
     }
 
     get succeeded(): boolean {
@@ -31,12 +43,20 @@ export class DeploymentOutcome {
         return this.engineResult.deploymentId;
     }
 
-    // Today's rule, as DeploymentService applies it: a failed save fails the deploy.
-    notRemembering(_part: RememberedPart, reason: string): DeploymentOutcome {
-        return DeploymentOutcome.fromEngine(new DeploymentResult(false, reason));
+    notRemembering(part: RememberedPart, reason: string): DeploymentOutcome {
+        if (!this.succeeded) return this;
+        return new DeploymentOutcome(this.engineResult, [...this.notRemembered, { part, reason }]);
     }
 
     toResult(): DeploymentResult {
-        return this.engineResult;
+        if (this.kind !== "deployedNotRemembered") return this.engineResult;
+        const unsaved = this.notRemembered
+            .map(({ part, reason }) => `${PART_LABELS[part]} (${reason})`)
+            .join(", ");
+        return new DeploymentResult(
+            true,
+            `${this.engineResult.message} Not saved: ${unsaved}.`,
+            this.deploymentId,
+        );
     }
 }

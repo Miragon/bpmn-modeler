@@ -11,6 +11,7 @@ import {
 } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
+import { DeploymentOutcome, RememberedPart } from "../domain/deploymentOutcome";
 import { EnvLookup } from "../domain/envRef";
 import { loggableHost } from "../domain/urlTemplate";
 import {
@@ -152,9 +153,11 @@ export class DeploymentService {
      * Executes the complete deployment workflow:
      *   1. Reads the main BPMN file and any additional files.
      *   2. Issues the REST deployment request with `${env:…}` refs expanded.
-     *   3. On success, persists the literal config and records the ledger row.
+     *   3. Once the engine accepts, saves the literal config and records the
+     *      ledger row, each on its own: a failed save is logged and named in the
+     *      result's message, never turned into a failed deploy.
      *
-     * This method never throws; all errors are captured in the returned
+     * This method never throws; all other errors are captured in the returned
      * {@link DeploymentResult} with `success: false`.
      *
      * @param config Validated deployment configuration.
@@ -193,24 +196,29 @@ export class DeploymentService {
             this.notifier.logInfo(
                 `Deployment started: ${path.basename(config.mainFilePath)} -> ${config.engine} @ ${loggableHost(requestConfig.deployUrl ?? requestConfig.endpoint)}`,
             );
-            const result = await this.restClient.deploy(requestConfig, fileContents);
+            const engineResult = await this.restClient.deploy(requestConfig, fileContents);
+            let outcome = DeploymentOutcome.fromEngine(engineResult);
+            if (!outcome.succeeded) return outcome.toResult();
 
-            if (result.success) {
-                await this.persistOnSuccess(config, secretSlot);
-                const identity =
-                    target === undefined
-                        ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId, lookup)
-                        : DeploymentTargetIdentity.fromTarget(target, lookup);
-                const content = fileContents.get(path.basename(config.mainFilePath)) ?? "";
-                await this.deploymentStatus.recordDeployment(
-                    config.mainFilePath,
-                    content,
-                    identity,
-                    result.deploymentId,
+            if (secretSlot === undefined) {
+                outcome = await this.remember(outcome, "connection", () =>
+                    this.saveConnection(config),
                 );
             }
-
-            return result;
+            outcome = await this.remember(outcome, "credentials", () =>
+                this.saveSecrets(config.auth, secretSlot),
+            );
+            outcome = await this.remember(outcome, "ledgerRow", () =>
+                this.deploymentStatus.recordDeployment(
+                    config.mainFilePath,
+                    fileContents.get(path.basename(config.mainFilePath)) ?? "",
+                    target === undefined
+                        ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId, lookup)
+                        : DeploymentTargetIdentity.fromTarget(target, lookup),
+                    engineResult.deploymentId,
+                ),
+            );
+            return outcome.toResult();
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(message));
@@ -262,15 +270,19 @@ export class DeploymentService {
                 );
                 await pendingApproval;
                 const fileContents = await this.readFileContents(config);
-                const result = await this.restClient.deploy(requestConfig, fileContents);
-                if (result.success) {
-                    await this.deploymentStatus.recordDeployment(
-                        filePath,
-                        fileContents.get(name + path.extname(filePath)) ?? "",
-                        DeploymentTargetIdentity.fromTarget(target, envLookup),
-                        result.deploymentId,
+                const engineResult = await this.restClient.deploy(requestConfig, fileContents);
+                let outcome = DeploymentOutcome.fromEngine(engineResult);
+                if (outcome.succeeded) {
+                    outcome = await this.remember(outcome, "ledgerRow", () =>
+                        this.deploymentStatus.recordDeployment(
+                            filePath,
+                            fileContents.get(name + path.extname(filePath)) ?? "",
+                            DeploymentTargetIdentity.fromTarget(target, envLookup),
+                            engineResult.deploymentId,
+                        ),
                     );
                 }
+                const result = outcome.toResult();
                 this.notifier.logInfo(`Deployed ${name}: ${result.message}`);
                 results.push(result);
             } catch (error) {
@@ -291,12 +303,24 @@ export class DeploymentService {
         return results;
     }
 
-    private async persistOnSuccess(config: DeploymentConfig, secretSlot?: string): Promise<void> {
-        if (secretSlot !== undefined) {
-            await this.saveSecrets(config.auth, secretSlot);
-            return;
+    private async remember(
+        outcome: DeploymentOutcome,
+        part: RememberedPart,
+        save: () => Promise<void>,
+    ): Promise<DeploymentOutcome> {
+        try {
+            await save();
+            return outcome;
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            this.notifier.logWarning(
+                `Deployment succeeded, but saving its ${part} failed: ${reason}`,
+            );
+            return outcome.notRemembering(part, reason);
         }
+    }
 
+    private async saveConnection(config: DeploymentConfig): Promise<void> {
         await this.deploymentState.save(config.endpoint, config.tenantId);
         await this.deploymentState.saveAuthType(config.auth.type);
         if (config.auth.type === "oauth2") {
@@ -305,7 +329,6 @@ export class DeploymentService {
                 config.auth.audience,
             );
         }
-        await this.saveSecrets(config.auth);
     }
 
     private async saveSecrets(auth: AuthConfig, slot?: string): Promise<void> {
