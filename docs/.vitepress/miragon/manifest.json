@@ -1,6 +1,6 @@
 {
   "$kommentar": "Generiert von scripts/sync-assets.mjs in Miragon/corporate-identity, nicht von Hand ändern. Jede Datei, die ein Repo aus der Skill docs-site vendort: Pfad im Repo, Quelle unter plugins/miragon-brand/skills/docs-site/assets/ und sha256. check.mjs prüft die Kopie damit.",
-  "version": "1.25.0",
+  "version": "1.25.1",
   "dateien": [
     {
       "pfad": "docs/.vitepress/miragon/check.mjs",
@@ -55,7 +55,7 @@
     {
       "pfad": "docs/.vitepress/miragon/theme/miragon.css",
       "quelle": "miragon/theme/miragon.css",
-      "sha256": "b89a5f0b46bd176433899eda8cacfa893ab6876fe2ceb82d379ebb160963d937"
+      "sha256": "5c43dc675cf7d718e42f7089e1bb274f1198bf1049d7997b108fe3724f05a4df"
     },
     {
       "pfad": "docs/.vitepress/miragon/theme/useStars.ts",

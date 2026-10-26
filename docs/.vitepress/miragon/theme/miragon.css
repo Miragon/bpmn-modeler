@@ -594,14 +594,18 @@
 }
 
 /* Bitte um einen Stern am Seitenende (StarPrompt.vue): graue Fläche, rechts
-   eine Pille wie oben. Auf schmalen Schirmen steht die Pille unter dem Text. */
+   eine Pille wie oben. Auf schmalen Schirmen steht die Pille unter dem Text.
+   Der Seitenfuß von VitePress rückt 64px vom Text ab, mit der Fläche 32px. */
+.VPDocFooter:has(> .miragon-star-prompt) {
+  margin-top: 32px;
+}
 .miragon-star-prompt {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 12px 16px;
-  margin-top: 48px;
+  margin: 0 0 32px;
   padding: 18px 20px;
   border-radius: 8px;
   background: var(--cd-ui-abschnitt);
