@@ -43,35 +43,6 @@ const unknownPlatformVersionXml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:modeler="http://camunda.org/schema/modeler/1.0" modeler:executionPlatformVersion="9.1.0">
 </bpmn:definitions>`;
 
-// For withExecutionPlatform tests — matches the original bpmnUtils.spec.ts fixture.
-const xmlWithoutPlatform = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1jpphon" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.21.0">
-  <bpmn:process id="Process_1aiafvx" isExecutable="true" >
-    <bpmn:startEvent id="StartEvent_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1aiafvx">
-      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
-        <dc:Bounds x="179" y="159" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
-
-const xmlWithPlatform = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1jpphon" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.21.0" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.20.0">
-  <bpmn:process id="Process_1aiafvx" isExecutable="true" >
-    <bpmn:startEvent id="StartEvent_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1aiafvx">
-      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
-        <dc:Bounds x="179" y="159" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
-
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("BpmnDocument.isEmpty", () => {
@@ -204,38 +175,6 @@ describe("BpmnDocument.withVersion", () => {
     });
 });
 
-describe("BpmnDocument.withExecutionPlatform", () => {
-    it("should inject platform attributes with schema into the definitions tag", () => {
-        const result = new BpmnDocument(xmlWithoutPlatform).withExecutionPlatform(
-            "Camunda Platform",
-            "7.20.0",
-            `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`,
-        );
-        expect(result.xml).toEqual(xmlWithPlatform);
-    });
-
-    it("should work without a schema argument", () => {
-        const result = new BpmnDocument(xmlWithoutPlatform).withExecutionPlatform(
-            "Camunda Platform",
-            "7.20.0",
-        );
-        expect(result.xml).toContain('modeler:executionPlatform="Camunda Platform"');
-        expect(result.xml).toContain('modeler:executionPlatformVersion="7.20.0"');
-    });
-
-    it("should throw when the XML has no bpmn:definitions tag", () => {
-        expect(() =>
-            new BpmnDocument("<invalid/>").withExecutionPlatform("Camunda Platform", "7.20.0"),
-        ).toThrow("The BPMN file does not contain a `bpmn:definitions` tag.");
-    });
-
-    it("should not mutate the original document", () => {
-        const original = new BpmnDocument(xmlWithoutPlatform);
-        original.withExecutionPlatform("Camunda Platform", "7.20.0");
-        expect(original.xml).toBe(xmlWithoutPlatform);
-    });
-});
-
 const CAMUNDA_NAMESPACE = 'xmlns:camunda="http://camunda.org/schema/1.0/bpmn"';
 const ZEEBE_NAMESPACE = 'xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"';
 const MODELER_NAMESPACE = 'xmlns:modeler="http://camunda.org/schema/modeler/1.0"';
@@ -295,6 +234,21 @@ const migrations: {
         },
     },
     {
+        given: "a tagged C8 diagram with a single-quoted version",
+        xml: diagram(
+            ZEEBE_NAMESPACE,
+            MODELER_NAMESPACE,
+            C8_PLATFORM,
+            "modeler:executionPlatformVersion='8.6.0'",
+        ),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "versionReplaced",
+            xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0")),
+        },
+    },
+    {
         given: "a C8 diagram detected through its zeebe namespace",
         xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE),
         engine: "c8",
@@ -312,6 +266,21 @@ const migrations: {
         expected: {
             kind: "platformStamped",
             xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, ZEEBE_NAMESPACE, platformVersion("8.8.0")),
+        },
+    },
+    {
+        given: "a C7 diagram detected through its execution platform",
+        xml: diagram(MODELER_NAMESPACE, C7_PLATFORM),
+        engine: "c7",
+        version: "7.24.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(
+                MODELER_NAMESPACE,
+                C7_PLATFORM,
+                CAMUNDA_NAMESPACE,
+                platformVersion("7.24.0"),
+            ),
         },
     },
     {
@@ -352,6 +321,16 @@ const migrations: {
                 C8_PLATFORM,
                 platformVersion("8.8.0"),
             ),
+        },
+    },
+    {
+        given: "a C8 diagram with a self-closing definitions root",
+        xml: `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${ZEEBE_NAMESPACE} />`,
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${ZEEBE_NAMESPACE} ${MODELER_NAMESPACE} ${C8_PLATFORM} ${platformVersion("8.8.0")}/>`,
         },
     },
     {

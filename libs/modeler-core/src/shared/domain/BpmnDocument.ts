@@ -12,6 +12,7 @@ import {
     detectEngine,
     Engine,
     ENGINE_EXECUTION_PLATFORM,
+    ENGINE_LABEL,
 } from "@miragon/bpmn-modeler-types";
 
 import { getLatestVersion } from "./engineVersions";
@@ -22,6 +23,16 @@ export type MigrationOutcome =
     | { readonly kind: "unchanged" }
     | { readonly kind: "versionReplaced"; readonly document: BpmnDocument }
     | { readonly kind: "platformStamped"; readonly document: BpmnDocument };
+
+const ENGINE_NAMESPACE: Record<Engine, { readonly prefix: string; readonly uri: string }> = {
+    c7: { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
+    c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
+};
+
+const MODELER_NAMESPACE = { prefix: "modeler", uri: "http://camunda.org/schema/modeler/1.0" };
+const EXECUTION_PLATFORM = "modeler:executionPlatform";
+const EXECUTION_PLATFORM_VERSION = "modeler:executionPlatformVersion";
+const DEFINITIONS_START_TAG = /<(?:[\w.-]+:)?definitions(?=[\s/>])[^>]*>/;
 
 export class BpmnDocument {
     constructor(readonly xml: string) {}
@@ -176,52 +187,40 @@ export class BpmnDocument {
         );
     }
 
+    /**
+     * Only a stamp adds the engine namespace: bpmn-js drops an unused one on
+     * save, so requiring it on tagged diagrams would rewrite them on every run.
+     *
+     * @throws {Error} When the XML has no `definitions` root or is not a diagram for `engine`.
+     */
     migratedTo(engine: Engine, version: string): MigrationOutcome {
-        const currentVersion = this.detectPlatformVersion();
-        if (currentVersion === version) {
+        const startTag = DEFINITIONS_START_TAG.exec(this.xml);
+        if (!startTag) {
+            throw new Error("The BPMN file does not contain a `definitions` root element.");
+        }
+        if (this.detectEngine() !== engine) {
+            throw new Error(`The diagram is not a ${ENGINE_LABEL[engine]} diagram.`);
+        }
+
+        const declaredVersion = attributeValue(startTag[0], EXECUTION_PLATFORM_VERSION);
+        const isTagged =
+            declaredVersion !== undefined &&
+            attributeValue(startTag[0], EXECUTION_PLATFORM) !== undefined;
+        if (isTagged && declaredVersion === version) {
             return { kind: "unchanged" };
         }
-        if (currentVersion === undefined) {
-            const schema =
-                engine === "c7"
-                    ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
-                    : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
-            return {
-                kind: "platformStamped",
-                document: this.withExecutionPlatform(
-                    ENGINE_EXECUTION_PLATFORM[engine],
-                    version,
-                    schema,
-                ),
-            };
-        }
-        return { kind: "versionReplaced", document: this.withVersion(version) };
-    }
 
-    /**
-     * Returns a new `BpmnDocument` with execution platform attributes (and an
-     * optional `schema` namespace attribute) injected into the
-     * `<bpmn:definitions>` opening tag. Throws when the XML has no such tag.
-     */
-    withExecutionPlatform(platform: string, version: string, schema?: string): BpmnDocument {
-        const regex = /<bpmn:definitions[^>]*>/;
-        const match = this.xml.match(regex);
-
-        if (!match) {
-            throw new Error("The BPMN file does not contain a `bpmn:definitions` tag.");
-        }
-
-        const schemaPrefix = schema ? `${schema} ` : "";
-        const insert = `${schemaPrefix}modeler:executionPlatform="${platform}" modeler:executionPlatformVersion="${version}">`;
-
-        // Split on whitespace tokens and strip the trailing ">" from the last token
-        // before appending the new attributes.
-        const tokens = match[0].split(" ");
-        if (tokens[tokens.length - 1].endsWith(">")) {
-            tokens[tokens.length - 1] = tokens[tokens.length - 1].slice(0, -1);
-            tokens.push(insert);
-        }
-        return new BpmnDocument(this.xml.replace(regex, tokens.join(" ")));
+        const migratedStartTag = isTagged
+            ? withAttributeValue(startTag[0], EXECUTION_PLATFORM_VERSION, version)
+            : stampedStartTag(startTag[0], engine, version);
+        const document = new BpmnDocument(
+            this.xml.slice(0, startTag.index) +
+                migratedStartTag +
+                this.xml.slice(startTag.index + startTag[0].length),
+        );
+        return isTagged
+            ? { kind: "versionReplaced", document }
+            : { kind: "platformStamped", document };
     }
 
     /**
@@ -236,4 +235,38 @@ export class BpmnDocument {
         }
         throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
     }
+}
+
+function stampedStartTag(startTag: string, engine: Engine, version: string): string {
+    const engineNamespace = ENGINE_NAMESPACE[engine];
+    const platformAttributes: [name: string, value: string][] = [
+        [`xmlns:${engineNamespace.prefix}`, engineNamespace.uri],
+        [`xmlns:${MODELER_NAMESPACE.prefix}`, MODELER_NAMESPACE.uri],
+        [EXECUTION_PLATFORM, ENGINE_EXECUTION_PLATFORM[engine]],
+        [EXECUTION_PLATFORM_VERSION, version],
+    ];
+    const missingAttributes = platformAttributes
+        .filter(([name]) => attributeValue(startTag, name) === undefined)
+        .map(([name, value]) => `${name}="${value}"`)
+        .join(" ");
+    return withAttributeValue(startTag, EXECUTION_PLATFORM_VERSION, version).replace(
+        /\s*(\/?>)$/,
+        (_, tagEnd: string) => ` ${missingAttributes}${tagEnd}`,
+    );
+}
+
+function attributePattern(name: string): RegExp {
+    return new RegExp(`(\\s${name}\\s*=\\s*)(?:"([^"]*)"|'([^']*)')`);
+}
+
+function attributeValue(startTag: string, name: string): string | undefined {
+    const match = attributePattern(name).exec(startTag);
+    return match ? (match[2] ?? match[3]) : undefined;
+}
+
+function withAttributeValue(startTag: string, name: string, value: string): string {
+    return startTag.replace(
+        attributePattern(name),
+        (_, assignment: string) => `${assignment}"${value}"`,
+    );
 }
