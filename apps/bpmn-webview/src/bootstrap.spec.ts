@@ -27,11 +27,6 @@ const mocks = vi.hoisted(() => ({
     reload: vi.fn(),
     flushViewport: vi.fn(),
     startPersisting: vi.fn(),
-    persistPanelVisibility: vi.fn(),
-    restorePanelVisibility: vi.fn(
-        (panel: { setVisible(visible: boolean): void }, fallbackVisible: boolean) =>
-            panel.setVisible(fallbackVisible),
-    ),
     savedMode: undefined as string | undefined,
     stateManagerCreated: vi.fn(),
     prefetchSurfaceModules: vi.fn(),
@@ -87,8 +82,6 @@ vi.mock("./state", () => ({
         restoreViewport = vi.fn();
         restoreSelection = vi.fn();
         restorePanelUiState = vi.fn();
-        restorePanelVisibility = mocks.restorePanelVisibility;
-        persistPanelVisibility = mocks.persistPanelVisibility;
         persistMode = vi.fn();
         startPersisting = mocks.startPersisting;
         flushViewport = mocks.flushViewport;
@@ -730,7 +723,7 @@ describe("bootstrap", () => {
 
                 expect(isCollapsed()).toBe(true);
                 expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
-                expect(mocks.persistPanelVisibility).not.toHaveBeenCalled();
+                expect(host.updateState).not.toHaveBeenCalledWith({ panelVisible: false });
             },
         );
 
@@ -743,7 +736,7 @@ describe("bootstrap", () => {
             document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
 
             expect(isCollapsed()).toBe(true);
-            expect(mocks.persistPanelVisibility).toHaveBeenCalledExactlyOnceWith(false);
+            expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelVisible: false });
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
                 expect.objectContaining({ visible: false }),
             ]);

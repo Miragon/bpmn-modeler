@@ -21,15 +21,29 @@ export interface PanelVisibilityTransition {
     readonly effects: readonly PanelVisibilityEffect[];
 }
 
-export function initialPanelVisibility(_saved: boolean | undefined): PanelVisibilityTransition {
-    return { state: { decided: false }, effects: [] };
+const UNDECIDED: PanelVisibility = { decided: false };
+
+function shown(visible: boolean): PanelVisibilityTransition {
+    return { state: { decided: true, visible }, effects: [{ kind: "show", visible }] };
+}
+
+export function initialPanelVisibility(saved: boolean | undefined): PanelVisibilityTransition {
+    return saved === undefined ? { state: UNDECIDED, effects: [] } : shown(saved);
 }
 
 export function panelVisibilityAfter(
     state: PanelVisibility,
-    _event: PanelVisibilityEvent,
+    event: PanelVisibilityEvent,
 ): PanelVisibilityTransition {
-    return { state, effects: [] };
+    switch (event.kind) {
+        case "userToggled":
+            return {
+                state: { decided: true, visible: event.visible },
+                effects: [{ kind: "remember", visible: event.visible }],
+            };
+        case "hostDefaultSettled":
+            return state.decided ? { state, effects: [] } : shown(event.visible ?? true);
+    }
 }
 
 export interface PanelVisibilityBinding {
@@ -37,10 +51,50 @@ export interface PanelVisibilityBinding {
     hostDefaultSettled(visible: boolean | undefined): void;
 }
 
+/**
+ * The resizer reports every transition without an origin, so only the binder's
+ * own `show` is tagged; any other transition, Shift+P and `p` included, is the user's.
+ */
 export function bindPanelVisibility(
-    _handle: PropertiesPanelHandle,
-    _store: WebviewStateStore<PropertiesPanelUiState>,
-    _report: (visible: boolean) => void,
+    handle: PropertiesPanelHandle,
+    store: WebviewStateStore<PropertiesPanelUiState>,
+    report: (visible: boolean) => void,
 ): PanelVisibilityBinding {
-    return { isDecided: () => false, hostDefaultSettled: () => undefined };
+    let applying = false;
+    const initial = initialPanelVisibility(store.read()?.panelVisible);
+    let state = initial.state;
+
+    function perform(effects: readonly PanelVisibilityEffect[]): void {
+        for (const effect of effects) {
+            if (effect.kind === "show") {
+                applying = true;
+                try {
+                    handle.setVisible(effect.visible);
+                } finally {
+                    applying = false;
+                }
+            } else {
+                store.merge({ panelVisible: effect.visible });
+                report(effect.visible);
+            }
+        }
+    }
+
+    function dispatch(event: PanelVisibilityEvent): void {
+        const next = panelVisibilityAfter(state, event);
+        state = next.state;
+        perform(next.effects);
+    }
+
+    handle.onVisibilityChanged((visible) => {
+        if (!applying) {
+            dispatch({ kind: "userToggled", visible });
+        }
+    });
+    perform(initial.effects);
+
+    return {
+        isDecided: () => state.decided,
+        hostDefaultSettled: (visible) => dispatch({ kind: "hostDefaultSettled", visible }),
+    };
 }

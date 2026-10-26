@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { togglePropertiesPanel } from "./propertiesPanelFocus";
+import { focusPropertiesPanel, togglePropertiesPanel } from "./propertiesPanelFocus";
 import { initResizer, type PropertiesPanelHandle } from "./propertiesPanelResizer";
 import type { PropertiesPanelUiState } from "./propertiesPanelUiState";
 import {
@@ -104,7 +104,7 @@ describe("bindPanelVisibility", () => {
 
     function bind(saved?: PropertiesPanelUiState) {
         document.body.innerHTML = `
-            <div id="js-properties-panel"></div>
+            <div id="js-properties-panel"><input /></div>
             <div id="js-panel-resizer"></div>
         `;
         const handle = initResizer({ getToggleLabel: (state) => state });
@@ -153,14 +153,17 @@ describe("bindPanelVisibility", () => {
         expect(report).toHaveBeenCalledExactlyOnceWith(false);
     });
 
-    it("remembers a Shift+P toggle after boot", () => {
+    it.each<[string, boolean, (handle: PropertiesPanelHandle) => void]>([
+        ["Shift+P", false, (handle) => togglePropertiesPanel(handle, () => undefined)],
+        ["p", true, (handle) => focusPropertiesPanel(handle, { schedule: () => undefined })],
+    ])("remembers a %s toggle after boot", (_, toggledTo, pressShortcut) => {
         const { handle, store, report, binding } = bind();
-        binding.hostDefaultSettled(true);
+        binding.hostDefaultSettled(!toggledTo);
 
-        togglePropertiesPanel(handle, () => undefined);
+        pressShortcut(handle);
 
-        expect(isCollapsed()).toBe(true);
-        expect(store.merge).toHaveBeenCalledExactlyOnceWith({ panelVisible: false });
-        expect(report).toHaveBeenCalledExactlyOnceWith(false);
+        expect(isCollapsed()).toBe(!toggledTo);
+        expect(store.merge).toHaveBeenCalledExactlyOnceWith({ panelVisible: toggledTo });
+        expect(report).toHaveBeenCalledExactlyOnceWith(toggledTo);
     });
 });
