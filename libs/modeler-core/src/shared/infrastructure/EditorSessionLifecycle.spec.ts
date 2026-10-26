@@ -46,9 +46,10 @@ describe("EditorSessionLifecycle", () => {
     it("keeps running later participants after one throws and surfaces the error", async () => {
         const host = createTestHost();
         const events: string[] = [];
+        const rootMissing = new Error("template root missing");
         const failing: EditorSessionParticipant = {
             onResolve: () => {
-                throw new Error("template root missing");
+                throw rootMissing;
             },
         };
 
@@ -59,7 +60,7 @@ describe("EditorSessionLifecycle", () => {
         editor.dispose();
 
         expect(host.notifier.errors).toEqual(["template root missing"]);
-        expect(host.notifier.logged("error")).toEqual(["template root missing"]);
+        expect(host.notifier.logged("error")).toEqual([rootMissing.stack]);
         expect(events).toEqual([`next resolved ${EDITOR_ID}`, "next disposed"]);
     });
 
@@ -209,12 +210,15 @@ describe("EditorSessionLifecycle", () => {
         it("logs a rejected handler instead of leaving it unhandled", async () => {
             const host = createTestHost();
             const router = new WebviewMessageRouter();
-            vi.spyOn(router, "dispatch").mockRejectedValue(new Error("handler boom"));
+            const handlerBoom = new Error("handler boom");
+            vi.spyOn(router, "dispatch").mockRejectedValue(handlerBoom);
             const editor = await host.openSession(PATH, [], { router });
 
             editor.receive(command("SyncActivitiesCommand"));
 
-            await vi.waitFor(() => expect(host.notifier.logged("error")).toEqual(["handler boom"]));
+            await vi.waitFor(() =>
+                expect(host.notifier.logged("error")).toEqual([handlerBoom.stack]),
+            );
         });
     });
 });

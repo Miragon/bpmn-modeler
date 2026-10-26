@@ -82,12 +82,17 @@ describe("MarketplaceCommands.add", () => {
 
     it("still reports the add failure when pruning fails too", async () => {
         const { commands, marketplaces, notifier } = createCommands();
-        marketplaces.addMarketplace.mockRejectedValue(new Error("offline"));
-        marketplaces.pruneOrphanedCaches.mockRejectedValue(new Error("cache locked"));
+        const offline = new Error("offline");
+        const cacheLocked = new Error("cache locked");
+        marketplaces.addMarketplace.mockRejectedValue(offline);
+        marketplaces.pruneOrphanedCaches.mockRejectedValue(cacheLocked);
 
         await commands.add("/templates", vi.fn());
 
-        expect(notifier.logged("error")).toEqual(["cache locked", "offline"]);
+        expect(notifier.logged("error")).toEqual([
+            cacheLocked.stack,
+            `Failed to add marketplace.: ${offline.stack}`,
+        ]);
         expect(notifier.errors).toEqual(["Failed to add marketplace.\noffline"]);
     });
 });

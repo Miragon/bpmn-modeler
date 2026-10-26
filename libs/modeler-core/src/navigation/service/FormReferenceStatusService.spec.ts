@@ -241,10 +241,11 @@ describe("FormReferenceStatusService", () => {
     it("logs a watcher refresh failure without leaking a rejected promise", async () => {
         const { service, host, locator } = setup();
         await service.requestStatus(host.openEditor("/work/process.bpmn").id);
-        locator.findFormDeclarations.mockRejectedValueOnce(new Error("scan failed"));
+        const scanFailed = new Error("scan failed");
+        locator.findFormDeclarations.mockRejectedValueOnce(scanFailed);
 
         await host.workspace.writeFile("/work/a.form", "{}");
         await vi.runAllTimersAsync();
-        await vi.waitFor(() => expect(host.notifier.logged("error")).toEqual(["scan failed"]));
+        await vi.waitFor(() => expect(host.notifier.logged("error")).toEqual([scanFailed.stack]));
     });
 });

@@ -137,14 +137,17 @@ describe("DmnModelerService.display", () => {
 
     it("notifies and returns false on an unexpected error", async () => {
         const { service, host, editor } = createService();
+        const boom = new Error("boom");
         vi.spyOn(host.documents, "getContent").mockImplementation(() => {
-            throw new Error("boom");
+            throw boom;
         });
 
         const rendered = await service.display(editor.id);
 
         expect(rendered).toBe(false);
-        expect(host.notifier.logged("error")).toEqual(["boom"]);
+        expect(host.notifier.logged("error")).toEqual([
+            `A problem occurred while trying to display the DMN Modeler.: ${boom.stack}`,
+        ]);
         expect(host.notifier.errors).toHaveLength(1);
     });
 });
@@ -164,11 +167,14 @@ describe("DmnModelerService.sync", () => {
 
     it("notifies, returns false, and still releases the guard on a write error", async () => {
         const { service, host, editor } = createService();
-        vi.spyOn(host.documents, "write").mockRejectedValueOnce(new Error("disk full"));
+        const diskFull = new Error("disk full");
+        vi.spyOn(host.documents, "write").mockRejectedValueOnce(diskFull);
 
         const synced = await service.sync(editor.id, "<xml/>");
         expect(synced).toBe(false);
-        expect(host.notifier.logged("error")).toEqual(["disk full"]);
+        expect(host.notifier.logged("error")).toEqual([
+            `A problem occurred while trying to sync the DMN file.: ${diskFull.stack}`,
+        ]);
         expect(host.notifier.errors).toHaveLength(1);
 
         // The failed write must not leave the guard stuck, or rendering would

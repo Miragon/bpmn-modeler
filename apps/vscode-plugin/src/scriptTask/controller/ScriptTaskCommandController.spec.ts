@@ -61,7 +61,9 @@ describe("ScriptTaskCommandController", () => {
 
         await expect(registerAndGetHandler(host.store, host.notifier)()).resolves.toBeUndefined();
 
-        expect(host.notifier.logged("error")).toEqual(["No active editor."]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining("Error: No active editor.\n"),
+        ]);
         expect(host.notifier.infos).toEqual([
             "Focus a BPMN diagram tab, then run the command again.",
         ]);
@@ -75,7 +77,9 @@ describe("ScriptTaskCommandController", () => {
         await expect(registerAndGetHandler(host.store, host.notifier)()).resolves.toBeUndefined();
 
         expect(editor.posted).toEqual([]);
-        expect(host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining("Error: The active editor is hidden.\n"),
+        ]);
         expect(host.notifier.infos).toEqual([
             "Focus a BPMN diagram tab, then run the command again.",
         ]);

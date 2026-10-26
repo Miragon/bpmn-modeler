@@ -530,7 +530,7 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
 
         await typeInScript(fireDocChange, scriptPath("groovy"), "next");
 
-        expect(notifier.logged("error")).toEqual(["boom"]);
+        expect(notifier.logged("error")).toEqual([failure.stack]);
         expect(
             (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
         ).toBe(false);
@@ -1139,12 +1139,13 @@ describe("ScriptTaskService dispose write-back", () => {
         await openCanonicalScript(service, "groovy", "edited");
         stageDocument(scriptPath("groovy"), "edited");
         stageDocument("/repo/process.bpmn", "<xml/>");
-        scriptXml.applyScriptContents.mockRejectedValue(new Error("boom"));
+        const boom = new Error("boom");
+        scriptXml.applyScriptContents.mockRejectedValue(boom);
 
         service.disposeForEditor(EDITOR_ID);
         await flushAsync();
 
-        expect(notifier.logged("error")).toEqual(["boom"]);
+        expect(notifier.logged("error")).toEqual([boom.stack]);
         expect(scriptFiles.deleteDir).toHaveBeenCalled();
     });
 

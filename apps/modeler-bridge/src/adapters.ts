@@ -27,9 +27,11 @@ import {
     DocumentPort,
     EditorHandle,
     EditorSubscription,
+    errorLogText,
     MigrationScope,
     NEW_MODEL_ENGINE_CHOICES,
     NewModelEngine,
+    notifiedErrorLogText,
     NotifierPort,
     PickerPort,
     ScriptLanguage,
@@ -361,7 +363,7 @@ export class RpcNotifier implements NotifierPort {
         // shows a balloon pairing the caller's context with the error message.
         this.rpc.notify(METHODS.notifierLog, {
             level: "error",
-            message: `${context}: ${errorLogText(error)}`,
+            message: notifiedErrorLogText(context, error),
         });
         this.rpc.notify(METHODS.notifierNotifyError, { context, message: error.message });
     }
@@ -407,10 +409,6 @@ export class RpcNotifier implements NotifierPort {
     async openDocument(absolutePath: string): Promise<void> {
         this.rpc.notify(METHODS.notifierOpenDocument, { path: absolutePath });
     }
-}
-
-function errorLogText(error: Error): string {
-    return error.stack ?? `${error.name}: ${error.message}`;
 }
 
 /**

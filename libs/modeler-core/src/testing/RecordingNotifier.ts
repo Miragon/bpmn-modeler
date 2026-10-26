@@ -1,3 +1,4 @@
+import { errorLogText, notifiedErrorLogText } from "../shared/domain/errorLogText";
 import { NotifierPort } from "../shared/domain/hostPorts";
 
 export type LogLevel = "debug" | "info" | "warning" | "error";
@@ -36,7 +37,7 @@ export class RecordingNotifier implements NotifierPort {
         if (error instanceof Error) this.loggedErrors.push(error);
         this.logs.push({
             level: "error",
-            message: typeof error === "string" ? error : error.message,
+            message: error instanceof Error ? errorLogText(error) : error,
         });
     }
 
@@ -48,8 +49,10 @@ export class RecordingNotifier implements NotifierPort {
         this.errors.push(message);
     }
 
+    /** Logs like the bridge; the toast is the text both hosts' balloons show. */
     notifyError(context: string, error: Error): void {
-        this.logError(error);
+        this.loggedErrors.push(error);
+        this.logs.push({ level: "error", message: notifiedErrorLogText(context, error) });
         this.showError(`${context}\n${error.message}`);
     }
 
@@ -66,20 +69,13 @@ export class RecordingNotifier implements NotifierPort {
         this.openedDocuments.push(absolutePath);
     }
 
-    /** Everything shown or logged, including each logged error's stack and cause chain. */
+    /** Everything shown or logged. */
     transcript(): string {
         return [
             ...this.infos,
             ...this.errors,
             ...this.progressTitles,
             ...this.logs.map((entry) => entry.message),
-            ...this.loggedErrors.map(describeError),
         ].join("\n");
     }
-}
-
-function describeError(error: unknown): string {
-    if (!(error instanceof Error)) return String(error);
-    const { cause } = error as { cause?: unknown };
-    return [error.message, error.stack, cause === undefined ? "" : describeError(cause)].join("\n");
 }

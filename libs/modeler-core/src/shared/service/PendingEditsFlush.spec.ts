@@ -312,9 +312,10 @@ describe("PendingEditsFlush", () => {
 
     it("logs, releases the destructive lock and reports unavailable when the sync throws", async () => {
         const editor = host.openEditor("/work/diagram.bpmn");
+        const boom = new Error("boom");
         pendingEdits.serve(".bpmn", {
             sync: async () => {
-                throw new Error("boom");
+                throw boom;
             },
         });
 
@@ -323,7 +324,7 @@ describe("PendingEditsFlush", () => {
         webviewReplies(editor, "flushed", "<xml/>");
 
         await expect(flushing).resolves.toEqual({ status: "unavailable" });
-        expect(host.notifier.logged("error")).toEqual(["boom"]);
+        expect(host.notifier.logged("error")).toEqual([boom.stack]);
         expect(editor.posted.at(-1)).toEqual(new ReleaseDocumentFlushQuery(token));
     });
 

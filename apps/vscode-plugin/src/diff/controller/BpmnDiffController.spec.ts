@@ -168,7 +168,8 @@ describe("BpmnDiffController.openCompareFilesDiff", () => {
 
     it("surfaces vscode.diff failures through the notifier instead of throwing", async () => {
         const { controller, notifier } = createController();
-        vi.mocked(commands.executeCommand).mockRejectedValueOnce(new Error("boom"));
+        const boom = new Error("boom");
+        vi.mocked(commands.executeCommand).mockRejectedValueOnce(boom);
 
         await expect(
             controller.openCompareFilesDiff(
@@ -177,7 +178,7 @@ describe("BpmnDiffController.openCompareFilesDiff", () => {
             ),
         ).resolves.toBeUndefined();
 
-        expect(notifier.logged("error")).toEqual(["boom"]);
+        expect(notifier.logged("error")).toEqual([boom.stack]);
         expect(notifier.errors).toEqual(["Failed to open compare view: boom"]);
     });
 });

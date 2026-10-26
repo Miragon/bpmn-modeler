@@ -65,15 +65,16 @@ describe("ElementTemplatesParticipant", () => {
 
     it("surfaces watcher setup errors to the user", async () => {
         const { host, artifacts, participant } = createServices();
+        const noWorkspace = new Error("no workspace");
         vi.spyOn(artifacts, "createWatcher").mockResolvedValue({
             disposables: [],
-            errors: [new Error("no workspace")],
+            errors: [noWorkspace],
         });
 
         await host.openSession(PATH, [participant]);
 
         expect(host.notifier.errors).toEqual(["no workspace"]);
-        expect(host.notifier.logged("error")).toEqual(["no workspace"]);
+        expect(host.notifier.logged("error")).toEqual([noWorkspace.stack]);
     });
 
     it("re-arms the watcher and pushes the templates again on a re-seed", async () => {

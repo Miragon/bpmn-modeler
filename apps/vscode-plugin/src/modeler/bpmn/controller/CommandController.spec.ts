@@ -286,7 +286,9 @@ describe("CommandController SVG request lifecycle", () => {
         controller.writeToClipboard();
         await Promise.resolve();
 
-        expect(notifier.logged("error")).toEqual(["The active editor is hidden."]);
+        expect(notifier.logged("error")).toEqual([
+            expect.stringContaining("Error: The active editor is hidden.\n"),
+        ]);
     });
 
     it("disposes the prior subscription before re-subscribing", () => {
@@ -365,7 +367,7 @@ describe("CommandController.writeToFile", () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(notifier.logged("error")).toEqual(["EACCES"]);
+        expect(notifier.logged("error")).toEqual([failure.stack]);
         expect(notifier.logged("info")).toEqual([]);
     });
 
@@ -387,7 +389,7 @@ describe("CommandController command error surfacing", () => {
         configUpdateMock.mockRejectedValueOnce(failure);
 
         await expect(controller.changeLanguage()).rejects.toThrow(failure);
-        expect(notifier.logged("error")).toEqual(["update denied"]);
+        expect(notifier.logged("error")).toEqual([failure.stack]);
     });
 
     it("logs and rethrows when changeEngineVersion rejects", async () => {
@@ -396,7 +398,7 @@ describe("CommandController command error surfacing", () => {
         bpmnService.changeEngineVersion.mockRejectedValueOnce(failure);
 
         await expect(controller.changeEngineVersion()).rejects.toThrow(failure);
-        expect(notifier.logged("error")).toEqual(["engine change failed"]);
+        expect(notifier.logged("error")).toEqual([failure.stack]);
     });
 });
 

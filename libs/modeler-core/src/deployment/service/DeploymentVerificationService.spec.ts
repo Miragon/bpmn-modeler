@@ -330,12 +330,15 @@ describe("DeploymentVerificationService.verifyActive", () => {
 
     it("routes other failures through notifyError, leaving the ledger untouched", async () => {
         const c = createService();
-        c.inspection.fetchLatestDefinition.mockRejectedValue(new Error("connection refused"));
+        const refused = new Error("connection refused");
+        c.inspection.fetchLatestDefinition.mockRejectedValue(refused);
 
         await c.service.verifyActive("/work");
 
         expect(c.host.notifier.errors).toEqual(["Could not verify deployment\nconnection refused"]);
-        expect(c.host.notifier.logged("error")).toEqual(["connection refused"]);
+        expect(c.host.notifier.logged("error")).toEqual([
+            `Could not verify deployment: ${refused.stack}`,
+        ]);
         expect(c.deploymentStatusService.adoptRevision).not.toHaveBeenCalled();
         expect(c.deploymentStatusService.forgetRevision).not.toHaveBeenCalled();
     });
@@ -728,7 +731,9 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
             expect.anything(),
         );
         expect(c.host.notifier.logged("error")).toEqual([
-            "Deployment verification failed with HTTP 500: Lookup of https://gw.example/keys/***/engine-rest/process-definition/key/order as ***:*** failed",
+            expect.stringContaining(
+                "Could not verify deployment: EngineInspectionFailedError: Deployment verification failed with HTTP 500: Lookup of https://gw.example/keys/***/engine-rest/process-definition/key/order as ***:*** failed\n",
+            ),
         ]);
         for (const secret of [apiKey, literalPassword]) {
             expect(c.host.notifier.transcript()).not.toContain(secret);

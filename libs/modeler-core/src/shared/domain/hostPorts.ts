@@ -26,8 +26,9 @@ import { NewModelEngine } from "./newModelEngine";
  *
  * `logDebug` is the level for high-frequency transport/lifecycle noise the user
  * only wants when diagnosing (raised via *Developer: Set Log Level…*). `logError`
- * accepts a bare `string` so a webview-supplied stack prints verbatim; wrapping
- * it in a host-side `Error` would replace the original throw site's stack.
+ * prints an `Error` as `errorLogText` does, and accepts a bare `string` so a
+ * webview-supplied stack prints verbatim; wrapping it in a host-side `Error`
+ * would replace the original throw site's stack.
  */
 export interface LoggerPort {
     logDebug(message: string): void;

@@ -83,11 +83,12 @@ describe("notifyIfNewRelease", () => {
 
     it("logs a failed write and still shows the prompt", async () => {
         const globalState = new InMemoryMemento();
-        vi.spyOn(globalState, "update").mockRejectedValue(new Error("storage full"));
+        const storageFull = new Error("storage full");
+        vi.spyOn(globalState, "update").mockRejectedValue(storageFull);
 
         await notifyIfNewRelease("1.2.3", globalState, logger);
 
-        expect(logger.logged("error")).toEqual(["storage full"]);
+        expect(logger.logged("error")).toEqual([storageFull.stack]);
         expect(showInformationMessageMock).toHaveBeenCalledOnce();
     });
 
@@ -97,6 +98,6 @@ describe("notifyIfNewRelease", () => {
 
         await stateAfterNotifying("1.2.3");
 
-        expect(logger.logged("error")).toEqual(["no browser"]);
+        expect(logger.logged("error")).toEqual([expect.stringContaining("Error: no browser\n")]);
     });
 });

@@ -599,13 +599,14 @@ describe("DeploymentService.deploy", () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: MAIN_FILE,
         });
-        restClient.deploy.mockRejectedValue(new Error("network down"));
+        const networkDown = new Error("network down");
+        restClient.deploy.mockRejectedValue(networkDown);
 
         const result = await service.deploy(buildConfig());
 
         expect(result.success).toBe(false);
         expect(result.message).toBe("network down");
-        expect(host.notifier.logged("error")).toEqual(["network down"]);
+        expect(host.notifier.logged("error")).toEqual([networkDown.stack]);
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
 
@@ -875,7 +876,9 @@ describe("DeploymentService.deploy", () => {
             }),
         ]);
         expect(host.notifier.loggedErrors[0]).toBeInstanceOf(HttpTransportError);
-        expect(host.notifier.logged("error")).toEqual([CREDENTIALLED_URL_REJECTED.message]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining(`HttpTransportError: ${CREDENTIALLED_URL_REJECTED.message}\n`),
+        ]);
         expect(result.message).not.toContain("s3cret");
         expect(host.notifier.transcript()).not.toContain("s3cret");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();

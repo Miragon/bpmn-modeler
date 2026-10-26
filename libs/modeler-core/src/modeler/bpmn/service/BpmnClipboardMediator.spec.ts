@@ -27,11 +27,12 @@ describe("BpmnClipboardMediator.readClipboard", () => {
 
     it("answers with empty text when reading the clipboard throws", async () => {
         const { mediator, host, editor } = createMediator();
-        vi.spyOn(host.clipboard, "readClipboard").mockRejectedValue(new Error("denied"));
+        const denied = new Error("denied");
+        vi.spyOn(host.clipboard, "readClipboard").mockRejectedValue(denied);
 
         await mediator.readClipboard(editor.id);
 
-        expect(host.notifier.logged("error")).toEqual(["denied"]);
+        expect(host.notifier.logged("error")).toEqual([denied.stack]);
         expect(editor.posted).toHaveLength(1);
         const [msg] = editor.posted;
         expect(msg).toBeInstanceOf(ClipboardQuery);
@@ -40,11 +41,15 @@ describe("BpmnClipboardMediator.readClipboard", () => {
 
     it("logs, without throwing, an empty reply that cannot be posted", async () => {
         const { mediator, host, editor } = createMediator();
-        vi.spyOn(host.clipboard, "readClipboard").mockRejectedValue(new Error("denied"));
+        const denied = new Error("denied");
+        vi.spyOn(host.clipboard, "readClipboard").mockRejectedValue(denied);
         editor.hidden = true;
 
         await expect(mediator.readClipboard(editor.id)).resolves.toBeUndefined();
-        expect(host.notifier.logged("error")).toEqual(["denied", "The active editor is hidden."]);
+        expect(host.notifier.logged("error")).toEqual([
+            denied.stack,
+            expect.stringContaining("Error: The active editor is hidden.\n"),
+        ]);
     });
 });
 
@@ -62,11 +67,12 @@ describe("BpmnClipboardMediator.readTextClipboard", () => {
 
     it("answers with empty text when reading the clipboard throws", async () => {
         const { mediator, host, editor } = createMediator();
-        vi.spyOn(host.clipboard, "readClipboard").mockRejectedValue(new Error("denied"));
+        const denied = new Error("denied");
+        vi.spyOn(host.clipboard, "readClipboard").mockRejectedValue(denied);
 
         await mediator.readTextClipboard(editor.id);
 
-        expect(host.notifier.logged("error")).toEqual(["denied"]);
+        expect(host.notifier.logged("error")).toEqual([denied.stack]);
         expect(editor.posted).toHaveLength(1);
         const [msg] = editor.posted;
         expect(msg).toBeInstanceOf(TextClipboardQuery);
@@ -78,7 +84,9 @@ describe("BpmnClipboardMediator.readTextClipboard", () => {
         const closedEditor = "file:///work/closed.bpmn";
 
         await expect(mediator.readTextClipboard(closedEditor)).resolves.toBeUndefined();
-        expect(host.notifier.logged("error")).toEqual([`No editor found for id: ${closedEditor}`]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining(`Error: No editor found for id: ${closedEditor}\n`),
+        ]);
     });
 });
 
@@ -93,9 +101,10 @@ describe("BpmnClipboardMediator.writeClipboard", () => {
 
     it("swallows and logs a write failure", async () => {
         const { mediator, host } = createMediator();
-        vi.spyOn(host.clipboard, "writeClipboard").mockRejectedValue(new Error("write failed"));
+        const writeFailed = new Error("write failed");
+        vi.spyOn(host.clipboard, "writeClipboard").mockRejectedValue(writeFailed);
 
         await expect(mediator.writeClipboard("payload")).resolves.toBeUndefined();
-        expect(host.notifier.logged("error")).toEqual(["write failed"]);
+        expect(host.notifier.logged("error")).toEqual([writeFailed.stack]);
     });
 });

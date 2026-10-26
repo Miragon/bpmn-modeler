@@ -13,6 +13,7 @@ export * from "./shared/domain/BpmnDocument";
 export * from "./shared/domain/EditorSession";
 export * from "./shared/domain/EditorSessionParticipant";
 export * from "./shared/domain/engineVersions";
+export * from "./shared/domain/errorLogText";
 export * from "./shared/domain/errors";
 export * from "./shared/domain/globToRegExp";
 export * from "./shared/domain/hostPorts";
