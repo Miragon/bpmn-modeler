@@ -401,14 +401,19 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         expect(editor.content).toBe(C8_DOC);
     });
 
-    it("writes the picked version but leaves the shared item alone while a text editor is focused", async () => {
-        // The command targets the store's pointer, which stays on the diagram.
+    it("writes the picked version but leaves the focused diagram's engine item alone", async () => {
+        // The command targets the store's pointer, which can sit on a blurred diagram.
         const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        host.openEditor(
+            "/work/focused.bpmn",
+            BpmnDocument.empty("c7", "7.22.0").xml,
+        ).becomeActive();
+        host.statusBar.showEngineVersion("c7", "7.22.0");
 
         await service.changeEngineVersion(editor.id);
 
         expect(editor.content).toContain('modeler:executionPlatformVersion="8.5.0"');
-        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(host.statusBar.engineVersion).toEqual({ platform: "c7", version: "7.22.0" });
     });
 
     it("informs and returns false for an untagged diagram with no engine version", async () => {
