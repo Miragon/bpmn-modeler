@@ -5,7 +5,7 @@ import {
     CredentialDestinationError,
     EngineInspectionFailedError,
     EnvReferenceError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";

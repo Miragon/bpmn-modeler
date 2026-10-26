@@ -15,10 +15,10 @@ import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import {
     CredentialDestinationNotApprovedError,
     DisallowedEnvReferenceError,
-    HttpTransportError,
     InvalidDeploymentConfigError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
+import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, TestHostOptions } from "../../testing";
 
 // A real C7 document so `getProcessDefinitionKey` exercises the production

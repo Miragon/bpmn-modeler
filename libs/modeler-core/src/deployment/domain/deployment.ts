@@ -1,4 +1,4 @@
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { InvalidDeploymentConfigError } from "./errors";
 import { CredentialDestinations } from "./credentialDestinations";
 import {
     assertEnvRefsValid,

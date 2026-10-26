@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { DisallowedEnvReferenceError } from "../../shared/domain/errors";
+import { DisallowedEnvReferenceError } from "./errors";
 import { assertEnvRefsValid, isWholeEnvRef } from "./envRef";
 
 const SCHEMA_PATH = resolve(__dirname, "../../../../shared/src/lib/deploymentTargets.schema.json");

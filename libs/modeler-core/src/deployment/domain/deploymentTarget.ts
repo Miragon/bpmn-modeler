@@ -5,7 +5,7 @@ import {
     DuplicateDeploymentTargetError,
     InvalidDeploymentConfigError,
     InvalidDeploymentTargetsFileError,
-} from "../../shared/domain/errors";
+} from "./errors";
 import { CredentialDestinations } from "./credentialDestinations";
 import { CredentialRefs } from "./credentialRefs";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "./deployment";

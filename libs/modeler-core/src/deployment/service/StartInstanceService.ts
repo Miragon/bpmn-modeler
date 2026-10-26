@@ -7,7 +7,7 @@ import { CamundaEnginePort, DeploymentPickerPort } from "../domain/ports";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DeploymentTarget } from "../domain/deploymentTarget";
-import { loggableHost } from "../domain/urlTemplate";
+import { loggableHost } from "../../kernel/domain/http";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { EnvValueResolver } from "./EnvValueResolver";
 

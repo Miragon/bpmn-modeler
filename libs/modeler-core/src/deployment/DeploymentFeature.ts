@@ -16,9 +16,9 @@ import {
     DeploymentPickerPort,
     DeploymentStatePort,
     DeploymentStatusBarPort,
-    HttpClient,
     SecretStorePort,
 } from "./domain/ports";
+import { HttpClient } from "../kernel/domain/http";
 import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
 import { Camunda8RestClient } from "./infrastructure/camunda/Camunda8RestClient";

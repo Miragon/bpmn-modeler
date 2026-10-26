@@ -25,11 +25,11 @@ import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import {
     CredentialDestinationNotApprovedError,
     DisallowedEnvReferenceError,
-    HttpTransportError,
     InvalidDeploymentConfigError,
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
+import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, Prompt, TestHostOptions } from "../../testing";
 import { Engine } from "@miragon/bpmn-modeler-types";
 

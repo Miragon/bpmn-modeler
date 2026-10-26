@@ -3,13 +3,9 @@ import {
     DeploymentFailedError,
     EngineInspectionFailedError,
     StartInstanceFailedError,
-} from "../../../shared/domain/errors";
-import {
-    CamundaEnginePort,
-    DefinitionLookup,
-    EngineInspectionPort,
-    HttpClient,
-} from "../../domain/ports";
+} from "../../domain/errors";
+import { CamundaEnginePort, DefinitionLookup, EngineInspectionPort } from "../../domain/ports";
+import { HttpClient } from "../../../kernel/domain/http";
 import { EngineDeploymentSnapshot } from "../../domain/deploymentVerification";
 import { SecretRedactor } from "../../domain/secretRedactor";
 import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";

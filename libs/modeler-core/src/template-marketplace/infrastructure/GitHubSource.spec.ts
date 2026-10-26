@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HttpResponse } from "../../deployment/domain/ports";
+import { HttpResponse } from "../../kernel/domain/http";
 import { RepositoryAccessError } from "../domain/ports";
 import { GitHubSource } from "./GitHubSource";
 

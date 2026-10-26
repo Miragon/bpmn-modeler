@@ -1,4 +1,4 @@
-import { HttpClient, HttpResponse } from "../../deployment/domain/ports";
+import { HttpClient, HttpResponse } from "../../kernel/domain/http";
 import {
     GitLabSourceConfig,
     hostForConfig,

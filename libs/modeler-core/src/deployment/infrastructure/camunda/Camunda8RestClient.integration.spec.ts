@@ -8,7 +8,7 @@ import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";
 import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
 import { StartInstanceConfig } from "../../domain/startInstance";
-import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
+import { DeploymentFailedError, StartInstanceFailedError } from "../../domain/errors";
 
 function escapeHtml(value: string | undefined): string {
     return (value ?? "")

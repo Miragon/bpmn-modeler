@@ -5,11 +5,11 @@ import {
     DisallowedEnvReferenceError,
     EngineInspectionFailedError,
     EnvReferenceError,
-    HttpTransportError,
     InvalidCredentialDestinationError,
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
+import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost } from "../../testing";
 import { AuthConfig, BasicAuth, NoAuth } from "../domain/deployment";
 import { contentFingerprint, DeploymentTargetIdentity } from "../domain/deploymentLedger";

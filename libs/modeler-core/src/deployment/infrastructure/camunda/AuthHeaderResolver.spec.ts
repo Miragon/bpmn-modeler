@@ -2,8 +2,8 @@ import { Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../../domain/deployment";
-import { TokenFetchError } from "../../../shared/domain/errors";
-import { HttpClient, HttpResponse } from "../../domain/ports";
+import { TokenFetchError } from "../../domain/errors";
+import { HttpClient, HttpResponse } from "../../../kernel/domain/http";
 
 function mockHttpClient(): Mocked<HttpClient> {
     return {

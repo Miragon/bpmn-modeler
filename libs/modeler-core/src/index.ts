@@ -7,6 +7,9 @@
  * router, ports, domain handles) and what the VS Code composition root wires.
  */
 
+// ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/http";
+
 // ── shared: domain ──────────────────────────────────────────────────────────
 export * from "./shared/domain/affectedItems";
 export * from "./shared/domain/BpmnDocument";
@@ -105,6 +108,7 @@ export * from "./deployment/domain/deploymentLedger";
 export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";
 export * from "./deployment/domain/envRef";
+export * from "./deployment/domain/errors";
 export * from "./deployment/domain/ports";
 export * from "./deployment/domain/startInstance";
 export * from "./deployment/domain/urlTemplate";

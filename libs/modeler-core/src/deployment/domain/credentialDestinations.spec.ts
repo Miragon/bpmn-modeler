@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { InvalidCredentialDestinationError } from "../../shared/domain/errors";
+import { InvalidCredentialDestinationError } from "./errors";
 
 import { CredentialDestinations } from "./credentialDestinations";
 

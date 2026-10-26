@@ -12,7 +12,7 @@ import {
     DeploymentFailedError,
     EngineInspectionFailedError,
     StartInstanceFailedError,
-} from "../../../shared/domain/errors";
+} from "../../domain/errors";
 
 function escapeHtml(value: string | undefined): string {
     return (value ?? "")

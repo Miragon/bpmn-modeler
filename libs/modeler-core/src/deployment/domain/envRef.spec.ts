@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-    DisallowedEnvReferenceError,
-    UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+import { DisallowedEnvReferenceError, UnresolvedEnvVariableError } from "./errors";
 import {
     assertEnvRefsValid,
     containsEnvRef,

@@ -61,11 +61,6 @@ const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
 const CROSS_FEATURE_EXCEPTIONS: readonly KnownException[] = [
     {
         from: "template-marketplace",
-        to: "deployment/domain/ports.ts",
-        until: "#1828 moves HttpClient into the kernel",
-    },
-    {
-        from: "template-marketplace",
         to: "deployment/infrastructure/FetchHttpClient.ts",
         until: "#1828 moves HttpClient, with its fetch adapter, into the kernel",
     },

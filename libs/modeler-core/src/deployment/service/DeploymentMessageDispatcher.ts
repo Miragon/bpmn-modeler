@@ -22,10 +22,7 @@ import { posix } from "path";
 
 import { AuthConfig, DeploymentConfigBuilder } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
-import {
-    DeploymentTargetChangedError,
-    InvalidDeploymentConfigError,
-} from "../../shared/domain/errors";
+import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";

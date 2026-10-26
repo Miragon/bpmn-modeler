@@ -2,7 +2,7 @@ import { posix } from "path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UnreadableDotEnvError, UnresolvedEnvVariableError } from "../../shared/domain/errors";
+import { UnreadableDotEnvError, UnresolvedEnvVariableError } from "../domain/errors";
 import { createTestHost } from "../../testing";
 import { EnvLookup, envRefsIn, expandEnvRefs, NO_ENV_VARIABLES } from "../domain/envRef";
 import { TargetsLocation } from "./DeploymentTargetService";

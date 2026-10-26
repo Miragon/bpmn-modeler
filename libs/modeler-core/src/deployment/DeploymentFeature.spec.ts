@@ -22,7 +22,7 @@ import { createTestHost, PickerAnswers } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
 import { DeploymentTarget, serializeDeploymentTargets } from "./domain/deploymentTarget";
-import { HttpClient, HttpResponse } from "./domain/ports";
+import { HttpClient, HttpResponse } from "../kernel/domain/http";
 import { DeploymentTargetService, toTargetPayload } from "./service/DeploymentTargetService";
 
 const TARGETS_FILE = "/ws/.camunda/deployment-targets.json";

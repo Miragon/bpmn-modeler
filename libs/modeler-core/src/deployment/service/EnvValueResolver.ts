@@ -1,6 +1,7 @@
 import { posix } from "path";
 
-import { FileNotFound, UnreadableDotEnvError } from "../../shared/domain/errors";
+import { FileNotFound } from "../../shared/domain/errors";
+import { UnreadableDotEnvError } from "../domain/errors";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
 import { joinWorkspacePath } from "../../shared/domain/workspacePath";
 import { parseDotEnv } from "../domain/dotEnv";
