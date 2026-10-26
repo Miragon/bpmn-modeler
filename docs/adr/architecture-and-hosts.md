@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-10-26
 
 ## Context
 
@@ -216,6 +216,16 @@ An asynchronous writer drains a soft-bounded outbound queue so editor and JCEF
 threads never block on bridge stdin. Superseded document and host-state updates
 coalesce; authoritative document updates and RPC replies remain reliable across
 backpressure and writer replacement. Best-effort frames may be dropped.
+
+The host answers every core request exactly once: with its result, or with an
+error when its handler throws, also when the handler runs on the EDT
+(`RpcChannel.replyFromEdt`, pinned by the
+[channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
+The bridge's `Rpc.request` has no deadline. Prompts wait on the user, a document
+write waits behind any open modal dialog, and a write that landed after a
+timeout would leave the document mirror stale, because only its reply updates
+the mirror. An unanswered request would therefore hold the core's per-editor
+queue until the editor reopens.
 
 Notifications and status indicators are native host UI backed by RPC ports.
 Secrets use IntelliJ PasswordSafe, an application-scoped store, corresponding
