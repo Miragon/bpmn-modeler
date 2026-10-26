@@ -281,9 +281,12 @@ but it knows whether it was edited since it last imported a host document
 (`HostDocumentRevisions`). An edited page exports even when its sync already
 went out; a page nobody edited answers `clean`, so recovery never writes the
 modeler's serialization over a diagram nobody touched. A Document that refuses
-the write keeps its text, and the other pages still recover. The page stays
-locked until a render reaches it, or a timeout after the replay passes; only
-the recovery that posted the page's last flush holds that lock. A crash
+the write keeps its text, a page the host cannot post the flush into is
+skipped, and the other pages still recover. Each reply resolves the flush whose
+token it carries, so a tab close and a recovery that flush the same page at
+once both get their answer. The page stays locked until a render reaches it,
+or a timeout after the replay passes; only the recovery that posted the page's
+last flush holds that lock. A crash
 recovery with an edit to write waits for an open modal dialog to close before
 it re-registers. Reload Modeler runs the same recovery against the running
 bridge. This is host policy and stays in Kotlin; a shared render participant
