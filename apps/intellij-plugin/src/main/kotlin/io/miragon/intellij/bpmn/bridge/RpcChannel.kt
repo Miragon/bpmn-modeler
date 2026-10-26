@@ -110,10 +110,10 @@ internal class RpcChannel(
     private fun answerOnce(reply: PendingReply, method: String, work: (PendingReply) -> Unit) {
         try {
             work(reply)
-        } catch (e: Exception) {
-            reply.error(e.message ?: "host handler failed")
-            if (e is ControlFlowException) throw e
-            log.warn("Failed to handle core request ($method) on the EDT", e)
+        } catch (failure: Throwable) {
+            reply.error(failure.message ?: "host handler failed")
+            if (failure is ControlFlowException || failure !is Exception) throw failure
+            log.warn("Failed to handle core request ($method) on the EDT", failure)
         }
     }
 

@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -217,6 +218,22 @@ class RpcChannelTest {
         val reply = parse(fake.nextFrame())
         assertEquals(5, reply.get("id").asInt)
         assertEquals("refused", reply.get("error").asString)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered from the EDT gets an error reply when the EDT work fails with an Error`() {
+        val (channel, fake) = attachedChannel()
+
+        assertThrows(AssertionError::class.java) {
+            channel.replyFromEdt(id = 9, method = "document/write", runOnEdt = runInline) {
+                throw AssertionError("broken")
+            }
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(9, reply.get("id").asInt)
+        assertEquals("broken", reply.get("error").asString)
         fake.expectNoFrame()
     }
 
