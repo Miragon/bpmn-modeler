@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { errorLogText, notifiedErrorLogText } from "./errorLogText";
+import { errorLogText, notifiedErrorLogText, notifiedErrorToastText } from "./errorLogText";
 
 function withStack<E extends Error>(error: E, stack: string | undefined): E {
     if (stack === undefined) delete error.stack;
@@ -33,6 +33,11 @@ describe("errorLogText", () => {
             ),
             logged: "Error: outer",
         },
+        {
+            case: "a string as it is",
+            error: "TypeError: x is undefined\n    at index.js:1:1",
+            logged: "TypeError: x is undefined\n    at index.js:1:1",
+        },
     ])("logs $case", ({ error, logged }) => {
         expect(errorLogText(error)).toBe(logged);
     });
@@ -50,7 +55,47 @@ describe("notifiedErrorLogText", () => {
             error: withStack(new RangeError("timeout"), undefined),
             logged: "Deployment failed: RangeError: timeout",
         },
+        {
+            context: "Failed to add marketplace.",
+            error: withStack(new Error("offline"), undefined),
+            logged: "Failed to add marketplace. Error: offline",
+        },
+        {
+            context: "Could not read deployment targets:",
+            error: withStack(new Error("EACCES"), undefined),
+            logged: "Could not read deployment targets: Error: EACCES",
+        },
+        {
+            context: "Reading the element templates failed",
+            error: "EACCES" as unknown as Error,
+            logged: "Reading the element templates failed: EACCES",
+        },
     ])("prefixes the context: $logged", ({ context, error, logged }) => {
         expect(notifiedErrorLogText(context, error)).toBe(logged);
+    });
+});
+
+describe("notifiedErrorToastText", () => {
+    it.each([
+        {
+            case: "the context above the error's message",
+            context: "Deployment failed",
+            error: withStack(new Error("401 Unauthorized"), "Error: 401 Unauthorized\n    at a"),
+            toast: "Deployment failed\n401 Unauthorized",
+        },
+        {
+            case: "a context ending a sentence unchanged",
+            context: "Failed to add marketplace.",
+            error: new Error("offline"),
+            toast: "Failed to add marketplace.\noffline",
+        },
+        {
+            case: "a thrown string as it is",
+            context: "Reading the element templates failed",
+            error: "EACCES" as unknown as Error,
+            toast: "Reading the element templates failed\nEACCES",
+        },
+    ])("shows $case", ({ context, error, toast }) => {
+        expect(notifiedErrorToastText(context, error)).toBe(toast);
     });
 });
