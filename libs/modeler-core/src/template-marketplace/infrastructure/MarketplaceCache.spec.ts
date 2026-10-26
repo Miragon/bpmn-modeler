@@ -7,15 +7,37 @@ function createWorkspace(files: Record<string, string> = {}) {
     return new InMemoryWorkspace([], files);
 }
 
-describe("MarketplaceCache.write", () => {
-    it("writes a normal path under <root>/<id>/<index>/<contentType>/<path>", async () => {
+describe("MarketplaceCache.replaceSource", () => {
+    it("writes each file under <root>/<id>/<index>/<contentType>/<path>", async () => {
         const workspace = createWorkspace();
         const cache = new MarketplaceCache("/cache", workspace);
 
-        await cache.write("acme", 0, "element-templates", "templates/a.json", "{}");
+        await cache.replaceSource("acme", 0, [
+            { contentType: "element-templates", repoPath: "templates/a.json", content: "{}" },
+        ]);
 
         expect(workspace.files).toEqual(
             new Map([["/cache/acme/0/element-templates/templates/a.json", "{}"]]),
+        );
+    });
+
+    it("drops files the new set no longer contains", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/element-templates/a.json": "old a",
+            "/cache/acme/0/element-templates/b.json": "old b",
+            "/cache/acme/1/element-templates/c.json": "sibling",
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        await cache.replaceSource("acme", 0, [
+            { contentType: "element-templates", repoPath: "a.json", content: "new a" },
+        ]);
+
+        expect(workspace.files).toEqual(
+            new Map([
+                ["/cache/acme/1/element-templates/c.json", "sibling"],
+                ["/cache/acme/0/element-templates/a.json", "new a"],
+            ]),
         );
     });
 
@@ -23,14 +45,56 @@ describe("MarketplaceCache.write", () => {
         ["a parent-traversal path", "../../../settings.json"],
         ["an absolute posix path", "/etc/passwd"],
         ["a backslash traversal path", "..\\..\\settings.json"],
-    ])("rejects %s and never writes", async (_label, repoPath) => {
-        const workspace = createWorkspace();
+    ])("rejects %s before deleting anything", async (_label, unsafeRepoPath) => {
+        const cachedFiles = { "/cache/acme/0/element-templates/a.json": "last good" };
+        const workspace = createWorkspace(cachedFiles);
         const cache = new MarketplaceCache("/cache", workspace);
 
-        await expect(cache.write("acme", 0, "element-templates", repoPath, "{}")).rejects.toThrow(
-            /unsafe template path/,
-        );
-        expect(workspace.files.size).toBe(0);
+        await expect(
+            cache.replaceSource("acme", 0, [
+                { contentType: "element-templates", repoPath: "b.json", content: "{}" },
+                { contentType: "element-templates", repoPath: unsafeRepoPath, content: "{}" },
+            ]),
+        ).rejects.toThrow(/unsafe template path/);
+        expect(workspace.files).toEqual(new Map(Object.entries(cachedFiles)));
+    });
+});
+
+describe("MarketplaceCache.sourceIndexes", () => {
+    it("lists the numeric source slots of one marketplace", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/element-templates/a.json": "{}",
+            "/cache/acme/2/element-templates/b.json": "{}",
+            "/cache/acme/notes/element-templates/c.json": "{}",
+            "/cache/globex/1/element-templates/d.json": "{}",
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.sourceIndexes("acme")).toEqual([0, 2]);
+    });
+
+    it("returns [] for a marketplace with nothing cached", async () => {
+        const cache = new MarketplaceCache("/cache", createWorkspace());
+
+        expect(await cache.sourceIndexes("acme")).toEqual([]);
+    });
+});
+
+describe("MarketplaceCache.removeSource", () => {
+    it("deletes one source slot and keeps its siblings", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/element-templates/a.json": "{}",
+            "/cache/acme/1/element-templates/b.json": "{}",
+            "/cache/globex/1/element-templates/c.json": "{}",
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        await cache.removeSource("acme", 1);
+
+        expect([...workspace.files.keys()]).toEqual([
+            "/cache/acme/0/element-templates/a.json",
+            "/cache/globex/1/element-templates/c.json",
+        ]);
     });
 });
 

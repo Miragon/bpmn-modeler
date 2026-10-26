@@ -3,6 +3,7 @@ import {
     EditorSessionParticipant,
 } from "../../../shared/domain/EditorSessionParticipant";
 import { NotifierPort, StatusBarPort } from "../../../shared/domain/hostPorts";
+import { StatusItemOwnership } from "../../../shared/domain/StatusItemOwnership";
 import {
     BpmnLintConfigLocator,
     BpmnlintChangeTarget,
@@ -21,14 +22,15 @@ const RELINT_DEBOUNCE_MS = 400;
  * (debounced), on `configFolder` / `linting.enabled` setting changes, and
  * whenever the `.bpmnlintrc` changes on disk; the initial lint is triggered by
  * the webview's `GetBpmnlintConfigCommand` on load. The status item tracks editor
- * focus and is cleared — along with the published diagnostics — on dispose so
- * neither lingers for a closed editor.
+ * focus. On dispose the published diagnostics are cleared, and so is the status
+ * item if this editor still owns it, so neither lingers for a closed editor.
  *
  * A single instance serves every editor, so the debounce timers are keyed by
  * editorId.
  */
 export class BpmnlintParticipant implements EditorSessionParticipant {
     private readonly relintTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    private readonly statusOwnership = new StatusItemOwnership();
 
     constructor(
         private readonly lintSvc: BpmnLintConfigService,
@@ -63,11 +65,13 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
             }
         });
 
+        if (session.isFocused()) this.statusOwnership.claim(session.editorId);
         session.onFocusChange((focused) => {
             if (focused) {
+                this.statusOwnership.claim(session.editorId);
                 this.lintSvc.setBpmnlintConfig(session.editorId);
             } else {
-                this.statusBar.hideBpmnlintStatus();
+                this.releaseStatusItem(session.editorId);
             }
         });
 
@@ -79,7 +83,7 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
                 this.relintTimers.delete(session.editorId);
             }
             watchers.forEach((watcher) => watcher.dispose());
-            this.statusBar.hideBpmnlintStatus();
+            this.releaseStatusItem(session.editorId);
             this.lintSvc.clearDiagnostics(session.editorId);
         });
 
@@ -110,6 +114,10 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         });
 
         await armWatchers();
+    }
+
+    private releaseStatusItem(editorId: string): void {
+        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hideBpmnlintStatus();
     }
 
     private scheduleRelint(session: EditorSessionContext): void {

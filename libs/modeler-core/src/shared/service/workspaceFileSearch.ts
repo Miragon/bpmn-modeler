@@ -2,6 +2,7 @@ import { posix } from "path";
 
 import { EXCLUDED_DIRS, pathIsInsideExcludedDir } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
+import { SearchScope } from "../domain/searchScope";
 
 /**
  * Reusable workspace-search primitives shared by the navigation and code-link
@@ -38,13 +39,6 @@ export interface ContentSearchResult {
 export function escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
-/**
- * Where a workspace search for a document looks: every workspace folder, or —
- * for a loose file outside all folders — the tree under its directory.
- */
-export type SearchScope =
-    { kind: "workspace-folders"; folders: string[] } | { kind: "loose-file"; directory: string };
 
 /**
  * @returns `undefined` when there is nothing to search (no workspace folder and

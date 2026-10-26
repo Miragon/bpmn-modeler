@@ -36,6 +36,11 @@ const unknownXml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:modeler="http://camunda.org/schema/modeler/1.0">
 </bpmn:definitions>`;
 
+// A version whose major digit names no Camunda platform.
+const unknownPlatformVersionXml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:modeler="http://camunda.org/schema/modeler/1.0" modeler:executionPlatformVersion="9.1.0">
+</bpmn:definitions>`;
+
 // For withExecutionPlatform tests — matches the original bpmnUtils.spec.ts fixture.
 const xmlWithoutPlatform = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1jpphon" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.21.0">
@@ -161,6 +166,25 @@ describe("BpmnDocument.detectPlatformVersion", () => {
 
     it("should return undefined when the attribute is absent", () => {
         expect(new BpmnDocument(c7XmlNoVersion).detectPlatformVersion()).toBeUndefined();
+    });
+});
+
+describe("BpmnDocument.engineVersionStatus", () => {
+    it.each([
+        { diagram: "a C7 diagram", xml: c7Xml, platform: "c7", version: "7.20.0" },
+        { diagram: "a C8 diagram", xml: c8Xml, platform: "c8", version: "8.5.0" },
+    ])("shows the platform and version of $diagram", ({ xml, platform, version }) => {
+        expect(new BpmnDocument(xml).engineVersionStatus()).toEqual({ platform, version });
+    });
+
+    it.each([
+        { diagram: "a C7 diagram known only by its namespace", xml: c7XmlNoVersion },
+        { diagram: "a C8 diagram without a version", xml: c8XmlNameOnly },
+        { diagram: "a diagram without an execution platform", xml: unknownXml },
+        { diagram: "a version of no known platform", xml: unknownPlatformVersionXml },
+        { diagram: "an empty document", xml: "" },
+    ])("shows nothing for $diagram", ({ xml }) => {
+        expect(new BpmnDocument(xml).engineVersionStatus()).toBeUndefined();
     });
 });
 

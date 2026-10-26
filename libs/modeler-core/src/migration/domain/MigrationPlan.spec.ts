@@ -1,26 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { BpmnFileEntry, MigrationPlan } from "./MigrationPlan";
 
 describe("MigrationPlan", () => {
-    const c7Entry: BpmnFileEntry = {
-        path: "/workspace/c7.bpmn",
-        document: new BpmnDocument("<xml>c7</xml>"),
-        platform: "c7",
-    };
-
-    const c8Entry: BpmnFileEntry = {
-        path: "/workspace/c8.bpmn",
-        document: new BpmnDocument("<xml>c8</xml>"),
-        platform: "c8",
-    };
-
-    const c8NoVersion: BpmnFileEntry = {
-        path: "/workspace/c8-noversion.bpmn",
-        document: new BpmnDocument("<xml>c8</xml>"),
-        platform: "c8",
-    };
+    const c7Entry: BpmnFileEntry = { path: "/workspace/c7.bpmn", platform: "c7" };
+    const c8Entry: BpmnFileEntry = { path: "/workspace/c8.bpmn", platform: "c8" };
+    const otherC8Entry: BpmnFileEntry = { path: "/workspace/other-c8.bpmn", platform: "c8" };
 
     describe("isEmpty", () => {
         it("should return true when no classifiable files exist", () => {
@@ -67,17 +52,17 @@ describe("MigrationPlan", () => {
 
     describe("fileCount", () => {
         it("should count C7 files for scope 'c7'", () => {
-            const plan = new MigrationPlan([c7Entry], [c8Entry, c8NoVersion], []);
+            const plan = new MigrationPlan([c7Entry], [c8Entry, otherC8Entry], []);
             expect(plan.fileCount("c7")).toBe(1);
         });
 
         it("should count C8 files for scope 'c8'", () => {
-            const plan = new MigrationPlan([c7Entry], [c8Entry, c8NoVersion], []);
+            const plan = new MigrationPlan([c7Entry], [c8Entry, otherC8Entry], []);
             expect(plan.fileCount("c8")).toBe(2);
         });
 
         it("should count all files for scope 'both'", () => {
-            const plan = new MigrationPlan([c7Entry], [c8Entry, c8NoVersion], []);
+            const plan = new MigrationPlan([c7Entry], [c8Entry, otherC8Entry], []);
             expect(plan.fileCount("both")).toBe(3);
         });
     });

@@ -47,6 +47,8 @@ module.exports = [
             // emits 500k+ spurious errors. Flat config ignores `.gitignore`, so
             // it must be excluded here explicitly.
             "**/.vscode-test/**",
+            // Conductor's scratch space holds build snapshots and scripts; gitignored only.
+            ".context/**",
         ],
     },
     {

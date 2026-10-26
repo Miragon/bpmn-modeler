@@ -1,10 +1,11 @@
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { ScopeMembership } from "../../shared/domain/ScopeMembership";
+import { SearchScope, searchScopeKey } from "../../shared/domain/searchScope";
 import {
     findFilesInScope,
     resolveSearchScope,
     SearchLogger,
-    SearchScope,
 } from "../../shared/service/workspaceFileSearch";
 import { isSourceFile, SOURCE_EXTENSIONS } from "../domain/ImplementationReference";
 import { SourceFileFacts } from "../domain/SourceFileFacts";
@@ -75,7 +76,7 @@ export class DirectSourceCatalog implements SourceCatalog {
  */
 export class SourceIndex {
     private readonly indexes = new Map<string, IndexedSources>();
-    private readonly indexKeyByEditor = new Map<string, string>();
+    private readonly membership = new ScopeMembership();
 
     constructor(
         private readonly workspace: WorkspacePort,
@@ -96,37 +97,32 @@ export class SourceIndex {
             return undefined;
         }
 
-        const indexKey = scope.folders.join("\0");
-        if (this.indexKeyByEditor.get(editorId) !== indexKey) {
-            this.release(editorId);
-        }
-        const index = this.indexes.get(indexKey) ?? this.createIndex(indexKey, scope);
-        if (!index) {
+        const indexKey = searchScopeKey(scope);
+        const { isNewScope, emptiedScope } = this.membership.assign(editorId, indexKey);
+        this.disposeIndex(emptiedScope);
+        if (isNewScope && !this.createIndex(indexKey, scope)) {
+            this.membership.release(editorId);
             return undefined;
         }
-        index.editors.add(editorId);
-        this.indexKeyByEditor.set(editorId, indexKey);
-        return index;
+        return this.indexes.get(indexKey);
     }
 
     release(editorId: string): void {
-        const indexKey = this.indexKeyByEditor.get(editorId);
-        if (indexKey === undefined) {
-            return;
-        }
-        this.indexKeyByEditor.delete(editorId);
-        const index = this.indexes.get(indexKey);
-        index?.editors.delete(editorId);
-        if (index && index.editors.size === 0) {
-            index.dispose();
-            this.indexes.delete(indexKey);
-        }
+        this.disposeIndex(this.membership.release(editorId));
     }
 
     dispose(): void {
         this.indexes.forEach((index) => index.dispose());
         this.indexes.clear();
-        this.indexKeyByEditor.clear();
+        this.membership.clear();
+    }
+
+    private disposeIndex(indexKey: string | undefined): void {
+        if (indexKey === undefined) {
+            return;
+        }
+        this.indexes.get(indexKey)?.dispose();
+        this.indexes.delete(indexKey);
     }
 
     private createIndex(
@@ -150,11 +146,10 @@ export class SourceIndex {
 }
 
 class IndexedSources implements SourceCatalog {
-    readonly editors = new Set<string>();
     private readonly watchers: { dispose(): void }[] = [];
     private listing: Promise<string[]> | undefined;
-    private listedPathKeys: Set<string> | undefined;
-    private readonly factsByPathKey = new Map<string, SourceFileFacts>();
+    private listedPaths: Set<string> | undefined;
+    private readonly factsByPath = new Map<string, SourceFileFacts>();
     private readonly sharedReads = new Map<string, Promise<SourceFileFacts | undefined>>();
     // Bumped by every event for a source path, so a read an edit overtook is not kept.
     private readonly revisions = new Map<string, number>();
@@ -171,18 +166,16 @@ class IndexedSources implements SourceCatalog {
     ) {
         try {
             for (const folder of scope.folders) {
-                const folderKey = toPathKey(folder);
-                const watch = (onEvent: (pathKey: string) => void) => (path: string) => {
-                    const pathKey = toPathKey(path);
-                    if (!isInsideExcludedDirWithin(folderKey, pathKey)) {
-                        onEvent(pathKey);
+                const watch = (onEvent: (path: string) => void) => (path: string) => {
+                    if (!isInsideExcludedDirWithin(folder, path)) {
+                        onEvent(path);
                     }
                 };
                 this.watchers.push(
                     workspace.createWatcher(folder, "**/*", {
-                        onCreate: watch((pathKey) => this.onCreated(pathKey)),
-                        onChange: watch((pathKey) => this.onChanged(pathKey)),
-                        onDelete: watch((pathKey) => this.onDeleted(pathKey)),
+                        onCreate: watch((path) => this.onCreated(path)),
+                        onChange: watch((path) => this.onChanged(path)),
+                        onDelete: watch((path) => this.onDeleted(path)),
                     }),
                 );
             }
@@ -199,7 +192,7 @@ class IndexedSources implements SourceCatalog {
             listing.then(
                 (paths) => {
                     if (this.listing === listing) {
-                        this.listedPathKeys = new Set(paths.map(toPathKey));
+                        this.listedPaths = new Set(paths);
                     }
                 },
                 () => this.forgetListing(listing),
@@ -210,11 +203,10 @@ class IndexedSources implements SourceCatalog {
 
     async inspect(path: string, withContent: boolean): Promise<InspectedSource | undefined> {
         this.dropFactsOfInvalidatedFolders();
-        const pathKey = toPathKey(path);
         if (withContent) {
-            return this.readSource(path, pathKey);
+            return this.readSource(path);
         }
-        const facts = this.factsByPathKey.get(pathKey) ?? (await this.sharedRead(path, pathKey));
+        const facts = this.factsByPath.get(path) ?? (await this.sharedRead(path));
         return facts && { facts };
     }
 
@@ -222,28 +214,28 @@ class IndexedSources implements SourceCatalog {
         this.disposed = true;
         this.watchers.forEach((watcher) => watcher.dispose());
         this.watchers.length = 0;
-        this.factsByPathKey.clear();
+        this.factsByPath.clear();
         this.sharedReads.clear();
     }
 
-    private sharedRead(path: string, pathKey: string): Promise<SourceFileFacts | undefined> {
-        const pending = this.sharedReads.get(pathKey);
+    private sharedRead(path: string): Promise<SourceFileFacts | undefined> {
+        const pending = this.sharedReads.get(path);
         if (pending) {
             return pending;
         }
-        const reading = this.readSource(path, pathKey).then((source) => source?.facts);
-        this.sharedReads.set(pathKey, reading);
+        const reading = this.readSource(path).then((source) => source?.facts);
+        this.sharedReads.set(path, reading);
         const settle = () => {
-            if (this.sharedReads.get(pathKey) === reading) {
-                this.sharedReads.delete(pathKey);
+            if (this.sharedReads.get(path) === reading) {
+                this.sharedReads.delete(path);
             }
         };
         reading.then(settle, settle);
         return reading;
     }
 
-    private async readSource(path: string, pathKey: string): Promise<InspectedSource | undefined> {
-        const revision = this.revisions.get(pathKey);
+    private async readSource(path: string): Promise<InspectedSource | undefined> {
+        const revision = this.revisions.get(path);
         const folderInvalidations = this.folderInvalidations;
         const content = await readOrUndefined(this.workspace, path);
         if (content === undefined) {
@@ -251,39 +243,39 @@ class IndexedSources implements SourceCatalog {
         }
         const facts = SourceFileFacts.extract(content);
         const unchangedSinceRead =
-            this.revisions.get(pathKey) === revision &&
+            this.revisions.get(path) === revision &&
             this.folderInvalidations === folderInvalidations;
         if (!this.disposed && unchangedSinceRead && content.length <= MAX_INDEXED_FILE_LENGTH) {
-            this.factsByPathKey.set(pathKey, facts);
+            this.factsByPath.set(path, facts);
         }
         return { facts, content };
     }
 
-    private onCreated(pathKey: string): void {
-        if (isSourceFile(pathKey)) {
-            this.forgetFacts(pathKey);
-            if (this.listedPathKeys?.has(pathKey)) {
+    private onCreated(path: string): void {
+        if (isSourceFile(path)) {
+            this.forgetFacts(path);
+            if (this.listedPaths?.has(path)) {
                 return;
             }
         } else {
             // A folder moved in may not report its files one by one.
-            this.invalidateFolder(pathKey);
+            this.invalidateFolder(path);
         }
         this.forgetListing();
     }
 
-    private onChanged(pathKey: string): void {
-        if (isSourceFile(pathKey)) {
-            this.forgetFacts(pathKey);
+    private onChanged(path: string): void {
+        if (isSourceFile(path)) {
+            this.forgetFacts(path);
         }
     }
 
-    private onDeleted(pathKey: string): void {
-        if (isSourceFile(pathKey)) {
-            this.forgetFacts(pathKey);
+    private onDeleted(path: string): void {
+        if (isSourceFile(path)) {
+            this.forgetFacts(path);
         } else {
             // A deleted folder is reported as one event, without its files.
-            this.invalidateFolder(pathKey);
+            this.invalidateFolder(path);
         }
         this.forgetListing();
     }
@@ -291,19 +283,19 @@ class IndexedSources implements SourceCatalog {
     private forgetListing(listing = this.listing): void {
         if (this.listing === listing) {
             this.listing = undefined;
-            this.listedPathKeys = undefined;
+            this.listedPaths = undefined;
         }
     }
 
-    private forgetFacts(pathKey: string): void {
-        this.revisions.set(pathKey, (this.revisions.get(pathKey) ?? 0) + 1);
-        this.factsByPathKey.delete(pathKey);
-        this.sharedReads.delete(pathKey);
+    private forgetFacts(path: string): void {
+        this.revisions.set(path, (this.revisions.get(path) ?? 0) + 1);
+        this.factsByPath.delete(path);
+        this.sharedReads.delete(path);
     }
 
-    private invalidateFolder(pathKey: string): void {
+    private invalidateFolder(path: string): void {
         this.folderInvalidations++;
-        this.invalidatedFolders.add(pathKey);
+        this.invalidatedFolders.add(path);
         this.sharedReads.clear();
     }
 
@@ -311,17 +303,17 @@ class IndexedSources implements SourceCatalog {
         if (this.invalidatedFolders.size === 0) {
             return;
         }
-        for (const pathKey of [...this.factsByPathKey.keys()]) {
-            if (this.isInsideInvalidatedFolder(pathKey)) {
-                this.factsByPathKey.delete(pathKey);
+        for (const path of [...this.factsByPath.keys()]) {
+            if (this.isInsideInvalidatedFolder(path)) {
+                this.factsByPath.delete(path);
             }
         }
         this.invalidatedFolders.clear();
     }
 
-    private isInsideInvalidatedFolder(pathKey: string): boolean {
-        for (let end = pathKey.lastIndexOf("/"); end > 0; end = pathKey.lastIndexOf("/", end - 1)) {
-            if (this.invalidatedFolders.has(pathKey.slice(0, end))) {
+    private isInsideInvalidatedFolder(path: string): boolean {
+        for (let end = path.lastIndexOf("/"); end > 0; end = path.lastIndexOf("/", end - 1)) {
+            if (this.invalidatedFolders.has(path.slice(0, end))) {
                 return true;
             }
         }
@@ -331,17 +323,9 @@ class IndexedSources implements SourceCatalog {
 
 // Build output above the workspace folder (a checkout under `~/build/`) must
 // not hide every event inside it.
-function isInsideExcludedDirWithin(folderKey: string, pathKey: string): boolean {
-    const relativePath = pathKey.startsWith(`${folderKey}/`)
-        ? pathKey.slice(folderKey.length + 1)
-        : pathKey;
+function isInsideExcludedDirWithin(folder: string, path: string): boolean {
+    const relativePath = path.startsWith(`${folder}/`) ? path.slice(folder.length + 1) : path;
     return pathIsInsideExcludedDir(relativePath);
-}
-
-// The bridge joins watcher paths with the platform separator while its file
-// listing uses `/`; one key form keeps both pointing at the same entry.
-function toPathKey(path: string): string {
-    return path.replace(/\\/g, "/");
 }
 
 async function readOrUndefined(
