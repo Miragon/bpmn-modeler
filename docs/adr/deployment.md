@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-20
+- Last reviewed: 2026-10-26
 
 ## Context
 
@@ -228,8 +228,14 @@ connections, not what this machine deployed.
 
 Fingerprints normalize line endings and concatenate two independently seeded
 32-bit FNV-1a hashes as a 16-digit hex value. This is a portable content-change
-check, without `node:crypto`. Compare against the current editor buffer, not
-just disk: a dirty buffer correctly differs from deployed saved bytes.
+check, without `node:crypto`. A deploy reads and fingerprints the file on
+disk, so both deploys of the open diagram, the sidebar's Deploy and Deploy
+Diagram, first flush the webview's pending edits into the document and save it
+through one `SaveBeforeDeploy` step. The sidebar saves only after target
+admission, so a rejected request writes nothing, and a failed save aborts the
+deploy. Freshness compares against the current editor buffer, not just disk,
+so an edit made after the deploy reads `changed` before it is saved. Additional
+sidebar files and Deploy Files… are deployed as saved.
 
 | Freshness | Interpretation |
 | --- | --- |
@@ -288,6 +294,8 @@ states and timestamps.
   change the key.
 - Credentials remain private while connection definitions are reviewable.
   Saving target metadata is an intentional additional step before execution.
+- Deploying the open diagram always saves it first, so neither Deploy button
+  can ship the saved version while keeping unsaved edits.
 - Approval adds one confirmation per target and host on first use, including
   once for every existing target with credentials or `.env` references after
   upgrading, because no approval predates the feature. A host that another
