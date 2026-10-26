@@ -73,6 +73,13 @@ const STARTS: StartRow[] = [
         effects: [],
     },
     {
+        behaviour: "starts an unknown tier from an untyped consumer as external",
+        init: { tier: "results" as LintTierInit["tier"], engine: "c7", mode: "implement" },
+        diagramLoaded: true,
+        state: { tier: "external", engine: "c7", mode: "implement" },
+        effects: [],
+    },
+    {
         behaviour: "lints Implement with the engine-aware default when no config is given",
         init: { tier: "in-page", engine: "c7", mode: "implement" },
         diagramLoaded: false,

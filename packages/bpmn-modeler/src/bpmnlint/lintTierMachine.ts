@@ -67,7 +67,8 @@ const RENDER_DISABLED: LintTierEffect = { kind: "renderDisabled" };
 
 export function startLintTier(init: LintTierInit, diagramLoaded: boolean): LintTierTransition {
     const state: LintTierState = {
-        tier: init.tier,
+        // Untyped consumers can pass any tier; everything but "in-page" paints host results.
+        tier: init.tier === "in-page" ? "in-page" : "external",
         mode: init.mode,
         engine: init.engine,
         explicitConfig: init.config,
@@ -145,6 +146,7 @@ function changeMode(
     return { state: next, effects: followsMode ? lintInPage(next, diagramLoaded) : [] };
 }
 
+// Rebuild so a mode or host config change made while off takes effect.
 function turnOnInPage(state: LintTierState): LintTierTransition {
     const next: LintTierState = { ...state, tier: "in-page" };
     return { state: next, effects: [buildLinter(next), ACTIVATE_IN_PAGE] };
