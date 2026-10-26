@@ -459,6 +459,107 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `re-registering keeps a page edit that never reached the Document`() {
+        val f = setUpRouter(INITIAL_XML)
+        // The sync of this edit was dropped in the restart window: the page shows
+        // it and believes it is clean, the Document does not have it.
+        val page = f.openPageShowing(EDITED_XML)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val register =
+            f.framesUntilRenderReplay().single { it.get("method").asString == "session/register" }
+        assertEquals(
+            EDITED_XML,
+            f.bpmn.document.text,
+            "the replayed render re-imports the Document, so it must hold the page's edit first",
+        )
+        val registered = register.getAsJsonObject("params")
+        assertEquals(
+            EDITED_XML,
+            registered.get("content").asString,
+            "the respawned bridge is seeded with the page's edit",
+        )
+        assertFalse(page.heldLocks.isEmpty(), "the page takes no new edits before the replayed render")
+
+        f.deliverRenderedFile(page.sessionId, registered.get("content").asString)
+        assertTrue(page.heldLocks.isEmpty(), "the page is unlocked once the replayed render reached it")
+    }
+
+    /**
+     * Replaces the fixture's page with one that answers a flush the way the
+     * page's flush responder does when it shows [content] at revision 0 with no
+     * sync pending: only a destructive flush that asks for an export of a clean
+     * page gets the content, any other flush gets `clean`.
+     */
+    private fun Fixture.openPageShowing(content: String): FakePage {
+        val heldLocks = mutableSetOf<Long>()
+        lateinit var pageSession: CoreSession
+        pageSession =
+            CoreSession(session.editorId, bpmn.file, session.project) { raw ->
+                val message = parse(raw)
+                val token = message.get("token")?.asLong ?: return@CoreSession
+                when (message.get("type")?.asString) {
+                    "FlushDocumentQuery" -> {
+                        val destructive = message.get("destructive")?.asBoolean == true
+                        if (destructive) heldLocks.add(token)
+                        val exportsCleanPage = destructive && message.get("exportWhenClean")?.asBoolean == true
+                        val reply: Map<String, Any> =
+                            if (exportsCleanPage) {
+                                linkedMapOf(
+                                    "type" to "DocumentFlushedCommand",
+                                    "token" to token,
+                                    "content" to content,
+                                    "status" to "flushed",
+                                    "documentRevision" to 0,
+                                )
+                            } else {
+                                linkedMapOf("type" to "DocumentFlushedCommand", "token" to token, "status" to "clean")
+                            }
+                        router.forwardWebviewMessage(pageSession, wired.channel.gson.toJson(reply))
+                    }
+                    "ReleaseDocumentFlushQuery" -> heldLocks.remove(token)
+                }
+            }
+        router.registerSession(pageSession)
+        val register = parse(wired.fake.nextFrame())
+        return FakePage(register.getAsJsonObject("params").get("sessionId").asLong, heldLocks)
+    }
+
+    private class FakePage(val sessionId: Long, val heldLocks: Set<Long>)
+
+    /** Plays the bridge answering the replayed `GetBpmnFileCommand` with [content]. */
+    private fun Fixture.deliverRenderedFile(pageSessionId: Long, content: String) {
+        val rendered =
+            wired.channel.gson
+                .toJsonTree(
+                    mapOf(
+                        "editorId" to session.editorId,
+                        "sessionId" to pageSessionId,
+                        "message" to
+                            mapOf(
+                                "type" to "BpmnFileQuery",
+                                "content" to content,
+                                "engine" to "c8",
+                                "documentRevision" to 0,
+                            ),
+                    ),
+                ).asJsonObject
+        wired.handlers.dispatch("editor/postMessage", rendered, null)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+    }
+
+    private fun Fixture.framesUntilRenderReplay(): List<JsonObject> {
+        val frames = mutableListOf<JsonObject>()
+        while (true) {
+            val frame = parse(wired.fake.nextFrame())
+            frames.add(frame)
+            if (frame.webviewMessageType() == "GetBpmnFileCommand") return frames
+        }
+    }
+
+    @Test
     fun `late traffic and disposal from a replaced same-uri session are ignored`() {
         val f = setUpRouter(INITIAL_XML)
         val replacement = CoreSession(f.session.editorId, f.bpmn.file, f.session.project) {}
