@@ -13,6 +13,8 @@ export interface MiragonLegal {
   /** Name der Navigation für Screenreader. */
   label: string
   copyright: string
+  /** Ziel des Copyrights, wie in der Rechtszeile der Modeler (Guide modeler-tool-design §5.10). */
+  copyrightLink: string
   /** Ein Satz vor dem Copyright, etwa die Lizenz. */
   message?: string
   links: { text: string; link: string }[]
@@ -23,6 +25,7 @@ export interface MiragonLegalThemeConfig {
   miragon?: { legal?: MiragonLegal }
 }
 
+export const STARTSEITE = "https://www.miragon.io/"
 export const IMPRESSUM = "https://www.miragon.io/impressum/"
 export const DATENSCHUTZ = "https://www.miragon.io/datenschutz/"
 
@@ -33,6 +36,7 @@ export function miragonLegal(options: { lang?: "en-US" | "de-DE"; message?: stri
   return {
     label: LABEL[options.lang ?? "en-US"],
     copyright: `© ${new Date().getFullYear()} Miragon GmbH`,
+    copyrightLink: STARTSEITE,
     ...(options.message ? { message: options.message } : {}),
     links: [
       { text: "Impressum", link: IMPRESSUM },
