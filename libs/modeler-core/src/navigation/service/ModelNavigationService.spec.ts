@@ -146,12 +146,13 @@ describe("ModelNavigationService.navigate", () => {
             paths: ["/a.bpmn"],
             readFailures: [],
         });
-        vi.spyOn(notifier, "openDocument").mockRejectedValueOnce(new Error("File not found"));
+        const notFound = new Error("File not found");
+        vi.spyOn(notifier, "openDocument").mockRejectedValueOnce(notFound);
 
         await service.navigate("ProcessB", "process");
 
         expect(notifier.errors).toEqual([expect.stringContaining("File not found")]);
-        expect(notifier.logged("error")).toEqual(["File not found"]);
+        expect(notifier.logged("error")).toEqual([notFound.stack]);
     });
 
     it("truncates very long reference ids in user-facing notifications", async () => {

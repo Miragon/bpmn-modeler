@@ -258,7 +258,8 @@ describe("StartInstanceService.startInstance", () => {
 
     it("never throws: a rejected REST call becomes a failed result and is logged", async () => {
         const { service, host, restClient } = createService();
-        restClient.startInstance.mockRejectedValue(new Error("network down"));
+        const networkDown = new Error("network down");
+        restClient.startInstance.mockRejectedValue(networkDown);
 
         const result = await service.startInstance(
             "Process_1",
@@ -273,7 +274,7 @@ describe("StartInstanceService.startInstance", () => {
 
         expect(result.success).toBe(false);
         expect(result.message).toBe("network down");
-        expect(host.notifier.logged("error")).toEqual(["network down"]);
+        expect(host.notifier.logged("error")).toEqual([networkDown.stack]);
     });
 
     it("never throws: malformed payload JSON becomes a failed result and skips the REST call", async () => {
@@ -517,7 +518,9 @@ describe("StartInstanceService.startInstance", () => {
         );
         expect(result.success).toBe(false);
         expect(result.message).toBe(rejected.message);
-        expect(host.notifier.logged("error")).toEqual([rejected.message]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining(`HttpTransportError: ${rejected.message}\n`),
+        ]);
         expect(host.notifier.loggedErrors).toEqual([
             expect.objectContaining({ host: rejected.host, reason: rejected.reason }),
         ]);

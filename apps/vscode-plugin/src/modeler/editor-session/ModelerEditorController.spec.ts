@@ -112,9 +112,10 @@ describe("ModelerEditorController.resolveCustomTextEditor", () => {
     });
 
     it("surfaces a failing participant through the notifier without rejecting", async () => {
+        const boom = new Error("boom");
         const participant: EditorSessionParticipant = {
             onResolve: () => {
-                throw new Error("boom");
+                throw boom;
             },
         };
         const { controller, host } = resolve({ participants: [participant] });
@@ -123,6 +124,6 @@ describe("ModelerEditorController.resolveCustomTextEditor", () => {
             controller.resolveCustomTextEditor(document, panel, token),
         ).resolves.toBeUndefined();
         expect(host.notifier.errors).toEqual(["boom"]);
-        expect(host.notifier.logged("error")).toEqual(["boom"]);
+        expect(host.notifier.logged("error")).toEqual([boom.stack]);
     });
 });

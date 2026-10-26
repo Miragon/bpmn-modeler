@@ -121,10 +121,11 @@ describe("DefinitionSearchService", () => {
         const { host, findFiles, answer, search } = setup({
             "/work/a.bpmn": model('<bpmn:message id="M" name="x" />'),
         });
-        findFiles.mockRejectedValueOnce(new Error("boom"));
+        const scanFailure = new Error("boom");
+        findFiles.mockRejectedValueOnce(scanFailure);
 
         expect(await answer("message", "")).toMatchObject({ definitions: [], failed: true });
-        expect(host.notifier.logged("error")).toEqual(["boom"]);
+        expect(host.notifier.logged("error")).toEqual([scanFailure.stack]);
         expect(await search("message", "")).toHaveLength(1);
     });
 

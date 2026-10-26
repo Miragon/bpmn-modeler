@@ -72,15 +72,16 @@ describe("BpmnlintParticipant", () => {
 
     it("surfaces watcher setup errors to the user", async () => {
         const { host, locator, participant } = createServices();
+        const noWorkspace = new Error("no workspace");
         vi.spyOn(locator, "createWatcher").mockResolvedValue({
             disposables: [],
-            errors: [new Error("no workspace")],
+            errors: [noWorkspace],
         });
 
         await host.openSession(PATH, [participant]);
 
         expect(host.notifier.errors).toEqual(["no workspace"]);
-        expect(host.notifier.logged("error")).toEqual(["no workspace"]);
+        expect(host.notifier.logged("error")).toEqual([noWorkspace.stack]);
     });
 
     it("clears the status item and the diagnostics when the session is disposed", async () => {

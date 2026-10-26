@@ -40,8 +40,9 @@ describe("VsCodeNotifier toasts", () => {
         ]);
     });
 
-    it("pairs what failed with the error's message and logs the error itself", () => {
+    it("pairs what failed with the error's message and logs the context with the stack, as the bridge does", () => {
         const failure = new Error("401 Unauthorized");
+        failure.stack = "Error: 401 Unauthorized\n    at deploy (DeploymentService.ts:42:7)";
 
         notifier.notifyError("Deploying order.bpmn failed", failure);
 
@@ -52,7 +53,12 @@ describe("VsCodeNotifier toasts", () => {
                 actions: [],
             },
         ]);
-        expect(logChannel().lines).toEqual([{ level: "error", entry: failure }]);
+        expect(logChannel().lines).toEqual([
+            {
+                level: "error",
+                entry: "Deploying order.bpmn failed: Error: 401 Unauthorized\n    at deploy (DeploymentService.ts:42:7)",
+            },
+        ]);
     });
 
     it("shows a thrown value that is not an Error as it is", () => {
@@ -61,7 +67,9 @@ describe("VsCodeNotifier toasts", () => {
         expect(renderedToasts().map((toast) => toast.message)).toEqual([
             "Reading the element templates failed\nEACCES",
         ]);
-        expect(logChannel().lines).toEqual([{ level: "error", entry: "EACCES" }]);
+        expect(logChannel().lines).toEqual([
+            { level: "error", entry: "Reading the element templates failed: EACCES" },
+        ]);
     });
 
     it("reloads the window when the user picks the toast's reload action", async () => {

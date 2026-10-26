@@ -14,7 +14,11 @@ export class InMemoryMemento implements Memento {
     }
 
     async update(key: string, value: unknown): Promise<void> {
-        this.values.set(key, value);
+        if (value === undefined) {
+            this.values.delete(key);
+        } else {
+            this.values.set(key, value);
+        }
     }
 }
 

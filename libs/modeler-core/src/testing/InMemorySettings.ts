@@ -30,7 +30,12 @@ export class InMemorySettings implements SettingsPort {
             lintingEnabled: true,
             colorTheme: "automatic",
             defaultMode: "implement",
-            favouriteBpmnElements: [],
+            favouriteBpmnElements: [
+                "bpmn:ServiceTask",
+                "bpmn:UserTask",
+                "bpmn:CallActivity",
+                "bpmn:ExclusiveGateway",
+            ],
             language: "en",
             persistCodeLinkMap: false,
             scriptingSpin: true,

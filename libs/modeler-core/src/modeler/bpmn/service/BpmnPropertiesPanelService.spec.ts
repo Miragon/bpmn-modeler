@@ -52,7 +52,9 @@ describe("BpmnPropertiesPanelService.sendPropertiesPanelState", () => {
         const result = await service.sendPropertiesPanelState(editor.id);
 
         expect(result).toBe(false);
-        expect(host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining("Error: The active editor is hidden.\n"),
+        ]);
     });
 });
 
@@ -67,11 +69,10 @@ describe("BpmnPropertiesPanelService.setPropertiesPanelVisibility", () => {
 
     it("swallows and logs a persistence failure", async () => {
         const { service, host } = createService();
-        vi.spyOn(host.propertiesPanelState, "setVisibility").mockRejectedValue(
-            new Error("state write failed"),
-        );
+        const writeFailed = new Error("state write failed");
+        vi.spyOn(host.propertiesPanelState, "setVisibility").mockRejectedValue(writeFailed);
 
         await expect(service.setPropertiesPanelVisibility(true)).resolves.toBeUndefined();
-        expect(host.notifier.logged("error")).toEqual(["state write failed"]);
+        expect(host.notifier.logged("error")).toEqual([writeFailed.stack]);
     });
 });

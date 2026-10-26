@@ -38,14 +38,15 @@ describe("DmnSettingsBroadcaster.setSettings", () => {
 
     it("logs and returns false when reading the setting throws", async () => {
         const { broadcaster, host, editor } = createBroadcaster();
+        const readFailed = new Error("config read failed");
         vi.spyOn(host.settings, "getColorTheme").mockImplementation(() => {
-            throw new Error("config read failed");
+            throw readFailed;
         });
 
         const result = await broadcaster.setSettings(editor.id);
 
         expect(result).toBe(false);
-        expect(host.notifier.logged("error")).toEqual(["config read failed"]);
+        expect(host.notifier.logged("error")).toEqual([readFailed.stack]);
         expect(host.notifier.errors).toEqual([]);
     });
 });
@@ -70,7 +71,9 @@ describe("DmnSettingsBroadcaster.setLanguage", () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining("Error: The active editor is hidden.\n"),
+        ]);
     });
 });
 
@@ -106,13 +109,14 @@ describe("DmnSettingsBroadcaster.subscribe", () => {
 
     it("guards a rejecting setSettings so the change listener never leaks a rejection", async () => {
         const { broadcaster, host, editor } = createBroadcaster();
-        vi.spyOn(broadcaster, "setSettings").mockRejectedValue(new Error("post failed"));
+        const postFailed = new Error("post failed");
+        vi.spyOn(broadcaster, "setSettings").mockRejectedValue(postFailed);
 
         broadcaster.subscribe(editor.id);
         editor.changeSetting("miragon.bpmnModeler.colorTheme");
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(host.notifier.logged("error")).toEqual(["post failed"]);
+        expect(host.notifier.logged("error")).toEqual([postFailed.stack]);
     });
 });
