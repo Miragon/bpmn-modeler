@@ -426,8 +426,9 @@ const deploymentParticipant = moduleAt("deployment", "session", "DeploymentStatu
 const deploymentFeature = moduleAt("deployment", "root", "DeploymentFeature.ts");
 const camundaClient = moduleAt("deployment", "infrastructure", "camunda/Camunda7RestClient.ts");
 const deploymentHandlers = moduleAt("deployment", "infrastructure", "deploymentMessageHandlers.ts");
-const sharedErrors = moduleAt("shared", "domain", "errors.ts");
-const artifactService = moduleAt("shared", "service", "ArtifactService.ts");
+const sessionParticipantContract = moduleAt("shared", "domain", "EditorSessionParticipant.ts");
+const kernelErrors = moduleAt("kernel", "domain", "errors.ts");
+const artifactService = moduleAt("kernel", "service", "ArtifactService.ts");
 const marketplaceService = moduleAt(
     "template-marketplace",
     "service",
@@ -440,12 +441,13 @@ const fetchHttpClient = moduleAt("kernel", "infrastructure", "FetchHttpClient.ts
 /** Every edge here is allowed by every rule. */
 const LAYERED_GRAPH: readonly ImportEdge[] = [
     edge(deploymentTarget, deploymentPorts),
-    edge(deploymentTarget, sharedErrors),
+    edge(deploymentTarget, kernelErrors),
     edge(deploymentTarget, "@miragon/bpmn-modeler-types"),
     edge(deploymentTarget, "path"),
     edge(deploymentService, deploymentTarget),
     edge(deploymentService, artifactService),
     edge(deploymentParticipant, deploymentService),
+    edge(deploymentParticipant, sessionParticipantContract),
     edge(deploymentFeature, deploymentService),
     edge(deploymentFeature, camundaClient),
     edge(deploymentHandlers, deploymentService),
@@ -453,7 +455,7 @@ const LAYERED_GRAPH: readonly ImportEdge[] = [
     edge(camundaClient, kernelHttp),
     edge(deploymentFeature, fetchHttpClient),
     edge(fetchHttpClient, kernelHttp),
-    edge(marketplaceService, sharedErrors),
+    edge(marketplaceService, kernelErrors),
     edge(gitHubSource, kernelHttp),
     edge(gitHubSource, "bpmnlint"),
 ];
@@ -510,7 +512,7 @@ describe("module classification", () => {
             feature: "deployment",
             layer: "infrastructure",
         },
-        { path: "shared/service/ArtifactService.ts", feature: "shared", layer: "service" },
+        { path: "kernel/service/ArtifactService.ts", feature: "kernel", layer: "service" },
         {
             path: "kernel/infrastructure/FetchHttpClient.ts",
             feature: "kernel",
@@ -572,8 +574,8 @@ describe("host reach", () => {
     it.each(["vscode", "node:fs", "fs", "fs/promises", "http", "https"])(
         "treats %s as a host module",
         (specifier) => {
-            expect(hostReachingFiles(new Map([["shared/service/A.ts", [specifier]]]))).toEqual(
-                new Set(["shared/service/A.ts"]),
+            expect(hostReachingFiles(new Map([["kernel/service/A.ts", [specifier]]]))).toEqual(
+                new Set(["kernel/service/A.ts"]),
             );
         },
     );
@@ -581,7 +583,7 @@ describe("host reach", () => {
     it.each(["path", "@miragon/bpmn-modeler-types"])(
         "does not treat %s as a host module",
         (specifier) => {
-            expect(hostReachingFiles(new Map([["shared/service/A.ts", [specifier]]]))).toEqual(
+            expect(hostReachingFiles(new Map([["kernel/service/A.ts", [specifier]]]))).toEqual(
                 new Set(),
             );
         },
@@ -645,7 +647,7 @@ describe("rules on a synthetic graph", () => {
         {
             name: "shared → a feature",
             violations: crossFeatureViolations,
-            offending: edge(artifactService, deploymentService),
+            offending: edge(sessionParticipantContract, deploymentTarget),
         },
         {
             name: "kernel → a feature",
@@ -655,7 +657,7 @@ describe("rules on a synthetic graph", () => {
         {
             name: "kernel → shared",
             violations: kernelImportViolations,
-            offending: edge(kernelHttp, sharedErrors),
+            offending: edge(artifactService, sessionParticipantContract),
         },
         {
             name: "service → infrastructure",
@@ -709,8 +711,8 @@ describe("rules on a synthetic graph", () => {
         },
         {
             name: "a self-import",
-            graph: [edge(sharedErrors, sharedErrors)],
-            cycles: [[sharedErrors.path]],
+            graph: [edge(kernelErrors, kernelErrors)],
+            cycles: [[kernelErrors.path]],
         },
         {
             name: "a cycle whose import is written twice",
@@ -733,11 +735,11 @@ describe("rules on a synthetic graph", () => {
         {
             name: "two separate cycles",
             graph: [
-                edge(sharedErrors, sharedErrors),
+                edge(kernelErrors, kernelErrors),
                 edge(deploymentService, deploymentTarget),
                 edge(deploymentTarget, deploymentService),
             ],
-            cycles: [[deploymentTarget.path, deploymentService.path], [sharedErrors.path]],
+            cycles: [[deploymentTarget.path, deploymentService.path], [kernelErrors.path]],
         },
     ])("finds the import cycles of $name", ({ graph, cycles }) => {
         expect(importCycles(graph)).toEqual(cycles);
