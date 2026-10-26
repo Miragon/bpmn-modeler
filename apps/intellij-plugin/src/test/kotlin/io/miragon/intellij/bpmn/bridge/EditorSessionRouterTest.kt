@@ -100,12 +100,12 @@ class EditorSessionRouterTest {
      * listener that `handleWrite`'s `setText` re-enters synchronously. Returns how
      * often the router asked for the document text.
      */
-    private fun Fixture.attachEditorEcho(): () -> Int {
+    private fun Fixture.attachEditorEcho(editorSession: CoreSession = session): () -> Int {
         var contentReads = 0
         bpmn.document.addDocumentListener(
             object : DocumentListener {
                 override fun documentChanged(event: DocumentEvent) {
-                    router.notifyDocumentChanged(session) {
+                    router.notifyDocumentChanged(editorSession) {
                         contentReads++
                         event.document.text
                     }
@@ -271,6 +271,16 @@ class EditorSessionRouterTest {
         f.router.flushBeforeClose(f.session.editorId)
 
         assertTrue(f.posted.isEmpty(), "the authoritative host edit bypasses webview export")
+    }
+
+    @Test
+    fun `close writes a page edit that never reached the Document`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageShowing(EDITED_XML)
+
+        f.router.flushBeforeClose(f.session.editorId)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the closing page's edit survives in the Document")
     }
 
     @Test
@@ -469,7 +479,7 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         val register =
-            f.framesUntilRenderReplay().single { it.get("method").asString == "session/register" }
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
         assertEquals(
             EDITED_XML,
             f.bpmn.document.text,
@@ -485,6 +495,50 @@ class EditorSessionRouterTest {
 
         f.deliverRenderedFile(page.sessionId, registered.get("content").asString)
         assertTrue(page.heldLocks.isEmpty(), "the page is unlocked once the replayed render reached it")
+    }
+
+    @Test
+    fun `a recovered page edit is not rendered back as an external edit`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML)
+        f.attachEditorEcho(page.session)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val register =
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
+        assertEquals(
+            0L,
+            register.getAsJsonObject("params").get("documentRevision").asLong,
+            "the page already represents its own edit",
+        )
+        f.deliverRenderedFile(page.sessionId, EDITED_XML)
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a recovered page takes edits again when the replayed render never arrives`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        f.scheduler.runPending()
+
+        assertTrue(page.heldLocks.isEmpty(), "a bridge that never renders must not leave the page inert")
+    }
+
+    @Test
+    fun `re-registering does not flush the webview over a pending external host update`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.router.notifyDocumentChanged(f.session) { EDITED_XML }
+        f.router.reregisterLiveSessions()
+
+        assertTrue(f.posted.isEmpty(), "the authoritative host edit bypasses webview export")
     }
 
     /**
@@ -524,10 +578,10 @@ class EditorSessionRouterTest {
             }
         router.registerSession(pageSession)
         val register = parse(wired.fake.nextFrame())
-        return FakePage(register.getAsJsonObject("params").get("sessionId").asLong, heldLocks)
+        return FakePage(pageSession, register.getAsJsonObject("params").get("sessionId").asLong, heldLocks)
     }
 
-    private class FakePage(val sessionId: Long, val heldLocks: Set<Long>)
+    private class FakePage(val session: CoreSession, val sessionId: Long, val heldLocks: Set<Long>)
 
     /** Plays the bridge answering the replayed `GetBpmnFileCommand` with [content]. */
     private fun Fixture.deliverRenderedFile(pageSessionId: Long, content: String) {
@@ -550,12 +604,13 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
-    private fun Fixture.framesUntilRenderReplay(): List<JsonObject> {
+    /** Reads the frames a re-registration sends, through its last replayed command. */
+    private fun Fixture.reregistrationFrames(): List<JsonObject> {
         val frames = mutableListOf<JsonObject>()
         while (true) {
             val frame = parse(wired.fake.nextFrame())
             frames.add(frame)
-            if (frame.webviewMessageType() == "GetBpmnFileCommand") return frames
+            if (frame.webviewMessageType() == "GetBpmnlintConfigCommand") return frames
         }
     }
 

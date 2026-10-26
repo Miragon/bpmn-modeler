@@ -8,6 +8,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
@@ -46,10 +47,10 @@ internal class EditorSessionRouter(
     private val sessions = ConcurrentHashMap<String, SessionEntry>()
     private val nextSessionId = AtomicLong(0)
 
-    // Editors whose Document is being mutated by a core `document/write`. The
-    // synchronous `DocumentListener` call that `setText` triggers sees the marker
-    // and sends nothing: the write reply already tells the bridge what the
-    // Document holds, so echoing the full XML back would be a wasted hop.
+    // Editors whose Document is being set by a core `document/write` or a page
+    // flush. The synchronous `DocumentListener` call that `setText` triggers sees
+    // the marker and sends nothing: the write reply or the next `session/register`
+    // tells the bridge what the Document holds, and the page already shows it.
     private val editorsApplyingCoreWrite: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     // Per-editor debounce timer for *external* edits only (raw-text tab, git
@@ -77,14 +78,18 @@ internal class EditorSessionRouter(
     // newer request replaces the pending one (mirrors VS Code disposing the previous).
     private val pendingSvgRequests = ConcurrentHashMap<String, (String) -> Unit>()
 
-    // Per-editor close-flush latch. Armed by [flushBeforeClose] on the EDT before a
-    // tab closes, resolved by [resolveCloseFlush] on the JCEF handler thread when the
-    // webview's `DocumentFlushedCommand` lands. Kept off [sessions] because its
-    // lifetime is a single ≤250ms close round-trip, not the whole session.
-    private val closeFlushLatches = ConcurrentHashMap<String, CloseFlush>()
+    // Per-editor page flush in flight. Armed by [recoverPageEdits] before a tab
+    // closes or a respawn re-registers, resolved by [resolvePageFlush] on the JCEF
+    // handler thread when the webview's `DocumentFlushedCommand` lands. Kept off
+    // [sessions] because its lifetime is a single ≤250ms round-trip.
+    private val pageFlushes = ConcurrentHashMap<String, PageFlush>()
 
-    // Monotonic token so a late flush reply can't satisfy a newer close request.
-    private val closeFlushToken = AtomicLong(0)
+    // Monotonic token so a late flush reply can't satisfy a newer flush request.
+    private val pageFlushToken = AtomicLong(0)
+
+    // Pages a respawn recovery left locked, so no edit lands between the recovery
+    // and the replayed render that re-imports the Document.
+    private val pagesAwaitingRender = ConcurrentHashMap<String, LockedPage>()
 
     fun register() {
         deps.handlers
@@ -104,6 +109,7 @@ internal class EditorSessionRouter(
                 }
                 entry.session.postToWebview(deps.gson.toJson(message))
                 if (query != null) {
+                    pagesAwaitingRender[editorId]?.takeIf { it.entry === entry }?.let { releaseAfterRender(editorId, it) }
                     val expected = hostUpdatesAwaitingWebview[editorId]
                     if (
                         expected != null &&
@@ -225,9 +231,9 @@ internal class EditorSessionRouter(
             val syncRevision = readTopLevelLong(trimmed, "documentRevision", deps.gson)
             if ((syncRevision ?: 0L) < entry.documentRevision.get()) return
         }
-        // Capture close-flush replies and forced normal-sync fallbacks while the
-        // EDT is blocked in [flushBeforeClose]. Messages still reach the core below.
-        resolveCloseFlush(editorId, trimmed, isSyncCommand)
+        // Capture page-flush replies and forced normal-sync fallbacks while
+        // [recoverPageEdits] waits. Messages still reach the core below.
+        resolvePageFlush(editorId, trimmed, isSyncCommand)
         // Document syncs fire once per diagram edit and supersede each other — only
         // the latest XML matters for write-back — so collapse queued ones.
         val coalesceKey = if (isSyncCommand) "sync:$editorId" else null
@@ -244,13 +250,13 @@ internal class EditorSessionRouter(
     /**
      * Forwards an external document change (git revert/checkout, the plain-text
      * tab, another tool) to the core so the diagram re-renders. A change caused by
-     * [handleWrite] is not forwarded: the write reply already reports it, so only
-     * the supersede bookkeeping runs and [readContent] is never called — no
-     * full-document copy per diagram edit.
+     * [handleWrite] or a page flush is not forwarded, so only the supersede
+     * bookkeeping runs and [readContent] is never called — no full-document copy
+     * per diagram edit.
      *
-     * **[handleWrite] relies on this running synchronously inside `setText`.** It
-     * marks the editor in [editorsApplyingCoreWrite] only for the duration of the
-     * write action, so a deferred listener would mistake the core's write for an
+     * **[setTextWithoutEcho] relies on this running synchronously inside `setText`.**
+     * It marks the editor in [editorsApplyingCoreWrite] only for the duration of
+     * the write action, so a deferred listener would mistake the write for an
      * external edit and send it back.
      *
      * Called only on the EDT (document mutations require a write action there). The
@@ -354,23 +360,36 @@ internal class EditorSessionRouter(
         hostUpdatesAwaitingWebview.remove(editorId)
         changeSeq.remove(editorId)
         pendingSvgRequests.remove(editorId)
-        // Unblock any close-flush still awaiting a reply so a disposed editor
-        // never strands the EDT for the full timeout.
-        closeFlushLatches.remove(editorId)?.latch?.countDown()
+        pagesAwaitingRender.remove(editorId)
+        // Unblock any page flush still awaiting a reply so a disposed editor
+        // never strands the waiting thread for the full timeout.
+        pageFlushes.remove(editorId)?.latch?.countDown()
     }
 
     /**
-     * Re-seeds every open session into a freshly spawned bridge (the document
-     * mirror is rebuilt from the live IntelliJ `Document`, the authoritative
-     * source) and replays `GetBpmnFileCommand` so the still-alive JCEF page
-     * re-renders without a reload. A replayed render does not make the page ask
-     * for the lint config again, so `GetBpmnlintConfigCommand` is replayed too:
-     * a new bridge starts with linting on and the page would otherwise show the
-     * old bridge's toggle.
+     * Re-seeds every open session into the bridge after a respawn or Reload
+     * Modeler (the document mirror is rebuilt from the live IntelliJ `Document`,
+     * the authoritative source) and replays `GetBpmnFileCommand` so the
+     * still-alive JCEF page re-renders without a reload. The replayed render
+     * re-imports the Document, so [recoverPageEdits] first writes the edits the
+     * Document never received (a sync dropped in the restart window or still
+     * debounced), and the page stays locked until that render reaches it.
+     *
+     * A replayed render does not make the page ask for the lint config again,
+     * so `GetBpmnlintConfigCommand` is replayed too: a new bridge starts with
+     * linting on and the page would otherwise show the old bridge's toggle.
+     *
+     * Blocks its caller, the scheduler thread after a crash or the EDT for
+     * Reload Modeler, for at most [PAGE_FLUSH_TIMEOUT_MS].
      */
     fun reregisterLiveSessions() {
         if (!deps.isProcessAlive()) return
-        sessions.values.forEach { entry ->
+        val entries = sessions.values.toList()
+        val flushesByEntry = recoverPageEdits(entries).associateBy { it.entry }
+        entries.forEach { entry ->
+            if (sessions[entry.session.editorId] !== entry) return@forEach
+            // Armed before the replay goes out, so its render cannot overtake the hold.
+            flushesByEntry[entry]?.let(::holdUntilRendered)
             sendRegister(entry)
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
@@ -385,8 +404,9 @@ internal class EditorSessionRouter(
         hostUpdatesAwaitingWebview.clear()
         changeSeq.clear()
         pendingSvgRequests.clear()
-        closeFlushLatches.values.forEach { it.latch.countDown() }
-        closeFlushLatches.clear()
+        pagesAwaitingRender.clear()
+        pageFlushes.values.forEach { it.latch.countDown() }
+        pageFlushes.clear()
     }
 
     // ── core → host ────────────────────────────────────────────────────────────
@@ -439,19 +459,14 @@ internal class EditorSessionRouter(
                 // file on every write, on the EDT. StringUtil.equals reads the
                 // CharSequence in place.
                 if (document != null && !StringUtil.equals(document.charsSequence, content)) {
-                    editorsApplyingCoreWrite.add(editorId)
                     try {
-                        WriteCommandAction.runWriteCommandAction(session.project) {
-                            document.setText(content)
-                        }
+                        setTextWithoutEcho(session, document, content)
                     } catch (e: Exception) {
                         // The reply is the bridge mirror's only update, so a throw
                         // after setText took effect must still report the change.
                         val documentTookContent = StringUtil.equals(document.charsSequence, content)
                         if (e is ControlFlowException || !documentTookContent) throw e
                         log.warn("Core write threw after the Document took the content", e)
-                    } finally {
-                        editorsApplyingCoreWrite.remove(editorId)
                     }
                     changed = true
                 }
@@ -480,72 +495,120 @@ internal class EditorSessionRouter(
         }
     }
 
-    // ── close flush ──────────────────────────────────────────────────────────────
+    // ── page flush (close and respawn) ───────────────────────────────────────────
 
     /**
      * Flushes the webview's debounced-but-unsynced changes into the Document
      * before the tab closes, so a close never drops the sub-debounce tail of
-     * edits. Called on the EDT from `beforeFileClosed`. Two constraints force
-     * this exact shape:
-     *
-     *  - **`beforeFileClosed`, not `dispose()`.** IntelliJ's Disposer tears down
-     *    the editor's children (the JCEF browser) *before* the editor's own
-     *    `dispose()` body runs, so a dispose-time post would hit a dead browser.
-     *    In `beforeFileClosed` the browser is still alive.
-     *  - **no bridge round-trip here.** The reply is applied straight to the
-     *    IntelliJ Document; routing it through the bridge's `document/write` would
-     *    end in a `WriteCommandAction` that needs the very EDT this method blocks
-     *    — a deadlock.
-     *
-     * Blocks the EDT on a latch ≤[CLOSE_FLUSH_TIMEOUT_MS]; the reply lands on the
-     * JCEF handler thread (see [forwardWebviewMessage] → [resolveCloseFlush]), so
-     * the block cannot self-deadlock. On XML received — either in the reply or from
-     * the forced normal-sync fallback — we write inline before disposal begins.
+     * edits. Called on the EDT from `beforeFileClosed`, not `dispose()`:
+     * IntelliJ's Disposer tears down the editor's children (the JCEF browser)
+     * *before* the editor's own `dispose()` body runs, so a dispose-time post
+     * would hit a dead browser.
      */
     fun flushBeforeClose(editorId: String) {
         val entry = sessions[editorId] ?: return
-        val session = entry.session
-        if (debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)) {
-            return
-        }
-        val token = closeFlushToken.incrementAndGet()
-        val flush = CloseFlush(token, entry.documentRevision.get())
-        closeFlushLatches[editorId] = flush
-        var replied = false
-        try {
-            session.postToWebview(
-                "{\"type\":\"FlushDocumentQuery\",\"token\":$token," +
-                    "\"destructive\":true,\"exportWhenClean\":true}",
-            )
-            replied = flush.latch.await(CLOSE_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            val content = flush.content
-            if (
-                content != null &&
-                closeFlushRevisionMatches(flush.expectedDocumentRevision, flush.contentRevision) &&
-                sessions[editorId] === entry &&
-                entry.documentRevision.get() == flush.expectedDocumentRevision &&
-                !session.project.isDisposed
-            ) {
-                writeIfChanged(session, content)
-            }
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-        } finally {
-            closeFlushLatches.remove(editorId)
-            if (!replied) {
-                session.postToWebview("{\"type\":\"ReleaseDocumentFlushQuery\",\"token\":$token}")
-            }
+        recoverPageEdits(listOf(entry)).forEach { flush ->
+            if (!flush.replied) entry.session.postToWebview(releaseFlushQuery(flush.token))
         }
     }
 
     /**
-     * Resolves the armed close-flush latch for [editorId] from a webview message,
-     * if that message is the matching `DocumentFlushedCommand`. Cheap-guarded:
-     * only parses when a close is actually in progress and the marker is present,
-     * so the hot forward path is untouched during normal editing.
+     * Writes each page's export into its Document while the Document revision
+     * still matches, so neither a close nor a replayed render drops edits the
+     * Document never received. A page with a pending external host update is
+     * skipped: the host copy is authoritative. The flush is destructive and
+     * exports a clean page too, because a page whose sync was dropped believes
+     * it is clean; it leaves each posted page locked for the caller to release.
+     *
+     * The reply goes straight into the Document: the bridge's `document/write`
+     * would need the EDT a close blocks. All replies share one
+     * ≤[PAGE_FLUSH_TIMEOUT_MS] wait and land on the JCEF handler thread
+     * ([resolvePageFlush]), so an EDT caller cannot self-deadlock. XML from the
+     * forced normal-sync fallback is written like a reply.
      */
-    private fun resolveCloseFlush(editorId: String, trimmedMessage: String, isSyncCommand: Boolean) {
-        val pending = closeFlushLatches[editorId] ?: return
+    private fun recoverPageEdits(entries: List<SessionEntry>): List<PageFlush> {
+        val flushes = entries.mapNotNull(::requestPageFlush)
+        if (flushes.isEmpty()) return flushes
+        val repliesAwaited = awaitReplies(flushes)
+        flushes.forEach { pageFlushes.remove(it.entry.session.editorId, it) }
+        if (repliesAwaited) onEdtAndWait { flushes.forEach(::writeFlushedContent) }
+        return flushes
+    }
+
+    private fun requestPageFlush(entry: SessionEntry): PageFlush? {
+        val editorId = entry.session.editorId
+        if (debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)) return null
+        val flush = PageFlush(entry, pageFlushToken.incrementAndGet(), entry.documentRevision.get())
+        pageFlushes[editorId] = flush
+        entry.session.postToWebview(
+            "{\"type\":\"FlushDocumentQuery\",\"token\":${flush.token}," +
+                "\"destructive\":true,\"exportWhenClean\":true}",
+        )
+        return flush
+    }
+
+    /** Returns `false` when interrupted, so no reply is written. */
+    private fun awaitReplies(flushes: List<PageFlush>): Boolean {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(PAGE_FLUSH_TIMEOUT_MS)
+        return try {
+            flushes.forEach { it.latch.await(deadline - System.nanoTime(), TimeUnit.NANOSECONDS) }
+            true
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+    }
+
+    private fun writeFlushedContent(flush: PageFlush) {
+        val entry = flush.entry
+        val content = flush.content ?: return
+        if (
+            pageFlushRevisionMatches(flush.expectedDocumentRevision, flush.contentRevision) &&
+            sessions[entry.session.editorId] === entry &&
+            entry.documentRevision.get() == flush.expectedDocumentRevision &&
+            !entry.session.project.isDisposed
+        ) {
+            writeIfChanged(entry.session, content)
+        }
+    }
+
+    private fun onEdtAndWait(action: () -> Unit) {
+        val application = ApplicationManager.getApplication()
+        if (application.isDispatchThread) action() else application.invokeAndWait(action)
+    }
+
+    /**
+     * Keeps a recovered page locked until the replayed render reaches it, or
+     * [RENDER_REPLAY_TIMEOUT_MS] passed: a bridge that never answers the replay
+     * must not leave the page inert.
+     */
+    private fun holdUntilRendered(flush: PageFlush) {
+        val editorId = flush.entry.session.editorId
+        val lockedPage = LockedPage(flush.entry, flush.token)
+        pagesAwaitingRender[editorId] = lockedPage
+        scheduler.schedule(
+            { releaseAfterRender(editorId, lockedPage) },
+            RENDER_REPLAY_TIMEOUT_MS,
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun releaseAfterRender(editorId: String, lockedPage: LockedPage) {
+        if (pagesAwaitingRender.remove(editorId, lockedPage) && sessions[editorId] === lockedPage.entry) {
+            lockedPage.entry.session.postToWebview(releaseFlushQuery(lockedPage.token))
+        }
+    }
+
+    private fun releaseFlushQuery(token: Long) = "{\"type\":\"ReleaseDocumentFlushQuery\",\"token\":$token}"
+
+    /**
+     * Resolves the armed page flush for [editorId] from a webview message, if
+     * that message is the matching `DocumentFlushedCommand`. Cheap-guarded: only
+     * parses when a flush is actually in progress and the marker is present, so
+     * the hot forward path is untouched during normal editing.
+     */
+    private fun resolvePageFlush(editorId: String, trimmedMessage: String, isSyncCommand: Boolean) {
+        val pending = pageFlushes[editorId] ?: return
         if (isSyncCommand) {
             parseSyncDocumentReply(trimmedMessage, deps.gson)?.let {
                 pending.content = it.content
@@ -556,7 +619,7 @@ internal class EditorSessionRouter(
         if (!trimmedMessage.contains(FLUSH_COMMAND_MARKER)) return
         val reply = parseDocumentFlushedReply(trimmedMessage, deps.gson) ?: return
         if (reply.token != pending.token) return
-        pending.content = closeFlushContent(pending.content, reply)
+        pending.content = pageFlushContent(pending.content, reply)
         pending.contentRevision =
             when (reply.status) {
                 "flushed" -> reply.documentRevision
@@ -566,23 +629,38 @@ internal class EditorSessionRouter(
         pending.latch.countDown()
     }
 
-    /** Writes [rawContent] into the Document unless byte-identical (line-normalised). */
+    /** Writes the page's [rawContent] into the Document unless byte-identical (line-normalised). */
     private fun writeIfChanged(session: CoreSession, rawContent: String) {
         // IntelliJ Documents require `\n`; webview XML may carry `\r\n` (as handleWrite does).
         val content = StringUtil.convertLineSeparators(rawContent)
         val document = FileDocumentManager.getInstance().getDocument(session.file) ?: return
         if (StringUtil.equals(document.charsSequence, content)) return
-        WriteCommandAction.runWriteCommandAction(session.project) {
-            document.setText(content)
+        // The page already shows this content: rendering it back at a new
+        // revision would re-import it over the page.
+        setTextWithoutEcho(session, document, content)
+    }
+
+    /** Sets [content] so the synchronous [notifyDocumentChanged] call does not take it for an external edit. */
+    private fun setTextWithoutEcho(session: CoreSession, document: Document, content: String) {
+        editorsApplyingCoreWrite.add(session.editorId)
+        try {
+            WriteCommandAction.runWriteCommandAction(session.project) {
+                document.setText(content)
+            }
+        } finally {
+            editorsApplyingCoreWrite.remove(session.editorId)
         }
     }
 
-    /** One in-flight close-flush round-trip: its token, the EDT's latch, and the reply. */
-    private class CloseFlush(
+    /** One in-flight page-flush round-trip: its session, token, latch, and the reply. */
+    private class PageFlush(
+        val entry: SessionEntry,
         val token: Long,
         val expectedDocumentRevision: Long,
     ) {
         val latch = CountDownLatch(1)
+
+        val replied: Boolean get() = latch.count == 0L
 
         @Volatile
         var content: String? = null
@@ -590,6 +668,9 @@ internal class EditorSessionRouter(
         @Volatile
         var contentRevision: Long? = null
     }
+
+    /** A page a respawn recovery locked with [token] until its replayed render arrives. */
+    private class LockedPage(val entry: SessionEntry, val token: Long)
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
@@ -613,16 +694,20 @@ internal class EditorSessionRouter(
         const val BPMN_FILE_QUERY_TYPE = "BpmnFileQuery"
 
         // The webview's compact JSON.stringify emits exactly this substring for a
-        // DocumentFlushedCommand, so a substring test gates the parse on the close path.
+        // DocumentFlushedCommand, so a substring test gates the parse on the flush path.
         const val FLUSH_COMMAND_MARKER = "\"type\":\"DocumentFlushedCommand\""
 
         // Long enough to collapse a typing burst into one re-render, short enough
         // that an external edit (git checkout) feels immediate.
         const val EXTERNAL_DEBOUNCE_MS = 150L
 
-        // Upper bound the EDT will block on a close flush. The webview export is
-        // ~10-50ms; this leaves margin without a perceptible freeze on tab close.
-        const val CLOSE_FLUSH_TIMEOUT_MS = 250L
+        // Upper bound the caller (the EDT on close) blocks on a page flush. The
+        // webview export is ~10-50ms; this leaves margin without a perceptible freeze.
+        const val PAGE_FLUSH_TIMEOUT_MS = 250L
+
+        // Covers a respawned bridge re-seeding a session before it renders; past
+        // it the page takes edits again even without the replayed render.
+        const val RENDER_REPLAY_TIMEOUT_MS = 5_000L
     }
 }
 
@@ -638,7 +723,7 @@ internal data class SyncDocumentReply(val content: String, val documentRevision:
 
 /**
  * Parses a webview message as a `DocumentFlushedCommand`, or returns null if it
- * is not one / is malformed. Extracted as a pure function so the close-flush
+ * is not one / is malformed. Extracted as a pure function so the page-flush
  * reply handling is unit-testable without a running bridge or EDT.
  */
 internal fun parseDocumentFlushedReply(raw: String, gson: Gson): DocumentFlushedReply? =
@@ -711,12 +796,12 @@ private fun JsonElement.asStringOrNull(): String? = takeIf { !it.isJsonNull }?.a
 internal fun parseSyncDocumentContent(raw: String, gson: Gson): String? =
     parseSyncDocumentReply(raw, gson)?.content
 
-internal fun closeFlushContent(capturedSync: String?, reply: DocumentFlushedReply): String? =
+internal fun pageFlushContent(capturedSync: String?, reply: DocumentFlushedReply): String? =
     when (reply.status) {
         "flushed" -> reply.content
         "unavailable" -> capturedSync
         else -> null
     }
 
-internal fun closeFlushRevisionMatches(expected: Long, actual: Long?): Boolean =
+internal fun pageFlushRevisionMatches(expected: Long, actual: Long?): Boolean =
     (actual ?: 0L) == expected

@@ -42,9 +42,10 @@ import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
  *
  * **Robustness.** The bridge is spawned from a bundled, self-contained binary
  * (no system Node). A crash is detected via process exit and the bridge is
- * respawned with backoff; every live session is re-registered from the
- * authoritative IntelliJ `Document`, and a `GetBpmnFileCommand` is replayed so
- * open editors re-render. On dispose (project close / IDE exit) the process is
+ * respawned with backoff; each page's edits the `Document` never received are
+ * written into it, every live session is re-registered from that authoritative
+ * IntelliJ `Document`, and a `GetBpmnFileCommand` is replayed so open editors
+ * re-render. On dispose (project close / IDE exit) the process is
  * destroyed; because the bridge exits on stdin EOF, killing the JVM never
  * orphans it — the shutdown hook + `destroyForcibly` are belt-and-suspenders.
  */
@@ -155,7 +156,8 @@ class CoreProcess(private val project: Project) : Disposable {
      * Soft-reloads every open modeler by re-registering its live session (re-seeds
      * settings, re-scans element templates, replays the render) — the fallback for
      * stale templates on setups where the filesystem watcher never fires (WSL over a
-     * symlinked workspace). No JCEF hard reload, so unsaved edits survive.
+     * symlinked workspace). No JCEF hard reload, and each page's edits reach the
+     * Document before the re-render, so unsaved edits survive.
      */
     fun reloadModeler() = routers.editor.reregisterLiveSessions()
 
