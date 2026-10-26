@@ -124,7 +124,7 @@ export class BpmnModelerService {
 
             const newVersion = await this.picker.pickEngineVersion(platform, versions);
             if (!snapshot.isCurrent()) {
-                this.notifier.showInfo(VERSION_NOT_CHANGED);
+                this.reportVersionNotChanged(editorId);
                 return false;
             }
 
@@ -139,7 +139,7 @@ export class BpmnModelerService {
                     snapshot.revision,
                 ))
             ) {
-                this.notifier.showInfo(VERSION_NOT_CHANGED);
+                this.reportVersionNotChanged(editorId);
                 return false;
             }
             // Written: the change that made the snapshot stale re-renders the editor.
@@ -154,6 +154,13 @@ export class BpmnModelerService {
                 return false;
             }
             return this.handleError(error as Error);
+        }
+    }
+
+    // A closed editor leaves nothing to try again.
+    private reportVersionNotChanged(editorId: string): void {
+        if (this.editorStore.hasEditor(editorId)) {
+            this.notifier.showInfo(VERSION_NOT_CHANGED);
         }
     }
 

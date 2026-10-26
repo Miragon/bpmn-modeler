@@ -45,6 +45,16 @@ function holdNextWrite(host: TestHost) {
     return (applied: boolean) => finishWrite(applied);
 }
 
+function holdNextPick(host: TestHost) {
+    let finishPick: (version: string) => void = () => {};
+    vi.spyOn(host.picker, "pickEngineVersion").mockReturnValueOnce(
+        new Promise<string>((resolve) => {
+            finishPick = resolve;
+        }),
+    );
+    return (version: string) => finishPick(version);
+}
+
 describe("BpmnModelerService.display", () => {
     it("renders a valid document and shows its engine version", async () => {
         const { service, host, editor } = createService(C8_DOC);
@@ -310,12 +320,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
     it("tells the user when the diagram changes while the version is picked", async () => {
         const { service, host, editor } = createService(C8_DOC);
-        let finishPick: (version: string) => void = () => {};
-        vi.spyOn(host.picker, "pickEngineVersion").mockReturnValueOnce(
-            new Promise((resolve) => {
-                finishPick = resolve;
-            }),
-        );
+        const finishPick = holdNextPick(host);
 
         const changing = service.changeEngineVersion(editor.id);
         host.store.markHostDocumentUpdated(editor.id);
@@ -355,7 +360,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         expect(host.notifier.errors).toEqual([]);
     });
 
-    it("reports no error when the editor closes while the version is written", async () => {
+    it("stays quiet when the editor closes while the version is written", async () => {
         const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
         vi.spyOn(host.documents, "write").mockImplementationOnce(async () => {
             host.store.unregister(editor.id, editor);
@@ -366,6 +371,21 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
         expect(result).toBe(false);
         expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.infos).toEqual([]);
+    });
+
+    it("stays quiet when the editor closes while the version is picked", async () => {
+        const { service, host, editor } = createService(C8_DOC);
+        const finishPick = holdNextPick(host);
+
+        const changing = service.changeEngineVersion(editor.id);
+        host.store.unregister(editor.id, editor);
+        finishPick("8.5.0");
+
+        expect(await changing).toBe(false);
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.infos).toEqual([]);
+        expect(editor.content).toBe(C8_DOC);
     });
 
     it("leaves a diagram already at the picked version untouched and quiet", async () => {
@@ -401,12 +421,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
     it("does not apply a picked version to a replacement same-uri session", async () => {
         const { service, host, editor } = createService(C8_DOC);
-        let finishPick: (version: string) => void = () => {};
-        vi.spyOn(host.picker, "pickEngineVersion").mockReturnValueOnce(
-            new Promise((resolve) => {
-                finishPick = resolve;
-            }),
-        );
+        const finishPick = holdNextPick(host);
 
         const changing = service.changeEngineVersion(editor.id);
         const replacement = host.openEditor(PATH, C8_DOC);
