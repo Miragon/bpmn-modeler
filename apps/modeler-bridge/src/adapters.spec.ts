@@ -33,6 +33,12 @@ function last<T>(items: T[]): T {
     return items[items.length - 1];
 }
 
+function errorThrownInDeploy(message: string): Error {
+    const error = new Error(message);
+    error.stack = `Error: ${message}\n    at deploy (DeploymentService.ts:42:7)`;
+    return error;
+}
+
 /** Captures emitted frames and lets a test answer the latest outstanding request. */
 function harness() {
     const frames: any[] = [];
@@ -531,12 +537,6 @@ describe("RpcNotifier", () => {
             params: { level: "warn", message: "careful" },
         });
 
-        notifier.logError(new Error("bad"));
-        expect(last(frames)).toEqual({
-            method: "notifier/log",
-            params: { level: "error", message: "bad" },
-        });
-
         // A bare string (e.g. a webview-forwarded stack) is forwarded verbatim,
         // not re-wrapped in an Error.
         notifier.logError("[webview] raw stack");
@@ -549,18 +549,53 @@ describe("RpcNotifier", () => {
         expect(last(frames)).toEqual({ method: "notifier/openConsole", params: {} });
     });
 
-    it("notifyError logs the detail then surfaces a paired balloon", () => {
+    it("logs an error with its stack so the throw site reaches idea.log", () => {
         const { frames, rpc } = harness();
-        new RpcNotifier(rpc).notifyError("While loading", new Error("kaput"));
+        const error = errorThrownInDeploy("bad");
+
+        new RpcNotifier(rpc).logError(error);
+
+        expect(last(frames)).toEqual({
+            method: "notifier/log",
+            params: { level: "error", message: error.stack },
+        });
+    });
+
+    it("pairs the caller context with the stack when notifying an error", () => {
+        const { frames, rpc } = harness();
+        const error = errorThrownInDeploy("kaput");
+
+        new RpcNotifier(rpc).notifyError("While loading", error);
 
         expect(frames).toEqual([
-            { method: "notifier/log", params: { level: "error", message: "While loading: kaput" } },
+            {
+                method: "notifier/log",
+                params: { level: "error", message: `While loading: ${error.stack}` },
+            },
             {
                 method: "notifier/notifyError",
                 params: { context: "While loading", message: "kaput" },
             },
         ]);
     });
+
+    it.each([
+        { error: new Error("bad"), logged: "Error: bad" },
+        { error: new TypeError("bad"), logged: "TypeError: bad" },
+    ])(
+        "falls back to name and message when an error has no stack: $logged",
+        ({ error, logged }) => {
+            const { frames, rpc } = harness();
+            delete error.stack;
+
+            new RpcNotifier(rpc).logError(error);
+
+            expect(last(frames)).toEqual({
+                method: "notifier/log",
+                params: { level: "error", message: logged },
+            });
+        },
+    );
 
     it("withProgress brackets the task and returns its result", async () => {
         const { frames, rpc } = harness();
