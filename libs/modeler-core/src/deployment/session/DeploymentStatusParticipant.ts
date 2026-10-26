@@ -33,7 +33,7 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
                 void this.statusService.refresh(session.editorId);
             } else {
                 this.cancelRefresh(session.editorId);
-                this.hideFor(session.editorId);
+                this.releaseStatusItem(session.editorId);
             }
         });
 
@@ -49,7 +49,7 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
 
         session.onDispose(() => {
             this.cancelRefresh(session.editorId);
-            this.hideFor(session.editorId);
+            this.releaseStatusItem(session.editorId);
         });
         if (session.isFocused()) {
             this.statusOwnership.claim(session.editorId);
@@ -57,7 +57,7 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
         }
     }
 
-    private hideFor(editorId: string): void {
+    private releaseStatusItem(editorId: string): void {
         if (this.statusOwnership.release(editorId) === "hide") this.statusService.hide();
     }
 

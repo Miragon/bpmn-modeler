@@ -8,8 +8,7 @@ import { StatusItemOwnership } from "../../../shared/domain/StatusItemOwnership"
 
 /**
  * Shows the engine-version status bar item while a BPMN editor is focused and
- * hides it otherwise. Owns the platform/version detection because that is the
- * only consumer of it on the lifecycle path.
+ * hides it otherwise.
  */
 export class EngineVersionStatusBarParticipant implements EditorSessionParticipant {
     private readonly statusOwnership = new StatusItemOwnership();
@@ -26,14 +25,14 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
                 this.statusOwnership.claim(session.editorId);
                 this.updateEngineVersionStatusBar(session.editorId);
             } else {
-                this.hideFor(session.editorId);
+                this.releaseStatusItem(session.editorId);
             }
         });
 
-        session.onDispose(() => this.hideFor(session.editorId));
+        session.onDispose(() => this.releaseStatusItem(session.editorId));
     }
 
-    private hideFor(editorId: string): void {
+    private releaseStatusItem(editorId: string): void {
         if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hideEngineVersion();
     }
 
