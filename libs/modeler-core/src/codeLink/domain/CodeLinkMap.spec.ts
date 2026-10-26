@@ -22,6 +22,12 @@ describe("CodeLinkMap — path conversion", () => {
         expect(toRelative(abs, root)).toBe("src/main/java/com/example/Charge.java");
         expect(toAbsolute(toRelative(abs, root), root)).toBe(abs);
     });
+
+    it("keeps the UNC root when re-absolutising a path on a share", () => {
+        const abs = "//server/share/proj/src/main/java/com/example/Charge.java";
+        const root = "//server/share/proj";
+        expect(toAbsolute(toRelative(abs, root), root)).toBe(abs);
+    });
 });
 
 describe("CodeLinkMap — matchesClassPath", () => {

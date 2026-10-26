@@ -129,6 +129,18 @@ describe("DeploymentTargetService.locateTargetsFile", () => {
         });
     });
 
+    it("keeps the UNC root of a targets file in a project on a share", async () => {
+        const c = createService();
+        const ownerDir = "//server/share/ws";
+        c.artifactService.findConfigBaseDir.mockResolvedValue(ownerDir);
+
+        await expect(c.service.locateTargetsFile(`${ownerDir}/src`)).resolves.toEqual({
+            filePath: `${ownerDir}/${CONFIG_FOLDER}/${TARGETS_FILE_NAME}`,
+            exists: true,
+            projectDir: ownerDir,
+        });
+    });
+
     it("searches the first workspace folder when no document directory is given", async () => {
         const c = createService({ folders: [WORKSPACE_ROOT, "/other"] });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);

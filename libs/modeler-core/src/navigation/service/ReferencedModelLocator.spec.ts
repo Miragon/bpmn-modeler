@@ -393,6 +393,28 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
         });
     });
 
+    it("keeps the UNC root of the files it walks next to a loose file on a share", async () => {
+        const { locator } = createLocator({
+            folders: [],
+            files: {
+                "//server/share/work/parent.bpmn": bpmnWithProcess("Parent"),
+                "//server/share/work/child.bpmn": bpmnWithProcess("ChildProcess"),
+            },
+        });
+
+        const result = await locator.findDeclaringFiles(
+            "ChildProcess",
+            "process",
+            "//server/share/work/parent.bpmn",
+        );
+
+        expect(result).toEqual({
+            kind: "matches",
+            paths: ["//server/share/work/child.bpmn"],
+            readFailures: [],
+        });
+    });
+
     it("returns no-search-scope when no source URI and no workspace folders", async () => {
         const { locator, workspace } = createLocator({
             folders: [],
