@@ -760,6 +760,20 @@ describe("bootstrap", () => {
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
         });
 
+        it("focuses a re-shown editor without waiting for the host default", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetPropertiesPanelStateCommand: unanswered },
+                state: { panelVisible: false },
+            });
+            boot(host);
+            await settle();
+
+            expect(isCollapsed()).toBe(true);
+            expect(sentOfType(host, "RequestFocusCommand")).toHaveLength(1);
+        });
+
         it("keeps and reports a toggle made while the host default is pending", async () => {
             mocks.createModeler.mockResolvedValue(makeModeler());
             const host = makeHost({

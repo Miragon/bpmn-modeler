@@ -720,6 +720,18 @@ describe("DMN bootstrap", () => {
             ]);
         });
 
+        it("focuses a re-shown editor without waiting for the host default", async () => {
+            const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
+            const { ofType } = await startBootstrap({
+                savedState: { panelVisible: false },
+                replies: withoutPanelState,
+            });
+            await settle();
+
+            expect(isCollapsed()).toBe(true);
+            expect(ofType("RequestFocusCommand")).toHaveLength(1);
+        });
+
         it("keeps and reports a toggle made while the host default is pending", async () => {
             const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
             const { host, ofType } = await startBootstrap({ replies: withoutPanelState });
