@@ -187,8 +187,8 @@ export class BpmnMigrationService {
             }
 
             if (editorId !== undefined) {
-                // No revision: with one, the IntelliJ host would accept the write
-                // while a webview sync is still pending.
+                // No revision: with one, IntelliJ skips its guard against external
+                // edits not yet sent to the webview.
                 if (!(await this.vsDocument.write(editorId, updatedDoc.xml))) {
                     this.notifier.logWarning(
                         `Skipped a diagram whose editor rejected the update: ${file.path}`,
