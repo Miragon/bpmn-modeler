@@ -22,7 +22,7 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * deployment/statusBarMenu, deployment/deployFiles, deployment/deployActive.
  */
 export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
-    const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
+    const deploymentState = new RpcDeploymentState(deps.rpc);
     const deployment = new DeploymentFeature({
         store: deps.store,
         documents: deps.documentPort,

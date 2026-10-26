@@ -527,8 +527,8 @@ export const PROTOCOL = [
         } satisfies SecretDeleteParams,
     },
     // Acknowledged persists (requests, not notifications): the bridge awaits the
-    // host's empty ack so a persist failure is logged instead of diverging
-    // silently. No resultFixture (empty ack).
+    // host's empty ack so a persist failure rejects the core's write instead of
+    // diverging silently. No resultFixture (empty ack).
     {
         method: METHODS.deploymentStateSaveAuthType,
         direction: "coreToHost",
