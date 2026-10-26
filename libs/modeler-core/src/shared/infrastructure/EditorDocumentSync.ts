@@ -89,9 +89,9 @@ export class EditorDocumentSync {
             // display racing it finds the initialisation already in flight.
             const content = typeof created === "string" ? created : await created;
             if (!snapshot.isCurrent()) return undefined;
-            const changed = await this.write(editorId, content, snapshot.revision);
+            const written = await this.writeAndConfirm(editorId, content, snapshot.revision);
             if (!snapshot.isCurrent()) return undefined;
-            if (!changed && this.document.getContent(editorId) !== content) {
+            if (!written) {
                 throw new Error("The empty document could not be initialized.");
             }
             await this.document.save(editorId);
@@ -127,5 +127,19 @@ export class EditorDocumentSync {
         } finally {
             guard?.releaseGuard(content);
         }
+    }
+
+    /**
+     * Writes like {@link write}, but resolves whether the document holds
+     * `content` afterwards: a write the host skipped because the content was
+     * already there counts as written, a refused one does not.
+     */
+    async writeAndConfirm(
+        editorId: string,
+        content: string,
+        documentRevision?: number,
+    ): Promise<boolean> {
+        if (await this.write(editorId, content, documentRevision)) return true;
+        return this.store.hasEditor(editorId) && this.document.getContent(editorId) === content;
     }
 }
