@@ -203,3 +203,8 @@ Bridge (`apps/modeler-bridge/src/`):
 - **Hosting a code-insight/completion test** in the JUnit5 suite fights the
   `@TestApplication` leak tracker — see the recipe in user-memory "intellij
   codeinsightfixture leaks under testapplication".
+- **Project fixtures in tests**: use `projectFixtureWithoutServicePreload()`,
+  not plain `projectFixture()`. Preloaded platform services finish after the
+  fixture closes the project on the 2-core CI runner and trip the
+  `LeakHunter` check (`JUnit Jupiter > executionError`). Reproduce CI-only
+  flakes locally with `JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount=2`.

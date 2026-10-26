@@ -9,9 +9,9 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.junit5.RunInEdt
 import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -35,7 +35,7 @@ import java.nio.file.Files
 @TestApplication
 @RunInEdt(writeIntent = true)
 class EditorSessionRouterTest {
-    private val projectFixture = projectFixture()
+    private val projectFixture = projectFixtureWithoutServicePreload()
     private val tempDirFixture = tempPathFixture()
 
     private val gson = Gson()

@@ -4,7 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.testFramework.junit5.fixture.projectFixture
+import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 // PasswordSafe runs on an in-memory store in unit-test mode, so nothing reaches the OS keychain.
 @TestApplication
 class SecretStoreRouterTest {
-    private val projectFixture = projectFixture()
+    private val projectFixture = projectFixtureWithoutServicePreload()
 
     private val gson = Gson()
 
