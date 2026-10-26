@@ -36,8 +36,9 @@ const WATCHER_SCENARIO_TIMEOUT_MS = 15000;
 /**
  * The rules of {@link WorkspacePort} the core relies on, run against one
  * adapter. The in-memory fake and the bridge's `NodeWorkspace` both run them,
- * so a spec that passes on the fake cannot rely on a rule a real host breaks.
- * Where the hosts differ, VS Code is the reference.
+ * so within these scenarios a spec that passes on the fake cannot rely on a
+ * rule the bridge breaks. Where the hosts differ, VS Code is the reference.
+ * Watcher events for folders are left out: the hosts do not agree on them yet.
  */
 export function describeWorkspaceContract(
     adapter: string,
