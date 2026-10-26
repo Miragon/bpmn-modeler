@@ -9,7 +9,11 @@ import {
 
 import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { DocumentFlushService } from "./DocumentFlushService";
-import { PendingEditsFlush, PendingEditsFlushResult } from "./PendingEditsFlush";
+import {
+    ModelerFileExtension,
+    PendingEditsFlush,
+    PendingEditsFlushResult,
+} from "./PendingEditsFlush";
 
 interface RecordedSync {
     editorId: string;
@@ -33,7 +37,7 @@ describe("PendingEditsFlush", () => {
     let host: TestHost;
     let flushes: DocumentFlushService;
     let pendingEdits: PendingEditsFlush;
-    let modelers: Record<string, RecordingModeler>;
+    let modelers: Record<ModelerFileExtension, RecordingModeler>;
 
     beforeEach(() => {
         host = createTestHost();
@@ -44,8 +48,8 @@ describe("PendingEditsFlush", () => {
             ".dmn": new RecordingModeler(host),
             ".form": new RecordingModeler(host),
         };
-        for (const [extension, modeler] of Object.entries(modelers)) {
-            pendingEdits.serve(extension, modeler);
+        for (const extension of [".bpmn", ".dmn", ".form"] as const) {
+            pendingEdits.serve(extension, modelers[extension]);
         }
     });
 
@@ -97,7 +101,7 @@ describe("PendingEditsFlush", () => {
         return Object.values(modelers).flatMap((modeler) => modeler.syncs);
     }
 
-    it.each([
+    it.each<[string, ModelerFileExtension]>([
         ["/work/diagram.bpmn", ".bpmn"],
         ["/work/Order.BPMN", ".bpmn"],
         ["/work/decision.dmn", ".dmn"],

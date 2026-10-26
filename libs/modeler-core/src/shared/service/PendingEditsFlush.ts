@@ -6,6 +6,8 @@ import { DocumentFlushService } from "./DocumentFlushService";
 export type PendingEditsFlushResult =
     { status: "safe"; session: object } | { status: "unavailable" } | { status: "closed" };
 
+export type ModelerFileExtension = ".bpmn" | ".dmn" | ".form";
+
 export interface PendingEditsFlushOptions {
     destructive?: boolean;
 }
@@ -24,7 +26,7 @@ type DocumentSyncer = Pick<ModelerDocumentService, "sync">;
  * queue, so the echo of the write is suppressed like any webview sync.
  */
 export class PendingEditsFlush {
-    private readonly modelers = new Map<string, DocumentSyncer>();
+    private readonly modelers = new Map<ModelerFileExtension, DocumentSyncer>();
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -32,7 +34,7 @@ export class PendingEditsFlush {
         private readonly logger: LoggerPort,
     ) {}
 
-    serve(extension: string, modeler: DocumentSyncer): void {
+    serve(extension: ModelerFileExtension, modeler: DocumentSyncer): void {
         this.modelers.set(extension, modeler);
     }
 
@@ -99,8 +101,9 @@ export class PendingEditsFlush {
     }
 
     private modelerFor(editorId: string): DocumentSyncer | undefined {
+        const lowerCaseEditorId = editorId.toLowerCase();
         for (const [extension, modeler] of this.modelers) {
-            if (editorId.endsWith(extension)) return modeler;
+            if (lowerCaseEditorId.endsWith(extension)) return modeler;
         }
         return undefined;
     }
