@@ -215,7 +215,10 @@ Bridge (`apps/modeler-bridge/src/`):
   Kotlin API 2.2+ emits `SpillingKt.nullOutSpilledVariable` in suspend
   functions that keep a local across a suspension point, which fails with
   `NoClassDefFoundError` there. The `kotlin { compilerOptions }` block pins
-  `apiVersion` to 2.1 for main and test; do not raise it while `sinceBuild` is
-  242. API 2.1 still allows stdlib calls added in 2.0/2.1. `verifyPlugin`
-  checks the jar against 2024.2.5, so it fails on any reference that stdlib
-  cannot resolve.
+  `apiVersion` to 2.1 for main and test; do not raise it while the
+  `sinceBuild` floor bundles a stdlib older than 2.2 (2025.2 still bundles
+  2.1.20, 2025.3 is the first with 2.2). Direct stdlib calls resolve against
+  the `ideaVersion` stdlib on the compile classpath (1.9.24 for 2024.2.5), so
+  newer functions fail to compile; only references the compiler generates
+  itself depend on `apiVersion`. `verifyPlugin` checks the jar against
+  2024.2.5 and fails on any that slip through.
