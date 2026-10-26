@@ -500,6 +500,29 @@ describe("DeploymentStatusService.refresh", () => {
         expect(c.host.statusBar.deploymentTarget?.name).toBe("new");
     });
 
+    it("hides the item when a command refreshes with no editor focused", async () => {
+        const c = createService();
+        await c.service.refresh(c.editor.id);
+        expect(c.host.statusBar.deploymentTarget).toBeDefined();
+        // No participant hid it on blur.
+        c.editor.loseFocus();
+
+        await c.service.refreshFocused();
+
+        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+    });
+
+    it("shows no item for a focused editor without a status participant", async () => {
+        const c = createService();
+        // A DMN or Form editor: nothing would hide the item on its blur or close.
+        c.editor.loseFocus();
+        c.host.openEditor("/work/decision.dmn", "<a/>").becomeActive();
+
+        await c.service.refreshFocused();
+
+        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+    });
+
     it("finishes the focused diagram's refresh when a background diagram asks for one meanwhile", async () => {
         const c = createService();
         const pending = deferred<DeploymentTarget | undefined>();
