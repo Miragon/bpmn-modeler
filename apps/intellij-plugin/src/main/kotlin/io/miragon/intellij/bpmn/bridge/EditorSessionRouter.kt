@@ -43,10 +43,27 @@ internal class EditorSessionRouter(
         val sessionId: Long,
         val documentRevision: AtomicLong = AtomicLong(0),
     ) {
+        // The page keeps only the token of the last flush it received, so only
+        // that flush's recovery may hold it.
+        private var lastPostedFlushToken = NO_RENDER_LOCK
+
         // The flush token a recovery keeps the page locked with until a render reaches it.
         private val renderLockToken = AtomicLong(NO_RENDER_LOCK)
 
-        fun holdRenderLock(token: Long) = renderLockToken.set(token)
+        /** Posts the flush [query] for [token], ordered against [holdRenderLock]. */
+        @Synchronized
+        fun postFlush(token: Long, query: String) {
+            lastPostedFlushToken = token
+            session.postToWebview(query)
+        }
+
+        /** Holds [token] until a render arrives; false when the page got a newer flush since. */
+        @Synchronized
+        fun holdRenderLock(token: Long): Boolean {
+            if (token != lastPostedFlushToken) return false
+            renderLockToken.set(token)
+            return true
+        }
 
         /** The token the arriving render unlocks, or null when the page is not held. */
         fun takeRenderLock(): Long? = renderLockToken.getAndSet(NO_RENDER_LOCK).takeIf { it != NO_RENDER_LOCK }
@@ -548,7 +565,8 @@ internal class EditorSessionRouter(
         if (hasPendingExternalUpdate(editorId)) return null
         val flush = PageFlush(entry, pageFlushToken.incrementAndGet(), entry.documentRevision.get())
         pageFlushes[editorId] = flush
-        entry.session.postToWebview(
+        entry.postFlush(
+            flush.token,
             "{\"type\":\"FlushDocumentQuery\",\"token\":${flush.token}," +
                 "\"destructive\":true,\"exportWhenEdited\":true}",
         )
@@ -594,11 +612,12 @@ internal class EditorSessionRouter(
     /**
      * Keeps a recovered page locked until a render reaches it, or
      * [RENDER_REPLAY_TIMEOUT_MS] passed: a bridge that never answers the replay
-     * must not leave the page inert.
+     * must not leave the page inert. A page that got a newer flush since is left
+     * to the recovery or close that posted it.
      */
     private fun holdUntilRendered(flush: PageFlush) {
         val entry = flush.entry
-        entry.holdRenderLock(flush.token)
+        if (!entry.holdRenderLock(flush.token)) return
         scheduler.schedule(
             {
                 // A closed page's browser is already disposed.

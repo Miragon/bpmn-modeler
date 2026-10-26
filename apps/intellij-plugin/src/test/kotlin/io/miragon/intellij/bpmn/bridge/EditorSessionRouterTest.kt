@@ -22,6 +22,9 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Covers the host side of document sync against a **real** IntelliJ `Document`,
@@ -283,7 +286,7 @@ class EditorSessionRouterTest {
         f.router.flushBeforeClose(f.session.editorId)
 
         assertEquals(EDITED_XML, f.bpmn.document.text, "the closing page's edit survives in the Document")
-        assertFalse(page.heldLocks.isEmpty(), "the closing page takes no edit after its export")
+        assertTrue(page.isLocked, "the closing page takes no edit after its export")
     }
 
     @Test
@@ -519,10 +522,10 @@ class EditorSessionRouterTest {
             registered.get("content").asString,
             "the respawned bridge is seeded with the page's edit",
         )
-        assertFalse(page.heldLocks.isEmpty(), "the page takes no new edits before the replayed render")
+        assertTrue(page.isLocked, "the page takes no new edits before the replayed render")
 
         f.deliverRenderedFile(page, registered.get("content").asString)
-        assertTrue(page.heldLocks.isEmpty(), "the page is unlocked once the replayed render reached it")
+        assertFalse(page.isLocked, "the page is unlocked once the replayed render reached it")
     }
 
     @Test
@@ -600,7 +603,27 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         f.scheduler.runPending()
 
-        assertTrue(page.heldLocks.isEmpty(), "a bridge that never renders must not leave the page inert")
+        assertFalse(page.isLocked, "a bridge that never renders must not leave the page inert")
+    }
+
+    @Test
+    fun `a crash recovery that finishes after Reload Modeler still lets the replayed render unlock the page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val crashFlushAnswered = CountDownLatch(1)
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                reply()
+                crashFlushAnswered.countDown()
+            }
+
+        // Reload Modeler runs on the EDT while the crash path waits for the EDT to write its reply.
+        val crashRecovery = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        assertTrue(crashFlushAnswered.await(10, TimeUnit.SECONDS))
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        f.deliverRenderedFile(page, EDITED_XML)
+        assertFalse(page.isLocked, "the page holds the token of the last flush it received")
     }
 
     @Test
@@ -660,7 +683,7 @@ class EditorSessionRouterTest {
         )
         f.deliverRenderedFile(readOnlyPage, INITIAL_XML)
         f.deliverRenderedFile(writablePage, SECOND_EDIT_XML)
-        assertTrue(readOnlyPage.heldLocks.isEmpty() && writablePage.heldLocks.isEmpty(), "no page is left locked")
+        assertFalse(readOnlyPage.isLocked || writablePage.isLocked, "no page is left locked")
     }
 
     @Test
@@ -735,8 +758,9 @@ class EditorSessionRouterTest {
      * [content] at [pageRevision] with no sync pending: only a page
      * [editedSinceRender] gets the content, and only for a destructive flush
      * that asks for an edit whose sync already went out; any other flush gets
-     * `clean`. [whileHostWaits] wraps the reply, to play what happens while the
-     * host waits for it.
+     * `clean`. Like the responder, the page keeps only the token of the last
+     * destructive flush it received. [whileHostWaits] wraps the reply, to play
+     * what happens while the host waits for it.
      */
     private fun Fixture.openPageShowing(
         content: String,
@@ -745,19 +769,17 @@ class EditorSessionRouterTest {
         editedSinceRender: Boolean = true,
         whileHostWaits: (reply: () -> Unit) -> Unit = { reply -> reply() },
     ): FakePage {
-        val heldLocks = mutableSetOf<Long>()
-        val received = mutableListOf<String>()
-        lateinit var pageSession: CoreSession
-        pageSession =
+        val page = FakePage()
+        page.session =
             CoreSession(file.file.url, file.file, session.project) { raw ->
                 val message = parse(raw)
                 val type = message.get("type")?.asString ?: return@CoreSession
-                received.add(type)
+                page.received.add(type)
                 val token = message.get("token")?.asLong ?: return@CoreSession
                 when (type) {
                     "FlushDocumentQuery" -> {
                         val destructive = message.get("destructive")?.asBoolean == true
-                        if (destructive) heldLocks.add(token)
+                        if (destructive) page.lockToken = token
                         val exportsSyncedEdit =
                             destructive && editedSinceRender && message.get("exportWhenEdited")?.asBoolean == true
                         val reply: Map<String, Any> =
@@ -772,23 +794,27 @@ class EditorSessionRouterTest {
                             } else {
                                 linkedMapOf("type" to "DocumentFlushedCommand", "token" to token, "status" to "clean")
                             }
-                        whileHostWaits { router.forwardWebviewMessage(pageSession, wired.channel.gson.toJson(reply)) }
+                        whileHostWaits { router.forwardWebviewMessage(page.session, wired.channel.gson.toJson(reply)) }
                     }
-                    "ReleaseDocumentFlushQuery" -> heldLocks.remove(token)
+                    "ReleaseDocumentFlushQuery" -> if (page.lockToken == token) page.lockToken = null
                 }
             }
-        router.registerSession(pageSession)
-        val register = parse(wired.fake.nextFrame())
-        return FakePage(pageSession, register.getAsJsonObject("params").get("sessionId").asLong, heldLocks, received)
+        router.registerSession(page.session)
+        page.sessionId = parse(wired.fake.nextFrame()).getAsJsonObject("params").get("sessionId").asLong
+        return page
     }
 
     /** [received] lists the type of every message the host posted into the page. */
-    private class FakePage(
-        val session: CoreSession,
-        val sessionId: Long,
-        val heldLocks: Set<Long>,
-        val received: List<String>,
-    )
+    private class FakePage {
+        lateinit var session: CoreSession
+        var sessionId = 0L
+
+        @Volatile
+        var lockToken: Long? = null
+        val received: MutableList<String> = CopyOnWriteArrayList()
+
+        val isLocked: Boolean get() = lockToken != null
+    }
 
     /** A second open diagram next to the fixture's, removed in teardown. */
     private fun createSecondBpmnFile(): BpmnTestFile =
