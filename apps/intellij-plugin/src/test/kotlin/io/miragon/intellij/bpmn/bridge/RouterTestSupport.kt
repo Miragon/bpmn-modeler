@@ -1,5 +1,6 @@
 package io.miragon.intellij.bpmn.bridge
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -57,12 +58,14 @@ internal fun wireChannel(): WiredBridge {
 /**
  * Constructs [BridgeDeps] for a router under test. `isProcessAlive` returns true so
  * `notify`/`seed` sends are not no-oped, and `notifications` is wired to fail loudly
- * if a tested path ever forces it (none should).
+ * if a tested path ever forces it (none should). Pass a [parentDisposable] that dies
+ * with the project when the router subscribes to the project's message bus.
  */
 internal fun bridgeDeps(
     project: Project,
     channel: RpcChannel,
     handlers: RpcHandlerRegistry,
+    parentDisposable: Disposable = Disposer.newDisposable(),
 ): BridgeDeps =
     BridgeDeps(
         project = project,
@@ -71,7 +74,7 @@ internal fun bridgeDeps(
         gson = channel.gson,
         isProcessAlive = { true },
         ensureStartedAsync = {},
-        parentDisposable = Disposer.newDisposable(),
+        parentDisposable = parentDisposable,
         notifications = lazy { error("HostNotifications must not be forced in router tests") },
     )
 

@@ -323,4 +323,6 @@ states and timestamps.
   readiness and context changes; [deployment tests](../../libs/modeler-core/src/deployment)
   cover identity, freshness and reconciliation, and the
   [bridge contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts)
-  guard both peers' protocol agreement.
+  pin the protocol descriptor, and the IntelliJ
+  [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
+  checks that the Kotlin host handles each of its core→host methods.

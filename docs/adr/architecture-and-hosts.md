@@ -230,7 +230,13 @@ Keep protocol methods, parameter types and directions in the
 [protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts).
 Update its committed snapshot when the private wire contract changes; the
 [contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts) guard
-descriptor/snapshot agreement and host coverage.
+descriptor/snapshot agreement. The IntelliJ
+[handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
+reads that snapshot and registers the production `BridgeRouters`: each
+core→host method needs exactly one Kotlin handler, and a handler for a method
+the core no longer sends fails it. It compares method names, not parameter
+keys. The snapshot is an input of the Gradle test task and of the IntelliJ CI
+path filter, so a TypeScript-only protocol change runs the test.
 
 ### Process lifecycle
 
