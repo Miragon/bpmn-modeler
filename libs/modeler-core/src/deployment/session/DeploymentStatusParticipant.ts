@@ -2,6 +2,7 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../shared/domain/EditorSessionParticipant";
+import { StatusItemOwnership } from "../../shared/domain/StatusItemOwnership";
 import { DeploymentStatusService } from "../service/DeploymentStatusService";
 
 /**
@@ -21,18 +22,18 @@ const REFRESH_DEBOUNCE_MS = 300;
  */
 export class DeploymentStatusParticipant implements EditorSessionParticipant {
     private readonly refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    private focusedEditorId: string | undefined;
+    private readonly statusOwnership = new StatusItemOwnership();
 
     constructor(private readonly statusService: DeploymentStatusService) {}
 
     onResolve(session: EditorSessionContext): void {
         session.onFocusChange((focused) => {
             if (focused) {
-                this.focusedEditorId = session.editorId;
+                this.statusOwnership.claim(session.editorId);
                 void this.statusService.refresh(session.editorId);
             } else {
                 this.cancelRefresh(session.editorId);
-                this.hideFor(session.editorId);
+                this.releaseStatusItem(session.editorId);
             }
         });
 
@@ -48,18 +49,16 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
 
         session.onDispose(() => {
             this.cancelRefresh(session.editorId);
-            this.hideFor(session.editorId);
+            this.releaseStatusItem(session.editorId);
         });
         if (session.isFocused()) {
-            this.focusedEditorId = session.editorId;
+            this.statusOwnership.claim(session.editorId);
             void this.statusService.refresh(session.editorId);
         }
     }
 
-    private hideFor(editorId: string): void {
-        if (this.focusedEditorId !== editorId) return;
-        this.focusedEditorId = undefined;
-        this.statusService.hide();
+    private releaseStatusItem(editorId: string): void {
+        if (this.statusOwnership.release(editorId) === "hide") this.statusService.hide();
     }
 
     private cancelRefresh(editorId: string): void {
