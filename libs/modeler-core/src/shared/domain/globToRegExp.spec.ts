@@ -38,4 +38,16 @@ describe("globToRegExp", () => {
         expect(re.test("project/element-templates/a.json")).toBe(true);
         expect(re.test("project/templates/a.json")).toBe(false);
     });
+
+    it.each([
+        ["**/Delegate.java", "Delegate.java", true],
+        ["**/Delegate.java", "src/Delegate.java", true],
+        ["**/Delegate.java", "src/PaymentDelegate.java", false],
+        ["**/element-templates/**", "project/my-element-templates/a.json", false],
+    ])(
+        "keeps a double-star directory prefix on a path-segment boundary: %s on %s",
+        (glob, path, matches) => {
+            expect(globToRegExp(glob).test(path)).toBe(matches);
+        },
+    );
 });
