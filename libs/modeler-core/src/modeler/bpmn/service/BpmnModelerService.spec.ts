@@ -284,6 +284,7 @@ describe("BpmnModelerService.sync", () => {
 describe("BpmnModelerService.changeEngineVersion", () => {
     it("writes the picked version, updates the status bar, and re-renders", async () => {
         const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        editor.active = true;
 
         await service.changeEngineVersion(editor.id);
 
@@ -397,6 +398,16 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         expect(host.notifier.infos).toEqual([]);
         expect(host.notifier.errors).toEqual([]);
         expect(editor.content).toBe(C8_DOC);
+    });
+
+    it("writes the picked version but leaves the shared item alone while a text editor is focused", async () => {
+        // The command targets the store's pointer, which stays on the diagram.
+        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+
+        await service.changeEngineVersion(editor.id);
+
+        expect(editor.content).toContain('modeler:executionPlatformVersion="8.5.0"');
+        expect(host.statusBar.engineVersion).toBeUndefined();
     });
 
     it("informs and returns false for an untagged diagram with no engine version", async () => {

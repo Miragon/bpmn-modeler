@@ -487,6 +487,33 @@ describe("DeploymentStatusService.refresh", () => {
         expect(c.host.statusBar.deploymentTarget).toBeUndefined();
     });
 
+    it("refreshes the focused diagram, not one resolved behind it, after a target switch", async () => {
+        const c = createService();
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("old"));
+        await c.service.refresh(c.editor.id);
+        // Registering moves the store's pointer to the background diagram.
+        c.host.openEditor("/work/background.bpmn", "<a/>");
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("new"));
+
+        await c.service.refreshActive();
+
+        expect(c.host.statusBar.deploymentTarget?.name).toBe("new");
+    });
+
+    it("finishes the focused diagram's refresh when a background diagram asks for one meanwhile", async () => {
+        const c = createService();
+        const pending = deferred<DeploymentTarget | undefined>();
+        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const focusedRefresh = c.service.refresh(c.editor.id);
+        const background = c.host.openEditor("/work/background.bpmn", "<a/>");
+
+        await c.service.refresh(background.id);
+        pending.resolve(target("dev"));
+        await focusedRefresh;
+
+        expect(c.host.statusBar.deploymentTarget?.name).toBe("dev");
+    });
+
     it("ignores requests from an inactive editor", async () => {
         const c = createService();
         c.host.statusBar.showDeploymentTarget("shown", "deployed");
