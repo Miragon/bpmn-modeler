@@ -17,7 +17,7 @@ export async function resolveOrPickActiveTarget(
         return activeTarget;
     }
     await deploymentTargetService.switchActiveTarget(documentDir);
-    await deploymentStatusService.refreshActive();
+    await deploymentStatusService.refreshFocused();
     await afterTargetPicker();
     return deploymentTargetService.getActiveTarget(documentDir);
 }

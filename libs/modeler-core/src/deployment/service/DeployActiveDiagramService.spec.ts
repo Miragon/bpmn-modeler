@@ -51,7 +51,7 @@ function createService({
         deployFiles: vi.fn().mockResolvedValue([]),
     };
     const deploymentStatusService = {
-        refreshActive: vi.fn().mockResolvedValue(undefined),
+        refreshFocused: vi.fn().mockResolvedValue(undefined),
     };
 
     const service = new DeployActiveDiagramService(
@@ -124,7 +124,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
         await c.service.deployActive("/work");
 
         expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith("/work");
-        expect(c.deploymentStatusService.refreshActive).toHaveBeenCalled();
+        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
@@ -166,7 +166,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         expect(c.host.notifier.progressTitles).toEqual([]);
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.refreshActive).not.toHaveBeenCalled();
+        expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
     it("deploys an unmodified diagram whose save returns false", async () => {
@@ -195,7 +195,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         expect(savesBeforeDeploy).toBe(1);
         expect(c.host.notifier.progressTitles).toEqual(['Deploying order-process.bpmn to "dev"']);
-        expect(c.deploymentStatusService.refreshActive).toHaveBeenCalled();
+        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
     });
 
     it("hands deployFiles the directory the target was resolved from, so its .env matches", async () => {

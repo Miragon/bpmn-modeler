@@ -196,8 +196,7 @@ export class DeploymentStatusService {
         }
     }
 
-    /** Not the command target: that pointer can sit on a diagram resolved behind the focused one. */
-    async refreshActive(): Promise<void> {
+    async refreshFocused(): Promise<void> {
         const focusedEditorId = this.editorStore.getFocusedEditorId();
         if (focusedEditorId !== undefined) await this.refresh(focusedEditorId);
     }

@@ -245,7 +245,7 @@ export class DeploymentMessageDispatcher {
     private async handleSelectTarget(name: string): Promise<void> {
         try {
             await this.deploymentTargetService.setActiveTarget(name);
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
             await this.sendTargets();
             this.sendFormDefaults();
         } catch (error) {
@@ -268,7 +268,7 @@ export class DeploymentMessageDispatcher {
                 new TargetSavedQuery(true, `Created deployment target "${message.target.name}".`),
             );
             await this.sendTargets();
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
@@ -304,7 +304,7 @@ export class DeploymentMessageDispatcher {
                 new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
             );
             await this.sendTargets();
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
@@ -325,7 +325,7 @@ export class DeploymentMessageDispatcher {
                 }
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
                 await this.sendTargets();
-                await this.deploymentStatusService.refreshActive();
+                await this.deploymentStatusService.refreshFocused();
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -544,7 +544,7 @@ export class DeploymentMessageDispatcher {
                 this.notifier.showError(result.message);
             }
 
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
 
             this.post(
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),

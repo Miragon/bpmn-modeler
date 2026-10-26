@@ -110,7 +110,7 @@ export class DeploymentVerificationService {
             } else {
                 await this.deploymentStatusService.forgetRevision(filePath, identity);
             }
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
 
             const deployedTime = timeOf(revision?.deployedAt);
             const reportedDeploymentTime = timeOf(snapshot?.deploymentTime);

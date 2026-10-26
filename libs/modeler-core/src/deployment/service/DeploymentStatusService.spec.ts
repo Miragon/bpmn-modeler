@@ -482,12 +482,12 @@ describe("DeploymentStatusService.refresh", () => {
         c.editor.loseFocus();
         c.service.hide();
         // e.g. Deploy Files run from the command palette.
-        await c.service.refreshActive();
+        await c.service.refreshFocused();
 
         expect(c.host.statusBar.deploymentTarget).toBeUndefined();
     });
 
-    it("refreshes the focused diagram, not one resolved behind it, after a target switch", async () => {
+    it("refreshes the focused diagram, not one resolved behind it", async () => {
         const c = createService();
         c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("old"));
         await c.service.refresh(c.editor.id);
@@ -495,7 +495,7 @@ describe("DeploymentStatusService.refresh", () => {
         c.host.openEditor("/work/background.bpmn", "<a/>");
         c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("new"));
 
-        await c.service.refreshActive();
+        await c.service.refreshFocused();
 
         expect(c.host.statusBar.deploymentTarget?.name).toBe("new");
     });

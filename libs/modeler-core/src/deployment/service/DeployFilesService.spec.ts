@@ -34,7 +34,7 @@ function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }
         }),
     };
     const deploymentStatusService = {
-        refreshActive: vi.fn(async () => void calls.push("refreshStatus")),
+        refreshFocused: vi.fn(async () => void calls.push("refreshStatus")),
     };
     const pickWorkspaceFiles = host.picker.pickWorkspaceFiles.bind(host.picker);
     vi.spyOn(host.picker, "pickWorkspaceFiles").mockImplementation((options) => {
@@ -149,7 +149,7 @@ describe("DeployFilesService.deployFiles", () => {
 
         expect(c.deploymentTargetService.getCredentials).not.toHaveBeenCalled();
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.refreshActive).not.toHaveBeenCalled();
+        expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
     it("deploys nothing and leaves the status alone when the secret store cannot be read", async () => {
