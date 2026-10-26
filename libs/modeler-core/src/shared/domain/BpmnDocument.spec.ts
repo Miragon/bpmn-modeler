@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { Engine } from "@miragon/bpmn-modeler-types";
+
 import { ExecutionPlatformNotDetectedError } from "./errors";
 import { BpmnDocument } from "./BpmnDocument";
 
@@ -231,6 +233,174 @@ describe("BpmnDocument.withExecutionPlatform", () => {
         const original = new BpmnDocument(xmlWithoutPlatform);
         original.withExecutionPlatform("Camunda Platform", "7.20.0");
         expect(original.xml).toBe(xmlWithoutPlatform);
+    });
+});
+
+const CAMUNDA_NAMESPACE = 'xmlns:camunda="http://camunda.org/schema/1.0/bpmn"';
+const ZEEBE_NAMESPACE = 'xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"';
+const MODELER_NAMESPACE = 'xmlns:modeler="http://camunda.org/schema/modeler/1.0"';
+const C7_PLATFORM = 'modeler:executionPlatform="Camunda Platform"';
+const C8_PLATFORM = 'modeler:executionPlatform="Camunda Cloud"';
+const platformVersion = (version: string) => `modeler:executionPlatformVersion="${version}"`;
+
+const diagram = (...rootAttributes: string[]) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${rootAttributes.join(" ")}>
+  <bpmn:process id="Process_1" isExecutable="true" />
+</bpmn:definitions>`;
+
+const defaultNamespaceDiagram = (
+    ...rootAttributes: string[]
+) => `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" ${rootAttributes.join(" ")}>
+  <process id="Process_1" isExecutable="true" />
+</definitions>`;
+
+const migrationOf = (xml: string, engine: Engine, version: string) => {
+    const outcome = new BpmnDocument(xml).migratedTo(engine, version);
+    return outcome.kind === "unchanged"
+        ? outcome
+        : { kind: outcome.kind, xml: outcome.document.xml };
+};
+
+const migrations: {
+    given: string;
+    xml: string;
+    engine: Engine;
+    version: string;
+    expected: ReturnType<typeof migrationOf>;
+}[] = [
+    {
+        given: "a tagged C7 diagram at another version",
+        xml: diagram(CAMUNDA_NAMESPACE, MODELER_NAMESPACE, C7_PLATFORM, platformVersion("7.20.0")),
+        engine: "c7",
+        version: "7.21.0",
+        expected: {
+            kind: "versionReplaced",
+            xml: diagram(
+                CAMUNDA_NAMESPACE,
+                MODELER_NAMESPACE,
+                C7_PLATFORM,
+                platformVersion("7.21.0"),
+            ),
+        },
+    },
+    {
+        given: "a tagged C8 diagram with a two-part version",
+        xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.6")),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "versionReplaced",
+            xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0")),
+        },
+    },
+    {
+        given: "a C8 diagram detected through its zeebe namespace",
+        xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0")),
+        },
+    },
+    {
+        given: "a C8 diagram detected through its execution platform",
+        xml: diagram(MODELER_NAMESPACE, C8_PLATFORM),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, ZEEBE_NAMESPACE, platformVersion("8.8.0")),
+        },
+    },
+    {
+        given: "a C8 diagram with a two-part version and no execution platform",
+        xml: diagram(MODELER_NAMESPACE, platformVersion("8.6")),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(MODELER_NAMESPACE, platformVersion("8.8.0"), ZEEBE_NAMESPACE, C8_PLATFORM),
+        },
+    },
+    {
+        given: "a C7 diagram without the modeler namespace",
+        xml: diagram(CAMUNDA_NAMESPACE),
+        engine: "c7",
+        version: "7.24.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(
+                CAMUNDA_NAMESPACE,
+                MODELER_NAMESPACE,
+                C7_PLATFORM,
+                platformVersion("7.24.0"),
+            ),
+        },
+    },
+    {
+        given: "a C8 diagram whose definitions root is in the default namespace",
+        xml: defaultNamespaceDiagram(ZEEBE_NAMESPACE),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: defaultNamespaceDiagram(
+                ZEEBE_NAMESPACE,
+                MODELER_NAMESPACE,
+                C8_PLATFORM,
+                platformVersion("8.8.0"),
+            ),
+        },
+    },
+    {
+        given: "a tagged C8 diagram already at the version",
+        xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0")),
+        engine: "c8",
+        version: "8.8.0",
+        expected: { kind: "unchanged" },
+    },
+];
+
+describe("BpmnDocument.migratedTo", () => {
+    it.each(migrations)("migrates $given", ({ xml, engine, version, expected }) => {
+        expect(migrationOf(xml, engine, version)).toEqual(expected);
+    });
+
+    it.each(migrations)("leaves $given unchanged once migrated", ({ xml, engine, version }) => {
+        const outcome = new BpmnDocument(xml).migratedTo(engine, version);
+        const migrated = outcome.kind === "unchanged" ? new BpmnDocument(xml) : outcome.document;
+
+        expect(migrated.migratedTo(engine, version)).toEqual({ kind: "unchanged" });
+    });
+
+    it.each([
+        {
+            given: "a C7 diagram to Camunda 8",
+            xml: diagram(
+                CAMUNDA_NAMESPACE,
+                MODELER_NAMESPACE,
+                C7_PLATFORM,
+                platformVersion("7.20.0"),
+            ),
+            engine: "c8" as const,
+            error: "The diagram is not a Camunda 8 diagram.",
+        },
+        {
+            given: "an untagged diagram",
+            xml: diagram(MODELER_NAMESPACE),
+            engine: "c7" as const,
+            error: "The diagram is not a Camunda 7 diagram.",
+        },
+        {
+            given: "a document without a definitions root",
+            xml: `<bpmn:process ${ZEEBE_NAMESPACE} id="Process_1" />`,
+            engine: "c8" as const,
+            error: /definitions/,
+        },
+    ])("refuses to migrate $given", ({ xml, engine, error }) => {
+        expect(() => new BpmnDocument(xml).migratedTo(engine, "8.8.0")).toThrow(error);
     });
 });
 

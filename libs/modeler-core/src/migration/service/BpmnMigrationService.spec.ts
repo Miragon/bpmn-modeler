@@ -58,6 +58,8 @@ function createHost(files: Record<string, string>, answers: TestHostOptions["ans
 const promptedMethods = (picker: { prompts: { method: string }[] }) =>
     picker.prompts.map((prompt) => prompt.method);
 
+const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe("migrateAllDiagrams", () => {
@@ -384,7 +386,7 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual([]);
     });
 
-    it("should use withExecutionPlatform for files without version attribute", async () => {
+    it("stamps the execution platform on a diagram without a version, declaring each attribute once", async () => {
         const { service, notifier, workspace, writtenPaths } = createHost(
             { "/work/noversion.bpmn": c8BpmnNoVersion },
             { engineVersion: "8.8.0" },
@@ -393,9 +395,24 @@ describe("migrateAllDiagrams", () => {
         await service.migrateAllDiagrams();
 
         expect(writtenPaths).toEqual(["/work/noversion.bpmn"]);
-        const writtenContent = workspace.files.get("/work/noversion.bpmn");
-        expect(writtenContent).toContain('modeler:executionPlatformVersion="8.8.0"');
-        expect(writtenContent).toContain('modeler:executionPlatform="Camunda Cloud"');
+        const writtenContent = workspace.files.get("/work/noversion.bpmn") ?? "";
+        expect({
+            zeebeNamespace: occurrences(writtenContent, "xmlns:zeebe="),
+            modelerNamespace: occurrences(writtenContent, "xmlns:modeler="),
+            executionPlatform: occurrences(
+                writtenContent,
+                'modeler:executionPlatform="Camunda Cloud"',
+            ),
+            executionPlatformVersion: occurrences(
+                writtenContent,
+                'modeler:executionPlatformVersion="8.8.0"',
+            ),
+        }).toEqual({
+            zeebeNamespace: 1,
+            modelerNamespace: 1,
+            executionPlatform: 1,
+            executionPlatformVersion: 1,
+        });
         expect(notifier.logged("warning")).toEqual([
             "Added missing executionPlatform attribute to: /work/noversion.bpmn",
         ]);

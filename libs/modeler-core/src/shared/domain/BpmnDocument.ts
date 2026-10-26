@@ -7,11 +7,21 @@
  * `BpmnDocument` instead of mutating `this.xml`.
  */
 
-import { DetectedEngine, detectEngine, Engine } from "@miragon/bpmn-modeler-types";
+import {
+    DetectedEngine,
+    detectEngine,
+    Engine,
+    ENGINE_EXECUTION_PLATFORM,
+} from "@miragon/bpmn-modeler-types";
 
 import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";
 import { NewModelEngine } from "./newModelEngine";
+
+export type MigrationOutcome =
+    | { readonly kind: "unchanged" }
+    | { readonly kind: "versionReplaced"; readonly document: BpmnDocument }
+    | { readonly kind: "platformStamped"; readonly document: BpmnDocument };
 
 export class BpmnDocument {
     constructor(readonly xml: string) {}
@@ -164,6 +174,28 @@ export class BpmnDocument {
                 `modeler:executionPlatformVersion="${version}"`,
             ),
         );
+    }
+
+    migratedTo(engine: Engine, version: string): MigrationOutcome {
+        const currentVersion = this.detectPlatformVersion();
+        if (currentVersion === version) {
+            return { kind: "unchanged" };
+        }
+        if (currentVersion === undefined) {
+            const schema =
+                engine === "c7"
+                    ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
+                    : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
+            return {
+                kind: "platformStamped",
+                document: this.withExecutionPlatform(
+                    ENGINE_EXECUTION_PLATFORM[engine],
+                    version,
+                    schema,
+                ),
+            };
+        }
+        return { kind: "versionReplaced", document: this.withVersion(version) };
     }
 
     /**
