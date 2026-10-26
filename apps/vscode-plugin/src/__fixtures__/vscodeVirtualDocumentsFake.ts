@@ -11,8 +11,6 @@ export * from "./vscodeFileSystemFake";
 
 export enum ViewColumn {
     Beside = -2,
-    Active = -1,
-    One = 1,
 }
 
 export class TabInputText {

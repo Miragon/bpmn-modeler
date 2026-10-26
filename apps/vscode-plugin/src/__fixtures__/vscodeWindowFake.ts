@@ -13,9 +13,7 @@ export enum StatusBarAlignment {
 }
 
 export enum ProgressLocation {
-    SourceControl = 1,
     Window = 10,
-    Notification = 15,
 }
 
 export class ThemeColor {
@@ -32,7 +30,6 @@ export class FakeStatusBarItem {
     disposed = false;
 
     constructor(
-        readonly id: string | undefined,
         readonly alignment: StatusBarAlignment,
         readonly priority: number,
     ) {}
@@ -194,30 +191,12 @@ function showMessage(
     return toast.choice;
 }
 
-// Both overloads, so an adapter that starts passing an item id keeps working here.
-function createStatusBarItem(
-    idOrAlignment?: string | StatusBarAlignment,
-    alignmentOrPriority?: number,
-    priority?: number,
-): FakeStatusBarItem {
-    const item =
-        typeof idOrAlignment === "string"
-            ? new FakeStatusBarItem(
-                  idOrAlignment,
-                  alignmentOrPriority ?? StatusBarAlignment.Left,
-                  priority ?? 0,
-              )
-            : new FakeStatusBarItem(
-                  undefined,
-                  idOrAlignment ?? StatusBarAlignment.Left,
-                  alignmentOrPriority ?? 0,
-              );
-    statusBarItems.push(item);
-    return item;
-}
-
 export const window = {
-    createStatusBarItem,
+    createStatusBarItem(alignment = StatusBarAlignment.Left, priority = 0): FakeStatusBarItem {
+        const item = new FakeStatusBarItem(alignment, priority);
+        statusBarItems.push(item);
+        return item;
+    },
     showInformationMessage: (message: string, ...actions: string[]) =>
         showMessage("information", message, actions),
     showErrorMessage: (message: string, ...actions: string[]) =>

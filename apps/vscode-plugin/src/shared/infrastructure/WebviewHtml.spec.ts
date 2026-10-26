@@ -1,28 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("vscode", () => ({
-    Uri: {
-        joinPath: (base: { path: string }, ...segments: string[]) => ({
-            path: [base.path, ...segments].join("/"),
-        }),
-    },
-}));
+vi.mock("vscode", () => import("../../__fixtures__/vscodeFileSystemFake"));
+
+import { Uri, type Webview } from "vscode";
 
 import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
 
-const webview = {
+const webview: Webview = {
+    options: {},
+    html: "",
     cspSource: "webview-csp:",
-    asWebviewUri: ({ path }: { path: string }) => `webview:${path}`,
+    asWebviewUri: (resource) =>
+        Uri.from({ scheme: "https", authority: "webview.test", path: resource.path }),
+    onDidReceiveMessage: () => ({ dispose: () => undefined }),
+    postMessage: async () => true,
 };
-const extensionUri = { path: "extension" };
+const extensionUri = Uri.file("/extension");
 
 type ShellBuilder = (initialPanelVisible?: boolean) => string;
 
 const renderBpmn: ShellBuilder = (initialPanelVisible) =>
-    bpmnEditorUi(webview as never, extensionUri as never, initialPanelVisible);
+    bpmnEditorUi(webview, extensionUri, initialPanelVisible);
 const renderDmn: ShellBuilder = (initialPanelVisible) =>
-    dmnModelerHtml(webview as never, extensionUri as never, initialPanelVisible);
-const renderForm: ShellBuilder = () => formEditorHtml(webview as never, extensionUri as never);
+    dmnModelerHtml(webview, extensionUri, initialPanelVisible);
+const renderForm: ShellBuilder = () => formEditorHtml(webview, extensionUri);
 
 function contentSecurityPolicyOf(html: string): Map<string, string> {
     const policy = /<meta http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1];
@@ -95,12 +96,14 @@ describe("bpmnEditorUi", () => {
     it("loads the BPMN stylesheet and runs only its nonced module entry", () => {
         const html = renderBpmn();
 
-        expect(stylesheetsOf(html)).toEqual(["webview:extension/bpmn-webview/index.css"]);
+        expect(stylesheetsOf(html)).toEqual([
+            "https://webview.test/extension/bpmn-webview/index.css",
+        ]);
         expect(tagsOf(html, "script")).toEqual([
             {
                 type: "module",
                 nonce: scriptNonceOf(html),
-                src: "webview:extension/bpmn-webview/index.js",
+                src: "https://webview.test/extension/bpmn-webview/index.js",
             },
         ]);
     });
@@ -125,14 +128,14 @@ describe("dmnModelerHtml", () => {
         const html = renderDmn();
 
         expect(stylesheetsOf(html)).toEqual([
-            "webview:extension/assets/reset.css",
-            "webview:extension/dmn-webview/index.css",
+            "https://webview.test/extension/assets/reset.css",
+            "https://webview.test/extension/dmn-webview/index.css",
         ]);
         expect(tagsOf(html, "script")).toEqual([
             {
                 type: "module",
                 nonce: scriptNonceOf(html),
-                src: "webview:extension/dmn-webview/index.js",
+                src: "https://webview.test/extension/dmn-webview/index.js",
             },
         ]);
     });
@@ -198,9 +201,14 @@ describe("formEditorHtml", () => {
     it("loads the form stylesheet and runs only its nonced entry script", () => {
         const html = renderForm();
 
-        expect(stylesheetsOf(html)).toEqual(["webview:extension/form-webview/styles.css"]);
+        expect(stylesheetsOf(html)).toEqual([
+            "https://webview.test/extension/form-webview/styles.css",
+        ]);
         expect(tagsOf(html, "script")).toEqual([
-            { nonce: scriptNonceOf(html), src: "webview:extension/form-webview/index.js" },
+            {
+                nonce: scriptNonceOf(html),
+                src: "https://webview.test/extension/form-webview/index.js",
+            },
         ]);
     });
 

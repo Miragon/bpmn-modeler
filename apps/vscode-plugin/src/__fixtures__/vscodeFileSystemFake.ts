@@ -1,7 +1,9 @@
 /**
- * The slice of the `vscode` module a `FileSystemProvider` touches, for
+ * The slice of the `vscode` module a `FileSystemProvider` touches, and the
+ * `Uri` every fake shares, for
  * `vi.mock("vscode", () => import(".../vscodeFileSystemFake"))`.
  */
+import { posix } from "node:path";
 
 export class Uri {
     private constructor(
@@ -21,6 +23,10 @@ export class Uri {
 
     static file(path: string): Uri {
         return new Uri("file", "", path);
+    }
+
+    static joinPath(base: Uri, ...pathSegments: string[]): Uri {
+        return new Uri(base.scheme, base.authority, posix.join(base.path, ...pathSegments));
     }
 
     get fsPath(): string {
