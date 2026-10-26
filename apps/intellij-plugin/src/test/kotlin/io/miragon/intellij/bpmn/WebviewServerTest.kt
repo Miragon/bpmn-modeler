@@ -80,14 +80,14 @@ class WebviewServerTest {
     @Test
     fun `bundle assets are served from the classpath with their mime type`() {
         val bpmnAsset = get("${origin()}/test-asset.css")
-        val deploymentAsset = get("${origin()}/deployment/test-asset.js")
+        val deploymentAsset = get("${origin()}/deployment/test-asset.svg")
 
         assertEquals(200, bpmnAsset.status)
         assertEquals("text/css; charset=utf-8", bpmnAsset.contentType)
         assertTrue(bpmnAsset.body.contains(".test-asset"))
         assertEquals(200, deploymentAsset.status)
-        assertEquals("text/javascript; charset=utf-8", deploymentAsset.contentType)
-        assertTrue(deploymentAsset.body.contains("testAsset"))
+        assertEquals("image/svg+xml", deploymentAsset.contentType)
+        assertTrue(deploymentAsset.body.contains("test-asset"))
     }
 
     @Test
