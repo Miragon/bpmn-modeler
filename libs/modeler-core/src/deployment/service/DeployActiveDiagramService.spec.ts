@@ -243,6 +243,17 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(steps).toEqual(["save <v2/>", "deploy"]);
     });
 
+    it("still saves and deploys when the webview cannot confirm its pending edits", async () => {
+        const c = createService({
+            pendingEdits: () => ({ flushIntoDocument: async () => ({ status: "unavailable" }) }),
+        });
+
+        await c.service.deployActive("/work");
+
+        expect(c.editor.saveCount).toBe(1);
+        expect(c.deploymentService.deployFiles).toHaveBeenCalledOnce();
+    });
+
     it("resolves the target and deploys from the diagram's own directory when none is given", async () => {
         const c = createService();
 

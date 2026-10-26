@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeploymentTargetsQuery, FormDefaultsQuery, Query } from "@miragon/bpmn-modeler-shared";
 
 import { ArtifactService } from "../shared/service/ArtifactService";
+import { DocumentFlushService } from "../shared/service/DocumentFlushService";
+import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
 import { createTestHost, PickerAnswers } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
@@ -68,6 +70,11 @@ function createFeature(
         artifacts: new ArtifactService(host.workspace, host.settings),
         secrets: host.secrets,
         state: host.deploymentState,
+        pendingEdits: new PendingEditsFlush(
+            host.store,
+            new DocumentFlushService(host.store, host.notifier),
+            host.notifier,
+        ),
         http,
     });
     return { host, feature };

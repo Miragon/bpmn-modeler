@@ -32,6 +32,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         artifacts: deps.artifactSvc,
         secrets: new VsCodeSecretStore(context.secrets),
         state: new VsCodeDeploymentState(context.workspaceState),
+        pendingEdits: deps.pendingEdits,
     });
     new DeploymentController(deployment).register(context);
 

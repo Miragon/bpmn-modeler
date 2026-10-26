@@ -34,6 +34,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         artifacts: deps.artifactSvc,
         secrets: new RpcSecretStore(deps.rpc),
         state: deploymentState,
+        pendingEdits: deps.pendingEdits,
     });
     // Refreshing a hidden tool window would be wasted RPC; the host reports
     // open/close via `deployment/open`.

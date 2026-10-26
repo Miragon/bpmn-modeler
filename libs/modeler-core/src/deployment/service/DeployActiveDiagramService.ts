@@ -11,8 +11,9 @@ import { resolveOrPickActiveTarget } from "./resolveOrPickActiveTarget";
 const DEPLOYABLE_EXTENSIONS = [".bpmn", ".dmn"];
 
 /**
- * One-click deploy of the active editor's diagram to the active target. Saves
- * first, then reuses {@link DeploymentService.deployFiles} so the
+ * One-click deploy of the active editor's diagram to the active target. Flushes
+ * the webview's pending edits into the document and saves first, then reuses
+ * {@link DeploymentService.deployFiles}, which reads the file from disk, so the
  * ledger record and summary notification match the sidebar path. Split from the
  * sidebar dispatcher (SRP): this owns only the "deploy what's on screen" flow.
  */
@@ -24,13 +25,13 @@ export class DeployActiveDiagramService {
         private readonly deploymentService: DeploymentService,
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly notifier: NotifierPort,
-        private readonly pendingEdits?: Pick<PendingEditsFlush, "flushIntoDocument">,
+        private readonly pendingEdits: Pick<PendingEditsFlush, "flushIntoDocument">,
     ) {}
 
     /**
-     * Saves and deploys the active diagram to the active target. With no active
-     * target, runs the target picker first (mirroring `deployFiles`) and proceeds
-     * only if a concrete target results.
+     * Flushes, saves and deploys the active diagram to the active target. With
+     * no active target, runs the target picker first (mirroring `deployFiles`)
+     * and proceeds only if a concrete target results.
      */
     async deployActive(documentDir?: string): Promise<void> {
         let editorId: string;
@@ -56,6 +57,10 @@ export class DeployActiveDiagramService {
         if (target === undefined) {
             return;
         }
+
+        // Best effort, as on a host save: without a confirmed flush the document
+        // still holds every edit the webview synced before.
+        await this.pendingEdits.flushIntoDocument(editorId);
 
         // save() returns false for an unmodified document (nothing to persist);
         // only a throw is a real save failure worth aborting for.

@@ -10,13 +10,16 @@ import { VsCodePicker } from "../shared/infrastructure/VsCodePicker";
 import { VsCodeClipboard } from "../shared/infrastructure/VsCodeClipboard";
 import { VsCodeTextEditor } from "../shared/infrastructure/VsCodeTextEditor";
 import { ArtifactService } from "@miragon/bpmn-modeler-core";
+import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-core";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability
- * adapters, the shared editor-session registry, and the one stateless service
- * (`artifactSvc`) consumed by two unrelated features. Bundling them lets each
- * feature's `register()` take a single `deps` argument instead of a long,
- * order-sensitive parameter list that `main.ts` would have to thread by hand.
+ * adapters, the shared editor-session registry, the one stateless service
+ * (`artifactSvc`) consumed by two unrelated features, and the webview flush
+ * that the editors serve and deployment runs before it saves. Bundling them
+ * lets each feature's `register()` take a single `deps` argument instead of a
+ * long, order-sensitive parameter list that `main.ts` would have to thread by
+ * hand.
  */
 export interface SharedDeps {
     editorStore: EditorSessionStore;
@@ -29,6 +32,8 @@ export interface SharedDeps {
     clipboard: VsCodeClipboard;
     textEditor: VsCodeTextEditor;
     artifactSvc: ArtifactService;
+    flushSvc: DocumentFlushService;
+    pendingEdits: PendingEditsFlush;
 }
 
 /**
@@ -50,6 +55,8 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
     // Hoisted so it can seed ArtifactService's optional logger for the
     // element-template discovery diagnostics.
     const notifier = new VsCodeNotifier();
+    // One flush service for every editor: requests are keyed per editorId.
+    const flushSvc = new DocumentFlushService(editorStore, notifier);
 
     return {
         editorStore,
@@ -62,5 +69,7 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         clipboard: new VsCodeClipboard(),
         textEditor: new VsCodeTextEditor(),
         artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),
+        flushSvc,
+        pendingEdits: new PendingEditsFlush(editorStore, flushSvc, notifier),
     };
 }
