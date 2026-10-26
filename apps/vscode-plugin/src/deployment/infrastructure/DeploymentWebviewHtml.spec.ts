@@ -11,7 +11,7 @@ vi.mock("vscode", () => ({
 import { deploymentWebviewHtml } from "./DeploymentWebviewHtml";
 
 describe("deploymentWebviewHtml", () => {
-    it("only runs the nonced entry script and the bundle's own styles", () => {
+    it("allows only the nonced entry script and the bundle's own styles, and no base or form target", () => {
         const webview = {
             cspSource: "webview-csp:",
             asWebviewUri: ({ path }: { path: string }) => `webview:${path}`,
@@ -26,7 +26,7 @@ describe("deploymentWebviewHtml", () => {
 
         expect(nonce).toBeDefined();
         expect(policy).toBe(
-            `default-src 'none'; style-src webview-csp: 'unsafe-inline'; script-src 'nonce-${nonce}';`,
+            `default-src 'none'; style-src webview-csp: 'unsafe-inline'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none';`,
         );
     });
 });

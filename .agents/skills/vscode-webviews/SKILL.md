@@ -34,10 +34,12 @@ section in AGENTS.md).
 
 ## Content Security Policy (CSP)
 
-Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag, and
-`bootstrapWebview` limits `localResourceRoots` to the editor's bundle directory
-(DMN also gets `assets/` for `reset.css`). `WebviewHtml.spec.ts` pins each
-policy; widen it there and in the shell together. The BPMN policy:
+Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag and
+limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
+for the editors (DMN also gets `assets/` for `reset.css`), and
+`DeploymentController.resolveWebviewView` for the deployment sidebar.
+`WebviewHtml.spec.ts` and `DeploymentWebviewHtml.spec.ts` pin each policy;
+widen it there and in the shell together. The BPMN policy:
 
 ```html
 <meta http-equiv="Content-Security-Policy"
@@ -49,14 +51,26 @@ policy; widen it there and in the shell together. The BPMN policy:
     base-uri 'none'; form-action 'none';">
 ```
 
-- `script-src` must include `${webview.cspSource}`: the bundle lazy-loads
-  `chunks/**` relative to `index.js`, and the chunk loader's modulepreload links
-  carry no nonce. A nonce-only `script-src` breaks View/Design/Implement.
-- `style-src 'unsafe-inline'` — diagram-js, the properties panel and CodeMirror
-  set style attributes and inject `<style>` elements.
-- `img-src data: https:` — element-template icons are `data:` URIs or remote
+- In BPMN and DMN, `script-src` must include `${webview.cspSource}`: the bundle
+  lazy-loads `chunks/**` relative to `index.js`, and the chunk loader's
+  modulepreload links carry no nonce. A nonce-only `script-src` breaks
+  View/Design/Implement. The form and deployment bundles are one classic
+  script each and allow the nonce alone.
+- `style-src 'unsafe-inline'` in every shell: diagram-js, the properties panel
+  and CodeMirror set style attributes and inject `<style>` elements, and the
+  deployment form's markup carries a style attribute.
+- `img-src data: https:`: element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
-- No `'unsafe-eval'`, workers or `connect-src`: the bundles need none.
+- The form shell adds what form-js components load at runtime:
+  `img-src blob: https:`, `frame-src https:` for iframe components, and for
+  document previews `connect-src https:` (they fetch the file) and
+  `object-src blob:` (a PDF's `<embed>`).
+- The deployment shell allows only its script and its styles: the deployment
+  form loads no images or fonts.
+- No `'unsafe-eval'` or workers in any shell, and no `connect-src` outside the
+  form shell.
+- `base-uri 'none'; form-action 'none'` in every shell: `default-src` does not
+  cover them.
 
 The VS Code smoke test (`test:vscode:docker`) fails on any CSP console message
 from a webview; check it after adding a dependency that injects scripts,

@@ -195,6 +195,8 @@ describe("formEditorHtml", () => {
             "connect-src": "https:",
             "frame-src": "https:",
             "object-src": "blob:",
+            "base-uri": "'none'",
+            "form-action": "'none'",
         });
     });
 
