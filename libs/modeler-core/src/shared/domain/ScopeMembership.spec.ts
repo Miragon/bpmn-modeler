@@ -79,8 +79,8 @@ describe("ScopeMembership", () => {
             steps: [
                 ["assign", "e1", "A"],
                 ["assign", "e2", "A"],
-                ["release", "e1"],
                 ["release", "e2"],
+                ["release", "e1"],
             ],
             outcomes: [{ isNewScope: true }, { isNewScope: false }, undefined, "A"],
         },
@@ -109,8 +109,8 @@ describe("ScopeMembership", () => {
         },
         {
             behaviour: "forgets every editor when cleared",
-            steps: [["assign", "e1", "A"], ["clear"], ["assign", "e1", "A"], ["release", "e2"]],
-            outcomes: [{ isNewScope: true }, undefined, { isNewScope: true }, undefined],
+            steps: [["assign", "e1", "A"], ["clear"], ["assign", "e1", "A"], ["release", "e1"]],
+            outcomes: [{ isNewScope: true }, undefined, { isNewScope: true }, "A"],
         },
     ])("$behaviour", ({ steps, outcomes }) => {
         expect(outcomesOf(steps)).toEqual(outcomes);
