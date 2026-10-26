@@ -8,11 +8,14 @@ VS Code extension for BPMN/DMN process and Camunda Form modeling, built with **Y
 Detailed architecture knowledge is available via the `architecture`, `bpmn-js`,
 `vscode-custom-editors`, `vscode-webviews`, `vscode-ux-guidelines`,
 `intellij-plugin`, `i18n-translate`, and `bpmn-browser-testing` skills.
+New features and bug fixes start test-first with the `tdd` skill.
 Invoke skills with `/skill-name` in Claude Code or `$skill-name` in Codex
 (for example, `/architecture` or `$architecture`).
 
-`AGENTS.md` is the shared instruction source; `CLAUDE.md` links to it.
-Skills live in `.agents/skills/`; `.claude/skills/` links to that directory.
+`AGENTS.md` is the only instruction file: Codex and Claude Code (2.1.277 or
+later) both read it directly. Skills live in `.agents/skills/`;
+`.claude/skills/` links to that directory because Claude Code does not read
+`.agents/`.
 Client settings are separate: `.claude/settings.json` configures Claude only.
 See `docs/vscode/contributing/development.md` (Coding agents) for browser tool
 setup and verification in both clients, including Conductor.

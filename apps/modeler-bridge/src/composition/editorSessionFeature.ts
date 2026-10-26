@@ -7,6 +7,7 @@ import {
     EditorSessionParticipant,
     EngineVersionStatusBarParticipant,
     displayDocumentHandler,
+    registerWebviewFocusHandlers,
     registerWebviewLogHandlers,
     registerWebviewNotificationHandlers,
     syncDocumentHandler,
@@ -36,7 +37,7 @@ function query(type: string, fields: Record<string, unknown>): Query {
  * lifecycle without importing any of them.
  *
  * Webview messages: GetBpmnFileCommand, SyncDocumentCommand,
- * GetPropertiesPanelStateCommand.
+ * GetPropertiesPanelStateCommand, RequestFocusCommand.
  * RPC (Host → Core): session/register, session/setActive, session/dispose,
  * webview/message, document/didChange.
  */
@@ -98,6 +99,7 @@ export function register(
     };
     registerWebviewLogHandlers(deps.router, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(deps.router, deps.notifier);
+    registerWebviewFocusHandlers(deps.router, deps.store);
 
     // The store's active editor is the bridge's focus: the host reports the
     // focused tab through `session/setActive`.

@@ -19,6 +19,12 @@ type ScriptListenerKind = Exclude<ScriptKind, "script-task">;
 
 type ScriptListenerType = "camunda:ExecutionListener" | "camunda:TaskListener";
 
+/** The plain BPMN attribute, because the properties panel ignores `camunda:scriptFormat`. */
+const SCRIPT_TASK_FORMAT_PROPERTY = "scriptFormat";
+
+/** Earlier releases of this extension wrote it, so older diagrams may carry only this one. */
+const LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE = "camunda:scriptFormat";
+
 /** Which half of an inline script a host edit replaces. */
 export type ScriptField = "content" | "format";
 
@@ -86,8 +92,10 @@ export function resolveScriptWriteTarget(
         if (bo.$type !== "bpmn:ScriptTask") {
             return undefined;
         }
-        // The plain BPMN `scriptFormat`: the panel ignores `camunda:scriptFormat`.
-        return { moddleElement: bo, propertyName: field === "content" ? "script" : "scriptFormat" };
+        return {
+            moddleElement: bo,
+            propertyName: field === "content" ? "script" : SCRIPT_TASK_FORMAT_PROPERTY,
+        };
     }
     const listener = findListenerAt(bo, scriptListenerType(kind), listenerIndex);
     if (!listener?.script) {
@@ -141,8 +149,10 @@ export function readScriptContent(
 }
 
 /**
- * Reads a script task's format, preferring the Camunda-namespaced attribute
- * over the plain BPMN one (`camunda:scriptFormat` → `scriptFormat` → `""`).
+ * Reads a script task's format from the attribute a format write targets, so a
+ * written format is the format read back. A legacy `camunda:scriptFormat` is
+ * read only when the plain attribute is unset (`scriptFormat` →
+ * `camunda:scriptFormat` → `""`).
  *
  * The single-open paths (context pad, panel header button) and the bulk
  * collector all resolve the format through this one function so they can never
@@ -150,7 +160,12 @@ export function readScriptContent(
  * plain moddle object may expose the attribute only as a direct property.
  */
 export function readScriptTaskFormat(bo: ScriptTaskBusinessObject | undefined): string {
-    return bo?.get?.("camunda:scriptFormat") || bo?.get?.("scriptFormat") || bo?.scriptFormat || "";
+    return (
+        bo?.get?.(SCRIPT_TASK_FORMAT_PROPERTY) ||
+        bo?.[SCRIPT_TASK_FORMAT_PROPERTY] ||
+        bo?.get?.(LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE) ||
+        ""
+    );
 }
 
 /**
