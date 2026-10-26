@@ -13,6 +13,8 @@ import type {
  * A recording fake surface. `hasSetMode` decides whether it looks like a full
  * modeler (the only handle the session may live-toggle). `exportShouldThrow`
  * makes `exportDiagram` reject so the export-failure path can be exercised.
+ * Each surface exports `<xml id="<id>"/>`, so a `load` log entry names whose
+ * export the surface received.
  */
 function makeSurface(opts: {
     id: string;
@@ -39,11 +41,11 @@ function makeSurface(opts: {
             }
             return `<xml id="${opts.id}"/>`;
         }),
-        loadDiagram: vi.fn(async () => {
+        loadDiagram: vi.fn(async (xml: string) => {
             if (opts.loadShouldThrow) {
                 throw new Error("load boom");
             }
-            opts.log.push(`${opts.id}:load`);
+            opts.log.push(`${opts.id}:load ${xml}`);
             return { warnings: [] };
         }),
         applyViewState: vi.fn(() => {
@@ -198,7 +200,7 @@ describe("createModeSession — transitions", () => {
         expect(log).not.toContain("modeler:destroy");
     });
 
-    it("recreates for a View↔Implement change, carrying the view state over", async () => {
+    it("recreates for a View↔Implement change, loading the outgoing surface's export", async () => {
         const onModeChanged = vi.fn();
         const session = await createModeSession({
             container: container(),
@@ -210,8 +212,7 @@ describe("createModeSession — transitions", () => {
         await session.requestMode("view");
         expect(session.getMode()).toBe("view");
         expect(onModeChanged).toHaveBeenCalledWith("view", "recreate");
-        // Export ran, old instance destroyed, new one loaded the carried XML.
-        expect(log).toEqual(["modeler:destroy", "view:load"]);
+        expect(log).toEqual(["modeler:destroy", 'view:load <xml id="modeler"/>']);
     });
 
     it("runs beforeDestroy before the destroy on a recreate", async () => {
@@ -263,10 +264,11 @@ describe("createModeSession — transitions", () => {
         expect(onModeChanged).not.toHaveBeenCalled();
     });
 
-    it("falls back to the default mode when a factory fails past the destroy", async () => {
+    it("falls back to the default mode with the export when a factory fails past the destroy", async () => {
         const onError = vi.fn();
         const onModeChanged = vi.fn();
         let viewAttempts = 0;
+        let modelerCount = 0;
         const session = await createModeSession({
             container: container(),
             engine,
@@ -278,8 +280,15 @@ describe("createModeSession — transitions", () => {
                     }
                     return makeSurface({ id: "view", hasSetMode: false, log });
                 },
-                implement: async (ctx: ModelerSurfaceContext) =>
-                    makeSurface({ id: "modeler", hasSetMode: true, initialMode: ctx.mode, log }),
+                implement: async (ctx: ModelerSurfaceContext) => {
+                    modelerCount += 1;
+                    return makeSurface({
+                        id: `modeler#${modelerCount}`,
+                        hasSetMode: true,
+                        initialMode: ctx.mode,
+                        log,
+                    });
+                },
             },
             initialMode: "implement",
             onError,
@@ -290,6 +299,7 @@ describe("createModeSession — transitions", () => {
         // defaultMode(c7, [view, design, implement]) === "implement".
         expect(session.getMode()).toBe("implement");
         expect(onModeChanged).toHaveBeenLastCalledWith("implement", "fallback");
+        expect(log).toEqual(["modeler#1:destroy", 'modeler#2:load <xml id="modeler#1"/>']);
     });
 
     it("drops a request while a switch is in flight", async () => {
