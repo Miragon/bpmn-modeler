@@ -243,6 +243,20 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(steps).toEqual(["save <v2/>", "deploy"]);
     });
 
+    it("keeps the webview editable after the deploy by asking for a non-destructive flush", async () => {
+        const c = createService({
+            pendingEdits: (host, editor) => webviewWithUnsyncedEdit(host, editor, "<v2/>"),
+        });
+
+        await c.service.deployActive("/work");
+
+        expect(
+            c.editor
+                .postedOfType<FlushDocumentQuery>("FlushDocumentQuery")
+                .map((query) => query.destructive),
+        ).toEqual([false]);
+    });
+
     it("still saves and deploys when the webview cannot confirm its pending edits", async () => {
         const c = createService({
             pendingEdits: () => ({ flushIntoDocument: async () => ({ status: "unavailable" }) }),

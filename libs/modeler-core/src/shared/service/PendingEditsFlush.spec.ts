@@ -182,6 +182,21 @@ describe("PendingEditsFlush", () => {
         expect(allSyncs()).toEqual([]);
     });
 
+    it("queues the flushed content behind a webview sync still being applied", async () => {
+        const editor = host.openEditor("/work/diagram.bpmn", "<v1/>");
+        const finishQueuedSync = holdEditorQueue(editor);
+
+        const flushing = pendingEdits.flushIntoDocument(editor.id);
+        webviewReplies(editor, "flushed", "<v2/>");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(allSyncs()).toEqual([]);
+
+        finishQueuedSync();
+
+        await expect(flushing).resolves.toEqual({ status: "safe", session: editor });
+        expect(allSyncs()).toEqual([{ editorId: editor.id, content: "<v2/>" }]);
+    });
+
     it("does not confirm clean when the latest normal sync missed the host document", async () => {
         const editor = host.openEditor("/work/form.form", '{"id":"old"}');
         host.store.recordDocumentSync(editor.id, editor, '{"id":"newer"}');
