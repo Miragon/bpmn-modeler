@@ -720,6 +720,33 @@ describe("DMN bootstrap", () => {
             ]);
         });
 
+        it("focuses a re-shown editor without waiting for the host default", async () => {
+            const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
+            const { ofType } = await startBootstrap({
+                savedState: { panelVisible: false },
+                replies: withoutPanelState,
+            });
+            await settle();
+
+            expect(isCollapsed()).toBe(true);
+            expect(ofType("RequestFocusCommand")).toHaveLength(1);
+        });
+
+        it("keeps and reports a toggle made while the host default is pending", async () => {
+            const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
+            const { host, ofType } = await startBootstrap({ replies: withoutPanelState });
+            await settle();
+
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS);
+
+            expect(isCollapsed()).toBe(true);
+            expect(host.updateState).toHaveBeenCalledWith({ panelVisible: false });
+            expect(ofType("SetPropertiesPanelStateCommand")).toEqual([
+                expect.objectContaining({ visible: false }),
+            ]);
+        });
+
         it("restores the saved group expansion inside its own panel", async () => {
             renderShell(`
                 <div class="bio-properties-panel-scroll-container">
