@@ -341,7 +341,7 @@ const migrations: {
         version: "8.8.0",
         expected: {
             kind: "platformStamped",
-            xml: `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${ZEEBE_NAMESPACE} ${MODELER_NAMESPACE} ${C8_PLATFORM} ${platformVersion("8.8.0")}/>`,
+            xml: `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${ZEEBE_NAMESPACE} ${MODELER_NAMESPACE} ${C8_PLATFORM} ${platformVersion("8.8.0")} />`,
         },
     },
     {
@@ -424,6 +424,16 @@ const migrations: {
         },
     },
     {
+        given: "a tagged C8 diagram behind a byte-order mark",
+        xml: `\uFEFF${diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.6.0"))}`,
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "versionReplaced",
+            xml: `\uFEFF${diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0"))}`,
+        },
+    },
+    {
         given: "a tagged C8 diagram already at the version",
         xml: diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0")),
         engine: "c8",
@@ -466,7 +476,7 @@ describe("BpmnDocument.migratedTo", () => {
             given: "a document without a definitions root",
             xml: `<bpmn:process ${ZEEBE_NAMESPACE} id="Process_1" />`,
             engine: "c8" as const,
-            error: /definitions/,
+            error: "The BPMN file does not contain a `definitions` root element.",
         },
     ])("refuses to migrate $given", ({ xml, engine, error }) => {
         expect(() => new BpmnDocument(xml).migratedTo(engine, "8.8.0")).toThrow(error);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { detectEngine } from "./engine";
+import { detectEngine, executionPlatformAttributeNames, readDefinitionsStartTag } from "./engine";
 
 const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
 
@@ -117,5 +117,83 @@ describe("detectEngine", () => {
         ).toBeUndefined();
         expect(detectEngine("<!-- unclosed comment")).toBeUndefined();
         expect(detectEngine("not xml at all")).toBeUndefined();
+    });
+});
+
+const startTagParts = (xml: string) => {
+    const startTag = readDefinitionsStartTag(xml);
+    return (
+        startTag && {
+            attributes: startTag.attributes.map(({ name, value, start, end }) => ({
+                name,
+                value,
+                text: xml.slice(start, end),
+            })),
+            afterAttributes: xml.slice(startTag.attributesEnd),
+        }
+    );
+};
+
+describe("readDefinitionsStartTag", () => {
+    it.each([
+        {
+            given: "quoted attributes",
+            xml: `<bpmn:definitions id="a" name = 'b c'>`,
+            expected: {
+                attributes: [
+                    { name: "id", value: "a", text: 'id="a"' },
+                    { name: "name", value: "b c", text: "name = 'b c'" },
+                ],
+                afterAttributes: ">",
+            },
+        },
+        {
+            given: "a self-closing root without attributes",
+            xml: "<definitions />",
+            expected: { attributes: [], afterAttributes: " />" },
+        },
+        {
+            given: "a closing angle bracket inside a value",
+            xml: `<?xml version="1.0"?>\n<definitions targetNamespace="a>b">\n<process />`,
+            expected: {
+                attributes: [
+                    { name: "targetNamespace", value: "a>b", text: 'targetNamespace="a>b"' },
+                ],
+                afterAttributes: ">\n<process />",
+            },
+        },
+        {
+            given: "a root that is not definitions",
+            xml: `<bpmn:process id="a">`,
+            expected: undefined,
+        },
+    ])("reads $given", ({ xml, expected }) => {
+        expect(startTagParts(xml)).toEqual(expected);
+    });
+});
+
+describe("executionPlatformAttributeNames", () => {
+    it.each([
+        {
+            given: "the prefix bound to the modeler namespace",
+            xml: `<definitions xmlns:modeler="urn:other" xmlns:cm="${MODELER_NS}" />`,
+            expected: {
+                namespace: "xmlns:cm",
+                platform: "cm:executionPlatform",
+                version: "cm:executionPlatformVersion",
+            },
+        },
+        {
+            given: "the modeler prefix without a binding",
+            xml: `<definitions xmlns:cm="urn:other" />`,
+            expected: {
+                namespace: "xmlns:modeler",
+                platform: "modeler:executionPlatform",
+                version: "modeler:executionPlatformVersion",
+            },
+        },
+    ])("names the attributes under $given", ({ xml, expected }) => {
+        const attributes = readDefinitionsStartTag(xml)?.attributes ?? [];
+        expect(executionPlatformAttributeNames(attributes)).toEqual(expected);
     });
 });

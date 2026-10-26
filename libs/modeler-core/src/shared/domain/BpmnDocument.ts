@@ -13,6 +13,11 @@ import {
     Engine,
     ENGINE_EXECUTION_PLATFORM,
     ENGINE_LABEL,
+    ExecutionPlatformAttributeNames,
+    executionPlatformAttributeNames,
+    MODELER_NAMESPACE_URI,
+    readDefinitionsStartTag,
+    XmlAttribute,
 } from "@miragon/bpmn-modeler-types";
 
 import { getLatestVersion } from "./engineVersions";
@@ -24,15 +29,13 @@ export type MigrationOutcome =
     | { readonly kind: "versionReplaced"; readonly document: BpmnDocument }
     | { readonly kind: "platformStamped"; readonly document: BpmnDocument };
 
-const ENGINE_NAMESPACE: Record<Engine, { readonly prefix: string; readonly uri: string }> = {
+const ENGINE_NAMESPACE: Record<
+    Engine,
+    { readonly prefix: "camunda" | "zeebe"; readonly uri: string }
+> = {
     c7: { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
     c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
 };
-
-const MODELER_NAMESPACE = { prefix: "modeler", uri: "http://camunda.org/schema/modeler/1.0" };
-const EXECUTION_PLATFORM = "modeler:executionPlatform";
-const EXECUTION_PLATFORM_VERSION = "modeler:executionPlatformVersion";
-const DEFINITIONS_START_TAG = /<(?:[\w.-]+:)?definitions(?=[\s/>])[^>]*>/;
 
 export class BpmnDocument {
     constructor(readonly xml: string) {}
@@ -194,29 +197,38 @@ export class BpmnDocument {
      * @throws {Error} When the XML has no `definitions` root or is not a diagram for `engine`.
      */
     migratedTo(engine: Engine, version: string): MigrationOutcome {
-        const startTag = DEFINITIONS_START_TAG.exec(this.xml);
-        if (!startTag) {
+        const definitions = readDefinitionsStartTag(this.xml);
+        if (!definitions) {
             throw new Error("The BPMN file does not contain a `definitions` root element.");
         }
         if (this.detectEngine() !== engine) {
             throw new Error(`The diagram is not a ${ENGINE_LABEL[engine]} diagram.`);
         }
 
-        const declaredVersion = attributeValue(startTag[0], EXECUTION_PLATFORM_VERSION);
+        const { attributes, attributesEnd } = definitions;
+        const names = executionPlatformAttributeNames(attributes);
+        const declaredVersion = attributeNamed(attributes, names.version);
         const isTagged =
             declaredVersion !== undefined &&
-            attributeValue(startTag[0], EXECUTION_PLATFORM) !== undefined;
-        if (isTagged && declaredVersion === version) {
+            attributeNamed(attributes, names.platform) !== undefined;
+        if (isTagged && declaredVersion.value === version) {
             return { kind: "unchanged" };
         }
 
-        const migratedStartTag = isTagged
-            ? withAttributeValue(startTag[0], EXECUTION_PLATFORM_VERSION, version)
-            : stampedStartTag(startTag[0], engine, version);
+        const missingAttributes = isTagged
+            ? []
+            : platformAttributes(engine, names, version).filter(
+                  ([name]) => attributeNamed(attributes, name) === undefined,
+              );
+        const xmlBeforeAppendedAttributes = declaredVersion
+            ? this.xml.slice(0, declaredVersion.start) +
+              `${names.version}="${version}"` +
+              this.xml.slice(declaredVersion.end, attributesEnd)
+            : this.xml.slice(0, attributesEnd);
         const document = new BpmnDocument(
-            this.xml.slice(0, startTag.index) +
-                migratedStartTag +
-                this.xml.slice(startTag.index + startTag[0].length),
+            xmlBeforeAppendedAttributes +
+                missingAttributes.map(([name, value]) => ` ${name}="${value}"`).join("") +
+                this.xml.slice(attributesEnd),
         );
         return isTagged
             ? { kind: "versionReplaced", document }
@@ -237,36 +249,23 @@ export class BpmnDocument {
     }
 }
 
-function stampedStartTag(startTag: string, engine: Engine, version: string): string {
+function platformAttributes(
+    engine: Engine,
+    names: ExecutionPlatformAttributeNames,
+    version: string,
+): [name: string, value: string][] {
     const engineNamespace = ENGINE_NAMESPACE[engine];
-    const platformAttributes: [name: string, value: string][] = [
+    return [
         [`xmlns:${engineNamespace.prefix}`, engineNamespace.uri],
-        [`xmlns:${MODELER_NAMESPACE.prefix}`, MODELER_NAMESPACE.uri],
-        [EXECUTION_PLATFORM, ENGINE_EXECUTION_PLATFORM[engine]],
-        [EXECUTION_PLATFORM_VERSION, version],
+        [names.namespace, MODELER_NAMESPACE_URI],
+        [names.platform, ENGINE_EXECUTION_PLATFORM[engine]],
+        [names.version, version],
     ];
-    const missingAttributes = platformAttributes
-        .filter(([name]) => attributeValue(startTag, name) === undefined)
-        .map(([name, value]) => `${name}="${value}"`)
-        .join(" ");
-    return withAttributeValue(startTag, EXECUTION_PLATFORM_VERSION, version).replace(
-        /\s*(\/?>)$/,
-        (_, tagEnd: string) => ` ${missingAttributes}${tagEnd}`,
-    );
 }
 
-function attributePattern(name: string): RegExp {
-    return new RegExp(`(\\s${name}\\s*=\\s*)(?:"([^"]*)"|'([^']*)')`);
-}
-
-function attributeValue(startTag: string, name: string): string | undefined {
-    const match = attributePattern(name).exec(startTag);
-    return match ? (match[2] ?? match[3]) : undefined;
-}
-
-function withAttributeValue(startTag: string, name: string, value: string): string {
-    return startTag.replace(
-        attributePattern(name),
-        (_, assignment: string) => `${assignment}"${value}"`,
-    );
+function attributeNamed(
+    attributes: readonly XmlAttribute[],
+    name: string,
+): XmlAttribute | undefined {
+    return attributes.find((attribute) => attribute.name === name);
 }
