@@ -1,6 +1,10 @@
 import { commands, LogOutputChannel, ProgressLocation, Uri, window } from "vscode";
 
-import { NotifierPort } from "@miragon/bpmn-modeler-core";
+import {
+    NotifierPort,
+    notifiedErrorLogText,
+    notifiedErrorToastText,
+} from "@miragon/bpmn-modeler-core";
 
 const LOG_CHANNEL_ID = "bpmn.modeler";
 
@@ -49,15 +53,9 @@ export class VsCodeNotifier implements NotifierPort {
         }
     }
 
-    /**
-     * Logs `error` and surfaces a toast that pairs a caller-supplied
-     * `context` line with the error's own message. Centralises the
-     * log-then-show pattern so each service only specifies what it was
-     * doing rather than re-deriving the message format.
-     */
     notifyError(context: string, error: Error): void {
-        this.logError(error);
-        this.showError(`${context}\n${error.message ?? error}`);
+        this.channel.error(notifiedErrorLogText(context, error));
+        this.showError(notifiedErrorToastText(context, error));
     }
 
     openLoggingConsole(): void {

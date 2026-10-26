@@ -1,4 +1,8 @@
-import { errorLogText, notifiedErrorLogText } from "../shared/domain/errorLogText";
+import {
+    errorLogText,
+    notifiedErrorLogText,
+    notifiedErrorToastText,
+} from "../shared/domain/errorLogText";
 import { NotifierPort } from "../shared/domain/hostPorts";
 
 export type LogLevel = "debug" | "info" | "warning" | "error";
@@ -35,10 +39,7 @@ export class RecordingNotifier implements NotifierPort {
 
     logError(error: string | Error): void {
         if (error instanceof Error) this.loggedErrors.push(error);
-        this.logs.push({
-            level: "error",
-            message: error instanceof Error ? errorLogText(error) : error,
-        });
+        this.logs.push({ level: "error", message: errorLogText(error) });
     }
 
     showInfo(message: string): void {
@@ -49,11 +50,10 @@ export class RecordingNotifier implements NotifierPort {
         this.errors.push(message);
     }
 
-    /** Logs like the bridge; the toast is the text both hosts' balloons show. */
     notifyError(context: string, error: Error): void {
         this.loggedErrors.push(error);
         this.logs.push({ level: "error", message: notifiedErrorLogText(context, error) });
-        this.showError(`${context}\n${error.message}`);
+        this.showError(notifiedErrorToastText(context, error));
     }
 
     openLoggingConsole(): void {

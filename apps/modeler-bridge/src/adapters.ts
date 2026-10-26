@@ -384,12 +384,8 @@ export class RpcNotifier implements NotifierPort {
         this.rpc.notify(METHODS.notifierLog, { level: "warn", message });
     }
 
-    /** A bare `string` (e.g. a webview stack) is forwarded verbatim, not re-wrapped. */
     logError(error: string | Error): void {
-        this.rpc.notify(METHODS.notifierLog, {
-            level: "error",
-            message: error instanceof Error ? errorLogText(error) : error,
-        });
+        this.rpc.notify(METHODS.notifierLog, { level: "error", message: errorLogText(error) });
     }
 
     /**

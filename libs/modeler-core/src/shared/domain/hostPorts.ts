@@ -47,7 +47,7 @@ export interface LoggerPort {
 export interface NotifierPort extends LoggerPort {
     showInfo(message: string): void;
     showError(message: string): void;
-    /** Logs `error`, then surfaces a toast pairing `context` with the error message. */
+    /** Logs `notifiedErrorLogText`, then shows `notifiedErrorToastText` as an error toast. */
     notifyError(context: string, error: Error): void;
     openLoggingConsole(): void;
     /** Runs `task` under a status-bar progress indicator titled `title`. */

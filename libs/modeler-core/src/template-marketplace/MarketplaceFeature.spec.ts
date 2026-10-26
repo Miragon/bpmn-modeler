@@ -91,7 +91,7 @@ describe("MarketplaceCommands.add", () => {
 
         expect(notifier.logged("error")).toEqual([
             cacheLocked.stack,
-            `Failed to add marketplace.: ${offline.stack}`,
+            `Failed to add marketplace. ${offline.stack}`,
         ]);
         expect(notifier.errors).toEqual(["Failed to add marketplace.\noffline"]);
     });

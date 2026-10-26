@@ -146,7 +146,7 @@ describe("DmnModelerService.display", () => {
 
         expect(rendered).toBe(false);
         expect(host.notifier.logged("error")).toEqual([
-            `A problem occurred while trying to display the DMN Modeler.: ${boom.stack}`,
+            `A problem occurred while trying to display the DMN Modeler. ${boom.stack}`,
         ]);
         expect(host.notifier.errors).toHaveLength(1);
     });
@@ -173,7 +173,7 @@ describe("DmnModelerService.sync", () => {
         const synced = await service.sync(editor.id, "<xml/>");
         expect(synced).toBe(false);
         expect(host.notifier.logged("error")).toEqual([
-            `A problem occurred while trying to sync the DMN file.: ${diskFull.stack}`,
+            `A problem occurred while trying to sync the DMN file. ${diskFull.stack}`,
         ]);
         expect(host.notifier.errors).toHaveLength(1);
 
