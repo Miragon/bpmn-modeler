@@ -145,6 +145,16 @@ on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
 
+An editor's focus is its handle's `isActive()`, read through
+`EditorSessionStore.isFocused`. The status items every editor shares (engine
+version, bpmnlint, deployment) show an editor's state only if it is focused
+when the item is written. Its participant hides the item on blur and close,
+and `StatusItemOwnership` decides only that hide. The store's active-editor
+pointer is the target of commands, not focus. In VS Code it stays on a diagram
+while a text editor is active, because text editors are not sessions. It also
+moves to a session that resolves in the background. The bridge derives
+`isActive()` from that pointer, so the two agree on IntelliJ.
+
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
 syncs, and a single, snapshot-checked initialization of an empty file that a
