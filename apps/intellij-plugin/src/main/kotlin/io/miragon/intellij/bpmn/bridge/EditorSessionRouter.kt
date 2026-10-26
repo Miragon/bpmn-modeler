@@ -363,13 +363,17 @@ internal class EditorSessionRouter(
      * Re-seeds every open session into a freshly spawned bridge (the document
      * mirror is rebuilt from the live IntelliJ `Document`, the authoritative
      * source) and replays `GetBpmnFileCommand` so the still-alive JCEF page
-     * re-renders without a reload.
+     * re-renders without a reload. A replayed render does not make the page ask
+     * for the lint config again, so `GetBpmnlintConfigCommand` is replayed too:
+     * a new bridge starts with linting on and the page would otherwise show the
+     * old bridge's toggle.
      */
     fun reregisterLiveSessions() {
         if (!deps.isProcessAlive()) return
         sessions.values.forEach { entry ->
             sendRegister(entry)
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
+            forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
     }
 
@@ -589,6 +593,8 @@ internal class EditorSessionRouter(
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        const val GET_BPMNLINT_CONFIG_COMMAND = "{\"type\":\"GetBpmnlintConfigCommand\"}"
 
         // Posted into the webview to request an SVG export; the webview echoes the
         // same command back with the rendered `svg` field populated.

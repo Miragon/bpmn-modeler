@@ -443,6 +443,22 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a respawn replay asks the new bridge for the lint config after the file`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.router.reregisterLiveSessions()
+
+        val frames = List(3) { parse(f.wired.fake.nextFrame()) }
+        assertEquals(
+            listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand"),
+            frames.map { it.webviewMessageType() ?: it.get("method").asString },
+            "the page keeps the old bridge's lint state until the new bridge pushes its own",
+        )
+        frames.forEach { assertEquals(f.sessionId, it.getAsJsonObject("params").get("sessionId").asLong) }
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
     fun `late traffic and disposal from a replaced same-uri session are ignored`() {
         val f = setUpRouter(INITIAL_XML)
         val replacement = CoreSession(f.session.editorId, f.bpmn.file, f.session.project) {}
@@ -626,6 +642,9 @@ class EditorSessionRouterTest {
             "an unclaimed svg echo forwards unchanged",
         )
     }
+
+    private fun JsonObject.webviewMessageType(): String? =
+        getAsJsonObject("params").getAsJsonObject("message")?.get("type")?.asString
 
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
     private fun syncCommand(content: String, documentRevision: Long? = null): String {
