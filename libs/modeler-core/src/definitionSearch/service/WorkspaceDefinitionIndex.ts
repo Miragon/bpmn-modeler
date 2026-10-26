@@ -19,7 +19,7 @@ export interface IndexedModel {
 interface ScopeState {
     readonly scope: SearchScope;
     readonly watchers: { dispose(): void }[];
-    readonly definitionsByPathKey: Map<string, Promise<readonly ModelDefinition[]>>;
+    readonly definitionsByPath: Map<string, Promise<readonly ModelDefinition[]>>;
     paths?: Promise<string[]>;
 }
 
@@ -91,10 +91,10 @@ export class WorkspaceDefinitionIndex {
         const state: ScopeState = {
             scope,
             watchers: [],
-            definitionsByPathKey: new Map(),
+            definitionsByPath: new Map(),
         };
         const forgetFile = (path: string) => {
-            state.definitionsByPathKey.delete(toPathKey(path));
+            state.definitionsByPath.delete(path);
         };
         const forgetFileAndListing = (path: string) => {
             forgetFile(path);
@@ -135,24 +135,18 @@ export class WorkspaceDefinitionIndex {
     }
 
     private definitionsOf(state: ScopeState, path: string): Promise<readonly ModelDefinition[]> {
-        const pathKey = toPathKey(path);
-        const cached = state.definitionsByPathKey.get(pathKey);
+        const cached = state.definitionsByPath.get(path);
         if (cached) {
             return cached;
         }
         const read = this.workspace.readFile(path).then(extractModelDefinitions, (error) => {
             this.notifier.logWarning(`Could not read ${path}: ${(error as Error).message}`);
-            if (state.definitionsByPathKey.get(pathKey) === read) {
-                state.definitionsByPathKey.delete(pathKey);
+            if (state.definitionsByPath.get(path) === read) {
+                state.definitionsByPath.delete(path);
             }
             return [];
         });
-        state.definitionsByPathKey.set(pathKey, read);
+        state.definitionsByPath.set(path, read);
         return read;
     }
-}
-
-// Watchers on the bridge report platform separators while listings use `/`.
-function toPathKey(path: string): string {
-    return path.replace(/\\/g, "/");
 }

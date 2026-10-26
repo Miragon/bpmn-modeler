@@ -10,12 +10,15 @@ import { NodeWorkspace } from "./nodeAdapters";
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */
-const { watchSpy, closeSpy } = vi.hoisted(() => {
+const { watchSpy, closeSpy, chokidarListeners } = vi.hoisted(() => {
     const closeSpy = vi.fn(() => Promise.resolve());
+    const chokidarListeners = new Map<string, (path: string) => void>();
     return {
         closeSpy,
+        chokidarListeners,
         watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
-            on() {
+            on(event: string, listener: (path: string) => void) {
+                chokidarListeners.set(event, listener);
                 return this;
             },
             close: closeSpy,
@@ -102,5 +105,63 @@ describe("NodeWorkspace.createWatcher sharing", () => {
 
         workspace.createWatcher("/repo", "**/*.form", {});
         expect(watchSpy).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("NodeWorkspace.createWatcher path contract", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        watchSpy.mockClear();
+        chokidarListeners.clear();
+        vi.unstubAllGlobals();
+    });
+
+    /** Emits each chokidar event for `emittedPath` and records what every handler receives. */
+    function pathsHandedToTheCore(platform: string, root: string, emittedPath: string) {
+        vi.stubGlobal("process", { ...process, platform });
+        const received = {
+            deleted: [] as string[],
+            changed: [] as string[],
+            created: [] as string[],
+        };
+        new NodeWorkspace().createWatcher(root, "**/*.java", {
+            onDelete: (path) => received.deleted.push(path),
+            onChange: (path) => received.changed.push(path),
+            onCreate: (path) => received.created.push(path),
+        });
+        for (const event of ["unlink", "change", "add"]) {
+            chokidarListeners.get(event)?.(emittedPath);
+            vi.advanceTimersByTime(50);
+        }
+        return received;
+    }
+
+    it("hands Windows watcher paths to the core with forward slashes", () => {
+        const received = pathsHandedToTheCore(
+            "win32",
+            "C:/repo",
+            "C:\\repo\\src\\main\\java\\com\\acme\\Foo.java",
+        );
+
+        const portablePath = "C:/repo/src/main/java/com/acme/Foo.java";
+        expect(received).toEqual({
+            deleted: [portablePath],
+            changed: [portablePath],
+            created: [portablePath],
+        });
+    });
+
+    it("keeps a POSIX path unchanged", () => {
+        const received = pathsHandedToTheCore("linux", "/repo", "/repo/a/Foo.java");
+
+        expect(received).toEqual({
+            deleted: ["/repo/a/Foo.java"],
+            changed: ["/repo/a/Foo.java"],
+            created: ["/repo/a/Foo.java"],
+        });
     });
 });
