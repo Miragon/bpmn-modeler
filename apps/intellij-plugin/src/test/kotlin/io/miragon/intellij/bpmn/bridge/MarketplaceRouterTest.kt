@@ -151,6 +151,16 @@ class MarketplaceRouterTest {
     }
 
     @Test
+    fun `tokenPrompt answers with an error when the prompt throws`() {
+        val (wired, _) = router(prompt = { _, _ -> throw IllegalStateException("dialog failed") })
+        wired.handlers.dispatch("tokenPrompt/show", obj("host" to "github.com", "reason" to "why"), 22)
+        ApplicationManager.getApplication().invokeAndWait { }
+        val reply = parse(wired.fake.nextFrame())
+        assertEquals(22, reply.get("id").asInt)
+        assertEquals("dialog failed", reply.get("error").asString)
+    }
+
+    @Test
     fun `addMarketplace notification carries the location, scope, and the settings snapshot`() {
         val (wired, router) = router()
         router.addMarketplace("~/local/marketplace", appWide = false)
