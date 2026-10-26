@@ -73,8 +73,17 @@ kotlin {
     }
 }
 
+val protocolDescriptor = layout.projectDirectory.file("../modeler-bridge/src/protocol/protocol.json")
+
 tasks.test {
     useJUnitPlatform()
+    // ProtocolHandlerCoverageTest reads the bridge's protocol descriptor. As a declared
+    // input, a change on the TypeScript side alone reruns the tests instead of restoring
+    // them from the build cache.
+    inputs.file(protocolDescriptor)
+        .withPropertyName("protocolDescriptor")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("miragon.protocolDescriptor", protocolDescriptor.asFile.absolutePath)
     // A new JVM per test class. The light-project code-insight test
     // (ScriptCompletionContributorTest) and the @TestApplication router tests can't
     // share a JVM: the router tests install a strict app-level project-leak tracker

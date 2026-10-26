@@ -25,6 +25,8 @@ internal class RpcHandlerRegistry {
         return this
     }
 
+    fun registeredMethods(): Set<String> = handlers.keys.toSet()
+
     /** @return false when no handler is registered (caller logs the debug line). */
     fun dispatch(method: String, params: JsonObject, id: Int?): Boolean {
         val handler = handlers[method] ?: return false
