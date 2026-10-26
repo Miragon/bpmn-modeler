@@ -15,7 +15,7 @@ The marketplace is fetched and checked before it is saved, so a missing or broke
 | Command | Use |
 |---|---|
 | **Miragon BPMN Modeler: Add Marketplace** | Register a marketplace. |
-| **Miragon BPMN Modeler: Update Marketplaces** | Fetch new and changed templates. |
+| **Miragon BPMN Modeler: Update Marketplaces** | Fetch new and changed templates and drop the ones a source no longer serves. |
 | **Miragon BPMN Modeler: Remove Marketplace** | Unregister one or more marketplaces and drop their cached templates. |
 
 ## The `marketplace.json` file
@@ -106,7 +106,7 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 ## Limits
 
 - Templates are cached per workspace and fetched only on Add and Update. A marketplace in your User settings is fetched once per workspace: run **Update Marketplaces** in a new workspace.
-- A template deleted upstream stays in the cache until you remove the marketplace.
+- A source that cannot be fetched keeps its last fetched templates until an update reaches it again.
 - Unauthenticated GitHub access allows 60 requests per hour; a token raises the limit.
 - Very large repositories fail to list (GitHub's tree limit, 10,000 files under the path on GitLab). Point `path` at a narrower folder.
 - Templates control how processes run. Only add marketplaces you trust.
