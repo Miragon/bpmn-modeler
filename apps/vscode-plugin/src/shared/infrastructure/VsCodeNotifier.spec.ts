@@ -67,7 +67,9 @@ describe("VsCodeNotifier toasts", () => {
         expect(renderedToasts().map((toast) => toast.message)).toEqual([
             "Reading the element templates failed\nEACCES",
         ]);
-        expect(logChannel().lines).toEqual([{ level: "error", entry: "EACCES" }]);
+        expect(logChannel().lines).toEqual([
+            { level: "error", entry: "Reading the element templates failed: EACCES" },
+        ]);
     });
 
     it("reloads the window when the user picks the toast's reload action", async () => {

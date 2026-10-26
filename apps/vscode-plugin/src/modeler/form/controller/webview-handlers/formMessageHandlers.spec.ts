@@ -88,7 +88,9 @@ describe("GetFormInputValuesCommand", () => {
         order.receive(new GetFormInputValuesCommand());
         await settle();
 
-        expect(forms.host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
+        expect(forms.host.notifier.logged("error")).toEqual([
+            expect.stringContaining("Error: The active editor is hidden.\n"),
+        ]);
     });
 });
 
