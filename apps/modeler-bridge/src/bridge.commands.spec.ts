@@ -32,6 +32,9 @@ const BPMN_C7_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <bpmn:process id="Process_1" isExecutable="true" camunda:historyTimeToLive="180" />
 </bpmn:definitions>`;
 
+const VERSION_NOT_CHANGED =
+    "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
+
 const isPickerShow = (f: any) => f.method === "picker/show" && f.id != null;
 const isConfirmRequest = (f: any) => f.method === "confirm/show" && f.id != null;
 const isShowInfo = (message: string) => (f: any) =>
@@ -163,6 +166,7 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             await command;
 
             const afterRejection = frames.slice(afterWrite);
+            expect(afterRejection.filter(isShowInfo(VERSION_NOT_CHANGED))).toHaveLength(1);
             expect(
                 afterRejection.filter((f) => f.method === "statusBar/showEngineVersion"),
             ).toEqual([]);

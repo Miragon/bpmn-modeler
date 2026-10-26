@@ -14,6 +14,11 @@ const C8_DOC = BpmnDocument.empty("c8", "8.8.0").xml;
 // Non-empty but carries no platform signal → `detectPlatform` throws.
 const NO_PLATFORM_DOC =
     '<?xml version="1.0"?><bpmn:definitions xmlns:bpmn="http://x" id="d"><bpmn:process id="P"/></bpmn:definitions>';
+// No `modeler:*` attributes: `detectEngine` falls back to the engine namespace.
+const C7_NAMESPACE_ONLY_DOC =
+    '<?xml version="1.0"?><bpmn:definitions xmlns:bpmn="http://x" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="d"><bpmn:process id="P"/></bpmn:definitions>';
+const VERSION_NOT_CHANGED =
+    "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
 
 function createService(content: string, answers: PickerAnswers = {}) {
     const host = createTestHost({ settings: { language: "de" }, answers });
@@ -275,6 +280,90 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         expect(editor.content).toContain('modeler:executionPlatformVersion="8.5.0"');
         expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.5.0" });
         expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(1);
+    });
+
+    it("stamps the picked version on a diagram tagged only by its namespace", async () => {
+        const { service, host, editor } = createService(C7_NAMESPACE_ONLY_DOC, {
+            engineVersion: "7.22.0",
+        });
+        editor.becomeActive();
+
+        await service.changeEngineVersion(editor.id);
+
+        expect(editor.content).toContain('modeler:executionPlatformVersion="7.22.0"');
+        expect(host.statusBar.engineVersion).toEqual({ platform: "c7", version: "7.22.0" });
+        expect(host.notifier.infos).toEqual([]);
+    });
+
+    it("tells the user when the host refuses the version write", async () => {
+        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        vi.spyOn(host.documents, "write").mockResolvedValueOnce(false);
+
+        const result = await service.changeEngineVersion(editor.id);
+
+        expect(result).toBe(false);
+        expect(host.notifier.infos).toEqual([VERSION_NOT_CHANGED]);
+        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(editor.content).toBe(C8_DOC);
+        expect(editor.postedOfType("BpmnFileQuery")).toEqual([]);
+    });
+
+    it("tells the user when the diagram changes while the version is picked", async () => {
+        const { service, host, editor } = createService(C8_DOC);
+        let finishPick: (version: string) => void = () => {};
+        vi.spyOn(host.picker, "pickEngineVersion").mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishPick = resolve;
+            }),
+        );
+
+        const changing = service.changeEngineVersion(editor.id);
+        host.store.markHostDocumentUpdated(editor.id);
+        finishPick("8.5.0");
+
+        expect(await changing).toBe(false);
+        expect(host.notifier.infos).toEqual([VERSION_NOT_CHANGED]);
+        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(editor.content).toBe(C8_DOC);
+    });
+
+    it("shows the version when the host skips a write the document already holds", async () => {
+        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        vi.spyOn(host.documents, "write").mockImplementationOnce(async (_editorId, content) => {
+            editor.content = content;
+            return false;
+        });
+
+        await service.changeEngineVersion(editor.id);
+
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.5.0" });
+        expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(1);
+    });
+
+    it("stays quiet when the diagram changes after the version is written", async () => {
+        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        vi.spyOn(host.documents, "write").mockImplementationOnce(async () => {
+            host.store.markHostDocumentUpdated(editor.id);
+            return true;
+        });
+
+        const result = await service.changeEngineVersion(editor.id);
+
+        expect(result).toBe(false);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+    });
+
+    it("leaves a diagram already at the picked version untouched and quiet", async () => {
+        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.8.0" });
+
+        const result = await service.changeEngineVersion(editor.id);
+
+        expect(result).toBe(false);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(editor.content).toBe(C8_DOC);
     });
 
     it("informs and returns false for an untagged diagram with no engine version", async () => {
