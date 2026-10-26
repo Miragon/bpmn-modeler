@@ -172,22 +172,32 @@ Every BPMN, DMN, form and deployment shell sends a Content-Security-Policy with
 `default-src 'none'`, so injected markup cannot run script with the host
 message channel. Each policy allows only what its bundle needs:
 
-- `script-src` allows the entry by nonce plus the bundle origin
-  (`webview.cspSource` in VS Code, `'self'` in IntelliJ), because the chunk
-  loader's modulepreload links carry no nonce. No `'unsafe-eval'`: nothing in
-  the bundles compiles strings at runtime.
-- `style-src` keeps `'unsafe-inline'`: diagram-js, the properties panel and
-  CodeMirror set style attributes and inject `<style>` elements without a nonce.
-- `img-src` allows `data:`, and for BPMN also `https:`, because element-template
-  icons may be either. There is no `connect-src`, so a copy-as-PNG of a remote
-  `.svg` icon renders without that icon.
-- `font-src` allows `data:` for the embedded diagram fonts.
+- `script-src` allows the entry by nonce in VS Code and by `'self'` in
+  IntelliJ. The VS Code BPMN and DMN shells also list `webview.cspSource`,
+  because the chunk loader's modulepreload links carry no nonce; the form and
+  deployment bundles are one script each, so the nonce alone covers them. No
+  `'unsafe-eval'`: nothing in the bundles compiles strings at runtime.
+- `style-src` keeps `'unsafe-inline'` in every shell: diagram-js, the
+  properties panel and CodeMirror set style attributes and inject `<style>`
+  elements without a nonce, and the deployment form's markup carries a style
+  attribute.
+- In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
+  `https:`, because element-template icons may be either. BPMN and DMN have no
+  `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that
+  icon. `font-src` allows `data:` for the embedded fonts.
+- The form shell also allows what form-js components load at runtime: `https:`
+  images and iframes (`frame-src`), and document previews, which fetch files
+  over `connect-src https:` and show them from `blob:` URLs (`img-src blob:`,
+  and `object-src blob:` for a PDF's `<embed>`).
+- VS Code's deployment shell allows only its script and its styles, because the
+  deployment form loads no images or fonts. IntelliJ builds its deployment
+  policy from the BPMN one without `https:` images.
 - `base-uri` and `form-action` are `'none'` in every shell: `default-src` does
   not cover them, and no bundle needs a `<base>` or a native form submission.
 
 VS Code and the standalone app set the policy as a `<meta>` tag, because Theia
 injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
-each editor's bundle directory. IntelliJ sends it as a response header from
+each webview's bundle directory. IntelliJ sends it as a response header from
 `WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
 hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
 it relies on `'unsafe-inline'`. A loader for user-supplied bpmn-io plugins must
