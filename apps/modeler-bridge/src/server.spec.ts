@@ -575,4 +575,41 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
             JSON.stringify({ method: "session/dispose", params: { editorId: idB } }),
         );
     });
+
+    it("tells only the active editor to take focus when its webview asks", async () => {
+        const { rpc, frames, root } = await setup();
+        const a = join(root, "a.bpmn");
+        const b = join(root, "b.bpmn");
+        await fs.writeFile(a, C7_XML, "utf8");
+        await fs.writeFile(b, C7_XML, "utf8");
+        const idA = `file://${a}`;
+        const idB = `file://${b}`;
+        await open(rpc, idA, root, a);
+        await open(rpc, idB, root, b);
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/setActive", params: { editorId: idA } }),
+        );
+
+        for (const editorId of [idA, idB]) {
+            await rpc.handleLine(
+                JSON.stringify({
+                    method: "webview/message",
+                    params: { editorId, message: { type: "RequestFocusCommand" } },
+                }),
+            );
+        }
+        await settle();
+
+        const focusRequests = frames.filter(
+            (f) => f.method === "editor/postMessage" && f.params.message.type === "TakeFocusQuery",
+        );
+        expect(focusRequests.map((f) => f.params.editorId)).toEqual([idA]);
+
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: idA } }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: idB } }),
+        );
+    });
 });

@@ -47,8 +47,10 @@ Decisions (rules, state transitions, validations) go into the owning feature's
 Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 and `apps/vscode-plugin/src`, plus root `eslint.config.cjs`. Package gates protect
 import direction and theme isolation. Core checks reject VS Code and transitive
-host-module imports; this does not make the core browser-safe. VS Code checks
-cover host isolation, cycles, and selected feature-barrel boundaries.
+host-module imports (the core is still not browser-safe), and enforce layer
+direction, feature isolation through `shared/` and no cycles against known
+exceptions that may only shrink. VS Code checks cover host isolation, cycles,
+and selected feature-barrel boundaries.
 
 ## Trace host and session behavior
 
