@@ -211,8 +211,11 @@ Bridge (`apps/modeler-bridge/src/`):
   disposes the project under its constructor ("Uncaught exceptions … parent:
   Project … (disposed) [Plugin: com.jetbrains.codeWithMe]"). Reproduce CI-only
   flakes locally with `JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount=2`.
-- **Suspend code runs on the IDE's Kotlin stdlib** (1.9 on the 242 floor).
-  Kotlin API 2.2+ emits `SpillingKt.nullOutSpilledVariable`, which fails with
-  `NoClassDefFoundError` there; test compilation pins `apiVersion` to 2.1.
-  Main sources are not pinned, so new suspend code there can hit the same
-  error at runtime in the IDE.
+- **Plugin code runs on the IDE's Kotlin stdlib** (1.9 on the 242 floor).
+  Kotlin API 2.2+ emits `SpillingKt.nullOutSpilledVariable` in suspend
+  functions that keep a local across a suspension point, which fails with
+  `NoClassDefFoundError` there. The `kotlin { compilerOptions }` block pins
+  `apiVersion` to 2.1 for main and test; do not raise it while `sinceBuild` is
+  242. API 2.1 still allows stdlib calls added in 2.0/2.1. `verifyPlugin`
+  checks the jar against 2024.2.5, so it fails on any reference that stdlib
+  cannot resolve.
