@@ -10,8 +10,12 @@ import {
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 
-export function keepsScriptsInOsTemp(_documentScheme: string): boolean {
-    return false;
+/**
+ * A document without a filesystem path (`untitled:`, a virtual file system)
+ * has no folder for its scripts.
+ */
+export function keepsScriptsInOsTemp(documentScheme: string): boolean {
+    return documentScheme !== "file";
 }
 
 /**
@@ -45,29 +49,24 @@ export class ScriptFileStore {
      * Base directory for the given BPMN editor's scripts.
      *
      * `ArtifactService.getWorkspaceRoot` already degrades gracefully
-     * (workspace folder → git root → document directory), so a diagram outside
-     * every workspace folder still gets a config-folder-relative home. Only a
-     * document whose id cannot be mapped to a directory at all (non-file
-     * scheme) falls back to the OS temp dir; the path keeps the `tmp/scripting`
-     * marker segments so completion-provider selectors and `parseScriptPath`
-     * still match.
+     * (workspace folder → git root → document directory), so a `file:` diagram
+     * outside every workspace folder still gets a config-folder-relative home.
+     * Every other diagram goes to the OS temp dir, chosen by its scheme because
+     * the workspace maps any id to some directory (`untitled:Untitled-1` to `/`)
+     * instead of failing. The temp path keeps the `tmp/scripting` marker
+     * segments so completion-provider selectors and `parseScriptPath` still
+     * match.
      */
     async resolveBaseDir(editorId: string): Promise<string> {
-        try {
-            const documentDir = this.workspace.getDocumentDirectory(editorId);
-            const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
-            return posix.join(
-                workspaceRoot,
-                this.settings.getConfigFolder(),
-                TMP_SCRIPTING_SEGMENT,
-            );
-        } catch {
-            return this.fallbackBaseDir();
+        if (keepsScriptsInOsTemp(this.editorStore.requireHandle(editorId).documentScheme())) {
+            return this.osTempBaseDir();
         }
+        const documentDir = this.workspace.getDocumentDirectory(editorId);
+        const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
+        return posix.join(workspaceRoot, this.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
     }
 
-    /** OS-tmpdir home for scripts of documents that have no resolvable folder. */
-    private fallbackBaseDir(): string {
+    private osTempBaseDir(): string {
         return posix.join(
             tmpdir().replace(/\\/g, "/"),
             "miragon-bpmn-modeler",
