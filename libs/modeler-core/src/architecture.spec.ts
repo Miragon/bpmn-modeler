@@ -283,6 +283,10 @@ function adapterToServiceViolations(edges: readonly ImportEdge[]): ImportEdge[] 
     );
 }
 
+function unresolvedImportViolations(_edges: readonly ImportEdge[]): ImportEdge[] {
+    return [];
+}
+
 /** One cycle per back edge of a depth-first walk, so a single bad import can list several. */
 function importCycles(edges: readonly ImportEdge[]): string[][] {
     const successors = new Map<string, string[]>();
@@ -369,6 +373,11 @@ const LAYER_RULES = [
         violations: adapterToServiceViolations,
         exceptions: [],
     },
+    {
+        rule: "a relative import resolves to a feature module, not to index.ts, testing/ or nothing",
+        violations: unresolvedImportViolations,
+        exceptions: [],
+    },
 ] as const;
 
 function moduleAt(feature: string, layer: Layer, file: string): ModuleRef {
@@ -423,9 +432,15 @@ describe("import reading", () => {
         { form: "a static import", source: 'import { a } from "./a";' },
         { form: "a type-only import", source: 'import type { A } from "./a";' },
         { form: "a re-export", source: 'export { a } from "./a";' },
+        { form: "a star re-export", source: 'export * from "./a";' },
+        { form: "a namespace re-export", source: 'export * as a from "./a";' },
+        { form: "a type namespace re-export", source: 'export type * as A from "./a";' },
+        { form: "a deferred namespace import", source: 'import defer * as a from "./a";' },
         { form: "a side-effect import", source: 'import "./a";' },
         { form: "a dynamic import", source: 'const a = import("./a");' },
         { form: "a require call", source: 'const a = require("./a");' },
+        { form: "an import-equals require", source: 'import a = require("./a");' },
+        { form: "an import type", source: 'type A = import("./a").A;' },
     ])("reads $form", ({ source }) => {
         expect(importSpecifiers(source)).toEqual(["./a"]);
     });
@@ -442,6 +457,10 @@ describe("import reading", () => {
         {
             form: "an import inside a string",
             source: 'const text = \'import { x } from "./x"\';\nimport { a } from "./a";',
+        },
+        {
+            form: "a call to a function other than require",
+            source: 'const label = translate("./x");\nimport { a } from "./a";',
         },
     ])("ignores $form", ({ source }) => {
         expect(importSpecifiers(source)).toEqual(["./a"]);
@@ -493,7 +512,7 @@ describe("edge reading", () => {
         const domain = moduleAt("deployment", "domain", "b.ts");
         const edges = readEdges(
             new Map([
-                [service.path, ["../domain/b", "bpmnlint", "../../testing/fake"]],
+                [service.path, ["../domain/b", "bpmnlint", "../../testing/fake", "../domain/b.js"]],
                 [domain.path, []],
                 ["deployment/service/bpmnlint.ts", []],
                 ["testing/fake.ts", ["../deployment/service/A"]],
@@ -504,6 +523,7 @@ describe("edge reading", () => {
             { from: service, specifier: "../domain/b", to: domain },
             { from: service, specifier: "bpmnlint" },
             { from: service, specifier: "../../testing/fake" },
+            { from: service, specifier: "../domain/b.js" },
         ]);
     });
 });
@@ -602,6 +622,21 @@ describe("rules on a synthetic graph", () => {
             violations: adapterToServiceViolations,
             offending: edge(httpClient, deploymentService),
         },
+        {
+            name: "a relative import of the package entry",
+            violations: unresolvedImportViolations,
+            offending: edge(deploymentService, "../../index"),
+        },
+        {
+            name: "a relative import of the test kit",
+            violations: unresolvedImportViolations,
+            offending: edge(deploymentService, "../../testing/createTestHost"),
+        },
+        {
+            name: "a relative import that resolves to no source file",
+            violations: unresolvedImportViolations,
+            offending: edge(deploymentService, "../domain/ports.js"),
+        },
     ])("flags $name and nothing else", ({ violations, offending }) => {
         expect(violations([...LAYERED_GRAPH, offending])).toEqual([offending]);
     });
@@ -611,7 +646,7 @@ describe("rules on a synthetic graph", () => {
         {
             name: "a two-file cycle",
             graph: [...LAYERED_GRAPH, edge(deploymentTarget, deploymentService)],
-            cycles: [[deploymentTarget.path, deploymentService.path, deploymentTarget.path]],
+            cycles: [[deploymentTarget.path, deploymentService.path]],
         },
         {
             name: "a cycle reached through a file outside it",
@@ -620,12 +655,39 @@ describe("rules on a synthetic graph", () => {
                 edge(deploymentService, deploymentTarget),
                 edge(deploymentTarget, deploymentService),
             ],
-            cycles: [[deploymentService.path, deploymentTarget.path, deploymentService.path]],
+            cycles: [[deploymentTarget.path, deploymentService.path]],
         },
         {
             name: "a self-import",
             graph: [edge(sharedErrors, sharedErrors)],
-            cycles: [[sharedErrors.path, sharedErrors.path]],
+            cycles: [[sharedErrors.path]],
+        },
+        {
+            name: "a cycle whose import is written twice",
+            graph: [
+                edge(deploymentService, deploymentTarget),
+                edge(deploymentTarget, deploymentService),
+                edge(deploymentTarget, deploymentService),
+            ],
+            cycles: [[deploymentTarget.path, deploymentService.path]],
+        },
+        {
+            name: "a tangle of three files closed by two imports",
+            graph: [
+                ...LAYERED_GRAPH,
+                edge(deploymentTarget, deploymentService),
+                edge(deploymentTarget, deploymentParticipant),
+            ],
+            cycles: [[deploymentTarget.path, deploymentService.path, deploymentParticipant.path]],
+        },
+        {
+            name: "two separate cycles",
+            graph: [
+                edge(sharedErrors, sharedErrors),
+                edge(deploymentService, deploymentTarget),
+                edge(deploymentTarget, deploymentService),
+            ],
+            cycles: [[deploymentTarget.path, deploymentService.path], [sharedErrors.path]],
         },
     ])("finds the import cycles of $name", ({ graph, cycles }) => {
         expect(importCycles(graph)).toEqual(cycles);
@@ -726,5 +788,12 @@ describe("modeler-core architecture", () => {
             staleExceptions(violations(edges), exceptions),
         );
         expect(stale).toEqual([]);
+    });
+
+    it("names the issue that removes each exception", () => {
+        const unnamed = LAYER_RULES.flatMap(({ exceptions }) => exceptions).filter(
+            ({ until }) => !/#\d+/.test(until),
+        );
+        expect(unnamed).toEqual([]);
     });
 });
