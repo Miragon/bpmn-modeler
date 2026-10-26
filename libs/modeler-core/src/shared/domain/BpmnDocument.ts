@@ -144,6 +144,10 @@ export class BpmnDocument {
         return match ? match[1] : undefined;
     }
 
+    engineVersionStatus(): { platform: Engine; version: string } | undefined {
+        return undefined;
+    }
+
     /**
      * Returns a new `BpmnDocument` with the `modeler:executionPlatformVersion` replaced.
      */

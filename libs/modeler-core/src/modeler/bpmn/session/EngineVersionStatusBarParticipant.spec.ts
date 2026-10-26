@@ -6,6 +6,8 @@ import { EngineVersionStatusBarParticipant } from "./EngineVersionStatusBarParti
 const C8_XML = '<bpmn:definitions modeler:executionPlatformVersion="8.7.0"></bpmn:definitions>';
 const C7_XML =
     '<bpmn:definitions modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.22.0"></bpmn:definitions>';
+const C7_UNVERSIONED_XML =
+    '<bpmn:definitions xmlns:camunda="http://camunda.org/schema/1.0/bpmn"></bpmn:definitions>';
 
 function createParticipant() {
     const host = createTestHost();
@@ -97,5 +99,23 @@ describe("EngineVersionStatusBarParticipant", () => {
         c8Editor.loseFocus();
 
         expect(statusBar.engineVersion).toEqual({ platform: "c7", version: "7.22.0" });
+    });
+
+    it("hides the previous editor's engine version when focus returns to an earlier diagram without a version", async () => {
+        const { host, participant } = createParticipant();
+        const earlier = await host.openSession("/work/earlier.bpmn", [participant], {
+            content: C7_UNVERSIONED_XML,
+            focused: false,
+        });
+        const later = await host.openSession("/work/later.bpmn", [participant], {
+            content: C8_XML,
+            focused: false,
+        });
+        later.becomeActive();
+
+        earlier.becomeActive();
+        later.loseFocus();
+
+        expect(host.statusBar.engineVersion).toBeUndefined();
     });
 });
