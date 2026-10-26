@@ -4,9 +4,10 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { LintConfigService, type LintTierInit } from "./LintConfigService";
 
-// The tier rules are pinned in lintTierMachine.spec.ts; these rows cover what the
-// adapter does with them: the vendor linting service, the canvas chrome and the
-// real browser linter.
+// The tier rules are pinned in lintTierMachine.spec.ts, which never sees what the
+// adapter feeds in. These rows cover that wiring (the live diagram state, the
+// host's config token) and what the adapter does with the effects: the vendor
+// linting service, the canvas chrome and the real browser linter.
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -206,6 +207,26 @@ describe("LintConfigService: host pushes", () => {
         const results = await linting.lint();
         expect(ruleNames(results)).toEqual(["end-event-required"]);
         expect(lintRuns.map((run) => run.results)).toEqual([results]);
+    });
+
+    it("waits for an import before activating a handback that arrives without a diagram", () => {
+        const { service, linting, importDiagram } = makeService({ tier: "external" });
+
+        service.startInPageLinting();
+        expect(linting.isActive()).toBe(false);
+
+        importDiagram();
+        expect(linting.isActive()).toBe(true);
+    });
+
+    it("keeps the live run when the host repeats the same config token", () => {
+        const { service, linting } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting(END_EVENT_RULES, "cfg-v1");
+        const updatesBefore = linting.updates;
+
+        service.startInPageLinting(END_EVENT_RULES, "cfg-v1");
+
+        expect(linting.updates).toBe(updatesBefore);
     });
 
     it("activates linting and marks the container when results arrive", () => {
