@@ -265,19 +265,27 @@ describe("neutral property groups", () => {
     ];
 
     describe("editing", () => {
+        const shownValue = (panel: PanelHarness, entryId: string) => {
+            const control = panel.control(entryId);
+            return control.type === "checkbox" ? control.checked : control.value;
+        };
+
         it.each(EDITS)(
             "$label is written through the command stack and undoable",
-            async ({ element, edit, read, expected }) => {
+            async ({ element, entry, edit, read, expected }) => {
                 const panel = await renderPanel(XML, element);
                 const before = read(panel.elementsById);
+                const shownBefore = shownValue(panel, entry);
 
                 await edit(panel);
 
                 expect(read(panel.elementsById)).toEqual(expected);
+                expect(shownValue(panel, entry)).not.toBe(shownBefore);
 
                 await panel.undo();
 
                 expect(read(panel.elementsById)).toEqual(before);
+                expect(shownValue(panel, entry)).toBe(shownBefore);
             },
         );
     });

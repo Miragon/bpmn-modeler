@@ -149,18 +149,32 @@ describe("neutral root-element reference groups", () => {
             expect(panel.control<HTMLSelectElement>(refEntry).value).toBe(testCase.betaId);
         });
 
-        it("links the chosen definition and unlinks it again with <none>", async () => {
+        it("links the chosen definition, unlinks it with <none>, and undoes both", async () => {
             const panel = await renderPanel(XML, unlinked.element);
             const holder = panel.elementsById[unlinked.holder];
+            const alpha = panel.elementsById[testCase.alphaId];
+            const shownRef = () => panel.control<HTMLSelectElement>(refEntry).value;
 
             await panel.selectOption(refEntry, testCase.alphaId);
 
-            expect(holder.get(refProperty)).toBe(panel.elementsById[testCase.alphaId]);
+            expect(holder.get(refProperty)).toBe(alpha);
             expect(panel.entryIds(group)).toEqual([refEntry, ...detailEntries(testCase)]);
 
             await panel.selectOption(refEntry, "");
 
             expect(holder.get(refProperty)).toBeUndefined();
+
+            await panel.undo();
+
+            expect(holder.get(refProperty)).toBe(alpha);
+            expect(shownRef()).toBe(testCase.alphaId);
+            expect(panel.entryIds(group)).toEqual([refEntry, ...detailEntries(testCase)]);
+
+            await panel.undo();
+
+            expect(holder.get(refProperty)).toBeUndefined();
+            expect(shownRef()).toBe("");
+            expect(panel.entryIds(group)).toEqual([refEntry]);
         });
 
         it("creates a named definition under the definitions and links it in one undo step", async () => {

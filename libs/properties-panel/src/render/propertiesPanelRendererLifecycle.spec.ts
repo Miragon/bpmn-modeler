@@ -1,4 +1,6 @@
-import { Group } from "@bpmn-io/properties-panel";
+import { FeelLanguageContext, Group } from "@bpmn-io/properties-panel";
+import { h } from "@bpmn-io/properties-panel/preact";
+import { useContext } from "@bpmn-io/properties-panel/preact/hooks";
 import { act } from "@bpmn-io/properties-panel/preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -37,6 +39,36 @@ function recordPanelEvents({ eventBus }: PanelServices): string[] {
 }
 
 const panelHeaderIn = (host: HTMLElement) => host.querySelector(".bio-properties-panel-header");
+
+function openGroupIds(host: HTMLElement): string[] {
+    return Array.from(host.querySelectorAll(".bio-properties-panel-group-header.open"), (header) =>
+        header.closest("[data-group-id]")!.getAttribute("data-group-id")!,
+    );
+}
+
+function FeelLanguageContextProbe() {
+    return h(
+        "output",
+        { class: "feel-context-probe" },
+        JSON.stringify(useContext(FeelLanguageContext)),
+    );
+}
+
+const FEEL_CONTEXT_PROBE_PROVIDER = {
+    getGroups: () => (groups: object[]) => [
+        ...groups,
+        {
+            id: "feelProbe",
+            label: "FEEL",
+            component: Group,
+            entries: [{ id: "feelContext", component: FeelLanguageContextProbe }],
+        },
+    ],
+};
+
+function feelLanguageContextIn(host: HTMLElement): unknown {
+    return JSON.parse(host.querySelector(".feel-context-probe")!.textContent!);
+}
 
 afterEach(() => {
     document.body.innerHTML = "";
@@ -207,6 +239,54 @@ describe("PropertiesPanelRenderer", () => {
             );
             expect(renderer._container.querySelector("[data-group-id]")).not.toBeNull();
             consoleError.mockRestore();
+        });
+    });
+
+    describe("layout", () => {
+        it("replaces the configured layout when set and reports the new one", async () => {
+            const services = await createPanelServices(XML);
+            const renderer = createRenderer(services, {
+                layout: { groups: { documentation: { open: true } } },
+            });
+            const reportedLayouts: unknown[] = [];
+            services.eventBus.on(
+                "propertiesPanel.layoutChanged",
+                ({ layout }: { layout: unknown }) => {
+                    reportedLayouts.push(layout);
+                },
+            );
+            await act(() => renderer._render(services.shapeOf("Task_1")));
+
+            expect(openGroupIds(renderer._container)).toEqual(["group-documentation"]);
+
+            const layout = { groups: { general: { open: true } } };
+            await act(() => renderer.setLayout(layout));
+
+            expect(openGroupIds(renderer._container)).toEqual(["group-general"]);
+            expect(reportedLayouts.slice(-1)).toEqual([layout]);
+        });
+    });
+
+    describe("FEEL language context", () => {
+        it("replaces the configured context when set and re-renders the entries", async () => {
+            const services = await createPanelServices(XML);
+            const renderer = createRenderer(services, {
+                feelLanguageContext: { dialect: "unaryTests" },
+            });
+            renderer.registerProvider(FEEL_CONTEXT_PROBE_PROVIDER);
+            await act(() => renderer._render(services.shapeOf("Process_1")));
+
+            expect(feelLanguageContextIn(renderer._container)).toEqual({
+                parserDialect: "camunda",
+                dialect: "unaryTests",
+            });
+
+            await act(() => renderer.setFeelLanguageContext({ builtins: [] }));
+
+            expect(feelLanguageContextIn(renderer._container)).toEqual({
+                parserDialect: "camunda",
+                builtins: [],
+            });
         });
     });
 
