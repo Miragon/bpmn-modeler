@@ -7,14 +7,11 @@ import com.jetbrains.jsonSchema.extension.JsonSchemaProviderFactory
 import com.jetbrains.jsonSchema.extension.SchemaType
 
 /**
- * Associates the bundled JSON Schemas with the modeler's convention files, giving
+ * Associates the bundled JSON Schema with `deployment-targets.json`, giving
  * authors validation, completion, and hover docs as they edit — the IntelliJ
- * counterpart of VS Code's `contributes.jsonValidation`:
+ * counterpart of VS Code's `contributes.jsonValidation`.
  *
- * - `*.bpmn.vars.json` process-variable manifests
- * - `deployment-targets.json` named deployment targets
- *
- * The schemas are the same files shipped to VS Code (single source of truth in
+ * The schema is the same file shipped to VS Code (single source of truth in
  * `libs/shared`, staged into resources by the Gradle `copySchema` task), so both
  * hosts validate against an identical contract. Scoped by file name rather than a
  * path glob because the `<configFolder>` location is user-configurable.
@@ -22,9 +19,6 @@ import com.jetbrains.jsonSchema.extension.SchemaType
 class ModelerJsonSchemaProviderFactory : JsonSchemaProviderFactory {
     override fun getProviders(project: Project): List<JsonSchemaFileProvider> =
         listOf(
-            BundledSchemaProvider("BPMN Variable Manifest", "/schemas/bpmn-vars.schema.json") {
-                it.name.endsWith(".bpmn.vars.json")
-            },
             BundledSchemaProvider("BPMN Deployment Targets", "/schemas/deployment-targets.schema.json") {
                 it.name == "deployment-targets.json"
             },

@@ -84,10 +84,10 @@ val SCRIPT_COMPLETION_KEY: Key<ScriptCompletionModel> = Key.create("modeler.scri
 
 /**
  * The opaque `scriptId` the bridge assigned this tab, stashed on its
- * [VirtualFile] so [DeclareVariableIntention] can address the
- * `script/appendToManifest` RPC for an unknown variable. Separate from
- * [SCRIPT_COMPLETION_KEY] because the completion catalog is swapped wholesale on
- * every `updateVariables`, whereas the id is stable for the tab's lifetime.
+ * [VirtualFile] so the adoption listener in `ScriptRouter` can tell our own
+ * opens from external ones. Separate from [SCRIPT_COMPLETION_KEY] because the
+ * completion catalog is swapped wholesale on every `updateVariables`, whereas
+ * the id is stable for the tab's lifetime.
  */
 val SCRIPT_ID_KEY: Key<String> = Key.create("modeler.script.id")
 

@@ -57,7 +57,7 @@
          colour annotator, inspection suppressor); skipped otherwise. -->
     <depends optional="true" config-file="modeler-groovy.xml">org.intellij.groovy</depends>
 
-    <!-- Optional: register the JSON Schema for `*.bpmn.vars.json` manifests (validation +
+    <!-- Optional: register the JSON Schema for `deployment-targets.json` (validation +
          completion) when the JSON module is present. -->
     <depends optional="true" config-file="modeler-json.xml">com.intellij.modules.json</depends>
 
