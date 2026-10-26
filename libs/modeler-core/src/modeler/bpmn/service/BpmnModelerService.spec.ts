@@ -43,6 +43,7 @@ function holdNextWrite(host: TestHost) {
 describe("BpmnModelerService.display", () => {
     it("renders a valid document and shows its engine version", async () => {
         const { service, host, editor } = createService(C8_DOC);
+        editor.active = true;
 
         const rendered = await service.display(editor.id);
 
@@ -68,6 +69,7 @@ describe("BpmnModelerService.display", () => {
 
     it("routes an untagged document to an engine-neutral render without rewriting it", async () => {
         const { service, host, editor } = createService(NO_PLATFORM_DOC);
+        editor.active = true;
         host.statusBar.showEngineVersion("c8", "8.8.0");
 
         const rendered = await service.display(editor.id);
@@ -94,6 +96,21 @@ describe("BpmnModelerService.display", () => {
         expect(rendered).toBe(true);
         expect(background.postedOfType("BpmnFileQuery")).toHaveLength(1);
         expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.8.0" });
+    });
+
+    it("does not report an error when the editor closes while its render is posted", async () => {
+        const { service, host, editor } = createService(C8_DOC);
+        editor.active = true;
+        vi.spyOn(editor, "postMessage").mockImplementationOnce(async () => {
+            host.store.unregister(editor.id, editor);
+            return true;
+        });
+
+        const rendered = await service.display(editor.id);
+
+        expect(rendered).toBe(true);
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.statusBar.engineVersion).toBeUndefined();
     });
 
     it("scaffolds an engine-neutral document when the neutral choice is picked", async () => {

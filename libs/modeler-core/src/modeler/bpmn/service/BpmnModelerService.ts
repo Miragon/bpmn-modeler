@@ -1,4 +1,5 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
+import { DetectedEngine } from "@miragon/bpmn-modeler-types";
 
 import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
 import { getVersions } from "../../../shared/domain/engineVersions";
@@ -79,11 +80,8 @@ export class BpmnModelerService {
                     ),
                 );
 
-                const version = engine ? doc.detectPlatformVersion() : undefined;
-                if (engine && version) {
-                    this.statusBar.showEngineVersion(engine, version);
-                } else {
-                    this.statusBar.hideEngineVersion();
+                if (this.isFocused(editorId)) {
+                    this.updateEngineVersionStatus(doc, engine);
                 }
 
                 return sent;
@@ -142,6 +140,24 @@ export class BpmnModelerService {
                 return false;
             }
             return this.handleError(error as Error);
+        }
+    }
+
+    // A background render (external edit, split view) must not overwrite the
+    // engine item every editor shares; the editor can also close mid-post.
+    private isFocused(editorId: string): boolean {
+        return (
+            this.editorStore.hasEditor(editorId) &&
+            this.editorStore.requireHandle(editorId).isActive()
+        );
+    }
+
+    private updateEngineVersionStatus(doc: BpmnDocument, engine: DetectedEngine): void {
+        const version = engine ? doc.detectPlatformVersion() : undefined;
+        if (engine && version) {
+            this.statusBar.showEngineVersion(engine, version);
+        } else {
+            this.statusBar.hideEngineVersion();
         }
     }
 
