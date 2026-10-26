@@ -637,42 +637,24 @@ const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
  * reads, and the host is a persisted replica reconciled on the next re-seed. The
  * `save*` methods update the snapshot optimistically (so in-process reads and
  * the form UX stay correct), then send an **acknowledged** request to persist.
- * A persist failure is *logged* via the notifier rather than left to diverge
- * silently — but it is not rethrown: a failed persist must not fail an otherwise
- * successful deploy (`DeploymentService.deploy` awaits these post-success).
- * The snapshot is deliberately *not* rolled back on failure — reverting
- * mid-session would surface stale form values; the next seed reconciles.
+ * A persist failure rejects, as the VS Code adapter's does, so the core decides
+ * what it means (an engine-accepted deploy stays deployed). The snapshot is
+ * deliberately *not* rolled back on failure — reverting mid-session would
+ * surface stale form values; the next seed reconciles.
  * Secrets are out of scope here — they ride {@link RpcSecretStore} / PasswordSafe.
  */
 export class RpcDeploymentState implements DeploymentStatePort {
     private snapshot: DeploymentStateSnapshot = { ...EMPTY_DEPLOYMENT_STATE };
 
-    constructor(
-        private readonly rpc: Rpc,
-        private readonly notifier: NotifierPort,
-    ) {}
+    constructor(private readonly rpc: Rpc) {}
 
     /** Replaces the mirror from the host's seed (sent once on startup / after persist). */
     seed(next: Partial<DeploymentStateSnapshot>): void {
         this.snapshot = { ...this.snapshot, ...next };
     }
 
-    /**
-     * Persists via an acknowledged host request; on failure logs (does not throw)
-     * so a persist error never fails the surrounding deploy. The optimistic
-     * snapshot update has already happened, so the divergence is bounded to the
-     * host's persisted copy until the next re-seed.
-     */
     private async persist(method: string, params: Record<string, unknown>): Promise<void> {
-        try {
-            await this.rpc.request(method, params);
-        } catch (error) {
-            this.notifier.logError(
-                error instanceof Error
-                    ? new Error(`Failed to persist deployment state (${method}): ${error.message}`)
-                    : new Error(`Failed to persist deployment state (${method})`),
-            );
-        }
+        await this.rpc.request(method, params);
     }
 
     getEndpoint(): string {
