@@ -248,13 +248,18 @@ yarn test libs/modeler-core/src/shared/domain/BpmnDocument.spec.ts
 # Run every workspace with its coverage thresholds, as CI does
 yarn test:coverage
 
+# Type-check one workspace, specs included, as CI does
+yarn workspace @miragon/bpmn-modeler-webview typecheck
+
 # Lint
 yarn lint
 ```
 
 CI runs one test job per affected workspace, each failing below the
-thresholds in its `vitest.config.ts`. A new Vitest workspace must be added to
-`.github/vitest-targets.json`; the lint job fails otherwise. Coverage reports
+thresholds in its `vitest.config.ts` or on a type error, specs included (Vitest
+itself does not type-check). A new Vitest workspace must be added to
+`.github/vitest-targets.json` with a `typecheck` script that covers its specs;
+the lint job fails otherwise. Coverage reports
 are uploaded to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-modeler).
 
 ### VS Code smoke test

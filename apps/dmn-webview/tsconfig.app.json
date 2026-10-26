@@ -6,5 +6,5 @@
     "noFallthroughCasesInSwitch": false,
   },
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../../packages/dmn-modeler/src/types/*.d.ts"]
 }

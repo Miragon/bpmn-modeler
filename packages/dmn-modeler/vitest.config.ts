@@ -10,7 +10,7 @@ export default defineConfig({
         include: ["src/**/*.{spec,test}.{ts,tsx}"],
         coverage: {
             ...coveragePreset(__dirname),
-            thresholds: { statements: 89, branches: 79, functions: 83, lines: 90 },
+            thresholds: { statements: 90, branches: 85, functions: 83, lines: 91 },
         },
     },
 });

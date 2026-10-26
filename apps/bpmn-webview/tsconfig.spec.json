@@ -2,16 +2,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "module": "commonjs",
-    "moduleResolution": "bundler",
-    "types": [
-      "node"
-    ]
+    "types": ["node", "vite/client"],
+    "allowArbitraryExtensions": true
   },
   "include": [
     "vitest.config.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "../../packages/bpmn-modeler/src/types/*.d.ts",
+    "../../libs/properties-panel/src/types/bpmn-io-properties-panel.d.ts"
   ]
 }

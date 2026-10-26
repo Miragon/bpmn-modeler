@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { extractGraph, projectFiles } from "archunit";
-import type { FileInfo } from "archunit";
+import type { CheckOptions, FileInfo } from "archunit";
+
+// archunit types its matcher on a global `VitestAssertion` that Vitest never reads.
+declare module "vitest" {
+    interface Matchers<R> {
+        toPassAsync(options?: CheckOptions): R;
+    }
+}
 
 /**
  * Executable architecture tests. They turn the four-layer +

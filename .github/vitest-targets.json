@@ -28,6 +28,7 @@
                 "libs/bpmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
             ],
+            "typecheck": "typecheck",
             "nativeBuildDeps": true
         },
         "modeler-bridge": {
@@ -45,7 +46,8 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**"
-            ]
+            ],
+            "typecheck": "typecheck"
         },
         "bpmn-webview": {
             "dir": "apps/bpmn-webview",
@@ -79,7 +81,8 @@
                 "libs/flow-navigation/**",
                 "libs/bpmn-layout/**",
                 "yarn.lock"
-            ]
+            ],
+            "typecheck": "typecheck"
         },
         "dmn-webview": {
             "dir": "apps/dmn-webview",
@@ -96,7 +99,8 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-i18n-extras/**"
-            ]
+            ],
+            "typecheck": "typecheck"
         },
         "form-webview": {
             "dir": "apps/form-webview",
@@ -109,7 +113,8 @@
                 "apps/form-webview/**",
                 "libs/shared/**",
                 "libs/modeler-types/**"
-            ]
+            ],
+            "typecheck": "typecheck"
         },
         "deployment-webview": {
             "dir": "apps/deployment-webview",
@@ -118,7 +123,8 @@
                 "apps/deployment-webview/**",
                 "libs/shared/**",
                 "libs/modeler-types/**"
-            ]
+            ],
+            "typecheck": "typecheck"
         },
         "bpmn-modeler": {
             "dir": "packages/bpmn-modeler",
@@ -142,6 +148,7 @@
                 "libs/bpmn-layout/**",
                 "yarn.lock"
             ],
+            "typecheck": "typecheck",
             "browser": true
         },
         "dmn-modeler": {
@@ -152,7 +159,8 @@
                 "libs/*/src/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-i18n-extras/**"
-            ]
+            ],
+            "typecheck": "typecheck"
         },
         "modeler-core": {
             "dir": "libs/modeler-core",
@@ -170,7 +178,7 @@
                 "packages/bpmn-modeler/src/bpmnlint/**",
                 "scripts/perf/**"
             ],
-            "typecheck": "build"
+            "typecheck": "typecheck"
         },
         "shared": {
             "dir": "libs/shared",
@@ -179,7 +187,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**"
             ],
-            "typecheck": "build"
+            "typecheck": "typecheck"
         },
         "modeler-types": {
             "dir": "libs/modeler-types",
@@ -301,6 +309,7 @@
                 "apps/standalone/package.json",
                 "yarn.lock"
             ],
+            "typecheck": "typecheck",
             "nativeBuildDeps": true
         }
     }

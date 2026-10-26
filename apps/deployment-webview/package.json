@@ -10,7 +10,8 @@
         "dev:app": "vite --port $PORT --host 127.0.0.1",
         "watch": "vite build --watch",
         "serve": "vite",
-        "test": "vitest run --coverage"
+        "test": "vitest run --coverage",
+        "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
         "@miragon/bpmn-modeler-shared": "workspace:*",

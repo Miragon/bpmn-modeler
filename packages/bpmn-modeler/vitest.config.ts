@@ -9,7 +9,7 @@ export default defineConfig({
         projects: ["./vitest.unit.config.ts", "./vitest.browser.config.ts"],
         coverage: {
             ...coveragePreset(__dirname),
-            thresholds: { statements: 90, branches: 82, functions: 92, lines: 91 },
+            thresholds: { statements: 92, branches: 86, functions: 93, lines: 93 },
         },
     },
 });

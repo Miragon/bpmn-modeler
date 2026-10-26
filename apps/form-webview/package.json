@@ -10,7 +10,8 @@
         "serve": "vite --host 127.0.0.1",
         "dev": "portless",
         "dev:app": "vite --port $PORT --host 127.0.0.1",
-        "test": "vitest run --coverage"
+        "test": "vitest run --coverage",
+        "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
         "@bpmn-io/cm-theme": "0.2.2",

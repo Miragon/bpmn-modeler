@@ -13,7 +13,7 @@ export default defineConfig({
                 // DEV-only i18n harvest harness; no shipped build wires it in.
                 exclude: ["src/lib/harvestRecorder.ts"],
             }),
-            thresholds: { statements: 93, branches: 84, functions: 95, lines: 94 },
+            thresholds: { statements: 94, branches: 86, functions: 95, lines: 94 },
         },
     },
 });

@@ -55,7 +55,6 @@ function build(options: {
 
     const layouter = new Layouter(
         { get: () => (editable ? {} : null) } as never,
-        { getRootElement: () => root } as never,
         { getAll: () => [root, ...parented] } as never,
         commandStack as never,
         eventBus as never,
@@ -251,13 +250,6 @@ describe("Layouter.format", () => {
         const commandStack = { execute: vi.fn() };
         const layouter = new Layouter(
             { get: () => ({}) } as never,
-            {
-                getRootElement: () => ({
-                    id: "Process_1",
-                    type: "bpmn:Process",
-                    businessObject: { $type: "bpmn:Process" },
-                }),
-            } as never,
             {
                 getAll: () => {
                     order.push("snapshot");

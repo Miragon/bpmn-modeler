@@ -11,6 +11,7 @@
         "@miragon/bpmn-modeler-i18n": "0.2.0"
     },
     "devDependencies": {
+        "@types/node": "26.6.5",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.0.5",
         "typescript": "npm:@typescript/typescript6@6.0.2",

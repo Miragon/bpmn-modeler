@@ -2,8 +2,8 @@
 // Fails when a Vitest workspace would silently drop out of CI: every
 // apps|libs|packages workspace with a Vitest config must be a target in
 // .github/vitest-targets.json, its focused install must provide Vitest, its
-// trigger paths must cover every workspace and file its tests import, and a
-// build script that only typechecks must be its typecheck.
+// trigger paths must cover every workspace and file its tests import, and its
+// typecheck must cover its specs.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,8 @@ const IMPORT_SPECIFIER =
 const TYPE_ONLY_STATEMENT =
     /^\s*(?:import|export)\s+type\s+(?!from\b)[^;]*?\bfrom\s*["'][^"'\n]+["']\s*;?\s*$/gm;
 const SUPPORTED_GLOB = /^(?:[^*?[\]!]|\*(?!\*)|(?<=^|\/)\*\*(?=\/|$))+$/;
-const TYPECHECK_ONLY_SCRIPT = /^tsc(?=\s[^&|;]*--noEmit\b)[^&|;]*$/;
+const TSC_PROJECT = /\btsc\b[^&|;]*?(?:-p|--project)\s+(\S+)/g;
+const EXCLUDES_SPECS = /"exclude"\s*:\s*\[[^\]]*\.spec\./;
 
 const problems = [];
 const targets = Object.entries(registry.targets);
@@ -69,13 +70,7 @@ function checkTarget(id, target) {
     if (!/\bvitest run\b.*--coverage/.test(manifest.scripts?.test ?? "")) {
         problems.push(`${id}: the "test" script must run "vitest run --coverage"`);
     }
-    if (target.typecheck && !manifest.scripts?.[target.typecheck]) {
-        problems.push(`${id}: typecheck script "${target.typecheck}" is missing`);
-    }
-    // Most typecheck-only builds run in no other CI job.
-    if (!target.typecheck && TYPECHECK_ONLY_SCRIPT.test(manifest.scripts?.build ?? "")) {
-        problems.push(`${id}: the "build" script only typechecks; set "typecheck": "build"`);
-    }
+    checkTypecheck(id, target, manifest);
     // `yarn workspaces focus` installs only what the focused workspaces declare;
     // vite is vitest's required peer, so it must be declared too.
     const focusedManifests = [target.package, ...(target.focus ?? [])]
@@ -102,6 +97,37 @@ function checkTarget(id, target) {
         if (!isTriggered(reachable)) {
             problems.push(`${id}: tests reach ${reachable}, which no trigger path covers`);
         }
+    }
+}
+
+// Vitest strips types without checking them; only this script fails CI on a
+// spec type error.
+function checkTypecheck(id, target, manifest) {
+    if (!target.typecheck) {
+        problems.push(`${id}: no "typecheck" script is named, so its specs are never type-checked`);
+        return;
+    }
+    const script = manifest.scripts?.[target.typecheck];
+    if (!script) {
+        problems.push(`${id}: typecheck script "${target.typecheck}" is missing`);
+        return;
+    }
+    if (existsSync(join(repoRoot, target.dir, "tsconfig.spec.json"))) {
+        if (!script.includes("tsconfig.spec.json")) {
+            problems.push(`${id}: typecheck "${target.typecheck}" skips tsconfig.spec.json`);
+        }
+        return;
+    }
+    const projects = [...script.matchAll(TSC_PROJECT)].map(([, project]) => project);
+    const checkedConfigs = projects.length > 0 ? projects : ["tsconfig.json"];
+    const excludingConfig = checkedConfigs.find((config) => {
+        const path = join(repoRoot, target.dir, config);
+        return existsSync(path) && EXCLUDES_SPECS.test(readFileSync(path, "utf8"));
+    });
+    if (excludingConfig) {
+        problems.push(
+            `${id}: typecheck "${target.typecheck}" uses ${excludingConfig}, which excludes the specs; add a tsconfig.spec.json`,
+        );
     }
 }
 

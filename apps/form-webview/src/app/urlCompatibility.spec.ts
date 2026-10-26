@@ -36,6 +36,8 @@ describe("ensureArrayToSorted", () => {
 
         ensureArrayToSorted(prototype);
 
-        expect(prototype.toSorted?.call([3, 1, 2], (a, b) => a - b)).toEqual([1, 2, 3]);
+        const sorted = prototype.toSorted?.call([3, 1, 2], (a, b) => Number(a) - Number(b));
+
+        expect(sorted).toEqual([1, 2, 3]);
     });
 });

@@ -4,6 +4,7 @@
         "build": "webpack --mode production",
         "dev": "webpack --mode development --watch",
         "test": "vitest run --coverage",
+        "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json",
         "compile:e2e": "tsc -p test/e2e/tsconfig.json",
         "test:e2e": "tsc -p test/e2e/tsconfig.json && vscode-test --config test/e2e/.vscode-test.mjs",
         "test:vscode": "tsc -p test/smoke/tsconfig.json && vitest run --config vitest.smoke.config.ts",
