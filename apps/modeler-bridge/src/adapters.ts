@@ -641,8 +641,7 @@ const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
  * reads, and the host is a persisted replica reconciled on the next re-seed. The
  * `save*` methods update the snapshot optimistically (so in-process reads and
  * the form UX stay correct), then send an **acknowledged** request to persist.
- * A persist failure rejects, as the VS Code adapter's does, so the core decides
- * what it means (an engine-accepted deploy stays deployed). The snapshot is
+ * A persist failure rejects so the core decides what it means. The snapshot is
  * deliberately *not* rolled back on failure — reverting mid-session would
  * surface stale form values; the next seed reconciles.
  * Secrets are out of scope here — they ride {@link RpcSecretStore} / PasswordSafe.
@@ -655,10 +654,6 @@ export class RpcDeploymentState implements DeploymentStatePort {
     /** Replaces the mirror from the host's seed (sent once on startup / after persist). */
     seed(next: Partial<DeploymentStateSnapshot>): void {
         this.snapshot = { ...this.snapshot, ...next };
-    }
-
-    private async persist(method: string, params: Record<string, unknown>): Promise<void> {
-        await this.rpc.request(method, params);
     }
 
     getEndpoint(): string {
@@ -683,17 +678,20 @@ export class RpcDeploymentState implements DeploymentStatePort {
 
     async saveAuthType(authType: AuthTypePayload): Promise<void> {
         this.snapshot = { ...this.snapshot, authType };
-        await this.persist(METHODS.deploymentStateSaveAuthType, { authType });
+        await this.rpc.request(METHODS.deploymentStateSaveAuthType, { authType });
     }
 
     async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
         this.snapshot = { ...this.snapshot, tokenEndpoint, audience };
-        await this.persist(METHODS.deploymentStateSaveOAuth2Config, { tokenEndpoint, audience });
+        await this.rpc.request(METHODS.deploymentStateSaveOAuth2Config, {
+            tokenEndpoint,
+            audience,
+        });
     }
 
     async save(endpoint: string, tenantId: string): Promise<void> {
         this.snapshot = { ...this.snapshot, endpoint, tenantId };
-        await this.persist(METHODS.deploymentStateSave, { endpoint, tenantId });
+        await this.rpc.request(METHODS.deploymentStateSave, { endpoint, tenantId });
     }
 
     getActiveTargetName(): string {
@@ -702,7 +700,7 @@ export class RpcDeploymentState implements DeploymentStatePort {
 
     async saveActiveTargetName(name: string): Promise<void> {
         this.snapshot = { ...this.snapshot, activeTargetName: name };
-        await this.persist(METHODS.deploymentStateSaveActiveTarget, { name });
+        await this.rpc.request(METHODS.deploymentStateSaveActiveTarget, { name });
     }
 
     getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
@@ -714,7 +712,10 @@ export class RpcDeploymentState implements DeploymentStatePort {
             ...this.snapshot,
             ledger: { ...this.snapshot.ledger, [ledgerKey]: revision },
         };
-        await this.persist(METHODS.deploymentStateSaveDeployedRevision, { ledgerKey, revision });
+        await this.rpc.request(METHODS.deploymentStateSaveDeployedRevision, {
+            ledgerKey,
+            revision,
+        });
     }
 
     listLedgerKeys(): string[] {
@@ -727,7 +728,7 @@ export class RpcDeploymentState implements DeploymentStatePort {
             delete ledger[key];
         }
         this.snapshot = { ...this.snapshot, ledger };
-        await this.persist(METHODS.deploymentStateDeleteDeployedRevisions, { ledgerKeys });
+        await this.rpc.request(METHODS.deploymentStateDeleteDeployedRevisions, { ledgerKeys });
     }
 }
 
