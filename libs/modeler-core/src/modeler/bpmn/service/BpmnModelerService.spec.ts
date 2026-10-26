@@ -335,6 +335,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
     it("shows the version when the host skips a write the document already holds", async () => {
         const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        editor.active = true;
         vi.spyOn(host.documents, "write").mockImplementationOnce(async (_editorId, content) => {
             editor.content = content;
             return false;

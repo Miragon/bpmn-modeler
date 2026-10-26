@@ -431,6 +431,8 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
         });
         host.deploymentState.activeTargetName = "dev";
         const editor = host.openEditor(ORDER_PROCESS, UNSAVED_XML);
+        // VS Code keeps the panel active while the deployment sidebar has focus.
+        editor.active = true;
         vi.spyOn(editor, "save").mockImplementation(async () => {
             editor.saveCount++;
             await host.workspace.writeFile(ORDER_PROCESS, editor.content);
