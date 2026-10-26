@@ -1,33 +1,141 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Command, UpdateFormOutputValuesCommand } from "@miragon/bpmn-modeler-shared";
+import type { ExtensionContext } from "vscode";
 
+import {
+    FormInputValuesQuery,
+    GetFormInputValuesCommand,
+    UpdateFormOutputValuesCommand,
+} from "@miragon/bpmn-modeler-shared";
+import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { createTestHost } from "@miragon/bpmn-modeler-core/testing";
+
+vi.mock("vscode", () => import("../../../../__fixtures__/vscodeVirtualDocumentsFake"));
+
+import {
+    commands,
+    renderedTabs,
+    resetVscodeVirtualDocuments,
+    typeIntoTab,
+} from "../../../../__fixtures__/vscodeVirtualDocumentsFake";
+import { FormValuesParticipant } from "../editor-participants/FormValuesParticipant";
+import {
+    FormValuesController,
+    TOGGLE_FORM_INPUT_VALUES_CMD,
+    TOGGLE_FORM_OUTPUT_VALUES_CMD,
+} from "../FormValuesController";
 import { getFormInputValuesHandler, updateFormOutputValuesHandler } from "./formMessageHandlers";
 
-const EDITOR_ID = "file:///work/order.form";
-const ANY_COMMAND = { type: "Ignored" } as Command;
+const extension: Pick<ExtensionContext, "subscriptions"> = { subscriptions: [] };
 
-describe("getFormInputValuesHandler", () => {
-    it("propagates a failed send so the router logs it", async () => {
-        const failure = new Error("webview gone");
-        const formValues = { sendInputValues: vi.fn().mockRejectedValue(failure) };
+function createFormEditors() {
+    const host = createTestHost();
+    const formValues = new FormValuesController(host.store, host.notifier);
+    formValues.register(extension as ExtensionContext);
+    const router = new WebviewMessageRouter()
+        .on("GetFormInputValuesCommand", getFormInputValuesHandler(formValues))
+        .on("UpdateFormOutputValuesCommand", updateFormOutputValuesHandler(formValues));
+    const participants = [new FormValuesParticipant(formValues)];
+    return {
+        host,
+        open: (path: string) => host.openSession(path, participants, { router }),
+    };
+}
 
-        await expect(
-            getFormInputValuesHandler(formValues as never)(ANY_COMMAND, EDITOR_ID),
-        ).rejects.toBe(failure);
-        expect(formValues.sendInputValues).toHaveBeenCalledWith(EDITOR_ID);
+/** Lets the router finish the message the webview just sent. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const pretty = (value: object) => JSON.stringify(value, null, 2);
+
+beforeEach(() => {
+    resetVscodeVirtualDocuments();
+});
+
+afterEach(() => {
+    extension.subscriptions.splice(0).forEach((subscription) => subscription.dispose());
+});
+
+describe("GetFormInputValuesCommand", () => {
+    it("answers the form webview with the form's empty input values", async () => {
+        const order = await createFormEditors().open("/work/order.form");
+
+        order.receive(new GetFormInputValuesCommand());
+        await settle();
+
+        expect(order.posted).toEqual([new FormInputValuesQuery("{}")]);
+    });
+
+    it("answers a reloaded webview with the input values typed beside the form", async () => {
+        const order = await createFormEditors().open("/work/order.form");
+        await commands.executeCommand(TOGGLE_FORM_INPUT_VALUES_CMD);
+        typeIntoTab("order.input.json", '{"customer":{"name":"Ada"}}');
+        await settle();
+        const postedBeforeReload = order.posted.length;
+
+        order.receive(new GetFormInputValuesCommand());
+        await settle();
+
+        expect(order.posted.slice(postedBeforeReload)).toEqual([
+            new FormInputValuesQuery(pretty({ customer: { name: "Ada" } })),
+        ]);
+    });
+
+    it("logs an answer the hidden webview cannot receive", async () => {
+        const forms = createFormEditors();
+        const order = await forms.open("/work/order.form");
+        order.hidden = true;
+
+        order.receive(new GetFormInputValuesCommand());
+        await settle();
+
+        expect(forms.host.notifier.logged("error")).toEqual(["The active editor is hidden."]);
     });
 });
 
-describe("updateFormOutputValuesHandler", () => {
-    it("hands the submitted output values to the values controller", () => {
-        const formValues = { updateOutputValues: vi.fn() };
+describe("UpdateFormOutputValuesCommand", () => {
+    it("shows the values the form submitted in its read-only output document", async () => {
+        const order = await createFormEditors().open("/work/order.form");
+        await commands.executeCommand(TOGGLE_FORM_OUTPUT_VALUES_CMD);
 
-        updateFormOutputValuesHandler(formValues as never)(
-            new UpdateFormOutputValuesCommand('{"approved":true}'),
-            EDITOR_ID,
-        );
+        order.receive(new UpdateFormOutputValuesCommand('{"approved":true,"amount":42}'));
+        await settle();
 
-        expect(formValues.updateOutputValues).toHaveBeenCalledWith(EDITOR_ID, '{"approved":true}');
+        expect(renderedTabs()).toEqual([
+            {
+                name: "order.output.json",
+                content: pretty({ approved: true, amount: 42 }),
+                readOnly: true,
+            },
+        ]);
+    });
+
+    it("keeps a background form's submitted values out of the active form's output", async () => {
+        const forms = createFormEditors();
+        const invoice = await forms.open("/work/invoice.form");
+        const order = await forms.open("/work/order.form");
+
+        order.receive(new UpdateFormOutputValuesCommand('{"approved":true}'));
+        invoice.receive(new UpdateFormOutputValuesCommand('{"invoiceNumber":7}'));
+        await settle();
+        await commands.executeCommand(TOGGLE_FORM_OUTPUT_VALUES_CMD);
+
+        expect(renderedTabs()).toEqual([
+            { name: "order.output.json", content: pretty({ approved: true }), readOnly: true },
+        ]);
+    });
+
+    it.each([
+        ["a list", "[1,2]"],
+        ["null", "null"],
+        ["incomplete JSON", '{"approved":'],
+    ])("keeps the last submitted values when the form sends %s", async (_case, content) => {
+        const order = await createFormEditors().open("/work/order.form");
+        await commands.executeCommand(TOGGLE_FORM_OUTPUT_VALUES_CMD);
+        order.receive(new UpdateFormOutputValuesCommand('{"approved":true}'));
+
+        order.receive(new UpdateFormOutputValuesCommand(content));
+        await settle();
+
+        expect(renderedTabs().map((tab) => tab.content)).toEqual([pretty({ approved: true })]);
     });
 });
