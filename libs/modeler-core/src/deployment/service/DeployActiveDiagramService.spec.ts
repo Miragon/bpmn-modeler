@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost } from "../../testing";
+import { DocumentFlushedCommand, FlushDocumentQuery } from "@miragon/bpmn-modeler-shared";
+
+import { DocumentFlushService } from "../../shared/service/DocumentFlushService";
+import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
+import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { NoAuth } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployActiveDiagramService } from "./DeployActiveDiagramService";
@@ -17,9 +21,26 @@ const target = new DeploymentTarget(
     "",
 );
 
-function createService(diagramPath = FILE_PATH) {
+type PendingEdits = Pick<PendingEditsFlush, "flushIntoDocument">;
+
+/** A webview with nothing pending: the document already holds every edit. */
+const cleanWebview = (_host: TestHost, editor: FakeEditorHandle): PendingEdits => ({
+    flushIntoDocument: async () => ({ status: "safe", session: editor }),
+});
+
+interface ServiceOptions {
+    diagramPath?: string;
+    content?: string;
+    pendingEdits?: (host: TestHost, editor: FakeEditorHandle) => PendingEdits;
+}
+
+function createService({
+    diagramPath = FILE_PATH,
+    content = "",
+    pendingEdits = cleanWebview,
+}: ServiceOptions = {}) {
     const host = createTestHost();
-    const editor = host.openEditor(diagramPath);
+    const editor = host.openEditor(diagramPath, content);
     const deploymentTargetService = {
         getActiveTarget: vi.fn().mockResolvedValue(target),
         switchActiveTarget: vi.fn().mockResolvedValue(undefined),
@@ -39,6 +60,7 @@ function createService(diagramPath = FILE_PATH) {
         deploymentService as never,
         deploymentStatusService as never,
         host.notifier,
+        pendingEdits(host, editor),
     );
 
     return {
@@ -49,6 +71,29 @@ function createService(diagramPath = FILE_PATH) {
         deploymentService,
         deploymentStatusService,
     };
+}
+
+/**
+ * Plays a webview whose debounced `edit` has not reached the document yet: it
+ * answers each flush query with that edit, as the real webview does.
+ */
+function webviewWithUnsyncedEdit(host: TestHost, editor: FakeEditorHandle, edit: string) {
+    const flushes = new DocumentFlushService(host.store, host.notifier);
+    const deliver = editor.postMessage.bind(editor);
+    editor.postMessage = async (message) => {
+        const delivered = await deliver(message);
+        if (message instanceof FlushDocumentQuery) {
+            queueMicrotask(() =>
+                flushes.handleReply(new DocumentFlushedCommand(message.token, edit), editor.id),
+            );
+        }
+        return delivered;
+    };
+    const pendingEdits = new PendingEditsFlush(host.store, flushes, host.notifier);
+    pendingEdits.serve(".bpmn", {
+        sync: (editorId, content) => host.documents.write(editorId, content),
+    });
+    return pendingEdits;
 }
 
 describe("DeployActiveDiagramService.deployActive", () => {
@@ -63,7 +108,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
     });
 
     it("rejects a non-diagram file such as a form", async () => {
-        const c = createService("/work/form.form");
+        const c = createService({ diagramPath: "/work/form.form" });
 
         await c.service.deployActive("/work");
 
@@ -156,6 +201,46 @@ describe("DeployActiveDiagramService.deployActive", () => {
             expect.any(NoAuth),
             "/ws/project",
         );
+    });
+
+    it("flushes the webview's pending edits before saving the diagram it deploys", async () => {
+        const steps: string[] = [];
+        const c = createService({
+            pendingEdits: (_host, editor) => ({
+                flushIntoDocument: async (editorId) => {
+                    steps.push(`flush ${editorId}`);
+                    return { status: "safe", session: editor };
+                },
+            }),
+        });
+        vi.spyOn(c.editor, "save").mockImplementation(async () => {
+            steps.push("save");
+            return true;
+        });
+
+        await c.service.deployActive("/work");
+
+        expect(steps).toEqual([`flush ${c.editor.id}`, "save"]);
+    });
+
+    it("saves the webview's unsynced edit, not the stale document", async () => {
+        const steps: string[] = [];
+        const c = createService({
+            content: "<v1/>",
+            pendingEdits: (host, editor) => webviewWithUnsyncedEdit(host, editor, "<v2/>"),
+        });
+        vi.spyOn(c.editor, "save").mockImplementation(async () => {
+            steps.push(`save ${c.editor.content}`);
+            return true;
+        });
+        c.deploymentService.deployFiles.mockImplementation(async () => {
+            steps.push("deploy");
+            return [];
+        });
+
+        await c.service.deployActive("/work");
+
+        expect(steps).toEqual(["save <v2/>", "deploy"]);
     });
 
     it("resolves the target and deploys from the diagram's own directory when none is given", async () => {

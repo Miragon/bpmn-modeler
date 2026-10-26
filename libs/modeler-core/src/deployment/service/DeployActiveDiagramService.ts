@@ -2,6 +2,7 @@ import { posix } from "path";
 
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
@@ -23,6 +24,7 @@ export class DeployActiveDiagramService {
         private readonly deploymentService: DeploymentService,
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly notifier: NotifierPort,
+        private readonly pendingEdits?: Pick<PendingEditsFlush, "flushIntoDocument">,
     ) {}
 
     /**
