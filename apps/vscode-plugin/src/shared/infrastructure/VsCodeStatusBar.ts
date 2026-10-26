@@ -2,7 +2,11 @@ import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
-import { DeploymentFreshness, StatusBarPort } from "@miragon/bpmn-modeler-core";
+import {
+    DeploymentFreshness,
+    DeploymentStatusBarPort,
+    StatusBarPort,
+} from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
 const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
@@ -46,7 +50,7 @@ function deploymentTooltip(
     }
 }
 
-export class VsCodeStatusBar implements StatusBarPort {
+export class VsCodeStatusBar implements StatusBarPort, DeploymentStatusBarPort {
     private templateStatusItem: StatusBarItem | undefined;
 
     private pendingTemplateAutoHide: ReturnType<typeof setTimeout> | undefined;
