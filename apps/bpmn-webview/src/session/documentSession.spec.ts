@@ -320,6 +320,22 @@ describe("BpmnDocumentSession", () => {
             expect(context.session.document.hostUpdateVersion()).toBe(1);
         });
 
+        it("imports every push from a host that sends no revisions", async () => {
+            const context = setup();
+            void context.session.receiveHostFile(new BpmnFileQuery("<first />", "c7"));
+            await context.session.openInitialDocument(
+                await context.session.waitForInitialHostFile(),
+            );
+            context.session.markInitialized();
+
+            await pushHostFile(context.session, new BpmnFileQuery("<second />", "c7"));
+
+            expect(context.surface.importDocument.mock.calls).toEqual([
+                ["<first />"],
+                ["<second />"],
+            ]);
+        });
+
         it("keeps the pending edit when it ignores a stale push", async () => {
             const context = setup();
             await openSession(context, 3);

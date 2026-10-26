@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HostApiImpl } from "@miragon/bpmn-modeler-shared";
 
@@ -19,7 +19,6 @@ function setup(
     const updateState = vi.fn();
     const setState = vi.fn();
     const setViewport = vi.fn().mockReturnValue(applied);
-    const fitViewport = vi.fn().mockReturnValue(applied);
     const getViewport = vi
         .fn()
         .mockReturnValue({ x: 5, y: 10, width: 400, height: 300, scale: 1.2 });
@@ -38,7 +37,7 @@ function setup(
     const applyViewState = vi.fn();
     const host = realHost ?? ({ getState, updateState, setState } as any);
     const modeler = {
-        viewport: { setViewport, fitViewport, getViewport, onViewportChanged },
+        viewport: { setViewport, getViewport, onViewportChanged },
         rootElement: { setRootElementById, getRootElementId, onRootChanged },
         selection: { getSelectedElementIds, selectElementsByIds, onSelectionChanged },
         captureViewState,
@@ -47,7 +46,6 @@ function setup(
     return {
         manager: new WebviewStateManager(host, modeler, panelRoot),
         setViewport,
-        fitViewport,
         setRootElementById,
         getRootElementId,
         getViewport,
@@ -62,37 +60,39 @@ function setup(
     };
 }
 
+afterEach(() => {
+    vi.useRealTimers();
+    document.body.innerHTML = "";
+});
+
 describe("WebviewStateManager.restoreViewport", () => {
     it("restores the saved viewbox on a tab-switch rebuild", () => {
         const viewport = { x: 10, y: 20, width: 800, height: 600 };
-        const { manager, setViewport, fitViewport } = setup({ viewport });
+        const { manager, setViewport } = setup({ viewport });
 
         manager.restoreViewport();
 
         expect(setViewport).toHaveBeenCalledWith(viewport);
-        expect(fitViewport).not.toHaveBeenCalled();
     });
 
     it.each([
         ["no saved state", undefined],
         ["saved state without a viewport", { selectedElementIds: ["a"] }],
     ])("leaves a fresh open with %s to the surface's own fit", (_case, saved) => {
-        const { manager, setViewport, fitViewport } = setup(saved);
+        const { manager, setViewport } = setup(saved);
 
         manager.restoreViewport();
 
-        expect(fitViewport).not.toHaveBeenCalled();
         expect(setViewport).not.toHaveBeenCalled();
     });
 
     it("hands a restore on an unsized canvas to the surface to hold", () => {
         const viewport = { x: 10, y: 20, width: 800, height: 600 };
-        const { manager, setViewport, fitViewport } = setup({ viewport }, false);
+        const { manager, setViewport } = setup({ viewport }, false);
 
         manager.restoreViewport();
 
         expect(setViewport).toHaveBeenCalledExactlyOnceWith(viewport);
-        expect(fitViewport).not.toHaveBeenCalled();
     });
 
     it("restores root element before viewport on a tab-switch rebuild", () => {
@@ -207,9 +207,6 @@ describe("WebviewStateManager panel scoping", () => {
         otherScroll.dispatchEvent(new Event("scroll"));
         vi.advanceTimersByTime(100);
         expect(updateState).not.toHaveBeenCalled();
-
-        vi.useRealTimers();
-        document.body.innerHTML = "";
     });
 });
 

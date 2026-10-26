@@ -410,6 +410,16 @@ describe("createSurfaceRequests", () => {
             expect(replies.settings.done).toHaveBeenCalledWith(query);
         });
 
+        it("hands a modeler its favourites only through setSettings", () => {
+            const surface = { ...modelerSurface(), setFavouriteBpmnElements: vi.fn() };
+            const { handlers } = surfaceRequestsOn(surface);
+
+            handlers.BpmnModelerSettingQuery(new BpmnModelerSettingQuery(hostSettings));
+
+            expect(surface.setSettings).toHaveBeenCalledWith(hostSettings);
+            expect(surface.setFavouriteBpmnElements).not.toHaveBeenCalled();
+        });
+
         it("hands the designer only the favourites", () => {
             const { surface, handlers } = surfaceRequestsOn(designerSurface());
 
