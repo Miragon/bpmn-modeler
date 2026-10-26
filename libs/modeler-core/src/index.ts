@@ -71,7 +71,7 @@ export * from "./modeler/form/service/FormModelerService";
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/DiffSession";
 export * from "./diff/service/BpmnDiffService";
-export * from "./diff/infrastructure/DiffPaneStore";
+export * from "./diff/service/DiffPaneStore";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";
@@ -132,7 +132,7 @@ export * from "./template-marketplace/domain/ports";
 export * from "./template-marketplace/infrastructure/GitHubSource";
 export * from "./template-marketplace/infrastructure/GitLabSource";
 export * from "./template-marketplace/infrastructure/LocalFileSource";
-export * from "./template-marketplace/infrastructure/MarketplaceCache";
+export * from "./template-marketplace/service/MarketplaceCache";
 export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/MarketplaceFeature";
 

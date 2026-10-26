@@ -11,7 +11,7 @@ import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
 import { NotifierPort, SettingsPort } from "../../shared/domain/hostPorts";
-import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
+import { DiffPaneStore } from "./DiffPaneStore";
 
 /**
  * Drives the diff *content* for already-resolved BPMN diff panes: it answers
