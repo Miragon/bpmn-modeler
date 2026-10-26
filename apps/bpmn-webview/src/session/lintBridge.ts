@@ -75,9 +75,9 @@ export function createLintBridge(
                 }
             },
             BpmnlintInPageQuery: (query) => {
-                // Dedup of a repeat covered instruction lives in LintConfigService,
-                // where the tier state is known, so a stale token from an
-                // intervening disabled push cannot drop a re-enable.
+                // Dedup of a repeat covered instruction lives in the package's lint
+                // tier machine, where the tier state is known, so a stale token from
+                // an intervening disabled push cannot drop a re-enable.
                 currentConfigToken = query.configToken;
                 // No workspace config → the surface's mode default (engine-aware
                 // in Implement, engine-neutral in Design); a covered config →

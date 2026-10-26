@@ -3,10 +3,10 @@ import type { BpmnlintConfig, LintResults } from "@miragon/bpmn-modeler-types";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 import { describe, expect, it } from "vitest";
 
-import type { LintTierInit } from "./LintConfigService";
 import {
     type LintTierEffect,
     type LintTierEvent,
+    type LintTierInit,
     type LintTierState,
     reduceLintTier,
     startLintTier,

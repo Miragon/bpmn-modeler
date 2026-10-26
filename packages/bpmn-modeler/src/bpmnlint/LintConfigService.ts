@@ -1,12 +1,14 @@
-import type {
-    BpmnlintConfig,
-    Engine,
-    LintResults,
-    LintRunEvent,
-} from "@miragon/bpmn-modeler-types";
+import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
 
 import { BrowserLinter } from "./browserLinter";
-import { type LintConfigOption, resolveLintConfig } from "./lintConfigResolution";
+import {
+    type LintTierEffect,
+    type LintTierEvent,
+    type LintTierInit,
+    type LintTierState,
+    reduceLintTier,
+    startLintTier,
+} from "./lintTierMachine";
 import type { ModelerMode } from "../mode";
 
 // bpmn-js-bpmnlint ships no types for this service.
@@ -31,26 +33,7 @@ interface EventBus {
 
 type Translate = (template: string) => string;
 
-/**
- * The per-instance tier decision, registered as the `lintTier` DI value by
- * {@link createLintModule}. `"external"` renders host-pushed results;
- * `"in-page"` runs {@link BrowserLinter} in the webview against the config
- * `resolveLintConfig` picks from `mode`, `engine`, and the optional `config`.
- * `false`/off never reaches here — a disabled instance registers no lint module
- * at all.
- *
- * `engine` is optional: the engine-neutral Design surface (`/design`) has no
- * execution platform, and its mode default already drops the engine layer. A
- * `config` may be a single {@link BpmnlintConfig} or a per-mode map, so one
- * Camunda-tagged instance can lint Design and Implement differently and
- * re-resolve on a live {@link LintConfigService.setMode}.
- */
-export interface LintTierInit {
-    tier: "external" | "in-page";
-    engine?: Engine;
-    mode: ModelerMode;
-    config?: LintConfigOption;
-}
+export type { LintTierInit } from "./lintTierMachine";
 
 /**
  * The facade callbacks, registered as the `lintCallbacks` DI value.
@@ -62,9 +45,6 @@ export interface LintCallbacks {
     onLintResults?: (event: LintRunEvent) => void;
     onLintingToggled?: (enabled: boolean) => void;
 }
-
-// Remember user-disabled state so re-import cannot silently reactivate linting.
-type LintTierState = "external" | "in-page" | "in-page-disabled";
 
 const OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="4" x2="12" y2="12"/></svg>`;
 
@@ -84,17 +64,6 @@ export class LintConfigService {
 
     private browserLinter?: BrowserLinter;
 
-    private readonly engine?: Engine;
-
-    private readonly explicitConfig?: LintConfigOption;
-
-    private mode: ModelerMode;
-
-    // Workspace configuration must remain authoritative across mode changes.
-    private hostConfig?: BpmnlintConfig;
-
-    private lastConfigToken?: string;
-
     private results: LintResults = {};
 
     private toolbar?: HTMLElement;
@@ -112,94 +81,70 @@ export class LintConfigService {
         private readonly bpmnjs: Bpmnjs,
         eventBus: EventBus,
     ) {
-        this.state = tierInit.tier === "in-page" ? "in-page" : "external";
-        this.engine = tierInit.engine;
-        this.explicitConfig = tierInit.config;
-        this.mode = tierInit.mode;
-        if (tierInit.tier === "in-page") {
-            this.browserLinter = this.buildLinter();
-        }
+        const start = startLintTier(tierInit, this.isDiagramLoaded());
+        this.state = start.state;
 
         this.linting.lint = () => this.runLint();
 
         // External instances can later switch to in-page linting, so register this listener in both tiers.
         eventBus.on("import.done", () => {
-            if (this.state === "in-page") {
-                this.activateInPage();
-            }
+            this.dispatch({ type: "diagramImported" });
         });
-        if (tierInit.tier === "in-page" && this.bpmnjs.getDefinitions()) {
-            this.activateInPage();
-        }
+        this.runEffects(start.effects);
     }
 
-    // Three intents: same-token dedupe while live, a new host config, or a
-    // payload-free reset that clears the host config back to resolved defaults.
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
-        if (this.state === "in-page-disabled") {
-            // Record the host's new reality, but never re-enable a user-disabled
-            // linter; handleEnableClick() rebuilds from these fields on re-enable.
-            this.hostConfig = config;
-            this.lastConfigToken = configToken;
-            return;
-        }
-        if (this.state === "in-page" && this.browserLinter) {
-            if (configToken !== undefined && configToken === this.lastConfigToken) {
-                return;
-            }
-            if (
-                config === undefined &&
-                configToken === undefined &&
-                this.hostConfig === undefined
-            ) {
-                return;
-            }
-        }
-        this.lastConfigToken = configToken;
-        this.hostConfig = config;
-        this.browserLinter = this.buildLinter();
-        this.state = "in-page";
-        if (this.bpmnjs.getDefinitions()) {
-            this.activateInPage();
-        }
+        this.dispatch({ type: "inPageLintingRequested", config, configToken });
     }
 
     setMode(mode: ModelerMode): void {
-        if (mode === this.mode) {
-            return;
-        }
-        this.mode = mode;
-        if (this.state === "in-page" && this.hostConfig === undefined) {
-            this.browserLinter = this.buildLinter();
-            if (this.bpmnjs.getDefinitions()) {
-                this.activateInPage();
+        this.dispatch({ type: "modeChanged", mode });
+    }
+
+    applyLintResults(results: LintResults | null): void {
+        this.dispatch({ type: "hostResultsPushed", results });
+    }
+
+    applyLintingDisabled(): void {
+        this.dispatch({ type: "hostDisabledLinting" });
+    }
+
+    private dispatch(event: LintTierEvent): void {
+        const transition = reduceLintTier(this.state, event, this.isDiagramLoaded());
+        this.state = transition.state;
+        this.runEffects(transition.effects);
+    }
+
+    private runEffects(effects: readonly LintTierEffect[]): void {
+        for (const effect of effects) {
+            switch (effect.kind) {
+                case "buildLinter":
+                    this.browserLinter = new BrowserLinter(effect.config);
+                    break;
+                case "activateInPage":
+                    this.activateInPage();
+                    break;
+                case "renderResults":
+                    this.render(effect.results);
+                    break;
+                case "renderDisabled":
+                    this.renderDisabled();
+                    break;
             }
         }
     }
 
-    private buildLinter(): BrowserLinter {
-        return new BrowserLinter(
-            this.hostConfig ?? resolveLintConfig(this.mode, this.engine, this.explicitConfig),
-        );
-    }
-
-    applyLintResults(results: LintResults | null): void {
-        this.state = "external";
-        this.render(results);
-    }
-
-    applyLintingDisabled(): void {
-        this.state = "external";
-        this.renderDisabled();
+    private isDiagramLoaded(): boolean {
+        return Boolean(this.bpmnjs.getDefinitions());
     }
 
     private async runLint(): Promise<LintResults> {
-        if (this.state === "in-page" && this.browserLinter) {
+        if (this.state.tier === "in-page" && this.browserLinter) {
             const event = await this.browserLinter.run(this.bpmnjs.getDefinitions());
             this.callbacks.onLintResults?.(event);
             return event.results;
         }
-        if (this.state === "in-page-disabled") {
+        if (this.state.tier === "in-page-disabled") {
             return {};
         }
         return this.results;
@@ -251,22 +196,15 @@ export class LintConfigService {
         this.showDisabledChip();
     }
 
+    // Report first, so a synchronous host answer lands before the toggle's own transition.
     private handleOffClick(): void {
         this.callbacks.onLintingToggled?.(false);
-        if (this.state === "in-page") {
-            this.state = "in-page-disabled";
-            this.renderDisabled();
-        }
+        this.dispatch({ type: "userTurnedLintingOff" });
     }
 
-    // Rebuild on re-enable so a mode change made while disabled takes effect.
     private handleEnableClick(): void {
         this.callbacks.onLintingToggled?.(true);
-        if (this.state === "in-page-disabled") {
-            this.state = "in-page";
-            this.browserLinter = this.buildLinter();
-            this.activateInPage();
-        }
+        this.dispatch({ type: "userTurnedLintingOn" });
     }
 
     private pill(): HTMLElement | null {
