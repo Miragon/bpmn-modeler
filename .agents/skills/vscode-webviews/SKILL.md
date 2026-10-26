@@ -36,8 +36,9 @@ section in AGENTS.md).
 
 Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag, and
 `bootstrapWebview` limits `localResourceRoots` to the editor's bundle directory
-(DMN also gets `assets/` for `reset.css`). `WebviewHtml.spec.ts` pins each
-policy; widen it there and in the shell together. The BPMN policy:
+(DMN also gets `assets/` for `reset.css`). `WebviewHtml.spec.ts` and
+`DeploymentWebviewHtml.spec.ts` pin each policy; widen it there and in the
+shell together. The BPMN policy:
 
 ```html
 <meta http-equiv="Content-Security-Policy"
@@ -57,6 +58,8 @@ policy; widen it there and in the shell together. The BPMN policy:
 - `img-src data: https:` — element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
 - No `'unsafe-eval'`, workers or `connect-src`: the bundles need none.
+- `base-uri 'none'; form-action 'none'` in every shell: `default-src` does not
+  cover them.
 
 The VS Code smoke test (`test:vscode:docker`) fails on any CSP console message
 from a webview; check it after adding a dependency that injects scripts,

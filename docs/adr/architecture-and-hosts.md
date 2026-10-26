@@ -182,6 +182,8 @@ message channel. Each policy allows only what its bundle needs:
   icons may be either. There is no `connect-src`, so a copy-as-PNG of a remote
   `.svg` icon renders without that icon.
 - `font-src` allows `data:` for the embedded diagram fonts.
+- `base-uri` and `form-action` are `'none'` in every shell: `default-src` does
+  not cover them, and no bundle needs a `<base>` or a native form submission.
 
 VS Code and the standalone app set the policy as a `<meta>` tag, because Theia
 injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
