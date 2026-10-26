@@ -12,6 +12,11 @@ import {
 } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 
+interface VersionUpdateCounts {
+    readonly updated: number;
+    readonly skipped: number;
+}
+
 /**
  * Workspace-wide migration of BPMN diagrams to a user-selected engine
  * version. Same-engine only — no cross-platform migration (C7↔C8).
@@ -77,26 +82,25 @@ export class BpmnMigrationService {
             }
 
             const summaryParts: string[] = [];
+            let skippedCount = 0;
 
             if (c7Version) {
-                const c7Updated = await this.applyVersionUpdate(plan.c7Files, c7Version, "c7");
-                if (c7Updated > 0) {
-                    summaryParts.push(`${c7Updated} diagram(s) to Camunda 7 (${c7Version})`);
+                const c7 = await this.applyVersionUpdate(plan.c7Files, c7Version, "c7");
+                skippedCount += c7.skipped;
+                if (c7.updated > 0) {
+                    summaryParts.push(`${c7.updated} diagram(s) to Camunda 7 (${c7Version})`);
                 }
             }
 
             if (c8Version) {
-                const c8Updated = await this.applyVersionUpdate(plan.c8Files, c8Version, "c8");
-                if (c8Updated > 0) {
-                    summaryParts.push(`${c8Updated} diagram(s) to Camunda 8 (${c8Version})`);
+                const c8 = await this.applyVersionUpdate(plan.c8Files, c8Version, "c8");
+                skippedCount += c8.skipped;
+                if (c8.updated > 0) {
+                    summaryParts.push(`${c8.updated} diagram(s) to Camunda 8 (${c8Version})`);
                 }
             }
 
-            if (summaryParts.length > 0) {
-                this.notifier.showInfo(`Updated ${summaryParts.join(" and ")}.`);
-            } else {
-                this.notifier.showInfo("All diagrams are already at the selected version.");
-            }
+            this.notifier.showInfo(this.summarize(summaryParts, skippedCount));
 
             return true;
         } catch (error) {
@@ -138,8 +142,9 @@ export class BpmnMigrationService {
         files: readonly BpmnFileEntry[],
         targetVersion: string,
         platform: Engine,
-    ): Promise<number> {
-        let updatedCount = 0;
+    ): Promise<VersionUpdateCounts> {
+        let updated = 0;
+        let skipped = 0;
 
         for (const file of files) {
             const { document, editorId } = await this.readCurrentDiagram(file.path);
@@ -147,6 +152,7 @@ export class BpmnMigrationService {
                 this.notifier.logWarning(
                     `Skipped a diagram whose engine changed during migration: ${file.path}`,
                 );
+                skipped++;
                 continue;
             }
 
@@ -174,6 +180,7 @@ export class BpmnMigrationService {
                     this.notifier.logWarning(
                         `Skipped a diagram whose editor rejected the update: ${file.path}`,
                     );
+                    skipped++;
                     continue;
                 }
             } else {
@@ -185,10 +192,19 @@ export class BpmnMigrationService {
                     `Added missing executionPlatform attribute to: ${file.path}`,
                 );
             }
-            updatedCount++;
+            updated++;
         }
 
-        return updatedCount;
+        return { updated, skipped };
+    }
+
+    private summarize(updatedParts: readonly string[], skippedCount: number): string {
+        const updated =
+            updatedParts.length > 0 ? `Updated ${updatedParts.join(" and ")}.` : undefined;
+        if (skippedCount === 0) {
+            return updated ?? "All diagrams are already at the selected version.";
+        }
+        return `${updated ?? "No diagrams were updated."} Skipped ${skippedCount} diagram(s); see the log for details.`;
     }
 
     /** An open editor's buffer is the diagram; its file on disk may be stale. */
