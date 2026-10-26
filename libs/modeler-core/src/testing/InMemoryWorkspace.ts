@@ -27,19 +27,30 @@ export interface WorkspaceWatcher {
  * match, so a test drives watcher-based behaviour by changing files.
  * `watchers` keeps every watcher ever created, disposed ones included, so a
  * test can check what was watched and fire an event no file change produces.
+ * Folders can change later, as in a VS Code multi-root workspace; the port has
+ * no event for that.
  */
 export class InMemoryWorkspace implements WorkspacePort {
     readonly files = new Map<string, string>();
     readonly symbolicLinks = new Set<string>();
     readonly watchers: WorkspaceWatcher[] = [];
 
-    constructor(
-        private readonly folders: string[] = [],
-        files: Record<string, string> = {},
-    ) {
+    private readonly folders: string[];
+
+    constructor(folders: string[] = [], files: Record<string, string> = {}) {
+        this.folders = [...folders];
         for (const [path, content] of Object.entries(files)) {
             this.files.set(path, content);
         }
+    }
+
+    addFolder(path: string): void {
+        if (!this.folders.includes(path)) this.folders.push(path);
+    }
+
+    removeFolder(path: string): void {
+        const index = this.folders.indexOf(path);
+        if (index >= 0) this.folders.splice(index, 1);
     }
 
     getWorkspaceFolderForDocument(document: string): string {

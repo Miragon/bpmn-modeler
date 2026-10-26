@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
-import { createTestHost, FakeEditorHandle } from "../../testing";
+import { createTestHost, FakeEditorHandle, type WorkspaceWatcher } from "../../testing";
 import { FormReferenceStatusService } from "./FormReferenceStatusService";
 
 function setup(folders = ["/work"]) {
@@ -30,6 +30,9 @@ function setup(folders = ["/work"]) {
 
 const statuses = (editor: FakeEditorHandle) =>
     editor.postedOfType<FormReferenceStatusQuery>("FormReferenceStatusQuery");
+
+const liveWatcherRoots = (watchers: readonly WorkspaceWatcher[]) =>
+    watchers.filter(({ disposed }) => !disposed).map(({ root }) => root);
 
 beforeEach(() => vi.useFakeTimers());
 
@@ -77,6 +80,28 @@ describe("FormReferenceStatusService", () => {
         expect(watchers[0].disposed).toBe(false);
         service.disposeEditor(second.id);
         expect(watchers[0].disposed).toBe(true);
+    });
+
+    it("watches a workspace folder added before the status is requested again", async () => {
+        const { service, host, watchers } = setup(["/work"]);
+        const editor = host.openEditor("/work/process.bpmn");
+        await service.requestStatus(editor.id);
+
+        host.workspace.addFolder("/forms");
+        await service.requestStatus(editor.id);
+
+        expect(liveWatcherRoots(watchers)).toEqual(["/work", "/forms"]);
+    });
+
+    it("drops the watcher of a removed workspace folder", async () => {
+        const { service, host, watchers } = setup(["/work", "/forms"]);
+        const editor = host.openEditor("/work/process.bpmn");
+        await service.requestStatus(editor.id);
+
+        host.workspace.removeFolder("/forms");
+        await service.requestStatus(editor.id);
+
+        expect(liveWatcherRoots(watchers)).toEqual(["/work"]);
     });
 
     it("shares one watcher refresh scan across editors with the same search scope", async () => {
