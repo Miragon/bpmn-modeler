@@ -125,7 +125,7 @@ export class BpmnMigrationService {
             const { document } = await this.readCurrentDiagram(filePath);
             try {
                 const platform = document.detectPlatform();
-                const entry: BpmnFileEntry = { path: filePath, document, platform };
+                const entry: BpmnFileEntry = { path: filePath, platform };
                 if (platform === "c7") {
                     c7Files.push(entry);
                 } else {
