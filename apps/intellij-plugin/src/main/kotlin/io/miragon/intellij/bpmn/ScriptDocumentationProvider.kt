@@ -54,9 +54,7 @@ class ScriptDocumentationProvider : AbstractDocumentationProvider() {
     private fun renderVariable(variable: VariableInfo): String =
         buildDoc(
             definition = "${variable.name}: ${variable.typeHint ?: "process variable"}",
-            // An authored manifest entry leads with its description; a heuristic
-            // entry has only its origin, which is still the most useful thing to show.
-            content = variable.description ?: variable.origin,
+            content = variable.origin,
         )
 
     private fun renderBean(bean: BeanInfo): String =

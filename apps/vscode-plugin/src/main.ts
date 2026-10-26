@@ -42,8 +42,7 @@ export function activate(context: ExtensionContext): TestApi {
         deps.notifier,
     );
     const { diffController, diffStore } = diffFeature.register(context, deps);
-    const { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant } =
-        scriptFeature.register(context, deps);
+    const { scriptTaskSvc, scriptVariableStore } = scriptFeature.register(context, deps);
     const codeLink = codeLinkFeature.register(context, deps);
     // Service built before the editor feature (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
@@ -55,7 +54,6 @@ export function activate(context: ExtensionContext): TestApi {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
-        scriptManifestParticipant,
         codeLink,
         marketplaceSvc,
         deploymentStatusParticipant,

@@ -66,29 +66,6 @@ You also get:
 |---|---|---|
 | `miragon.bpmnModeler.scripting.spin` | `true` | Offer SPIN completions. Turn off if `camunda-spin` is not on your classpath. |
 
-## Declare variables
-
-Variables that come from outside the model (a start payload, a message, a parent process) can be declared in a manifest under `<configFolder>/vars/` that mirrors the diagram's workspace path:
-
-```
-src/order-process.bpmn
-.camunda/vars/src/order-process.bpmn.vars.json
-```
-
-```json
-{
-  "variables": [
-    { "name": "orderId", "type": "String", "description": "Set by the REST start request" },
-    { "name": "amount", "type": "Long" },
-    { "name": "approved" }
-  ]
-}
-```
-
-`name` is required, `type` and `description` are optional. Declared variables win over detected ones and show their description in completions. The file is watched and validated by a bundled JSON schema; a broken manifest is ignored.
-
-To add a variable from the script, put the cursor on an unknown name and open the quick fix (<kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>.</kbd>): **Declare '…' in variable manifest** adds it and opens the manifest.
-
 ## Tips
 
 - Open as many script tabs as you like; each one syncs on its own.

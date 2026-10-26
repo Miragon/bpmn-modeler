@@ -93,7 +93,7 @@ Both editors share `ModelerEditorController`; the difference is purely in the `o
 | Concern | BPMN editor | DMN editor |
 |---|---|---|
 | **Router handlers** | full set (get-file, element-templates, settings + script resync, properties-panel get/set, structured + text clipboard, sync, open-script-editor, navigate-to-referenced-model) | 5 (`GetDmnFileCommand`, `GetDmnModelerSettingCommand`, `GetPropertiesPanelStateCommand`, `SetPropertiesPanelStateCommand`, `SyncDocumentCommand`) |
-| **Participants** | `DocumentRenderParticipant`, `FormReferenceStatusParticipant`, `DefinitionSearchParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `BpmnSettingsParticipant`, `EngineVersionStatusBarParticipant`, `DeploymentStatusParticipant`, `ScriptTaskTeardownParticipant`, `ScriptManifestParticipant`, `CodeLinkParticipant` | `DocumentRenderParticipant`, `DmnSettingsParticipant` |
+| **Participants** | `DocumentRenderParticipant`, `FormReferenceStatusParticipant`, `DefinitionSearchParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `BpmnSettingsParticipant`, `EngineVersionStatusBarParticipant`, `DeploymentStatusParticipant`, `ScriptTaskTeardownParticipant`, `CodeLinkParticipant` | `DocumentRenderParticipant`, `DmnSettingsParticipant` |
 | **Diff delegation** | yes (`delegateResolve` → `BpmnDiffController`) | no |
 
 DMN files don't use element templates, BPMN settings, inline scripts, or the diff viewer, so the DMN editor simply gets fewer handlers and one participant.

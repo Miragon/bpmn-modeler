@@ -258,10 +258,11 @@ before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
 
 Deployment writes update the optimistic snapshot and await acknowledged host
-persistence. Failures are logged, not rethrown or rolled back: a persistence
-failure must not turn a successful deployment into a failed operation, and
-rolling back would show stale values mid-session. The next seed reconciles
-with the persisted host state.
+persistence. Failures reject, as they do on VS Code, but are not rolled back:
+rolling back would show stale values mid-session, and the next seed reconciles
+with the persisted host state. Whether a failed write fails the operation is
+the core's decision, not the adapter's: an engine-accepted deploy stays
+deployed (see [deployment](deployment.md#saved-target-execution)).
 
 A new synchronous port must specify its seed, respawn replay, writer, update
 direction and any echo handling. Keep these explicit rather than forcing a

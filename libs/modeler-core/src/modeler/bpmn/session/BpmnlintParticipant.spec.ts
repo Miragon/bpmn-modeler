@@ -159,6 +159,31 @@ describe("BpmnlintParticipant", () => {
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
     });
 
+    it("keeps the focused editor's lint status when a background editor closes", async () => {
+        const { host, participant } = createServices();
+        await host.openSession(PATH, [participant]);
+        const background = await host.openSession("/work/other.bpmn", [participant], {
+            focused: false,
+        });
+
+        background.dispose();
+
+        expect(host.statusBar.bpmnlint.state).toBe("active");
+    });
+
+    it("keeps the newly focused editor's lint status when the previous editor blurs after it", async () => {
+        const { host, participant } = createServices();
+        const previous = await host.openSession(PATH, [participant]);
+        const next = await host.openSession("/work/other.bpmn", [participant], {
+            focused: false,
+        });
+
+        next.becomeActive();
+        previous.loseFocus();
+
+        expect(host.statusBar.bpmnlint.state).toBe("active");
+    });
+
     it("stops tracking focus after the session closes", async () => {
         const { host, lintSvc, participant } = createServices();
         const editor = await host.openSession(PATH, [participant], { focused: false });

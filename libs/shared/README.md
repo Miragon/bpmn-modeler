@@ -3,7 +3,7 @@
 The **private** webview ↔ host **message protocol** for BPMN, DMN, and Camunda
 Form modeling: the `Query`/`Command` base classes and every concrete message
 type, `HostApi`, document-flush plumbing, the async-debounce/resolver helpers,
-and the process-variable / variable-manifest types the hosts exchange.
+and the process-variable types the hosts exchange.
 
 Used by the extension host (`apps/vscode-plugin`), the modeler-bridge, and the
 webview bootstrap/host-adapter layers. It is **not** publishable: it encodes the

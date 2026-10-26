@@ -5,6 +5,7 @@ import "./styles.css";
 
 import {
     applyPageThemeScope,
+    bindPanelVisibility,
     Command,
     createHostThemeAdapter,
     createResolver,
@@ -23,7 +24,6 @@ import {
     PropertiesPanelStateQuery,
     PropertiesPanelUiStateAdapter,
     Query,
-    readSavedPanelVisibility,
     RequestFocusCommand,
     resolveHostThemeKind,
     SetPropertiesPanelStateCommand,
@@ -107,10 +107,8 @@ async function run(
 ): Promise<void> {
     const canvas = requireElement("#js-canvas");
     const propertiesPanel = requireElement("#js-properties-panel");
-    const panelUiState = new PropertiesPanelUiStateAdapter(
-        createWebviewStateStore(host),
-        propertiesPanel,
-    );
+    const panelStateStore = createWebviewStateStore(host);
+    const panelUiState = new PropertiesPanelUiStateAdapter(panelStateStore, propertiesPanel);
     const panelStateReply = createResolver<PropertiesPanelStateQuery>();
     const settingsReply = createResolver<DmnModelerSettingQuery>();
 
@@ -171,14 +169,11 @@ async function run(
     });
     stopSignal.addEventListener("abort", () => propertiesPanelHandle.dispose());
 
-    // Early-apply this editor's own saved panel visibility (if any) so the panel
-    // snaps to the correct per-editor state without waiting on the host and
-    // without flashing the pre-rendered global default. Applied via the handle
-    // so the resizer's DOM-seeded `isCollapsed` stays in sync.
-    const savedPanelVisible = readSavedPanelVisibility(host);
-    if (savedPanelVisible !== undefined) {
-        propertiesPanelHandle.setVisible(savedPanelVisible);
-    }
+    // Bound with the resizer, so the saved visibility shows without waiting on the
+    // host and a toggle while the editor opens is already remembered and reported.
+    const panelVisibility = bindPanelVisibility(propertiesPanelHandle, panelStateStore, (visible) =>
+        host.postMessage(new SetPropertiesPanelStateCommand(visible)),
+    );
 
     host.postMessage(new GetDmnFileCommand());
     host.postMessage(new GetPropertiesPanelStateCommand());
@@ -191,19 +186,11 @@ async function run(
     // reply can't stall the restore chain below.
     await settingsReply.wait(HOST_REPLY_TIMEOUT_MS);
 
-    // Panel visibility: this editor's own saved entry (applied early above) wins;
-    // only when absent do we fall back to the host's global default. Then report
-    // toggles back — persisting per-editor state and seeding the global default.
-    // Registered after restore so the restore itself can't echo back.
-    if (savedPanelVisible === undefined) {
+    if (!panelVisibility.isDecided()) {
         const panelState = await panelStateReply.wait(HOST_REPLY_TIMEOUT_MS);
-        panelUiState.restorePanelVisibility(propertiesPanelHandle, panelState?.visible ?? true);
+        panelVisibility.hostDefaultSettled(panelState?.visible);
     }
     if (stopSignal.aborted) return;
-    propertiesPanelHandle.onVisibilityChanged((visible) => {
-        panelUiState.persistPanelVisibility(visible);
-        host.postMessage(new SetPropertiesPanelStateCommand(visible));
-    });
 
     // `p` / `Shift+P` / Escape shortcuts for the properties panel, gated to
     // the DRD view so they stay inert in decision-table and literal-expression

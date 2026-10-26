@@ -104,7 +104,7 @@ describe("mountEditorChrome", () => {
 
             const chrome = mountEditorChrome(createHost({ panelVisible: visible }))!;
 
-            expect(chrome.savedPanelVisible).toBe(visible);
+            expect(chrome.panelVisibility.isDecided()).toBe(true);
             expect(mocks.panel.setVisible).toHaveBeenCalledExactlyOnceWith(visible);
         },
     );
@@ -117,7 +117,21 @@ describe("mountEditorChrome", () => {
 
         const chrome = mountEditorChrome(createHost(state))!;
 
-        expect(chrome.savedPanelVisible).toBeUndefined();
+        expect(chrome.panelVisibility.isDecided()).toBe(false);
         expect(mocks.panel.setVisible).not.toHaveBeenCalled();
+    });
+
+    it("saves and reports a panel toggle as this editor's choice", () => {
+        document.body.innerHTML = editorShell;
+        const host = createHost();
+        mountEditorChrome(host);
+
+        const reportVisibilityChange = mocks.panel.onVisibilityChanged.mock.calls[0][0];
+        reportVisibilityChange(false);
+
+        expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelVisible: false });
+        expect(host.posted).toEqual([
+            expect.objectContaining({ type: "SetPropertiesPanelStateCommand", visible: false }),
+        ]);
     });
 });

@@ -3,6 +3,7 @@ import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -65,6 +66,14 @@ kotlin {
         // deprecated usages of the inherited platform defaults (e.g.
         // ToolWindowFactory.getIcon) — Marketplace-blocking false positives.
         freeCompilerArgs.add("-jvm-default=no-compatibility")
+    }
+}
+
+tasks.compileTestKotlin {
+    compilerOptions {
+        // Tests run on the IDE's bundled Kotlin stdlib (1.9 on the 242 floor). From API 2.2 the
+        // compiler nulls out spilled coroutine locals through a stdlib function 1.9 lacks.
+        apiVersion = KotlinVersion.KOTLIN_2_1
     }
 }
 
@@ -182,10 +191,10 @@ val bridgeBinary = layout.projectDirectory.file("../../apps/modeler-bridge/dist/
 val bridgeDistRoot = layout.projectDirectory.dir("../../apps/modeler-bridge/dist")
 val stagedResourcesRoot = layout.buildDirectory.dir("modeler-resources")
 
-// Single source of truth: the `*.bpmn.vars.json` JSON Schema lives in libs/shared
-// next to the type it mirrors. Staged into resources so the JsonSchemaProviderFactory
-// loads it from the classpath at `/schemas/bpmn-vars.schema.json`.
-val varsSchema = layout.projectDirectory.file("../../libs/shared/src/lib/variableManifest.schema.json")
+// Single source of truth: the `deployment-targets.json` JSON Schema lives in
+// libs/shared next to the type it mirrors. Staged into resources so the
+// JsonSchemaProviderFactory loads it from the classpath at
+// `/schemas/deployment-targets.schema.json`.
 val deploymentTargetsSchema =
     layout.projectDirectory.file("../../libs/shared/src/lib/deploymentTargets.schema.json")
 
@@ -309,16 +318,11 @@ val copyBridge =
 
 val copySchema =
     tasks.register<Copy>("copySchema") {
-        description = "Stages the shared JSON Schemas (*.bpmn.vars.json, deployment-targets.json) into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
+        description = "Stages the shared deployment-targets.json JSON Schema into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
         doFirst {
-            for (schema in listOf(varsSchema, deploymentTargetsSchema)) {
-                if (!schema.asFile.exists()) {
-                    throw GradleException("JSON schema not found at ${schema.asFile}.")
-                }
+            if (!deploymentTargetsSchema.asFile.exists()) {
+                throw GradleException("JSON schema not found at ${deploymentTargetsSchema.asFile}.")
             }
-        }
-        from(varsSchema) {
-            rename { "bpmn-vars.schema.json" }
         }
         from(deploymentTargetsSchema) {
             rename { "deployment-targets.schema.json" }

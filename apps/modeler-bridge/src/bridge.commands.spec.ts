@@ -177,6 +177,40 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             await waitForFrame(frames, isShowInfo("No BPMN files found in the workspace."));
             expect(frames.filter(isPickerShow)).toHaveLength(1);
         });
+
+        it("migrates an open diagram from its unsaved editor content, not from disk", async () => {
+            const { rpc, frames, editorId, workspaceRoot, sourcePath } = await setup();
+            const unsavedXml = BPMN_C7_XML.replace(
+                "</bpmn:definitions>",
+                `  <bpmn:process id="Unsaved_Edit" />\n</bpmn:definitions>`,
+            );
+            await rpc.handleLine(
+                hostNotification(
+                    "session/register",
+                    registerParams(editorId, workspaceRoot, sourcePath, unsavedXml),
+                ),
+            );
+
+            const migration = rpc.handleLine(
+                hostNotification("migration/migrateAll", { workspaceRoot }),
+            );
+            const picker = await waitForFrame(frames, isPickerShow);
+            const pickedIndex = otherVersionIndex(picker);
+            const pickedVersion = picker.params.items[pickedIndex].label;
+            await rpc.handleLine(hostReply(picker.id, { selected: [pickedIndex] }));
+
+            const write = await waitForFrame(frames, (f) => f.method === "document/write");
+            expect(write.params.editorId).toBe(editorId);
+            expect(write.params.content).toContain('id="Unsaved_Edit"');
+            expect(write.params.content).toContain(
+                `modeler:executionPlatformVersion="${pickedVersion}"`,
+            );
+
+            await rpc.handleLine(hostReply(write.id, { changed: true, accepted: true }));
+            await migration;
+
+            expect(await fs.readFile(sourcePath, "utf8")).toBe(BPMN_C7_XML);
+        });
     });
 
     describe("format and clean up", () => {
@@ -206,7 +240,14 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             await waitForFrame(frames, isShowInfo("The diagram is already formatted."));
         });
 
-        async function reportLeftovers(rpc: Rpc, editorId: string): Promise<void> {
+        const shapeIds = (count: number) =>
+            Array.from({ length: count }, (_, i) => `Shape_${i + 1}`);
+
+        async function reportLeftovers(
+            rpc: Rpc,
+            editorId: string,
+            ids = ["Shape_1"],
+        ): Promise<void> {
             await rpc.handleLine(
                 hostNotification("webview/message", {
                     editorId,
@@ -214,7 +255,7 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                         type: "CleanupReportCommand",
                         outcome: {
                             status: "reported",
-                            items: [{ kind: "orphan-di", id: "Shape_1", label: "Shape_1" }],
+                            items: ids.map((id) => ({ kind: "orphan-di", id, label: id })),
                         },
                         applied: false,
                     },
@@ -244,6 +285,15 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             );
         });
 
+        it("sends the host a cleanup list that says how many more items go", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+
+            await reportLeftovers(rpc, editorId, shapeIds(14));
+            const confirm = await waitForFrame(frames, isConfirmRequest);
+
+            expect(confirm.params.details).toEqual([...shapeIds(12), "…and 2 more"]);
+        });
+
         it("removes nothing when the user declines the cleanup", async () => {
             const { rpc, frames, editorId } = await setupWithOpenEditor();
 
@@ -262,7 +312,10 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
 
             expect(frames).toContainEqual({
                 method: "notifier/log",
-                params: { level: "error", message: "No active editor." },
+                params: {
+                    level: "error",
+                    message: expect.stringMatching(/^Error: No active editor\.\n\s+at /),
+                },
             });
             expect(
                 frames.some(isShowInfo("Focus a BPMN diagram tab, then run the command again.")),

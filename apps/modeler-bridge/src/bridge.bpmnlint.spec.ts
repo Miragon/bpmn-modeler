@@ -26,10 +26,11 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerParams, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
+import { NodeWorkspace } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 
 // A process with a task but no start/end event, so bpmnlint:recommended reports
@@ -76,6 +77,10 @@ const isInPageInstructionFrame = (frame: any): boolean =>
 const isInPageConfigInstructionFrame = (frame: any): boolean =>
     isInPageInstructionFrame(frame) && frame.params?.message?.config != null;
 
+const isLintDisabledFrame = (frame: any): boolean =>
+    frame.method === "editor/postMessage" &&
+    frame.params?.message?.type === "BpmnLintDisabledQuery";
+
 const isInPageResultsLog = (frame: any): boolean =>
     frame.method === "notifier/log" &&
     typeof frame.params?.message === "string" &&
@@ -117,6 +122,15 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
             JSON.stringify({
                 method: "webview/message",
                 params: { editorId, message: { type: "GetBpmnlintConfigCommand" } },
+            }),
+        );
+    }
+
+    async function toggleLinting(rpc: Rpc, editorId: string, enabled: boolean): Promise<void> {
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "SetLintingEnabledCommand", enabled } },
             }),
         );
     }
@@ -357,5 +371,65 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: baseline }),
         ).resolves.toBeDefined();
+    });
+
+    // FSEvents reports the just-written .bpmnlintrc late, and that watcher
+    // re-lint would stand in for the one a toggle must trigger.
+    function ignoreFileChanges(): void {
+        const createWatcher = vi
+            .spyOn(NodeWorkspace.prototype, "createWatcher")
+            .mockReturnValue({ dispose: () => {} });
+        cleanups.push(() => createWatcher.mockRestore());
+    }
+
+    it("turns host linting off and back on when the webview toggle says so", async () => {
+        ignoreFileChanges();
+        const { rpc, frames, editorId } = await setupHostLinted();
+
+        const beforeOff = frames.length;
+        await toggleLinting(rpc, editorId, false);
+        await expect(
+            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeOff }),
+        ).resolves.toMatchObject({ params: { editorId } });
+
+        const beforeOn = frames.length;
+        await toggleLinting(rpc, editorId, true);
+        await expect(
+            waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
+        ).resolves.toMatchObject({ params: { editorId } });
+    });
+
+    it("re-lints when the webview asks for the linting state the bridge already has", async () => {
+        // A respawned bridge starts with linting on while the page still shows "Linting off".
+        ignoreFileChanges();
+        const { rpc, frames, editorId } = await setupHostLinted();
+
+        const beforeEnable = frames.length;
+        await toggleLinting(rpc, editorId, true);
+
+        await expect(
+            waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeEnable }),
+        ).resolves.toMatchObject({ params: { editorId } });
+    });
+
+    it("keeps linting off for an editor of the project opened after the toggle", async () => {
+        const { rpc, frames, root, editorId } = await setupHostLinted();
+        await toggleLinting(rpc, editorId, false);
+
+        const laterPath = join(root, "later.bpmn");
+        await fs.writeFile(laterPath, BPMN_XML, "utf8");
+        const laterEditorId = `file://${laterPath}`;
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(laterEditorId, root, laterPath, BPMN_XML),
+            }),
+        );
+        const beforeRequest = frames.length;
+        await requestConfig(rpc, laterEditorId);
+
+        await expect(
+            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeRequest }),
+        ).resolves.toMatchObject({ params: { editorId: laterEditorId } });
     });
 });

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchHttpClient } from "@miragon/bpmn-modeler-core";
+import { DeployCommand } from "@miragon/bpmn-modeler-shared";
 import {
     hostNotification,
     hostReply,
@@ -31,11 +32,15 @@ describe("deployment commands over the bridge", () => {
         const frames: { method: string; params: unknown; id?: number }[] = [];
         let pick: (params: PickerShowParams) => number[] | null = () => [0];
         let confirm = () => true;
+        const hostErrors = new Map<string, string>();
         const deps = buildSharedDeps(
             (line) => {
                 const frame: (typeof frames)[number] = JSON.parse(line);
                 frames.push(frame);
-                if (frame.id !== undefined) {
+                const hostError = hostErrors.get(frame.method);
+                if (frame.id !== undefined && hostError !== undefined) {
+                    void deps.rpc.handleLine(JSON.stringify({ id: frame.id, error: hostError }));
+                } else if (frame.id !== undefined) {
                     const result =
                         frame.method === METHODS.pickerShow
                             ? { selected: pick(frame.params as PickerShowParams) }
@@ -92,6 +97,9 @@ describe("deployment commands over the bridge", () => {
             },
             setConfirm: (fn: typeof confirm) => {
                 confirm = fn;
+            },
+            failHostRequest: (method: string, error: string) => {
+                hostErrors.set(method, error);
             },
         };
     }
@@ -372,6 +380,45 @@ describe("deployment commands over the bridge", () => {
             return [];
         });
         expect(handOffs).toEqual(["flush", `write ${editedDiagram}`, "save"]);
+    });
+
+    it("reports a form deploy the engine accepted as succeeded when PasswordSafe fails to store the credentials", async () => {
+        const c = await setup();
+        c.failHostRequest(METHODS.secretStoreSaveBasicAuth, "PasswordSafe unavailable");
+        await c.seed("dev");
+        focusEditor(c);
+        const deploy = new DeployCommand({
+            deploymentName: "order",
+            tenantId: "",
+            endpoint: "https://root.test",
+            engine: "c7",
+            mainFilePath: join(c.root, "order.bpmn"),
+            additionalFilePaths: [],
+            auth: { authType: "basic", username: "admin", password: "secret" },
+            targetName: "dev",
+        });
+
+        await c.deps.rpc.handleLine(
+            JSON.stringify({
+                method: METHODS.deploymentWebviewMessage,
+                params: { message: deploy },
+            }),
+        );
+
+        const posted = await waitForFrame(
+            c.frames,
+            (frame) =>
+                frame.method === METHODS.deploymentPostMessage &&
+                frame.params.message.type === "DeploymentResultQuery",
+        );
+        expect(posted.params.message).toMatchObject({
+            success: true,
+            deploymentId: "deployment-1",
+        });
+        expect(posted.params.message.message).toContain("PasswordSafe unavailable");
+        expect(
+            c.frames.some((frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision),
+        ).toBe(true);
     });
 
     it("reports and deploys nothing when no diagram is focused", async () => {

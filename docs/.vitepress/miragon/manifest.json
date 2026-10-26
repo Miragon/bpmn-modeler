@@ -1,6 +1,6 @@
 {
   "$kommentar": "Generiert von scripts/sync-assets.mjs in Miragon/corporate-identity, nicht von Hand ändern. Jede Datei, die ein Repo aus der Skill docs-site vendort: Pfad im Repo, Quelle unter plugins/miragon-brand/skills/docs-site/assets/ und sha256. check.mjs prüft die Kopie damit.",
-  "version": "1.13.0",
+  "version": "1.25.1",
   "dateien": [
     {
       "pfad": "docs/.vitepress/miragon/check.mjs",
@@ -10,12 +10,12 @@
     {
       "pfad": "docs/.vitepress/miragon/config.ts",
       "quelle": "miragon/config.ts",
-      "sha256": "56ba36d908749227d8aa50efbdae7a1145b607717b8774bec8b40d4adfa62434"
+      "sha256": "afacbe135bb1df3523d2dc83c7587a808441b7e303bfd7fa842ca7c73c3819c6"
     },
     {
       "pfad": "docs/.vitepress/miragon/legal.ts",
       "quelle": "miragon/legal.ts",
-      "sha256": "9768181ae8f130e22a540f70030c873b5455a314d66efdffcc49550e713c552a"
+      "sha256": "d7eac3bad6ee237876271075ac3387de8e3212ac48b58c33dc29d26b0377fdec"
     },
     {
       "pfad": "docs/.vitepress/miragon/slug.d.mts",
@@ -28,9 +28,19 @@
       "sha256": "e14df3bf86cf75f17ccf3f08778880e19ef8231b265e85b97fb003eabbe72829"
     },
     {
+      "pfad": "docs/.vitepress/miragon/theme/GitHubStars.vue",
+      "quelle": "miragon/theme/GitHubStars.vue",
+      "sha256": "e265beb06efa0fa0dd36c098e2605c87b40b3fce7f14bdfde989d185a32b737e"
+    },
+    {
       "pfad": "docs/.vitepress/miragon/theme/LegalRow.vue",
       "quelle": "miragon/theme/LegalRow.vue",
-      "sha256": "79f5c733137b39eed14e17b894edd00854ca484da12f2836d7314fdb7ca1552c"
+      "sha256": "2e51c8833b44041a79cc73f8c6c5e6d383aea4c2884936bdb5bbc12749e37dfc"
+    },
+    {
+      "pfad": "docs/.vitepress/miragon/theme/StarPrompt.vue",
+      "quelle": "miragon/theme/StarPrompt.vue",
+      "sha256": "38a7de32637193b43f9eb3dedd79584a9f11ee1a0ffd4f428aa2f30ba3af18fa"
     },
     {
       "pfad": "docs/.vitepress/miragon/theme/cd-tokens.generated.css",
@@ -40,27 +50,22 @@
     {
       "pfad": "docs/.vitepress/miragon/theme/index.ts",
       "quelle": "miragon/theme/index.ts",
-      "sha256": "af39803bd95fea3478858379324b45bd9d86559106d6b796ace183b075d08633"
+      "sha256": "dda90b8c056e558ac01f2de1a4f38c918d50339af5d59c87ddd710e09195ccd9"
     },
     {
       "pfad": "docs/.vitepress/miragon/theme/miragon.css",
       "quelle": "miragon/theme/miragon.css",
-      "sha256": "cf6aeeaf5bdbdb10d184c0499ca30c72086b4a95032c8bcab1fb56067dc92220"
+      "sha256": "5c43dc675cf7d718e42f7089e1bb274f1198bf1049d7997b108fe3724f05a4df"
+    },
+    {
+      "pfad": "docs/.vitepress/miragon/theme/useStars.ts",
+      "quelle": "miragon/theme/useStars.ts",
+      "sha256": "0ca1178ae7946f4af3542913a220bfb894f07f8864b31e242bc70fcd0bbd791e"
     },
     {
       "pfad": "docs/public/logo/miragon-komet-blau.svg",
       "quelle": "logo/miragon-komet-blau.svg",
       "sha256": "c44c4a00f93f4255442bb70afeb8dbcb7eaae6af331ff04b6c685b6d20f587c9"
-    },
-    {
-      "pfad": "docs/public/logo/miragon-logo-gruen.svg",
-      "quelle": "logo/miragon-logo-gruen.svg",
-      "sha256": "bc815e0698689546771e629139d86ac9dfbe29dc5618cd5e2910e6079629eae3"
-    },
-    {
-      "pfad": "docs/public/logo/miragon-logo-weiss.svg",
-      "quelle": "logo/miragon-logo-weiss.svg",
-      "sha256": "a235870d9347600d83f4294b4a31799338ead399f1351dc8880809efcc8621fd"
     }
   ]
 }

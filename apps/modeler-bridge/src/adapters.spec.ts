@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { NotifierPort, UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import {
@@ -31,6 +31,12 @@ const META: SessionMeta = {
 /** Returns the last element (ES2021 target has no `Array.prototype.at`). */
 function last<T>(items: T[]): T {
     return items[items.length - 1];
+}
+
+function errorThrownInDeploy(message: string): Error {
+    const error = new Error(message);
+    error.stack = `Error: ${message}\n    at deploy (DeploymentService.ts:42:7)`;
+    return error;
 }
 
 /** Captures emitted frames and lets a test answer the latest outstanding request. */
@@ -361,6 +367,40 @@ describe("BridgeSettings", () => {
 
         expect(listener).not.toHaveBeenCalled();
     });
+
+    it.each([
+        { toggles: [true], changed: [false], changes: 0, enabled: true },
+        { toggles: [false], changed: [true], changes: 1, enabled: false },
+        { toggles: [false, false], changed: [true, false], changes: 1, enabled: false },
+        { toggles: [false, true], changed: [true, true], changes: 2, enabled: true },
+    ])(
+        "reports the linting toggles $toggles as $changes linting.enabled change(s)",
+        ({ toggles, changed, changes, enabled }) => {
+            const settings = new BridgeSettings();
+            const events: ((section: string) => boolean)[] = [];
+            settings.onDidChange((event) => events.push(event.affectsConfiguration));
+
+            const results = toggles.map((toggle) => settings.setLintingEnabled(toggle));
+
+            expect(results).toEqual(changed);
+            expect(settings.getLintingEnabled()).toBe(enabled);
+            expect(events).toHaveLength(changes);
+            for (const affects of events) {
+                expect(affects("miragon.bpmnModeler.linting.enabled")).toBe(true);
+                expect(affects("miragon.bpmnModeler.lintingEnabled")).toBe(false);
+                expect(affects("miragon.bpmnModeler.language")).toBe(false);
+            }
+        },
+    );
+
+    it("keeps the linting toggle when the host pushes a settings snapshot", () => {
+        const settings = new BridgeSettings();
+        settings.setLintingEnabled(false);
+
+        settings.apply({ language: "de", configFolder: ".config" });
+
+        expect(settings.getLintingEnabled()).toBe(false);
+    });
 });
 
 describe("RpcDocumentPort", () => {
@@ -405,15 +445,8 @@ describe("RpcDocumentPort", () => {
 });
 
 describe("RpcDeploymentState", () => {
-    /** Minimal NotifierPort stub; only logError is exercised here. */
-    function fakeNotifier() {
-        return { logError: vi.fn() } as unknown as NotifierPort & {
-            logError: ReturnType<typeof vi.fn>;
-        };
-    }
-
     it("seeds the snapshot and serves it through the synchronous getters", () => {
-        const state = new RpcDeploymentState(new Rpc(() => {}), fakeNotifier());
+        const state = new RpcDeploymentState(new Rpc(() => {}));
         state.seed({ endpoint: "https://engine", tenantId: "t1", authType: "basic" });
 
         expect(state.getEndpoint()).toBe("https://engine");
@@ -423,7 +456,7 @@ describe("RpcDeploymentState", () => {
 
     it("save* emits an acknowledged request and updates the snapshot optimistically", async () => {
         const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const state = new RpcDeploymentState(rpc);
 
         const pending = state.save("https://engine", "t1");
         // The persist is a request (has an id), not a fire-and-forget notification.
@@ -441,7 +474,7 @@ describe("RpcDeploymentState", () => {
 
     it("saveAuthType / saveOAuth2Config also round-trip as requests", async () => {
         const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const state = new RpcDeploymentState(rpc);
 
         const auth = state.saveAuthType("oauth2");
         expect(last(frames)).toMatchObject({
@@ -465,7 +498,7 @@ describe("RpcDeploymentState", () => {
 
     it("lists ledger keys and deletes revisions optimistically with an acknowledged request", async () => {
         const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const state = new RpcDeploymentState(rpc);
         const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
         state.seed({
             ledger: {
@@ -493,20 +526,15 @@ describe("RpcDeploymentState", () => {
         await expect(pending).resolves.toBeUndefined();
     });
 
-    it("logs and does not reject when the host's persist fails", async () => {
+    it("rejects when the host fails to persist and keeps the optimistic snapshot", async () => {
         const { frames, rpc } = harness();
-        const notifier = fakeNotifier();
-        const state = new RpcDeploymentState(rpc, notifier);
+        const state = new RpcDeploymentState(rpc);
 
         const pending = state.save("https://engine", "t1");
-        // The host rejects the persist; the deploy must still succeed.
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
 
-        await expect(pending).resolves.toBeUndefined();
-        expect(notifier.logError).toHaveBeenCalledOnce();
-        expect(notifier.logError.mock.calls[0][0]).toBeInstanceOf(Error);
-        expect((notifier.logError.mock.calls[0][0] as Error).message).toContain("disk full");
-        // The optimistic snapshot is intentionally not rolled back; the next seed reconciles.
+        await expect(pending).rejects.toThrow("disk full");
+        // Rolling back would show stale form values mid-session; the next seed reconciles.
         expect(state.getEndpoint()).toBe("https://engine");
     });
 });
@@ -543,12 +571,6 @@ describe("RpcNotifier", () => {
             params: { level: "warn", message: "careful" },
         });
 
-        notifier.logError(new Error("bad"));
-        expect(last(frames)).toEqual({
-            method: "notifier/log",
-            params: { level: "error", message: "bad" },
-        });
-
         // A bare string (e.g. a webview-forwarded stack) is forwarded verbatim,
         // not re-wrapped in an Error.
         notifier.logError("[webview] raw stack");
@@ -561,18 +583,53 @@ describe("RpcNotifier", () => {
         expect(last(frames)).toEqual({ method: "notifier/openConsole", params: {} });
     });
 
-    it("notifyError logs the detail then surfaces a paired balloon", () => {
+    it("logs an error with its stack so the throw site reaches idea.log", () => {
         const { frames, rpc } = harness();
-        new RpcNotifier(rpc).notifyError("While loading", new Error("kaput"));
+        const error = errorThrownInDeploy("bad");
+
+        new RpcNotifier(rpc).logError(error);
+
+        expect(last(frames)).toEqual({
+            method: "notifier/log",
+            params: { level: "error", message: error.stack },
+        });
+    });
+
+    it("pairs the caller context with the stack when notifying an error", () => {
+        const { frames, rpc } = harness();
+        const error = errorThrownInDeploy("kaput");
+
+        new RpcNotifier(rpc).notifyError("While loading", error);
 
         expect(frames).toEqual([
-            { method: "notifier/log", params: { level: "error", message: "While loading: kaput" } },
+            {
+                method: "notifier/log",
+                params: { level: "error", message: `While loading: ${error.stack}` },
+            },
             {
                 method: "notifier/notifyError",
                 params: { context: "While loading", message: "kaput" },
             },
         ]);
     });
+
+    it.each([
+        { error: new Error("bad"), logged: "Error: bad" },
+        { error: new TypeError("bad"), logged: "TypeError: bad" },
+    ])(
+        "falls back to name and message when an error has no stack: $logged",
+        ({ error, logged }) => {
+            const { frames, rpc } = harness();
+            delete error.stack;
+
+            new RpcNotifier(rpc).logError(error);
+
+            expect(last(frames)).toEqual({
+                method: "notifier/log",
+                params: { level: "error", message: logged },
+            });
+        },
+    );
 
     it("withProgress brackets the task and returns its result", async () => {
         const { frames, rpc } = harness();
