@@ -132,6 +132,13 @@ to VS Code. Selected methods (full table in the bridge README):
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
 
+**Handler coverage.** `ProtocolHandlerCoverageTest` registers the production
+`BridgeRouters` and fails when a core → host method in
+`apps/modeler-bridge/src/protocol/protocol.json` has no Kotlin handler, or a
+handler serves a method the core no longer sends. Adding or removing a
+core → host method therefore changes the descriptor, `protocol.json` and the
+Kotlin router in one PR. The test compares method names, not parameter keys.
+
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` *synchronously* — impossible over async RPC. The host
 seeds a local `DocumentMirror` on `session/register` and keeps it current via
@@ -177,7 +184,7 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
 - **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
   inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
-- **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`
+- **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`
 - **Display/secret ports**: `HostNotifications.kt`, `EngineStatusBarWidget(Factory).kt`, `IntellijSecretStore.kt`
 - **Deployment**: `DeploymentToolWindowFactory.kt`, `IntellijDeploymentState.kt`
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
