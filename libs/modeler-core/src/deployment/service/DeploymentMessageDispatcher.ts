@@ -32,6 +32,7 @@ import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHa
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService, toAuthConfig, toTargetPayload } from "./DeploymentTargetService";
+import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 import { StartInstanceService } from "./StartInstanceService";
 
 type DeploymentWebviewCommand = MessageOfType<
@@ -80,6 +81,7 @@ export class DeploymentMessageDispatcher {
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentStatusService: DeploymentStatusService,
+        private readonly saveBeforeDeploy: SaveBeforeDeploy,
         private readonly notifier: NotifierPort,
         private readonly post: (message: Query) => void,
     ) {}
@@ -493,8 +495,8 @@ export class DeploymentMessageDispatcher {
     }
 
     /**
-     * Validates the incoming payload, runs the deployment, shows a notification,
-     * and sends the result back to the webview.
+     * Validates the incoming payload, saves what the editor shows, runs the
+     * deployment, shows a notification, and sends the result back to the webview.
      *
      * @param configPayload Raw deployment config from the webview form.
      */
@@ -524,6 +526,13 @@ export class DeploymentMessageDispatcher {
                 target === undefined
                     ? undefined
                     : await this.deploymentTargetService.resolveSlot(target.name, documentDir);
+
+            const saveResult = await this.saveBeforeDeploy.save(activeEditorId);
+            if (!saveResult.saved) {
+                this.notifier.showError(saveResult.message);
+                this.post(new DeploymentResultQuery(false, saveResult.message));
+                return;
+            }
 
             const result = await this.deploymentService.deploy(config, secretSlot, target);
 

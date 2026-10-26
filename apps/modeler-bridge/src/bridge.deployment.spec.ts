@@ -294,99 +294,133 @@ describe("deployment commands over the bridge", () => {
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
     });
 
-    it("flushes the webview's pending edits into the document before saving the active diagram", async () => {
-        const root = await fs.mkdtemp(join(tmpdir(), "deployment-flush-"));
-        roots.push(root);
-        const diagramPath = join(root, "order.bpmn");
-        await fs.writeFile(diagramPath, DIAGRAM);
-        await fs.mkdir(join(root, ".camunda"));
-        await fs.writeFile(
-            join(root, ".camunda/deployment-targets.json"),
-            JSON.stringify({
-                targets: [
-                    {
-                        name: "dev",
+    it.each([
+        {
+            trigger: "Deploy Diagram",
+            deploy: (root: string) =>
+                hostNotification(METHODS.deploymentDeployActive, { workspaceRoot: root }),
+        },
+        {
+            trigger: "the sidebar's Deploy",
+            deploy: (_root: string, diagramPath: string) =>
+                hostNotification(METHODS.deploymentWebviewMessage, {
+                    message: new DeployCommand({
+                        deploymentName: "order",
+                        tenantId: "",
                         endpoint: "https://root.test",
                         engine: "c7",
-                        auth: { type: "none" },
+                        mainFilePath: diagramPath,
+                        additionalFilePaths: [],
+                        auth: { authType: "none" },
+                        targetName: "dev",
+                    }),
+                }),
+        },
+    ])(
+        "flushes the webview's pending edits into the document before $trigger saves the active diagram",
+        async ({ deploy }) => {
+            const root = await fs.mkdtemp(join(tmpdir(), "deployment-flush-"));
+            roots.push(root);
+            const diagramPath = join(root, "order.bpmn");
+            await fs.writeFile(diagramPath, DIAGRAM);
+            await fs.mkdir(join(root, ".camunda"));
+            await fs.writeFile(
+                join(root, ".camunda/deployment-targets.json"),
+                JSON.stringify({
+                    targets: [
+                        {
+                            name: "dev",
+                            endpoint: "https://root.test",
+                            engine: "c7",
+                            auth: { type: "none" },
+                        },
+                    ],
+                }),
+            );
+            const post = vi.spyOn(FetchHttpClient.prototype, "postMultipart").mockResolvedValue({
+                status: 200,
+                body: '{"id":"deployment-1"}',
+            });
+            const frames: {
+                method: string;
+                params: { content?: string; message?: { type: string; token: number } };
+                id?: number;
+            }[] = [];
+            const { rpc } = createBridge((line) => {
+                const frame: (typeof frames)[number] = JSON.parse(line);
+                frames.push(frame);
+                if (frame.id === undefined) return;
+                const result =
+                    frame.method === METHODS.documentWrite
+                        ? { changed: true, accepted: true }
+                        : frame.method === METHODS.documentSave
+                          ? { saved: true }
+                          : null;
+                void rpc.handleLine(hostReply(frame.id, result));
+            });
+            const editorId = `file://${diagramPath}`;
+            const editedDiagram = DIAGRAM.replace('id="order"', 'id="order_edited"');
+            await rpc.handleLine(
+                hostNotification(
+                    METHODS.sessionRegister,
+                    registerParams(editorId, root, diagramPath, DIAGRAM),
+                ),
+            );
+            await rpc.handleLine(
+                hostNotification(METHODS.deploymentStateSeed, {
+                    state: { activeTargetName: "dev" },
+                }),
+            );
+            const fromIndex = frames.length;
+            const isFlushQuery = (frame: (typeof frames)[number]) =>
+                frame.method === METHODS.editorPostMessage &&
+                frame.params.message?.type === "FlushDocumentQuery";
+
+            const deploying = rpc.handleLine(deploy(root, diagramPath));
+            const flushOrSave = await waitForFrame(
+                frames,
+                (frame) => isFlushQuery(frame) || frame.method === METHODS.documentSave,
+                { fromIndex },
+            );
+            expect(flushOrSave.method).toBe(METHODS.editorPostMessage);
+            await rpc.handleLine(
+                hostNotification(METHODS.webviewMessage, {
+                    editorId,
+                    message: {
+                        type: "DocumentFlushedCommand",
+                        token: flushOrSave.params.message.token,
+                        content: editedDiagram,
+                        status: "flushed",
+                        documentRevision: 0,
                     },
-                ],
-            }),
-        );
-        vi.spyOn(FetchHttpClient.prototype, "postMultipart").mockResolvedValue({
-            status: 200,
-            body: '{"id":"deployment-1"}',
-        });
-        const frames: {
-            method: string;
-            params: { content?: string; message?: { type: string; token: number } };
-            id?: number;
-        }[] = [];
-        const { rpc } = createBridge((line) => {
-            const frame: (typeof frames)[number] = JSON.parse(line);
-            frames.push(frame);
-            if (frame.id === undefined) return;
-            const result =
-                frame.method === METHODS.documentWrite
-                    ? { changed: true, accepted: true }
-                    : frame.method === METHODS.documentSave
-                      ? { saved: true }
-                      : null;
-            void rpc.handleLine(hostReply(frame.id, result));
-        });
-        const editorId = `file://${diagramPath}`;
-        const editedDiagram = DIAGRAM.replace('id="order"', 'id="order_edited"');
-        await rpc.handleLine(
-            hostNotification(
-                METHODS.sessionRegister,
-                registerParams(editorId, root, diagramPath, DIAGRAM),
-            ),
-        );
-        await rpc.handleLine(
-            hostNotification(METHODS.deploymentStateSeed, { state: { activeTargetName: "dev" } }),
-        );
-        const fromIndex = frames.length;
-        const isFlushQuery = (frame: (typeof frames)[number]) =>
-            frame.method === METHODS.editorPostMessage &&
-            frame.params.message?.type === "FlushDocumentQuery";
+                }),
+            );
+            await deploying;
+            // The sidebar's deploy runs detached from its RPC notification.
+            await waitForFrame(
+                frames,
+                (frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision,
+                { fromIndex },
+            );
 
-        const deploying = rpc.handleLine(
-            hostNotification(METHODS.deploymentDeployActive, { workspaceRoot: root }),
-        );
-        const flushOrSave = await waitForFrame(
-            frames,
-            (frame) => isFlushQuery(frame) || frame.method === METHODS.documentSave,
-            { fromIndex },
-        );
-        expect(flushOrSave.method).toBe(METHODS.editorPostMessage);
-        await rpc.handleLine(
-            hostNotification(METHODS.webviewMessage, {
-                editorId,
-                message: {
-                    type: "DocumentFlushedCommand",
-                    token: flushOrSave.params.message.token,
-                    content: editedDiagram,
-                    status: "flushed",
-                    documentRevision: 0,
-                },
-            }),
-        );
-        await deploying;
-
-        const handOffs = frames.slice(fromIndex).flatMap((frame) => {
-            if (isFlushQuery(frame)) return ["flush"];
-            if (frame.method === METHODS.documentWrite) return [`write ${frame.params.content}`];
-            if (frame.method === METHODS.documentSave) return ["save"];
-            return [];
-        });
-        expect(handOffs).toEqual(["flush", `write ${editedDiagram}`, "save"]);
-    });
+            expect(post).toHaveBeenCalledOnce();
+            const handOffs = frames.slice(fromIndex).flatMap((frame) => {
+                if (isFlushQuery(frame)) return ["flush"];
+                if (frame.method === METHODS.documentWrite)
+                    return [`write ${frame.params.content}`];
+                if (frame.method === METHODS.documentSave) return ["save"];
+                return [];
+            });
+            expect(handOffs).toEqual(["flush", `write ${editedDiagram}`, "save"]);
+        },
+    );
 
     it("reports a form deploy the engine accepted as succeeded when PasswordSafe fails to store the credentials", async () => {
         const c = await setup();
         c.failHostRequest(METHODS.secretStoreSaveBasicAuth, "PasswordSafe unavailable");
         await c.seed("dev");
         focusEditor(c);
+        vi.spyOn(c.deps.documentPort, "save").mockResolvedValue(true);
         const deploy = new DeployCommand({
             deploymentName: "order",
             tenantId: "",
