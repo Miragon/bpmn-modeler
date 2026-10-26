@@ -14,8 +14,9 @@ export function toWorkspacePath(path: string): string {
     return joinWorkspacePath(path);
 }
 
+/** The path a `file://` URI names, for the hosts that accept both spellings. */
 export function withoutFileScheme(path: string): string {
-    return path;
+    return path.startsWith(FILE_SCHEME) ? path.slice(FILE_SCHEME.length) : path;
 }
 
 /**

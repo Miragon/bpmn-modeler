@@ -18,8 +18,10 @@ export * from "./shared/domain/errors";
 export * from "./shared/domain/globToRegExp";
 export * from "./shared/domain/hostPorts";
 export * from "./shared/domain/newModelEngine";
+export * from "./shared/domain/rootContainment";
 export * from "./shared/domain/session";
 export * from "./shared/domain/viewTypes";
+export * from "./shared/domain/watcherEvents";
 export * from "./shared/domain/workspacePath";
 
 // ── shared: service + vscode-free infrastructure ────────────────────────────

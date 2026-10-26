@@ -1,5 +1,6 @@
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { relativeToRoot } from "../../shared/domain/rootContainment";
 import { ScopeMembership } from "../../shared/domain/ScopeMembership";
 import { SearchScope, searchScopeKey } from "../../shared/domain/searchScope";
 import {
@@ -324,8 +325,7 @@ class IndexedSources implements SourceCatalog {
 // Build output above the workspace folder (a checkout under `~/build/`) must
 // not hide every event inside it.
 function isInsideExcludedDirWithin(folder: string, path: string): boolean {
-    const relativePath = path.startsWith(`${folder}/`) ? path.slice(folder.length + 1) : path;
-    return pathIsInsideExcludedDir(relativePath);
+    return pathIsInsideExcludedDir(relativeToRoot(path, folder) ?? path);
 }
 
 async function readOrUndefined(
