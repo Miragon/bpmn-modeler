@@ -113,11 +113,10 @@ export class BpmnMigrationService {
         const undetected: string[] = [];
 
         for (const filePath of paths) {
-            const content = await this.vsWorkspace.readFile(filePath);
-            const doc = new BpmnDocument(content);
+            const { document } = await this.readCurrentDiagram(filePath);
             try {
-                const platform = doc.detectPlatform();
-                const entry: BpmnFileEntry = { path: filePath, document: doc, platform };
+                const platform = document.detectPlatform();
+                const entry: BpmnFileEntry = { path: filePath, document, platform };
                 if (platform === "c7") {
                     c7Files.push(entry);
                 } else {
@@ -143,7 +142,15 @@ export class BpmnMigrationService {
         let updatedCount = 0;
 
         for (const file of files) {
-            const currentVersion = file.document.detectPlatformVersion();
+            const { document, editorId } = await this.readCurrentDiagram(file.path);
+            if (document.detectEngine() !== platform) {
+                this.notifier.logWarning(
+                    `Skipped a diagram whose engine changed during migration: ${file.path}`,
+                );
+                continue;
+            }
+
+            const currentVersion = document.detectPlatformVersion();
             if (currentVersion === targetVersion) {
                 continue;
             }
@@ -155,29 +162,45 @@ export class BpmnMigrationService {
                     platform === "c7"
                         ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
                         : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
-                updatedDoc = file.document.withExecutionPlatform(
-                    platformName,
-                    targetVersion,
-                    schema,
-                );
-                this.notifier.logWarning(
-                    `Added missing executionPlatform attribute to: ${file.path}`,
-                );
+                updatedDoc = document.withExecutionPlatform(platformName, targetVersion, schema);
             } else {
-                updatedDoc = file.document.withVersion(targetVersion);
+                updatedDoc = document.withVersion(targetVersion);
             }
 
-            const editorId = this.editorStore.findEditorIdByPath(file.path);
             if (editorId !== undefined) {
-                await this.vsDocument.write(editorId, updatedDoc.xml);
+                // No revision: with one, the IntelliJ host would accept the write
+                // while a webview sync is still pending.
+                if (!(await this.vsDocument.write(editorId, updatedDoc.xml))) {
+                    this.notifier.logWarning(
+                        `Skipped a diagram whose editor rejected the update: ${file.path}`,
+                    );
+                    continue;
+                }
             } else {
                 await this.vsWorkspace.writeFile(file.path, updatedDoc.xml);
             }
 
+            if (currentVersion === undefined) {
+                this.notifier.logWarning(
+                    `Added missing executionPlatform attribute to: ${file.path}`,
+                );
+            }
             updatedCount++;
         }
 
         return updatedCount;
+    }
+
+    /** An open editor's buffer is the diagram; its file on disk may be stale. */
+    private async readCurrentDiagram(
+        path: string,
+    ): Promise<{ document: BpmnDocument; editorId: string | undefined }> {
+        const editorId = this.editorStore.findEditorIdByPath(path);
+        const content =
+            editorId !== undefined
+                ? this.vsDocument.getContent(editorId)
+                : await this.vsWorkspace.readFile(path);
+        return { document: new BpmnDocument(content), editorId };
     }
 
     private handleError(error: Error): boolean {
