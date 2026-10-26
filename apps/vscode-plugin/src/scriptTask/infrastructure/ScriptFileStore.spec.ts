@@ -1,21 +1,40 @@
+import { tmpdir } from "os";
+
 import { describe, expect, it, vi } from "vitest";
 
-import { FileNotFound } from "@miragon/bpmn-modeler-core";
+import {
+    ArtifactService,
+    DirectoryNotFound,
+    EditorSessionStore,
+    FileNotFound,
+    NoWorkspaceFolderFoundError,
+} from "@miragon/bpmn-modeler-core";
+import { FakeEditorHandle, InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 
-import { ScriptFileStore } from "./ScriptFileStore";
+import { keepsScriptsInOsTemp, ScriptFileStore } from "./ScriptFileStore";
 
-const EDITOR_ID = "file:///ws/process.bpmn";
+function createStore(overrides?: { gitignoreExists?: boolean }) {
+    const fileDiagram = new FakeEditorHandle("/ws/process.bpmn");
+    const untitledDiagram = new FakeEditorHandle("Untitled-1", { scheme: "untitled" });
+    const editorStore = new EditorSessionStore(() => undefined);
+    editorStore.register(fileDiagram);
+    editorStore.register(untitledDiagram);
 
-function createStore(overrides?: {
-    getDocumentDirectory?: (document: string) => string;
-    workspaceFolders?: string[];
-    gitignoreExists?: boolean;
-}) {
     const written = new Map<string, string>();
     const deleted: string[] = [];
     const workspace = {
-        getDocumentDirectory: overrides?.getDocumentDirectory ?? (() => "/ws"),
-        getWorkspaceFolderPaths: () => overrides?.workspaceFolders ?? ["/ws"],
+        // Like VsCodeWorkspace, which maps an id that is not a `file://` URI
+        // through `Uri.file` and so answers `/` for `untitled:Untitled-1`.
+        getDocumentDirectory: (editorId: string) => (editorId === fileDiagram.id ? "/ws" : "/"),
+        getWorkspaceFolderForDocument: (document: string) => {
+            if (document !== "/ws") {
+                throw new NoWorkspaceFolderFoundError();
+            }
+            return "/ws";
+        },
+        readDirectory: async (path: string) => {
+            throw new DirectoryNotFound(path);
+        },
         readFile: vi.fn(async (path: string) => {
             if (path.endsWith(".gitignore") && overrides?.gitignoreExists) {
                 return "*";
@@ -29,27 +48,37 @@ function createStore(overrides?: {
             deleted.push(path);
         }),
     };
-    const settings = { getConfigFolder: () => ".camunda" };
-    const artifactSvc = { getWorkspaceRoot: vi.fn(async () => "/ws") };
-    const store = new ScriptFileStore(workspace as never, settings as never, artifactSvc as never);
-    return { store, workspace, artifactSvc, written, deleted };
+    const settings = new InMemorySettings();
+    const artifactSvc = new ArtifactService(workspace as never, settings);
+    const store = new ScriptFileStore(editorStore, workspace as never, settings, artifactSvc);
+    return { store, workspace, written, deleted, fileDiagram, untitledDiagram };
 }
+
+describe("keepsScriptsInOsTemp", () => {
+    it.each([
+        { documentScheme: "file", inOsTemp: false },
+        { documentScheme: "untitled", inOsTemp: true },
+        { documentScheme: "vscode-vfs", inOsTemp: true },
+        { documentScheme: "git", inOsTemp: true },
+    ])(
+        "$documentScheme: documents keep their scripts in the OS temp folder: $inOsTemp",
+        ({ documentScheme, inOsTemp }) => {
+            expect(keepsScriptsInOsTemp(documentScheme)).toBe(inOsTemp);
+        },
+    );
+});
 
 describe("ScriptFileStore.resolveBaseDir", () => {
     it("resolves under the workspace root's config folder with the marker segments", async () => {
-        const { store } = createStore();
-        expect(await store.resolveBaseDir(EDITOR_ID)).toBe("/ws/.camunda/tmp/scripting");
+        const { store, fileDiagram } = createStore();
+        expect(await store.resolveBaseDir(fileDiagram.id)).toBe("/ws/.camunda/tmp/scripting");
     });
 
-    it("falls back to the OS temp dir, keeping the marker segments, when resolution fails", async () => {
-        const { store } = createStore({
-            getDocumentDirectory: () => {
-                throw new Error("not a file path");
-            },
-        });
-        const baseDir = await store.resolveBaseDir("untitled:foo");
-        expect(baseDir).toContain("miragon-bpmn-modeler");
-        expect(baseDir.endsWith("/tmp/scripting")).toBe(true);
+    it("keeps the scripts of an untitled diagram in the OS temp folder", async () => {
+        const { store, untitledDiagram } = createStore();
+        expect(await store.resolveBaseDir(untitledDiagram.id)).toBe(
+            `${tmpdir().replace(/\\/g, "/")}/miragon-bpmn-modeler/tmp/scripting`,
+        );
     });
 });
 
