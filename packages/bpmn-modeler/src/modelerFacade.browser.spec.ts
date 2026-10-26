@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting";
+import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
 
 import * as lintModule from "./bpmnlint/index";
-import type { LintConfigService } from "./bpmnlint/LintConfigService";
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
 import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
@@ -23,6 +23,11 @@ const SCRIPT_TASK_MORPHED_XML = C7_SCRIPTS_XML.replace(
 const LEGACY_SCRIPT_FORMAT_XML = C7_SCRIPTS_XML.replace(
     '<bpmn:scriptTask id="ScriptTask_1" scriptFormat="groovy">',
     '<bpmn:scriptTask id="ScriptTask_1" camunda:scriptFormat="javascript">',
+);
+
+const SERVICE_TASK_WITHOUT_JOB_TYPE_XML = FAR_FROM_ORIGIN_XML.replace(
+    '<bpmn:task id="Task_1" name="A" />',
+    '<bpmn:serviceTask id="Task_1" name="A" />',
 );
 
 interface FlowElement {
@@ -385,11 +390,13 @@ describe("BpmnModeler element templates", () => {
             engine: "c7",
             propertiesPanel: { parent: panel },
             linting: false,
+            elementTemplates: [VALID_TEMPLATE],
         });
-
-        modeler.setElementTemplates([VALID_TEMPLATE]);
-
         expect(templateIds(modeler)).toEqual(["com.example.audit"]);
+
+        modeler.setElementTemplates([{ ...VALID_TEMPLATE, id: "com.example.review" }]);
+
+        expect(templateIds(modeler)).toEqual(["com.example.review"]);
         modeler.destroy();
     });
 
@@ -435,7 +442,12 @@ describe("BpmnModeler align to origin", () => {
         modeler.alignElementsToOrigin();
         expect(boundsOf(modeler, "StartEvent_1").x).toBe(150);
         expect(boundsOf(modeler, "Task_1").y).toBe(150);
-        expect(modeler.getService("commandStack").canUndo()).toBe(true);
+
+        const commandStack = modeler.getService("commandStack");
+        commandStack.undo();
+        expect(commandStack.canUndo()).toBe(false);
+        expect(boundsOf(modeler, "StartEvent_1")).toMatchObject({ x: 5000, y: 4000 });
+        expect(boundsOf(modeler, "Task_2")).toMatchObject({ x: 5300, y: 3980 });
     });
 });
 
@@ -479,20 +491,26 @@ describe("BpmnModeler design/implement mode", () => {
     });
 
     it("re-resolves the in-page lint rules for the new mode", async () => {
+        const lintRuns: LintRunEvent[] = [];
         const { container, panel } = mountWithPanel();
         const modeler = await createModeler(container, {
             engine: "c8",
             propertiesPanel: { parent: panel },
             linting: { module: lintModule },
+            onLintResults: (event) => lintRuns.push(event),
         });
-        const setLintMode = vi.spyOn(
-            modeler.getService<LintConfigService>("bpmnLintConfig"),
-            "setMode",
-        );
+        const engineRulesInLatestRun = () =>
+            Object.keys(lintRuns.at(-1)?.results ?? {}).filter((rule) =>
+                rule.startsWith("camunda-compat/"),
+            );
+        await modeler.loadDiagram(SERVICE_TASK_WITHOUT_JOB_TYPE_XML);
+        await expect.poll(engineRulesInLatestRun).toContain("camunda-compat/implementation");
 
         modeler.setMode("design");
+        await expect.poll(engineRulesInLatestRun).toEqual([]);
 
-        expect(setLintMode).toHaveBeenCalledExactlyOnceWith("design");
+        modeler.setMode("implement");
+        await expect.poll(engineRulesInLatestRun).toContain("camunda-compat/implementation");
         modeler.destroy();
     });
 });

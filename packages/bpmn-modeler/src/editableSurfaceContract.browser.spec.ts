@@ -81,6 +81,25 @@ function pinnedFavourites(surface: BpmnDesignerHandle): (string | null)[] {
     return favourites;
 }
 
+// Compared on the live shapes, not the exported XML: bpmn-js re-measures label bounds
+// on import but writes them to the DI only once a command touches the label.
+function diagramGeometry(surface: BpmnDesignerHandle) {
+    return Object.fromEntries(
+        surface
+            .getService("elementRegistry")
+            .getAll()
+            .map((element) => [
+                element.id,
+                element.waypoints?.map(({ x, y }: { x: number; y: number }) => ({ x, y })) ?? {
+                    x: element.x,
+                    y: element.y,
+                    width: element.width,
+                    height: element.height,
+                },
+            ]),
+    );
+}
+
 describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor) => {
     let surface: BpmnDesignerHandle | undefined;
 
@@ -161,12 +180,16 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         const handle = await open();
         await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
         const commandStack = handle.getService("commandStack");
+        const messyGeometry = diagramGeometry(handle);
 
         const outcome = await handle.formatDiagram();
 
         expect(outcome.status).toBe("formatted");
+        expect(diagramGeometry(handle)).not.toEqual(messyGeometry);
+
         commandStack.undo();
         expect(commandStack.canUndo()).toBe(false);
+        expect(diagramGeometry(handle)).toEqual(messyGeometry);
     });
 
     it("reports diagram garbage, removes it on apply, and then reads clean", async () => {
