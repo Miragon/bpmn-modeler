@@ -227,14 +227,6 @@ class CoreProcess(private val project: Project) : Disposable {
     fun deploymentStatusMenu() = modelerCommandsRouter.deploymentStatusMenu()
 
     /**
-     * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script
-     * variable and reveal the manifest — backs the "Declare in variable manifest"
-     * intention, which has the `scriptId` but not the bridge channel.
-     */
-    fun appendScriptVariableToManifest(scriptId: String, name: String) =
-        scriptRouter.appendToManifest(scriptId, name)
-
-    /**
      * Fires `script/openAll` for the Tools-menu action; the bridge asks the active
      * BPMN webview for its inline script tasks and writes a file for each. No tabs
      * open — live sync starts when the user opens a generated file (adoption).

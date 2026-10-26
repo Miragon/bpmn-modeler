@@ -44,7 +44,6 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
 import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant";
-import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
 import { FormValuesParticipant } from "../modeler/form/controller/editor-participants/FormValuesParticipant";
 import { FormValuesController } from "../modeler/form/controller/FormValuesController";
 import {
@@ -105,7 +104,6 @@ interface EditorHandles {
     diffController: BpmnDiffController;
     scriptTaskSvc: ScriptTaskService;
     scriptVariableStore: ScriptVariableStore;
-    scriptManifestParticipant: ScriptManifestParticipant;
     codeLink: CodeLinkHandles;
     marketplaceSvc: TemplateMarketplaceService;
     deploymentStatusParticipant: DeploymentStatusParticipant;
@@ -134,7 +132,6 @@ export function register(
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
-        scriptManifestParticipant,
         codeLink,
         marketplaceSvc,
         deploymentStatusParticipant,
@@ -358,7 +355,6 @@ export function register(
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
             deploymentStatusParticipant,
             new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),
-            scriptManifestParticipant,
             codeLink.codeLinkParticipant,
         ],
         // Diff routing: when the URI resolves as a diff pane the diff controller

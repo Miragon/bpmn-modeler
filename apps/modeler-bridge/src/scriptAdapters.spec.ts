@@ -35,7 +35,6 @@ function createEditor() {
     const host = createTestHost({ files: { [SCRIPT_FILE]: "a" } });
     const modelerEditor = host.openEditor(EDITOR_PATH);
     const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
-    const manifestSvc = {};
     const artifactSvc = {};
 
     const editor = new BridgeScriptEditor(
@@ -44,7 +43,6 @@ function createEditor() {
         rpc as never,
         host.notifier,
         host.settings,
-        manifestSvc as never,
         host.workspace,
         artifactSvc as never,
     );
@@ -205,7 +203,6 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             rpc as never,
             host.notifier,
             host.settings,
-            {} as never,
             host.workspace,
             {} as never,
         );

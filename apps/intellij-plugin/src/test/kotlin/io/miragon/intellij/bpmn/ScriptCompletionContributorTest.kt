@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test
  * [ScriptBindingMembersContributor] separately injects every catalog symbol as
  * synthetic Groovy PSI so the bare name *resolves* — which makes Groovy's native
  * completion re-emit each as a second, untyped lookup. The regression these tests
- * lock down is that exact double: a manifest-declared variable must surface
- * **once**, while genuine Groovy completions (keywords) still pass through.
+ * lock down is that exact double: a process variable must surface **once**,
+ * while genuine Groovy completions (keywords) still pass through.
  *
  * Uses [LightJavaCodeInsightFixtureTestCase5] — the JUnit5 code-insight base class
  * — because it manages the light-project lifecycle the suite's leak tracker
@@ -29,13 +29,13 @@ class ScriptCompletionContributorTest : LightJavaCodeInsightFixtureTestCase5() {
     override fun getTestDataPath(): String = System.getProperty("java.io.tmpdir")
 
     @Test
-    fun `manifest-declared variable surfaces exactly once`() {
+    fun `process variable surfaces exactly once`() {
         // Two variables share the `ten` prefix so the popup stays open (a single
         // match would auto-insert and hide the list), letting us count duplicates.
         val result =
             completeScript(
                 "ten",
-                variable("tenantId", typeHint = "String", description = "The tenant"),
+                variable("tenantId", typeHint = "String"),
                 variable("tenantName", typeHint = "String"),
             )
 
@@ -89,11 +89,8 @@ class ScriptCompletionContributorTest : LightJavaCodeInsightFixtureTestCase5() {
         )
     }
 
-    private fun variable(
-        name: String,
-        typeHint: String? = null,
-        description: String? = null,
-    ): VariableInfo = VariableInfo(name = name, origin = null, typeHint = typeHint, description = description)
+    private fun variable(name: String, typeHint: String? = null): VariableInfo =
+        VariableInfo(name = name, origin = null, typeHint = typeHint)
 
     companion object {
         @JvmStatic

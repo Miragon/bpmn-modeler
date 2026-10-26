@@ -330,8 +330,8 @@ describe("VsCodeWorkspace.readFile", () => {
         readFileMock.mockRejectedValue(new FileSystemError("NoPermissions"));
         const sut = new VsCodeWorkspace();
 
-        // A real read failure must reach the caller so the manifest participant
-        // can surface it — the old catch-all swallowed it as "no manifest".
+        // A real read failure must reach the caller so it can surface it — the
+        // old catch-all swallowed it as "file absent".
         await expect(sut.readFile("/work/locked.txt")).rejects.not.toBeInstanceOf(FileNotFound);
         await expect(sut.readFile("/work/locked.txt")).rejects.toThrow(/NoPermissions/);
     });

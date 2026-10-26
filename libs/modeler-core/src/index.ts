@@ -8,6 +8,7 @@
  */
 
 // ── shared: domain ──────────────────────────────────────────────────────────
+export * from "./shared/domain/affectedItems";
 export * from "./shared/domain/BpmnDocument";
 export * from "./shared/domain/EditorSession";
 export * from "./shared/domain/EditorSessionParticipant";
@@ -140,6 +141,5 @@ export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
 
 // ── scriptTask: service ──────────────────────────────────────────────────────
-export * from "./scriptTask/service/ScriptVariableManifestService";
 export * from "./scriptTask/service/ScriptXmlService";
 export * from "./scriptTask/service/scriptBatch";

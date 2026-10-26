@@ -26,9 +26,10 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
                 deploymentSink?.invoke(payload)
             }
             // Acknowledged requests (not notifications): the bridge awaits the
-            // persist so a failure is logged, not silently dropped. PropertiesComponent
-            // writes are thread-safe and run on the reader thread here (same as the
-            // secretStore handlers); the empty `reply` mirrors `secretStore/save*`.
+            // persist so a failure rejects the core's write instead of being
+            // dropped silently. PropertiesComponent writes are thread-safe and
+            // run on the reader thread here (same as the secretStore handlers);
+            // the empty `reply` mirrors `secretStore/save*`.
             .on("deploymentState/saveAuthType") { params, id ->
                 deploymentState.saveAuthType(params.get("authType").asString)
                 id?.let { deps.channel.reply(it, null) }

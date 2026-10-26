@@ -107,17 +107,6 @@ module.exports = (env, argv) => {
                         noErrorOnMissing: true,
                     },
                     {
-                        // Single source of truth: the manifest JSON Schema lives in
-                        // libs/shared next to the type it mirrors. Copied (not
-                        // imported) because `contributes.jsonValidation.url` resolves
-                        // it as a file relative to the packaged extension root.
-                        from: path.resolve(
-                            __dirname,
-                            "../../libs/shared/src/lib/variableManifest.schema.json",
-                        ),
-                        to: "schemas/bpmn-vars.schema.json",
-                    },
-                    {
                         from: path.resolve(
                             __dirname,
                             "../../libs/shared/src/lib/deploymentTargets.schema.json",

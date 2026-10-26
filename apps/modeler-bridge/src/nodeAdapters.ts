@@ -231,10 +231,10 @@ export class NodeWorkspace implements WorkspacePort {
     /**
      * @throws {FileNotFound} on `ENOENT`. The {@link WorkspacePort.readFile}
      *   contract is "throw FileNotFound when absent" (VsCodeWorkspace already
-     *   does, via `Uri.file`), and callers like `ScriptVariableManifestService`
-     *   catch it (via `instanceof`) to mean "no manifest, use defaults". A raw
-     *   ENOENT would slip that guard and rethrow — mirror the `readDirectory`
-     *   precedent above so the class identity survives bundling.
+     *   does, via `Uri.file`), and callers catch it (via `instanceof`) to mean
+     *   "absent, use defaults". A raw ENOENT would slip that guard and rethrow —
+     *   mirror the `readDirectory` precedent above so the class identity
+     *   survives bundling.
      */
     async readFile(path: string): Promise<string> {
         try {
@@ -499,8 +499,8 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
 };
 
 /**
- * Mutable {@link SettingsPort} fed by the host over RPC, plus the change-event hub
- * the core's settings subscriptions ride on.
+ * Mutable {@link SettingsPort} fed by the host over RPC and by the webview's lint
+ * toggle, plus the change-event hub the core's settings subscriptions ride on.
  *
  * The VS Code host reads configuration synchronously and emits
  * `onDidChangeConfiguration`; out-of-process there is no such API, so the host
@@ -512,6 +512,8 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
  */
 export class BridgeSettings implements SettingsPort {
     private snapshot: SettingsSnapshot = { ...DEFAULT_SETTINGS };
+    // Outside the snapshot: `apply` would announce it as `lintingEnabled`, not `linting.enabled`.
+    private lintingEnabled = true;
     private readonly listeners = new Set<(event: SettingChange) => void>();
 
     /**
@@ -528,16 +530,23 @@ export class BridgeSettings implements SettingsPort {
             }
         }
         this.snapshot = merged;
-        if (changed.size === 0) {
-            return;
+        this.notify(changed);
+    }
+
+    /**
+     * The webview's lint toggle. IntelliJ has no setting for it, so the choice
+     * lives as long as this bridge process: one project, until the IDE restarts or
+     * the bridge respawns.
+     *
+     * @returns whether the toggle changed the setting.
+     */
+    setLintingEnabled(enabled: boolean): boolean {
+        if (enabled === this.lintingEnabled) {
+            return false;
         }
-        const event: SettingChange = {
-            affectsConfiguration: (section) => changed.has(section),
-        };
-        // Copy before iterating: a listener may dispose itself on fire.
-        for (const listener of [...this.listeners]) {
-            listener(event);
-        }
+        this.lintingEnabled = enabled;
+        this.notify(new Set([`${SETTINGS_PREFIX}.linting.enabled`]));
+        return true;
     }
 
     /** Registers a settings-change listener; the returned subscription unregisters it. */
@@ -577,13 +586,8 @@ export class BridgeSettings implements SettingsPort {
     getLanguage(): string {
         return this.snapshot.language;
     }
-    /**
-     * IntelliJ has no linting-off toggle yet (out of scope), so linting stays on
-     * in the bridge — the VS Code / standalone `linting.enabled` setting drives
-     * the opt-out on those hosts.
-     */
     getLintingEnabled(): boolean {
-        return true;
+        return this.lintingEnabled;
     }
     /**
      * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the
@@ -602,6 +606,19 @@ export class BridgeSettings implements SettingsPort {
      */
     getMarketplaces(): string[] {
         return this.snapshot.marketplaces;
+    }
+
+    private notify(changedSections: ReadonlySet<string>): void {
+        if (changedSections.size === 0) {
+            return;
+        }
+        const event: SettingChange = {
+            affectsConfiguration: (section) => changedSections.has(section),
+        };
+        // Copy before iterating: a listener may dispose itself on fire.
+        for (const listener of [...this.listeners]) {
+            listener(event);
+        }
     }
 }
 

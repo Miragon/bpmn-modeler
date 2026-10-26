@@ -139,19 +139,6 @@ export interface ScriptDidOpenExternalParams {
 }
 
 /**
- * `script/appendToManifest` — the host's "Declare in variable manifest" intention
- * asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown variable.
- * `type`/`description` are optional so the host can append a name-only entry and
- * let the author fill the rest in the opened manifest.
- */
-export interface ScriptAppendToManifestParams {
-    scriptId: string;
-    name: string;
-    type?: string;
-    description?: string;
-}
-
-/**
  * `marketplace/add` — a Tools-menu "Add Template Marketplace" action. `settings`
  * piggybacks the host's fresh snapshot so the fetch never depends on a prior
  * `session/register` seed (the run may fire before any editor is open).
@@ -250,6 +237,9 @@ export interface PickerShowResult {
  * A request rather than a notification because the core has to wait for the
  * answer before deleting anything; requests only run core→host, which is the
  * direction needed here.
+ *
+ * `details` arrives already summarised by `summarizeAffectedItems`, so the
+ * host renders it verbatim and never shortens it.
  */
 export interface ConfirmShowParams {
     title: string;

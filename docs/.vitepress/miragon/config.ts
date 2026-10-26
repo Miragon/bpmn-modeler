@@ -11,15 +11,15 @@
  *
  *   export default miragonDocs({
  *     repo: "Miragon/bpmn-cli",
- *     title: "Miragon BPMN CLI",
+ *     title: "Miragon bpmn-cli",
  *     description: "…",
  *     nav: [{ text: "Getting started", link: "/getting-started" }],
  *     sidebar: [{ text: "Start", items: [{ text: "Getting started", link: "/getting-started" }] }],
  *   })
  *
  * Fest im Kit: base aus DOCS_BASE, saubere URLs, Datum der letzten Änderung, Komet als Icon, zwei
- * theme-color, Geist vorgeladen, Shiki-Themes mit AA, Anker wie auf GitHub, Mermaid, Wortmarke hell
- * und dunkel, Gliederung H2 und H3, lokale Suche, Bearbeiten-Link, 404-Texte und die Rechtsleiste
+ * theme-color, Geist vorgeladen, Shiki-Themes mit AA, Anker wie auf GitHub, Mermaid, Komet und
+ * Produktname im Titel, Gliederung H2 und H3, lokale Suche, Bearbeiten-Link, GitHub mit Sternen im Header, Bitte um einen Stern am Seitenende, 404-Texte und die Rechtsleiste
  * (Copyright, Impressum, Datenschutz) auf jeder Seite. Die Farben kommen aus theme/miragon.css.
  */
 import { mergeConfig, type DefaultTheme, type HeadConfig, type UserConfig } from "vitepress"
@@ -34,9 +34,9 @@ export { miragonLegal, type MiragonLegal } from "./legal"
 export interface MiragonDocsOptions {
   /** GitHub-Repo als "Miragon/<name>". Ergibt den Bearbeiten-Link und das GitHub-Icon. */
   repo: string
-  /** Produktname, etwa "Miragon BPMN CLI". Steht im Titel jeder Seite. */
+  /** Produktname, etwa "Miragon bpmn-cli". Steht im Titel jeder Seite. */
   title: string
-  /** Name neben der Wortmarke. Standard: title ohne "Miragon ". false zeigt nur die Wortmarke. */
+  /** Name neben dem Komet. Standard: title ohne "Miragon ". false zeigt nur den Komet. */
   siteTitle?: string | false
   /** Ein Satz für die Beschreibung der Seite (meta description). */
   description: string
@@ -48,6 +48,11 @@ export interface MiragonDocsOptions {
   nav?: DefaultTheme.NavItem[]
   /** Seitenleiste, als Liste oder je Pfad. */
   sidebar?: DefaultTheme.Sidebar
+  /**
+   * Sterne des Repos im Header neben dem GitHub-Icon und die Bitte um einen Stern am Ende jeder Seite.
+   * Standard true, false zeigt nur das GitHub-Icon.
+   */
+  githubStars?: boolean
   /** Weitere Icons nach dem GitHub-Icon, etwa npm. */
   socialLinks?: DefaultTheme.SocialLink[]
   /** Zweig für den Bearbeiten-Link. Standard "main". */
@@ -72,7 +77,30 @@ export interface MiragonDocsOptions {
 }
 
 export interface MiragonThemeConfig extends DefaultTheme.Config {
-  miragon: { legal: MiragonLegal }
+  miragon: { legal: MiragonLegal; github?: MiragonGitHub }
+}
+
+/** Repo und Sterne für den Knopf im Header (theme/GitHubStars.vue). */
+export interface MiragonGitHub {
+  link: string
+  stars?: number
+  /** Bitte um einen Stern am Ende jeder Seite mit Seitenleiste (theme/StarPrompt.vue). */
+  prompt: { title: string; text: string; button: string }
+}
+
+/**
+ * Sterne beim Build: Die Zahl steht gleich im HTML. Im Browser holt theme/useStars.ts sie live
+ * nach. Ohne Antwort in drei Sekunden steht der Knopf bis dahin ohne Zahl da.
+ */
+async function sterne(repo: string): Promise<number | undefined> {
+  try {
+    const antwort = await fetch(`https://api.github.com/repos/${repo}`, { signal: AbortSignal.timeout(3000) })
+    if (!antwort.ok) return undefined
+    const { stargazers_count } = (await antwort.json()) as { stargazers_count?: number }
+    return stargazers_count
+  } catch {
+    return undefined
+  }
 }
 
 const SPRACHEN = ["en-US", "de-DE"] as const
@@ -81,6 +109,11 @@ const SPRACHEN = ["en-US", "de-DE"] as const
 const TEXTE = {
   "en-US": {
     editLink: "Edit this page on GitHub",
+    starPrompt: (name: string) => ({
+      title: "Did this page help?",
+      text: `A star on GitHub helps other teams find ${name}.`,
+      button: "Star",
+    }),
     lastUpdated: "Last updated",
     // Was passiert ist und was zu tun ist, im Satzbau statt „PAGE NOT FOUND“ und Zitat.
     notFound: {
@@ -94,6 +127,11 @@ const TEXTE = {
   },
   "de-DE": {
     editLink: "Diese Seite auf GitHub bearbeiten",
+    starPrompt: (name: string) => ({
+      title: "Hat dir die Seite geholfen?",
+      text: `Ein Stern auf GitHub hilft anderen Teams, ${name} zu finden.`,
+      button: "Stern",
+    }),
     lastUpdated: "Zuletzt aktualisiert",
     notFound: {
       title: "Diese Seite gibt es nicht",
@@ -143,7 +181,7 @@ function basis(wert: string | undefined): string {
   return pfad ? `/${pfad}/`.replace(/\/{2,}/g, "/") : "/"
 }
 
-export function miragonDocs(options: MiragonDocsOptions): UserConfig<MiragonThemeConfig> {
+export async function miragonDocs(options: MiragonDocsOptions): Promise<UserConfig<MiragonThemeConfig>> {
   const lang = options.lang ?? "en-US"
   if (!SPRACHEN.includes(lang)) {
     throw new Error(`miragonDocs: lang ist "${lang}", erlaubt sind ${SPRACHEN.join(" und ")}.`)
@@ -193,23 +231,31 @@ export function miragonDocs(options: MiragonDocsOptions): UserConfig<MiragonThem
       anchor: { slugify: githubSlug },
     },
 
-    // Mermaid für den Dev-Server vorbündeln: Es importiert CommonJS-Pakete (fastdom seit 11.17),
-    // die vitepress-plugin-mermaid nicht nennt. Ohne zeigt `vitepress dev` kein Diagramm.
+    // Mermaid für den Dev-Server vorbündeln: Es importiert CommonJS-Module, die
+    // vitepress-plugin-mermaid nicht nennt, in 12 etwa elkjs und dayjs/plugin/duration. Ohne zeigt
+    // `vitepress dev` etwa Gantt- und Use-Case-Diagramme nicht.
     vite: { optimizeDeps: { include: ["mermaid"] } },
 
     // Mermaid misst mit der Markenschrift. neutral ist das graue Theme von Mermaid, die Farben der
     // CI legt theme/miragon.css über die Rollen darüber, im Dunkeln wie im Hellen.
+    // look und layout halten das Aussehen von Mermaid 11, wie die App von designIQ: Ohne zeichnet
+    // Mermaid 12 im Look neo und legt die Graphen mit ELK neu aus, jedes Diagramm sähe anders aus.
+    // dagre steht je Diagrammtyp, der es bisher hatte. Ein layout für alle nähme Mindmaps
+    // cose-bilkent und Swimlanes ihre Bahnen.
     mermaid: {
       theme: "neutral",
+      look: "classic",
+      flowchart: { layout: "dagre" },
+      class: { layout: "dagre" },
+      state: { layout: "dagre" },
+      er: { layout: "dagre" },
+      requirement: { layout: "dagre" },
       fontFamily: SCHRIFT,
       themeVariables: { fontFamily: SCHRIFT },
       sequence: { actorFontFamily: SCHRIFT, messageFontFamily: SCHRIFT, noteFontFamily: SCHRIFT },
     },
 
     themeConfig: {
-      // Die offiziellen Wortmarken: Grün auf Hell, Weiß auf Dunkel.
-      logo: { light: "/logo/miragon-logo-gruen.svg", dark: "/logo/miragon-logo-weiss.svg", alt: "Miragon" },
-      // Produkte zeigen die Wortmarke und schreiben ihren Namen in Geist daneben.
       siteTitle,
       nav,
       sidebar: options.sidebar ?? [],
@@ -227,7 +273,17 @@ export function miragonDocs(options: MiragonDocsOptions): UserConfig<MiragonThem
       // Kein footer von VitePress: Er fehlt auf Seiten mit Seitenleiste. Die Rechtsleiste
       // (theme/LegalRow.vue) steht auf jeder Seite.
       // Texte und Links aus legal.ts.
-      miragon: { legal: miragonLegal({ lang, message: options.footerMessage }) },
+      miragon: {
+        legal: miragonLegal({ lang, message: options.footerMessage }),
+        github:
+          options.githubStars === false
+            ? undefined
+            : {
+                link: repoUrl,
+                stars: await sterne(options.repo),
+                prompt: texte.starPrompt(options.title.replace(/^Miragon\s+/, "")),
+              },
+      },
     },
   }
 
