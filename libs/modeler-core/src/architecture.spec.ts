@@ -9,9 +9,10 @@ import { describe, expect, it } from "vitest";
  * (`node:*`, `fs`, `http`). Pure Node utilities that exist in any Node host
  * (`path`, `Buffer`) are allowed; they are not host capabilities.
  *
- * Inside the core, layers point inward and features meet only in `shared/`.
- * Each exception below names the issue that removes it, and an exception the
- * code no longer needs fails the gate, so the lists only shrink.
+ * Inside the core, layers point inward, features meet only in `shared/` and
+ * `kernel/`, and `kernel/` imports nothing outside itself. Each exception
+ * below names the issue that removes it, and an exception the code no longer
+ * needs fails the gate, so the lists only shrink.
  */
 const SRC_ROOT = __dirname;
 
@@ -40,7 +41,8 @@ interface KnownException {
 const LAYER_FOLDERS: readonly Layer[] = ["domain", "service", "session", "infrastructure"];
 const APPLICATION_LAYERS: readonly Layer[] = ["service", "session"];
 const DOMAIN_PACKAGES: readonly string[] = ["@miragon/bpmn-modeler-types", "path"];
-const SHARED_FEATURE = "shared";
+const KERNEL_FEATURE = "kernel";
+const SUBSTRATE: readonly string[] = ["shared", KERNEL_FEATURE];
 const INBOUND_ADAPTER = /MessageHandlers\.ts$/;
 
 const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
@@ -278,7 +280,14 @@ function domainLayerViolations(edges: readonly ImportEdge[]): ImportEdge[] {
 function crossFeatureViolations(edges: readonly ImportEdge[]): ImportEdge[] {
     return edges.filter(
         ({ from, to }) =>
-            to !== undefined && to.feature !== from.feature && to.feature !== SHARED_FEATURE,
+            to !== undefined && to.feature !== from.feature && !SUBSTRATE.includes(to.feature),
+    );
+}
+
+function kernelImportViolations(edges: readonly ImportEdge[]): ImportEdge[] {
+    return edges.filter(
+        ({ from, to }) =>
+            from.feature === KERNEL_FEATURE && to !== undefined && to.feature !== KERNEL_FEATURE,
     );
 }
 
@@ -383,9 +392,14 @@ const LAYER_RULES = [
         exceptions: [],
     },
     {
-        rule: "a feature reaches another feature only through shared/",
+        rule: "a feature reaches another feature only through shared/ or kernel/",
         violations: crossFeatureViolations,
         exceptions: CROSS_FEATURE_EXCEPTIONS,
+    },
+    {
+        rule: "kernel/ imports nothing outside kernel/",
+        violations: kernelImportViolations,
+        exceptions: [],
     },
     {
         rule: "services and session participants import only the listed infrastructure",
@@ -423,7 +437,7 @@ const deploymentPorts = moduleAt("deployment", "domain", "ports.ts");
 const deploymentService = moduleAt("deployment", "service", "DeploymentService.ts");
 const deploymentParticipant = moduleAt("deployment", "session", "DeploymentStatusParticipant.ts");
 const deploymentFeature = moduleAt("deployment", "root", "DeploymentFeature.ts");
-const httpClient = moduleAt("deployment", "infrastructure", "FetchHttpClient.ts");
+const camundaClient = moduleAt("deployment", "infrastructure", "camunda/Camunda7RestClient.ts");
 const deploymentHandlers = moduleAt("deployment", "infrastructure", "deploymentMessageHandlers.ts");
 const sharedErrors = moduleAt("shared", "domain", "errors.ts");
 const artifactService = moduleAt("shared", "service", "ArtifactService.ts");
@@ -433,6 +447,8 @@ const marketplaceService = moduleAt(
     "TemplateMarketplaceService.ts",
 );
 const gitHubSource = moduleAt("template-marketplace", "infrastructure", "GitHubSource.ts");
+const kernelHttp = moduleAt("kernel", "domain", "http.ts");
+const fetchHttpClient = moduleAt("kernel", "infrastructure", "FetchHttpClient.ts");
 
 /** Every edge here is allowed by every rule. */
 const LAYERED_GRAPH: readonly ImportEdge[] = [
@@ -444,10 +460,14 @@ const LAYERED_GRAPH: readonly ImportEdge[] = [
     edge(deploymentService, artifactService),
     edge(deploymentParticipant, deploymentService),
     edge(deploymentFeature, deploymentService),
-    edge(deploymentFeature, httpClient),
+    edge(deploymentFeature, camundaClient),
     edge(deploymentHandlers, deploymentService),
-    edge(httpClient, deploymentPorts),
+    edge(camundaClient, deploymentPorts),
+    edge(camundaClient, kernelHttp),
+    edge(deploymentFeature, fetchHttpClient),
+    edge(fetchHttpClient, kernelHttp),
     edge(marketplaceService, sharedErrors),
+    edge(gitHubSource, kernelHttp),
     edge(gitHubSource, "bpmnlint"),
 ];
 
@@ -504,6 +524,11 @@ describe("module classification", () => {
             layer: "infrastructure",
         },
         { path: "shared/service/ArtifactService.ts", feature: "shared", layer: "service" },
+        {
+            path: "kernel/infrastructure/FetchHttpClient.ts",
+            feature: "kernel",
+            layer: "infrastructure",
+        },
         {
             path: "modeler/bpmn/session/BpmnlintParticipant.ts",
             feature: "modeler/bpmn",
@@ -618,7 +643,7 @@ describe("rules on a synthetic graph", () => {
         {
             name: "domain → infrastructure",
             violations: domainLayerViolations,
-            offending: edge(deploymentTarget, httpClient),
+            offending: edge(deploymentTarget, camundaClient),
         },
         {
             name: "domain → feature root",
@@ -636,19 +661,29 @@ describe("rules on a synthetic graph", () => {
             offending: edge(artifactService, deploymentService),
         },
         {
+            name: "kernel → a feature",
+            violations: kernelImportViolations,
+            offending: edge(fetchHttpClient, deploymentPorts),
+        },
+        {
+            name: "kernel → shared",
+            violations: kernelImportViolations,
+            offending: edge(kernelHttp, sharedErrors),
+        },
+        {
             name: "service → infrastructure",
             violations: serviceToInfrastructureViolations,
-            offending: edge(deploymentService, httpClient),
+            offending: edge(deploymentService, camundaClient),
         },
         {
             name: "session → infrastructure",
             violations: serviceToInfrastructureViolations,
-            offending: edge(deploymentParticipant, httpClient),
+            offending: edge(deploymentParticipant, camundaClient),
         },
         {
             name: "non-handler infrastructure → service",
             violations: adapterToServiceViolations,
-            offending: edge(httpClient, deploymentService),
+            offending: edge(camundaClient, deploymentService),
         },
         {
             name: "a relative import of the package entry",
@@ -762,13 +797,13 @@ describe("known exceptions", () => {
         },
         {
             name: "a wildcard importer covers any module importing the target",
-            exception: { from: "*", to: httpClient.path },
-            violation: edge(deploymentService, httpClient),
+            exception: { from: "*", to: camundaClient.path },
+            violation: edge(deploymentService, camundaClient),
             covers: true,
         },
         {
             name: "a wildcard importer does not widen the target",
-            exception: { from: "*", to: httpClient.path },
+            exception: { from: "*", to: camundaClient.path },
             violation: edge(deploymentService, deploymentHandlers),
             covers: false,
         },
