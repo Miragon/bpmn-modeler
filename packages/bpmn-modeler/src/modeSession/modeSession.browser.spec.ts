@@ -185,12 +185,12 @@ describe("createModeSession hands a Design edit to the next real surface", () =>
         await tagged.requestMode("view");
         expect(onError).not.toHaveBeenCalled();
         expect(tagged.getMode()).toBe("view");
-        expect(await tagged.getHandle().exportDiagram()).toContain(RENAMED_IN_DESIGN);
+        await expect(tagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
 
         await tagged.requestMode("implement");
         expect(onError).not.toHaveBeenCalled();
         expect(tagged.getMode()).toBe("implement");
-        expect(await tagged.getHandle().exportDiagram()).toContain(RENAMED_IN_DESIGN);
+        await expect(tagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
     });
 
     it("finds an untagged model's edit in the View export and back in the designer's", async () => {
@@ -201,11 +201,11 @@ describe("createModeSession hands a Design edit to the next real surface", () =>
         await untagged.requestMode("view");
         expect(onError).not.toHaveBeenCalled();
         expect(untagged.getMode()).toBe("view");
-        expect(await untagged.getHandle().exportDiagram()).toContain(RENAMED_IN_DESIGN);
+        await expect(untagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
 
         await untagged.requestMode("design");
         expect(onError).not.toHaveBeenCalled();
         expect(untagged.getMode()).toBe("design");
-        expect(await untagged.getHandle().exportDiagram()).toContain(RENAMED_IN_DESIGN);
+        await expect(untagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
     });
 });
