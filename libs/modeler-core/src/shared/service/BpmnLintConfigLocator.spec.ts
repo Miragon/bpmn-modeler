@@ -1,18 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
+import { ArtifactService } from "./ArtifactService";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
 
-/**
- * Workspace-root resolution is reused from {@link ArtifactService}, so that
- * collaborator is doubled to just return a configured root rather than
- * re-testing ArtifactService's fallback chain here.
- */
-function createLocator(files: Record<string, string> = {}) {
-    const { workspace, settings } = createTestHost({ files });
-    const artifacts = { getWorkspaceRoot: vi.fn().mockResolvedValue("/work") };
+function createLocator(files: Record<string, string> = {}, folders = ["/work"]) {
+    const { workspace, settings } = createTestHost({ folders, files });
+    const artifacts = new ArtifactService(workspace, settings);
 
-    const locator = new BpmnLintConfigLocator(workspace, settings, artifacts as never);
+    const locator = new BpmnLintConfigLocator(workspace, settings, artifacts);
 
     return { locator, workspace };
 }
@@ -67,6 +63,18 @@ describe("BpmnLintConfigLocator.findNearestConfig", () => {
             "/work",
             "/work/.camunda",
         ]);
+    });
+
+    it("finds a .bpmnlintrc in a drive-root workspace", async () => {
+        const { locator } = createLocator({ "/c:/.bpmnlintrc": "{}" }, ["/c:/"]);
+
+        await expect(locator.findNearestConfig("/c:/proj")).resolves.toBe("/c:/.bpmnlintrc");
+    });
+
+    it("finds a .bpmnlintrc when the workspace is the filesystem root", async () => {
+        const { locator } = createLocator({ "/.bpmnlintrc": "{}" }, ["/"]);
+
+        await expect(locator.findNearestConfig("/proj")).resolves.toBe("/.bpmnlintrc");
     });
 });
 
