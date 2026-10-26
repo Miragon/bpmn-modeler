@@ -282,9 +282,12 @@ but it knows whether it was edited since it last imported a host document
 went out; a page nobody edited answers `clean`, so recovery never writes the
 modeler's serialization over a diagram nobody touched. A Document that refuses
 the write keeps its text, and the other pages still recover. The page stays
-locked until a render reaches it, or a timeout passes. Reload Modeler runs the
-same recovery against the running bridge. This is host policy and stays in
-Kotlin; a shared render participant must keep the flush before the replay.
+locked until a render reaches it, or a timeout after the replay passes; only
+the recovery that posted the page's last flush holds that lock. A crash
+recovery with an edit to write waits for an open modal dialog to close before
+it re-registers. Reload Modeler runs the same recovery against the running
+bridge. This is host policy and stays in Kotlin; a shared render participant
+must keep the flush before the replay.
 Accepted residual: an edit in the page's import debounce after the unlock can
 still be overwritten; the first render to reach the page unlocks it, so a
 render already in flight or an overlapping recovery's replay can unlock it
