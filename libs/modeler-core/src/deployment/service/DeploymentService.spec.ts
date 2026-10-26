@@ -1166,12 +1166,12 @@ describe("DeploymentService.deployFiles", () => {
         expect(host.notifier.infos).toEqual(['Deployed 2/2 file(s) to "dev".']);
     });
 
-    it("continues after a per-file failure and appends the first failure to the summary", async () => {
+    it("continues after a per-file failure, appends the first failure to the summary and records only the deployed file", async () => {
         const { service, host, restClient } = createService({
             files: xmlFiles("/work/a.bpmn", "/work/b.bpmn", "/work/c.bpmn"),
         });
         restClient.deploy
-            .mockResolvedValueOnce(new DeploymentResult(true, "ok"))
+            .mockResolvedValueOnce(new DeploymentResult(true, "ok", "dep-a"))
             .mockRejectedValueOnce(new Error("boom"))
             .mockRejectedValueOnce(new Error("bang"));
 
@@ -1185,6 +1185,9 @@ describe("DeploymentService.deployFiles", () => {
         expect(results.map((r) => r.success)).toEqual([true, false, false]);
         expect(results[1].message).toBe("b: boom");
         expect(host.notifier.errors).toEqual(['Deployed 1/3 file(s) to "dev". b: boom']);
+        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+            "target:dev@c::/work/a.bpmn": recordedRevision("dep-a"),
+        });
     });
 
     it("records no ledger row for a file the engine rejected", async () => {
