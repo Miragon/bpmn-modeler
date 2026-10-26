@@ -10,13 +10,16 @@ import { NodeWorkspace } from "./nodeAdapters";
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */
-const { watchSpy, closeSpy, chokidarListeners, globSpy } = vi.hoisted(() => {
+const { watchSpy, closeSpy, chokidarListeners, globSpy, fsEvents, statSpy } = vi.hoisted(() => {
     const closeSpy = vi.fn(() => Promise.resolve());
     const chokidarListeners = new Map<string, (path: string) => void>();
+    const fsEvents: { listener?: (event: string, filename: string | null) => void } = {};
     return {
         closeSpy,
         chokidarListeners,
+        fsEvents,
         globSpy: vi.fn(),
+        statSpy: vi.fn(),
         watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
             on(event: string, listener: (path: string) => void) {
                 chokidarListeners.set(event, listener);
@@ -29,10 +32,18 @@ const { watchSpy, closeSpy, chokidarListeners, globSpy } = vi.hoisted(() => {
 
 vi.mock("chokidar", () => ({ watch: watchSpy }));
 
-// A UNC root cannot be globbed on the macOS/Linux CI, so `fs.glob` is stubbed.
+// A UNC root cannot be globbed on the macOS/Linux CI, so `fs.glob` is stubbed;
+// the macOS recursive watch is stubbed so its events play on every OS.
 vi.mock("node:fs", async (importOriginal) => {
     const actual = await importOriginal<typeof import("node:fs")>();
-    return { ...actual, promises: { ...actual.promises, glob: globSpy } };
+    return {
+        ...actual,
+        promises: { ...actual.promises, glob: globSpy, stat: statSpy },
+        watch: (_root: string, _options: unknown, listener: typeof fsEvents.listener) => {
+            fsEvents.listener = listener;
+            return { close: closeSpy };
+        },
+    };
 });
 
 describe("NodeWorkspace.createWatcher chokidar options", () => {
@@ -233,5 +244,86 @@ describe("NodeWorkspace.createWatcher debounce", () => {
         vi.advanceTimersByTime(50);
 
         expect(received).toEqual(["create /repo/src/A.java"]);
+    });
+});
+
+describe("NodeWorkspace.createWatcher on macOS", () => {
+    const WATCH_STARTED_MS = 1_000;
+    const BORN_BEFORE_WATCH = { birthtimeMs: 500 };
+    const BORN_DURING_WATCH = { birthtimeMs: 2_000 };
+
+    beforeEach(() => {
+        vi.useFakeTimers({ now: WATCH_STARTED_MS });
+        vi.stubGlobal("process", { ...process, platform: "darwin" });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        statSpy.mockReset();
+        fsEvents.listener = undefined;
+        vi.unstubAllGlobals();
+    });
+
+    function watchSources() {
+        const received: string[] = [];
+        new NodeWorkspace().createWatcher("/repo", "**/*.java", {
+            onCreate: (path) => received.push(`create ${path}`),
+            onChange: (path) => received.push(`change ${path}`),
+            onDelete: (path) => received.push(`delete ${path}`),
+        });
+        // FSEvents names every create, rewrite and delete a `rename`.
+        const rename = async (filename: string, stat: { birthtimeMs: number } | "missing") => {
+            statSpy.mockImplementationOnce(async () => {
+                if (stat === "missing")
+                    throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+                return stat;
+            });
+            fsEvents.listener?.("rename", filename);
+            await vi.advanceTimersByTimeAsync(50);
+        };
+        return { received, rename };
+    }
+
+    it("reports a file born during the watch as created and its rewrites as changed", async () => {
+        const { received, rename } = watchSources();
+
+        await rename("src/A.java", BORN_DURING_WATCH);
+        await rename("src/A.java", BORN_DURING_WATCH);
+
+        expect(received).toEqual(["create /repo/src/A.java", "change /repo/src/A.java"]);
+    });
+
+    it("reports a rewrite of a file that predates the watch as changed", async () => {
+        const { received, rename } = watchSources();
+
+        await rename("src/A.java", BORN_BEFORE_WATCH);
+
+        expect(received).toEqual(["change /repo/src/A.java"]);
+    });
+
+    it("reports an atomic save of a seen file as changed and a recreated file as created", async () => {
+        const { received, rename } = watchSources();
+
+        await rename("src/A.java", BORN_BEFORE_WATCH);
+        await rename("src/A.java", BORN_DURING_WATCH);
+        await rename("src/A.java", "missing");
+        await rename("src/A.java", BORN_DURING_WATCH);
+
+        expect(received).toEqual([
+            "change /repo/src/A.java",
+            "change /repo/src/A.java",
+            "delete /repo/src/A.java",
+            "create /repo/src/A.java",
+        ]);
+    });
+
+    it("forgets the files of a deleted folder", async () => {
+        const { received, rename } = watchSources();
+
+        await rename("src/A.java", BORN_DURING_WATCH);
+        await rename("src", "missing");
+        await rename("src/A.java", BORN_DURING_WATCH);
+
+        expect(received).toEqual(["create /repo/src/A.java", "create /repo/src/A.java"]);
     });
 });
