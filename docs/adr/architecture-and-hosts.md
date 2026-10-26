@@ -269,7 +269,9 @@ creation also remains off the UI thread when an editor needs it directly.
 On exit, the supervisor retries with backoff and limits repeated rapid crashes;
 a stable run resets that budget. Recovery re-registers live sessions from the
 authoritative IntelliJ Documents, replays render requests, and re-seeds
-deployment state. Stdin EOF terminates the bridge; project disposal and shutdown
+deployment state. A tab that closes while recovery builds its register frame
+gets a second `session/dispose` after that frame, so the new bridge keeps no
+session for it. Stdin EOF terminates the bridge; project disposal and shutdown
 cleanup prevent orphan processes.
 
 The replayed render re-imports the Document, and a sync the restart window

@@ -380,9 +380,13 @@ internal class EditorSessionRouter(
         val entry = sessions[editorId] ?: return
         if (entry.session !== session || !sessions.remove(editorId, entry)) return
         resetSessionState(editorId)
+        sendDispose(entry)
+    }
+
+    private fun sendDispose(entry: SessionEntry) {
         deps.channel.notify(
             "session/dispose",
-            linkedMapOf("editorId" to editorId, "sessionId" to entry.sessionId),
+            linkedMapOf("editorId" to entry.session.editorId, "sessionId" to entry.sessionId),
         )
     }
 
@@ -423,6 +427,11 @@ internal class EditorSessionRouter(
             // Armed before the replay goes out, so its render cannot overtake the hold.
             flushesByEntry[entry]?.let(::holdUntilRendered)
             sendRegister(entry)
+            // A tab closed while the frame was built may have sent its dispose ahead of the register.
+            if (sessions[entry.session.editorId] !== entry) {
+                sendDispose(entry)
+                return@forEach
+            }
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
