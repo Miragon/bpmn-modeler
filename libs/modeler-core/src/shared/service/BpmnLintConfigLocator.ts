@@ -1,5 +1,6 @@
 import { posix } from "path";
 
+import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { DirectoryNotFound } from "../domain/errors";
 import { SettingsPort, WorkspacePort } from "../domain/hostPorts";
 import { ArtifactService, WatcherResult } from "./ArtifactService";
@@ -35,29 +36,15 @@ export class BpmnLintConfigLocator {
     async findNearestConfig(documentDir: string): Promise<string | undefined> {
         const configFolder = this.vsSettings.getConfigFolder();
         const workspaceRoot = await this.artifacts.getWorkspaceRoot(documentDir);
-        let current = documentDir;
 
-        while (current === workspaceRoot || current.startsWith(workspaceRoot + "/")) {
-            if (await this.hasFile(current, ".bpmnlintrc")) {
-                return posix.join(current, ".bpmnlintrc");
+        for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
+            if (await this.hasFile(directory, ".bpmnlintrc")) {
+                return posix.join(directory, ".bpmnlintrc");
             }
-            const configDir = posix.join(current, configFolder);
+            const configDir = posix.join(directory, configFolder);
             if (await this.hasFile(configDir, ".bpmnlintrc")) {
                 return posix.join(configDir, ".bpmnlintrc");
             }
-
-            if (current === workspaceRoot) {
-                break;
-            }
-
-            const parent = posix.dirname(current);
-            /**
-             * Guard against infinite loop at filesystem root.
-             */
-            if (parent === current) {
-                break;
-            }
-            current = parent;
         }
 
         return undefined;

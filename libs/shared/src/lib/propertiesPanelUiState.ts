@@ -1,5 +1,4 @@
-import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
-import type { WebviewStateHost, WebviewStateStore } from "./webviewStateStore";
+import type { WebviewStateStore } from "./webviewStateStore";
 
 /** Per-editor properties-panel UI state that survives a tab-switch rebuild. */
 export interface PropertiesPanelUiState {
@@ -11,13 +10,6 @@ export interface PropertiesPanelUiState {
     expandedGroupIndexes?: number[];
     /** Absent until the user first toggles the panel; the host's global default applies until then. */
     panelVisible?: boolean;
-}
-
-export function resolvePanelVisibility(
-    saved: PropertiesPanelUiState | undefined,
-    hostDefaultVisible: boolean,
-): boolean {
-    return saved?.panelVisible ?? hostDefaultVisible;
 }
 
 export function hasGroupsOrScrollToRestore(
@@ -40,12 +32,6 @@ export function groupIndexesToToggle(
 
 export function openGroupIndexes(openGroups: readonly boolean[]): number[] {
     return openGroups.flatMap((isOpen, index) => (isOpen ? [index] : []));
-}
-
-export function readSavedPanelVisibility(
-    host: WebviewStateHost<PropertiesPanelUiState>,
-): boolean | undefined {
-    return host.getState()?.panelVisible;
 }
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
@@ -79,15 +65,6 @@ export class PropertiesPanelUiStateAdapter {
         private readonly scheduleFrame: (callback: () => void) => void = (callback) =>
             requestAnimationFrame(callback),
     ) {}
-
-    /** Through the resizer handle: it seeds `isCollapsed` from the DOM and would desync otherwise. */
-    restorePanelVisibility(handle: PropertiesPanelHandle, hostDefaultVisible: boolean): void {
-        handle.setVisible(resolvePanelVisibility(this.store.read(), hostDefaultVisible));
-    }
-
-    persistPanelVisibility(visible: boolean): void {
-        this.store.merge({ panelVisible: visible });
-    }
 
     /**
      * Must run once the panel is rendered. Scroll waits one more frame so Preact

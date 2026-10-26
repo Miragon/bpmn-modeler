@@ -278,7 +278,10 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
 
             expect(frames).toContainEqual({
                 method: "notifier/log",
-                params: { level: "error", message: "No active editor." },
+                params: {
+                    level: "error",
+                    message: expect.stringMatching(/^Error: No active editor\.\n\s+at /),
+                },
             });
             expect(
                 frames.some(isShowInfo("Focus a BPMN diagram tab, then run the command again.")),

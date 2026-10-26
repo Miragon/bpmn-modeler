@@ -361,7 +361,7 @@ export class RpcNotifier implements NotifierPort {
         // shows a balloon pairing the caller's context with the error message.
         this.rpc.notify(METHODS.notifierLog, {
             level: "error",
-            message: `${context}: ${error.message}`,
+            message: `${context}: ${errorLogText(error)}`,
         });
         this.rpc.notify(METHODS.notifierNotifyError, { context, message: error.message });
     }
@@ -386,7 +386,7 @@ export class RpcNotifier implements NotifierPort {
     logError(error: string | Error): void {
         this.rpc.notify(METHODS.notifierLog, {
             level: "error",
-            message: error instanceof Error ? error.message : error,
+            message: error instanceof Error ? errorLogText(error) : error,
         });
     }
 
@@ -407,6 +407,10 @@ export class RpcNotifier implements NotifierPort {
     async openDocument(absolutePath: string): Promise<void> {
         this.rpc.notify(METHODS.notifierOpenDocument, { path: absolutePath });
     }
+}
+
+function errorLogText(error: Error): string {
+    return error.stack ?? `${error.name}: ${error.message}`;
 }
 
 /**

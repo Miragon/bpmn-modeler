@@ -383,3 +383,89 @@ describe("ImplementationLocator — resolveMany through a shared source index", 
         expect(readFile).toHaveBeenCalledTimes(Object.keys(SOURCES).length);
     });
 });
+
+describe("ImplementationLocator — navigation agrees with the code-link map", () => {
+    const NO_PACKAGE_CLASS_TASK: ImplementationEntry = {
+        activityId: "Task_1",
+        kind: "javaClass",
+        reference: "Delegate",
+    };
+
+    it("does not resolve a no-package class to a file whose name only ends with it", async () => {
+        const { locator } = createLocator({
+            folders: [],
+            files: { "/loose/PaymentDelegate.java": "class PaymentDelegate {}" },
+        });
+
+        const navigated = await locator.resolve("Delegate", "javaClass", "/loose/process.bpmn");
+        const linked = await locator.resolveMany([NO_PACKAGE_CLASS_TASK], "/loose/process.bpmn");
+
+        expect(navigated).toEqual({ kind: "matches", paths: [], readFailures: [] });
+        expect(linked.get("Task_1")).toEqual([]);
+    });
+
+    it("does not offer a suffix-colliding class when the named class is missing from the workspace", async () => {
+        const { locator } = createLocator({ files: { "/src/PaymentDelegate.java": "" } });
+
+        const result = await locator.resolve("Delegate", "javaClass");
+
+        expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
+    });
+
+    it.each([
+        { search: "the loose-file walk", folders: [], findFilesFails: false },
+        { search: "findFiles", folders: ["/work"], findFilesFails: false },
+        { search: "the walk fallback", folders: ["/work"], findFilesFails: true },
+    ])(
+        "resolves a no-package class to the file the code-link map links, through $search",
+        async ({ folders, findFilesFails }) => {
+            const { locator, workspace } = createLocator({
+                folders,
+                files: {
+                    "/work/PaymentDelegate.java": "class PaymentDelegate {}",
+                    "/work/billing/Delegate.java": "class Delegate {}",
+                },
+            });
+            if (findFilesFails) {
+                vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+            }
+
+            const navigated = await locator.resolve("Delegate", "javaClass", "/work/process.bpmn");
+            const linked = await locator.resolveMany([NO_PACKAGE_CLASS_TASK], "/work/process.bpmn");
+
+            expect(navigated).toEqual({
+                kind: "matches",
+                paths: ["/work/billing/Delegate.java"],
+                readFailures: [],
+            });
+            expect(linked.get("Task_1")).toEqual(["/work/billing/Delegate.java"]);
+        },
+    );
+
+    it("resolves a bean on the loose-file walk to the class file the code-link map links", async () => {
+        const { locator } = createLocator({
+            folders: [],
+            files: {
+                "/loose/MyBean.java": "class MyBean {}",
+                "/loose/NotMyBean.java": "class NotMyBean {}",
+            },
+        });
+
+        const navigated = await locator.resolve(
+            "${myBean}",
+            "delegateExpression",
+            "/loose/process.bpmn",
+        );
+        const linked = await locator.resolveMany(
+            [{ activityId: "Task_1", kind: "delegateExpression", reference: "${myBean}" }],
+            "/loose/process.bpmn",
+        );
+
+        expect(navigated).toEqual({
+            kind: "matches",
+            paths: ["/loose/MyBean.java"],
+            readFailures: [],
+        });
+        expect(linked.get("Task_1")).toEqual(["/loose/MyBean.java"]);
+    });
+});

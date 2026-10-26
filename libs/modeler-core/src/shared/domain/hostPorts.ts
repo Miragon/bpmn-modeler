@@ -217,7 +217,12 @@ export interface WorkspacePort {
      */
     deleteDirectory(path: string): Promise<void>;
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
-    /** Returns a handle that disposes the watcher and its listeners in one call. */
+    /**
+     * Handlers receive absolute, `/`-separated paths spelled like
+     * {@link findFiles} results, so consumers can compare them without
+     * normalising. Returns a handle that disposes the watcher and its listeners
+     * in one call.
+     */
     createWatcher(
         rootPath: string,
         glob: string,

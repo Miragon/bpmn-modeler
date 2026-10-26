@@ -7,6 +7,7 @@ import {
     RepositorySourceConfig,
     RepositorySourceFactory,
 } from "../domain/ports";
+import { MarketplaceCache } from "../infrastructure/MarketplaceCache";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 const MANIFEST = JSON.stringify({
@@ -17,29 +18,30 @@ const MANIFEST = JSON.stringify({
 });
 
 /**
- * Builds a service over `factory` and the in-memory host. `tokenAnswers` scripts
- * the prompt per host (an unanswered host declines); `storedTokens` seeds the
- * token store.
+ * Builds a service over `factory` and the in-memory host, caching into a real
+ * {@link MarketplaceCache} under `/cache`. `tokenAnswers` scripts the prompt per
+ * host (an unanswered host declines); `storedTokens` seeds the token store;
+ * `cachedFiles` seeds the cache.
  */
 function serviceOver(
     factory: RepositorySourceFactory,
     {
         tokenAnswers,
         storedTokens = {},
-    }: { tokenAnswers?: Record<string, string>; storedTokens?: Record<string, string> } = {},
+        cachedFiles,
+    }: {
+        tokenAnswers?: Record<string, string>;
+        storedTokens?: Record<string, string>;
+        cachedFiles?: Record<string, string>;
+    } = {},
 ) {
-    const host = createTestHost({ tokenAnswers });
+    const host = createTestHost({ tokenAnswers, files: cachedFiles });
     for (const [tokenHost, token] of Object.entries(storedTokens)) {
         host.tokens.tokens.set(tokenHost, token);
     }
-    const cache = {
-        write: vi.fn().mockResolvedValue(undefined),
-        getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
-        prune: vi.fn().mockResolvedValue([]),
-    };
     const service = new TemplateMarketplaceService(
         factory,
-        cache as never,
+        new MarketplaceCache("/cache", host.workspace),
         host.settings,
         host.notifier,
         host.tokens,
@@ -48,7 +50,8 @@ function serviceOver(
     );
     return {
         service,
-        cache,
+        cachedPaths: () => [...host.workspace.files.keys()],
+        workspace: host.workspace,
         settings: host.settings,
         notifier: host.notifier,
         tokens: host.tokens,
@@ -60,7 +63,9 @@ function serviceOver(
  * Wires the service to a factory whose marketplace-root source (path `""`)
  * serves `marketplace.json` and whose every other source serves one file.
  */
-function createService(opts: { manifest?: string | Error } = {}) {
+function createService(
+    opts: { manifest?: string | Error; cachedFiles?: Record<string, string> } = {},
+) {
     const sourceFactory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             return {
@@ -78,7 +83,7 @@ function createService(opts: { manifest?: string | Error } = {}) {
             fetchFile: vi.fn().mockResolvedValue(`{"from":"${config.path}"}`),
         };
     });
-    return { ...serviceOver(sourceFactory), sourceFactory };
+    return { ...serviceOver(sourceFactory, { cachedFiles: opts.cachedFiles }), sourceFactory };
 }
 
 /**
@@ -140,26 +145,16 @@ beforeEach(() => {
 
 describe("TemplateMarketplaceService.addMarketplace", () => {
     it("fetches the manifest and caches every source's templates", async () => {
-        const { service, cache, notifier } = createService();
+        const { service, cachedPaths, notifier } = createService();
 
         await service.addMarketplace("https://github.com/acme/templates");
 
         // Relative source resolves against the marketplace repo (index 0);
         // the github source uses its own repo (index 1).
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__templates",
-            0,
-            "element-templates",
-            "element-templates/t.json",
-            expect.any(String),
-        );
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__templates",
-            1,
-            "element-templates",
-            "resources/t.json",
-            expect.any(String),
-        );
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+            "/cache/acme__templates/1/element-templates/resources/t.json",
+        ]);
         expect(notifier.logged("info")).toContain(
             "Marketplace added: https://github.com/acme/templates (2 template file(s) cached)",
         );
@@ -180,7 +175,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
     });
 
     it("resolves a local folder registration to a local source config", async () => {
-        const { service, sourceFactory, cache } = createService();
+        const { service, sourceFactory, cachedPaths } = createService();
 
         await service.addMarketplace("/Users/me/templates");
 
@@ -190,12 +185,8 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             rootDir: "/Users/me/templates",
             path: "element-templates",
         });
-        expect(cache.write).toHaveBeenCalledWith(
-            "local--Users-me-templates-f7bdb1db",
-            0,
-            "element-templates",
-            "element-templates/t.json",
-            expect.any(String),
+        expect(cachedPaths()).toContain(
+            "/cache/local--Users-me-templates-f7bdb1db/0/element-templates/element-templates/t.json",
         );
     });
 
@@ -217,7 +208,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
-        const { service, cache } = serviceOver(factory);
+        const { service, workspace } = serviceOver(factory);
 
         await service.addMarketplace("https://github.com/acme/templates");
 
@@ -226,20 +217,16 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             rootDir: "/home/test/ext-templates",
             path: "",
         });
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__templates",
-            0,
-            "element-templates",
-            "connector.json",
-            "{}",
+        expect(workspace.files).toEqual(
+            new Map([["/cache/acme__templates/0/element-templates/connector.json", "{}"]]),
         );
     });
 
     it("throws when the manifest cannot be read, so no registration is persisted", async () => {
-        const { service, cache } = createService({ manifest: new Error("404") });
+        const { service, cachedPaths } = createService({ manifest: new Error("404") });
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow();
-        expect(cache.write).not.toHaveBeenCalled();
+        expect(cachedPaths()).toEqual([]);
     });
 
     it("throws when the manifest is malformed", async () => {
@@ -267,11 +254,13 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const { service, cache, notifier } = serviceOver(failingFactory);
+        const { service, cachedPaths, notifier } = serviceOver(failingFactory);
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(cache.write).toHaveBeenCalledTimes(1); // only the relative source
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+        ]);
         expect(notifier.logged("warning")).toHaveLength(1);
     });
 
@@ -285,18 +274,13 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                 { type: "palette-entries", provider: "github", repo: "acme/palette", path: "p" },
             ],
         });
-        const { service, cache, notifier } = createService({ manifest });
+        const { service, cachedPaths, notifier } = createService({ manifest });
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(cache.write).toHaveBeenCalledTimes(1);
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__templates",
-            0,
-            "element-templates",
-            "element-templates/t.json",
-            expect.any(String),
-        );
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+        ]);
         expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining('content type "palette-entries" is not supported'),
         );
@@ -329,7 +313,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
 
 describe("TemplateMarketplaceService.updateAll", () => {
     it("re-fetches every registered marketplace", async () => {
-        const { service, settings, cache, notifier } = createService();
+        const { service, settings, cachedPaths, notifier } = createService();
         settings.values.marketplaces = [
             "https://github.com/acme/one",
             "https://github.com/acme/two",
@@ -340,20 +324,12 @@ describe("TemplateMarketplaceService.updateAll", () => {
         expect(outcome).toEqual({ succeeded: 2, failures: [] });
         expect(notifier.logged("info")).toContain("Updating 2 marketplace(s)");
         expect(notifier.logged("info")).toContain("Marketplace update finished: 2 of 2 succeeded");
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__one",
-            0,
-            "element-templates",
-            expect.any(String),
-            expect.any(String),
-        );
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__two",
-            0,
-            "element-templates",
-            expect.any(String),
-            expect.any(String),
-        );
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__one/0/element-templates/element-templates/t.json",
+            "/cache/acme__one/1/element-templates/resources/t.json",
+            "/cache/acme__two/0/element-templates/element-templates/t.json",
+            "/cache/acme__two/1/element-templates/resources/t.json",
+        ]);
     });
 
     it("never throws when a marketplace fails — logs and continues (D8)", async () => {
@@ -409,20 +385,26 @@ describe("TemplateMarketplaceService.updateAll", () => {
     });
 
     it("prunes after a fetch failure, keeping the still-registered marketplace's slot", async () => {
-        const { service, settings, cache } = createService({ manifest: new Error("offline") });
+        const { service, settings, cachedPaths } = createService({
+            manifest: new Error("offline"),
+            cachedFiles: {
+                "/cache/acme__one/0/element-templates/t.json": "{}",
+                "/cache/acme__gone/0/element-templates/t.json": "{}",
+            },
+        });
         settings.values.marketplaces = ["https://github.com/acme/one"];
 
         await service.updateAll();
 
         // The fetch failed, but the id was registered before the fetch, so the
         // prune keeps its last-good slot (its id is still in the registered set).
-        expect(cache.prune).toHaveBeenCalledOnce();
-        const registeredIds = cache.prune.mock.calls[0][0] as ReadonlySet<string>;
-        expect([...registeredIds]).toContain("acme__one");
+        expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
     });
 
     it("suppresses pruning entirely when a settings entry cannot be parsed", async () => {
-        const { service, settings, cache, notifier } = createService();
+        const { service, settings, cachedPaths, notifier } = createService({
+            cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
+        });
         // An object entry with no valid provider fails parseMarketplaceEntry, so
         // its id is unknown — pruning would risk deleting a valid slot.
         settings.values.marketplaces = [{ provider: "bogus" } as never];
@@ -430,7 +412,7 @@ describe("TemplateMarketplaceService.updateAll", () => {
         const outcome = await service.updateAll();
 
         expect(outcome.failures).toHaveLength(1);
-        expect(cache.prune).not.toHaveBeenCalled();
+        expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
         expect(notifier.logged("debug")).toContainEqual(
             expect.stringContaining("Skipped marketplace cache prune"),
         );
@@ -439,38 +421,45 @@ describe("TemplateMarketplaceService.updateAll", () => {
 
 describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
     it("prunes using the ids parsed from current settings and returns the pruned ids", async () => {
-        const { service, settings, cache } = createService();
+        const { service, settings, cachedPaths } = createService({
+            cachedFiles: {
+                "/cache/acme__one/0/element-templates/t.json": "{}",
+                "/cache/acme__gone/0/element-templates/t.json": "{}",
+            },
+        });
         settings.values.marketplaces = ["https://github.com/acme/one"];
-        cache.prune.mockResolvedValue(["acme__gone"]);
 
         const pruned = await service.pruneOrphanedCaches();
 
         expect(pruned).toEqual(["acme__gone"]);
-        expect(cache.prune).toHaveBeenCalledOnce();
-        const registeredIds = cache.prune.mock.calls[0][0] as ReadonlySet<string>;
-        expect([...registeredIds]).toEqual(["acme__one"]);
+        expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
     });
 
     it("removing the last marketplace prunes with an empty set (sweeps every slot)", async () => {
-        const { service, settings, cache } = createService();
+        const { service, settings, cachedPaths } = createService({
+            cachedFiles: {
+                "/cache/acme__one/0/element-templates/t.json": "{}",
+                "/cache/acme__two/0/element-templates/t.json": "{}",
+            },
+        });
         settings.values.marketplaces = [];
-        cache.prune.mockResolvedValue(["acme__one", "acme__two"]);
 
         const pruned = await service.pruneOrphanedCaches();
 
         expect(pruned).toEqual(["acme__one", "acme__two"]);
-        const registeredIds = cache.prune.mock.calls[0][0] as ReadonlySet<string>;
-        expect([...registeredIds]).toEqual([]);
+        expect(cachedPaths()).toEqual([]);
     });
 
     it("suppresses pruning and returns [] when a settings entry cannot be parsed", async () => {
-        const { service, settings, cache, notifier } = createService();
+        const { service, settings, cachedPaths, notifier } = createService({
+            cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
+        });
         settings.values.marketplaces = [{ provider: "bogus" } as never];
 
         const pruned = await service.pruneOrphanedCaches();
 
         expect(pruned).toEqual([]);
-        expect(cache.prune).not.toHaveBeenCalled();
+        expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
         expect(notifier.logged("debug")).toContainEqual(
             expect.stringContaining("Skipped marketplace cache prune"),
         );
@@ -512,26 +501,15 @@ describe("TemplateMarketplaceService include filtering", () => {
             "connectors/http/element-templates/versioned/old.json",
             "connectors/aws/lambda/element-templates/lambda.json",
         ];
-        const { service, cache } = serviceOver(servingListing(manifest, listing));
+        const { service, cachedPaths } = serviceOver(servingListing(manifest, listing));
 
         await service.addMarketplace("https://github.com/acme/mp");
 
-        expect(cache.write).toHaveBeenCalledTimes(2);
         // The cache key is the untrimmed listed path (only stripped for matching).
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__mp",
-            0,
-            "element-templates",
-            "connectors/http/element-templates/rest.json",
-            expect.any(String),
-        );
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__mp",
-            0,
-            "element-templates",
-            "connectors/aws/lambda/element-templates/lambda.json",
-            expect.any(String),
-        );
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__mp/0/element-templates/connectors/http/element-templates/rest.json",
+            "/cache/acme__mp/0/element-templates/connectors/aws/lambda/element-templates/lambda.json",
+        ]);
     });
 
     it("excludes a nested file for a relative source with a single-depth include", async () => {
@@ -539,18 +517,13 @@ describe("TemplateMarketplaceService include filtering", () => {
             sources: [{ path: "element-templates", include: ["*.json"] }],
         });
         const listing = ["element-templates/a.json", "element-templates/nested/b.json"];
-        const { service, cache } = serviceOver(servingListing(manifest, listing));
+        const { service, cachedPaths } = serviceOver(servingListing(manifest, listing));
 
         await service.addMarketplace("https://github.com/acme/mp");
 
-        expect(cache.write).toHaveBeenCalledOnce();
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__mp",
-            0,
-            "element-templates",
-            "element-templates/a.json",
-            expect.any(String),
-        );
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__mp/0/element-templates/element-templates/a.json",
+        ]);
     });
 
     it("strips the config.path prefix for a provider:local source (config.path === '')", async () => {
@@ -571,18 +544,11 @@ describe("TemplateMarketplaceService include filtering", () => {
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
-        const { service, cache } = serviceOver(factory);
+        const { service, cachedPaths } = serviceOver(factory);
 
         await service.addMarketplace("https://github.com/acme/mp");
 
-        expect(cache.write).toHaveBeenCalledOnce();
-        expect(cache.write).toHaveBeenCalledWith(
-            "acme__mp",
-            0,
-            "element-templates",
-            "a.json",
-            expect.any(String),
-        );
+        expect(cachedPaths()).toEqual(["/cache/acme__mp/0/element-templates/a.json"]);
     });
 
     it("warns and caches nothing when include matches none of the listed files", async () => {
@@ -596,13 +562,13 @@ describe("TemplateMarketplaceService include filtering", () => {
                 },
             ],
         });
-        const { service, cache, notifier } = serviceOver(
+        const { service, cachedPaths, notifier } = serviceOver(
             servingListing(manifest, ["connectors/http/element-templates/rest.json"]),
         );
 
         await service.addMarketplace("https://github.com/acme/mp");
 
-        expect(cache.write).not.toHaveBeenCalled();
+        expect(cachedPaths()).toEqual([]);
         expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining('"include" patterns matched none'),
         );
@@ -610,10 +576,13 @@ describe("TemplateMarketplaceService include filtering", () => {
 });
 
 describe("TemplateMarketplaceService.getCachedTemplatePaths", () => {
-    it("delegates to the cache", async () => {
-        const { service, cache } = createService();
-        cache.getCachedTemplatePaths.mockResolvedValue(["/cache/a.json"]);
-        expect(await service.getCachedTemplatePaths()).toEqual(["/cache/a.json"]);
+    it("lists the cached element templates", async () => {
+        const { service } = createService({
+            cachedFiles: { "/cache/acme/0/element-templates/a.json": "{}" },
+        });
+        expect(await service.getCachedTemplatePaths()).toEqual([
+            "/cache/acme/0/element-templates/a.json",
+        ]);
     });
 });
 
@@ -675,7 +644,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "element-templates" }] }),
             expectedToken: "granted",
         });
-        const { service, cache, tokenPrompt, tokens, notifier } = serviceOver(factory, {
+        const { service, cachedPaths, tokenPrompt, tokens, notifier } = serviceOver(factory, {
             tokenAnswers: { "github.com": "granted" },
         });
 
@@ -685,7 +654,9 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             { host: "github.com", reason: expect.stringMatching(/may be private/) },
         ]);
         expect(tokens.tokens.get("github.com")).toBe("granted");
-        expect(cache.write).toHaveBeenCalled();
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+        ]);
 
         // Secret hygiene: the granted token value must never reach any log line.
         expect(notifier.logs.some((entry) => entry.message.includes("granted"))).toBe(false);
@@ -696,12 +667,12 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             manifest: JSON.stringify({ sources: [{ path: "x" }] }),
             // No expectedToken → every read is denied, whatever the token.
         });
-        const { service, cache, tokenPrompt, notifier } = serviceOver(factory);
+        const { service, cachedPaths, tokenPrompt, notifier } = serviceOver(factory);
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
             /requires a personal access token/,
         );
-        expect(cache.write).not.toHaveBeenCalled();
+        expect(cachedPaths()).toEqual([]);
         expect(tokenPrompt.prompts).toHaveLength(1);
         expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
     });
@@ -781,7 +752,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
                 fetchFile: vi.fn(async () => (denied ? denyAccess() : "{}")),
             };
         });
-        const { service, cache, tokenPrompt, tokens } = serviceOver(factory, {
+        const { service, cachedPaths, tokenPrompt, tokens } = serviceOver(factory, {
             tokenAnswers: { "github.com": "should-not-be-used" },
             storedTokens: { "github.com": "stored-tok" },
         });
@@ -790,7 +761,9 @@ describe("TemplateMarketplaceService private-repo auth", () => {
 
         expect(tokenPrompt.prompts).toEqual([]);
         expect(tokens.tokens).toEqual(new Map([["github.com", "stored-tok"]]));
-        expect(cache.write).toHaveBeenCalled();
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__templates/0/element-templates/resources/t.json",
+        ]);
     });
 
     it("attempts the manifest in order anonymous → stored → new when a stale token guards a private repo", async () => {
@@ -1219,6 +1192,149 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
 
         expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining("gitlab.acme.com/group/proj"),
+        );
+    });
+});
+
+describe("TemplateMarketplaceService cache retention", () => {
+    const MARKETPLACE_URL = "https://github.com/acme/templates";
+    const SLOT = "/cache/acme__templates";
+
+    /**
+     * A marketplace whose manifest, listings and reachability can change between
+     * runs. Every listed file's content names its path.
+     */
+    function changingMarketplace(sources: object[], listings: Record<string, string[]>) {
+        const upstream = { sources, listings, unreachablePaths: new Set<string>() };
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.path === "") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn(async () => JSON.stringify({ sources: upstream.sources })),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn(async () => {
+                    if (upstream.unreachablePaths.has(config.path)) {
+                        throw new Error("offline");
+                    }
+                    return upstream.listings[config.path] ?? [];
+                }),
+                fetchFile: vi.fn(async (repoPath: string) => `{"from":"${repoPath}"}`),
+            };
+        });
+        const harness = serviceOver(factory);
+        harness.settings.values.marketplaces = [MARKETPLACE_URL];
+        // A real file system lists a directory in no promised order.
+        const cachedTemplatePaths = async () =>
+            (await harness.service.getCachedTemplatePaths()).sort();
+        return { ...harness, upstream, cachedTemplatePaths };
+    }
+
+    it("drops a template deleted upstream on update", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "element-templates" }],
+            {
+                "element-templates": ["element-templates/a.json", "element-templates/b.json"],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.listings["element-templates"] = ["element-templates/a.json"];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/element-templates/a.json`,
+        ]);
+    });
+
+    it("drops the slot of a source removed from the manifest", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            {
+                one: ["one/a.json"],
+                two: ["two/b.json"],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "one" }];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([`${SLOT}/0/element-templates/one/a.json`]);
+    });
+
+    it("drops templates a narrowed include no longer matches", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "element-templates" }],
+            {
+                "element-templates": [
+                    "element-templates/a.json",
+                    "element-templates/legacy/old.json",
+                ],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "element-templates", include: ["*.json"] }];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/element-templates/a.json`,
+        ]);
+    });
+
+    it("shows each template once after the sources are reordered", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            {
+                one: ["one/a.json"],
+                two: ["two/b.json"],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "two" }, { path: "one" }];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/two/b.json`,
+            `${SLOT}/1/element-templates/one/a.json`,
+        ]);
+    });
+
+    it("keeps a source's last good templates when its fetch fails", async () => {
+        const { service, upstream, notifier, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            { one: ["one/a.json"], two: ["two/b.json"] },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.unreachablePaths.add("two");
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/one/a.json`,
+            `${SLOT}/1/element-templates/two/b.json`,
+        ]);
+        expect(notifier.logged("warning")).toContainEqual(expect.stringContaining("offline"));
+    });
+
+    it("keeps a source's last good templates when it lists an unsafe path", async () => {
+        const { service, upstream, workspace, notifier } = changingMarketplace([{ path: "one" }], {
+            one: ["one/a.json"],
+        });
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.listings.one = ["one/new.json", "../../escape.json"];
+        const outcome = await service.updateAll();
+
+        expect(outcome).toEqual({ succeeded: 1, failures: [] });
+        expect(workspace.files).toEqual(
+            new Map([[`${SLOT}/0/element-templates/one/a.json`, '{"from":"one/a.json"}']]),
+        );
+        expect(notifier.logged("warning")).toContainEqual(
+            expect.stringContaining("unsafe template path"),
         );
     });
 });

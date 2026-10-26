@@ -135,18 +135,6 @@ describe("SourceIndex", () => {
         expect(fresh?.facts.implementsLiteral("pay")).toBe(true);
     });
 
-    it("matches watcher paths that use backslash separators", async () => {
-        const folder = "C:/ws";
-        const file = "C:/ws/src/Worker.java";
-        const { index, watchers, readsOf } = createIndex({ [file]: `"pay"` }, [folder]);
-        await scan(index, "editor1", "C:/ws/order.bpmn");
-
-        watchers[0].handlers.onChange?.("C:\\ws\\src\\Worker.java");
-        await scan(index, "editor1", "C:/ws/order.bpmn");
-
-        expect(readsOf(file)).toHaveLength(2);
-    });
-
     it("judges excluded directories relative to the watched folder", async () => {
         const file = "/home/build/ws/src/Worker.java";
         const { index, workspace, readsOf } = createIndex({ [file]: `"pay"` }, ["/home/build/ws"]);
@@ -221,5 +209,15 @@ describe("SourceIndex", () => {
         expect(notifier.logged("warning")).toEqual([
             expect.stringContaining("watch limit reached"),
         ]);
+    });
+
+    it("shares an index once the folders can be watched again", () => {
+        const { index, workspace } = createIndex({ [WORKER]: `"pay"` });
+        vi.spyOn(workspace, "createWatcher").mockImplementationOnce(() => {
+            throw new Error("watch limit reached");
+        });
+        index.sourcesFor("editor1", DOC);
+
+        expect(index.sourcesFor("editor1", DOC)).toBeDefined();
     });
 });

@@ -13,7 +13,6 @@ import {
     type PropertiesPanelStateQuery,
     type Query,
     RequestFocusCommand,
-    SetPropertiesPanelStateCommand,
     applyPageThemeScope,
     createHostThemeAdapter,
     createInertLockGroup,
@@ -125,9 +124,6 @@ export function bootstrap(
     const elementTemplatesResolver = createResolver<ElementTemplatesQuery>();
     const settingsResolver = createResolver<BpmnModelerSettingQuery>();
 
-    // Resolves once the host has replied with the global properties-panel
-    // default. The webview uses this value only when its own webview state has
-    // no panelVisible entry — see WebviewStateManager.restorePanelVisibility.
     const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
 
     const surfaceRequests = createSurfaceRequests(host, getSurface, {
@@ -315,24 +311,13 @@ export function bootstrap(
         await session.drainPendingActions();
         if (session.isReloadingForEngine) return;
 
-        // Panel visibility: this editor's own saved entry (applied by mountEditorChrome)
-        // wins. Only when absent do we fall back to the host's global default —
-        // the seed for a first-ever open. This branch is deliberately *not*
-        // gated on templates/settings, so a slow or dropped templates reply
+        // Not gated on templates/settings, so a slow or dropped templates reply
         // cannot leave the panel stuck at the pre-rendered default.
-        if (chrome.savedPanelVisible === undefined) {
+        if (!chrome.panelVisibility.isDecided()) {
             const panelStateQuery = await panelStateResolver.wait(HOST_REPLY_TIMEOUT_MS);
             if (session.isReloadingForEngine) return;
-            viewState.restorePanelVisibility(chrome.panel, panelStateQuery?.visible ?? true);
+            chrome.panelVisibility.hostDefaultSettled(panelStateQuery?.visible);
         }
-
-        // Report user toggles: persist this editor's own state AND update the
-        // host's global default so the latest preference seeds new editors.
-        // Registered after restore so the restore itself can't echo back.
-        chrome.panel.onVisibilityChanged((visible) => {
-            modeController.getViewState()?.persistPanelVisibility(visible);
-            host.postMessage(new SetPropertiesPanelStateCommand(visible));
-        });
 
         // `p` focuses the panel mount (expanding it first if collapsed); `Shift+P`
         // toggles panel visibility. Installed once, over the polymorphic surface.

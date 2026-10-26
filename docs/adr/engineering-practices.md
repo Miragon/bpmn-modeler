@@ -13,6 +13,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 ## Contents
 
 - [Test environments](#test-environments)
+- [Test-first for rules](#test-first-for-rules)
 - [Coverage gates](#coverage-gates)
 - [Mutation testing](#mutation-testing)
 - [CI test targets](#ci-test-targets)
@@ -102,6 +103,27 @@ test pipelines. Check [browser configuration](../../packages/bpmn-modeler/vitest
 [shared aliases](../../packages/bpmn-modeler/vitest.aliases.ts) and
 [lifecycle contracts](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
 when upstream bundler/runtime behavior changes.
+
+### Test-first for rules
+
+A new or changed decision (a business rule, state transition, validation or
+classification) starts as a failing pure spec in the owning feature's
+`domain/` folder of `libs/modeler-core`, or in `libs/modeler-types` when the
+webview applies the same rule. Every bug fix starts with a spec that
+reproduces it. Services keep one orchestration spec per use case through
+`createTestHost`. bpmn-js wiring, DOM chrome and host-API glue are exempt:
+writing those specs first against real SVG and host APIs costs much and gains
+little, and the browser, bridge and smoke specs cover them afterwards.
+
+The rule targets the main source of defects here: a rule written in more than
+one place (two services, VS Code and the bridge, TypeScript and Kotlin, the
+core and the webview) drifts, and the drift becomes a bug. Writing the spec
+first gives the rule one home before code depends on it. Most changes are
+written by coding agents, so the workflow ships as the
+[`tdd` skill](../../.agents/skills/tdd/SKILL.md), which agents load when they
+start a feature or fix. CI cannot prove that a spec came first; the
+[mutation score](#mutation-testing) of `domain/` is the measurable proxy, and
+the PR description carries the failing output.
 
 ### Coverage gates
 
@@ -341,3 +363,6 @@ The compiler transition temporarily retains two TypeScript implementations and
 requires checking both CLI compilation and API-based tooling when upgrading.
 The mutation run is one more workflow to keep green, and its score says
 little until rules move from services into `domain/`.
+Rules move into `domain/` before or together with the feature that needs
+them, so services shrink to orchestration. No gate enforces test-first;
+reviewers check the failing output in the PR description.
