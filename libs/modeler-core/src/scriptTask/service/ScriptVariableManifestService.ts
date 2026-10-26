@@ -3,13 +3,13 @@ import { posix } from "path";
 import {
     parseVariableManifest,
     VariableDef,
-    VariableManifest,
     VariableManifestEntry,
 } from "@miragon/bpmn-modeler-shared";
 
 import { FileNotFound } from "../../shared/domain/errors";
 import { SettingsPort, WorkspacePort } from "../../shared/domain/hostPorts";
 import { ArtifactService } from "../../shared/service/ArtifactService";
+import { declareInManifest } from "../domain/manifestDeclaration";
 
 const VARS_DIR = "vars";
 
@@ -76,14 +76,9 @@ export class ScriptVariableManifestService {
      */
     async loadWithStatus(documentPath: string): Promise<ManifestLoadResult> {
         const manifestPath = await this.resolveManifestPath(documentPath);
-        let jsonText: string;
-        try {
-            jsonText = await this.workspace.readFile(manifestPath);
-        } catch (error) {
-            if (error instanceof FileNotFound) {
-                return { manifestPath, found: false, variables: [] };
-            }
-            throw error;
+        const jsonText = await this.readManifestText(manifestPath);
+        if (jsonText === undefined) {
+            return { manifestPath, found: false, variables: [] };
         }
         // The origin label uses the bare manifest basename, unchanged by the
         // relocation (`order.bpmn.vars.json`), so origin strings stay stable.
@@ -99,50 +94,29 @@ export class ScriptVariableManifestService {
      * creating the file if absent, and returns the resolved manifest path so the
      * caller can open/reveal it for the author to fill in `type`/`description`.
      *
-     * The raw on-disk JSON is round-tripped — parsed to the {@link VariableManifest}
-     * shape rather than lowered through {@link parseVariableManifest} — so existing
-     * entries keep their order and any unknown fields survive the rewrite. A
-     * duplicate `name` is a no-op (the manifest watcher still won't re-fire on an
-     * unchanged write, but skipping the push keeps the file byte-stable). A
-     * malformed existing manifest propagates the parse error rather than silently
-     * clobbering hand-edited content the author would lose.
+     * A name the manifest already lists skips the write, so the file stays
+     * byte-identical and the manifest watcher does not fire; the path is still
+     * returned for the reveal. A malformed manifest propagates the parse error
+     * rather than clobbering hand-edited content the author would lose.
      */
     async upsert(documentPath: string, entry: VariableManifestEntry): Promise<string> {
         const manifestPath = await this.resolveManifestPath(documentPath);
-        const manifest = await this.readRawManifest(manifestPath);
-
-        if (!manifest.variables.some((existing) => existing.name === entry.name)) {
-            manifest.variables.push(entry);
+        const declaration = declareInManifest(await this.readManifestText(manifestPath), entry);
+        if (declaration.kind === "declared") {
+            await this.workspace.writeFile(manifestPath, declaration.manifestText);
         }
-
-        await this.workspace.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
         return manifestPath;
     }
 
-    /**
-     * Reads the manifest as its mutable on-disk shape: an absent file starts from
-     * an empty manifest; a present one keeps every top-level field (spread) so an
-     * `upsert` only ever appends to `variables`. `variables` is coerced to an
-     * array so a manifest that omits the key (or sets it to a non-array) still
-     * accepts the new entry.
-     */
-    private async readRawManifest(
-        manifestPath: string,
-    ): Promise<VariableManifest & { variables: VariableManifestEntry[] }> {
-        let jsonText: string;
+    private async readManifestText(manifestPath: string): Promise<string | undefined> {
         try {
-            jsonText = await this.workspace.readFile(manifestPath);
+            return await this.workspace.readFile(manifestPath);
         } catch (error) {
             if (error instanceof FileNotFound) {
-                return { variables: [] };
+                return undefined;
             }
             throw error;
         }
-        const parsed = JSON.parse(jsonText) as Partial<VariableManifest> & Record<string, unknown>;
-        return {
-            ...parsed,
-            variables: Array.isArray(parsed.variables) ? [...parsed.variables] : [],
-        };
     }
 
     /**
