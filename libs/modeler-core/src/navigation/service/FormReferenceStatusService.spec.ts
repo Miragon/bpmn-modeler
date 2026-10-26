@@ -114,6 +114,29 @@ describe("FormReferenceStatusService", () => {
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledTimes(3));
     });
 
+    it("does not share a scan between editors of different search scopes", async () => {
+        const { service, host, locator } = setup([]);
+        const first = host.openEditor("/first/a.bpmn");
+        const second = host.openEditor("/second/b.bpmn");
+        let finishFirstScan: (value: unknown) => void = () => {};
+        locator.findFormDeclarations.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishFirstScan = resolve;
+            }),
+        );
+
+        const firstRequest = service.requestStatus(first.id);
+        await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledOnce());
+        const secondRequest = service.requestStatus(second.id);
+        await vi.waitFor(() =>
+            expect(locator.findFormDeclarations).toHaveBeenLastCalledWith("/second/b.bpmn"),
+        );
+        finishFirstScan({ kind: "matches", declarations: [], readFailures: [] });
+        await Promise.all([firstRequest, secondRequest]);
+
+        expect(statuses(second)).toEqual([new FormReferenceStatusQuery(["Form_A", "Form_B"])]);
+    });
+
     it("does not refresh editors outside the changed loose-file root", async () => {
         const { service, host, locator } = setup([]);
         await service.requestStatus(host.openEditor("/first/a.bpmn").id);
