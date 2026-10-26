@@ -64,19 +64,22 @@ Inside the core, each feature folder (`modeler/<editor>` for the editors)
 splits into `domain/`, an application layer of `service/` and `session/` (the
 editor-session participants), `infrastructure/` and root files that compose the
 feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
-and Node `path`. Features reach each other only through `shared/`. Services and
-participants import no infrastructure; in infrastructure only the inbound
-`*MessageHandlers` adapters import services. A relative import resolves to a
-feature module, never to the package entry or the test kit, and the core has no
-import cycles. The core architecture test enforces these rules. Cross-cutting
-host ports live in `shared/domain/hostPorts.ts`; a port or prompt one feature
-owns lives in that feature's `domain/ports.ts`, so `shared/` names no feature.
+and Node `path`. Features reach each other only through `shared/` and
+`kernel/`. `kernel/` holds what several features build on, today the HTTP
+contract (`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch
+adapter, and imports nothing outside itself, so it stays the bottom layer.
+Services and participants import no infrastructure; in infrastructure only the
+inbound `*MessageHandlers` adapters import services. A relative import resolves
+to a feature module, never to the package entry or the test kit, and the core
+has no import cycles. The core architecture test enforces these rules.
+Cross-cutting host ports live in `shared/domain/hostPorts.ts`; a port, prompt
+or error one feature owns lives in that feature's `domain/` (`ports.ts`,
+`errors.ts`), so `shared/` names no feature.
 A store that holds application state and reaches the host, if at all, only
 through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
-feature's `service/` with no port of its own. Today's listed exceptions are the protocol
-imports of two domain files, the template marketplace's use of the deployment
-`HttpClient`, and services using the editor-session core in
-`shared/infrastructure/`. Each names the issue that removes it, and the test
+feature's `service/` with no port of its own. Today's listed exceptions are the
+protocol imports of two domain files and services using the editor-session core
+in `shared/infrastructure/`. Each names the issue that removes it, and the test
 fails when one is no longer needed, so the list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
