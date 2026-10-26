@@ -199,14 +199,32 @@ export interface SettingsPort {
  * Workspace-folder discovery and filesystem access, in the absolute-path /
  * glob-string vocabulary the core speaks. `vscode`-specific glob and `Uri`
  * types are deliberately kept out of the signatures.
+ *
+ * Every method takes a path plain or as a `file://` URI. A folder holds its
+ * own path and everything below it, as
+ * {@link import("./rootContainment").relativeToRoot} decides, also when it is
+ * `/` or a drive root. The testing kit's `describeWorkspaceContract` runs these
+ * rules against the adapters.
  */
 export interface WorkspacePort {
-    /** @throws {NoWorkspaceFolderFoundError} if `document` is outside every folder. */
+    /**
+     * The innermost folder holding `document`. For a `file://` document the
+     * answer may come in either spelling: VS Code answers in the folder's, the
+     * bridge in the document's.
+     *
+     * @throws {NoWorkspaceFolderFoundError} if `document` is outside every folder.
+     */
     getWorkspaceFolderForDocument(document: string): string;
     findWorkspaceFolderForDocument(document: string): string | undefined;
     getWorkspaceFolderPaths(): string[];
     getDocumentDirectory(document: string): string;
+    /**
+     * An empty directory lists as `[]`.
+     *
+     * @throws {DirectoryNotFound} if `path` is missing.
+     */
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
+    /** @throws {FileNotFound} if `path` is missing. */
     readFile(path: string): Promise<string>;
     /** `false` when `path` is absent; a dangling link still counts as a link. */
     isSymbolicLink(path: string): Promise<boolean>;
@@ -225,9 +243,20 @@ export interface WorkspacePort {
      */
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
     /**
-     * Handlers receive absolute paths spelled like {@link findFiles} results,
-     * so consumers compare the two without normalising. Returns a handle that
-     * disposes the watcher and its listeners in one call.
+     * Reports the changes below `rootPath` whose path relative to it matches
+     * `glob`, as VS Code's `RelativePattern` matches. Handlers receive absolute
+     * paths spelled like {@link findFiles} results, so consumers compare the
+     * two without normalising.
+     *
+     * A new file arrives as a create and a removed one as a delete. A rewrite
+     * arrives as a change, or as a create where the host cannot tell the two
+     * apart, so a consumer handles a create as a superset of a change. Events
+     * arrive synchronously (the testing kit) or later (the hosts batch and
+     * debounce). Every path of a burst arrives, its own events coalesced as in
+     * {@link import("./watcherEvents").coalesceWatcherEvents}; VS Code drops a
+     * file created and removed within one burst.
+     *
+     * Returns a handle that disposes the watcher and its listeners in one call.
      */
     createWatcher(
         rootPath: string,

@@ -14,13 +14,12 @@
  *  - `setElementTemplates` resolves dirs via `DocumentPort.getFilePath` → a
  *    clean OS path (`fsPath`, no scheme).
  *  - `ArtifactService.createWatcher` does `posix.dirname(editorId)` → a
- *    URI-form path (`file:///…`), and its containment check compares against
- *    whatever {@link NodeWorkspace.getWorkspaceFolderForDocument} returns.
- * So this adapter must be **scheme-tolerant and space-preserving**: strip a
- * leading `file://` only at the fs boundary, and return the workspace root in
+ *    URI-form path (`file:///…`), and watches the folder resolved for it.
+ * So this adapter is **scheme-tolerant and space-preserving**: it strips a
+ * leading `file://` only at the fs boundary, and returns the workspace root in
  * the *same* space as the queried document (URI in → URI out; clean in → clean
- * out). That invariant is what lets `ArtifactService` be reused verbatim across
- * both paths.
+ * out). VS Code answers in the folder's spelling; {@link WorkspacePort} allows
+ * both.
  *
  * Both hosts send system-independent, forward-slash paths (VS Code URIs and
  * IntelliJ's `VirtualFile.path`/`url`, which is always `/`-separated even on

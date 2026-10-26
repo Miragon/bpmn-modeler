@@ -48,9 +48,14 @@ one fake per port), not through hand-rolled partial mocks cast to the port.
 The fakes keep state, so specs assert what the host shows or holds rather than
 which methods were called. They follow each port's documented conventions, so a
 port change breaks every spec that relies on it. Each fake is a third adapter
-beside VS Code and the bridge. The entry is test-only: production code
-does not import it, and specs that test a host adapter itself keep mocking the
-host API underneath. A spec spies on a fake only to inject a failure or hang,
+beside VS Code and the bridge. One contract suite holds the workspace fake to a
+real adapter: `describeWorkspaceContract` runs the same scenarios against
+`InMemoryWorkspace` and the bridge's `NodeWorkspace` on a temporary directory,
+so a spec that passes on the fake cannot rely on a rule a host breaks. Where
+the hosts differ, VS Code is the reference; its adapter needs a running VS Code
+and stays outside the suite. The entry is test-only: production code does not
+import it, and specs that test a host adapter itself keep mocking the host API
+underneath. A spec spies on a fake only to inject a failure or hang,
 or when the call itself is the behaviour under test.
 
 Real browser tests are necessary for SVG geometry, viewbox transforms and
