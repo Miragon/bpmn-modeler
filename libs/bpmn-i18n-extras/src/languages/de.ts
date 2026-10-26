@@ -55,6 +55,7 @@ const dictionary: Record<string, string> = {
     "required": "erforderlich",
     "thrown by {elements}": "ausgelöst von {elements}",
     "{count} properties": "{count} Eigenschaften",
+    "{count} property": "{count} Eigenschaft",
 };
 
 export default dictionary;
