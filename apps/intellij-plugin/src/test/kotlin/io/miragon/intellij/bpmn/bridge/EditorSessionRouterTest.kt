@@ -287,6 +287,16 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `close leaves the text of a diagram nobody edited alone`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageShowing(REFORMATTED_INITIAL_XML, editedSinceRender = false)
+
+        f.router.flushBeforeClose(f.session.editorId)
+
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "closing an unedited diagram does not reformat it")
+    }
+
+    @Test
     fun `close releases a page that did not answer the flush`() {
         val f = setUpRouter(INITIAL_XML)
 
@@ -516,6 +526,50 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `Reload Modeler leaves an unedited diagram's text alone and still recovers an edited page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val second = f.openUneditedAndEditedPages()
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        f.assertOnlyTheEditedPageWasWritten(second)
+    }
+
+    @Test
+    fun `a crash respawn leaves an unedited diagram's text alone and still recovers an edited page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val second = f.openUneditedAndEditedPages()
+
+        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        PlatformTestUtil.waitForFuture(respawn, 10_000)
+
+        f.assertOnlyTheEditedPageWasWritten(second)
+    }
+
+    /**
+     * Opens the fixture's diagram on a page nobody edited, whose bpmn-js export
+     * differs from the hand-written Document text, and a second diagram whose
+     * page edit never reached its Document. Returns the second diagram.
+     */
+    private fun Fixture.openUneditedAndEditedPages(): BpmnTestFile {
+        openPageShowing(REFORMATTED_INITIAL_XML, editedSinceRender = false)
+        val second = createSecondBpmnFile()
+        openPageShowing(SECOND_EDIT_XML, second)
+        return second
+    }
+
+    private fun Fixture.assertOnlyTheEditedPageWasWritten(second: BpmnTestFile) {
+        val registered =
+            reregistrationFrames(sessionCount = 2)
+                .filter { it.get("method").asString == "session/register" }
+                .map { it.getAsJsonObject("params").get("content").asString }
+        assertEquals(INITIAL_XML, bpmn.document.text, "recovery must not rewrite a diagram nobody edited")
+        assertEquals(SECOND_EDIT_XML, second.document.text, "the edited page's dropped sync still reaches its Document")
+        assertEquals(setOf(INITIAL_XML, SECOND_EDIT_XML), registered.toSet())
+    }
+
+    @Test
     fun `a recovered page edit is not rendered back as an external edit`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -677,16 +731,17 @@ class EditorSessionRouterTest {
 
     /**
      * Opens a page on [file] (by default replacing the fixture's page) that
-     * answers a flush the way the page's flush responder does when it shows
-     * [content] at [pageRevision] with no sync pending: only a destructive flush
-     * that asks for an export of a clean page gets the content, any other flush
-     * gets `clean`. [whileHostWaits] wraps the reply, to play what happens while
-     * the host waits for it.
+     * answers a flush the way the page's flush responder does when it exports
+     * [content] at [pageRevision] with no sync pending, [editedSinceRender] or
+     * not: only a destructive flush that asks for an export of a clean page gets
+     * the content, any other flush gets `clean`. [whileHostWaits] wraps the
+     * reply, to play what happens while the host waits for it.
      */
     private fun Fixture.openPageShowing(
         content: String,
         file: BpmnTestFile = bpmn,
         pageRevision: Long = 0,
+        editedSinceRender: Boolean = true,
         whileHostWaits: (reply: () -> Unit) -> Unit = { reply -> reply() },
     ): FakePage {
         val heldLocks = mutableSetOf<Long>()
@@ -978,6 +1033,9 @@ class EditorSessionRouterTest {
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
         const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
         const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
+
+        // How bpmn-js serializes INITIAL_XML.
+        const val REFORMATTED_INITIAL_XML = "<bpmn:definitions id=\"a\" />\n"
 
         val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
     }

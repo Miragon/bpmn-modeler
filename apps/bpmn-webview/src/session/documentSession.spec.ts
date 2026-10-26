@@ -727,6 +727,55 @@ describe("BpmnDocumentSession", () => {
             ]);
         });
 
+        describe("recovery flush that may follow a dropped sync", () => {
+            const recoveryFlush = (token: number) => new FlushDocumentQuery(token, true, true);
+
+            it("leaves a page nobody edited since its last host render to the host", async () => {
+                const context = setup();
+                await openSession(context);
+
+                await context.session.handlers.FlushDocumentQuery(recoveryFlush(5));
+
+                expect(context.surface.exportDocument).not.toHaveBeenCalled();
+                expect(flushReplies(context.posted)).toEqual([
+                    expect.objectContaining({ token: 5, status: "clean" }),
+                ]);
+            });
+
+            it("exports an edit whose sync already went out", async () => {
+                const context = setup();
+                await openSession(context, 3);
+                context.session.scheduleSync();
+                await vi.advanceTimersByTimeAsync(300);
+                expect(syncCommands(context.posted)).toHaveLength(1);
+
+                await context.session.handlers.FlushDocumentQuery(recoveryFlush(6));
+
+                expect(flushReplies(context.posted)).toEqual([
+                    expect.objectContaining({
+                        token: 6,
+                        status: "flushed",
+                        content: "<exported />",
+                        documentRevision: 3,
+                    }),
+                ]);
+            });
+
+            it("leaves a page to the host once a host render replaced its edit", async () => {
+                const context = setup();
+                await openSession(context);
+                context.session.scheduleSync();
+                await vi.advanceTimersByTimeAsync(300);
+                await pushHostFile(context.session, hostFile("<rendered />", 2));
+
+                await context.session.handlers.FlushDocumentQuery(recoveryFlush(7));
+
+                expect(flushReplies(context.posted)).toEqual([
+                    expect.objectContaining({ token: 7, status: "clean" }),
+                ]);
+            });
+        });
+
         it("keeps the page inert from a destructive flush until the host releases it", async () => {
             const context = setup();
             await openSession(context);
