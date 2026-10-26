@@ -301,6 +301,14 @@ describe("NodeWorkspace.createWatcher on macOS", () => {
         expect(received).toEqual(["change /repo/src/A.java"]);
     });
 
+    it("counts a file born in the millisecond the watch started as older than the watch", async () => {
+        const { received, rename } = watchSources();
+
+        await rename("src/A.java", { birthtimeMs: WATCH_STARTED_MS + 0.5 });
+
+        expect(received).toEqual(["change /repo/src/A.java"]);
+    });
+
     it("reports an atomic save of a seen file as changed and a recreated file as created", async () => {
         const { received, rename } = watchSources();
 
