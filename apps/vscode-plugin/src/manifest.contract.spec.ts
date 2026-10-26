@@ -55,6 +55,7 @@ import {
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
 } from "./modeler/form/controller/FormValuesController";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 
 const SRC_DIR = __dirname;
 
@@ -78,7 +79,7 @@ interface Manifest {
         }[];
         configurationDefaults: Record<string, Record<string, string>>;
         jsonValidation: { fileMatch: string; url: string }[];
-        configuration: { properties: Record<string, unknown> };
+        configuration: { properties: Record<string, { default?: unknown }> };
     };
 }
 
@@ -215,6 +216,21 @@ describe("package.json ↔ code contract", () => {
         ].map((match) => match[1]);
 
         expect(new Set(readKeys)).toEqual(new Set(declaredKeys));
+    });
+
+    it("gives the core's in-memory settings the defaults the manifest declares", () => {
+        // `scripting.spin` → `scriptingSpin`
+        const settingsValueName = (key: string) =>
+            key
+                .slice(CONFIG_NAMESPACE.length + 1)
+                .replace(/\.(\w)/g, (_, initial: string) => initial.toUpperCase());
+        const manifestDefaults = Object.fromEntries(
+            Object.entries(manifest.contributes.configuration.properties)
+                .filter(([key]) => key.startsWith(`${CONFIG_NAMESPACE}.`))
+                .map(([key, property]) => [settingsValueName(key), property.default]),
+        );
+
+        expect(new InMemorySettings().values).toEqual(manifestDefaults);
     });
 
     it("never uses the legacy miragon.camundaModeler prefix anywhere in src", () => {

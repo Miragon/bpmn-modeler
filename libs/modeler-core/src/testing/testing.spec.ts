@@ -234,29 +234,35 @@ describe("createTestHost", () => {
         );
     });
 
-    it("records notifications the way the hosts surface them", async () => {
+    it("shows a notified error as the hosts do and logs it with its context and stack", async () => {
         const host = createTestHost();
+        const failure = new Error("timeout");
 
-        host.notifier.notifyError("Deployment failed", new Error("timeout"));
+        host.notifier.notifyError("Deployment failed", failure);
         await host.notifier.withProgress("Deploying", async () => undefined);
 
         expect(host.notifier.errors).toEqual(["Deployment failed\ntimeout"]);
-        expect(host.notifier.logged("error")).toEqual(["timeout"]);
+        expect(host.notifier.logged("error")).toEqual([`Deployment failed: ${failure.stack}`]);
+        expect(host.notifier.loggedErrors).toEqual([failure]);
         expect(host.notifier.progressTitles).toEqual(["Deploying"]);
     });
 
-    it("keeps logged errors whole, so the transcript includes their stack and cause", () => {
+    it("logs an error as its stack and a string verbatim", () => {
         const host = createTestHost();
-        const failure = Object.assign(new Error("request failed"), {
-            cause: new Error("socket hang up"),
-        });
+        const failure = new Error("request failed");
+        const stackless = new TypeError("bad");
+        delete stackless.stack;
 
         host.notifier.logError(failure);
-        host.notifier.logError("plain message");
+        host.notifier.logError(stackless);
+        host.notifier.logError("[webview] boom\nat foo (x.js:1)");
 
-        expect(host.notifier.loggedErrors).toEqual([failure]);
+        expect(host.notifier.logged("error")).toEqual([
+            failure.stack,
+            "TypeError: bad",
+            "[webview] boom\nat foo (x.js:1)",
+        ]);
+        expect(host.notifier.loggedErrors).toEqual([failure, stackless]);
         expect(host.notifier.transcript()).toContain(failure.stack);
-        expect(host.notifier.transcript()).toContain("socket hang up");
-        expect(host.notifier.transcript()).toContain("plain message");
     });
 });
