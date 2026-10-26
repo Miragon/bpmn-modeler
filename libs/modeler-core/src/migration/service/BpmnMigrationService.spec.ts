@@ -259,6 +259,18 @@ describe("migrateAllDiagrams", () => {
         expect(editor.content).toBe(withUnsavedEdit(c8Bpmn("8.8.0")));
     });
 
+    it("migrates a closed diagram from the content it has on disk when written, not when planned", async () => {
+        const { service, picker, workspace } = createHost({ "/work/a.bpmn": c8Bpmn("8.5.0") });
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
+            workspace.files.set("/work/a.bpmn", withUnsavedEdit(c8Bpmn("8.5.0")));
+            return "8.8.0";
+        });
+
+        await service.migrateAllDiagrams();
+
+        expect(workspace.files.get("/work/a.bpmn")).toBe(withUnsavedEdit(c8Bpmn("8.8.0")));
+    });
+
     it("does not count an open diagram whose editor rejected the write", async () => {
         const { service, documents, notifier, openEditor } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
