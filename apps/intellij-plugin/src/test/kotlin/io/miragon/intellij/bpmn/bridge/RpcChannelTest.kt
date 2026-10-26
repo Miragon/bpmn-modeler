@@ -2,6 +2,7 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.intellij.openapi.progress.ProcessCanceledException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -234,6 +235,22 @@ class RpcChannelTest {
         val reply = parse(fake.nextFrame())
         assertEquals(9, reply.get("id").asInt)
         assertEquals("broken", reply.get("error").asString)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered from the EDT rethrows a cancellation after answering it with an error`() {
+        val (channel, fake) = attachedChannel()
+
+        assertThrows(ProcessCanceledException::class.java) {
+            channel.replyFromEdt(id = 10, method = "document/write", runOnEdt = runInline) {
+                throw ProcessCanceledException()
+            }
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(10, reply.get("id").asInt)
+        assertTrue(reply.has("error"))
         fake.expectNoFrame()
     }
 
