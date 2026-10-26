@@ -22,7 +22,7 @@ export class EditorSessionDocuments implements DocumentPort {
         return this.editorStore.requireHandle(editorId).documentPath();
     }
 
-    /** @returns `true` if the edit was applied, `false` if content was unchanged. */
+    /** @returns `true` if the edit was applied, `false` if content was unchanged or the revision is stale. */
     write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean> {
         if (
             expectedDocumentRevision !== undefined &&

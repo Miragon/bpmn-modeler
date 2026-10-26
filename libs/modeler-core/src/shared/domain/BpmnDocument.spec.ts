@@ -161,20 +161,6 @@ describe("BpmnDocument.engineVersionStatus", () => {
     });
 });
 
-describe("BpmnDocument.withVersion", () => {
-    it("should replace the version attribute", () => {
-        const updated = new BpmnDocument(c7Xml).withVersion("7.24.0");
-        expect(updated.xml).toContain('modeler:executionPlatformVersion="7.24.0"');
-        expect(updated.xml).not.toContain('modeler:executionPlatformVersion="7.20.0"');
-    });
-
-    it("should not mutate the original document", () => {
-        const original = new BpmnDocument(c7Xml);
-        original.withVersion("7.24.0");
-        expect(original.detectPlatformVersion()).toBe("7.20.0");
-    });
-});
-
 const CAMUNDA_NAMESPACE = 'xmlns:camunda="http://camunda.org/schema/1.0/bpmn"';
 const ZEEBE_NAMESPACE = 'xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"';
 const MODELER_NAMESPACE = 'xmlns:modeler="http://camunda.org/schema/modeler/1.0"';

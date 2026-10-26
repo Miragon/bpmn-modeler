@@ -13,6 +13,9 @@ import {
 import { EditorDocumentSync } from "../../../shared/infrastructure/EditorDocumentSync";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 
+const VERSION_NOT_CHANGED =
+    "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
+
 /**
  * Displays, initialises and syncs BPMN documents on top of the shared
  * {@link EditorDocumentSync}; adds the engine choice for an empty file and the
@@ -121,14 +124,26 @@ export class BpmnModelerService {
 
             const newVersion = await this.picker.pickEngineVersion(platform, versions);
             if (!snapshot.isCurrent()) {
+                this.notifier.showInfo(VERSION_NOT_CHANGED);
                 return false;
             }
 
-            const updatedDoc = doc.withVersion(newVersion);
+            const migration = doc.migratedTo(platform, newVersion);
+            if (migration.kind === "unchanged") {
+                return false;
+            }
             if (
-                !(await this.documents.write(editorId, updatedDoc.xml, snapshot.revision)) ||
-                !snapshot.isCurrent()
+                !(await this.documents.writeAndConfirm(
+                    editorId,
+                    migration.document.xml,
+                    snapshot.revision,
+                ))
             ) {
+                this.notifier.showInfo(VERSION_NOT_CHANGED);
+                return false;
+            }
+            // Written: the change that made the snapshot stale re-renders the editor.
+            if (!snapshot.isCurrent()) {
                 return false;
             }
 

@@ -355,6 +355,19 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         expect(host.notifier.errors).toEqual([]);
     });
 
+    it("reports no error when the editor closes while the version is written", async () => {
+        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        vi.spyOn(host.documents, "write").mockImplementationOnce(async () => {
+            host.store.unregister(editor.id, editor);
+            return false;
+        });
+
+        const result = await service.changeEngineVersion(editor.id);
+
+        expect(result).toBe(false);
+        expect(host.notifier.errors).toEqual([]);
+    });
+
     it("leaves a diagram already at the picked version untouched and quiet", async () => {
         const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.8.0" });
 

@@ -89,7 +89,8 @@ export class VsCodeEditorHandle implements EditorHandle {
      * or bubbles a confusing provider error. Reaching here with a read-only
      * document signals a missing viewer-mode branch upstream; fail loudly.
      *
-     * @returns `true` if the edit was applied, `false` if content was unchanged.
+     * @returns `true` if the edit was applied, `false` if content was unchanged
+     * or VS Code did not apply the edit.
      */
     async writeContent(content: string, _expectedDocumentRevision?: number): Promise<boolean> {
         this.assertWritableFileSystem("write to", "editable");

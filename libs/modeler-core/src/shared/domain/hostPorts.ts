@@ -247,7 +247,11 @@ export interface WorkspacePort {
 export interface DocumentPort {
     getContent(editorId: string): string;
     getFilePath(editorId: string): string;
-    /** @returns `true` if applied, `false` if content was unchanged. */
+    /**
+     * @returns `true` if applied; `false` if the content was unchanged or the
+     * host refused the write (a stale revision, a replaced session, a failed
+     * edit). Only {@link getContent} tells the two apart.
+     */
     write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean>;
     save(editorId: string): Promise<boolean>;
 }
