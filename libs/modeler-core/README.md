@@ -1,7 +1,7 @@
 # `@miragon/bpmn-modeler-core`
 
 The host-agnostic BPMN/DMN modeling engine: domain models, services, the
-host-capability ports (`hostPorts.ts`), and the `vscode`-free infrastructure
+host-capability ports (`hostPorts.ts`), and the `vscode`-free application-layer
 registries (`EditorSessionStore`, `WebviewMessageRouter`, `DiffPaneStore`).
 
 This package must never import `vscode`, and its `domain/` layer must never

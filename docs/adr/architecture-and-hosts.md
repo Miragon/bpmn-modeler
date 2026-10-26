@@ -71,11 +71,13 @@ feature module, never to the package entry or the test kit, and the core has no
 import cycles. The core architecture test enforces these rules. Cross-cutting
 host ports live in `shared/domain/hostPorts.ts`; a port or prompt one feature
 owns lives in that feature's `domain/ports.ts`, so `shared/` names no feature.
-Today's listed exceptions are the protocol imports of two domain files, the
-template marketplace's use of the deployment `HttpClient`, and services using
-the editor-session core in `shared/infrastructure/`, `MarketplaceCache` and
-`DiffPaneStore`. Each names the issue that removes it, and the test fails when
-one is no longer needed, so the list only shrinks.
+A store that holds application state and reaches the host, if at all, only
+through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
+feature's `service/` with no port of its own. Today's listed exceptions are the protocol
+imports of two domain files, the template marketplace's use of the deployment
+`HttpClient`, and services using the editor-session core in
+`shared/infrastructure/`. Each names the issue that removes it, and the test
+fails when one is no longer needed, so the list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
@@ -417,6 +419,10 @@ a cached result must equal an uncached run.
 - Enforcing the core's layer rules only after the refactors that remove the
   current violations would let new ones in meanwhile. Known exceptions start
   the gate now, at the cost of a list that review has to keep from growing.
+- A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
+  one implementation that no host or spec substitutes; the specs already run
+  the real stores over the in-memory host kit. A second implementation is the
+  point to extract one.
 - Wiring each feature per host kept the hosts simple to read but let the copies
   drift: the bridge stopped re-linting on edits and setting changes, and did not
   isolate failing session hooks. Feature modules in the core cost a little
