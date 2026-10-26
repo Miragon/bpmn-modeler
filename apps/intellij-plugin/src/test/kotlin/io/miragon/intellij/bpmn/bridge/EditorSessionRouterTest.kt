@@ -733,6 +733,32 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a page whose flush post throws leaves the other pages recovering`() {
+        val f = setUpRouter(INITIAL_XML)
+        val unreachablePage =
+            CoreSession(f.bpmn.file.url, f.bpmn.file, f.session.project) {
+                throw IllegalStateException("the page's browser is gone")
+            }
+        f.router.registerSession(unreachablePage)
+        val unreachableSessionId = parse(f.wired.fake.nextFrame()).getAsJsonObject("params").get("sessionId").asLong
+        val second = createSecondBpmnFile()
+        val page = f.openPageShowing(SECOND_EDIT_XML, second)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(SECOND_EDIT_XML, second.document.text, "one failed post does not stop the others")
+        assertEquals(
+            mapOf(unreachableSessionId to REREGISTRATION_FRAMES, page.sessionId to REREGISTRATION_FRAMES),
+            f.reregistrationFrames(sessionCount = 2).bySession(),
+            "every session is re-registered and replayed",
+        )
+        assertTrue(page.isLocked, "the other page is held until its replayed render")
+        f.deliverRenderedFile(page, SECOND_EDIT_XML)
+        assertFalse(page.isLocked)
+    }
+
+    @Test
     fun `an external edit during the flush wait wins over the page's export`() {
         val f = setUpRouter(INITIAL_XML)
         val page =
@@ -1150,7 +1176,8 @@ class EditorSessionRouterTest {
     }
 
     /** What the page answers when its export fails. */
-    private fun unavailableFlushReply(token: Long) = "{\"type\":\"DocumentFlushedCommand\",\"token\":$token,\"status\":\"unavailable\"}"
+    private fun unavailableFlushReply(token: Long) =
+        "{\"type\":\"DocumentFlushedCommand\",\"token\":$token,\"status\":\"unavailable\"}"
 
     private companion object {
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
