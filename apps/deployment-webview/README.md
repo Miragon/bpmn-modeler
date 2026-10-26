@@ -23,10 +23,19 @@ only.
 
 ## Form rules
 
-When Deploy, Save, New, Delete, the target select and the inputs are blocked,
-and the reason shown for it, is decided in one place: the pure functions in
-`src/domain/deploymentDraft.ts`. `form.ts` builds a `DraftSnapshot` from its
-state and applies the result to the DOM; it does not repeat the conditions.
+The pure functions in `src/domain/deploymentDraft.ts` decide, from a
+`DraftSnapshot`:
+
+- whether Save, New, Delete, the target select and the target inputs are
+  disabled, and Save's tooltip;
+- why Deploy and Start Instance are blocked (a save or load in flight,
+  credentials loading, unsaved target changes).
+
+`form.ts` builds the snapshot from its flags and applies the result to the DOM.
+Each request button also stays disabled while its own request is in flight:
+Deploy while `deploying` (`form.ts`), Start Instance while `starting`
+(`startInstanceForm.ts`). Click handlers keep their payload checks, such as a
+required Target Name.
 
 ## Local development
 
