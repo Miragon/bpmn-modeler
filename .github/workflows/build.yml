@@ -242,6 +242,9 @@ jobs:
           flags: intellij-plugin
           name: intellij-plugin
           verbose: true
+      - name: Enforce coverage floor
+        working-directory: apps/intellij-plugin
+        run: ./gradlew jacocoTestCoverageVerification --no-daemon
       - name: Verify plugin binary compatibility
         working-directory: apps/intellij-plugin
         run: ./gradlew verifyPlugin --no-daemon

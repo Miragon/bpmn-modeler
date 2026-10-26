@@ -37,7 +37,7 @@ internal class BridgeBinaryResolver {
         }
         cachedBinary?.let { return it }
 
-        val platform = platformDir()
+        val platform = bridgePlatformDir(System.getProperty("os.name"), System.getProperty("os.arch"))
         // Windows refuses to launch an executable without the `.exe` suffix. Bun's
         // `--target=bun-windows-x64` produces `modeler-bridge.exe` and Gradle
         // stages it under the same name, so we mirror that here.
@@ -131,19 +131,6 @@ internal class BridgeBinaryResolver {
         }
     }
 
-    private fun platformDir(): String {
-        val os = System.getProperty("os.name").lowercase()
-        val arch = System.getProperty("os.arch").lowercase()
-        val osPart =
-            when {
-                os.contains("mac") || os.contains("darwin") -> "darwin"
-                os.contains("win") -> "windows"
-                else -> "linux"
-            }
-        val archPart = if (arch.contains("aarch64") || arch.contains("arm")) "arm64" else "x64"
-        return "$osPart-$archPart"
-    }
-
     private companion object {
         const val BRIDGE_BINARY_NAME = "modeler-bridge"
 
@@ -151,4 +138,18 @@ internal class BridgeBinaryResolver {
         // version segment is appended per [bridgeCacheKey].
         const val CACHE_SUBDIR = "miragon-bpmn-modeler/bridge"
     }
+}
+
+// Must agree with hostPlatformDir() in build.gradle.kts, which stages the binary.
+internal fun bridgePlatformDir(osName: String, arch: String): String {
+    val os = osName.lowercase()
+    val osPart =
+        when {
+            os.contains("mac") || os.contains("darwin") -> "darwin"
+            os.contains("win") -> "windows"
+            else -> "linux"
+        }
+    val normalizedArch = arch.lowercase()
+    val archPart = if (normalizedArch.contains("aarch64") || normalizedArch.contains("arm")) "arm64" else "x64"
+    return "$osPart-$archPart"
 }
