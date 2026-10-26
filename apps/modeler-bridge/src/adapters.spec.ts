@@ -369,21 +369,20 @@ describe("BridgeSettings", () => {
     });
 
     it.each([
-        { toggles: [true], changes: 0, enabled: true },
-        { toggles: [false], changes: 1, enabled: false },
-        { toggles: [false, false], changes: 1, enabled: false },
-        { toggles: [false, true], changes: 2, enabled: true },
+        { toggles: [true], changed: [false], changes: 0, enabled: true },
+        { toggles: [false], changed: [true], changes: 1, enabled: false },
+        { toggles: [false, false], changed: [true, false], changes: 1, enabled: false },
+        { toggles: [false, true], changed: [true, true], changes: 2, enabled: true },
     ])(
         "reports the linting toggles $toggles as $changes linting.enabled change(s)",
-        ({ toggles, changes, enabled }) => {
+        ({ toggles, changed, changes, enabled }) => {
             const settings = new BridgeSettings();
             const events: ((section: string) => boolean)[] = [];
             settings.onDidChange((event) => events.push(event.affectsConfiguration));
 
-            for (const toggle of toggles) {
-                settings.setLintingEnabled(toggle);
-            }
+            const results = toggles.map((toggle) => settings.setLintingEnabled(toggle));
 
+            expect(results).toEqual(changed);
             expect(settings.getLintingEnabled()).toBe(enabled);
             expect(events).toHaveLength(changes);
             for (const affects of events) {

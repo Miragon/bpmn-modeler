@@ -373,13 +373,17 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         ).resolves.toBeDefined();
     });
 
-    it("turns host linting off and back on when the webview toggle says so", async () => {
-        // FSEvents reports the just-written .bpmnlintrc late, and that watcher
-        // re-lint would stand in for the one each toggle must trigger.
+    // FSEvents reports the just-written .bpmnlintrc late, and that watcher
+    // re-lint would stand in for the one a toggle must trigger.
+    function ignoreFileChanges(): void {
         const createWatcher = vi
             .spyOn(NodeWorkspace.prototype, "createWatcher")
             .mockReturnValue({ dispose: () => {} });
         cleanups.push(() => createWatcher.mockRestore());
+    }
+
+    it("turns host linting off and back on when the webview toggle says so", async () => {
+        ignoreFileChanges();
         const { rpc, frames, editorId } = await setupHostLinted();
 
         const beforeOff = frames.length;
@@ -392,6 +396,19 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await toggleLinting(rpc, editorId, true);
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
+        ).resolves.toMatchObject({ params: { editorId } });
+    });
+
+    it("re-lints when the webview asks for the linting state the bridge already has", async () => {
+        // A respawned bridge starts with linting on while the page still shows "Linting off".
+        ignoreFileChanges();
+        const { rpc, frames, editorId } = await setupHostLinted();
+
+        const beforeEnable = frames.length;
+        await toggleLinting(rpc, editorId, true);
+
+        await expect(
+            waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeEnable }),
         ).resolves.toMatchObject({ params: { editorId } });
     });
 
