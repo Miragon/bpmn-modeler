@@ -470,6 +470,72 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await settle();
     }
 
+    /** The host shows one engine item, so the last engine frame is what it shows now. */
+    function lastEngineFrame(frames: any[], fromIndex: number): any {
+        const engineFrames = frames
+            .slice(fromIndex)
+            .filter((f) => /^statusBar\/(show|hide)EngineVersion$/.test(f.method));
+        return engineFrames[engineFrames.length - 1];
+    }
+
+    async function openTwoEditors(rpc: Rpc, root: string): Promise<{ idA: string; idB: string }> {
+        const a = join(root, "a.bpmn");
+        const b = join(root, "b.bpmn");
+        await fs.writeFile(a, C7_XML, "utf8");
+        await fs.writeFile(b, C7_XML, "utf8");
+        const idA = `file://${a}`;
+        const idB = `file://${b}`;
+        await open(rpc, idA, root, a);
+        await open(rpc, idB, root, b);
+        return { idA, idB };
+    }
+
+    it("keeps the engine version shown when focus returns to an earlier-opened editor", async () => {
+        const { rpc, frames, root } = await setup();
+        const { idA, idB } = await openTwoEditors(rpc, root);
+        const fromIndex = frames.length;
+
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/setActive", params: { editorId: idA } }),
+        );
+        await settle();
+
+        expect(lastEngineFrame(frames, fromIndex)).toMatchObject({
+            method: "statusBar/showEngineVersion",
+            params: { platform: "c7", version: "7.20.0" },
+        });
+
+        for (const editorId of [idA, idB]) {
+            await rpc.handleLine(
+                JSON.stringify({ method: "session/dispose", params: { editorId } }),
+            );
+        }
+    });
+
+    it("keeps the engine version when a background editor closes", async () => {
+        const { rpc, frames, root } = await setup();
+        const { idA, idB } = await openTwoEditors(rpc, root);
+        const fromIndex = frames.length;
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/setActive", params: { editorId: idA } }),
+        );
+        await settle();
+
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: idB } }),
+        );
+        await settle();
+
+        expect(lastEngineFrame(frames, fromIndex)).toMatchObject({
+            method: "statusBar/showEngineVersion",
+            params: { platform: "c7", version: "7.20.0" },
+        });
+
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: idA } }),
+        );
+    });
+
     it("re-renders the diagram on an external document/didChange", async () => {
         const { rpc, frames, root, bpmnPath } = await setup();
         const editorId = `file://${bpmnPath}`;

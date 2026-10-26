@@ -82,6 +82,20 @@ describe("BpmnModelerService.display", () => {
         expect(editor.saveCount).toBe(0);
     });
 
+    it("leaves the focused editor's engine version alone when a background editor re-renders", async () => {
+        const { service, host, editor } = createService(C8_DOC);
+        editor.active = true;
+        host.statusBar.showEngineVersion("c8", "8.8.0");
+        const background = host.openEditor("/work/other.bpmn", NO_PLATFORM_DOC);
+        service.registerSession(background.id);
+
+        const rendered = await service.display(background.id, true);
+
+        expect(rendered).toBe(true);
+        expect(background.postedOfType("BpmnFileQuery")).toHaveLength(1);
+        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.8.0" });
+    });
+
     it("scaffolds an engine-neutral document when the neutral choice is picked", async () => {
         const { service, editor } = createService("", { newModelEngine: "neutral" });
 
