@@ -50,11 +50,6 @@ const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
         until: "#1828 moves the editor session out of shared/",
     },
     {
-        from: "shared/domain/hostPorts.ts",
-        to: "@miragon/bpmn-modeler-shared",
-        until: "#1828 reshapes DeploymentStatePort, the only user of AuthTypePayload",
-    },
-    {
         from: "scriptTask/domain/ScriptVariableStore.ts",
         to: "@miragon/bpmn-modeler-shared",
         until: "#1834 moves processVariables into modeler-types",
@@ -71,16 +66,6 @@ const CROSS_FEATURE_EXCEPTIONS: readonly KnownException[] = [
         from: "template-marketplace",
         to: "deployment/infrastructure/FetchHttpClient.ts",
         until: "#1828 moves HttpClient, with its fetch adapter, into the kernel",
-    },
-    {
-        from: "shared/domain/hostPorts.ts",
-        to: "deployment/domain/deploymentLedger.ts",
-        until: "#1828 shapes the status-bar and deployment-state ports by intent",
-    },
-    {
-        from: "shared/domain/hostPorts.ts",
-        to: "migration/domain/MigrationPlan.ts",
-        until: "#1828 replaces the migration-scope prompt with a generic picker",
     },
 ];
 

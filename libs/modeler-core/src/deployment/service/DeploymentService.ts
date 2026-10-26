@@ -19,14 +19,12 @@ import {
 import { EnvLookup } from "../domain/envRef";
 import { loggableHost } from "../domain/urlTemplate";
 import {
-    DeploymentStatePort,
     DocumentPort,
     NotifierPort,
     PickerPort,
-    SecretStorePort,
     WorkspacePort,
 } from "../../shared/domain/hostPorts";
-import { CamundaEnginePort } from "../domain/ports";
+import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";

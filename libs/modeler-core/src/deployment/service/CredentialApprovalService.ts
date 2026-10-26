@@ -1,7 +1,8 @@
 import { CredentialDestinationNotApprovedError } from "../../shared/domain/errors";
-import { PickerPort, SecretStorePort } from "../../shared/domain/hostPorts";
+import { PickerPort } from "../../shared/domain/hostPorts";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { DeploymentTarget } from "../domain/deploymentTarget";
+import { SecretStorePort } from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 
 const AD_HOC_SLOT = "ad-hoc";

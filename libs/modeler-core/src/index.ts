@@ -44,6 +44,7 @@ export * from "./shared/infrastructure/helpers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
 export * from "./modeler/bpmn/domain/model";
+export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/infrastructure/bpmnMessageHandlers";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";
@@ -95,6 +96,7 @@ export * from "./codeLink/infrastructure/codeLinkMessageHandlers";
 
 // ── migration ────────────────────────────────────────────────────────────────
 export * from "./migration/domain/MigrationPlan";
+export * from "./migration/domain/ports";
 export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────

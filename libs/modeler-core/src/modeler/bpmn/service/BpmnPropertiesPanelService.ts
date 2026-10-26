@@ -1,7 +1,8 @@
 import { PropertiesPanelStateQuery } from "@miragon/bpmn-modeler-shared";
 
-import { NotifierPort, PropertiesPanelStatePort } from "../../../shared/domain/hostPorts";
+import { NotifierPort } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { PropertiesPanelStatePort } from "../domain/ports";
 
 /**
  * Owns persisted properties-panel visibility and pushes it to the webview.

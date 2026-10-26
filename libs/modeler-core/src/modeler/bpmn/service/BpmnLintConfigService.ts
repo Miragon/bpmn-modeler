@@ -15,9 +15,7 @@ import {
 import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../shared/domain/errors";
 import {
-    DiagnosticsPort,
     DocumentPort,
-    LintRunnerPort,
     NotifierPort,
     SettingsPort,
     StatusBarPort,
@@ -27,6 +25,7 @@ import {
     BpmnLintConfigLocator,
     BpmnlintChangeTarget,
 } from "../../../shared/service/BpmnLintConfigLocator";
+import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 
 /**
  * Where a set of findings came from, so {@link BpmnLintConfigService.applyFindings}

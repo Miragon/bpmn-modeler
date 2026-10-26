@@ -1,6 +1,6 @@
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
-import { DiagnosticsPort } from "../../../../shared/domain/hostPorts";
+import { DiagnosticsPort } from "../../domain/ports";
 
 /**
  * A {@link DiagnosticsPort} that drops findings on the floor, for hosts with no
