@@ -133,6 +133,53 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             );
             expect(status.params).toEqual({ platform: "c7", version: pickedVersion });
         });
+
+        it("writes and reports nothing when the user dismisses the version picker", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+
+            void rpc.handleLine(hostNotification("modeler/changeEngineVersion", { editorId }));
+            const picker = await waitForFrame(frames, isPickerShow);
+            const afterPicker = frames.length;
+            await rpc.handleLine(hostReply(picker.id, { selected: null }));
+            await settle();
+
+            expect(frames.slice(afterPicker)).toEqual([]);
+        });
+
+        it("keeps the status bar and the editor on the old version when the host rejects the write", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+
+            const command = rpc.handleLine(
+                hostNotification("modeler/changeEngineVersion", { editorId }),
+            );
+            const picker = await waitForFrame(frames, isPickerShow);
+            await rpc.handleLine(hostReply(picker.id, { selected: [otherVersionIndex(picker)] }));
+            const write = await waitForFrame(frames, (f) => f.method === "document/write");
+            const afterWrite = frames.length;
+            await rpc.handleLine(hostReply(write.id, { changed: false, accepted: false }));
+            await command;
+
+            const afterRejection = frames.slice(afterWrite);
+            expect(
+                afterRejection.filter((f) => f.method === "statusBar/showEngineVersion"),
+            ).toEqual([]);
+            expect(postedQueries(afterRejection, "BpmnFileQuery")).toEqual([]);
+
+            const beforeReload = frames.length;
+            await rpc.handleLine(
+                hostNotification("webview/message", {
+                    editorId,
+                    message: { type: "GetBpmnFileCommand" },
+                }),
+            );
+            const reload = await waitForFrame(
+                frames,
+                (f) =>
+                    f.method === "editor/postMessage" && f.params.message?.type === "BpmnFileQuery",
+                { fromIndex: beforeReload },
+            );
+            expect(reload.params.message.content).toBe(BPMN_C7_XML);
+        });
     });
 
     describe("migrate all", () => {
@@ -209,6 +256,50 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             await rpc.handleLine(hostReply(write.id, { changed: true, accepted: true }));
             await migration;
 
+            expect(await fs.readFile(sourcePath, "utf8")).toBe(BPMN_C7_XML);
+        });
+
+        it("writes and reports nothing when the user dismisses the version picker", async () => {
+            const { rpc, frames, workspaceRoot, sourcePath } = await setup();
+
+            const migration = rpc.handleLine(
+                hostNotification("migration/migrateAll", { workspaceRoot }),
+            );
+            const picker = await waitForFrame(frames, isPickerShow);
+            const afterPicker = frames.length;
+            await rpc.handleLine(hostReply(picker.id, { selected: null }));
+            await migration;
+
+            expect(frames.slice(afterPicker)).toEqual([]);
+            expect(await fs.readFile(sourcePath, "utf8")).toBe(BPMN_C7_XML);
+        });
+
+        it("counts an open diagram whose editor rejects the update as skipped and leaves its file alone", async () => {
+            const { rpc, frames, workspaceRoot, sourcePath } = await setupWithOpenEditor();
+
+            const migration = rpc.handleLine(
+                hostNotification("migration/migrateAll", { workspaceRoot }),
+            );
+            const picker = await waitForFrame(frames, isPickerShow);
+            await rpc.handleLine(hostReply(picker.id, { selected: [otherVersionIndex(picker)] }));
+            const write = await waitForFrame(frames, (f) => f.method === "document/write");
+            await rpc.handleLine(hostReply(write.id, { changed: false, accepted: false }));
+            await migration;
+
+            expect(frames).toContainEqual({
+                method: "notifier/log",
+                params: {
+                    level: "warn",
+                    message: `Skipped a diagram whose editor rejected the update: ${sourcePath}`,
+                },
+            });
+            expect(
+                frames.some(
+                    isShowInfo(
+                        "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
+                    ),
+                ),
+            ).toBe(true);
             expect(await fs.readFile(sourcePath, "utf8")).toBe(BPMN_C7_XML);
         });
     });
