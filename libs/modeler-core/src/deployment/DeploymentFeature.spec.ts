@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+    AuthConfigPayload,
+    CreateTargetCommand,
+    DeleteTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
     DeploymentTargetsQuery,
@@ -8,6 +11,8 @@ import {
     FlushDocumentQuery,
     FormDefaultsQuery,
     Query,
+    SaveTargetCommand,
+    TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import { ArtifactService } from "../shared/service/ArtifactService";
@@ -18,7 +23,7 @@ import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
 import { DeploymentTarget, serializeDeploymentTargets } from "./domain/deploymentTarget";
 import { HttpClient, HttpResponse } from "./domain/ports";
-import { DeploymentTargetService } from "./service/DeploymentTargetService";
+import { DeploymentTargetService, toTargetPayload } from "./service/DeploymentTargetService";
 
 const TARGETS_FILE = "/ws/.camunda/deployment-targets.json";
 const ORDER_PROCESS = "/ws/src/order-process.bpmn";
@@ -181,6 +186,52 @@ describe("DeploymentFeature target commands", () => {
         expect(targetListsIn(older.posted)).toEqual([]);
         expect(targetListsIn(newer.posted)).toHaveLength(1);
     });
+});
+
+describe("DeploymentFeature panel target commands", () => {
+    const noAuth: AuthConfigPayload = { authType: "none" };
+
+    it.each([
+        {
+            result: "create",
+            command: new CreateTargetCommand(toTargetPayload(target("staging")), noAuth),
+            refreshedNames: ["dev", "prod", "staging"],
+        },
+        {
+            result: "save",
+            command: new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+            refreshedNames: ["prod", "staging"],
+        },
+        {
+            result: "delete",
+            command: new DeleteTargetCommand("dev"),
+            refreshedNames: ["prod"],
+        },
+    ])(
+        "posts the $result result before the refreshed target list",
+        async ({ command, refreshedNames }) => {
+            const { host, feature } = createFeature({ confirmDestructive: true });
+            host.openEditor(ORDER_PROCESS);
+            const { panel, posted } = attach(feature, false);
+
+            await panel.handle(command);
+
+            // The deployment form ends its reload lock on the first list after a successful result.
+            expect(
+                posted.filter(
+                    (query) =>
+                        query instanceof TargetSavedQuery ||
+                        query instanceof DeploymentTargetsQuery,
+                ),
+            ).toEqual([
+                expect.objectContaining({ type: "TargetSavedQuery", success: true }),
+                expect.objectContaining({
+                    type: "DeploymentTargetsQuery",
+                    targets: refreshedNames.map((name) => expect.objectContaining({ name })),
+                }),
+            ]);
+        },
+    );
 });
 
 describe("DeploymentFeature.statusMenu", () => {
