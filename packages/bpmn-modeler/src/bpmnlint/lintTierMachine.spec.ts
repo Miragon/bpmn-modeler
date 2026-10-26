@@ -8,6 +8,7 @@ import {
     type LintTierEvent,
     type LintTierInit,
     type LintTierState,
+    lintsInPage,
     reduceLintTier,
     startLintTier,
 } from "./lintTierMachine";
@@ -401,5 +402,15 @@ describe.each([
 ])("reduceLintTier on $trigger", ({ rows }) => {
     it.each(rows)("$behaviour", ({ from, event, diagramLoaded = true, to, effects }) => {
         expect(reduceLintTier(from, event, diagramLoaded)).toEqual({ state: to, effects });
+    });
+});
+
+describe("lintsInPage", () => {
+    it.each([
+        { tier: "in-page", state: IN_PAGE, expected: true },
+        { tier: "external", state: EXTERNAL, expected: false },
+        { tier: "in-page-disabled", state: DISABLED, expected: false },
+    ])("is $expected in the $tier tier", ({ state, expected }) => {
+        expect(lintsInPage(state)).toBe(expected);
     });
 });

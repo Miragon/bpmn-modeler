@@ -76,6 +76,11 @@ export function startLintTier(init: LintTierInit, diagramLoaded: boolean): LintT
     return { state, effects: state.tier === "in-page" ? lintInPage(state, diagramLoaded) : [] };
 }
 
+// Every other tier replays what was rendered last: host results, or nothing once disabled.
+export function lintsInPage(state: LintTierState): boolean {
+    return state.tier === "in-page";
+}
+
 export function reduceLintTier(
     state: LintTierState,
     event: LintTierEvent,

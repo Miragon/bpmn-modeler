@@ -6,6 +6,7 @@ import {
     type LintTierEvent,
     type LintTierInit,
     type LintTierState,
+    lintsInPage,
     reduceLintTier,
     startLintTier,
 } from "./lintTierMachine";
@@ -139,13 +140,10 @@ export class LintConfigService {
     }
 
     private async runLint(): Promise<LintResults> {
-        if (this.state.tier === "in-page" && this.browserLinter) {
+        if (lintsInPage(this.state) && this.browserLinter) {
             const event = await this.browserLinter.run(this.bpmnjs.getDefinitions());
             this.callbacks.onLintResults?.(event);
             return event.results;
-        }
-        if (this.state.tier === "in-page-disabled") {
-            return {};
         }
         return this.results;
     }
