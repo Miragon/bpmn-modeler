@@ -448,13 +448,14 @@ class EditorSessionRouterTest {
 
         f.router.reregisterLiveSessions()
 
-        val frames = generateSequence { f.wired.fake.pollFrame() }.map(::parse).toList()
+        val frames = List(3) { parse(f.wired.fake.nextFrame()) }
         assertEquals(
             listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand"),
             frames.map { it.webviewMessageType() ?: it.get("method").asString },
             "the page keeps the old bridge's lint state until the new bridge pushes its own",
         )
         frames.forEach { assertEquals(f.sessionId, it.getAsJsonObject("params").get("sessionId").asLong) }
+        f.wired.fake.expectNoFrame()
     }
 
     @Test
