@@ -2,14 +2,17 @@ import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
 import { DocumentPort, NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
+import { searchScopeKey, searchScopeRoots } from "../../shared/domain/searchScope";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { resolveSearchScope } from "../../shared/service/workspaceFileSearch";
 import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const WATCH_DEBOUNCE_MS = 150;
 
 interface EditorState {
     sourcePath: string;
-    roots: string[];
+    roots: readonly string[];
+    scopeKey: string;
     token: symbol;
     lastSignature?: string;
 }
@@ -39,7 +42,7 @@ export class FormReferenceStatusService {
 
     async requestStatus(editorId: string): Promise<void> {
         if (this.disposed) return;
-        this.registerEditor(editorId);
+        this.watchSearchScope(editorId);
         await this.queueRefresh(editorId, true);
     }
 
@@ -49,20 +52,10 @@ export class FormReferenceStatusService {
         this.editors.delete(editorId);
         this.refreshChains.delete(editorId);
 
-        for (const root of editor.roots) {
-            const state = this.roots.get(root);
-            if (!state) continue;
-            state.editors.delete(editorId);
-            if (state.editors.size === 0) {
-                state.watcher.dispose();
-                this.roots.delete(root);
-                this.pendingRoots.delete(root);
-            }
-        }
+        for (const root of editor.roots) this.releaseRoot(root, editorId);
 
-        const scope = this.scopeKey(editor);
-        if (![...this.editors.values()].some((state) => this.scopeKey(state) === scope)) {
-            this.scopeScans.delete(scope);
+        if (![...this.editors.values()].some(({ scopeKey }) => scopeKey === editor.scopeKey)) {
+            this.scopeScans.delete(editor.scopeKey);
         }
     }
 
@@ -78,17 +71,31 @@ export class FormReferenceStatusService {
         this.pendingRoots.clear();
     }
 
-    private registerEditor(editorId: string): void {
-        if (this.editors.has(editorId)) return;
-        const sourcePath = this.document.getFilePath(editorId);
-        const inWorkspace = this.workspace.findWorkspaceFolderForDocument(sourcePath) !== undefined;
-        const roots = inWorkspace
-            ? this.workspace.getWorkspaceFolderPaths()
-            : [this.workspace.getDocumentDirectory(sourcePath)];
-        const state: EditorState = { sourcePath, roots, token: Symbol(editorId) };
-        this.editors.set(editorId, state);
+    // Workspace folders can change while an editor is open, so every request
+    // watches the folders as they are now.
+    private watchSearchScope(editorId: string): void {
+        const editor = this.editors.get(editorId) ?? this.registerEditor(editorId);
+        const scope = resolveSearchScope(this.workspace, editor.sourcePath);
+        const roots = scope ? searchScopeRoots(scope) : [];
+        for (const root of editor.roots) {
+            if (!roots.includes(root)) this.releaseRoot(root, editorId);
+        }
+        for (const root of roots) {
+            if (!editor.roots.includes(root)) this.acquireRoot(root, editorId);
+        }
+        editor.roots = roots;
+        editor.scopeKey = scope ? searchScopeKey(scope) : "";
+    }
 
-        for (const root of roots) this.acquireRoot(root, editorId);
+    private registerEditor(editorId: string): EditorState {
+        const editor: EditorState = {
+            sourcePath: this.document.getFilePath(editorId),
+            roots: [],
+            scopeKey: "",
+            token: Symbol(editorId),
+        };
+        this.editors.set(editorId, editor);
+        return editor;
     }
 
     private acquireRoot(root: string, editorId: string): void {
@@ -115,10 +122,21 @@ export class FormReferenceStatusService {
         }
     }
 
+    private releaseRoot(root: string, editorId: string): void {
+        const state = this.roots.get(root);
+        if (!state) return;
+        state.editors.delete(editorId);
+        if (state.editors.size === 0) {
+            state.watcher.dispose();
+            this.roots.delete(root);
+            this.pendingRoots.delete(root);
+        }
+    }
+
     private scheduleRefresh(root: string): void {
         for (const editorId of this.roots.get(root)?.editors ?? []) {
             const editor = this.editors.get(editorId);
-            if (editor) this.scopeScans.delete(this.scopeKey(editor));
+            if (editor) this.scopeScans.delete(editor.scopeKey);
         }
         this.pendingRoots.add(root);
         if (this.watchTimer !== undefined) clearTimeout(this.watchTimer);
@@ -167,20 +185,16 @@ export class FormReferenceStatusService {
     }
 
     private scanScope(editor: EditorState): Promise<FormDeclarationsResult> {
-        const scope = this.scopeKey(editor);
-        const existing = this.scopeScans.get(scope);
+        const { scopeKey } = editor;
+        const existing = this.scopeScans.get(scopeKey);
         if (existing) return existing;
 
         const scan = this.locator.findFormDeclarations(editor.sourcePath);
-        this.scopeScans.set(scope, scan);
+        this.scopeScans.set(scopeKey, scan);
         const clear = (): void => {
-            if (this.scopeScans.get(scope) === scan) this.scopeScans.delete(scope);
+            if (this.scopeScans.get(scopeKey) === scan) this.scopeScans.delete(scopeKey);
         };
         void scan.then(clear, clear);
         return scan;
-    }
-
-    private scopeKey(editor: EditorState): string {
-        return editor.roots.join("\0");
     }
 }

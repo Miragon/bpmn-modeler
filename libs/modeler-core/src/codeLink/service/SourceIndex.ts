@@ -1,10 +1,10 @@
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { SearchScope } from "../../shared/domain/searchScope";
 import {
     findFilesInScope,
     resolveSearchScope,
     SearchLogger,
-    SearchScope,
 } from "../../shared/service/workspaceFileSearch";
 import { isSourceFile, SOURCE_EXTENSIONS } from "../domain/ImplementationReference";
 import { SourceFileFacts } from "../domain/SourceFileFacts";
