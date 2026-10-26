@@ -1,4 +1,5 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
 import { getVersions } from "../../../shared/domain/engineVersions";
@@ -82,12 +83,7 @@ export class BpmnModelerService {
                     ),
                 );
 
-                // A background render (external edit, split view) must not overwrite
-                // the engine item every editor shares; the editor can also close mid-post.
-                if (this.editorStore.isFocused(editorId)) {
-                    this.updateEngineVersionStatus(doc);
-                }
-
+                this.showEngineVersionIfFocused(editorId, doc.engineVersionStatus());
                 return sent;
             } catch (error) {
                 if (isHiddenEditorError(error)) {
@@ -149,7 +145,7 @@ export class BpmnModelerService {
                 return false;
             }
 
-            this.statusBar.showEngineVersion(platform, newVersion);
+            this.showEngineVersionIfFocused(editorId, { platform, version: newVersion });
             return await this.display(editorId);
         } catch (error) {
             if (error instanceof UserCancelledError) {
@@ -166,8 +162,14 @@ export class BpmnModelerService {
         }
     }
 
-    private updateEngineVersionStatus(doc: BpmnDocument): void {
-        const status = doc.engineVersionStatus();
+    // Every editor shares the engine item: a background render (external edit, split
+    // view) or a command run while a text editor is focused must not write it, and
+    // the editor can also close mid-post.
+    private showEngineVersionIfFocused(
+        editorId: string,
+        status: { platform: Engine; version: string } | undefined,
+    ): void {
+        if (!this.editorStore.isFocused(editorId)) return;
         if (status) {
             this.statusBar.showEngineVersion(status.platform, status.version);
         } else {

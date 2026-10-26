@@ -159,12 +159,13 @@ export class EditorSessionStore {
         return this.activeEditorId;
     }
 
-    /**
-     * The one notion of focus for the status items every editor shares: an item
-     * shows an editor's state only if that editor is focused when it is written.
-     */
+    /** Focus is the handle's `isActive()`; the active-editor pointer is the command target. */
     isFocused(editorId: string): boolean {
         return this.editors.get(editorId)?.isActive() ?? false;
+    }
+
+    getFocusedEditorId(): string | undefined {
+        return [...this.editors.values()].find((handle) => handle.isActive())?.id;
     }
 
     onDidChangeActiveEditor(listener: (id: string) => void): EditorSubscription {

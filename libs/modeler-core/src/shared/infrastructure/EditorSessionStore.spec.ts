@@ -113,6 +113,7 @@ describe("EditorSessionStore", () => {
         expect(store.getActiveEditorId()).toBe(background.id);
         expect(store.isFocused(background.id)).toBe(false);
         expect(store.isFocused(focused.id)).toBe(true);
+        expect(store.getFocusedEditorId()).toBe(focused.id);
     });
 
     it("stops reporting focus once the editor blurs or closes", () => {
@@ -130,6 +131,7 @@ describe("EditorSessionStore", () => {
         expect(store.isFocused(blurred.id)).toBe(false);
         expect(store.isFocused(closed.id)).toBe(false);
         expect(store.isFocused("file:///repo/never-opened.bpmn")).toBe(false);
+        expect(store.getFocusedEditorId()).toBeUndefined();
     });
 
     // ─── dispose (via the dispose-event path) ────────────────────────────────

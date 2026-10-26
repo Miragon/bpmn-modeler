@@ -148,8 +148,10 @@ import a class that implements a port.
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine
 version, bpmnlint, deployment) show an editor's state only if it is focused
-when the item is written. Its participant hides the item on blur and close,
-and `StatusItemOwnership` decides only that hide. The store's active-editor
+when the item is written. A command that refreshes the deployment item
+afterwards refreshes the focused editor (`getFocusedEditorId`), not the
+editor it acted on. Each item's participant hides it on blur and close, and
+`StatusItemOwnership` decides only that hide. The store's active-editor
 pointer is the target of commands, not focus. In VS Code it stays on a diagram
 while a text editor is active, because text editors are not sessions. It also
 moves to a session that resolves in the background. The bridge derives

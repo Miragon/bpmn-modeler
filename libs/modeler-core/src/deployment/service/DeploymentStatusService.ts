@@ -28,7 +28,7 @@ import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
  * keeps only targets-file + credential concerns while this one renders the
  * coloured freshness dot and records revisions on a successful deploy.
  *
- * Freshness is decided entirely locally: it compares the active editor content
+ * Freshness is decided entirely locally: it compares the focused editor's content
  * against the fingerprint stored at the last deploy to the active target. No
  * engine round-trip — a `unknown` (gray) dot means "no local record", never
  * "absent on the engine".
@@ -196,15 +196,10 @@ export class DeploymentStatusService {
         }
     }
 
+    /** Not the command target: that pointer can sit on a diagram resolved behind the focused one. */
     async refreshActive(): Promise<void> {
-        try {
-            await this.refresh(this.editorStore.getActiveEditorId());
-        } catch (error) {
-            this.hide();
-            this.notifier.logDebug(
-                `No active editor for deployment status: ${(error as Error).message}`,
-            );
-        }
+        const focusedEditorId = this.editorStore.getFocusedEditorId();
+        if (focusedEditorId !== undefined) await this.refresh(focusedEditorId);
     }
 
     hide(): void {
