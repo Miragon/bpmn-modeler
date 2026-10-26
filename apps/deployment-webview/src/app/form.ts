@@ -21,6 +21,12 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
+import {
+    type DraftActivity,
+    type DraftSnapshot,
+    draftControls,
+    executionBlockedReason,
+} from "../domain/deploymentDraft";
 import { WebviewState } from "./host";
 
 const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
@@ -206,7 +212,6 @@ export class DeploymentForm {
         if (active) this.loadTargetIntoForm(active);
         else this.loadAdHocDefaults();
         this.connectionSnapshot = JSON.stringify(this.getTargetPayload());
-        this.targetDeleteBtn.disabled = !active;
         this.setDirty(false);
         this.updateAdvancedPlaceholders();
         this.updateEngineMismatchHint();
@@ -720,65 +725,54 @@ export class DeploymentForm {
 
     onExecutionReadinessChange(listener: (reason: string | undefined) => void): () => void {
         this.readinessListeners.add(listener);
-        listener(this.executionBlockedReason());
+        listener(executionBlockedReason(this.draftSnapshot()));
         return () => this.readinessListeners.delete(listener);
     }
 
-    private executionBlockedReason(): string | undefined {
-        if (this.savingTarget) return "Saving deployment target…";
-        if (this.switchingTarget || this.reloadTarget) return "Loading deployment target…";
-        if (this.pendingCredentials !== undefined) return "Loading credentials…";
-        if (
-            this.editingTargetName &&
-            (JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot ||
-                this.credentialRefSignature() !== this.credentialRefSnapshot)
-        ) {
-            return "Save target changes before deploying or starting an instance.";
-        }
-        return undefined;
+    private draftSnapshot(): DraftSnapshot {
+        return {
+            activity: this.draftActivity(),
+            editingTargetName: this.editingTargetName,
+            dirty: this.dirty,
+            credentialsPending: this.pendingCredentials !== undefined,
+            targetDefinitionChanged:
+                JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot ||
+                this.credentialRefSignature() !== this.credentialRefSnapshot,
+        };
+    }
+
+    private draftActivity(): DraftActivity {
+        if (this.savingTarget) return "savingTarget";
+        if (this.switchingTarget) return "switchingTarget";
+        if (this.reloadTarget) return "reloadingTarget";
+        return "idle";
     }
 
     private assertExecutionReady(): void {
-        const reason = this.executionBlockedReason();
+        const reason = executionBlockedReason(this.draftSnapshot());
         if (reason) throw new Error(reason);
     }
 
     private updateReadiness(): void {
-        const reason = this.executionBlockedReason();
+        const draft = this.draftSnapshot();
+        const reason = executionBlockedReason(draft);
+        const controls = draftControls(draft);
         this.deployBtn.disabled = this.deploying || reason !== undefined;
         this.deployBtn.title = reason ?? "";
-        this.targetSaveBtn.disabled =
-            !this.dirty ||
-            this.savingTarget ||
-            this.switchingTarget ||
-            this.pendingCredentials !== undefined ||
-            this.editingTargetName === "";
-        this.targetSaveBtn.title = this.saveBlockedReason() ?? "Save target";
+        this.targetSaveBtn.disabled = controls.saveDisabled;
+        this.targetSaveBtn.title = controls.saveTitle;
         for (const control of document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
             "#section-connection input, #section-connection select, #section-authentication input, #section-authentication select, #section-advanced input",
         )) {
-            control.disabled = this.savingTarget;
+            control.disabled = controls.inputsDisabled;
         }
-        this.targetSelect.disabled = this.savingTarget || this.switchingTarget;
-        this.targetNewBtn.disabled =
-            this.savingTarget || this.switchingTarget || this.pendingCredentials !== undefined;
-        this.targetDeleteBtn.disabled =
-            this.savingTarget || this.switchingTarget || !this.editingTargetName;
+        this.targetSelect.disabled = controls.selectDisabled;
+        this.targetNewBtn.disabled = controls.newDisabled;
+        this.targetDeleteBtn.disabled = controls.deleteDisabled;
         const deployHint = this.requireElement<HTMLDivElement>("#deploy-hint");
         deployHint.textContent = reason ?? "";
         deployHint.hidden = reason === undefined;
         this.readinessListeners.forEach((listener) => listener(reason));
-    }
-
-    private saveBlockedReason(): string | undefined {
-        if (this.editingTargetName === "") {
-            return "Select a target to save changes, or use New to create one.";
-        }
-        if (!this.dirty) return "No unsaved changes.";
-        if (this.savingTarget) return "Saving deployment target…";
-        if (this.switchingTarget) return "Loading deployment target…";
-        if (this.pendingCredentials !== undefined) return "Loading credentials…";
-        return undefined;
     }
 
     private clearCredentials(): void {
