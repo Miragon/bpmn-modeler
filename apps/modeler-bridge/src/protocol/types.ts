@@ -250,6 +250,9 @@ export interface PickerShowResult {
  * A request rather than a notification because the core has to wait for the
  * answer before deleting anything; requests only run core→host, which is the
  * direction needed here.
+ *
+ * `details` arrives already summarised by `summarizeAffectedItems`, so the
+ * host renders it verbatim and never shortens it.
  */
 export interface ConfirmShowParams {
     title: string;

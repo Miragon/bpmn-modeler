@@ -138,9 +138,7 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
         val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
         val confirmLabel =
             params.get("confirmLabel")?.takeIf { !it.isJsonNull }?.asString ?: "Continue"
-        val details =
-            params.getAsJsonArray("details")?.map { it.asString }.orEmpty()
-                .take(MAX_CONFIRM_DETAILS)
+        val details = params.getAsJsonArray("details")?.map { it.asString }.orEmpty()
 
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) {
@@ -211,10 +209,5 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
         ApplicationManager.getApplication().invokeLater {
             CopyPasteManager.getInstance().setContents(StringSelection(text))
         }
-    }
-
-    private companion object {
-        /** The dialog clips a long body, so the listed findings are capped. */
-        const val MAX_CONFIRM_DETAILS = 12
     }
 }
