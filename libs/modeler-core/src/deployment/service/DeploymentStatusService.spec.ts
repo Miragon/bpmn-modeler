@@ -126,6 +126,7 @@ function createService({
         host.notifier,
         new EnvValueResolver(deploymentTargetService as never, host.workspace),
     );
+    service.track(editor.id);
 
     return { service, host, editor, deploymentTargetService, dotEnvIo };
 }

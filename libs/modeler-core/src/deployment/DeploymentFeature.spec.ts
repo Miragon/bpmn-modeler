@@ -152,7 +152,7 @@ describe("DeploymentFeature.attachPanel", () => {
 describe("DeploymentFeature target commands", () => {
     it("switches the target, refreshes the status bar and pushes the targets into the panel", async () => {
         const { host, feature } = createFeature({ deploymentTarget: "prod" });
-        host.openEditor(ORDER_PROCESS).active = true;
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant]);
         const { posted } = attach(feature, false);
 
         await feature.switchTarget();
@@ -420,7 +420,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
      * webview a later edit its sync debounce has not delivered yet. The editor's
      * save writes the buffer to disk, as both hosts' saves do.
      */
-    function createEditedDiagram() {
+    async function createEditedDiagram() {
         const http = new RecordingEngineHttp();
         const host = createTestHost({
             folders: ["/ws"],
@@ -430,29 +430,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
             },
         });
         host.deploymentState.activeTargetName = "dev";
-        const editor = host.openEditor(ORDER_PROCESS, UNSAVED_XML);
-        // VS Code keeps the panel active while the deployment sidebar has focus.
-        editor.active = true;
-        vi.spyOn(editor, "save").mockImplementation(async () => {
-            editor.saveCount++;
-            await host.workspace.writeFile(ORDER_PROCESS, editor.content);
-            return true;
-        });
-
         const flushes = new DocumentFlushService(host.store, host.notifier);
-        const deliver = editor.postMessage.bind(editor);
-        editor.postMessage = async (message) => {
-            const delivered = await deliver(message);
-            if (message instanceof FlushDocumentQuery) {
-                queueMicrotask(() =>
-                    flushes.handleReply(
-                        new DocumentFlushedCommand(message.token, WEBVIEW_XML),
-                        editor.id,
-                    ),
-                );
-            }
-            return delivered;
-        };
         const pendingEdits = new PendingEditsFlush(host.store, flushes, host.notifier);
         pendingEdits.serve(".bpmn", {
             sync: (editorId, content) => host.documents.write(editorId, content),
@@ -472,11 +450,34 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
             pendingEdits,
             http,
         });
+        // Focused: VS Code keeps the panel active while the deployment sidebar has focus.
+        const editor = await host.openSession(ORDER_PROCESS, [feature.statusParticipant], {
+            content: UNSAVED_XML,
+        });
+        vi.spyOn(editor, "save").mockImplementation(async () => {
+            editor.saveCount++;
+            await host.workspace.writeFile(ORDER_PROCESS, editor.content);
+            return true;
+        });
+        const deliver = editor.postMessage.bind(editor);
+        editor.postMessage = async (message) => {
+            const delivered = await deliver(message);
+            if (message instanceof FlushDocumentQuery) {
+                queueMicrotask(() =>
+                    flushes.handleReply(
+                        new DocumentFlushedCommand(message.token, WEBVIEW_XML),
+                        editor.id,
+                    ),
+                );
+            }
+            return delivered;
+        };
+
         const { panel, posted } = attach(feature, false);
         return { host, http, panel, posted };
     }
 
-    const deployFromSidebar = ({ panel }: ReturnType<typeof createEditedDiagram>) =>
+    const deployFromSidebar = ({ panel }: Awaited<ReturnType<typeof createEditedDiagram>>) =>
         panel.handle(
             new DeployCommand({
                 deploymentName: "order-process",
@@ -491,7 +492,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
         );
 
     it("deploys what the webview shows and saves it first", async () => {
-        const edited = createEditedDiagram();
+        const edited = await createEditedDiagram();
 
         await deployFromSidebar(edited);
 
@@ -504,7 +505,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
     });
 
     it("shows the diagram as deployed right after the deploy", async () => {
-        const edited = createEditedDiagram();
+        const edited = await createEditedDiagram();
 
         await deployFromSidebar(edited);
 

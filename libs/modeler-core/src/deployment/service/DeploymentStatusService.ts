@@ -35,6 +35,8 @@ import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
  */
 export class DeploymentStatusService {
     private refreshGeneration = 0;
+    /** Sessions whose participant hides the item on blur and close (BPMN, not DMN or Form). */
+    private readonly trackedEditorIds = new Set<string>();
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -196,9 +198,21 @@ export class DeploymentStatusService {
         }
     }
 
+    track(editorId: string): void {
+        this.trackedEditorIds.add(editorId);
+    }
+
+    untrack(editorId: string): void {
+        this.trackedEditorIds.delete(editorId);
+    }
+
     async refreshFocused(): Promise<void> {
         const focusedEditorId = this.editorStore.getFocusedEditorId();
-        if (focusedEditorId !== undefined) await this.refresh(focusedEditorId);
+        if (focusedEditorId !== undefined && this.trackedEditorIds.has(focusedEditorId)) {
+            await this.refresh(focusedEditorId);
+        } else {
+            this.hide();
+        }
     }
 
     hide(): void {
