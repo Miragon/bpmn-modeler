@@ -19,8 +19,13 @@ import type { BpmnDesigner } from "./design/designer";
 import type { BpmnModeler } from "./modeler";
 import { afterPaint } from "./__fixtures__/surfaceMount";
 
+interface MenuPosition {
+    x: number;
+    y: number;
+}
+
 interface PopupMenuService {
-    open(target: unknown, providerId: string, position: { x: number; y: number }): void;
+    open(target: unknown, providerId: string, position: MenuPosition): void;
     close(): void;
 }
 
@@ -122,9 +127,12 @@ async function openDesignerAppendMenu(): Promise<void> {
     openAppendMenuOn(designer);
 }
 
-function openAppendMenuOn(handle: BpmnModeler | BpmnDesigner): void {
+function openAppendMenuOn(
+    handle: BpmnModeler | BpmnDesigner,
+    position: MenuPosition = { x: 320, y: 200 },
+): void {
     const task = handle.getService<{ get(id: string): Shape }>("elementRegistry").get("Task_1");
-    handle.getService<PopupMenuService>("popupMenu").open(task, "bpmn-append", { x: 320, y: 200 });
+    handle.getService<PopupMenuService>("popupMenu").open(task, "bpmn-append", position);
 }
 
 function navKeys(selector: string): (string | null)[] {
@@ -316,5 +324,39 @@ describe("append menu", () => {
         expect(
             document.querySelector(".am-hover-card")!.getBoundingClientRect().right,
         ).toBeLessThanOrEqual(document.querySelector(".am-panel")!.getBoundingClientRect().left);
+    });
+
+    it("keeps the panel inside the canvas when opened at its bottom-right corner", async () => {
+        const handle = await openModeler({ engine: "c7", locale: "en" });
+        const canvasBounds = handle.getService("canvas").getContainer().getBoundingClientRect();
+
+        openAppendMenuOn(handle, { x: canvasBounds.right - 20, y: canvasBounds.bottom - 20 });
+
+        const panel = document.querySelector<HTMLElement>(".am-panel")!;
+        await expect
+            .poll(() => panel.getBoundingClientRect().right)
+            .toBeLessThanOrEqual(canvasBounds.right);
+        const panelBounds = panel.getBoundingClientRect();
+        expect(panelBounds.bottom).toBeLessThanOrEqual(canvasBounds.bottom);
+        expect(panelBounds.left).toBeGreaterThanOrEqual(canvasBounds.left);
+        expect(panelBounds.top).toBeGreaterThanOrEqual(canvasBounds.top);
+    });
+
+    it("appends a plain element connected to the source and undoes it in one step", async () => {
+        const handle = await openAppendMenu({ locale: "en" });
+        const elementRegistry = handle.getService("elementRegistry");
+        const elementIdsBefore = elementRegistry.getAll().map((element) => element.id);
+
+        click('[data-nav-key="grp:tasks:append-user-task"]');
+
+        const appended = elementRegistry.filter(
+            (element) => element.type === "bpmn:UserTask",
+        ) as Shape[];
+        expect(appended).toHaveLength(1);
+        expect(appended[0].incoming.map((flow) => flow.source?.id)).toEqual(["Task_1"]);
+
+        handle.getService("commandStack").undo();
+
+        expect(elementRegistry.getAll().map((element) => element.id)).toEqual(elementIdsBefore);
     });
 });
