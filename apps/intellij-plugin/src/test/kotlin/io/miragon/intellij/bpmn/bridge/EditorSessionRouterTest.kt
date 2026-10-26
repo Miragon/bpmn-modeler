@@ -174,8 +174,7 @@ class EditorSessionRouterTest {
         val f = setUpRouter(INITIAL_XML)
         f.bpmn.document.setReadOnly(true)
 
-        // Unfixed, the refused setText escapes the EDT pump; only the reply decides the spec.
-        runCatching { f.dispatchCoreWrite(EDITED_XML) }
+        f.dispatchCoreWrite(EDITED_XML)
 
         val reply = parse(f.wired.fake.nextFrame())
         assertEquals(1, reply.get("id").asInt)

@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.stream.JsonToken
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Computable
@@ -442,7 +443,9 @@ internal class EditorSessionRouter(
                     } catch (e: Exception) {
                         // The reply is the bridge mirror's only update, so a throw
                         // after setText took effect must still report the change.
-                        if (!StringUtil.equals(document.charsSequence, content)) throw e
+                        val documentTookContent = StringUtil.equals(document.charsSequence, content)
+                        if (e is ControlFlowException || !documentTookContent) throw e
+                        log.warn("Core write threw after the Document took the content", e)
                     } finally {
                         editorsApplyingCoreWrite.remove(editorId)
                     }
