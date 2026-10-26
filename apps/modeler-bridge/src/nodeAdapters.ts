@@ -34,6 +34,7 @@ import { promises as fs, watch as watchFs } from "node:fs";
 import { join, posix, relative, sep } from "node:path";
 
 import {
+    coalesceWatcherEvents,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
@@ -45,6 +46,7 @@ import {
     SettingChange,
     SettingsPort,
     toWorkspacePath,
+    WatcherEventKind,
     withoutFileScheme,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
@@ -113,6 +115,11 @@ function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unkn
  * single recursive watch is one stream, armed in milliseconds.
  */
 function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { close(): unknown } {
+    // FSEvents reports create, modify and delete alike as `rename`, so a path
+    // that exists is new only if this watch has not seen it and it was born
+    // after the watch started; an atomic save keeps a seen path changed.
+    const watchStartedMs = Date.now();
+    const seenPaths = new Set<string>();
     return watchFs(root, { recursive: true }, (_event, filename) => {
         if (!filename) {
             return;
@@ -121,15 +128,22 @@ function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { cl
         if (isIgnoredWatchPath(root, changed)) {
             return;
         }
-        // FSEvents reports create, modify and delete alike as `rename`, so a
-        // path that still exists fires both create and change — every consumer
-        // treats the two the same.
         fs.stat(changed).then(
-            () => {
-                emit.onAdd(changed);
-                emit.onChange(changed);
+            ({ birthtimeMs }) => {
+                const isNew = !seenPaths.has(changed) && birthtimeMs >= watchStartedMs;
+                seenPaths.add(changed);
+                if (isNew) {
+                    emit.onAdd(changed);
+                } else {
+                    emit.onChange(changed);
+                }
             },
-            () => emit.onUnlink(changed),
+            () => {
+                for (const seen of [...seenPaths]) {
+                    if (isWithinRoot(seen, changed)) seenPaths.delete(seen);
+                }
+                emit.onUnlink(changed);
+            },
         );
     });
 }
@@ -294,50 +308,52 @@ export class NodeWorkspace implements WorkspacePort {
         const watchedRoot = toWorkspacePath(root);
         const matcher = globToRegExp(glob);
 
+        const handlerFor: Record<WatcherEventKind, ((path: string) => void) | undefined> = {
+            create: handlers.onCreate,
+            change: handlers.onChange,
+            delete: handlers.onDelete,
+        };
+
         // Per-path timers, not one shared timer: the template handler reloads
         // everything on any event, so coalescing its burst is harmless — but code
         // link needs every distinct changed file. A single timer would drop all
         // but the last file of a multi-file burst (e.g. a branch checkout).
-        const timers = new Map<string, NodeJS.Timeout>();
+        const pending = new Map<string, { kind: WatcherEventKind; timer: NodeJS.Timeout }>();
 
-        const fireDebounced = (
-            handler: ((path: string) => void) | undefined,
-            nativePath: string,
-        ): void => {
+        const deliverDebounced = (kind: WatcherEventKind, nativePath: string): void => {
             // chokidar emits OS-native paths; the core compares them with
             // `findFiles` results.
             const changed = toWorkspacePath(nativePath);
             const belowRoot = relativeToRoot(changed, watchedRoot);
-            if (!handler || belowRoot === undefined || !matcher.test(belowRoot)) {
+            if (belowRoot === undefined || !matcher.test(belowRoot)) {
                 return;
             }
-            const pending = timers.get(changed);
-            if (pending) {
-                clearTimeout(pending);
-            }
-            timers.set(
-                changed,
-                setTimeout(() => {
-                    timers.delete(changed);
-                    handler(changed);
+            const earlier = pending.get(changed);
+            clearTimeout(earlier?.timer);
+            const coalesced = coalesceWatcherEvents(earlier?.kind, kind);
+            pending.set(changed, {
+                kind: coalesced,
+                timer: setTimeout(() => {
+                    pending.delete(changed);
+                    handlerFor[coalesced]?.(changed);
                 }, 50),
-            );
+            });
         };
 
         const subscriber: WatchSubscriber = {
-            onAdd: (p) => fireDebounced(handlers.onCreate, p),
-            onChange: (p) => fireDebounced(handlers.onChange, p),
-            onUnlink: (p) => fireDebounced(handlers.onDelete, p),
+            onAdd: (p) => deliverDebounced("create", p),
+            onChange: (p) => deliverDebounced("change", p),
+            onUnlink: (p) => deliverDebounced("delete", p),
         };
         const shared = this.acquireRootWatcher(root);
         shared.subscribers.add(subscriber);
 
         return {
             dispose: (): void => {
-                for (const timer of timers.values()) {
+                for (const { timer } of pending.values()) {
                     clearTimeout(timer);
                 }
-                timers.clear();
+                pending.clear();
                 this.releaseRootWatcher(root, subscriber);
             },
         };
