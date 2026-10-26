@@ -2,9 +2,11 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.intellij.openapi.progress.ProcessCanceledException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -195,6 +197,140 @@ class RpcChannelTest {
         val okReply = parse(fake.nextFrame())
         assertEquals(9, okReply.get("id").asInt)
         assertEquals("ok", okReply.get("result").asString)
+    }
+
+    private fun attachedChannel(): Pair<RpcChannel, FakeProcess> {
+        val fake = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
+        channel.attach(fake.outputStream, fake.inputStream)
+        return channel to fake
+    }
+
+    private val runInline: (Runnable) -> Unit = { it.run() }
+
+    @Test
+    fun `a request answered from the EDT gets an error reply when the EDT work throws`() {
+        val (channel, fake) = attachedChannel()
+
+        channel.replyFromEdt(id = 5, method = "document/write", runOnEdt = runInline) {
+            throw IllegalStateException("refused")
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(5, reply.get("id").asInt)
+        assertEquals("refused", reply.get("error").asString)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered from the EDT gets an error reply when the EDT work fails with an Error`() {
+        val (channel, fake) = attachedChannel()
+
+        assertThrows(AssertionError::class.java) {
+            channel.replyFromEdt(id = 9, method = "document/write", runOnEdt = runInline) {
+                throw AssertionError("broken")
+            }
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(9, reply.get("id").asInt)
+        assertEquals("broken", reply.get("error").asString)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered from the EDT rethrows a cancellation after answering it with an error`() {
+        val (channel, fake) = attachedChannel()
+
+        assertThrows(ProcessCanceledException::class.java) {
+            channel.replyFromEdt(id = 10, method = "document/write", runOnEdt = runInline) {
+                throw ProcessCanceledException()
+            }
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(10, reply.get("id").asInt)
+        assertTrue(reply.has("error"))
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered from the EDT gets an error reply when its result cannot be serialised`() {
+        val (channel, fake) = attachedChannel()
+
+        channel.replyFromEdt(id = 11, method = "document/write", runOnEdt = runInline) {
+            mapOf("ratio" to Double.NaN)
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(11, reply.get("id").asInt)
+        assertTrue(reply.has("error"))
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered from the EDT gets exactly one reply carrying the work's result`() {
+        val (channel, fake) = attachedChannel()
+        val edtQueue = mutableListOf<Runnable>()
+
+        channel.replyFromEdt(id = 6, method = "document/save", runOnEdt = { edtQueue += it }) {
+            mapOf("saved" to true)
+        }
+        assertEquals(1, edtQueue.size, "the work is handed to the EDT")
+        fake.expectNoFrame()
+        edtQueue.single().run()
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(6, reply.get("id").asInt)
+        assertTrue(reply.getAsJsonObject("result").get("saved").asBoolean)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a notification handled on the EDT runs its work without replying`() {
+        val (channel, fake) = attachedChannel()
+        var workRan = false
+
+        channel.replyFromEdt(id = null, method = "document/write", runOnEdt = runInline) {
+            workRan = true
+            mapOf("changed" to true)
+        }
+
+        assertTrue(workRan)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered later from the EDT gets an error reply when the work throws before answering`() {
+        val (channel, fake) = attachedChannel()
+
+        channel.replyLaterFromEdt(id = 7, method = "picker/show", runOnEdt = runInline) {
+            throw IllegalStateException("popup failed")
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(7, reply.get("id").asInt)
+        assertEquals("popup failed", reply.get("error").asString)
+        fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a request answered later from the EDT keeps its first answer`() {
+        val (channel, fake) = attachedChannel()
+        var pendingReply: PendingReply? = null
+
+        channel.replyLaterFromEdt(id = 8, method = "picker/show", runOnEdt = runInline) { reply ->
+            pendingReply = reply
+            reply.result("first")
+            throw IllegalStateException("after answering")
+        }
+        pendingReply?.result("second")
+        pendingReply?.error("late")
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(8, reply.get("id").asInt)
+        assertEquals("first", reply.get("result").asString)
+        fake.expectNoFrame()
     }
 
     /**

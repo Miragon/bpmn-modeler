@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.stream.JsonToken
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Computable
@@ -410,7 +411,7 @@ internal class EditorSessionRouter(
             id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
             return
         }
-        ApplicationManager.getApplication().invokeLater {
+        deps.channel.replyFromEdt(id, "document/write") {
             if (
                 sessions[editorId] !== entry ||
                 (
@@ -423,8 +424,7 @@ internal class EditorSessionRouter(
                 (expectedDocumentRevision != null &&
                     expectedDocumentRevision != entry.documentRevision.get())
             ) {
-                id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
-                return@invokeLater
+                return@replyFromEdt mapOf("changed" to false, "accepted" to false)
             }
             var changed = false
             val session = entry.session
@@ -440,13 +440,19 @@ internal class EditorSessionRouter(
                         WriteCommandAction.runWriteCommandAction(session.project) {
                             document.setText(content)
                         }
+                    } catch (e: Exception) {
+                        // The reply is the bridge mirror's only update, so a throw
+                        // after setText took effect must still report the change.
+                        val documentTookContent = StringUtil.equals(document.charsSequence, content)
+                        if (e is ControlFlowException || !documentTookContent) throw e
+                        log.warn("Core write threw after the Document took the content", e)
                     } finally {
                         editorsApplyingCoreWrite.remove(editorId)
                     }
                     changed = true
                 }
             }
-            id?.let { deps.channel.reply(it, writeResult(changed, writtenContent, content)) }
+            writeResult(changed, writtenContent, content)
         }
     }
 
@@ -459,20 +465,14 @@ internal class EditorSessionRouter(
     private fun handleSave(params: JsonObject, id: Int?) {
         val editorId = params.get("editorId").asString
         val entry = sessions[editorId]
-        ApplicationManager.getApplication().invokeLater {
-            val current = sessions[editorId]
-            val session = entry?.session
-            if (
-                entry != null &&
-                current === entry &&
-                matchesSession(params, entry) &&
-                session != null &&
-                !session.project.isDisposed
-            ) {
-                val document = FileDocumentManager.getInstance().getDocument(session.file)
-                if (document != null) FileDocumentManager.getInstance().saveDocument(document)
-            }
-            id?.let { deps.channel.reply(it, mapOf("saved" to true)) }
+        deps.channel.replyFromEdt(id, "document/save") {
+            val liveSession =
+                entry?.session?.takeIf {
+                    sessions[editorId] === entry && matchesSession(params, entry) && !it.project.isDisposed
+                }
+            val document = liveSession?.let { FileDocumentManager.getInstance().getDocument(it.file) }
+            if (document != null) FileDocumentManager.getInstance().saveDocument(document)
+            mapOf("saved" to (document != null))
         }
     }
 

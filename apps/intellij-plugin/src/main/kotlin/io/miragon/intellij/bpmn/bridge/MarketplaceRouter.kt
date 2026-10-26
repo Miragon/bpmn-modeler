@@ -1,7 +1,6 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.ui.Messages
 import io.miragon.intellij.bpmn.CoreProcess
 import io.miragon.intellij.bpmn.IntellijMarketplaceTokenStore
@@ -85,13 +84,10 @@ internal class MarketplaceRouter(
         if (id == null) return
         val host = params.get("host").asString
         val reason = params.get("reason")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
-        ApplicationManager.getApplication().invokeLater {
-            if (deps.project.isDisposed) {
-                deps.channel.reply(id, null)
-                return@invokeLater
-            }
+        deps.channel.replyFromEdt(id, "tokenPrompt/show") {
+            if (deps.project.isDisposed) return@replyFromEdt null
             val token = passwordPrompt(host, reason)?.trim()
-            deps.channel.reply(id, if (!token.isNullOrEmpty()) mapOf("token" to token) else null)
+            if (!token.isNullOrEmpty()) mapOf("token" to token) else null
         }
     }
 

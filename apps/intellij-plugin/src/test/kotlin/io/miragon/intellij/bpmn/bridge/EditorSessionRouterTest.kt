@@ -2,6 +2,9 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.command.CommandEvent
+import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
@@ -123,6 +126,30 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
+    /**
+     * Throws [failure] from the next command's `commandFinished`, i.e. after the
+     * write's `setText` already changed the Document.
+     */
+    private fun Fixture.failNextCommandAfterItRuns(failure: RuntimeException) {
+        var thrown = false
+        ApplicationManager.getApplication().messageBus.connect(session.project).subscribe(
+            CommandListener.TOPIC,
+            object : CommandListener {
+                override fun commandFinished(event: CommandEvent) {
+                    if (thrown) return
+                    thrown = true
+                    throw failure
+                }
+            },
+        )
+    }
+
+    private fun Fixture.dispatchCoreSave() {
+        val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId)
+        wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, 2)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+    }
+
     @Test
     fun `a core write sends no document didChange and never reads the document text`() {
         val f = setUpRouter(INITIAL_XML)
@@ -140,6 +167,62 @@ class EditorSessionRouterTest {
         f.scheduler.runPending()
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a core write the Document refuses still answers the request with an error`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.bpmn.document.setReadOnly(true)
+
+        f.dispatchCoreWrite(EDITED_XML)
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(1, reply.get("id").asInt)
+        assertTrue(reply.has("error"), "a refused write settles the core's request")
+        assertEquals(INITIAL_XML, f.bpmn.document.text)
+    }
+
+    @Test
+    fun `a core write that throws after the Document took the content still answers that it changed`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.failNextCommandAfterItRuns(IllegalStateException("listener failed"))
+
+        f.dispatchCoreWrite(EDITED_XML)
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(1, reply.get("id").asInt)
+        assertEquals(
+            true,
+            reply.getAsJsonObject("result")?.get("changed")?.asBoolean,
+            "the reply is the mirror's only update",
+        )
+        assertEquals(EDITED_XML, f.bpmn.document.text)
+    }
+
+    @Test
+    fun `a save of an open editor writes its Document to disk and answers that it saved`() {
+        val f = setUpRouter(INITIAL_XML)
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
+
+        f.dispatchCoreSave()
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(2, reply.get("id").asInt)
+        assertTrue(reply.getAsJsonObject("result").get("saved").asBoolean)
+        assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath))
+    }
+
+    @Test
+    fun `a save for an editor that is no longer open answers that nothing was saved`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.disposeSession(f.session)
+        parse(f.wired.fake.nextFrame()) // drain session/dispose
+
+        f.dispatchCoreSave()
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(2, reply.get("id").asInt)
+        assertFalse(reply.getAsJsonObject("result").get("saved").asBoolean)
     }
 
     @Test
