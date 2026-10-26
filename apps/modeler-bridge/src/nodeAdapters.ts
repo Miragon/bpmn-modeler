@@ -38,19 +38,16 @@ import {
     EditorSubscription,
     FileNotFound,
     globToRegExp,
+    isWithinRoot,
     joinWorkspacePath,
     NoWorkspaceFolderFoundError,
     SettingChange,
     SettingsPort,
     toWorkspacePath,
+    withoutFileScheme,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
-
-/** Strips a leading `file://` so the string is a real OS path Node `fs` accepts. */
-function toFsPath(path: string): string {
-    return path.replace(/^file:\/\//, "");
-}
 
 /**
  * Node-`fs`-backed {@link WorkspacePort}. Only the methods on the element-
@@ -173,13 +170,13 @@ export class NodeWorkspace implements WorkspacePort {
      */
     private enclosingRoot(document: string): string | undefined {
         const hadScheme = document.startsWith("file://");
-        const normDoc = toFsPath(document);
+        const documentPath = withoutFileScheme(document);
         let innermostRoot: string | undefined;
         for (const root of this.roots.keys()) {
-            const normRoot = toFsPath(root);
-            const encloses = normDoc === normRoot || normDoc.startsWith(normRoot + "/");
-            if (encloses && normRoot.length > (innermostRoot?.length ?? -1)) {
-                innermostRoot = normRoot;
+            const rootPath = withoutFileScheme(root);
+            const encloses = isWithinRoot(documentPath, rootPath);
+            if (encloses && rootPath.length > (innermostRoot?.length ?? -1)) {
+                innermostRoot = rootPath;
             }
         }
         if (innermostRoot === undefined) {
@@ -212,7 +209,7 @@ export class NodeWorkspace implements WorkspacePort {
     async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
         let dirents;
         try {
-            dirents = await fs.readdir(toFsPath(path), { withFileTypes: true });
+            dirents = await fs.readdir(withoutFileScheme(path), { withFileTypes: true });
         } catch (error) {
             const code = (error as NodeJS.ErrnoException).code;
             if (code === "ENOENT" || code === "ENOTDIR") {
@@ -241,7 +238,7 @@ export class NodeWorkspace implements WorkspacePort {
      */
     async readFile(path: string): Promise<string> {
         try {
-            return await fs.readFile(toFsPath(path), "utf8");
+            return await fs.readFile(withoutFileScheme(path), "utf8");
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
                 throw new FileNotFound(path);
@@ -252,7 +249,7 @@ export class NodeWorkspace implements WorkspacePort {
 
     async isSymbolicLink(path: string): Promise<boolean> {
         try {
-            return (await fs.lstat(toFsPath(path))).isSymbolicLink();
+            return (await fs.lstat(withoutFileScheme(path))).isSymbolicLink();
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
                 return false;
@@ -291,7 +288,7 @@ export class NodeWorkspace implements WorkspacePort {
             onDelete?: (path: string) => void;
         },
     ): { dispose(): void } {
-        const root = toFsPath(rootPath);
+        const root = withoutFileScheme(rootPath);
         const matcher = globToRegExp(glob);
 
         // Per-path timers, not one shared timer: the template handler reloads
@@ -399,7 +396,7 @@ export class NodeWorkspace implements WorkspacePort {
      */
     getDocumentDirectory(document: string): string {
         const hadScheme = document.startsWith("file://");
-        const parent = posix.dirname(toFsPath(document));
+        const parent = posix.dirname(withoutFileScheme(document));
         return hadScheme ? "file://" + parent : parent;
     }
 
@@ -409,7 +406,7 @@ export class NodeWorkspace implements WorkspacePort {
      * nested `<configFolder>/code-link/<dir>/…` path that need not exist yet.
      */
     async writeFile(path: string, content: string): Promise<void> {
-        const fsPath = toFsPath(path);
+        const fsPath = withoutFileScheme(path);
         await fs.mkdir(posix.dirname(fsPath), { recursive: true });
         await fs.writeFile(fsPath, content, "utf8");
     }
@@ -420,7 +417,7 @@ export class NodeWorkspace implements WorkspacePort {
      * that was already deleted never throws.
      */
     async deleteDirectory(path: string): Promise<void> {
-        await fs.rm(toFsPath(path), { recursive: true, force: true });
+        await fs.rm(withoutFileScheme(path), { recursive: true, force: true });
     }
 
     /**
@@ -435,7 +432,7 @@ export class NodeWorkspace implements WorkspacePort {
         const excludeRe = exclude ? globToRegExp(exclude) : undefined;
         const results: string[] = [];
         for (const root of this.roots.keys()) {
-            const cwd = toFsPath(root);
+            const cwd = withoutFileScheme(root);
             for await (const match of fs.glob(pattern, { cwd })) {
                 // fs.glob yields the OS separator; the exclude glob expects `/`.
                 const relative = match.split(sep).join("/");
