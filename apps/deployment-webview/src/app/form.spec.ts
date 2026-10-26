@@ -312,6 +312,31 @@ describe("deployment target form", () => {
         }).toEqual({ save: true, new: false, delete: false });
     });
 
+    it("locks the target select and inputs and names the wait on Save while a saved target reloads", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([target("dev")], "dev"));
+        edit("target-name", "prod");
+        button("target-save").click();
+        c.form.showTargetResult(true, 'Saved deployment target "prod".');
+        const lockState = () => ({
+            select: field("target-select").disabled,
+            endpoint: field("endpoint").disabled,
+            saveTitle: button("target-save").title,
+        });
+
+        expect(lockState()).toEqual({
+            select: true,
+            endpoint: true,
+            saveTitle: "Loading deployment target…",
+        });
+        c.form.setTargets(new DeploymentTargetsQuery([target("prod")], "prod"));
+        expect(lockState()).toEqual({
+            select: false,
+            endpoint: false,
+            saveTitle: "No unsaved changes.",
+        });
+    });
+
     it("disables New while credentials are loading", () => {
         const c = setup();
         c.form.setTargets(
