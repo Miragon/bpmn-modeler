@@ -97,12 +97,20 @@ describe("PendingEditsFlush", () => {
         return Object.values(modelers).flatMap((modeler) => modeler.syncs);
     }
 
-    it.each([".bpmn", ".dmn", ".form"])(
-        "syncs flushed content through the modeler served for %s files",
-        async (extension) => {
-            const editor = host.openEditor(`/work/diagram${extension}`, "<v1/>");
+    it.each([
+        ["/work/diagram.bpmn", ".bpmn"],
+        ["/work/Order.BPMN", ".bpmn"],
+        ["/work/decision.dmn", ".dmn"],
+        ["/work/Decision.Dmn", ".dmn"],
+        ["/work/form.form", ".form"],
+        ["/work/Form.FORM", ".form"],
+    ])(
+        "syncs flushed content for %s through the modeler served for %s files",
+        async (path, extension) => {
+            const editor = host.openEditor(path, "<v1/>");
 
             const flushing = pendingEdits.flushIntoDocument(editor.id);
+            expect(editor.postedOfType("FlushDocumentQuery")).toHaveLength(1);
             webviewReplies(editor, "flushed", "<v2/>", 7);
 
             await expect(flushing).resolves.toEqual({ status: "safe", session: editor });
