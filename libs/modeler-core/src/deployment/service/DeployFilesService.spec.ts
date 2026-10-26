@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { UserCancelledError } from "../../shared/domain/errors";
 import { createTestHost, PickerAnswers } from "../../testing";
 import { BasicAuth } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
@@ -151,6 +152,24 @@ describe("DeployFilesService.deployFiles", () => {
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
         expect(c.deploymentStatusService.refreshActive).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ["the user cancels the credential prompt", new UserCancelledError()],
+        ["the secret storage is unavailable", new Error("The OS keyring is not available.")],
+    ])(
+        "deploys nothing and leaves the status alone when reading the credentials fails because %s",
+        async (_cause, failure) => {
+            const c = createService();
+            c.deploymentTargetService.getCredentials.mockRejectedValue(failure);
+
+            await expect(c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker)).rejects.toBe(
+                failure,
+            );
+
+            expect(c.calls).toEqual(["pickFiles"]);
+            expect(c.host.notifier.progressTitles).toEqual([]);
+        },
+    );
 
     it("works without a host hook or a focused document", async () => {
         const c = createService();
