@@ -7,6 +7,13 @@ on:
       - 'libs/modeler-core/stryker.config.mjs'
       - '.github/workflows/mutation.yml'
       - '.github/scripts/mutation-summary.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'libs/modeler-core/src/**/domain/**'
+      - 'libs/modeler-core/stryker.config.mjs'
+      - '.github/workflows/mutation.yml'
+      - '.github/scripts/mutation-summary.mjs'
   schedule:
     - cron: '41 3 * * 1'
   workflow_dispatch:
@@ -32,10 +39,11 @@ jobs:
           path: libs/modeler-core/reports/mutation/incremental.json
           key: stryker-modeler-core-${{ github.sha }}
           restore-keys: stryker-modeler-core-
-      # Pull requests mutate only what changed against the last main run; main re-runs everything.
-      - if: github.event_name == 'pull_request'
+      # Pull requests and merges mutate only what changed since the last main run; a merge's run
+      # becomes the baseline the next pull request restores. The weekly run re-runs everything.
+      - if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: yarn workspace @miragon/bpmn-modeler-core test:mutation
-      - if: github.event_name != 'pull_request'
+      - if: github.event_name != 'pull_request' && github.event_name != 'push'
         run: yarn workspace @miragon/bpmn-modeler-core test:mutation --force
       - if: github.event_name != 'pull_request'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
