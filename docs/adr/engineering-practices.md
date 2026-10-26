@@ -122,6 +122,16 @@ threshold mask a library regression, and a library-only PR would still not see
 the credit in its own leg. Libraries reach their numbers through their own
 specs instead.
 
+The IntelliJ plugin follows the same rule with JaCoCo: literal `LINE` and
+`BRANCH` minimums in its
+[`build.gradle.kts`](../../apps/intellij-plugin/build.gradle.kts), checked by
+`jacocoTestCoverageVerification` (part of `check`) and its own step in the
+`test-intellij-plugin` job. Every Kotlin source counts, including the JCEF and
+IDE UI glue that only the sandbox IDE exercises, so new untested code lowers the
+number. The platform's test class loader defines plugin classes without a code
+source, so the JaCoCo agent runs with `includeNoLocationClasses`; without it
+the report records nothing and the floor fails.
+
 Coverage options are root-only in a Vitest multi-project run, so the root
 `yarn test` skips coverage; `yarn test:coverage` runs each workspace's `test`
 as CI does.

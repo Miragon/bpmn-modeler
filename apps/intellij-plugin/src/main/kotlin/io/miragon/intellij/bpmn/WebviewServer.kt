@@ -8,7 +8,6 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
 
@@ -86,31 +85,18 @@ class WebviewServer : Disposable {
     private fun handle(exchange: HttpExchange) {
         try {
             val path = exchange.requestURI.path
-            if (path == "/" || path == "/index.html") {
-                respond(exchange, 200, "text/html; charset=utf-8", indexHtml().toByteArray(StandardCharsets.UTF_8))
-                return
-            }
-            if (path == "/deployment.html") {
-                respond(exchange, 200, "text/html; charset=utf-8", deploymentHtml().toByteArray(StandardCharsets.UTF_8))
-                return
-            }
-
-            // The two bundles live under distinct classpath roots; the
-            // `/deployment/...` request prefix maps to `/webview-deployment/...`,
-            // everything else to the bpmn bundle's `/webview/...`.
-            val decoded = URLDecoder.decode(path, StandardCharsets.UTF_8)
-            val resourcePath =
-                if (decoded.startsWith("/deployment/")) {
-                    "/webview-deployment" + decoded.removePrefix("/deployment")
-                } else {
-                    "/webview$decoded"
+            when (val route = WebviewRoute.forPath(path)) {
+                WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml())
+                WebviewRoute.DeploymentShell -> respondHtml(exchange, deploymentHtml())
+                is WebviewRoute.ClasspathAsset -> {
+                    val bytes = javaClass.getResourceAsStream(route.resourcePath)?.use { it.readBytes() }
+                    if (bytes == null) {
+                        respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
+                    } else {
+                        respond(exchange, 200, route.mimeType, bytes)
+                    }
                 }
-            val bytes = javaClass.getResourceAsStream(resourcePath)?.use { it.readBytes() }
-            if (bytes == null) {
-                respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
-                return
             }
-            respond(exchange, 200, mimeType(path), bytes)
         } catch (e: Exception) {
             log.warn("Error serving ${exchange.requestURI}", e)
             runCatching { respond(exchange, 500, "text/plain; charset=utf-8", (e.message ?: "error").toByteArray()) }
@@ -202,21 +188,8 @@ class WebviewServer : Disposable {
         exchange.responseBody.use { it.write(body) }
     }
 
-    private fun mimeType(path: String): String =
-        when (path.substringAfterLast('.').lowercase()) {
-            "js", "mjs" -> "text/javascript; charset=utf-8"
-            "css" -> "text/css; charset=utf-8"
-            "html" -> "text/html; charset=utf-8"
-            "json" -> "application/json; charset=utf-8"
-            "svg" -> "image/svg+xml"
-            "woff2" -> "font/woff2"
-            "woff" -> "font/woff"
-            "ttf" -> "font/ttf"
-            "eot" -> "application/vnd.ms-fontobject"
-            "ico" -> "image/x-icon"
-            "png" -> "image/png"
-            else -> "application/octet-stream"
-        }
+    private fun respondHtml(exchange: HttpExchange, html: String) =
+        respond(exchange, 200, "text/html; charset=utf-8", html.toByteArray(StandardCharsets.UTF_8))
 
     override fun dispose() {
         server?.stop(0)

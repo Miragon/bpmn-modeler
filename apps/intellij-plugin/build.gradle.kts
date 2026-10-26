@@ -75,6 +75,12 @@ tasks.test {
     // that catches the code-insight test's light project (held by project services
     // after disposal). Isolating each class sidesteps the cross-contamination.
     setForkEvery(1)
+    extensions.configure<JacocoTaskExtension> {
+        // The platform's PathClassLoader defines the plugin classes without a
+        // CodeSource, which jacoco skips by default — leaving the report at 0%.
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
     // Always refresh the coverage data so `jacocoTestReport` reflects the latest run.
     finalizedBy(tasks.jacocoTestReport)
 }
@@ -86,6 +92,27 @@ tasks.jacocoTestReport {
         xml.required.set(true)
         html.required.set(false)
     }
+}
+
+// About three points below the measured baseline, like the Vitest workspace thresholds.
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.test)
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.37".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                minimum = "0.27".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 intellijPlatform {
