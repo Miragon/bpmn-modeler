@@ -39,7 +39,7 @@ describe("BpmnlintParticipant", () => {
         expect(lintSvc.setBpmnlintConfig).not.toHaveBeenCalled();
 
         editor.changeSetting("miragon.bpmnModeler.configFolder");
-        expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id, false);
+        expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id);
 
         editor.changeSetting("miragon.bpmnModeler.linting.enabled");
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledTimes(2);
@@ -57,17 +57,14 @@ describe("BpmnlintParticipant", () => {
         expect(watcher.disposed).toBe(true);
     });
 
-    it("gates the watcher's status-bar reflection on editor focus", async () => {
+    it("re-lints when the .bpmnlintrc changes on disk", async () => {
         const { host, lintSvc, participant } = createServices();
         const editor = await host.openSession(PATH, [participant], { focused: false });
         const [watcher] = host.workspace.watchers;
 
         watcher.handlers.onChange?.("/work/.bpmnlintrc");
-        expect(lintSvc.setBpmnlintConfig).toHaveBeenLastCalledWith(editor.id, false);
 
-        editor.becomeActive();
-        watcher.handlers.onChange?.("/work/.bpmnlintrc");
-        expect(lintSvc.setBpmnlintConfig).toHaveBeenLastCalledWith(editor.id, true);
+        expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(editor.id);
     });
 
     it("surfaces watcher setup errors to the user", async () => {
@@ -102,7 +99,7 @@ describe("BpmnlintParticipant", () => {
         await host.reseedSession(editor.id);
 
         expect(host.workspace.watchers.map(({ disposed }) => disposed)).toEqual([true, false]);
-        expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(editor.id, true);
+        expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(editor.id);
     });
 
     describe("document-change re-lint (debounced), gated by lint mode", () => {
@@ -121,7 +118,7 @@ describe("BpmnlintParticipant", () => {
 
             expect(lintSvc.setBpmnlintConfig).not.toHaveBeenCalled();
             vi.advanceTimersByTime(400);
-            expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id, false);
+            expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id);
         });
 
         it("re-lints only the editor whose document changed", async () => {
@@ -134,7 +131,7 @@ describe("BpmnlintParticipant", () => {
             other.changeDocument("<bpmn:definitions />");
             vi.advanceTimersByTime(400);
 
-            expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(other.id, false);
+            expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(other.id);
         });
 
         it("does not re-lint on document change when the editor is in-page", async () => {

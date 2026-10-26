@@ -102,6 +102,7 @@ function createService({
     );
     const host = createTestHost({ answers, folders: ["/work"], files });
     const editor = host.openEditor(filePath, "<a/>");
+    editor.active = true;
     const deploymentTargetService = {
         getActiveTarget: vi.fn().mockResolvedValue(undefined),
         locateTargetsFile: vi.fn().mockResolvedValue({
@@ -130,6 +131,14 @@ function createService({
 }
 
 type ServiceContext = ReturnType<typeof createService>;
+
+/** Moves focus from the service's diagram to a second one, as a click into it does. */
+function focusOtherDiagram(c: ServiceContext) {
+    c.editor.loseFocus();
+    const other = c.host.openEditor("/work/other.bpmn", "<a/>");
+    other.becomeActive();
+    return other;
+}
 
 const UNREADABLE_DOT_ENVS: [string, (c: ServiceContext) => void][] = [
     ["symlinked", (c) => c.host.workspace.symbolicLinks.add(WORKSPACE_DOT_ENV)],
@@ -466,7 +475,6 @@ describe("DeploymentStatusService.pickStatusBarAction", () => {
 describe("DeploymentStatusService.refresh", () => {
     it("keeps the item hidden when a refresh runs after the diagram lost focus to a text editor", async () => {
         const c = createService();
-        c.editor.becomeActive();
         await c.service.refresh(c.editor.id);
         expect(c.host.statusBar.deploymentTarget).toBeDefined();
 
@@ -492,7 +500,7 @@ describe("DeploymentStatusService.refresh", () => {
         const pending = deferred<DeploymentTarget | undefined>();
         c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
         const oldRefresh = c.service.refresh(c.editor.id);
-        const other = c.host.openEditor("/work/other.bpmn", "<a/>");
+        const other = focusOtherDiagram(c);
         await c.service.refresh(other.id);
         const shown = c.host.statusBar.deploymentTarget;
         if (outcome === "resolve") pending.resolve(target("old"));
@@ -517,12 +525,12 @@ describe("DeploymentStatusService.refresh", () => {
         { invalidation: "hidden", invalidate: (c) => c.service.hide(), outcome: "fails" },
         {
             invalidation: "switched to another editor",
-            invalidate: (c) => c.host.openEditor("/work/other.bpmn", "<a/>"),
+            invalidate: focusOtherDiagram,
             outcome: "resolves",
         },
         {
             invalidation: "switched to another editor",
-            invalidate: (c) => c.host.openEditor("/work/other.bpmn", "<a/>"),
+            invalidate: focusOtherDiagram,
             outcome: "fails",
         },
     ])(

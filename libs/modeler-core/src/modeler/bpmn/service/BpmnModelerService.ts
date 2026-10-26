@@ -82,7 +82,9 @@ export class BpmnModelerService {
                     ),
                 );
 
-                if (this.isFocused(editorId)) {
+                // A background render (external edit, split view) must not overwrite
+                // the engine item every editor shares; the editor can also close mid-post.
+                if (this.editorStore.isFocused(editorId)) {
                     this.updateEngineVersionStatus(doc);
                 }
 
@@ -162,15 +164,6 @@ export class BpmnModelerService {
         if (this.editorStore.hasEditor(editorId)) {
             this.notifier.showInfo(VERSION_NOT_CHANGED);
         }
-    }
-
-    // A background render (external edit, split view) must not overwrite the
-    // engine item every editor shares; the editor can also close mid-post.
-    private isFocused(editorId: string): boolean {
-        return (
-            this.editorStore.hasEditor(editorId) &&
-            this.editorStore.requireHandle(editorId).isActive()
-        );
     }
 
     private updateEngineVersionStatus(doc: BpmnDocument): void {

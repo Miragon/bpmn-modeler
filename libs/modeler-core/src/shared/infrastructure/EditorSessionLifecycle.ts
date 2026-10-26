@@ -118,7 +118,7 @@ class SessionContext implements EditorSessionContext {
     }
 
     isFocused(): boolean {
-        return this.isCurrent() && this.store.requireHandle(this.editorId).isActive();
+        return this.isCurrent() && this.store.isFocused(this.editorId);
     }
 
     onFocusChange(callback: (focused: boolean) => void): void {

@@ -158,7 +158,7 @@ export class DeploymentStatusService {
      * hides the item.
      */
     async refresh(editorId: string): Promise<void> {
-        if (!this.isActive(editorId)) return;
+        if (!this.editorStore.isFocused(editorId)) return;
         const generation = ++this.refreshGeneration;
         try {
             const filePath = this.documentPort.getFilePath(editorId);
@@ -172,7 +172,9 @@ export class DeploymentStatusService {
                           this.deploymentState.getTenantId(),
                           documentDir,
                       );
-            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
+            if (generation !== this.refreshGeneration || !this.editorStore.isFocused(editorId)) {
+                return;
+            }
 
             const revision = this.deploymentState.getDeployedRevision(
                 ledgerKeyFor(identity, filePath),
@@ -188,7 +190,9 @@ export class DeploymentStatusService {
             this.notifier.logDebug(
                 `Deployment status refresh skipped: ${(error as Error).message}`,
             );
-            if (generation === this.refreshGeneration && this.isActive(editorId)) this.hide();
+            if (generation === this.refreshGeneration && this.editorStore.isFocused(editorId)) {
+                this.hide();
+            }
         }
     }
 
@@ -206,13 +210,5 @@ export class DeploymentStatusService {
     hide(): void {
         this.refreshGeneration++;
         this.statusBar.hideDeploymentTarget();
-    }
-
-    private isActive(editorId: string): boolean {
-        try {
-            return this.editorStore.getActiveEditorId() === editorId;
-        } catch {
-            return false;
-        }
     }
 }

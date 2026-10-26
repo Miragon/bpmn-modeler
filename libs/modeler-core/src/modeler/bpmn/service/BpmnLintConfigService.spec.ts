@@ -42,6 +42,7 @@ const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 
 function createService(content = XML) {
     const host = createTestHost();
     const editor = host.openEditor(PATH, content);
+    editor.active = true;
     const locator = {
         findNearestConfig: vi.fn().mockResolvedValue(undefined),
         readConfig: vi.fn(),
@@ -126,12 +127,13 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(host.notifier.logged("warning")).toEqual([expect.stringContaining("custom/x")]);
     });
 
-    it("still posts results but leaves the status bar untouched when reflectInStatusBar is false", async () => {
+    it("still posts results but leaves the status bar untouched when the editor is not focused", async () => {
         const { service, host, editor, locator } = createService();
         locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
         locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        editor.loseFocus();
 
-        const result = await service.setBpmnlintConfig(editor.id, false);
+        const result = await service.setBpmnlintConfig(editor.id);
 
         expect(result).toBe(true);
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
@@ -314,10 +316,11 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
         expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c8" });
     });
 
-    it("leaves the status bar untouched when reflectInStatusBar is false", async () => {
+    it("leaves the status bar untouched when the editor is not focused", async () => {
         const { service, host, editor } = createService();
+        editor.loseFocus();
 
-        await service.setBpmnlintConfig(editor.id, false);
+        await service.setBpmnlintConfig(editor.id);
 
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(1);
@@ -358,9 +361,9 @@ describe("BpmnLintConfigService.applyWebviewLintResults", () => {
         ]);
     });
 
-    it("publishes diagnostics but skips the status bar when the editor is not active", async () => {
+    it("publishes diagnostics but skips the status bar when the editor is not focused", async () => {
         const { service, host, editor } = await inPageService();
-        host.openEditor("/other.bpmn");
+        editor.loseFocus();
 
         service.applyWebviewLintResults(editor.id, RESULTS, []);
 
@@ -523,11 +526,12 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
         expect(editor.postedOfType<BpmnLintDisabledQuery>("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 
-    it("leaves the status bar untouched when disabled and reflectInStatusBar is false", async () => {
+    it("leaves the status bar untouched when disabled and the editor is not focused", async () => {
         const { service, host, editor } = createService();
         host.settings.values.lintingEnabled = false;
+        editor.loseFocus();
 
-        await service.setBpmnlintConfig(editor.id, false);
+        await service.setBpmnlintConfig(editor.id);
 
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
         expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);

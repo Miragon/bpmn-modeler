@@ -152,7 +152,7 @@ describe("DeploymentFeature.attachPanel", () => {
 describe("DeploymentFeature target commands", () => {
     it("switches the target, refreshes the status bar and pushes the targets into the panel", async () => {
         const { host, feature } = createFeature({ deploymentTarget: "prod" });
-        host.openEditor(ORDER_PROCESS);
+        host.openEditor(ORDER_PROCESS).active = true;
         const { posted } = attach(feature, false);
 
         await feature.switchTarget();
