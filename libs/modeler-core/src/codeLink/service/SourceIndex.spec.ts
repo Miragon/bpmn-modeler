@@ -222,4 +222,14 @@ describe("SourceIndex", () => {
             expect.stringContaining("watch limit reached"),
         ]);
     });
+
+    it("shares an index once the folders can be watched again", () => {
+        const { index, workspace } = createIndex({ [WORKER]: `"pay"` });
+        vi.spyOn(workspace, "createWatcher").mockImplementationOnce(() => {
+            throw new Error("watch limit reached");
+        });
+        index.sourcesFor("editor1", DOC);
+
+        expect(index.sourcesFor("editor1", DOC)).toBeDefined();
+    });
 });

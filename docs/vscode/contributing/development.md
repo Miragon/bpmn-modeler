@@ -56,17 +56,23 @@ yarn install
 
 Claude Code and Codex share the same project instructions and skills:
 
-| Entry point | Shared source |
-|---|---|
-| `AGENTS.md` (Codex), `CLAUDE.md` (Claude Code) | `AGENTS.md` |
-| `.agents/skills/` (Codex), `.claude/skills/` (Claude Code) | `.agents/skills/` |
+| Client | Instructions | Skills |
+|---|---|---|
+| Codex | `AGENTS.md` | `.agents/skills/` |
+| Claude Code 2.1.277 or later | `AGENTS.md` | `.claude/skills/`, a Git symlink to `.agents/skills/` |
 
-`CLAUDE.md` and `.claude/skills/` are Git symlinks to the shared sources.
-Edit `AGENTS.md` and `.agents/skills/` to keep both clients in sync.
+Both clients read `AGENTS.md` directly. Claude Code reads nothing under
+`.agents/`, which is why `.claude/skills/` links there. Edit `AGENTS.md` and
+`.agents/skills/` to keep both clients in sync.
 Invoke a skill with `/architecture` in Claude Code or
 `$architecture` in Codex. The same convention applies to `adr`, `commit`,
-and the other repository skills. Claude's legacy `/commit` command wrapper
-also points to the shared commit skill.
+`tdd` and the other repository skills.
+
+Claude Code reads `AGENTS.md` only while no `CLAUDE.md`, `.claude/CLAUDE.md`
+or `CLAUDE.local.md` exists in the checkout or above it. If you keep personal
+instructions in a `CLAUDE.local.md`, set **Project instructions** to
+`claude-md-and-agents-md` in `/config`, otherwise Claude Code stops loading
+`AGENTS.md`. Run `/context` to see which instruction files a session loaded.
 
 `.claude/settings.json` contains only Claude settings: automatic attribution
 is disabled and the existing Playwright plugin tools are pre-approved.

@@ -24,6 +24,12 @@ import {
     RepositorySourceConfig,
     RepositorySourceFactory,
 } from "../domain/ports";
+import {
+    FetchedTemplateFile,
+    planSourceCacheRefresh,
+    SourceFetchOutcome,
+    SourceSlotAction,
+} from "../domain/sourceCacheRefresh";
 import { MarketplaceCache } from "../infrastructure/MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
@@ -243,8 +249,9 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Manifest-level failures propagate (the marketplace is unusable);
-     * source-level failures are logged and skipped to preserve last-good data.
+     * Manifest-level failures propagate (the marketplace is unusable) and leave
+     * the cache untouched; source-level failures are logged and keep that
+     * source's last-good slot. Every source is fetched before any slot changes.
      * Declared-private sources are batch-prompted up front so their tokens are
      * stored before the per-source fetches begin.
      */
@@ -267,17 +274,57 @@ export class TemplateMarketplaceService {
         }
         await this.ensureTokensForPrivateSources(sources, run);
 
-        let cached = 0;
+        const outcomes: SourceFetchOutcome[] = [];
         for (let index = 0; index < sources.length; index++) {
             try {
-                cached += await this.cacheSource(registration, sources[index], index, run);
+                const files = await this.fetchSourceFiles(registration, sources[index], index, run);
+                outcomes.push({ kind: "fetched", sourceIndex: index, files });
             } catch (error) {
-                this.notifier.logWarning(
-                    `Skipped a source of "${registration.url}": ${(error as Error).message}`,
-                );
+                this.warnSkippedSource(registration, error);
+                outcomes.push({ kind: "failed", sourceIndex: index });
+            }
+        }
+        const actions = planSourceCacheRefresh(
+            await this.cache.sourceIndexes(registration.id),
+            outcomes,
+        );
+        let cached = 0;
+        for (const action of actions) {
+            try {
+                cached += await this.applySlotAction(registration, action);
+            } catch (error) {
+                this.warnSkippedSource(registration, error);
             }
         }
         return cached;
+    }
+
+    /** @returns the number of template files the action cached. */
+    private async applySlotAction(
+        registration: MarketplaceRegistration,
+        action: SourceSlotAction,
+    ): Promise<number> {
+        const slot = `${registration.id}/${action.sourceIndex}`;
+        switch (action.kind) {
+            case "replace":
+                await this.cache.replaceSource(registration.id, action.sourceIndex, action.files);
+                for (const { repoPath, contentType } of action.files) {
+                    this.notifier.logDebug(`Cached template: ${repoPath} → ${slot}/${contentType}`);
+                }
+                return action.files.length;
+            case "remove":
+                await this.cache.removeSource(registration.id, action.sourceIndex);
+                this.notifier.logDebug(`Removed cached source no longer listed: ${slot}`);
+                return 0;
+            case "keep":
+                return 0;
+        }
+    }
+
+    private warnSkippedSource(registration: MarketplaceRegistration, error: unknown): void {
+        this.notifier.logWarning(
+            `Skipped a source of "${registration.url}": ${(error as Error).message}`,
+        );
     }
 
     /**
@@ -308,12 +355,12 @@ export class TemplateMarketplaceService {
      * The whole listing+fetch runs under {@link withAuthRetry}, so a mid-source
      * auth failure prompts and retries.
      */
-    private async cacheSource(
+    private async fetchSourceFiles(
         registration: MarketplaceRegistration,
         source: TemplateSource,
         index: number,
         run: PromptRun,
-    ): Promise<number> {
+    ): Promise<FetchedTemplateFile[]> {
         const baseConfig = this.configForSource(registration, source);
         this.notifier.logDebug(
             `Fetching source ${index} of "${registration.url}": ${this.describeConfig(baseConfig)}`,
@@ -328,14 +375,12 @@ export class TemplateMarketplaceService {
             if (files.length === 0) {
                 this.warnNoFilesToCache(registration, config, index, source.include, listed.length);
             }
+            const fetched: FetchedTemplateFile[] = [];
             for (const repoPath of files) {
                 const content = await repository.fetchFile(repoPath);
-                await this.cache.write(registration.id, index, source.type, repoPath, content);
-                this.notifier.logDebug(
-                    `Cached template: ${repoPath} → ${registration.id}/${index}/${source.type}`,
-                );
+                fetched.push({ contentType: source.type, repoPath, content });
             }
-            return files.length;
+            return fetched;
         });
     }
 

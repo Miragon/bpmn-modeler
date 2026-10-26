@@ -107,7 +107,7 @@ describe("bridge clipboard (real core over a fake transport)", () => {
 
         expect(frames).toContainEqual({
             method: "notifier/log",
-            params: { level: "error", message: "denied" },
+            params: { level: "error", message: expect.stringMatching(/^Error: denied\n\s+at /) },
         });
         const answers = postedQueries(frames, query);
         expect(answers).toHaveLength(1);

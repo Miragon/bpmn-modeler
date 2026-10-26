@@ -79,6 +79,21 @@ describe("ArtifactService.findConfigBaseDir", () => {
         expect(baseDir).toBeUndefined();
     });
 
+    it("finds the file when the workspace is the filesystem root", async () => {
+        const { service } = createService({
+            files: { "/.camunda/deployment-targets.json": "{}" },
+        });
+
+        const baseDir = await service.findConfigBaseDir(
+            "/proj",
+            ".camunda",
+            "deployment-targets.json",
+            "/",
+        );
+
+        expect(baseDir).toBe("/");
+    });
+
     it("does not skip an unreadable nearest file in favor of another destination", async () => {
         const { service, workspace } = createService({
             files: { "/root/.camunda/deployment-targets.json": "{}" },
@@ -288,6 +303,20 @@ describe("ArtifactService.collectTemplateDirs", () => {
         await expect(service.collectTemplateDirs("/c:/proj", "/c:/", ".camunda")).resolves.toEqual([
             "/c:/proj/.camunda/element-templates",
             "/c:/.camunda/element-templates",
+        ]);
+    });
+
+    it("collects dirs when the workspace is the filesystem root", async () => {
+        const { service } = createService({
+            files: {
+                "/proj/.camunda/element-templates/t.json": "[]",
+                "/.camunda/element-templates/t.json": "[]",
+            },
+        });
+
+        await expect(service.collectTemplateDirs("/proj", "/", ".camunda")).resolves.toEqual([
+            "/proj/.camunda/element-templates",
+            "/.camunda/element-templates",
         ]);
     });
 
