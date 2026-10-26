@@ -13,6 +13,8 @@ describe("globToRegExp", () => {
 
     it("keeps a single star and a question mark within one segment", () => {
         expect(globToRegExp("*.json").test("dir/template.json")).toBe(false);
+        expect(globToRegExp("src/*.java").test("src/Charge.java")).toBe(true);
+        expect(globToRegExp("src/*.java").test("src/main/Charge.java")).toBe(false);
         expect(globToRegExp("v?.json").test("v2.json")).toBe(true);
         expect(globToRegExp("v?.json").test("v/.json")).toBe(false);
     });
