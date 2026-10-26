@@ -142,6 +142,18 @@ describe("joinWorkspacePath", () => {
             joined: "/repo/element-templates",
         },
         {
+            behaviour: "skips a trailing empty segment instead of adding a trailing slash",
+            directory: "/repo",
+            segments: [""],
+            joined: "/repo",
+        },
+        {
+            behaviour: "keeps a relative path relative when the directory is empty",
+            directory: "",
+            segments: ["src/A.java"],
+            joined: "src/A.java",
+        },
+        {
             behaviour: "keeps the file:/// of a URI-form directory",
             directory: "file:///c:/repo",
             segments: [".git"],
