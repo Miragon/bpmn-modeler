@@ -2,7 +2,6 @@ package io.miragon.intellij.bpmn
 
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.testFramework.junit5.fixture.projectFixture
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -11,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 @TestApplication
 class ModelerSettingsStoreTest {
-    private val projectFixture = projectFixture()
+    private val projectFixture = projectFixtureWithoutServicePreload()
 
     private val store get() = ModelerSettingsStore.getInstance()
 

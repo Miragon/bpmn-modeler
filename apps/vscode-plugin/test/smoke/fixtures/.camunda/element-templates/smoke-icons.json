@@ -1,0 +1,42 @@
+[
+    {
+        "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+        "name": "Smoke data icon",
+        "id": "smoke.dataIcon",
+        "version": 1,
+        "appliesTo": ["bpmn:Task"],
+        "elementType": { "value": "bpmn:ServiceTask" },
+        "icon": {
+            "contents": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzBjNmNmMiIvPjwvc3ZnPg=="
+        },
+        "properties": [
+            {
+                "type": "Hidden",
+                "value": "smoke",
+                "binding": { "type": "zeebe:taskDefinition", "property": "type" }
+            },
+            {
+                "label": "Recipient",
+                "type": "String",
+                "feel": "required",
+                "binding": { "type": "zeebe:input", "name": "recipient" }
+            }
+        ]
+    },
+    {
+        "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+        "name": "Smoke https icon",
+        "id": "smoke.httpsIcon",
+        "version": 1,
+        "appliesTo": ["bpmn:Task"],
+        "elementType": { "value": "bpmn:ServiceTask" },
+        "icon": { "contents": "https://icons.invalid/smoke-template.svg" },
+        "properties": [
+            {
+                "type": "Hidden",
+                "value": "smoke",
+                "binding": { "type": "zeebe:taskDefinition", "property": "type" }
+            }
+        ]
+    }
+]

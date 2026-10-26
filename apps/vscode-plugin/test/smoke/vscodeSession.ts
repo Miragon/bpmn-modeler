@@ -87,11 +87,25 @@ export interface VsCodeLaunchOptions {
 }
 
 export class VsCodeSession {
+    private readonly reportedCspViolations: string[] = [];
+
     private constructor(
         readonly app: ElectronApplication,
         readonly page: Page,
         private readonly options: VsCodeLaunchOptions,
-    ) {}
+    ) {
+        // Chromium reports each violation as a console message of the webview frame
+        // that caused it; the context sees them all, including those raised at load.
+        page.context().on("console", (message) => {
+            if (message.text().includes("Content Security Policy")) {
+                this.reportedCspViolations.push(`${message.location().url}: ${message.text()}`);
+            }
+        });
+    }
+
+    get cspViolations(): readonly string[] {
+        return this.reportedCspViolations;
+    }
 
     static async launch(options: VsCodeLaunchOptions): Promise<VsCodeSession> {
         const userDataDirectory = join(options.rootDirectory, "user-data");
@@ -197,6 +211,25 @@ export class VsCodeSession {
             .getByText(fileName, { exact: true })
             .first()
             .click();
+    }
+
+    /** Webviews forward keybindings, so F1 reaches the palette without moving the focus first. */
+    async runCommand(title: string): Promise<void> {
+        await this.page.keyboard.press("F1");
+        await this.page.waitForFunction(() =>
+            document.activeElement?.closest(".quick-input-widget"),
+        );
+        await this.page.keyboard.type(title);
+        await this.page
+            .locator(".quick-input-widget .quick-input-list-entry")
+            .filter({ hasText: title })
+            .first()
+            .waitFor();
+        await this.page.keyboard.press("Enter");
+    }
+
+    clipboardText(): Promise<string> {
+        return this.app.evaluate(({ clipboard }) => clipboard.readText());
     }
 
     isActiveTabDirty(): Promise<boolean> {

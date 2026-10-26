@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
@@ -75,6 +76,8 @@ tasks.test {
     // that catches the code-insight test's light project (held by project services
     // after disposal). Isolating each class sidesteps the cross-contamination.
     setForkEvery(1)
+    // The leak tracker's message carries the reference path; the short format drops it.
+    testLogging { exceptionFormat = TestExceptionFormat.FULL }
     extensions.configure<JacocoTaskExtension> {
         // The platform's PathClassLoader defines the plugin classes without a
         // CodeSource, which jacoco skips by default — leaving the report at 0%.

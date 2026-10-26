@@ -175,6 +175,8 @@ stopped publishing as a standalone artifact in 2025.3; for 261+ use the unified
 Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **Supervisor / composition root**: `CoreProcess.kt`; warmup `BridgeWarmupActivity.kt`
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
+- **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
+  inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`
 - **Display/secret ports**: `HostNotifications.kt`, `EngineStatusBarWidget(Factory).kt`, `IntellijSecretStore.kt`
 - **Deployment**: `DeploymentToolWindowFactory.kt`, `IntellijDeploymentState.kt`
@@ -201,3 +203,8 @@ Bridge (`apps/modeler-bridge/src/`):
 - **Hosting a code-insight/completion test** in the JUnit5 suite fights the
   `@TestApplication` leak tracker — see the recipe in user-memory "intellij
   codeinsightfixture leaks under testapplication".
+- **Project fixtures in tests**: use `projectFixtureWithoutServicePreload()`,
+  not plain `projectFixture()`. Preloaded platform services finish after the
+  fixture closes the project on the 2-core CI runner and trip the
+  `LeakHunter` check (`JUnit Jupiter > executionError`). Reproduce CI-only
+  flakes locally with `JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount=2`.

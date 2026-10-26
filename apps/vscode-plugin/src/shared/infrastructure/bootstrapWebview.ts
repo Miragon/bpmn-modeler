@@ -1,4 +1,4 @@
-import { WebviewPanel } from "vscode";
+import { Uri, WebviewPanel } from "vscode";
 
 import { getContext } from "./extensionContext";
 import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
@@ -20,17 +20,35 @@ export function bootstrapWebview(
     initialPanelVisible: boolean = true,
 ): WebviewPanel {
     const webview = webviewPanel.webview;
-    webview.options = { enableScripts: true };
+    const extensionUri = getContext().extensionUri;
+    webview.options = {
+        enableScripts: true,
+        localResourceRoots: localResourceRootsFor(viewType, extensionUri),
+    };
 
     if (viewType === BPMN_VIEW_TYPE) {
-        webview.html = bpmnEditorUi(webview, getContext().extensionUri, initialPanelVisible);
+        webview.html = bpmnEditorUi(webview, extensionUri, initialPanelVisible);
     } else if (viewType === DMN_VIEW_TYPE) {
-        webview.html = dmnModelerHtml(webview, getContext().extensionUri, initialPanelVisible);
-    } else if (viewType === FORM_VIEW_TYPE) {
-        webview.html = formEditorHtml(webview, getContext().extensionUri);
+        webview.html = dmnModelerHtml(webview, extensionUri, initialPanelVisible);
     } else {
-        throw new Error(`Unsupported view type: ${viewType}`);
+        webview.html = formEditorHtml(webview, extensionUri);
     }
 
     return webviewPanel;
+}
+
+function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {
+    switch (viewType) {
+        case BPMN_VIEW_TYPE:
+            return [Uri.joinPath(extensionUri, "bpmn-webview")];
+        case DMN_VIEW_TYPE:
+            return [
+                Uri.joinPath(extensionUri, "dmn-webview"),
+                Uri.joinPath(extensionUri, "assets"),
+            ];
+        case FORM_VIEW_TYPE:
+            return [Uri.joinPath(extensionUri, "form-webview")];
+        default:
+            throw new Error(`Unsupported view type: ${viewType}`);
+    }
 }

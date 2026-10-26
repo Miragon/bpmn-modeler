@@ -86,8 +86,9 @@ class WebviewServer : Disposable {
         try {
             val path = exchange.requestURI.path
             when (val route = WebviewRoute.forPath(path)) {
-                WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml())
-                WebviewRoute.DeploymentShell -> respondHtml(exchange, deploymentHtml())
+                WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
+                WebviewRoute.DeploymentShell ->
+                    respondHtml(exchange, deploymentHtml(), WebviewContentSecurityPolicy.DEPLOYMENT_SHELL)
                 is WebviewRoute.ClasspathAsset -> {
                     val bytes = javaClass.getResourceAsStream(route.resourcePath)?.use { it.readBytes() }
                     if (bytes == null) {
@@ -132,7 +133,7 @@ class WebviewServer : Disposable {
             "  <title>BPMN Modeler</title>",
             "  <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
             "  <style id=\"ide-theme-vars\">${signal.themeVarsCss()}</style>",
-            "  <script>$SHIM</script>",
+            "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
             "<body class=\"${signal.bodyClass()}\">",
             "  <div id=\"app\">",
@@ -172,7 +173,7 @@ class WebviewServer : Disposable {
             "  <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
             "  <title>Deploy Diagram</title>",
             "  <style id=\"ide-theme-vars\">${signal.deploymentThemeVarsCss()}</style>",
-            "  <script>$SHIM</script>",
+            "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
             "<body class=\"${signal.bodyClass()}\">",
             "  <div id=\"app\"></div>",
@@ -188,48 +189,15 @@ class WebviewServer : Disposable {
         exchange.responseBody.use { it.write(body) }
     }
 
-    private fun respondHtml(exchange: HttpExchange, html: String) =
+    private fun respondHtml(exchange: HttpExchange, html: String, contentSecurityPolicy: String) {
+        exchange.responseHeaders.set("Content-Security-Policy", contentSecurityPolicy)
         respond(exchange, 200, "text/html; charset=utf-8", html.toByteArray(StandardCharsets.UTF_8))
+    }
 
     override fun dispose() {
         server?.stop(0)
         server = null
         baseUrl = null
         origin = null
-    }
-
-    private companion object {
-        /**
-         * The `acquireVsCodeApi()` shim. Runs as a classic (non-module) script so
-         * the global exists before the deferred ES module calls `getVsCodeApi()` at
-         * top level. Outgoing messages are buffered until the JVM installs its sink
-         * via `__modelerSetSink`, because the module may post before the host
-         * callback is injected (which only happens on `onLoadEnd`).
-         */
-        val SHIM =
-            listOf(
-                "(function () {",
-                "  var outbox = [];",
-                "  var sink = null;",
-                "  var state = {};",
-                "  function flush() {",
-                "    if (!sink) return;",
-                "    while (outbox.length) { sink(outbox.shift()); }",
-                "  }",
-                "  window.__modelerSetSink = function (fn) { sink = fn; flush(); };",
-                "  window.acquireVsCodeApi = function () {",
-                "    return {",
-                "      postMessage: function (msg) { outbox.push(JSON.stringify(msg)); flush(); },",
-                "      getState: function () { return state; },",
-                "      setState: function (s) { state = s; return s; }",
-                "    };",
-                "  };",
-                "})();",
-            ).joinToString("\n")
-
-        // The bpmn and deployment shells are emitted by the instance methods
-        // `indexHtml()` / `deploymentHtml()`, not constants: their `<body>` class
-        // and `#ide-theme-vars` block are computed per request from the live IDE
-        // theme (see IdeThemeSignal).
     }
 }
