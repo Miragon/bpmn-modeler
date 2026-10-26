@@ -34,6 +34,8 @@ jobs:
           filters: |
             intellij-plugin:
               - 'apps/intellij-plugin/**'
+              # ProtocolHandlerCoverageTest checks the Kotlin handlers against it.
+              - 'apps/modeler-bridge/src/protocol/protocol.json'
             intellij-plugin-src:
               - 'apps/intellij-plugin/src/**'
             standalone:
