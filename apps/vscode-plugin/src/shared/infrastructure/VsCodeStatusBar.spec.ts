@@ -72,6 +72,25 @@ describe("VsCodeStatusBar element templates", () => {
 
         expect(renderedStatusBar()).toEqual([]);
     });
+
+    // A superseded load hides the spinner while another load is still running.
+    it("shows the template count after another load hid the spinner", () => {
+        statusBar.showElementTemplatesLoading();
+        statusBar.hideElementTemplatesStatus();
+
+        statusBar.showElementTemplatesReady(3);
+
+        expect(renderedStatusBar()).toEqual([
+            {
+                side: "left",
+                text: "$(check) Element templates (3)",
+                tooltip: undefined,
+                color: undefined,
+                background: undefined,
+                command: undefined,
+            },
+        ]);
+    });
 });
 
 describe("VsCodeStatusBar engine version", () => {
