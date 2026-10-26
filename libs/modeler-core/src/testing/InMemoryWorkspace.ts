@@ -26,6 +26,8 @@ export interface WorkspaceWatcher {
 /**
  * Workspace folders and files held in memory. Paths are accepted plain or as
  * `file://` URIs, as the hosts accept them, and are held and reported plain.
+ * Writing a file creates its parent directories, which outlive their last
+ * file as on a disk.
  * File mutations, through the port or through {@link deleteFile}, notify the
  * live watchers whose root and glob match before they return, so a test drives
  * watcher-based behaviour by changing files.
@@ -40,7 +42,8 @@ export class InMemoryWorkspace implements WorkspacePort {
     readonly watchers: WorkspaceWatcher[] = [];
 
     private readonly folders: string[];
-    private readonly createdDirectories = new Set<string>();
+    // Holds every ancestor of each member, as `mkdir -p` would.
+    private readonly directories = new Set<string>();
 
     constructor(folders: string[] = [], files: Record<string, string> = {}) {
         this.folders = [...folders];
@@ -91,8 +94,8 @@ export class InMemoryWorkspace implements WorkspacePort {
             entries.set(name, deeper.length > 0 ? "directory" : type);
         };
         this.files.forEach((_content, filePath) => addEntryFor(filePath, "file"));
-        this.createdDirectories.forEach((created) => addEntryFor(created, "directory"));
-        if (entries.size === 0 && !this.createdDirectories.has(directory)) {
+        this.directories.forEach((known) => addEntryFor(known, "directory"));
+        if (entries.size === 0 && !this.directories.has(directory)) {
             throw new DirectoryNotFound(path);
         }
         return [...entries];
@@ -113,14 +116,15 @@ export class InMemoryWorkspace implements WorkspacePort {
     async writeFile(path: string, content: string): Promise<void> {
         const filePath = withoutFileScheme(path);
         const existed = this.files.has(filePath);
+        this.addDirectory(posix.dirname(filePath));
         this.files.set(filePath, content);
         this.notify(filePath, existed ? "onChange" : "onCreate");
     }
 
     async deleteDirectory(path: string): Promise<void> {
         const directory = withoutFileScheme(path);
-        for (const created of [...this.createdDirectories]) {
-            if (isWithinRoot(created, directory)) this.createdDirectories.delete(created);
+        for (const known of [...this.directories]) {
+            if (isWithinRoot(known, directory)) this.directories.delete(known);
         }
         for (const filePath of [...this.files.keys()]) {
             if (isWithinRoot(filePath, directory)) this.deleteFile(filePath);
@@ -129,7 +133,7 @@ export class InMemoryWorkspace implements WorkspacePort {
 
     /** Creates an empty directory, as another program would; the port cannot. */
     createDirectory(path: string): void {
-        this.createdDirectories.add(withoutFileScheme(path));
+        this.addDirectory(withoutFileScheme(path));
     }
 
     deleteFile(path: string): void {
@@ -161,6 +165,14 @@ export class InMemoryWorkspace implements WorkspacePort {
                 watcher.disposed = true;
             },
         };
+    }
+
+    private addDirectory(directory: string): void {
+        let current = directory;
+        while (!this.directories.has(current)) {
+            this.directories.add(current);
+            current = posix.dirname(current);
+        }
     }
 
     private notify(path: string, event: keyof WatcherHandlers): void {

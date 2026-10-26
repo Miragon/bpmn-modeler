@@ -164,6 +164,18 @@ export function describeWorkspaceContract(
                 ]);
             });
 
+            it("keeps a directory, listed as empty, once its last file is removed", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/forms/a.form`, "{}");
+
+                await fixture.removeFile(`${root}/forms/a.form`);
+
+                await expect(workspace.readDirectory(`${root}/forms`)).resolves.toEqual([]);
+                await expect(workspace.readDirectory(root)).resolves.toEqual([
+                    ["forms", "directory"],
+                ]);
+            });
+
             it("lists the files and directories directly inside a directory", async () => {
                 const { workspace, root } = fixture;
                 await workspace.writeFile(`${root}/forms/a.form`, "{}");
