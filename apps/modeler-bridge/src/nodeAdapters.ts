@@ -586,6 +586,9 @@ export class BridgeSettings implements SettingsPort {
     getLintingEnabled(): boolean {
         return true;
     }
+    setLintingEnabled(_enabled: boolean): void {
+        return;
+    }
     /**
      * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the
      * `SpinJsonNode` member table to the host. The gate lives here in the bridge

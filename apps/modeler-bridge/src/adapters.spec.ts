@@ -361,6 +361,41 @@ describe("BridgeSettings", () => {
 
         expect(listener).not.toHaveBeenCalled();
     });
+
+    it.each([
+        { toggles: [true], changes: 0, enabled: true },
+        { toggles: [false], changes: 1, enabled: false },
+        { toggles: [false, false], changes: 1, enabled: false },
+        { toggles: [false, true], changes: 2, enabled: true },
+    ])(
+        "reports the linting toggles $toggles as $changes linting.enabled change(s)",
+        ({ toggles, changes, enabled }) => {
+            const settings = new BridgeSettings();
+            const events: ((section: string) => boolean)[] = [];
+            settings.onDidChange((event) => events.push(event.affectsConfiguration));
+
+            for (const toggle of toggles) {
+                settings.setLintingEnabled(toggle);
+            }
+
+            expect(settings.getLintingEnabled()).toBe(enabled);
+            expect(events).toHaveLength(changes);
+            for (const affects of events) {
+                expect(affects("miragon.bpmnModeler.linting.enabled")).toBe(true);
+                expect(affects("miragon.bpmnModeler.lintingEnabled")).toBe(false);
+                expect(affects("miragon.bpmnModeler.language")).toBe(false);
+            }
+        },
+    );
+
+    it("keeps the linting toggle when the host pushes a settings snapshot", () => {
+        const settings = new BridgeSettings();
+        settings.setLintingEnabled(false);
+
+        settings.apply({ language: "de", configFolder: ".config" });
+
+        expect(settings.getLintingEnabled()).toBe(false);
+    });
 });
 
 describe("RpcDocumentPort", () => {

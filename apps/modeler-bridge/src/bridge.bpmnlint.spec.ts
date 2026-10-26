@@ -76,6 +76,10 @@ const isInPageInstructionFrame = (frame: any): boolean =>
 const isInPageConfigInstructionFrame = (frame: any): boolean =>
     isInPageInstructionFrame(frame) && frame.params?.message?.config != null;
 
+const isLintDisabledFrame = (frame: any): boolean =>
+    frame.method === "editor/postMessage" &&
+    frame.params?.message?.type === "BpmnLintDisabledQuery";
+
 const isInPageResultsLog = (frame: any): boolean =>
     frame.method === "notifier/log" &&
     typeof frame.params?.message === "string" &&
@@ -117,6 +121,15 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
             JSON.stringify({
                 method: "webview/message",
                 params: { editorId, message: { type: "GetBpmnlintConfigCommand" } },
+            }),
+        );
+    }
+
+    async function toggleLinting(rpc: Rpc, editorId: string, enabled: boolean): Promise<void> {
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "SetLintingEnabledCommand", enabled } },
             }),
         );
     }
@@ -357,5 +370,42 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: baseline }),
         ).resolves.toBeDefined();
+    });
+
+    it("turns host linting off and back on when the webview toggle says so", async () => {
+        const { rpc, frames, editorId } = await setupHostLinted();
+
+        const beforeOff = frames.length;
+        await toggleLinting(rpc, editorId, false);
+        await expect(
+            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeOff }),
+        ).resolves.toMatchObject({ params: { editorId } });
+
+        const beforeOn = frames.length;
+        await toggleLinting(rpc, editorId, true);
+        await expect(
+            waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
+        ).resolves.toMatchObject({ params: { editorId } });
+    });
+
+    it("keeps linting off for an editor of the project opened after the toggle", async () => {
+        const { rpc, frames, root, editorId } = await setupHostLinted();
+        await toggleLinting(rpc, editorId, false);
+
+        const laterPath = join(root, "later.bpmn");
+        await fs.writeFile(laterPath, BPMN_XML, "utf8");
+        const laterEditorId = `file://${laterPath}`;
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(laterEditorId, root, laterPath, BPMN_XML),
+            }),
+        );
+        const beforeRequest = frames.length;
+        await requestConfig(rpc, laterEditorId);
+
+        await expect(
+            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeRequest }),
+        ).resolves.toMatchObject({ params: { editorId: laterEditorId } });
     });
 });
