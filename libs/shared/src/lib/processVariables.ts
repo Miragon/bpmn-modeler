@@ -11,32 +11,25 @@
  * `getDefinitions()` — so the same code runs in the webview and against
  * object-literal fixtures in tests.
  *
- * Three confidence tiers drive how aggressively a name is surfaced. An
- * `authored` variable comes from an explicit `*.bpmn.vars.json` manifest the
- * author wrote next to the diagram and outranks everything — the manifest is
- * authoritative, so it always wins a name clash regardless of type. Below it, a
- * `declared` variable has a concrete producer (an output mapping, a result
- * variable, a form field, a `setVariable` call) and outranks a merely
- * `referenced` one (seen only inside a `${...}` read), which might be a typo or
- * a variable injected from outside the model.
+ * Two confidence tiers drive how aggressively a name is surfaced. A `declared`
+ * variable has a concrete producer (an output mapping, a result variable, a
+ * form field, a `setVariable` call) and outranks a merely `referenced` one
+ * (seen only inside a `${...}` read), which might be a typo or a variable
+ * injected from outside the model.
  */
 
-export type VariableConfidence = "authored" | "declared" | "referenced";
+export type VariableConfidence = "declared" | "referenced";
 
 /**
- * A single process variable discovered from static model evidence or declared
- * in a `*.bpmn.vars.json` manifest.
+ * A single process variable discovered from static model evidence.
  *
  * {@link origin} is human-facing (shown in completion docs) and names the
  * element + evidence kind so the author can trace where a suggestion came from.
- * {@link description} is the author-supplied doc carried only by `authored`
- * (manifest) entries; it is surfaced alongside the origin in completion docs.
  */
 export interface VariableDef {
     readonly name: string;
     readonly origin: string;
     readonly typeHint?: string;
-    readonly description?: string;
     readonly confidence: VariableConfidence;
 }
 
@@ -132,10 +125,9 @@ export function collectExpressionRefs(expression: string): string[] {
 
 /**
  * Collapses duplicate names to one entry each, ranked by confidence tier
- * (`authored` > `declared` > `referenced`) and — among equal tier — a typed
- * entry winning over an untyped one. An `authored` manifest entry therefore
- * always wins a clash against heuristic evidence. Order of first appearance is
- * otherwise preserved so the completion list stays stable.
+ * (`declared` > `referenced`) and — among equal tier — a typed entry winning
+ * over an untyped one. Order of first appearance is otherwise preserved so the
+ * completion list stays stable.
  */
 export function dedupeVariables(vars: VariableDef[]): VariableDef[] {
     const byName = new Map<string, VariableDef>();
@@ -147,9 +139,8 @@ export function dedupeVariables(vars: VariableDef[]): VariableDef[] {
 }
 
 // Higher rank wins. Listed top-down so the ordinal mirrors the doc's
-// `authored` > `declared` > `referenced` precedence.
+// `declared` > `referenced` precedence.
 const CONFIDENCE_RANK: Record<VariableConfidence, number> = {
-    authored: 2,
     declared: 1,
     referenced: 0,
 };
