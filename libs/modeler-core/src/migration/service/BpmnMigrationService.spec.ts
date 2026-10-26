@@ -341,6 +341,49 @@ describe("migrateAllDiagrams", () => {
         ]);
     });
 
+    it("skips a closed diagram deleted while the version was being picked and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+            "/work/b.bpmn": c8Bpmn("8.5.0"),
+        });
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
+            workspace.deleteFile("/work/a.bpmn");
+            return "8.8.0";
+        });
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(result).toBe(true);
+        expect(workspace.files.has("/work/a.bpmn")).toBe(false);
+        expect(workspace.files.get("/work/b.bpmn")).toBe(c8Bpmn("8.8.0"));
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped a diagram deleted during migration: /work/a.bpmn",
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+    });
+
+    it("aborts with an error when a closed diagram cannot be read before it is written", async () => {
+        const { service, notifier, picker, workspace } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+        });
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
+            vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("Permission denied"));
+            return "8.8.0";
+        });
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(result).toBe(false);
+        expect(workspace.files.get("/work/a.bpmn")).toBe(c8Bpmn("8.5.0"));
+        expect(notifier.errors).toEqual([
+            "A problem occurred while migrating BPMN diagrams.\nPermission denied",
+        ]);
+        expect(notifier.infos).toEqual([]);
+    });
+
     it("should use withExecutionPlatform for files without version attribute", async () => {
         const { service, notifier, workspace, writtenPaths } = createHost(
             { "/work/noversion.bpmn": c8BpmnNoVersion },
