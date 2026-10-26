@@ -34,6 +34,9 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:modeler="http://camunda.org/schema/modeler/1.0">
 </bpmn:definitions>`;
 
+const withUnsavedEdit = (xml: string) =>
+    xml.replace("</bpmn:definitions>", `<bpmn:process id="Unsaved_Edit" />\n</bpmn:definitions>`);
+
 // ─── Host ───────────────────────────────────────────────────────────────────
 
 function createHost(files: Record<string, string>, answers: TestHostOptions["answers"] = {}) {
@@ -195,6 +198,112 @@ describe("migrateAllDiagrams", () => {
         expect(editor.content).toContain('modeler:executionPlatformVersion="8.8.0"');
         expect(writtenPaths).toEqual([]);
         expect(workspace.files.get("/work/open.bpmn")).toBe(c8Bpmn("8.5.0"));
+    });
+
+    it("keeps unsaved edits of an open diagram when migrating it", async () => {
+        const { service, openEditor, workspace, writtenPaths } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0") },
+            { engineVersion: "8.8.0" },
+        );
+        const editor = openEditor("/work/open.bpmn", withUnsavedEdit(c8Bpmn("8.5.0")));
+
+        await service.migrateAllDiagrams();
+
+        expect(editor.content).toContain('id="Unsaved_Edit"');
+        expect(editor.content).toContain('modeler:executionPlatformVersion="8.8.0"');
+        expect(workspace.files.get("/work/open.bpmn")).toBe(c8Bpmn("8.5.0"));
+        expect(writtenPaths).toEqual([]);
+    });
+
+    it("decides from the open editor's content, not from disk, whether a diagram needs migrating", async () => {
+        const { service, notifier, openEditor } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.8.0") },
+            { engineVersion: "8.8.0" },
+        );
+        const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
+
+        await service.migrateAllDiagrams();
+
+        expect(editor.content).toBe(c8Bpmn("8.8.0"));
+        expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
+    });
+
+    it("plans an open diagram by its editor's engine while its file on disk is still empty", async () => {
+        const { service, notifier, openEditor, picker } = createHost(
+            { "/work/new.bpmn": "" },
+            { engineVersion: "8.8.0" },
+        );
+        const editor = openEditor("/work/new.bpmn", c8Bpmn("8.5.0"));
+
+        await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([
+            { method: "pickEngineVersion", args: ["c8", expect.any(Object)] },
+        ]);
+        expect(editor.content).toBe(c8Bpmn("8.8.0"));
+        expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
+    });
+
+    it("migrates an open diagram from the content it has when written, not when planned", async () => {
+        const { service, documents, openEditor, picker } = createHost({
+            "/work/open.bpmn": c8Bpmn("8.5.0"),
+        });
+        const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
+            await documents.write(editor.id, withUnsavedEdit(c8Bpmn("8.5.0")));
+            return "8.8.0";
+        });
+
+        await service.migrateAllDiagrams();
+
+        expect(editor.content).toBe(withUnsavedEdit(c8Bpmn("8.8.0")));
+    });
+
+    it("does not count an open diagram whose editor rejected the write", async () => {
+        const { service, documents, notifier, openEditor } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0") },
+            { engineVersion: "8.8.0" },
+        );
+        openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
+        vi.spyOn(documents, "write").mockResolvedValue(false);
+
+        await service.migrateAllDiagrams();
+
+        expect(notifier.infos).not.toContain("Updated 1 diagram(s) to Camunda 8 (8.8.0).");
+        expect(notifier.logged("warning")).toEqual([expect.stringContaining("/work/open.bpmn")]);
+    });
+
+    it("does not report an added executionPlatform that the editor rejected", async () => {
+        const { service, documents, notifier, openEditor } = createHost(
+            { "/work/noversion.bpmn": c8BpmnNoVersion },
+            { engineVersion: "8.8.0" },
+        );
+        openEditor("/work/noversion.bpmn", c8BpmnNoVersion);
+        vi.spyOn(documents, "write").mockResolvedValue(false);
+
+        await service.migrateAllDiagrams();
+
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped a diagram whose editor rejected the update: /work/noversion.bpmn",
+        ]);
+    });
+
+    it("skips an open diagram whose engine changed while the version was being picked", async () => {
+        const { service, documents, notifier, openEditor, picker } = createHost({
+            "/work/open.bpmn": c8Bpmn("8.5.0"),
+        });
+        const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
+            await documents.write(editor.id, c7Bpmn("7.20.0"));
+            return "8.8.0";
+        });
+
+        await service.migrateAllDiagrams();
+
+        expect(editor.content).toBe(c7Bpmn("7.20.0"));
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped a diagram whose engine changed during migration: /work/open.bpmn",
+        ]);
     });
 
     it("should use withExecutionPlatform for files without version attribute", async () => {
