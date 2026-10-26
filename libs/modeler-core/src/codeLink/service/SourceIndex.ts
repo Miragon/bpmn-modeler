@@ -1,6 +1,7 @@
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
-import { SearchScope } from "../../shared/domain/searchScope";
+import { ScopeMembership } from "../../shared/domain/ScopeMembership";
+import { SearchScope, searchScopeKey } from "../../shared/domain/searchScope";
 import {
     findFilesInScope,
     resolveSearchScope,
@@ -75,7 +76,7 @@ export class DirectSourceCatalog implements SourceCatalog {
  */
 export class SourceIndex {
     private readonly indexes = new Map<string, IndexedSources>();
-    private readonly indexKeyByEditor = new Map<string, string>();
+    private readonly membership = new ScopeMembership();
 
     constructor(
         private readonly workspace: WorkspacePort,
@@ -96,37 +97,32 @@ export class SourceIndex {
             return undefined;
         }
 
-        const indexKey = scope.folders.join("\0");
-        if (this.indexKeyByEditor.get(editorId) !== indexKey) {
-            this.release(editorId);
-        }
-        const index = this.indexes.get(indexKey) ?? this.createIndex(indexKey, scope);
-        if (!index) {
+        const indexKey = searchScopeKey(scope);
+        const { isNewScope, emptiedScope } = this.membership.assign(editorId, indexKey);
+        this.disposeIndex(emptiedScope);
+        if (isNewScope && !this.createIndex(indexKey, scope)) {
+            this.membership.release(editorId);
             return undefined;
         }
-        index.editors.add(editorId);
-        this.indexKeyByEditor.set(editorId, indexKey);
-        return index;
+        return this.indexes.get(indexKey);
     }
 
     release(editorId: string): void {
-        const indexKey = this.indexKeyByEditor.get(editorId);
-        if (indexKey === undefined) {
-            return;
-        }
-        this.indexKeyByEditor.delete(editorId);
-        const index = this.indexes.get(indexKey);
-        index?.editors.delete(editorId);
-        if (index && index.editors.size === 0) {
-            index.dispose();
-            this.indexes.delete(indexKey);
-        }
+        this.disposeIndex(this.membership.release(editorId));
     }
 
     dispose(): void {
         this.indexes.forEach((index) => index.dispose());
         this.indexes.clear();
-        this.indexKeyByEditor.clear();
+        this.membership.clear();
+    }
+
+    private disposeIndex(indexKey: string | undefined): void {
+        if (indexKey === undefined) {
+            return;
+        }
+        this.indexes.get(indexKey)?.dispose();
+        this.indexes.delete(indexKey);
     }
 
     private createIndex(
@@ -150,7 +146,6 @@ export class SourceIndex {
 }
 
 class IndexedSources implements SourceCatalog {
-    readonly editors = new Set<string>();
     private readonly watchers: { dispose(): void }[] = [];
     private listing: Promise<string[]> | undefined;
     private listedPathKeys: Set<string> | undefined;
