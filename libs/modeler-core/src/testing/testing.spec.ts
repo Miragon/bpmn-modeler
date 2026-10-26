@@ -8,7 +8,7 @@ import {
     isHiddenEditorError,
     NoWorkspaceFolderFoundError,
     UserCancelledError,
-} from "../shared/domain/errors";
+} from "../kernel/domain/errors";
 import { createTestHost } from "./createTestHost";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { ScriptedPicker } from "./ScriptedPicker";

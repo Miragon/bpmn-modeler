@@ -2,10 +2,10 @@ import { posix } from "path";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
-import { DocumentPort, NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { CamundaEnginePort, DeploymentPickerPort } from "../domain/ports";
-import { ArtifactService } from "../../shared/service/ArtifactService";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { loggableHost } from "../../kernel/domain/http";
 import { CredentialApprovalService } from "./CredentialApprovalService";

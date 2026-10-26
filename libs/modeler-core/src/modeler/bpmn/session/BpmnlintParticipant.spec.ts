@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ArtifactService } from "../../../shared/service/ArtifactService";
+import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnLintConfigLocator } from "../service/BpmnLintConfigLocator";
 import { createTestHost } from "../../../testing";
 import { BpmnLintConfigService } from "../service/BpmnLintConfigService";

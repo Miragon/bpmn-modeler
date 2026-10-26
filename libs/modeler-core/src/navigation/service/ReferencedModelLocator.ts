@@ -1,10 +1,10 @@
-import { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
 import {
     escapeRegex,
     findFilesExcluding,
     searchFilesContent,
-} from "../../shared/service/workspaceFileSearch";
+} from "../../kernel/service/workspaceFileSearch";
 
 // Max length of a reference id echoed back into a user-facing log line.
 const ID_DISPLAY_LIMIT = 100;

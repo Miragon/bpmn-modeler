@@ -1,4 +1,4 @@
-import { LoggerPort } from "../domain/hostPorts";
+import { LoggerPort } from "../../kernel/domain/hostPorts";
 import { ModelerDocumentService } from "../infrastructure/EditorDocumentSync";
 import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { DocumentFlushService } from "./DocumentFlushService";

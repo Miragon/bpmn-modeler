@@ -4,9 +4,9 @@ import {
     DirectoryNotFound,
     FileNotFound,
     NoWorkspaceFolderFoundError,
-} from "../shared/domain/errors";
-import { WorkspacePort } from "../shared/domain/hostPorts";
-import { WatcherEventKind } from "../shared/domain/watcherEvents";
+} from "../kernel/domain/errors";
+import { WorkspacePort } from "../kernel/domain/hostPorts";
+import { WatcherEventKind } from "../kernel/domain/watcherEvents";
 
 /** One {@link WorkspacePort} adapter under the {@link describeWorkspaceContract} scenarios. */
 export interface WorkspaceContractFixture {

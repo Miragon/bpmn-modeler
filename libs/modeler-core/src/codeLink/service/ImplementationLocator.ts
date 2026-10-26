@@ -1,12 +1,12 @@
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
-import { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import {
     ContentSearchResult,
     escapeRegex,
     findFilesExcluding,
     searchFilesContent,
-} from "../../shared/service/workspaceFileSearch";
+} from "../../kernel/service/workspaceFileSearch";
 import {
     contentImplementsLiteral,
     matchesBeanClassName,

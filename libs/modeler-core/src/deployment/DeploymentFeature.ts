@@ -8,9 +8,9 @@ import {
     PickerPort,
     SettingsPort,
     WorkspacePort,
-} from "../shared/domain/hostPorts";
+} from "../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
-import { ArtifactService } from "../shared/service/ArtifactService";
+import { ArtifactService } from "../kernel/service/ArtifactService";
 import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
 import {
     DeploymentPickerPort,

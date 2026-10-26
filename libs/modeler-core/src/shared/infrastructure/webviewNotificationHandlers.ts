@@ -1,4 +1,4 @@
-import { NotifierPort } from "../domain/hostPorts";
+import { NotifierPort } from "../../kernel/domain/hostPorts";
 import { WebviewMessageRouter } from "./WebviewMessageRouter";
 
 /**

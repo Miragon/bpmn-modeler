@@ -23,9 +23,9 @@ import {
     NotifierPort,
     PickerPort,
     WorkspacePort,
-} from "../../shared/domain/hostPorts";
+} from "../../kernel/domain/hostPorts";
 import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";

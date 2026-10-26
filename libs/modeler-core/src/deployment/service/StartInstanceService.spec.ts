@@ -11,7 +11,7 @@ import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { EnvValueResolver } from "./EnvValueResolver";
 import { StartInstanceService } from "./StartInstanceService";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import {
     CredentialDestinationNotApprovedError,
     DisallowedEnvReferenceError,

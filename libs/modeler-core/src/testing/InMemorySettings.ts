@@ -1,6 +1,6 @@
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { MarketplaceSettingsEntry, SettingsPort } from "../shared/domain/hostPorts";
+import { MarketplaceSettingsEntry, SettingsPort } from "../kernel/domain/hostPorts";
 
 export interface SettingsValues {
     alignToOrigin: boolean;

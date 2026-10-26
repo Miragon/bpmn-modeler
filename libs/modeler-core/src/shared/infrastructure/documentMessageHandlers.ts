@@ -1,6 +1,6 @@
 import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
-import { LoggerPort } from "../domain/hostPorts";
+import { LoggerPort } from "../../kernel/domain/hostPorts";
 import { ModelerDocumentService } from "./EditorDocumentSync";
 import { MessageHandler } from "./WebviewMessageRouter";
 

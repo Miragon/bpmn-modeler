@@ -3,9 +3,9 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 import { DeploymentPickerPort } from "../deployment/domain/ports";
 import { MigrationScope } from "../migration/domain/MigrationPlan";
 import { MigrationPickerPort } from "../migration/domain/ports";
-import { UserCancelledError } from "../shared/domain/errors";
-import { PickerPort } from "../shared/domain/hostPorts";
-import { NewModelEngine } from "../shared/domain/newModelEngine";
+import { UserCancelledError } from "../kernel/domain/errors";
+import { PickerPort } from "../kernel/domain/hostPorts";
+import { NewModelEngine } from "../kernel/domain/newModelEngine";
 
 export interface PickerAnswers {
     newModelEngine?: NewModelEngine;

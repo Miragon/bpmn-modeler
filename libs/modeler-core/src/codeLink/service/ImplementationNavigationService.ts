@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../../shared/domain/hostPorts";
+import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import { ImplementationKind } from "../domain/ImplementationReference";
 
 import { ImplementationLocator } from "./ImplementationLocator";

@@ -1,12 +1,12 @@
 import { posix } from "path";
 
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import {
     CredentialDestinationError,
     EngineInspectionFailedError,
     EnvReferenceError,
 } from "../domain/errors";
-import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { reconcile } from "../domain/deploymentVerification";

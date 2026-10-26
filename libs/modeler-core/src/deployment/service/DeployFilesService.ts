@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../../shared/domain/hostPorts";
+import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";

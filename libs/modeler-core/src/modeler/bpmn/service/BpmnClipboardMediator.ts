@@ -1,6 +1,6 @@
 import { ClipboardQuery, TextClipboardQuery } from "@miragon/bpmn-modeler-shared";
 
-import { ClipboardPort, NotifierPort } from "../../../shared/domain/hostPorts";
+import { ClipboardPort, NotifierPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 
 /**

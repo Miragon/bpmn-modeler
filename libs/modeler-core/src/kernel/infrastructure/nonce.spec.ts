@@ -1,7 +1,7 @@
 import { randomFillSync } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getNonce } from "./helpers";
+import { getNonce } from "./nonce";
 
 afterEach(() => vi.restoreAllMocks());
 

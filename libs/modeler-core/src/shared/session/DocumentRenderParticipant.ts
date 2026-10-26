@@ -1,5 +1,5 @@
 import { EditorSessionContext, EditorSessionParticipant } from "../domain/EditorSessionParticipant";
-import { LoggerPort } from "../domain/hostPorts";
+import { LoggerPort } from "../../kernel/domain/hostPorts";
 import { ModelerDocumentService } from "../infrastructure/EditorDocumentSync";
 
 /**

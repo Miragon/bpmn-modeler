@@ -15,7 +15,7 @@ import {
     TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ArtifactService } from "../shared/service/ArtifactService";
+import { ArtifactService } from "../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../shared/service/DocumentFlushService";
 import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
 import { createTestHost, PickerAnswers } from "../testing";

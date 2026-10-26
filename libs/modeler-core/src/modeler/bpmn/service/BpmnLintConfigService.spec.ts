@@ -6,7 +6,7 @@ import {
     BpmnlintResultsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ArtifactService } from "../../../shared/service/ArtifactService";
+import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../../testing";
 import { BpmnlintParticipant } from "../session/BpmnlintParticipant";

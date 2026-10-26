@@ -12,14 +12,14 @@ import {
     staticUnresolvedModdleExtensions,
 } from "@miragon/bpmn-modeler-types";
 
-import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
-import { ExecutionPlatformNotDetectedError } from "../../../shared/domain/errors";
+import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
+import { ExecutionPlatformNotDetectedError } from "../../../kernel/domain/errors";
 import {
     DocumentPort,
     NotifierPort,
     SettingsPort,
     StatusBarPort,
-} from "../../../shared/domain/hostPorts";
+} from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";

@@ -1,9 +1,9 @@
-import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../shared/domain/EditorSessionParticipant";
-import { DocumentPort, StatusBarPort } from "../../../shared/domain/hostPorts";
+import { DocumentPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { StatusItemOwnership } from "../../../shared/domain/StatusItemOwnership";
 
 /**

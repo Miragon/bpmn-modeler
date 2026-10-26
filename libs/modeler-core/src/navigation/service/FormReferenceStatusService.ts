@@ -1,10 +1,10 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
-import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
-import { searchScopeKey, searchScopeRoots } from "../../shared/domain/searchScope";
+import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import { searchScopeKey, searchScopeRoots } from "../../kernel/domain/searchScope";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
-import { resolveSearchScope } from "../../shared/service/workspaceFileSearch";
+import { resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
 import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const WATCH_DEBOUNCE_MS = 150;

@@ -1,4 +1,4 @@
-import { getLatestVersion } from "../../../shared/domain/engineVersions";
+import { getLatestVersion } from "../../../kernel/domain/engineVersions";
 
 const FORM_ID_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 

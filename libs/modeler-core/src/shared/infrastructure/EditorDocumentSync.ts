@@ -1,5 +1,5 @@
 import { ModelerSession } from "../domain/session";
-import { DocumentPort } from "../domain/hostPorts";
+import { DocumentPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 
 /** The document as one display call found it; async work re-checks it before acting. */
