@@ -187,8 +187,10 @@ workspace's `tsconfig.lib.json` is unproven, and the runner works without it.
 rules a change touched. The [mutation workflow](../../.github/workflows/mutation.yml)
 is report-only, like the VS Code smoke test, and not part of the required
 `ci` check: it runs every mutant weekly and on demand on `main`, caches
-Stryker's incremental file, and on pull requests that touch a `domain/`
-folder re-tests only the mutants affected by the change. Its step summary
+Stryker's incremental file, and on pull requests and merges to `main` that
+touch a `domain/` folder re-tests only the mutants affected by the change.
+Each merge's run refreshes the cached baseline, so a pull request is compared
+against the `main` it branched from rather than last week's. Its step summary
 lists the score per context. Per-context floors follow once two or three
 weekly runs agree, enforced by the summary script because Stryker has only
 one global break threshold. The first baseline (2026-10-26) was 84.5 % over
