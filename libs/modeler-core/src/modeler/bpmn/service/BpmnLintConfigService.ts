@@ -21,10 +21,7 @@ import {
     StatusBarPort,
 } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
-import {
-    BpmnLintConfigLocator,
-    BpmnlintChangeTarget,
-} from "../../../shared/service/BpmnLintConfigLocator";
+import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 
 /**

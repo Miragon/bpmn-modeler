@@ -1,10 +1,10 @@
 import { posix } from "path";
 
-import { ancestorsUpTo } from "../domain/ancestorsUpTo";
-import { DirectoryNotFound } from "../domain/errors";
-import { SettingsPort, WorkspacePort } from "../domain/hostPorts";
-import { joinWorkspacePath } from "../domain/workspacePath";
-import { ArtifactService, WatcherResult } from "./ArtifactService";
+import { ancestorsUpTo } from "../../../shared/domain/ancestorsUpTo";
+import { DirectoryNotFound } from "../../../shared/domain/errors";
+import { SettingsPort, WorkspacePort } from "../../../shared/domain/hostPorts";
+import { joinWorkspacePath } from "../../../shared/domain/workspacePath";
+import { ArtifactService, WatcherResult } from "../../../shared/service/ArtifactService";
 
 export interface BpmnlintChangeTarget {
     setBpmnlintConfig(editorId: string): Promise<boolean>;
