@@ -65,6 +65,46 @@ describe("VsCodeStatusBar element templates", () => {
         expect(renderedStatusBar()).toEqual([]);
     });
 
+    describe("a later show or hide cancels a pending auto-hide", () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        it("keeps a spinner that starts within three seconds of a count", () => {
+            statusBar.showElementTemplatesReady(1);
+            vi.advanceTimersByTime(2000);
+
+            statusBar.showElementTemplatesLoading();
+            vi.advanceTimersByTime(1000);
+
+            expect(renderedStatusBar().map((entry) => entry.text)).toEqual([
+                "$(loading~spin) Loading element templates…",
+            ]);
+        });
+
+        it("shows a second count for its own three seconds", () => {
+            statusBar.showElementTemplatesReady(1);
+            vi.advanceTimersByTime(2000);
+
+            statusBar.showElementTemplatesReady(2);
+            vi.advanceTimersByTime(1000);
+
+            expect(renderedStatusBar().map((entry) => entry.text)).toEqual([
+                "$(check) Element templates (2)",
+            ]);
+            vi.advanceTimersByTime(2000);
+            expect(renderedStatusBar()).toEqual([]);
+        });
+
+        it("leaves no auto-hide pending once the status is hidden", () => {
+            statusBar.showElementTemplatesReady(1);
+
+            statusBar.hideElementTemplatesStatus();
+
+            expect(vi.getTimerCount()).toBe(0);
+        });
+    });
+
     it("clears the spinner when loading stops early", () => {
         statusBar.showElementTemplatesLoading();
 
