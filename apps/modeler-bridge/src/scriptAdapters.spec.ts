@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import { ArtifactService, ScriptUri } from "@miragon/bpmn-modeler-core";
 import { createTestHost, FakeEditorHandle } from "@miragon/bpmn-modeler-core/testing";
 import {
     OpenScriptEditorCommand,
@@ -11,6 +11,13 @@ import {
 
 import { BridgeScriptEditor } from "./scriptAdapters";
 import { METHODS } from "./protocol/descriptor";
+
+const osTemp = vi.hoisted(() => ({ dir: undefined as string | undefined }));
+
+vi.mock("os", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("os")>();
+    return { ...actual, tmpdir: () => osTemp.dir ?? actual.tmpdir() };
+});
 
 /**
  * Focused unit coverage for the host-keystroke debounce wired into
@@ -63,6 +70,22 @@ function createEditor() {
 /** UpdateScriptContentQuery posts only (skips lock broadcasts to the same webview). */
 function contentPosts(modelerEditor: FakeEditorHandle): UpdateScriptContentQuery[] {
     return modelerEditor.postedOfType<UpdateScriptContentQuery>("UpdateScriptContentQuery");
+}
+
+function openCommand(format: string, content: string, variables: unknown[] = []) {
+    return new OpenScriptEditorCommand(
+        "Task_1",
+        "script-task",
+        undefined,
+        undefined,
+        format,
+        content,
+        variables as never,
+    );
+}
+
+function scriptOpenCall(rpc: { notify: { mock: { calls: unknown[][] } } }): unknown | undefined {
+    return rpc.notify.mock.calls.find(([method]) => method === METHODS.scriptOpen)?.[1];
 }
 
 beforeEach(() => {
@@ -223,24 +246,6 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             extension,
         );
         return `${BASE_DIR}/${uri.relativePath()}`;
-    }
-
-    function openCommand(format: string, content: string, variables: unknown[] = []) {
-        return new OpenScriptEditorCommand(
-            "Task_1",
-            "script-task",
-            undefined,
-            undefined,
-            format,
-            content,
-            variables as never,
-        );
-    }
-
-    function scriptOpenCall(rpc: {
-        notify: { mock: { calls: unknown[][] } };
-    }): unknown | undefined {
-        return rpc.notify.mock.calls.find(([method]) => method === METHODS.scriptOpen)?.[1];
     }
 
     describe("materialize", () => {
@@ -460,6 +465,121 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             expect(internals.filePathByScript.has(scriptId)).toBe(true);
             expect(host.workspace.files).toEqual(filesBeforeLateClose);
             expect(lastLockRefs(modelerEditor)).toHaveLength(1);
+        });
+    });
+});
+
+/**
+ * IntelliJ sends a project on a network share as `//server/share/repo`. On
+ * Windows `/server/share/…` names a folder on the current drive, so every path
+ * the editor writes, deletes or hands to IntelliJ must keep the leading `//`.
+ */
+describe("BridgeScriptEditor keeps the UNC root of script files in a workspace on a share", () => {
+    const SHARE_ROOT = "//server/share/repo";
+    const SHARE_EDITOR_PATH = `${SHARE_ROOT}/process.bpmn`;
+    const SHARE_EDITOR = `file://${SHARE_EDITOR_PATH}`;
+    const SHARE_BASE_DIR = `${SHARE_ROOT}/.camunda/tmp/scripting`;
+    const SHARE_GITIGNORE = `${SHARE_ROOT}/.camunda/tmp/.gitignore`;
+
+    beforeEach(() => {
+        vi.stubGlobal("process", { ...process, platform: "win32" });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        osTemp.dir = undefined;
+    });
+
+    function createShareEditor(files: Record<string, string> = {}) {
+        const host = createTestHost({
+            folders: [SHARE_ROOT],
+            files,
+            settings: { scriptingSpin: false },
+        });
+        host.openEditor(SHARE_EDITOR_PATH);
+        const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
+        const editor = new BridgeScriptEditor(
+            host.store,
+            host.picker,
+            rpc as never,
+            host.notifier,
+            host.settings,
+            host.workspace,
+            new ArtifactService(host.workspace, host.settings),
+        );
+        return { editor, host, rpc };
+    }
+
+    const taskScript = (editorId: string) =>
+        new ScriptUri(editorId, "Task_1", "script-task", undefined, undefined, "groovy");
+    const shareScriptFile = `${SHARE_BASE_DIR}/${taskScript(SHARE_EDITOR).relativePath()}`;
+
+    it("writes an opened script and its .gitignore onto the share and sends IntelliJ that path", async () => {
+        const { editor, host, rpc } = createShareEditor();
+
+        await editor.open(openCommand("groovy", "x = 1"), SHARE_EDITOR);
+
+        expect(Object.fromEntries(host.workspace.files)).toEqual({
+            [SHARE_GITIGNORE]: "*\n",
+            [shareScriptFile]: "x = 1",
+        });
+        expect(scriptOpenCall(rpc)).toMatchObject({ filePath: shareScriptFile });
+    });
+
+    it("writes a generated script file onto the share", async () => {
+        const { editor, host } = createShareEditor();
+
+        await editor.materialize(openCommand("groovy", "x = 1"), SHARE_EDITOR);
+
+        expect(Object.fromEntries(host.workspace.files)).toEqual({
+            [SHARE_GITIGNORE]: "*\n",
+            [shareScriptFile]: "x = 1",
+        });
+    });
+
+    it.each([
+        { spelling: "//server/share/…", reported: shareScriptFile },
+        { spelling: "\\\\server\\share\\…", reported: shareScriptFile.replace(/\//g, "\\") },
+    ])("adopts a script file IntelliJ reports as $spelling", async ({ reported }) => {
+        const { editor, rpc } = createShareEditor({ [shareScriptFile]: "disk content" });
+
+        await editor.adoptExternalOpen(reported);
+
+        expect(scriptOpenCall(rpc)).toMatchObject({
+            scriptId: taskScript(SHARE_EDITOR).toString(),
+            filePath: shareScriptFile,
+            content: "disk content",
+        });
+    });
+
+    it("sweeps the script folders on the share, not on the current drive", async () => {
+        const { editor, host } = createShareEditor();
+        // The in-memory workspace matches directories with `posix.relative`,
+        // which reads `/server/…` and `//server/…` as one, so the swept
+        // directories are read off the port.
+        const deleteDirectory = vi.spyOn(host.workspace, "deleteDirectory");
+
+        await editor.materialize(openCommand("groovy", "x = 1"), SHARE_EDITOR);
+        editor.disposeEditor(SHARE_EDITOR);
+
+        expect(deleteDirectory.mock.calls).toEqual([
+            [SHARE_BASE_DIR],
+            [`${SHARE_BASE_DIR}/${ScriptUri.hashEditorId(SHARE_EDITOR)}`],
+        ]);
+    });
+
+    it("keeps the UNC root of an OS temp folder on a share for a document without a file path", async () => {
+        osTemp.dir = "\\\\server\\profiles\\peter\\Temp";
+        const { editor, host } = createShareEditor();
+        const untitled = new FakeEditorHandle("Untitled-1", { scheme: "untitled" });
+        host.store.register(untitled);
+        const tempScripting = "//server/profiles/peter/Temp/miragon-bpmn-modeler/tmp";
+
+        await editor.materialize(openCommand("groovy", "x = 1"), untitled.id);
+
+        expect(Object.fromEntries(host.workspace.files)).toEqual({
+            [`${tempScripting}/.gitignore`]: "*\n",
+            [`${tempScripting}/scripting/${taskScript(untitled.id).relativePath()}`]: "x = 1",
         });
     });
 });
