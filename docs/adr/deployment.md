@@ -231,11 +231,13 @@ Fingerprints normalize line endings and concatenate two independently seeded
 check, without `node:crypto`. A deploy reads and fingerprints the file on
 disk, so both deploys of the open diagram, the sidebar's Deploy and Deploy
 Diagram, first flush the webview's pending edits into the document and save it
-through one `SaveBeforeDeploy` step. The sidebar saves only after target
-admission, so a rejected request writes nothing, and a failed save aborts the
-deploy. Freshness compares against the current editor buffer, not just disk,
-so an edit made after the deploy reads `changed` before it is saved. Additional
-sidebar files and Deploy Files… are deployed as saved.
+through one `SaveBeforeDeploy` step. The sidebar saves only once the config is
+valid and the target admitted, so a request rejected at either step writes
+nothing. A declined credential approval, a failed `.env` lookup and an engine
+error all come after the save, on both deploys, and leave the diagram saved. A
+failed save aborts the deploy. Freshness compares against the current editor
+buffer, not just disk, so an edit made after the deploy reads `changed` before
+it is saved. Additional sidebar files and Deploy Files… are deployed as saved.
 
 | Freshness | Interpretation |
 | --- | --- |

@@ -3,10 +3,7 @@ import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
 
 export type SaveBeforeDeployResult = { saved: true } | { saved: false; message: string };
 
-/**
- * Persists what the editor shows, because a deploy reads the file from disk:
- * flushes the webview's pending edits into the document, then saves it.
- */
+/** A deploy reads the file from disk, so what the editor shows must be persisted first. */
 export class SaveBeforeDeploy {
     constructor(
         private readonly documentPort: DocumentPort,

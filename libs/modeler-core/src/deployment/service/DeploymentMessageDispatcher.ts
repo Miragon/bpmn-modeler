@@ -495,8 +495,8 @@ export class DeploymentMessageDispatcher {
     }
 
     /**
-     * Validates the incoming payload, saves what the editor shows, runs the
-     * deployment, shows a notification, and sends the result back to the webview.
+     * Saves only once the config is valid and the target admitted, so a request
+     * rejected for either leaves the file on disk untouched.
      *
      * @param configPayload Raw deployment config from the webview form.
      */
