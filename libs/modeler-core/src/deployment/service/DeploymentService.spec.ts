@@ -19,6 +19,7 @@ import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver
 import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentService } from "./DeploymentService";
+import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import {
@@ -110,9 +111,17 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         deploy: vi.fn(),
         startInstance: vi.fn(),
     };
-    const deploymentStatus = {
-        recordDeployment: vi.fn().mockResolvedValue(undefined),
-    };
+    const deploymentStatus = new DeploymentStatusService(
+        host.store,
+        host.documents,
+        // Recording a deployment never reads the active target.
+        targetsLocator as never,
+        host.deploymentState,
+        host.statusBar,
+        host.picker,
+        host.notifier,
+        envResolver,
+    );
 
     const service = new DeploymentService(
         host.documents,
@@ -122,7 +131,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         host.notifier,
         host.picker,
         host.secrets,
-        deploymentStatus as never,
+        deploymentStatus,
         envResolver,
         credentialApproval,
     );
@@ -131,7 +140,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         service,
         host,
         restClient,
-        deploymentStatus,
+        deploymentStatus: { recordDeployment: vi.spyOn(deploymentStatus, "recordDeployment") },
         locateTargetsFile: targetsLocator.locateTargetsFile,
         dotEnvReads: () =>
             readFile.mock.calls
@@ -142,6 +151,16 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
 
 function targetsFileOf(projectDir: string): string {
     return posix.join(projectDir, ".camunda", "deployment-targets.json");
+}
+
+/** The ledger row a local deploy of `<xml/>` leaves behind. */
+function recordedRevision(deploymentId: string) {
+    return {
+        fingerprint: contentFingerprint("<xml/>"),
+        deployedAt: expect.any(String),
+        deploymentId,
+        origin: "local",
+    };
 }
 
 function xmlFiles(...paths: string[]): Record<string, string> {
@@ -601,31 +620,62 @@ describe("DeploymentService.deploy", () => {
         expect(restClient.deploy).not.toHaveBeenCalled();
     });
 
-    it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
-        const { service, host, restClient, deploymentStatus } = createService({
-            files: MAIN_FILE,
+    it("reports an engine-accepted ad-hoc deploy as deployed and still stores its credentials and ledger row when saving the connection settings throws", async () => {
+        const { service, host, restClient } = createService({ files: MAIN_FILE });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        vi.spyOn(host.deploymentState, "save").mockRejectedValue(new Error("state locked"));
+
+        const result = await service.deploy(
+            buildConfig({
+                endpoint: "https://c.example/api",
+                tenantId: "acme",
+                auth: new BasicAuth("admin", "secret"),
+            }),
+        );
+
+        expect(result).toEqual(
+            new DeploymentResult(
+                true,
+                "ok Not saved: connection settings (state locked).",
+                "dep-1",
+            ),
+        );
+        await expect(host.secrets.getBasicAuth()).resolves.toEqual({
+            username: "admin",
+            password: "secret",
         });
+        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+            "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
+        });
+    });
+
+    it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
+        const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
         vi.spyOn(host.secrets, "saveBasicAuth").mockRejectedValue(new Error("no OS keyring"));
 
         const result = await service.deploy(
-            buildConfig({ endpoint: "https://c/api", auth: new BasicAuth("admin", "secret") }),
+            buildConfig({
+                endpoint: "https://c.example/api",
+                tenantId: "acme",
+                auth: new BasicAuth("admin", "secret"),
+            }),
         );
 
         expect(result).toEqual(
             new DeploymentResult(true, "ok Not saved: credentials (no OS keyring).", "dep-1"),
         );
-        expect(host.deploymentState.endpoint).toBe("https://c/api");
-        expect(deploymentStatus.recordDeployment).toHaveBeenCalledOnce();
+        expect(host.deploymentState.endpoint).toBe("https://c.example/api");
+        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+            "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
+        });
         expect(host.notifier.logged("warning")).toEqual([expect.stringContaining("no OS keyring")]);
     });
 
     it("reports an engine-accepted deploy as deployed when recording the ledger row throws", async () => {
-        const { service, host, restClient, deploymentStatus } = createService({
-            files: MAIN_FILE,
-        });
+        const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        deploymentStatus.recordDeployment.mockRejectedValue(
+        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
             new Error("workspace state unavailable"),
         );
 
@@ -1132,12 +1182,21 @@ describe("DeploymentService.deployFiles", () => {
         expect(host.notifier.errors).toEqual(['Deployed 1/3 file(s) to "dev". b: boom']);
     });
 
+    it("records no ledger row for a file the engine rejected", async () => {
+        const { service, host, restClient } = createService({ files: xmlFiles("/work/a.bpmn") });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(false, "rejected by server"));
+
+        const results = await service.deployFiles(["/work/a.bpmn"], target, new NoAuth(), "/work");
+
+        expect(results).toEqual([new DeploymentResult(false, "rejected by server")]);
+        expect(host.deploymentState.ledger).toEqual(new Map());
+        expect(host.notifier.errors).toEqual(['Deployed 0/1 file(s) to "dev". rejected by server']);
+    });
+
     it("counts a file the engine accepted as deployed when recording its ledger row throws", async () => {
-        const { service, host, restClient, deploymentStatus } = createService({
-            files: xmlFiles("/work/a.bpmn"),
-        });
+        const { service, host, restClient } = createService({ files: xmlFiles("/work/a.bpmn") });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        deploymentStatus.recordDeployment.mockRejectedValue(
+        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
             new Error("workspace state unavailable"),
         );
 
