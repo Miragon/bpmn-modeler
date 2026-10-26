@@ -142,11 +142,8 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             params.getAsJsonArray("details")?.map { it.asString }.orEmpty()
                 .take(MAX_CONFIRM_DETAILS)
 
-        ApplicationManager.getApplication().invokeLater {
-            if (project.isDisposed) {
-                deps.channel.reply(id, mapOf("confirmed" to false))
-                return@invokeLater
-            }
+        deps.channel.replyFromEdt(id, "confirm/show") {
+            if (project.isDisposed) return@replyFromEdt mapOf("confirmed" to false)
             val message = (listOf(title) + details).joinToString("\n")
             val choice =
                 Messages.showYesNoDialog(
@@ -157,7 +154,7 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
                     "Cancel",
                     Messages.getWarningIcon(),
                 )
-            deps.channel.reply(id, mapOf("confirmed" to (choice == Messages.YES)))
+            mapOf("confirmed" to (choice == Messages.YES))
         }
     }
 
@@ -177,13 +174,13 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
                     obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
                 )
             }
-        ApplicationManager.getApplication().invokeLater {
+        deps.channel.replyLaterFromEdt(id, "picker/show") { reply ->
             if (project.isDisposed) {
-                deps.channel.reply(id, mapOf("selected" to null))
-                return@invokeLater
+                reply.result(mapOf("selected" to null))
+                return@replyLaterFromEdt
             }
             HostPicker.show(project, title, placeholder, canPickMany, items) { selected ->
-                deps.channel.reply(id, mapOf("selected" to selected))
+                reply.result(mapOf("selected" to selected))
             }
         }
     }
@@ -196,12 +193,12 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
      * paste — an empty string is a valid "nothing to paste" answer.
      */
     private fun handleClipboardRead(id: Int?) {
-        ApplicationManager.getApplication().invokeLater {
+        deps.channel.replyFromEdt(id, "clipboard/read") {
             val text =
                 runCatching {
                     CopyPasteManager.getInstance().getContents<String>(DataFlavor.stringFlavor)
                 }.getOrNull().orEmpty()
-            id?.let { deps.channel.reply(it, mapOf("text" to text)) }
+            mapOf("text" to text)
         }
     }
 

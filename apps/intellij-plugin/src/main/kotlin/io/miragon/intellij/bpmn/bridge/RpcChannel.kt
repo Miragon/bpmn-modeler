@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.Logger
 import java.io.BufferedReader
 import java.io.BufferedWriter
@@ -82,20 +83,38 @@ internal class RpcChannel(
     fun replyError(id: Int, message: String) =
         enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null, true)
 
+    /**
+     * Runs [work] on the EDT and answers request [id] exactly once: with its
+     * result, or with an error when it throws. [onLine]'s catch cannot see work
+     * that hops to the EDT, and an unanswered request stalls the core's
+     * per-editor queue.
+     */
     fun replyFromEdt(
         id: Int?,
         method: String,
-        runOnEdt: (Runnable) -> Unit = { ApplicationManager.getApplication().invokeLater(it) },
+        runOnEdt: (Runnable) -> Unit = invokeLaterOnEdt,
         work: () -> Any?,
-    ) {
-    }
+    ) = runOnEdt(Runnable { answerOnce(PendingReply(this, id), method) { it.result(work()) } })
 
+    /**
+     * [replyFromEdt] for work that answers from a later callback, such as a popup
+     * selection; a throw before that answer still answers with an error.
+     */
     fun replyLaterFromEdt(
         id: Int,
         method: String,
-        runOnEdt: (Runnable) -> Unit = { ApplicationManager.getApplication().invokeLater(it) },
+        runOnEdt: (Runnable) -> Unit = invokeLaterOnEdt,
         work: (PendingReply) -> Unit,
-    ) {
+    ) = runOnEdt(Runnable { answerOnce(PendingReply(this, id), method, work) })
+
+    private fun answerOnce(reply: PendingReply, method: String, work: (PendingReply) -> Unit) {
+        try {
+            work(reply)
+        } catch (e: Exception) {
+            reply.error(e.message ?: "host handler failed")
+            if (e is ControlFlowException) throw e
+            log.warn("Failed to handle core request ($method) on the EDT", e)
+        }
     }
 
     private fun enqueue(line: String, coalesceKey: String?, reliable: Boolean) {
@@ -268,11 +287,23 @@ internal class RpcChannel(
     }
 }
 
-internal class PendingReply(private val channel: RpcChannel, private val id: Int?) {
-    fun result(value: Any?) {
-    }
+private val invokeLaterOnEdt: (Runnable) -> Unit = { ApplicationManager.getApplication().invokeLater(it) }
 
-    fun error(message: String) {
+/**
+ * The answer to one core request: the first [result] or [error] is sent and later
+ * ones are dropped, so a callback that answers and a throw that follows still
+ * produce one reply.
+ */
+internal class PendingReply(private val channel: RpcChannel, private val id: Int?) {
+    private val answered = AtomicBoolean(false)
+
+    fun result(value: Any?) = answer { channel.reply(it, value) }
+
+    fun error(message: String) = answer { channel.replyError(it, message) }
+
+    private fun answer(send: (Int) -> Unit) {
+        val requestId = id ?: return
+        if (answered.compareAndSet(false, true)) send(requestId)
     }
 }
 

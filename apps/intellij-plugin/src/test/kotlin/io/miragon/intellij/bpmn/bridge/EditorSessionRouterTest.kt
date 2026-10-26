@@ -163,6 +163,19 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a save of an open editor writes its Document to disk and answers that it saved`() {
+        val f = setUpRouter(INITIAL_XML)
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
+
+        f.dispatchCoreSave()
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(2, reply.get("id").asInt)
+        assertTrue(reply.getAsJsonObject("result").get("saved").asBoolean)
+        assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath))
+    }
+
+    @Test
     fun `a save for an editor that is no longer open answers that nothing was saved`() {
         val f = setUpRouter(INITIAL_XML)
         f.router.disposeSession(f.session)
