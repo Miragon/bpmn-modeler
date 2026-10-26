@@ -23,6 +23,7 @@ export * from "./shared/domain/viewTypes";
 export * from "./shared/service/ArtifactService";
 export * from "./shared/service/BpmnLintConfigLocator";
 export * from "./shared/service/DocumentFlushService";
+export * from "./shared/service/PendingEditsFlush";
 export * from "./shared/infrastructure/EditorSessionDocuments";
 export * from "./shared/infrastructure/EditorSessionLifecycle";
 export * from "./shared/infrastructure/EditorDocumentSync";

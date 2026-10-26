@@ -8,7 +8,11 @@ import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewNotificationHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewFocusHandlers } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import { DocumentFlushService, documentFlushedHandler } from "@miragon/bpmn-modeler-core";
+import {
+    DocumentFlushService,
+    documentFlushedHandler,
+    PendingEditsFlush,
+} from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
@@ -127,7 +131,7 @@ export function register(
 ): {
     bpmnService: BpmnModelerService;
     templatesSvc: BpmnElementTemplatesService;
-    documentFlush: DocumentSaveFlushController;
+    documentFlush: PendingEditsFlush;
     layoutSvc: BpmnLayoutService;
 } {
     const {
@@ -394,17 +398,13 @@ export function register(
     // action; the diagnostics carry a command link to this controller.
     new FocusLintElementController(deps.editorStore, deps.notifier).register(context);
 
+    const documentFlush = new PendingEditsFlush(deps.editorStore, flushSvc, deps.notifier);
+    documentFlush.serve(".bpmn", bpmnService);
+    documentFlush.serve(".dmn", dmnService);
+    documentFlush.serve(".form", formService);
     // Flush pending webview changes into the buffer before every save so a
     // persist never trails the live model.
-    const documentFlush = new DocumentSaveFlushController(
-        deps.editorStore,
-        flushSvc,
-        bpmnService,
-        dmnService,
-        formService,
-        deps.notifier,
-    );
-    documentFlush.register(context);
+    new DocumentSaveFlushController(deps.editorStore, documentFlush).register(context);
 
     return { bpmnService, templatesSvc, documentFlush, layoutSvc };
 }

@@ -89,7 +89,7 @@ function createController(answers: PickerAnswers = {}) {
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
     const documentFlush = {
-        flush: vi.fn().mockResolvedValue({ status: "safe" as const, session: editor }),
+        flushIntoDocument: vi.fn().mockResolvedValue({ status: "safe" as const, session: editor }),
         release: vi.fn(),
     };
     const layoutSvc = { format: vi.fn(), inspectCleanup: vi.fn() };
@@ -146,7 +146,7 @@ describe("CommandController.reloadModeler", () => {
     it("flushes the active document before reloading its webview", async () => {
         const { controller, editor, documentFlush } = createController();
         let finishFlush: () => void = () => {};
-        documentFlush.flush.mockReturnValue(
+        documentFlush.flushIntoDocument.mockReturnValue(
             new Promise((resolve) => {
                 finishFlush = () => resolve({ status: "safe", session: editor });
             }),
@@ -154,7 +154,9 @@ describe("CommandController.reloadModeler", () => {
 
         const reloading = Promise.resolve(controller.reloadModeler());
 
-        expect(documentFlush.flush).toHaveBeenCalledWith(editor.id, true);
+        expect(documentFlush.flushIntoDocument).toHaveBeenCalledWith(editor.id, {
+            destructive: true,
+        });
         expect(editor.reloadCount).toBe(0);
         finishFlush();
         await reloading;
@@ -165,7 +167,7 @@ describe("CommandController.reloadModeler", () => {
 
     it("does not reload when the webview cannot confirm the flush", async () => {
         const { controller, editor, documentFlush } = createController();
-        documentFlush.flush.mockResolvedValueOnce({ status: "unavailable" });
+        documentFlush.flushIntoDocument.mockResolvedValueOnce({ status: "unavailable" });
 
         await controller.reloadModeler();
 

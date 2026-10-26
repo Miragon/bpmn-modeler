@@ -25,9 +25,8 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
 import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
+import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
-import type { EditorFlushResult } from "../../editor-session/DocumentSaveFlushController";
 
 export const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
 export const LOGGING_CMD = "bpmn-modeler.openLoggingConsole";
@@ -47,10 +46,7 @@ export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
 export const FORMAT_DIAGRAM_CMD = "bpmn-modeler.formatDiagram";
 export const CLEANUP_DIAGRAM_CMD = "bpmn-modeler.cleanupDiagram";
 
-export interface DocumentFlusher {
-    flush(editorId: string, destructive?: boolean): Promise<EditorFlushResult>;
-    release(editorId: string, session: object): void;
-}
+export type DocumentFlusher = Pick<PendingEditsFlush, "flushIntoDocument" | "release">;
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -130,7 +126,7 @@ export class CommandController {
      */
     async reloadModeler(): Promise<void> {
         const editorId = this.editorStore.getActiveEditorId();
-        const result = await this.documentFlush.flush(editorId, true);
+        const result = await this.documentFlush.flushIntoDocument(editorId, { destructive: true });
         if (result.status !== "safe") return;
         if (!this.editorStore.isCurrentEditorSession(editorId, result.session)) {
             this.documentFlush.release(editorId, result.session);
