@@ -11,7 +11,9 @@
  * `VirtualFile` (rather than an in-memory `LightVirtualFile`) is what
  * re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The bridge
  * also owns the disk hygiene: a one-shot orphan sweep per base directory, a
- * `.gitignore`, and deletion on tab close / editor dispose.
+ * `.gitignore`, and deletion on tab close / editor dispose. Paths are joined
+ * with `joinWorkspacePath`, never `posix.join`, which drops the leading `//`
+ * of a UNC root.
  *
  * This class owns all BPMN/element knowledge: it addresses scripts by a stable
  * `ScriptUri` and hands the host an opaque `scriptId`; the host is a dumb
@@ -28,6 +30,7 @@ import {
     COMPLEX_TYPES,
     EditorSessionStore,
     globalFunctionsFor,
+    joinWorkspacePath,
     matchScriptFile,
     methodsForBean,
     NotifierPort,
@@ -36,6 +39,7 @@ import {
     ScriptUri,
     SettingsPort,
     TMP_SCRIPTING_SEGMENT,
+    toWorkspacePath,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import {
@@ -163,7 +167,7 @@ export class BridgeScriptEditor {
         let filePath = this.filePathByScript.get(scriptId);
         if (filePath === undefined) {
             const baseDir = await this.prepareBaseDir(editorId);
-            filePath = posix.join(baseDir, uri.relativePath());
+            filePath = joinWorkspacePath(baseDir, uri.relativePath());
             try {
                 await this.workspace.writeFile(filePath, cmd.content);
                 this.filePathByScript.set(scriptId, filePath);
@@ -260,7 +264,7 @@ export class BridgeScriptEditor {
         }
 
         const baseDir = await this.prepareBaseDir(editorId);
-        const filePath = posix.join(baseDir, target.uri.relativePath());
+        const filePath = joinWorkspacePath(baseDir, target.uri.relativePath());
         try {
             await this.workspace.writeFile(filePath, cmd.content);
         } catch (error) {
@@ -337,7 +341,7 @@ export class BridgeScriptEditor {
      * on adopt would delete the very file being opened.
      */
     async adoptExternalOpen(filePath: string): Promise<void> {
-        const normalized = filePath.replace(/\\/g, "/");
+        const normalized = toWorkspacePath(filePath);
         const match = matchScriptFile(normalized, this.store.getEditorIds());
         if (!match) {
             return;
@@ -410,14 +414,14 @@ export class BridgeScriptEditor {
                 }
                 const documentDir = this.workspace.getDocumentDirectory(handle.documentFsPath());
                 const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
-                baseDir = posix.join(
+                baseDir = joinWorkspacePath(
                     workspaceRoot,
                     this.settings.getConfigFolder(),
                     TMP_SCRIPTING_SEGMENT,
                 );
             } catch {
-                baseDir = posix.join(
-                    tmpdir().replace(/\\/g, "/"),
+                baseDir = joinWorkspacePath(
+                    tmpdir(),
                     "miragon-bpmn-modeler",
                     TMP_SCRIPTING_SEGMENT,
                 );
@@ -440,7 +444,7 @@ export class BridgeScriptEditor {
             try {
                 await this.workspace.deleteDirectory(baseDir);
                 await this.workspace.writeFile(
-                    posix.join(posix.dirname(baseDir), ".gitignore"),
+                    joinWorkspacePath(posix.dirname(baseDir), ".gitignore"),
                     "*\n",
                 );
             } catch (error) {
@@ -687,7 +691,7 @@ export class BridgeScriptEditor {
         const sweepHashDir = (): void => {
             if (baseDir !== undefined) {
                 void this.workspace
-                    .deleteDirectory(posix.join(baseDir, ScriptUri.hashEditorId(editorId)))
+                    .deleteDirectory(joinWorkspacePath(baseDir, ScriptUri.hashEditorId(editorId)))
                     .catch((error) => this.notifier.logError(error as Error));
             }
         };
