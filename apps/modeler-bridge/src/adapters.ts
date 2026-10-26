@@ -36,6 +36,7 @@ import {
     SecretStorePort,
     SettingChange,
     StatusBarPort,
+    summarizeAffectedItems,
     TokenPromptPort,
     TokenStorePort,
     UserCancelledError,
@@ -884,7 +885,7 @@ export class RpcPicker implements PickerPort {
         const result = (await this.rpc.request(METHODS.confirmShow, {
             title: options.title,
             confirmLabel: options.confirmLabel,
-            details: options.details,
+            details: summarizeAffectedItems(options.details),
         } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
         return result?.confirmed === true;
     }

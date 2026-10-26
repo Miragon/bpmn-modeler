@@ -6,6 +6,7 @@ import { UserCancelledError } from "@miragon/bpmn-modeler-core";
 import { PickerPort } from "@miragon/bpmn-modeler-core";
 import { MigrationScope } from "@miragon/bpmn-modeler-core";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
+import { summarizeAffectedItems } from "@miragon/bpmn-modeler-core";
 import { NEW_MODEL_ENGINE_CHOICES, NewModelEngine } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
@@ -292,30 +293,21 @@ export class VsCodePicker implements PickerPort {
      * Modal confirmation listing what is about to be removed.
      *
      * Modal rather than a plain warning toast because the user is consenting to
-     * deletion, and a toast can be missed or auto-dismissed. `detail` is capped
-     * because VS Code renders it in a fixed-height dialog; the full list is in
-     * the output channel, where the caller has already logged it.
+     * deletion, and a toast can be missed or auto-dismissed.
      */
     async confirmDestructive(options: {
         title: string;
         confirmLabel: string;
         details: string[];
     }): Promise<boolean> {
-        const shown = options.details.slice(0, MAX_CONFIRM_DETAILS);
-        const remainder = options.details.length - shown.length;
-        const detail = [...shown, ...(remainder > 0 ? [`…and ${remainder} more`] : [])].join("\n");
-
         const choice = await window.showWarningMessage(
             options.title,
-            { modal: true, detail },
+            { modal: true, detail: summarizeAffectedItems(options.details).join("\n") },
             options.confirmLabel,
         );
         return choice === options.confirmLabel;
     }
 }
-
-/** VS Code's modal dialog clips a long detail block, so the list is capped. */
-const MAX_CONFIRM_DETAILS = 12;
 
 interface ReferencedModelItem extends QuickPickItem {
     readonly path: string;
