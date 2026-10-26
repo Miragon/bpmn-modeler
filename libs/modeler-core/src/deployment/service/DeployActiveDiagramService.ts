@@ -2,20 +2,20 @@ import { posix } from "path";
 
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
-import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickActiveTarget } from "./resolveOrPickActiveTarget";
+import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 
 const DEPLOYABLE_EXTENSIONS = [".bpmn", ".dmn"];
 
 /**
- * One-click deploy of the active editor's diagram to the active target. Flushes
- * the webview's pending edits into the document and saves first, then reuses
- * {@link DeploymentService.deployFiles}, which reads the file from disk, so the
- * ledger record and summary notification match the sidebar path. Split from the
- * sidebar dispatcher (SRP): this owns only the "deploy what's on screen" flow.
+ * One-click deploy of the active editor's diagram to the active target. Saves
+ * what the editor shows first, then reuses {@link DeploymentService.deployFiles},
+ * which reads the file from disk, so the ledger record and summary notification
+ * match the sidebar path. Split from the sidebar dispatcher (SRP): this owns
+ * only the "deploy what's on screen" flow.
  */
 export class DeployActiveDiagramService {
     constructor(
@@ -25,7 +25,7 @@ export class DeployActiveDiagramService {
         private readonly deploymentService: DeploymentService,
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly notifier: NotifierPort,
-        private readonly pendingEdits: Pick<PendingEditsFlush, "flushIntoDocument">,
+        private readonly saveBeforeDeploy: SaveBeforeDeploy,
     ) {}
 
     /**
@@ -58,18 +58,9 @@ export class DeployActiveDiagramService {
             return;
         }
 
-        // Best effort, as on a host save: without a confirmed flush the document
-        // still holds every edit the webview synced before.
-        await this.pendingEdits.flushIntoDocument(editorId);
-
-        // save() returns false for an unmodified document (nothing to persist);
-        // only a throw is a real save failure worth aborting for.
-        try {
-            await this.documentPort.save(editorId);
-        } catch (error) {
-            this.notifier.showError(
-                `Could not save the diagram before deploying: ${(error as Error).message}`,
-            );
+        const saveResult = await this.saveBeforeDeploy.save(editorId);
+        if (!saveResult.saved) {
+            this.notifier.showError(saveResult.message);
             return;
         }
 

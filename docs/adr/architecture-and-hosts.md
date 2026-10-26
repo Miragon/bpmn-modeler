@@ -154,7 +154,8 @@ and one `DocumentRenderParticipant` re-renders any of them on a host change.
 Before a document is persisted, the core's `PendingEditsFlush` asks the
 webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
-and Deploy Diagram runs it on both hosts.
+and both deploys of the open diagram (Deploy Diagram and the deployment
+sidebar's Deploy) run it on both hosts before they save.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and

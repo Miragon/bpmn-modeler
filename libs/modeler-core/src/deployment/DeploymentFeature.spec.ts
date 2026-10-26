@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DeploymentTargetsQuery, FormDefaultsQuery, Query } from "@miragon/bpmn-modeler-shared";
+import {
+    DeployCommand,
+    DeploymentResultQuery,
+    DeploymentTargetsQuery,
+    DocumentFlushedCommand,
+    FlushDocumentQuery,
+    FormDefaultsQuery,
+    Query,
+} from "@miragon/bpmn-modeler-shared";
 
 import { ArtifactService } from "../shared/service/ArtifactService";
 import { DocumentFlushService } from "../shared/service/DocumentFlushService";
@@ -19,15 +27,15 @@ const target = (name: string): DeploymentTarget =>
     new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
 
 class RecordingEngineHttp implements HttpClient {
-    readonly deployments: { url: string; headers: Record<string, string> }[] = [];
+    readonly deployments: { url: string; headers: Record<string, string>; body: string }[] = [];
 
     async postMultipart(
         url: string,
-        _body: Buffer,
+        body: Buffer,
         _boundary: string,
         headers: Record<string, string> = {},
     ): Promise<HttpResponse> {
-        this.deployments.push({ url, headers });
+        this.deployments.push({ url, headers, body: body.toString("utf8") });
         return { status: 200, body: JSON.stringify({ id: "dep-1" }) };
     }
 
@@ -348,5 +356,107 @@ describe("DeploymentFeature with .env references", () => {
             [],
         );
         expect(host.notifier.transcript()).not.toContain("s3cret");
+    });
+});
+
+describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
+    const SAVED_XML = '<bpmn:definitions id="saved"/>';
+    const UNSAVED_XML = '<bpmn:definitions id="unsaved"/>';
+    const WEBVIEW_XML = '<bpmn:definitions id="webview"/>';
+
+    /**
+     * Disk holds the saved diagram, the editor buffer an unsaved edit, and the
+     * webview a later edit its sync debounce has not delivered yet. The editor's
+     * save writes the buffer to disk, as both hosts' saves do.
+     */
+    function createEditedDiagram() {
+        const http = new RecordingEngineHttp();
+        const host = createTestHost({
+            folders: ["/ws"],
+            files: {
+                [TARGETS_FILE]: serializeDeploymentTargets([target("dev")]),
+                [ORDER_PROCESS]: SAVED_XML,
+            },
+        });
+        host.deploymentState.activeTargetName = "dev";
+        const editor = host.openEditor(ORDER_PROCESS, UNSAVED_XML);
+        vi.spyOn(editor, "save").mockImplementation(async () => {
+            editor.saveCount++;
+            await host.workspace.writeFile(ORDER_PROCESS, editor.content);
+            return true;
+        });
+
+        const flushes = new DocumentFlushService(host.store, host.notifier);
+        const deliver = editor.postMessage.bind(editor);
+        editor.postMessage = async (message) => {
+            const delivered = await deliver(message);
+            if (message instanceof FlushDocumentQuery) {
+                queueMicrotask(() =>
+                    flushes.handleReply(
+                        new DocumentFlushedCommand(message.token, WEBVIEW_XML),
+                        editor.id,
+                    ),
+                );
+            }
+            return delivered;
+        };
+        const pendingEdits = new PendingEditsFlush(host.store, flushes, host.notifier);
+        pendingEdits.serve(".bpmn", {
+            sync: (editorId, content) => host.documents.write(editorId, content),
+        });
+
+        const feature = new DeploymentFeature({
+            store: host.store,
+            documents: host.documents,
+            workspace: host.workspace,
+            settings: host.settings,
+            notifier: host.notifier,
+            picker: host.picker,
+            statusBar: host.statusBar,
+            artifacts: new ArtifactService(host.workspace, host.settings),
+            secrets: host.secrets,
+            state: host.deploymentState,
+            pendingEdits,
+            http,
+        });
+        const { panel, posted } = attach(feature, false);
+        return { host, http, panel, posted };
+    }
+
+    const deployFromSidebar = ({ panel }: ReturnType<typeof createEditedDiagram>) =>
+        panel.handle(
+            new DeployCommand({
+                deploymentName: "order-process",
+                tenantId: "",
+                endpoint: "http://localhost:8080/engine-rest",
+                engine: "c7",
+                mainFilePath: ORDER_PROCESS,
+                additionalFilePaths: [],
+                auth: { authType: "none" },
+                targetName: "dev",
+            }),
+        );
+
+    it("deploys what the webview shows and saves it first", async () => {
+        const edited = createEditedDiagram();
+
+        await deployFromSidebar(edited);
+
+        expect(edited.posted.filter((query) => query instanceof DeploymentResultQuery)).toEqual([
+            expect.objectContaining({ success: true }),
+        ]);
+        expect(edited.http.deployments).toHaveLength(1);
+        expect(edited.http.deployments[0].body).toContain(WEBVIEW_XML);
+        expect(edited.host.workspace.files.get(ORDER_PROCESS)).toBe(WEBVIEW_XML);
+    });
+
+    it("shows the diagram as deployed right after the deploy", async () => {
+        const edited = createEditedDiagram();
+
+        await deployFromSidebar(edited);
+
+        expect(edited.host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        );
     });
 });

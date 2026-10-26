@@ -39,6 +39,7 @@ import { StartInstanceResult } from "../domain/startInstance";
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
 import { createTestHost } from "../../testing";
 import { DeploymentMessageDispatcher } from "./DeploymentMessageDispatcher";
+import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 
 // Deliberately distinct from the payload's `mainFilePath` so a regression
 // that trusts the webview payload instead of the document path is caught.
@@ -90,6 +91,9 @@ function createDispatcher({ openDiagram = true } = {}) {
         startInstanceService as never,
         deploymentTargetService as never,
         deploymentStatusService as never,
+        new SaveBeforeDeploy(host.documents, {
+            flushIntoDocument: async () => ({ status: "safe", session: {} }),
+        }),
         host.notifier,
         post,
     );
@@ -248,6 +252,71 @@ describe("DeploymentMessageDispatcher deploy result handling", () => {
         const query = postedQuery(c.post, DeploymentResultQuery);
         expect(query.success).toBe(false);
         expect(query.message).toBe(fallback);
+    });
+});
+
+describe("DeploymentMessageDispatcher deploy saves the diagram first", () => {
+    const savedTarget = new DeploymentTarget(
+        "dev",
+        "c7",
+        "http://localhost:8080/engine-rest",
+        "",
+        "none",
+        "",
+        "",
+    );
+
+    const createWithDiagram = () => {
+        const c = createDispatcher({ openDiagram: false });
+        return { ...c, editor: c.host.openEditor(TRUSTED_PATH) };
+    };
+
+    it("saves the diagram before the deploy reads it from disk", async () => {
+        const c = createWithDiagram();
+        let savesBeforeDeploy: number | undefined;
+        c.deploymentService.deploy.mockImplementation(async () => {
+            savesBeforeDeploy = c.editor.saveCount;
+            return new DeploymentResult(true, "ok");
+        });
+
+        await deploy(c, { authType: "none" });
+
+        expect(savesBeforeDeploy).toBe(1);
+    });
+
+    it("deploys nothing and posts a failure result when the save throws", async () => {
+        const c = createWithDiagram();
+        vi.spyOn(c.editor, "save").mockRejectedValue(new Error("read-only file system"));
+
+        await deploy(c, { authType: "none" });
+
+        const message = "Could not save the diagram before deploying: read-only file system";
+        expect(c.deploymentService.deploy).not.toHaveBeenCalled();
+        expect(c.host.notifier.errors).toEqual([message]);
+        const query = postedQuery(c.post, DeploymentResultQuery);
+        expect(query.success).toBe(false);
+        expect(query.message).toBe(message);
+    });
+
+    it.each([
+        { reason: "an invalid config", payload: { deploymentName: " " }, target: savedTarget },
+        { reason: "a missing target", payload: { targetName: "dev" }, target: undefined },
+        {
+            reason: "a changed target",
+            payload: { targetName: "dev", endpoint: "https://different" },
+            target: savedTarget,
+        },
+    ])("saves nothing for a request rejected for $reason", async ({ payload, target }) => {
+        const c = createWithDiagram();
+        c.deploymentTargetService.getTarget.mockResolvedValue(target);
+
+        await c.dispatcher.handle({
+            type: "DeployCommand",
+            config: { ...deployPayload({ authType: "none" }), ...payload },
+        } as DeployCommand);
+
+        expect(c.editor.saveCount).toBe(0);
+        expect(postedQuery(c.post, DeploymentResultQuery).success).toBe(false);
     });
 });
 

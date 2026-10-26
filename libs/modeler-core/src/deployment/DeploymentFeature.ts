@@ -30,6 +30,7 @@ import { DeploymentStatusService } from "./service/DeploymentStatusService";
 import { DeploymentTargetService } from "./service/DeploymentTargetService";
 import { DeploymentVerificationService } from "./service/DeploymentVerificationService";
 import { EnvValueResolver } from "./service/EnvValueResolver";
+import { SaveBeforeDeploy } from "./service/SaveBeforeDeploy";
 import { StartInstanceService } from "./service/StartInstanceService";
 import { DeploymentStatusParticipant } from "./session/DeploymentStatusParticipant";
 
@@ -140,6 +141,7 @@ export class DeploymentFeature {
             envResolver,
             credentialApproval,
         );
+        const saveBeforeDeploy = new SaveBeforeDeploy(ports.documents, ports.pendingEdits);
         this.deployActiveDiagram = new DeployActiveDiagramService(
             ports.store,
             ports.documents,
@@ -147,7 +149,7 @@ export class DeploymentFeature {
             deployment,
             this.status,
             ports.notifier,
-            ports.pendingEdits,
+            saveBeforeDeploy,
         );
         this.deployFilesService = new DeployFilesService(
             this.targets,
@@ -164,6 +166,7 @@ export class DeploymentFeature {
                 startInstance,
                 this.targets,
                 this.status,
+                saveBeforeDeploy,
                 ports.notifier,
                 post,
             );

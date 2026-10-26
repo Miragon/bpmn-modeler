@@ -8,6 +8,7 @@ import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { NoAuth } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployActiveDiagramService } from "./DeployActiveDiagramService";
+import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 
 const FILE_PATH = "/work/order-process.bpmn";
 
@@ -60,7 +61,7 @@ function createService({
         deploymentService as never,
         deploymentStatusService as never,
         host.notifier,
-        pendingEdits(host, editor),
+        new SaveBeforeDeploy(host.documents, pendingEdits(host, editor)),
     );
 
     return {
