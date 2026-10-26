@@ -1,4 +1,5 @@
 import { MarketplaceContentType } from "../domain/marketplace";
+import { FetchedTemplateFile } from "../domain/sourceCacheRefresh";
 import { DirectoryNotFound } from "../../shared/domain/errors";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
 
@@ -55,6 +56,22 @@ export class MarketplaceCache {
         this.assertSafeRepoPath(repoPath);
         const target = `${this.cacheRoot}/${marketplaceId}/${sourceIndex}/${contentType}/${repoPath}`;
         await this.workspace.writeFile(target, content);
+    }
+
+    async sourceIndexes(_marketplaceId: string): Promise<number[]> {
+        return [];
+    }
+
+    replaceSource(
+        _marketplaceId: string,
+        _sourceIndex: number,
+        _files: readonly FetchedTemplateFile[],
+    ): Promise<void> {
+        return Promise.resolve();
+    }
+
+    removeSource(_marketplaceId: string, _sourceIndex: number): Promise<void> {
+        return Promise.resolve();
     }
 
     /**

@@ -1195,3 +1195,145 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
         );
     });
 });
+
+describe("TemplateMarketplaceService cache retention", () => {
+    const MARKETPLACE_URL = "https://github.com/acme/templates";
+    const SLOT = "/cache/acme__templates";
+
+    /**
+     * A marketplace whose manifest, listings and reachability can change between
+     * runs. Every listed file's content names its path.
+     */
+    function changingMarketplace(sources: object[], listings: Record<string, string[]>) {
+        const upstream = { sources, listings, unreachablePaths: new Set<string>() };
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.path === "") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn(async () => JSON.stringify({ sources: upstream.sources })),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn(async () => {
+                    if (upstream.unreachablePaths.has(config.path)) {
+                        throw new Error("offline");
+                    }
+                    return upstream.listings[config.path] ?? [];
+                }),
+                fetchFile: vi.fn(async (repoPath: string) => `{"from":"${repoPath}"}`),
+            };
+        });
+        const harness = serviceOver(factory);
+        harness.settings.values.marketplaces = [MARKETPLACE_URL];
+        // A real file system lists a directory in no promised order.
+        const cachedTemplatePaths = async () =>
+            (await harness.service.getCachedTemplatePaths()).sort();
+        return { ...harness, upstream, cachedTemplatePaths };
+    }
+
+    it("drops a template deleted upstream on update", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "element-templates" }],
+            {
+                "element-templates": ["element-templates/a.json", "element-templates/b.json"],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.listings["element-templates"] = ["element-templates/a.json"];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/element-templates/a.json`,
+        ]);
+    });
+
+    it("drops the slot of a source removed from the manifest", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            {
+                one: ["one/a.json"],
+                two: ["two/b.json"],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "one" }];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([`${SLOT}/0/element-templates/one/a.json`]);
+    });
+
+    it("drops templates a narrowed include no longer matches", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "element-templates" }],
+            {
+                "element-templates": [
+                    "element-templates/a.json",
+                    "element-templates/legacy/old.json",
+                ],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "element-templates", include: ["*.json"] }];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/element-templates/a.json`,
+        ]);
+    });
+
+    it("shows each template once after the sources are reordered", async () => {
+        const { service, upstream, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            {
+                one: ["one/a.json"],
+                two: ["two/b.json"],
+            },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "two" }, { path: "one" }];
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/two/b.json`,
+            `${SLOT}/1/element-templates/one/a.json`,
+        ]);
+    });
+
+    it("keeps a source's last good templates when its fetch fails", async () => {
+        const { service, upstream, notifier, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            { one: ["one/a.json"], two: ["two/b.json"] },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.unreachablePaths.add("two");
+        await service.updateAll();
+
+        expect(await cachedTemplatePaths()).toEqual([
+            `${SLOT}/0/element-templates/one/a.json`,
+            `${SLOT}/1/element-templates/two/b.json`,
+        ]);
+        expect(notifier.logged("warning")).toContainEqual(expect.stringContaining("offline"));
+    });
+
+    it("keeps a source's last good templates when it lists an unsafe path", async () => {
+        const { service, upstream, workspace, notifier } = changingMarketplace([{ path: "one" }], {
+            one: ["one/a.json"],
+        });
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.listings.one = ["one/new.json", "../../escape.json"];
+        await service.updateAll();
+
+        expect(workspace.files).toEqual(
+            new Map([[`${SLOT}/0/element-templates/one/a.json`, '{"from":"one/a.json"}']]),
+        );
+        expect(notifier.logged("warning")).toContainEqual(
+            expect.stringContaining("unsafe template path"),
+        );
+    });
+});
