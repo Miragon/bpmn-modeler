@@ -14,7 +14,7 @@ import { contentFingerprint } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { CamundaEnginePort } from "../domain/ports";
-import { FetchHttpClient } from "../infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";

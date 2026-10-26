@@ -1,9 +1,4 @@
-import {
-    HttpClient,
-    HttpResponse,
-    HttpTransportError,
-    loggableHost,
-} from "../../kernel/domain/http";
+import { HttpClient, HttpResponse, HttpTransportError, loggableHost } from "../domain/http";
 
 /**
  * {@link HttpClient} implementation backed by `globalThis.fetch`.

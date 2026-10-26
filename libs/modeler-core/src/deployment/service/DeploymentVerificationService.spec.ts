@@ -17,7 +17,7 @@ import { DeploymentTarget, parseDeploymentTargetsFile } from "../domain/deployme
 import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import { EngineInspectionPort } from "../domain/ports";
-import { FetchHttpClient } from "../infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";

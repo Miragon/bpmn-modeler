@@ -9,6 +9,7 @@
 
 // ── kernel ───────────────────────────────────────────────────────────────────
 export * from "./kernel/domain/http";
+export * from "./kernel/infrastructure/FetchHttpClient";
 
 // ── shared: domain ──────────────────────────────────────────────────────────
 export * from "./shared/domain/affectedItems";
@@ -123,7 +124,6 @@ export * from "./deployment/service/DeploymentVerificationService";
 export * from "./deployment/service/DeploymentMessageDispatcher";
 export * from "./deployment/session/DeploymentStatusParticipant";
 export * from "./deployment/DeploymentFeature";
-export * from "./deployment/infrastructure/FetchHttpClient";
 export * from "./deployment/infrastructure/camunda/AuthHeaderResolver";
 export * from "./deployment/infrastructure/camunda/Camunda7RestClient";
 export * from "./deployment/infrastructure/camunda/Camunda8RestClient";

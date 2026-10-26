@@ -23,7 +23,7 @@ import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver"
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
 import { Camunda8RestClient } from "./infrastructure/camunda/Camunda8RestClient";
 import { CamundaEngineRouter } from "./infrastructure/camunda/CamundaEngineRouter";
-import { FetchHttpClient } from "./infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../kernel/infrastructure/FetchHttpClient";
 import { CredentialApprovalService } from "./service/CredentialApprovalService";
 import { DeployActiveDiagramService } from "./service/DeployActiveDiagramService";
 import { DeployFilesService } from "./service/DeployFilesService";

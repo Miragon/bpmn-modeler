@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { HttpResponse, HttpTransportError } from "../../kernel/domain/http";
+import { HttpResponse, HttpTransportError } from "../domain/http";
 import { FetchHttpClient } from "./FetchHttpClient";
 
 type FetchHttpClientCall = (client: FetchHttpClient, url: string) => Promise<HttpResponse>;

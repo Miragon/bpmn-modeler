@@ -58,14 +58,6 @@ const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
     },
 ];
 
-const CROSS_FEATURE_EXCEPTIONS: readonly KnownException[] = [
-    {
-        from: "template-marketplace",
-        to: "deployment/infrastructure/FetchHttpClient.ts",
-        until: "#1828 moves HttpClient, with its fetch adapter, into the kernel",
-    },
-];
-
 const SERVICE_INFRASTRUCTURE_EXCEPTIONS: readonly KnownException[] = [
     {
         from: "*",
@@ -389,7 +381,7 @@ const LAYER_RULES = [
     {
         rule: "a feature reaches another feature only through shared/ or kernel/",
         violations: crossFeatureViolations,
-        exceptions: CROSS_FEATURE_EXCEPTIONS,
+        exceptions: [],
     },
     {
         rule: "kernel/ imports nothing outside kernel/",
@@ -598,8 +590,8 @@ describe("host reach", () => {
     it("marks every file that reaches a host module through relative imports", () => {
         const reaching = hostReachingFiles(
             new Map([
-                ["deployment/infrastructure/FetchHttpClient.ts", ["node:http"]],
-                ["deployment/DeploymentFeature.ts", ["./infrastructure/FetchHttpClient"]],
+                ["kernel/infrastructure/FetchHttpClient.ts", ["node:http"]],
+                ["deployment/DeploymentFeature.ts", ["../kernel/infrastructure/FetchHttpClient"]],
                 ["index.ts", ["./deployment/DeploymentFeature"]],
                 ["deployment/domain/envRef.ts", ["path"]],
             ]),
@@ -607,8 +599,8 @@ describe("host reach", () => {
 
         expect([...reaching].sort()).toEqual([
             "deployment/DeploymentFeature.ts",
-            "deployment/infrastructure/FetchHttpClient.ts",
             "index.ts",
+            "kernel/infrastructure/FetchHttpClient.ts",
         ]);
     });
 });

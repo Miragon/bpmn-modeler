@@ -1,7 +1,7 @@
 import { join } from "path";
 
 import { HttpClient } from "../kernel/domain/http";
-import { FetchHttpClient } from "../deployment/infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../kernel/infrastructure/FetchHttpClient";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../shared/domain/hostPorts";
 import { expandHomePath } from "./domain/marketplace";
 import {
