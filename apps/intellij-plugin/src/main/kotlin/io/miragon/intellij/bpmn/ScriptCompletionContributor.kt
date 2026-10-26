@@ -147,20 +147,15 @@ class ScriptCompletionContributor : CompletionContributor() {
 
         /**
          * Process variable as a variable-icon lookup: typeHint (or a generic
-         * label) right, doc greyed. An authored manifest variable leads with its
-         * [VariableInfo.description]; otherwise the heuristic [VariableInfo.origin]
-         * is shown. Seeded via `create(variable, variable.name)` so
-         * `LookupElement.getObject()` returns the [VariableInfo] for
-         * [ScriptDocumentationProvider]'s quick-doc pane.
+         * label) right, the heuristic [VariableInfo.origin] greyed. Seeded via
+         * `create(variable, variable.name)` so `LookupElement.getObject()` returns
+         * the [VariableInfo] for [ScriptDocumentationProvider]'s quick-doc pane.
          */
         private fun variableLookup(variable: VariableInfo) =
             LookupElementBuilder.create(variable, variable.name)
                 .withIcon(AllIcons.Nodes.Variable)
                 .withTypeText(variable.typeHint ?: "process variable")
-                .appendTailText(
-                    (variable.description ?: variable.origin)?.let { "  $it" }.orEmpty(),
-                    true,
-                )
+                .appendTailText(variable.origin?.let { "  $it" }.orEmpty(), true)
 
         /**
          * Method as a method-icon lookup: `name`, `(params)` tail, return type on

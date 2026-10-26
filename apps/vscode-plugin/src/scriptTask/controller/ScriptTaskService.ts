@@ -555,9 +555,9 @@ export class ScriptTaskService {
     /**
      * Maps an open script URI path back to its owning BPMN editor id, or
      * `undefined` if no script is tracked at that path. Doubles as the "is
-     * this one of ours" guard for the completion provider and code action —
-     * their `tmp/scripting` glob selector is a heuristic that any same-named
-     * user directory could satisfy, whereas this map is exact.
+     * this one of ours" guard for the completion provider — its
+     * `tmp/scripting` glob selector is a heuristic that any same-named user
+     * directory could satisfy, whereas this map is exact.
      */
     getEditorIdForScriptUri(uriPath: string): string | undefined {
         return this.openDocuments.get(uriPath)?.editorId;

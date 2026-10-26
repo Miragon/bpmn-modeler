@@ -70,7 +70,7 @@ lint/tsc globs never touch the Kotlin sources.
 | `copyWebview` | `dist/webview-staging/bpmn-webview/` | `/webview/…` |
 | `copyDeploymentWebview` | `dist/webview-staging/deployment-webview/` | deployment webview |
 | `copyBridge` | `apps/modeler-bridge/dist/modeler-bridge` | `/bin/<os>-<arch>/modeler-bridge` |
-| `copySchema` | `libs/shared/src/lib/variableManifest.schema.json`, `libs/shared/src/lib/deploymentTargets.schema.json` | `*.bpmn.vars.json` + `deployment-targets.json` schemas |
+| `copySchema` | `libs/shared/src/lib/deploymentTargets.schema.json` | `deployment-targets.json` schema |
 
 Each task has a `doFirst` that throws a `GradleException` naming the exact yarn
 command if its source is missing. Release builds pass `-PbundleAllPlatforms` to
@@ -158,7 +158,7 @@ synchronous port, follow the checklist in `host-replicated-state.md`.
 | `documentationProvider`, `daemon.highlightInfoFilter` | script-tab support |
 | `toolWindow` | `Miragon Deployment` → `DeploymentToolWindowFactory` |
 
-Groovy (script tab) and JSON (vars schema) support are optional dependencies
+Groovy (script tab) and JSON (deployment-targets schema) support are optional dependencies
 loaded via config-file (`modeler-groovy.xml` / `modeler-json.xml`) only when
 those platform modules are present.
 

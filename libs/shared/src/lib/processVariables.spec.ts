@@ -294,28 +294,23 @@ describe("dedupeVariables", () => {
         expect(deduped[0].typeHint).toBe("String");
     });
 
-    it("lets an authored entry win over a declared one regardless of order", () => {
-        const authored = {
-            name: "x",
-            origin: "declared in foo.bpmn.vars.json",
-            typeHint: "Boolean",
-            confidence: "authored" as const,
-        };
+    it("lets a declared entry win over a referenced one regardless of order", () => {
         const declared = { name: "x", origin: "form field", confidence: "declared" as const };
+        const referenced = { name: "x", origin: "condition", confidence: "referenced" as const };
 
-        expect(dedupeVariables([authored, declared])[0]).toEqual(authored);
-        expect(dedupeVariables([declared, authored])[0]).toEqual(authored);
+        expect(dedupeVariables([declared, referenced])).toEqual([declared]);
+        expect(dedupeVariables([referenced, declared])).toEqual([declared]);
     });
 
-    it("lets an authored entry win even when it has no type and the rival is typed", () => {
-        const authored = { name: "x", origin: "manifest", confidence: "authored" as const };
-        const declaredTyped = {
+    it("lets a declared entry win even when it has no type and the rival is typed", () => {
+        const declared = { name: "x", origin: "form field", confidence: "declared" as const };
+        const referencedTyped = {
             name: "x",
-            origin: "form field",
+            origin: "condition",
             typeHint: "String",
-            confidence: "declared" as const,
+            confidence: "referenced" as const,
         };
 
-        expect(dedupeVariables([declaredTyped, authored])[0]).toEqual(authored);
+        expect(dedupeVariables([referencedTyped, declared])).toEqual([declared]);
     });
 });

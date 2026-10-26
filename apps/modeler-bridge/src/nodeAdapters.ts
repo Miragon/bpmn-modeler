@@ -231,10 +231,10 @@ export class NodeWorkspace implements WorkspacePort {
     /**
      * @throws {FileNotFound} on `ENOENT`. The {@link WorkspacePort.readFile}
      *   contract is "throw FileNotFound when absent" (VsCodeWorkspace already
-     *   does, via `Uri.file`), and callers like `ScriptVariableManifestService`
-     *   catch it (via `instanceof`) to mean "no manifest, use defaults". A raw
-     *   ENOENT would slip that guard and rethrow — mirror the `readDirectory`
-     *   precedent above so the class identity survives bundling.
+     *   does, via `Uri.file`), and callers catch it (via `instanceof`) to mean
+     *   "absent, use defaults". A raw ENOENT would slip that guard and rethrow —
+     *   mirror the `readDirectory` precedent above so the class identity
+     *   survives bundling.
      */
     async readFile(path: string): Promise<string> {
         try {

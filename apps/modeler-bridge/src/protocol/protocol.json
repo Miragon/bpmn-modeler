@@ -133,15 +133,6 @@
         ]
     },
     {
-        "method": "script/appendToManifest",
-        "direction": "hostToCore",
-        "kind": "notification",
-        "paramKeys": [
-            "name",
-            "scriptId"
-        ]
-    },
-    {
         "method": "script/openAll",
         "direction": "hostToCore",
         "kind": "notification",

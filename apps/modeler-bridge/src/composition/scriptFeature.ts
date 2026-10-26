@@ -11,14 +11,12 @@ import {
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
     scriptBatchSummary,
-    ScriptVariableManifestService,
     TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
 import { METHODS } from "../protocol/descriptor";
 import {
-    ScriptAppendToManifestParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
     ScriptDidOpenExternalParams,
@@ -27,8 +25,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
  * The inline-script-editor feature owns the {@link BridgeScriptEditor}
- * orchestrator. Its session participant loads the variable manifest and closes
- * the editor's open script tabs on dispose.
+ * orchestrator. Its session participant closes the editor's open script tabs on
+ * dispose.
  *
  * Webview messages: OpenScriptEditorCommand, UpdateScriptVariablesCommand,
  * OpenScriptEditorsCommand (bulk "generate script files" reply).
@@ -40,18 +38,12 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
     // in-core service — the VS Code original was never extracted (its guts are
     // VS Code-specific accidental complexity) — so the portable slice lives here
     // and the Kotlin host is a dumb editor surface keyed by an opaque scriptId.
-    const manifestSvc = new ScriptVariableManifestService(
-        deps.nodeWorkspace,
-        deps.settings,
-        deps.artifactSvc,
-    );
     const scriptEditor = new BridgeScriptEditor(
         deps.store,
         deps.picker,
         deps.rpc,
         deps.notifier,
         deps.settings,
-        manifestSvc,
         deps.nodeWorkspace,
         deps.artifactSvc,
     );
@@ -151,46 +143,9 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         }
     });
 
-    // The host's "Declare in variable manifest" intention → scaffold the entry in
-    // the diagram's manifest and reveal it. Fire-and-forget; the manifest watcher
-    // re-pushes completion on the resulting write.
-    deps.rpc.on(METHODS.scriptAppendToManifest, (params: ScriptAppendToManifestParams) => {
-        void scriptEditor.appendToManifest(params.scriptId, {
-            name: params.name,
-            type: params.type,
-            description: params.description,
-        });
-    });
-
-    // Load the manifest and arm its watcher so authored variables merge into
-    // completion and refresh live. A diff pane has no manifest on disk; the
-    // manifest service speaks fs paths.
     const scriptSession: EditorSessionParticipant = {
-        async onResolve(session: EditorSessionContext) {
-            const handle = deps.store.requireHandle(session.editorId);
-            let manifestWatcher: { dispose(): void } | undefined;
-            const refreshManifest = async (): Promise<void> => {
-                if (handle.documentScheme() !== "file") return;
-                manifestWatcher?.dispose();
-                manifestWatcher = undefined;
-                await scriptEditor.loadManifest(session.editorId, handle.documentFsPath());
-                const watcher = await scriptEditor.watchManifest(
-                    session.editorId,
-                    handle.documentFsPath(),
-                );
-                if (!session.isCurrent()) {
-                    watcher.dispose();
-                    return;
-                }
-                manifestWatcher = watcher;
-            };
-            // Close any script tabs this editor opened and stop watching its manifest.
-            session.onDispose(() => {
-                manifestWatcher?.dispose();
-                scriptEditor.disposeEditor(session.editorId);
-            });
-            session.onReseed(refreshManifest);
-            await refreshManifest();
+        onResolve(session: EditorSessionContext) {
+            session.onDispose(() => scriptEditor.disposeEditor(session.editorId));
         },
     };
 

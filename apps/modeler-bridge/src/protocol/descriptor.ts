@@ -67,7 +67,6 @@ import {
     SecretSaveBasicAuthParams,
     SecretSaveOAuth2Params,
     StatusBarDeploymentTargetParams,
-    ScriptAppendToManifestParams,
     ScriptCloseNotifyParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
@@ -113,7 +112,6 @@ export const METHODS = {
     deploymentOpen: "deployment/open",
     scriptDidChange: "script/didChange",
     scriptDidClose: "script/didClose",
-    scriptAppendToManifest: "script/appendToManifest",
     scriptOpenAll: "script/openAll",
     scriptDidOpenExternal: "script/didOpenExternal",
     marketplaceAdd: "marketplace/add",
@@ -306,15 +304,6 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseParams,
-    },
-    {
-        method: METHODS.scriptAppendToManifest,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            scriptId: "s1",
-            name: "orderId",
-        } satisfies ScriptAppendToManifestParams,
     },
     {
         method: METHODS.scriptOpenAll,
