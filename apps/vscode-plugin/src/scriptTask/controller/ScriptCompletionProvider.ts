@@ -97,9 +97,7 @@ export interface OpenScriptRegistry {
  * without reopening the script.
  */
 export class ScriptCompletionProvider implements CompletionItemProvider {
-    // Languages this provider participates in. Public so the sibling
-    // `ScriptDeclareVariableCodeAction` registers for exactly the same set.
-    static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
+    private static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
     /**
      * Path glob matching script files wherever the base directory resolved to
@@ -107,7 +105,7 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
      * segments are the invariant. A glob can't verify the file is *ours*, so
      * {@link OpenScriptRegistry} is re-checked inside the provider.
      */
-    static readonly PATH_GLOB = "**/tmp/scripting/**";
+    private static readonly PATH_GLOB = "**/tmp/scripting/**";
 
     constructor(
         private readonly store: ScriptVariableStore,

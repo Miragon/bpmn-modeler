@@ -1,14 +1,8 @@
 import { ExtensionContext } from "vscode";
 
-import {
-    ScriptVariableManifestService,
-    ScriptVariableStore,
-    ScriptXmlService,
-} from "@miragon/bpmn-modeler-core";
+import { ScriptVariableStore, ScriptXmlService } from "@miragon/bpmn-modeler-core";
 import { ScriptFileStore } from "../scriptTask/infrastructure/ScriptFileStore";
 import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptCompletionProvider";
-import { ScriptDeclareVariableCodeAction } from "../scriptTask/controller/ScriptDeclareVariableCodeAction";
-import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { ScriptTaskCommandController } from "../scriptTask/controller/ScriptTaskCommandController";
 import { SharedDeps } from "./sharedDeps";
@@ -16,10 +10,9 @@ import { SharedDeps } from "./sharedDeps";
 /**
  * The inline-script-editor feature owns the on-disk script store under
  * `<configFolder>/tmp/scripting/`, the task service, the completion provider,
- * and the process-variable store. `scriptTaskSvc`, `scriptVariableStore`, and
- * `scriptManifestParticipant` are returned because the editor feature wires
- * them into the BPMN router, the teardown participant, and the session
- * participant list.
+ * and the process-variable store. `scriptTaskSvc` and `scriptVariableStore` are
+ * returned because the editor feature wires them into the BPMN router and the
+ * teardown participant.
  */
 export function register(
     context: ExtensionContext,
@@ -27,7 +20,6 @@ export function register(
 ): {
     scriptTaskSvc: ScriptTaskService;
     scriptVariableStore: ScriptVariableStore;
-    scriptManifestParticipant: ScriptManifestParticipant;
 } {
     const scriptFiles = new ScriptFileStore(deps.vsWorkspace, deps.vsSettings, deps.artifactSvc);
 
@@ -54,26 +46,5 @@ export function register(
         context,
     );
 
-    // One manifest service feeds both the read path (the participant loads/watches
-    // it into the store) and the write path (the code action scaffolds entries).
-    const manifestSvc = new ScriptVariableManifestService(
-        deps.vsWorkspace,
-        deps.vsSettings,
-        deps.artifactSvc,
-    );
-
-    new ScriptDeclareVariableCodeAction(
-        scriptTaskSvc,
-        scriptVariableStore,
-        manifestSvc,
-        deps.notifier,
-    ).register(context);
-
-    const scriptManifestParticipant = new ScriptManifestParticipant(
-        manifestSvc,
-        scriptVariableStore,
-        deps.notifier,
-    );
-
-    return { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant };
+    return { scriptTaskSvc, scriptVariableStore };
 }

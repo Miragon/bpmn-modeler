@@ -13,10 +13,9 @@ import {
  * Filesystem home of the on-disk inline scripts.
  *
  * Resolves where a script file lives (`<workspaceRoot>/<configFolder>/tmp/
- * scripting/…`, mirroring where the vars manifests already resolve to) and
- * owns the disk hygiene transient real files require: a `.gitignore` so
- * scripts can't land in version control, and a one-shot sweep per base
- * directory for files orphaned by a crashed or killed window.
+ * scripting/…`) and owns the disk hygiene transient real files require: a
+ * `.gitignore` so scripts can't land in version control, and a one-shot sweep
+ * per base directory for files orphaned by a crashed or killed window.
  *
  * Kept apart from {@link ScriptTaskService} so the service stays a pure
  * editor-lifecycle orchestrator and tests can stub the disk with a map.
@@ -41,11 +40,11 @@ export class ScriptFileStore {
      *
      * `ArtifactService.getWorkspaceRoot` already degrades gracefully
      * (workspace folder → git root → document directory), so a diagram outside
-     * every workspace folder still gets a config-folder-relative home — the
-     * same one its vars manifest would resolve to. Only a document whose id
-     * cannot be mapped to a directory at all (non-file scheme) falls back to
-     * the OS temp dir; the path keeps the `tmp/scripting` marker segments so
-     * completion-provider selectors and `parseScriptPath` still match.
+     * every workspace folder still gets a config-folder-relative home. Only a
+     * document whose id cannot be mapped to a directory at all (non-file
+     * scheme) falls back to the OS temp dir; the path keeps the `tmp/scripting`
+     * marker segments so completion-provider selectors and `parseScriptPath`
+     * still match.
      */
     async resolveBaseDir(editorId: string): Promise<string> {
         try {

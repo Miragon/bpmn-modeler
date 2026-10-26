@@ -139,10 +139,6 @@
         ],
         "jsonValidation": [
             {
-                "fileMatch": "*.bpmn.vars.json",
-                "url": "./schemas/bpmn-vars.schema.json"
-            },
-            {
                 "fileMatch": "**/*.form",
                 "url": "./schemas/form.schema.json"
             },

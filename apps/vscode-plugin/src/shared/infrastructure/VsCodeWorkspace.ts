@@ -85,9 +85,8 @@ export class VsCodeWorkspace implements WorkspacePort {
     /**
      * Reads a file as a UTF-8 string. Throws {@link FileNotFound} only when the
      * file is absent; any other fs failure (permission denied, target is a
-     * directory, …) propagates unchanged so callers can surface it —
-     * `ScriptVariableManifestService` relies on this to distinguish "no manifest"
-     * from "manifest unreadable" (mirrors `NodeWorkspace.readFile`).
+     * directory, …) propagates unchanged so callers can tell "absent" from
+     * "unreadable" and surface the latter (mirrors `NodeWorkspace.readFile`).
      */
     async readFile(path: string): Promise<string> {
         try {
