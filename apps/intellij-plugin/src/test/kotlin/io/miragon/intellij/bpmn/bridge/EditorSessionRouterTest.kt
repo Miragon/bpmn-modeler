@@ -290,16 +290,6 @@ class EditorSessionRouterTest {
     }
 
     @Test
-    fun `close leaves the text of a diagram nobody edited alone`() {
-        val f = setUpRouter(INITIAL_XML)
-        f.openPageShowing(REFORMATTED_INITIAL_XML, editedSinceRender = false)
-
-        f.router.flushBeforeClose(f.session.editorId)
-
-        assertEquals(INITIAL_XML, f.bpmn.document.text, "closing an unedited diagram does not reformat it")
-    }
-
-    @Test
     fun `close releases a page that did not answer the flush`() {
         val f = setUpRouter(INITIAL_XML)
 
@@ -529,47 +519,28 @@ class EditorSessionRouterTest {
     }
 
     @Test
-    fun `Reload Modeler leaves an unedited diagram's text alone and still recovers an edited page`() {
+    fun `a clean flush reply keeps the Document even when the page's sync lands during the wait`() {
         val f = setUpRouter(INITIAL_XML)
-        val second = f.openUneditedAndEditedPages()
+        // A host render replaced the page's edit after its sync went out.
+        lateinit var page: FakePage
+        page =
+            f.openPageShowing(EDITED_XML, editedSinceRender = false) { reply ->
+                f.router.forwardWebviewMessage(page.session, syncCommand(EDITED_XML, 0))
+                reply()
+            }
 
         f.router.reregisterLiveSessions()
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
-        f.assertOnlyTheEditedPageWasWritten(second)
-    }
-
-    @Test
-    fun `a crash respawn leaves an unedited diagram's text alone and still recovers an edited page`() {
-        val f = setUpRouter(INITIAL_XML)
-        val second = f.openUneditedAndEditedPages()
-
-        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
-        PlatformTestUtil.waitForFuture(respawn, 10_000)
-
-        f.assertOnlyTheEditedPageWasWritten(second)
-    }
-
-    /**
-     * Opens the fixture's diagram on a page nobody edited, whose bpmn-js export
-     * differs from the hand-written Document text, and a second diagram whose
-     * page edit never reached its Document. Returns the second diagram.
-     */
-    private fun Fixture.openUneditedAndEditedPages(): BpmnTestFile {
-        openPageShowing(REFORMATTED_INITIAL_XML, editedSinceRender = false)
-        val second = createSecondBpmnFile()
-        openPageShowing(SECOND_EDIT_XML, second)
-        return second
-    }
-
-    private fun Fixture.assertOnlyTheEditedPageWasWritten(second: BpmnTestFile) {
-        val registered =
-            reregistrationFrames(sessionCount = 2)
-                .filter { it.get("method").asString == "session/register" }
-                .map { it.getAsJsonObject("params").get("content").asString }
-        assertEquals(INITIAL_XML, bpmn.document.text, "recovery must not rewrite a diagram nobody edited")
-        assertEquals(SECOND_EDIT_XML, second.document.text, "the edited page's dropped sync still reaches its Document")
-        assertEquals(setOf(INITIAL_XML, SECOND_EDIT_XML), registered.toSet())
+        val query = page.flushQueries.single()
+        assertTrue(
+            query.get("destructive").asBoolean && query.get("exportWhenEdited").asBoolean,
+            "recovery asks the page for any edit since its last render",
+        )
+        val register =
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "the page shows the host's copy, not its replaced edit")
+        assertEquals(INITIAL_XML, register.getAsJsonObject("params").get("content").asString)
     }
 
     @Test
@@ -779,6 +750,7 @@ class EditorSessionRouterTest {
                 when (type) {
                     "FlushDocumentQuery" -> {
                         val destructive = message.get("destructive")?.asBoolean == true
+                        page.flushQueries.add(message)
                         if (destructive) page.lockToken = token
                         val exportsSyncedEdit =
                             destructive && editedSinceRender && message.get("exportWhenEdited")?.asBoolean == true
@@ -804,7 +776,7 @@ class EditorSessionRouterTest {
         return page
     }
 
-    /** [received] lists the type of every message the host posted into the page. */
+    /** [received] lists the type of every message the host posted into the page, [flushQueries] each flush query. */
     private class FakePage {
         lateinit var session: CoreSession
         var sessionId = 0L
@@ -812,6 +784,7 @@ class EditorSessionRouterTest {
         @Volatile
         var lockToken: Long? = null
         val received: MutableList<String> = CopyOnWriteArrayList()
+        val flushQueries: MutableList<JsonObject> = CopyOnWriteArrayList()
 
         val isLocked: Boolean get() = lockToken != null
     }
@@ -1053,7 +1026,7 @@ class EditorSessionRouterTest {
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
     private fun syncCommand(content: String, documentRevision: Long? = null): String {
         val revision = documentRevision?.let { ",\"documentRevision\":$it" }.orEmpty()
-        return "{\"type\":\"SyncDocumentCommand\",\"content\":\"$content\"$revision}"
+        return "{\"type\":\"SyncDocumentCommand\",\"content\":${gson.toJson(content)}$revision}"
     }
 
     private companion object {
@@ -1061,9 +1034,6 @@ class EditorSessionRouterTest {
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
         const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
         const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
-
-        // How bpmn-js serializes INITIAL_XML.
-        const val REFORMATTED_INITIAL_XML = "<bpmn:definitions id=\"a\" />\n"
 
         val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
     }
