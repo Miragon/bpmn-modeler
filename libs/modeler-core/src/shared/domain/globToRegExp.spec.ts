@@ -50,4 +50,17 @@ describe("globToRegExp", () => {
             expect(globToRegExp(glob).test(path)).toBe(matches);
         },
     );
+
+    it.each([
+        ["**/*.{java,kt,groovy,scala,js,ts}", "/work/src/main/kotlin/Charge.kt"],
+        ["**/*", "/work/src/Charge.java"],
+        ["**/*.bpmn", "/work/processes/order.bpmn"],
+        ["**/*.bpmn", "C:/work/order.bpmn"],
+        ["**/*.form", "/work/forms/order.form"],
+        ["**/.bpmnlintrc", "/work/.bpmnlintrc"],
+        ["**/.camunda/element-templates/**", "/work/.camunda/element-templates/mail.json"],
+        ["**/.camunda/vars/order.bpmn.vars.json", "/work/.camunda/vars/order.bpmn.vars.json"],
+    ])("matches the absolute path a file watcher reports for %s", (glob, absolutePath) => {
+        expect(globToRegExp(glob).test(absolutePath)).toBe(true);
+    });
 });

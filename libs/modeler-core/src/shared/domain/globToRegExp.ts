@@ -6,20 +6,24 @@ function escapeRegExpLiteral(literal: string): string {
  * Compiles a workspace glob into a path-matching `RegExp`, for hosts whose file
  * APIs cannot match the glob themselves.
  *
- * Supports the operators the core's globs use: a double-star (across path
- * segments, with a trailing slash swallowed so a leading double-star also
- * matches at the root), single `*` / `?` within one segment, and `{a,b,c}` brace
- * alternation — the code-link source glob (extensions `{java,kt,…}`) needs the
- * last one.
+ * Supports the operators the core's globs use: a double-star followed by a slash
+ * (zero or more whole path segments, as ripgrep and `fs.glob` match it), a bare
+ * double-star (anything, across segments), single `*` / `?` within one segment,
+ * and `{a,b,c}` brace alternation — the code-link source glob (extensions
+ * `{java,kt,…}`) needs the last one.
  */
 export function globToRegExp(glob: string): RegExp {
     let re = "";
     for (let i = 0; i < glob.length; i++) {
         const c = glob[i];
         if (c === "*" && glob[i + 1] === "*") {
-            re += ".*";
             i++;
-            if (glob[i + 1] === "/") i++;
+            if (glob[i + 1] === "/") {
+                re += "(?:.*/)?";
+                i++;
+            } else {
+                re += ".*";
+            }
         } else if (c === "*") {
             re += "[^/]*";
         } else if (c === "?") {
