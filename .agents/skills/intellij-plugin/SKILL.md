@@ -175,6 +175,8 @@ stopped publishing as a standalone artifact in 2025.3; for 261+ use the unified
 Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **Supervisor / composition root**: `CoreProcess.kt`; warmup `BridgeWarmupActivity.kt`
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
+- **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
+  inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`
 - **Display/secret ports**: `HostNotifications.kt`, `EngineStatusBarWidget(Factory).kt`, `IntellijSecretStore.kt`
 - **Deployment**: `DeploymentToolWindowFactory.kt`, `IntellijDeploymentState.kt`

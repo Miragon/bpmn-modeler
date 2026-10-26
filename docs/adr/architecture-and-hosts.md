@@ -146,10 +146,30 @@ The BPMN webview ships an `index.js` entry, one `index.css` and lazily loaded
 `chunks/**` that resolve relative to the entry (`base: "./"`), so every host
 serves the whole bundle directory. VS Code and the standalone app copy it into
 the extension; IntelliJ syncs it into plugin resources and serves any path
-below it from the loopback asset server. The BPMN shells set no CSP. One added
-later must allow the bundle origin (`webview.cspSource`) in `script-src` and
-`style-src` rather than rely on the entry's nonce alone, because the chunk
-loader injects preload links.
+below it from the loopback asset server.
+
+Every BPMN, DMN, form and deployment shell sends a Content-Security-Policy with
+`default-src 'none'`, so injected markup cannot run script with the host
+message channel. Each policy allows only what its bundle needs:
+
+- `script-src` allows the entry by nonce plus the bundle origin
+  (`webview.cspSource` in VS Code, `'self'` in IntelliJ), because the chunk
+  loader's modulepreload links carry no nonce. No `'unsafe-eval'`: nothing in
+  the bundles compiles strings at runtime.
+- `style-src` keeps `'unsafe-inline'`: diagram-js, the properties panel and
+  CodeMirror set style attributes and inject `<style>` elements without a nonce.
+- `img-src` allows `data:`, and for BPMN also `https:`, because element-template
+  icons may be either. There is no `connect-src`, so a copy-as-PNG of a remote
+  `.svg` icon renders without that icon.
+- `font-src` allows `data:` for the embedded diagram fonts.
+
+VS Code and the standalone app set the policy as a `<meta>` tag, because Theia
+injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
+each editor's bundle directory. IntelliJ sends it as a response header from
+`WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
+hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
+it relies on `'unsafe-inline'`. A loader for user-supplied bpmn-io plugins must
+widen these policies on purpose rather than depend on a gap in them.
 
 Camunda Forms use a dedicated form-js webview and `.form` custom editor inside
 the existing VS Code extension. Forms share the modeling workflow, host

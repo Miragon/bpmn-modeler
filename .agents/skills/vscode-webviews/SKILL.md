@@ -17,7 +17,7 @@ Webview HTML is generated at runtime by functions in the infrastructure layer, n
 
 1. **Asset URI resolution** — Webview files are built by Vite and bundled into `dist/apps/vscode-plugin/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
 
-2. **Nonce generation** — A random nonce is generated per HTML render and set on the script tag. The BPMN/DMN shells currently set no CSP, so the nonce is not enforced there (see below).
+2. **Nonce generation** — A random nonce is generated per HTML render, set on the entry script and listed in the shell's CSP (see below).
 
 3. **Theme** — Both webviews theme **per-instance**: the theme CSS ships inside the main `index.css` bundle and a shared host adapter (`libs/shared/src/lib/hostTheme.ts`) sets a per-package scope attribute (`data-bpmn-theme` / `data-dmn-theme`) from the VS Code body classes — no `#theme-link`. See [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN).
 
@@ -34,29 +34,33 @@ section in AGENTS.md).
 
 ## Content Security Policy (CSP)
 
-The form and deployment shells define a strict CSP in a `<meta>` tag. The
-BPMN and DMN shells (`bpmnEditorUi`, `dmnModelerHtml`) currently set **none**.
-If you add one to the BPMN shell, `script-src` and `style-src` must include
-`${webview.cspSource}`: the bundle lazy-loads `chunks/**` relative to
-`index.js`, and the chunk loader injects preload links that do not carry the
-entry's nonce. A nonce-only `script-src` breaks View/Design/Implement.
-
-The strict variant looks like this:
+Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag, and
+`bootstrapWebview` limits `localResourceRoots` to the editor's bundle directory
+(DMN also gets `assets/` for `reset.css`). `WebviewHtml.spec.ts` pins each
+policy; widen it there and in the shell together. The BPMN policy:
 
 ```html
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'none';
+    script-src 'nonce-${nonce}' ${webview.cspSource};
     style-src ${webview.cspSource} 'unsafe-inline';
-    img-src ${webview.cspSource};
-    script-src 'nonce-${nonce}';
-    font-src ${webview.cspSource};">
+    img-src ${webview.cspSource} data: https:;
+    font-src ${webview.cspSource} data:;
+    base-uri 'none'; form-action 'none';">
 ```
 
-Key restrictions:
-- `default-src 'none'` — blocks everything not explicitly allowed
-- `script-src 'nonce-${nonce}'` — only scripts with the generated nonce can run (no inline scripts, no `eval`)
-- `style-src ... 'unsafe-inline'` — allows inline styles (required by bpmn-js for diagram rendering)
-- `${webview.cspSource}` — VS Code's resource origin for loading extension assets
+- `script-src` must include `${webview.cspSource}`: the bundle lazy-loads
+  `chunks/**` relative to `index.js`, and the chunk loader's modulepreload links
+  carry no nonce. A nonce-only `script-src` breaks View/Design/Implement.
+- `style-src 'unsafe-inline'` — diagram-js, the properties panel and CodeMirror
+  set style attributes and inject `<style>` elements.
+- `img-src data: https:` — element-template icons are `data:` URIs or remote
+  URLs (DMN has no templates and omits `https:`).
+- No `'unsafe-eval'`, workers or `connect-src`: the bundles need none.
+
+The VS Code smoke test (`test:vscode:docker`) fails on any CSP console message
+from a webview; check it after adding a dependency that injects scripts,
+styles, images or fonts.
 
 ## Message Protocol
 

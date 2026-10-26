@@ -40,12 +40,15 @@ export function bpmnEditorUi(
     // The script must load as a module: the bundle code-splits its surfaces,
     // engine stacks and the lint stack into chunks whose URLs are resolved via
     // import.meta.url — a syntax error in a classic script. Matches the IntelliJ host.
+    // `script-src` lists `cspSource` besides the nonce because the chunk loader's
+    // modulepreload links carry no nonce.
     return `
         <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="UTF-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data: https:; font-src ${webview.cspSource} data:; base-uri 'none'; form-action 'none';"/>
                 <link href="${styleUri}" rel="stylesheet"/>
                 <title>BPMN Modeler</title>
             </head>
@@ -93,6 +96,7 @@ export function dmnModelerHtml(
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource} data:; base-uri 'none'; form-action 'none';"/>
 
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleUri}" rel="stylesheet" type="text/css" />

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Csp" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.8.0">
+  <bpmn:process id="Process_Csp" name="Csp" isExecutable="true">
+    <bpmn:serviceTask id="Task_DataIcon" name="Data icon" zeebe:modelerTemplate="smoke.dataIcon" zeebe:modelerTemplateVersion="1" zeebe:modelerTemplateIcon="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzBjNmNmMiIvPjwvc3ZnPg==">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="smoke" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=order.customer" target="recipient" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_To_Https</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_HttpsIcon" name="Https icon" zeebe:modelerTemplate="smoke.httpsIcon" zeebe:modelerTemplateVersion="1" zeebe:modelerTemplateIcon="https://icons.invalid/smoke-template.svg">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="smoke" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_To_Https</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Script</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:scriptTask id="Task_Script" name="Sum">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=1 + 1" resultVariable="sum" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_To_Script</bpmn:incoming>
+    </bpmn:scriptTask>
+    <bpmn:sequenceFlow id="Flow_To_Https" sourceRef="Task_DataIcon" targetRef="Task_HttpsIcon" />
+    <bpmn:sequenceFlow id="Flow_To_Script" sourceRef="Task_HttpsIcon" targetRef="Task_Script" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Csp">
+    <bpmndi:BPMNPlane id="Plane_Csp" bpmnElement="Process_Csp">
+      <bpmndi:BPMNShape id="Task_DataIcon_di" bpmnElement="Task_DataIcon">
+        <dc:Bounds x="160" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_HttpsIcon_di" bpmnElement="Task_HttpsIcon">
+        <dc:Bounds x="310" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Script_di" bpmnElement="Task_Script">
+        <dc:Bounds x="460" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_To_Https_di" bpmnElement="Flow_To_Https">
+        <di:waypoint x="260" y="120" />
+        <di:waypoint x="310" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_To_Script_di" bpmnElement="Flow_To_Script">
+        <di:waypoint x="410" y="120" />
+        <di:waypoint x="460" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
