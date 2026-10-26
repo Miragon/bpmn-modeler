@@ -41,6 +41,7 @@ import {
     isWithinRoot,
     joinWorkspacePath,
     NoWorkspaceFolderFoundError,
+    relativeToRoot,
     SettingChange,
     SettingsPort,
     toWorkspacePath,
@@ -260,8 +261,9 @@ export class NodeWorkspace implements WorkspacePort {
 
     /**
      * Watches the workspace root via chokidar, firing the matching handler for
-     * every changed path that matches `glob`, debounced ~50ms to coalesce an
-     * editor's multi-event save burst into one notification per file.
+     * every changed path whose part below the root matches `glob`, as VS Code's
+     * `RelativePattern` does, debounced ~50ms to coalesce an editor's
+     * multi-event save burst into one notification per file.
      *
      * Both watch consumers ride this one adapter: `ArtifactService` arms it with
      * the element-templates glob, and `CodeLinkMapService` with the source glob
@@ -289,6 +291,7 @@ export class NodeWorkspace implements WorkspacePort {
         },
     ): { dispose(): void } {
         const root = withoutFileScheme(rootPath);
+        const watchedRoot = toWorkspacePath(root);
         const matcher = globToRegExp(glob);
 
         // Per-path timers, not one shared timer: the template handler reloads
@@ -304,7 +307,8 @@ export class NodeWorkspace implements WorkspacePort {
             // chokidar emits OS-native paths; the core compares them with
             // `findFiles` results.
             const changed = toWorkspacePath(nativePath);
-            if (!handler || !matcher.test(changed)) {
+            const belowRoot = relativeToRoot(changed, watchedRoot);
+            if (!handler || belowRoot === undefined || !matcher.test(belowRoot)) {
                 return;
             }
             const pending = timers.get(changed);
