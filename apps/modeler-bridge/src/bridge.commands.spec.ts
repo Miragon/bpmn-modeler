@@ -137,11 +137,14 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
         it("writes and reports nothing when the user dismisses the version picker", async () => {
             const { rpc, frames, editorId } = await setupWithOpenEditor();
 
-            void rpc.handleLine(hostNotification("modeler/changeEngineVersion", { editorId }));
+            const command = rpc.handleLine(
+                hostNotification("modeler/changeEngineVersion", { editorId }),
+            );
             const picker = await waitForFrame(frames, isPickerShow);
             const afterPicker = frames.length;
             await rpc.handleLine(hostReply(picker.id, { selected: null }));
-            await settle();
+            // A stray document/write never gets its reply here, so it fails as a timeout.
+            await command;
 
             expect(frames.slice(afterPicker)).toEqual([]);
         });
