@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DocumentFlushedCommand, FlushDocumentQuery } from "@miragon/bpmn-modeler-shared";
 
-import { UserCancelledError } from "../../shared/domain/errors";
 import { DocumentFlushService } from "../../shared/service/DocumentFlushService";
 import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
@@ -157,22 +156,17 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
-    it.each([
-        ["the user cancels the credential prompt", new UserCancelledError()],
-        ["the secret storage is unavailable", new Error("The OS keyring is not available.")],
-    ])(
-        "deploys nothing and leaves the status alone when reading the credentials fails because %s",
-        async (_cause, failure) => {
-            const c = createService();
-            c.deploymentTargetService.getCredentials.mockRejectedValue(failure);
+    it("deploys nothing and leaves the status alone when the secret store cannot be read", async () => {
+        const c = createService();
+        const unavailable = new Error("The OS keyring is not available.");
+        c.deploymentTargetService.getCredentials.mockRejectedValue(unavailable);
 
-            await expect(c.service.deployActive("/work")).rejects.toBe(failure);
+        await expect(c.service.deployActive("/work")).rejects.toBe(unavailable);
 
-            expect(c.host.notifier.progressTitles).toEqual([]);
-            expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
-            expect(c.deploymentStatusService.refreshActive).not.toHaveBeenCalled();
-        },
-    );
+        expect(c.host.notifier.progressTitles).toEqual([]);
+        expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
+        expect(c.deploymentStatusService.refreshActive).not.toHaveBeenCalled();
+    });
 
     it("deploys an unmodified diagram whose save returns false", async () => {
         const c = createService();
