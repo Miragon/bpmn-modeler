@@ -112,6 +112,10 @@ export class InMemoryWorkspace implements WorkspacePort {
         }
     }
 
+    createDirectory(_path: string): void {
+        // Stub: the fake does not model directories yet.
+    }
+
     deleteFile(path: string): void {
         if (this.files.delete(path)) this.notify(path, "onDelete");
     }

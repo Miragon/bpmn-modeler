@@ -60,9 +60,8 @@ describe("BpmnlintParticipant", () => {
     it("re-lints when the .bpmnlintrc changes on disk", async () => {
         const { host, lintSvc, participant } = createServices();
         const editor = await host.openSession(PATH, [participant], { focused: false });
-        const [watcher] = host.workspace.watchers;
 
-        watcher.handlers.onChange?.("/work/.bpmnlintrc");
+        await host.workspace.writeFile("/work/.bpmnlintrc", "{}");
 
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(editor.id);
     });

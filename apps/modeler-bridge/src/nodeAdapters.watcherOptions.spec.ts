@@ -205,3 +205,33 @@ describe("NodeWorkspace path spelling", () => {
         },
     );
 });
+
+describe("NodeWorkspace.createWatcher debounce", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.stubGlobal("process", { ...process, platform: "linux" });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        watchSpy.mockClear();
+        chokidarListeners.clear();
+        vi.unstubAllGlobals();
+    });
+
+    // The macOS watcher reports every new file as an add followed by a change.
+    it("reports a file added and changed within the debounce as created", () => {
+        const received: string[] = [];
+        new NodeWorkspace().createWatcher("/repo", "**/*.java", {
+            onCreate: (path) => received.push(`create ${path}`),
+            onChange: (path) => received.push(`change ${path}`),
+            onDelete: (path) => received.push(`delete ${path}`),
+        });
+
+        chokidarListeners.get("add")?.("/repo/src/A.java");
+        chokidarListeners.get("change")?.("/repo/src/A.java");
+        vi.advanceTimersByTime(50);
+
+        expect(received).toEqual(["create /repo/src/A.java"]);
+    });
+});
