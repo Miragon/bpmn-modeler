@@ -106,6 +106,25 @@ describe("neutral property groups", () => {
             .get("documentation")
             .map((documentation: ModdleElement) => documentation.get("text"));
 
+    const DEFAULT_ON_CHECKBOX_EDITS: EditCase[] = [
+        {
+            label: "ad-hoc cancel remaining instances (default on)",
+            element: "AdHoc",
+            entry: "cancelRemainingInstances",
+            edit: (panel) => panel.toggleCheckbox("cancelRemainingInstances"),
+            read: (byId) => byId.AdHoc.get("cancelRemainingInstances"),
+            expected: false,
+        },
+        {
+            label: "compensation wait for completion (default on)",
+            element: "CompensateEnd",
+            entry: "waitForCompletion",
+            edit: (panel) => panel.toggleCheckbox("waitForCompletion"),
+            read: (byId) => byId.CompensateEnd_Def.get("waitForCompletion"),
+            expected: false,
+        },
+    ];
+
     const EDITS: EditCase[] = [
         {
             label: "name",
@@ -211,22 +230,7 @@ describe("neutral property groups", () => {
             read: (byId) => bodyOf(byId.AdHoc.get("completionCondition")),
             expected: "${done}",
         },
-        {
-            label: "ad-hoc cancel remaining instances (default on)",
-            element: "AdHoc",
-            entry: "cancelRemainingInstances",
-            edit: (panel) => panel.toggleCheckbox("cancelRemainingInstances"),
-            read: (byId) => byId.AdHoc.get("cancelRemainingInstances"),
-            expected: false,
-        },
-        {
-            label: "compensation wait for completion (default on)",
-            element: "CompensateEnd",
-            entry: "waitForCompletion",
-            edit: (panel) => panel.toggleCheckbox("waitForCompletion"),
-            read: (byId) => byId.CompensateEnd_Def.get("waitForCompletion"),
-            expected: false,
-        },
+        ...DEFAULT_ON_CHECKBOX_EDITS,
         {
             label: "compensation activity",
             element: "CompensateEnd",
@@ -280,12 +284,23 @@ describe("neutral property groups", () => {
                 await edit(panel);
 
                 expect(read(panel.elementsById)).toEqual(expected);
-                expect(shownValue(panel, entry)).not.toBe(shownBefore);
 
                 await panel.undo();
 
                 expect(read(panel.elementsById)).toEqual(before);
                 expect(shownValue(panel, entry)).toBe(shownBefore);
+            },
+        );
+
+        // Upstream Checkbox keeps "on" as its local state, so only the elements.changed re-render unchecks it.
+        it.each(DEFAULT_ON_CHECKBOX_EDITS)(
+            "$label shows unchecked right after the edit",
+            async ({ element, entry, edit }) => {
+                const panel = await renderPanel(XML, element);
+
+                await edit(panel);
+
+                expect(panel.control(entry).checked).toBe(false);
             },
         );
     });
