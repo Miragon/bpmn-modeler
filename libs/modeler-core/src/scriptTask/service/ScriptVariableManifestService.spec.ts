@@ -160,18 +160,17 @@ describe("ScriptVariableManifestService", () => {
             });
         });
 
-        it("is a no-op when an entry with that name already exists", async () => {
-            ws.files.set(
-                MANIFEST_PATH,
-                JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
-            );
+        it("leaves the manifest byte-identical and silent when the name is already declared", async () => {
+            const handFormatted = '{ "variables": [ { "name": "orderId", "type": "String" } ] }';
+            ws.files.set(MANIFEST_PATH, handFormatted);
+            const onChange = vi.fn();
+            await service().createWatcher(DOCUMENT, onChange);
 
-            await service().upsert(DOCUMENT, { name: "orderId" });
+            const manifestPath = await service().upsert(DOCUMENT, { name: "orderId" });
 
-            // The existing typed entry must survive untouched (no nameless overwrite).
-            expect(JSON.parse(ws.files.get(MANIFEST_PATH)!)).toEqual({
-                variables: [{ name: "orderId", type: "String" }],
-            });
+            expect(manifestPath).toBe(MANIFEST_PATH);
+            expect(ws.files.get(MANIFEST_PATH)).toBe(handFormatted);
+            expect(onChange).not.toHaveBeenCalled();
         });
 
         it("propagates a parse error rather than clobbering a malformed manifest", async () => {
