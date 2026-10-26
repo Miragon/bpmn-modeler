@@ -278,6 +278,40 @@ describe("deployment target form", () => {
         expect(field("endpoint").value).toBe("https://edited.test");
     });
 
+    it("keeps Save, New and Delete disabled while a saved target reloads", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([target("dev")], "dev"));
+        edit("target-name", "prod");
+        button("target-save").click();
+        c.form.showTargetResult(true, 'Saved deployment target "prod".');
+
+        expect({
+            save: button("target-save").disabled,
+            new: button("target-new").disabled,
+            delete: button("target-delete").disabled,
+        }).toEqual({ save: true, new: true, delete: true });
+        button("target-save").click();
+        button("target-new").click();
+        button("target-delete").click();
+        const targetCommands = c.host.postMessage.mock.calls
+            .map(([message]) => message)
+            .filter((message) =>
+                ["SaveTargetCommand", "CreateTargetCommand", "DeleteTargetCommand"].includes(
+                    message.type,
+                ),
+            );
+        expect(targetCommands).toEqual([
+            expect.objectContaining({ type: "SaveTargetCommand", previousName: "dev" }),
+        ]);
+
+        c.form.setTargets(new DeploymentTargetsQuery([target("prod")], "prod"));
+        expect({
+            save: button("target-save").disabled,
+            new: button("target-new").disabled,
+            delete: button("target-delete").disabled,
+        }).toEqual({ save: true, new: false, delete: false });
+    });
+
     it("disables New while credentials are loading", () => {
         const c = setup();
         c.form.setTargets(
