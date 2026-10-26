@@ -524,10 +524,11 @@ export class GetElementTemplatesCommand extends Command<"GetElementTemplatesComm
 
 /**
  * Sent by the BPMN webview on (re)load to trigger a host lint pass. The host
- * discovers the nearest `.bpmnlintrc`, runs bpmnlint, and answers with
- * {@link BpmnlintResultsQuery}. Hosts that do not implement lint discovery (e.g.
- * the IntelliJ bridge) simply have no handler for it, so linting stays dormant
- * and the webview is unaffected.
+ * (VS Code, or the bridge on IntelliJ) discovers the nearest `.bpmnlintrc` and
+ * answers with {@link BpmnlintInPageQuery} when the webview lints in-page (no
+ * config, or one its bundled rules cover), {@link BpmnlintResultsQuery} when the
+ * host ran bpmnlint itself, or
+ * {@link BpmnLintDisabledQuery} when the user turned linting off.
  */
 export class GetBpmnlintConfigCommand extends Command<"GetBpmnlintConfigCommand"> {
     constructor() {
