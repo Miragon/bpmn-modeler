@@ -1,8 +1,8 @@
 name: CodeQL
 
 on:
+  # No branch filter: a stacked pull request targets the branch below it and still needs this required check.
   pull_request:
-    branches: [ main ]
     types: [ opened, reopened, synchronize ]
   push:
     branches: [ main ]
