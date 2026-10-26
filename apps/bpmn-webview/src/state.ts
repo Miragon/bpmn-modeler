@@ -7,7 +7,6 @@ import {
     Command,
     createWebviewStateStore,
     HostApi,
-    PropertiesPanelHandle,
     PropertiesPanelUiStateAdapter,
     Query,
     type WebviewStateStore,
@@ -31,7 +30,7 @@ type StatefulSurface = Pick<
  * Reads this editor's persisted surface mode without a full
  * {@link WebviewStateManager}. Returns `undefined` when no mode is saved yet
  * (first-ever open), so the caller falls back to the host default; read before
- * surface construction, like the shared `readSavedPanelVisibility`.
+ * surface construction.
  */
 export function readSavedMode(
     host: HostApi<WebviewState, Command | Query>,
@@ -45,9 +44,6 @@ export function readSavedMode(
  * 2. {@link restoreSelection}      — after element templates + settings applied
  * 3. {@link restorePanelUiState}   — after properties panel is rendered
  * 4. {@link startPersisting}       — subscribes to change events
- *
- * Panel visibility is handled out-of-band via {@link restorePanelVisibility}
- * (saved-wins-over-host-default) and {@link persistPanelVisibility}.
  *
  * For mid-session re-imports (undo/redo, XML push, language switch), use
  * {@link captureViewState} / {@link applyViewState} to snapshot and
@@ -112,18 +108,6 @@ export class WebviewStateManager {
         if (saved?.selectedElementIds && saved.selectedElementIds.length > 0) {
             this.modeler.selection.selectElementsByIds(saved.selectedElementIds);
         }
-    }
-
-    /**
-     * This editor's saved visibility wins; only when absent does the caller's
-     * `fallbackVisible` (the host's global default) apply.
-     */
-    restorePanelVisibility(handle: PropertiesPanelHandle, fallbackVisible: boolean): void {
-        this.panelUiState.restorePanelVisibility(handle, fallbackVisible);
-    }
-
-    persistPanelVisibility(visible: boolean): void {
-        this.panelUiState.persistPanelVisibility(visible);
     }
 
     /** Must be called after the resizer has made the panel visible. */
