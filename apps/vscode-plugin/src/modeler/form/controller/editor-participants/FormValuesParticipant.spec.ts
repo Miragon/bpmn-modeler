@@ -1,25 +1,88 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSessionContext } from "../../../../__fixtures__/editorSessionContext";
+import type { ExtensionContext } from "vscode";
+
+import { createTestHost } from "@miragon/bpmn-modeler-core/testing";
+
+vi.mock("vscode", () => import("../../../../__fixtures__/vscodeVirtualDocumentsFake"));
+
+import {
+    commands,
+    renderedTabs,
+    resetVscodeVirtualDocuments,
+} from "../../../../__fixtures__/vscodeVirtualDocumentsFake";
+import {
+    FormValuesController,
+    TOGGLE_FORM_INPUT_VALUES_CMD,
+    TOGGLE_FORM_OUTPUT_VALUES_CMD,
+} from "../FormValuesController";
 import { FormValuesParticipant } from "./FormValuesParticipant";
 
-const EDITOR_ID = "file:///work/order.form";
+const extension: Pick<ExtensionContext, "subscriptions"> = { subscriptions: [] };
+
+function createFormEditors() {
+    const host = createTestHost();
+    const formValues = new FormValuesController(host.store, host.notifier);
+    formValues.register(extension as ExtensionContext);
+    const participant = new FormValuesParticipant(formValues);
+    return {
+        host,
+        open: (path: string) => host.openSession(path, [participant]),
+    };
+}
+
+async function showValuesBesideActiveForm(): Promise<void> {
+    await commands.executeCommand(TOGGLE_FORM_INPUT_VALUES_CMD);
+    await commands.executeCommand(TOGGLE_FORM_OUTPUT_VALUES_CMD);
+}
+
+/** Lets the fire-and-forget retirement on close run to its end. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+beforeEach(() => {
+    resetVscodeVirtualDocuments();
+});
+
+afterEach(() => {
+    extension.subscriptions.splice(0).forEach((subscription) => subscription.dispose());
+});
 
 describe("FormValuesParticipant", () => {
-    it("opens a values session on resolve and retires it only on teardown", () => {
-        const formValues = {
-            registerSession: vi.fn(),
-            disposeSession: vi.fn().mockResolvedValue(undefined),
-        };
-        const { context, captured } = createSessionContext(EDITOR_ID);
+    it("gives an opened form empty input and read-only output values to show beside it", async () => {
+        const forms = createFormEditors();
+        await forms.open("/work/order.form");
 
-        new FormValuesParticipant(formValues as never).onResolve(context);
+        await showValuesBesideActiveForm();
 
-        expect(formValues.registerSession).toHaveBeenCalledWith(EDITOR_ID);
-        expect(formValues.disposeSession).not.toHaveBeenCalled();
+        expect(renderedTabs()).toEqual([
+            { name: "order.input.json", content: "{}", readOnly: false },
+            { name: "order.output.json", content: "{}", readOnly: true },
+        ]);
+    });
 
-        captured.dispose?.();
+    it("closes the form's values tabs when the form closes", async () => {
+        const forms = createFormEditors();
+        const order = await forms.open("/work/order.form");
+        await showValuesBesideActiveForm();
 
-        expect(formValues.disposeSession).toHaveBeenCalledWith(EDITOR_ID);
+        order.dispose();
+        await settle();
+
+        expect(renderedTabs()).toEqual([]);
+    });
+
+    it("leaves another form's values open when one form closes", async () => {
+        const forms = createFormEditors();
+        const order = await forms.open("/work/order.form");
+        await forms.open("/work/invoice.form");
+        await showValuesBesideActiveForm();
+
+        order.dispose();
+        await settle();
+
+        expect(renderedTabs().map((tab) => tab.name)).toEqual([
+            "invoice.input.json",
+            "invoice.output.json",
+        ]);
     });
 });
