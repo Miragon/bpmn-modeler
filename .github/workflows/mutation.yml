@@ -1,0 +1,52 @@
+name: Mutation
+
+on:
+  pull_request:
+    paths:
+      - 'libs/modeler-core/src/**/domain/**'
+      - 'libs/modeler-core/stryker.config.mjs'
+      - '.github/workflows/mutation.yml'
+      - '.github/scripts/mutation-summary.mjs'
+  schedule:
+    - cron: '41 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  modeler-core-domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: libs/modeler-core/reports/mutation/incremental.json
+          key: stryker-modeler-core-${{ github.sha }}
+          restore-keys: stryker-modeler-core-
+      # Pull requests mutate only what changed against the last main run; main re-runs everything.
+      - if: github.event_name == 'pull_request'
+        run: yarn workspace @miragon/bpmn-modeler-core test:mutation
+      - if: github.event_name != 'pull_request'
+        run: yarn workspace @miragon/bpmn-modeler-core test:mutation --force
+      - if: github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: libs/modeler-core/reports/mutation/incremental.json
+          key: stryker-modeler-core-${{ github.sha }}
+      - if: always()
+        run: node .github/scripts/mutation-summary.mjs libs/modeler-core/reports/mutation/mutation.json >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report-modeler-core
+          path: libs/modeler-core/reports/mutation/
+          retention-days: 14

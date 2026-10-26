@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-10-26
 
 ## Context
 
@@ -14,6 +14,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 
 - [Test environments](#test-environments)
 - [Coverage gates](#coverage-gates)
+- [Mutation testing](#mutation-testing)
 - [CI test targets](#ci-test-targets)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
@@ -135,6 +136,41 @@ the report records nothing and the floor fails.
 Coverage options are root-only in a Vitest multi-project run, so the root
 `yarn test` skips coverage; `yarn test:coverage` runs each workspace's `test`
 as CI does.
+
+### Mutation testing
+
+Coverage shows which lines a spec executed, not whether a spec would notice
+them changing. [Stryker](https://stryker-mutator.io/) mutates the pure domain
+rules of `libs/modeler-core` (`src/**/domain/**`) and reports which mutants
+the specs fail to kill. Services are left out on purpose: they orchestrate
+ports over in-memory fakes, mutate slowly and mostly yield equivalent mutants.
+The domain is where rules belong, so its score is the measurable proxy for
+"every rule has a spec that bites".
+
+`@stryker-mutator/core` and `@stryker-mutator/vitest-runner` are declared in
+`libs/modeler-core`, the workspace that runs them, so its focused install and
+knip's Stryker plugin find them. The
+[config](../../libs/modeler-core/stryker.config.mjs) runs the workspace's own
+Vitest config, never the root one, whose browser project the runner does not
+support. It mutates in place because the workspace config imports
+`../../vitest.shared`, which a sandbox copy cannot reach; a local run
+therefore rewrites `src/` until it finishes and restores it from
+`.stryker-tmp/` if interrupted. Static mutants are ignored because module-level
+tables such as `scriptApi.ts` would rerun every spec per mutant. Stryker runs
+Vitest without `--coverage`, so the coverage gates are unaffected. The
+TypeScript checker stays off: its TypeScript 6 compatibility with this
+workspace's `tsconfig.lib.json` is unproven, and the runner works without it.
+
+`corepack yarn test:mutation` runs it; pass `--mutate <file>` to check the
+rules a change touched. The [mutation workflow](../../.github/workflows/mutation.yml)
+is report-only, like the VS Code smoke test, and not part of the required
+`ci` check: it runs every mutant weekly and on demand on `main`, caches
+Stryker's incremental file, and on pull requests that touch a `domain/`
+folder re-tests only the mutants affected by the change. Its step summary
+lists the score per context. Per-context floors follow once two or three
+weekly runs agree, enforced by the summary script because Stryker has only
+one global break threshold. The first baseline (2026-10-26) was 84.5 % over
+2,750 mutants in 46 files.
 
 ### CI test targets
 
@@ -303,3 +339,5 @@ workbench selectors need updating when VS Code changes its DOM. Security
 overrides add a new dependency tree and do not imply that all lower-severity findings have been remediated.
 The compiler transition temporarily retains two TypeScript implementations and
 requires checking both CLI compilation and API-based tooling when upgrading.
+The mutation run is one more workflow to keep green, and its score says
+little until rules move from services into `domain/`.
