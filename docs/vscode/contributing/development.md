@@ -249,7 +249,7 @@ bundle.
 yarn test
 
 # Run a single test file
-yarn test libs/modeler-core/src/shared/domain/BpmnDocument.spec.ts
+yarn test libs/modeler-core/src/kernel/domain/BpmnDocument.spec.ts
 
 # Run every workspace with its coverage thresholds, as CI does
 yarn test:coverage
