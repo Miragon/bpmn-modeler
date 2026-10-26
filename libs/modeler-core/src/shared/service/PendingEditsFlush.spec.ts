@@ -180,6 +180,31 @@ describe("PendingEditsFlush", () => {
         await expect(flushing).resolves.toEqual({ status: "unavailable" });
     });
 
+    it("releases the destructive lock when the latest normal sync missed the host document", async () => {
+        const editor = host.openEditor("/work/form.form", '{"id":"old"}');
+        host.store.recordDocumentSync(editor.id, editor, '{"id":"newer"}');
+
+        const flushing = pendingEdits.flushIntoDocument(editor.id, { destructive: true });
+        const { token } = lastFlushQuery(editor);
+        webviewReplies(editor, "clean");
+
+        await expect(flushing).resolves.toEqual({ status: "unavailable" });
+        expect(editor.posted.at(-1)).toEqual(new ReleaseDocumentFlushQuery(token));
+    });
+
+    it("reports closed when the editor is replaced while queued work drains", async () => {
+        const editor = host.openEditor("/work/form.form");
+        const finishQueuedSync = holdEditorQueue(editor);
+
+        const flushing = pendingEdits.flushIntoDocument(editor.id);
+        webviewReplies(editor, "clean");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        host.openEditor("/work/form.form");
+        finishQueuedSync();
+
+        await expect(flushing).resolves.toEqual({ status: "closed" });
+    });
+
     it("rejects a late flush result when the original editor session was replaced", async () => {
         const editor = host.openEditor("/work/diagram.bpmn");
 
@@ -207,6 +232,34 @@ describe("PendingEditsFlush", () => {
         expect(allSyncs()).toEqual([]);
     });
 
+    it("reports closed when the editor is replaced while the flushed content is synced", async () => {
+        const editor = host.openEditor("/work/diagram.bpmn");
+        pendingEdits.serve(".bpmn", {
+            sync: async () => {
+                host.openEditor("/work/diagram.bpmn");
+                return true;
+            },
+        });
+
+        const flushing = pendingEdits.flushIntoDocument(editor.id);
+        webviewReplies(editor, "flushed", "<xml/>");
+
+        await expect(flushing).resolves.toEqual({ status: "closed" });
+    });
+
+    it("lets the flushed content supersede an earlier sync that missed the document", async () => {
+        const editor = host.openEditor("/work/diagram.bpmn", "<v1/>");
+        host.store.recordDocumentSync(editor.id, editor, "<missed/>");
+        const firstFlush = pendingEdits.flushIntoDocument(editor.id);
+        webviewReplies(editor, "flushed", "<v2/>");
+        await firstFlush;
+
+        const secondFlush = pendingEdits.flushIntoDocument(editor.id);
+        webviewReplies(editor, "clean");
+
+        await expect(secondFlush).resolves.toEqual({ status: "safe", session: editor });
+    });
+
     it("keeps the destructive lock once the flushed content is in the document", async () => {
         const editor = host.openEditor("/work/diagram.bpmn", "<v1/>");
 
@@ -230,7 +283,7 @@ describe("PendingEditsFlush", () => {
         expect(editor.posted.at(-1)).toEqual(new ReleaseDocumentFlushQuery(token));
     });
 
-    it("logs and reports unavailable when the sync throws", async () => {
+    it("logs, releases the destructive lock and reports unavailable when the sync throws", async () => {
         const editor = host.openEditor("/work/diagram.bpmn");
         pendingEdits.serve(".bpmn", {
             sync: async () => {
@@ -238,12 +291,60 @@ describe("PendingEditsFlush", () => {
             },
         });
 
-        const flushing = pendingEdits.flushIntoDocument(editor.id);
+        const flushing = pendingEdits.flushIntoDocument(editor.id, { destructive: true });
+        const { token } = lastFlushQuery(editor);
         webviewReplies(editor, "flushed", "<xml/>");
 
         await expect(flushing).resolves.toEqual({ status: "unavailable" });
         expect(host.notifier.logged("error")).toEqual(["boom"]);
+        expect(editor.posted.at(-1)).toEqual(new ReleaseDocumentFlushQuery(token));
     });
+
+    it.each<[string, (editor: FakeEditorHandle) => void]>([
+        ["the webview cannot flush", (editor) => webviewReplies(editor, "unavailable")],
+        [
+            "the latest normal sync missed the document",
+            (editor) => {
+                host.store.recordDocumentSync(editor.id, editor, "<missed/>");
+                webviewReplies(editor, "clean");
+            },
+        ],
+        [
+            "the flushed content does not reach the document",
+            (editor) => {
+                modelers[".bpmn"].sync = async () => false;
+                webviewReplies(editor, "flushed", "<v3/>");
+            },
+        ],
+        [
+            "the sync throws",
+            (editor) => {
+                modelers[".bpmn"].sync = async () => {
+                    throw new Error("boom");
+                };
+                webviewReplies(editor, "flushed", "<v3/>");
+            },
+        ],
+    ])(
+        "leaves a held destructive lock alone when a normal flush fails because %s",
+        async (_reason, failTheFlush) => {
+            const editor = host.openEditor("/work/diagram.bpmn", "<v1/>");
+            const destructiveFlush = pendingEdits.flushIntoDocument(editor.id, {
+                destructive: true,
+            });
+            const { token } = lastFlushQuery(editor);
+            webviewReplies(editor, "flushed", "<v2/>");
+            await destructiveFlush;
+
+            const normalFlush = pendingEdits.flushIntoDocument(editor.id);
+            failTheFlush(editor);
+
+            await expect(normalFlush).resolves.toEqual({ status: "unavailable" });
+            expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toEqual([]);
+            pendingEdits.release(editor.id, editor);
+            expect(editor.posted.at(-1)).toEqual(new ReleaseDocumentFlushQuery(token));
+        },
+    );
 
     it("releases a held destructive lock on request", async () => {
         const editor = host.openEditor("/work/diagram.bpmn", "<v1/>");
