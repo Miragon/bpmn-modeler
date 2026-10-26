@@ -36,10 +36,12 @@ export const ENGINE_EXECUTION_PLATFORM: Record<Engine, string> = {
 export type DetectedEngine = Engine | undefined;
 
 /** Namespace URI Camunda binds the `modeler:*` execution-platform metadata to. */
-const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
+export const MODELER_NAMESPACE_URI = "http://camunda.org/schema/modeler/1.0";
 
-/** Conventional prefix used when the file omits the {@link MODELER_NS} binding. */
+/** Conventional prefix used when the file omits the {@link MODELER_NAMESPACE_URI} binding. */
 const MODELER_DEFAULT_PREFIX = "modeler";
+
+const BYTE_ORDER_MARK = "\uFEFF";
 
 /**
  * Detects the Camunda engine from raw BPMN XML by inspecting only the
@@ -52,27 +54,20 @@ const MODELER_DEFAULT_PREFIX = "modeler";
  * 2. else the `<modeler prefix>:executionPlatformVersion` major digit
  *    (7 → c7, 8 → c8).
  *
- * The modeler prefix is resolved from the `xmlns:*="${MODELER_NS}"` binding on
- * the root, falling back to the literal `modeler` prefix. Returns `undefined`
- * for engine-neutral diagrams and never throws on malformed input — the caller
- * owns the fallback policy. No `xmlns:camunda`/`xmlns:zeebe` heuristic here.
+ * The modeler prefix is resolved by {@link executionPlatformAttributeNames}.
+ * Returns `undefined` for engine-neutral diagrams and never throws on malformed
+ * input — the caller owns the fallback policy. No `xmlns:camunda`/`xmlns:zeebe`
+ * heuristic here.
  */
 export function detectEngine(xml: string): DetectedEngine {
-    const attributes = readRootDefinitionsAttributes(xml);
+    const attributes = readDefinitionsStartTag(xml)?.attributes;
     if (!attributes) {
         return undefined;
     }
 
-    let modelerPrefix = MODELER_DEFAULT_PREFIX;
-    for (const { name, value } of attributes) {
-        if (name.startsWith("xmlns:") && value === MODELER_NS) {
-            modelerPrefix = name.slice("xmlns:".length);
-            break;
-        }
-    }
-
+    const names = executionPlatformAttributeNames(attributes);
     const executionPlatform = attributes.find(
-        (attribute) => attribute.name === `${modelerPrefix}:executionPlatform`,
+        (attribute) => attribute.name === names.platform,
     )?.value;
     if (executionPlatform !== undefined) {
         for (const engine of Object.keys(ENGINE_EXECUTION_PLATFORM) as Engine[]) {
@@ -82,9 +77,7 @@ export function detectEngine(xml: string): DetectedEngine {
         }
     }
 
-    const version = attributes.find(
-        (attribute) => attribute.name === `${modelerPrefix}:executionPlatformVersion`,
-    )?.value;
+    const version = attributes.find((attribute) => attribute.name === names.version)?.value;
     const versionMatch = version?.match(/^([78])\./);
     if (versionMatch) {
         return versionMatch[1] === "7" ? "c7" : "c8";
@@ -93,18 +86,53 @@ export function detectEngine(xml: string): DetectedEngine {
     return undefined;
 }
 
-interface XmlAttribute {
-    name: string;
-    value: string;
+export interface ExecutionPlatformAttributeNames {
+    readonly namespace: string;
+    readonly platform: string;
+    readonly version: string;
 }
 
 /**
- * Returns the attributes of the `definitions` root element (any prefix), or
+ * Qualified names of the execution-platform attributes on a `definitions` root,
+ * under the prefix the root binds to {@link MODELER_NAMESPACE_URI}, falling back
+ * to the literal `modeler` prefix.
+ */
+export function executionPlatformAttributeNames(
+    attributes: readonly XmlAttribute[],
+): ExecutionPlatformAttributeNames {
+    const binding = attributes.find(
+        ({ name, value }) => name.startsWith("xmlns:") && value === MODELER_NAMESPACE_URI,
+    );
+    const prefix = binding ? binding.name.slice("xmlns:".length) : MODELER_DEFAULT_PREFIX;
+    return {
+        namespace: `xmlns:${prefix}`,
+        platform: `${prefix}:executionPlatform`,
+        version: `${prefix}:executionPlatformVersion`,
+    };
+}
+
+export interface XmlAttribute {
+    readonly name: string;
+    readonly value: string;
+    /** Offset of the name in the document. */
+    readonly start: number;
+    /** Offset just past the closing quote of the value. */
+    readonly end: number;
+}
+
+export interface DefinitionsStartTag {
+    readonly attributes: readonly XmlAttribute[];
+    /** Offset just past the last attribute, or past the element name when there is none. */
+    readonly attributesEnd: number;
+}
+
+/**
+ * Reads the start tag of the `definitions` root element (any prefix), or
  * `undefined` when the input has no such root or is malformed. Pure string
  * scanning — no DOM or XML parser, so it stays usable in the design entry
  * consumed by the Node host and the Bun bridge.
  */
-function readRootDefinitionsAttributes(xml: string): XmlAttribute[] | undefined {
+export function readDefinitionsStartTag(xml: string): DefinitionsStartTag | undefined {
     const tagStart = findRootTagStart(xml);
     if (tagStart === undefined) {
         return undefined;
@@ -122,6 +150,7 @@ function readRootDefinitionsAttributes(xml: string): XmlAttribute[] | undefined 
     cursor += tagName.length;
 
     const attributes: XmlAttribute[] = [];
+    let attributesEnd = cursor;
     while (cursor < xml.length) {
         while (cursor < xml.length && isWhitespace(xml[cursor])) {
             cursor++;
@@ -132,12 +161,13 @@ function readRootDefinitionsAttributes(xml: string): XmlAttribute[] | undefined 
 
         const char = xml[cursor];
         if (char === ">") {
-            return attributes;
+            return { attributes, attributesEnd };
         }
         if (char === "/") {
-            return xml[cursor + 1] === ">" ? attributes : undefined;
+            return xml[cursor + 1] === ">" ? { attributes, attributesEnd } : undefined;
         }
 
+        const attributeStart = cursor;
         const attributeNameMatch = /^[^\s=/>]+/.exec(xml.slice(cursor));
         if (!attributeNameMatch) {
             return undefined;
@@ -164,8 +194,14 @@ function readRootDefinitionsAttributes(xml: string): XmlAttribute[] | undefined 
         if (valueEnd === -1) {
             return undefined;
         }
-        attributes.push({ name: attributeName, value: xml.slice(cursor + 1, valueEnd) });
-        cursor = valueEnd + 1;
+        attributesEnd = valueEnd + 1;
+        attributes.push({
+            name: attributeName,
+            value: xml.slice(cursor + 1, valueEnd),
+            start: attributeStart,
+            end: attributesEnd,
+        });
+        cursor = attributesEnd;
     }
 
     return undefined;
@@ -173,12 +209,12 @@ function readRootDefinitionsAttributes(xml: string): XmlAttribute[] | undefined 
 
 /**
  * Returns the index of the `<` that opens the first real element start tag,
- * skipping the XML declaration, processing instructions, comments, DOCTYPE
- * (tolerating an internal `[…]` subset) and CDATA. `undefined` on malformed or
- * unterminated markup, or when no element start tag exists.
+ * skipping a byte-order mark, the XML declaration, processing instructions,
+ * comments, DOCTYPE (tolerating an internal `[…]` subset) and CDATA. `undefined`
+ * on malformed or unterminated markup, or when no element start tag exists.
  */
 function findRootTagStart(xml: string): number | undefined {
-    let cursor = 0;
+    let cursor = xml.startsWith(BYTE_ORDER_MARK) ? BYTE_ORDER_MARK.length : 0;
     while (cursor < xml.length) {
         while (cursor < xml.length && isWhitespace(xml[cursor])) {
             cursor++;

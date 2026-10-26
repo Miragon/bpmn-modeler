@@ -1,4 +1,4 @@
-import { Engine, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { FileNotFound, UserCancelledError } from "../../shared/domain/errors";
@@ -169,27 +169,15 @@ export class BpmnMigrationService {
                 continue;
             }
 
-            const currentVersion = document.detectPlatformVersion();
-            if (currentVersion === targetVersion) {
+            const migration = document.migratedTo(platform, targetVersion);
+            if (migration.kind === "unchanged") {
                 continue;
-            }
-
-            let updatedDoc: BpmnDocument;
-            if (currentVersion === undefined) {
-                const platformName = ENGINE_EXECUTION_PLATFORM[platform];
-                const schema =
-                    platform === "c7"
-                        ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
-                        : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
-                updatedDoc = document.withExecutionPlatform(platformName, targetVersion, schema);
-            } else {
-                updatedDoc = document.withVersion(targetVersion);
             }
 
             if (editorId !== undefined) {
                 // No revision: with one, IntelliJ skips its guard against external
                 // edits not yet sent to the webview.
-                if (!(await this.vsDocument.write(editorId, updatedDoc.xml))) {
+                if (!(await this.vsDocument.write(editorId, migration.document.xml))) {
                     this.notifier.logWarning(
                         `Skipped a diagram whose editor rejected the update: ${file.path}`,
                     );
@@ -197,10 +185,10 @@ export class BpmnMigrationService {
                     continue;
                 }
             } else {
-                await this.vsWorkspace.writeFile(file.path, updatedDoc.xml);
+                await this.vsWorkspace.writeFile(file.path, migration.document.xml);
             }
 
-            if (currentVersion === undefined) {
+            if (migration.kind === "platformStamped") {
                 this.notifier.logWarning(
                     `Added missing executionPlatform attribute to: ${file.path}`,
                 );

@@ -7,11 +7,35 @@
  * `BpmnDocument` instead of mutating `this.xml`.
  */
 
-import { DetectedEngine, detectEngine, Engine } from "@miragon/bpmn-modeler-types";
+import {
+    DetectedEngine,
+    detectEngine,
+    Engine,
+    ENGINE_EXECUTION_PLATFORM,
+    ENGINE_LABEL,
+    ExecutionPlatformAttributeNames,
+    executionPlatformAttributeNames,
+    MODELER_NAMESPACE_URI,
+    readDefinitionsStartTag,
+    XmlAttribute,
+} from "@miragon/bpmn-modeler-types";
 
 import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";
 import { NewModelEngine } from "./newModelEngine";
+
+export type MigrationOutcome =
+    | { readonly kind: "unchanged" }
+    | { readonly kind: "versionReplaced"; readonly document: BpmnDocument }
+    | { readonly kind: "platformStamped"; readonly document: BpmnDocument };
+
+const ENGINE_NAMESPACE: Record<
+    Engine,
+    { readonly prefix: "camunda" | "zeebe"; readonly uri: string }
+> = {
+    c7: { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
+    c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
+};
 
 export class BpmnDocument {
     constructor(readonly xml: string) {}
@@ -167,29 +191,48 @@ export class BpmnDocument {
     }
 
     /**
-     * Returns a new `BpmnDocument` with execution platform attributes (and an
-     * optional `schema` namespace attribute) injected into the
-     * `<bpmn:definitions>` opening tag. Throws when the XML has no such tag.
+     * Only a stamp adds the engine namespace: bpmn-js drops an unused one on
+     * save, so requiring it on tagged diagrams would rewrite them on every run.
+     *
+     * @throws {Error} When the XML has no `definitions` root or is not a diagram for `engine`.
      */
-    withExecutionPlatform(platform: string, version: string, schema?: string): BpmnDocument {
-        const regex = /<bpmn:definitions[^>]*>/;
-        const match = this.xml.match(regex);
-
-        if (!match) {
-            throw new Error("The BPMN file does not contain a `bpmn:definitions` tag.");
+    migratedTo(engine: Engine, version: string): MigrationOutcome {
+        const definitions = readDefinitionsStartTag(this.xml);
+        if (!definitions) {
+            throw new Error("The BPMN file does not contain a `definitions` root element.");
+        }
+        if (this.detectEngine() !== engine) {
+            throw new Error(`The diagram is not a ${ENGINE_LABEL[engine]} diagram.`);
         }
 
-        const schemaPrefix = schema ? `${schema} ` : "";
-        const insert = `${schemaPrefix}modeler:executionPlatform="${platform}" modeler:executionPlatformVersion="${version}">`;
-
-        // Split on whitespace tokens and strip the trailing ">" from the last token
-        // before appending the new attributes.
-        const tokens = match[0].split(" ");
-        if (tokens[tokens.length - 1].endsWith(">")) {
-            tokens[tokens.length - 1] = tokens[tokens.length - 1].slice(0, -1);
-            tokens.push(insert);
+        const { attributes, attributesEnd } = definitions;
+        const names = executionPlatformAttributeNames(attributes);
+        const declaredVersion = attributeNamed(attributes, names.version);
+        const isTagged =
+            declaredVersion !== undefined &&
+            attributeNamed(attributes, names.platform) !== undefined;
+        if (isTagged && declaredVersion.value === version) {
+            return { kind: "unchanged" };
         }
-        return new BpmnDocument(this.xml.replace(regex, tokens.join(" ")));
+
+        const missingAttributes = isTagged
+            ? []
+            : platformAttributes(engine, names, version).filter(
+                  ([name]) => attributeNamed(attributes, name) === undefined,
+              );
+        const xmlBeforeAppendedAttributes = declaredVersion
+            ? this.xml.slice(0, declaredVersion.start) +
+              `${names.version}="${version}"` +
+              this.xml.slice(declaredVersion.end, attributesEnd)
+            : this.xml.slice(0, attributesEnd);
+        const document = new BpmnDocument(
+            xmlBeforeAppendedAttributes +
+                missingAttributes.map(([name, value]) => ` ${name}="${value}"`).join("") +
+                this.xml.slice(attributesEnd),
+        );
+        return isTagged
+            ? { kind: "versionReplaced", document }
+            : { kind: "platformStamped", document };
     }
 
     /**
@@ -204,4 +247,25 @@ export class BpmnDocument {
         }
         throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
     }
+}
+
+function platformAttributes(
+    engine: Engine,
+    names: ExecutionPlatformAttributeNames,
+    version: string,
+): [name: string, value: string][] {
+    const engineNamespace = ENGINE_NAMESPACE[engine];
+    return [
+        [`xmlns:${engineNamespace.prefix}`, engineNamespace.uri],
+        [names.namespace, MODELER_NAMESPACE_URI],
+        [names.platform, ENGINE_EXECUTION_PLATFORM[engine]],
+        [names.version, version],
+    ];
+}
+
+function attributeNamed(
+    attributes: readonly XmlAttribute[],
+    name: string,
+): XmlAttribute | undefined {
+    return attributes.find((attribute) => attribute.name === name);
 }
