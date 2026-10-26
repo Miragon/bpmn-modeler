@@ -441,4 +441,31 @@ describe("ImplementationLocator — navigation agrees with the code-link map", (
             expect(linked.get("Task_1")).toEqual(["/work/billing/Delegate.java"]);
         },
     );
+
+    it("resolves a bean on the loose-file walk to the class file the code-link map links", async () => {
+        const { locator } = createLocator({
+            folders: [],
+            files: {
+                "/loose/MyBean.java": "class MyBean {}",
+                "/loose/NotMyBean.java": "class NotMyBean {}",
+            },
+        });
+
+        const navigated = await locator.resolve(
+            "${myBean}",
+            "delegateExpression",
+            "/loose/process.bpmn",
+        );
+        const linked = await locator.resolveMany(
+            [{ activityId: "Task_1", kind: "delegateExpression", reference: "${myBean}" }],
+            "/loose/process.bpmn",
+        );
+
+        expect(navigated).toEqual({
+            kind: "matches",
+            paths: ["/loose/MyBean.java"],
+            readFailures: [],
+        });
+        expect(linked.get("Task_1")).toEqual(["/loose/MyBean.java"]);
+    });
 });
