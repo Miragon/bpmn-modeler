@@ -73,7 +73,10 @@ function chooserRoots(): HTMLElement[] {
 }
 
 function offeredTemplateNames(): (string | null)[] {
-    return Array.from(document.querySelectorAll(".etc-card-name"), (name) => name.textContent);
+    return Array.from(
+        document.querySelectorAll(".etc-overlay-root .etc-card-name"),
+        (name) => name.textContent,
+    );
 }
 
 function chooserControl(selector: string): HTMLElement | null {
