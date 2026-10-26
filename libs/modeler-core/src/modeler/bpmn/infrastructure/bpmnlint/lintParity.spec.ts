@@ -98,15 +98,12 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
     // identically host-side and in-page — so a user who edits `bpmnlint:recommended`
     // into their config sees the exact same findings the host would have produced.
     it("produces identical findings and no unresolved rules for a covered workspace config", async () => {
-        const config: BpmnlintConfig = { extends: "bpmnlint:recommended" };
+        const config = { extends: "bpmnlint:recommended" } satisfies BpmnlintConfig;
 
         const anchor = resolve(__dirname, ".bpmnlintrc");
         const nodeOut = await new NodeBpmnLinter().lint(BPMN_XML, anchor, config);
 
-        const root = await parseModdleRoot(
-            BPMN_XML,
-            config.moddleExtensions as Record<string, unknown> | undefined,
-        );
+        const root = await parseModdleRoot(BPMN_XML, undefined);
         const browserOut = await new BrowserLinter(config).run(root);
 
         // recommended flags the missing start event — else "parity" is vacuous.

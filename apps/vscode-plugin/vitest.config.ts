@@ -32,9 +32,9 @@ export default defineConfig({
             // integration tests).
             thresholds: {
                 ...overallThresholds,
-                "**/controller/**": { statements: 87, branches: 80, functions: 85, lines: 89 },
-                "**/editor-session/**": { statements: 76, branches: 65, functions: 78, lines: 83 },
-                "**/infrastructure/**": { statements: 70, branches: 69, functions: 64, lines: 70 },
+                "**/controller/**": { statements: 88, branches: 80, functions: 87, lines: 89 },
+                "**/editor-session/**": { statements: 76, branches: 66, functions: 78, lines: 83 },
+                "**/infrastructure/**": { statements: 71, branches: 69, functions: 64, lines: 70 },
             },
         },
     },

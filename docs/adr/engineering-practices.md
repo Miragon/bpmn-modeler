@@ -147,7 +147,12 @@ both packages trigger on it. The [build workflow](../../.github/workflows/build.
 turns each entry into an `<id>` path filter, plus the shared `global` paths
 (registry, workflow, preset, root manifest), and an `<id>-src` filter of its
 own code files. One `test` matrix job runs every affected target: tests with
-coverage, an optional typecheck script, the PR comment and the Codecov upload.
+coverage, its typecheck script, the PR comment and the Codecov upload. Vitest
+strips types without checking them, so the typecheck is the only gate on spec
+types: it covers the app or library sources and the specs, through the
+workspace's `tsconfig.spec.json` where one exists. Configs that reach another
+workspace's sources through a path alias include that workspace's ambient
+`.d.ts` files, since `tsc` only sees declarations its own project includes.
 The app and package build jobs and the Extension-Host smoke test are gated on
 the same target ids.
 
@@ -155,10 +160,11 @@ the same target ids.
 runs in the lint job and pre-push. It fails when a workspace with a Vitest
 config is not a target, when a target does not declare the Vitest packages its
 focused install needs (including Vitest's `vite` peer), when its trigger
-paths miss a workspace or file its tests import, or when its `build` script
-only runs `tsc --noEmit` but the target names no `typecheck` (most such builds
-run in no other CI job). Before the registry, each workspace needed a hand-written job,
-filter and `ci.needs` entry, and twelve workspaces' specs never ran in CI.
+paths miss a workspace or file its tests import, or when its specs escape the
+typecheck: the target names no `typecheck`, the script skips an existing
+`tsconfig.spec.json`, or the tsconfig it checks excludes `*.spec.*`. Before
+the registry, each workspace needed a hand-written job, filter and `ci.needs`
+entry, and twelve workspaces' specs never ran in CI.
 
 Only `<id>-src` matches upload coverage, so the release-please PR (changelogs,
 manifests) gets none. Codecov statuses stay advisory, and

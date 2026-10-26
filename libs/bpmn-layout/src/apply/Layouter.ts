@@ -26,10 +26,6 @@ interface DiagramElement {
     businessObject?: { $type?: string };
 }
 
-interface CanvasLike {
-    getRootElement(): DiagramElement;
-}
-
 interface ElementRegistryLike {
     getAll(): DiagramElement[];
 }
@@ -86,7 +82,6 @@ const STALE_OUTCOME: LayoutOutcome = {
 export class Layouter {
     static $inject = [
         "injector",
-        "canvas",
         "elementRegistry",
         "commandStack",
         "eventBus",
@@ -111,7 +106,6 @@ export class Layouter {
 
     constructor(
         private readonly injector: InjectorLike,
-        private readonly canvas: CanvasLike,
         private readonly elementRegistry: ElementRegistryLike,
         private readonly commandStack: CommandStackLike,
         private readonly eventBus: EventBusLike,

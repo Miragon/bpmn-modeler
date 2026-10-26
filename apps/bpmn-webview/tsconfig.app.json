@@ -3,8 +3,13 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "types": ["node", "vite/client"],
+    "allowArbitraryExtensions": true,
     "noFallthroughCasesInSwitch": false
   },
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../../packages/bpmn-modeler/src/types/*.d.ts",
+    "../../libs/properties-panel/src/types/bpmn-io-properties-panel.d.ts"
+  ]
 }

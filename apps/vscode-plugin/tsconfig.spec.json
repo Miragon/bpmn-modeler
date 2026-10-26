@@ -3,10 +3,13 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
+    "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
   "include": [
     "vitest.config.ts",
+    "../../libs/modeler-core/src/types/bpmnlint.d.ts",
+    "../../libs/modeler-core/src/types/camunda-bpmn-moddle.d.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
     "src/**/__fixtures__/**/*.ts",

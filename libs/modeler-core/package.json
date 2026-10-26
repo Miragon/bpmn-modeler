@@ -5,7 +5,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
     "dev": "tsc -p tsconfig.lib.json --watch",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json && tsc --noEmit -p tsconfig.spec.json"
   },
   "dependencies": {
     "@miragon/bpmn-modeler-diff": "workspace:*",

@@ -7,6 +7,7 @@
 /tmp
 /out-tsc
 packages/*/dist
+*.tsbuildinfo
 
 # Extension-Host e2e test build output (@vscode/test-cli runs the compiled JS)
 # and the cached VS Code/Electron download.

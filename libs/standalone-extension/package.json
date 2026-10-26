@@ -17,6 +17,7 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "watch": "tsc -p tsconfig.json --watch",
     "test": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.spec.json",
     "clean": "rimraf lib"
   },
   "dependencies": {
