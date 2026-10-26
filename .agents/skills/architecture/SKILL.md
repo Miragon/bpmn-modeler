@@ -37,9 +37,10 @@ Decisions (rules, state transitions, validations) go into the owning feature's
   adaptation in webview bootstraps. `modeler-types` holds publishable concepts;
   DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
 - Add host-independent logic to the core's feature-oriented domain/service
-  layers. Reach host facilities through the core's `shared/domain/hostPorts.ts` and editor
-  handles; deployment engine ports are separate. Wire concrete adapters in the
-  applications using constructor composition.
+  layers. Reach host facilities through ports and editor handles. Cross-cutting
+  host ports live in the core's `shared/domain/hostPorts.ts`; a port or prompt
+  one feature owns lives in that feature's `domain/ports.ts`. Wire concrete
+  adapters in the applications using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.

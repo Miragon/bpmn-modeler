@@ -116,9 +116,10 @@ cache".)
 
 ## The RPC contract (bridge ⇄ host)
 
-Single NDJSON JSON-RPC duplex. The host (Kotlin) implements the core's
-`hostPorts.ts` interfaces as RPC handlers; the core never knows it isn't talking
-to VS Code. Selected methods (full table in the bridge README):
+Single NDJSON JSON-RPC duplex. The host (Kotlin) implements the core's host
+ports (`hostPorts.ts` and the feature `domain/ports.ts` files) as RPC handlers;
+the core never knows it isn't talking to VS Code. Selected methods (full table
+in the bridge README):
 
 | Direction | Method(s) | Port / handle |
 |---|---|---|

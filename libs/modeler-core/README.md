@@ -7,8 +7,10 @@ registries (`EditorSessionStore`, `WebviewMessageRouter`, `DiffPaneStore`).
 This package must never import `vscode`, and its `domain/` layer must never
 import a Node host module (`node:*`, `fs`, `http`/`https`) either — invariants
 enforced by the CI gate in `src/architecture.spec.ts`. Host capabilities (file
-I/O, notifications, clipboard, …) are reached only through the ports in
-`shared/domain/hostPorts.ts`, which each host implements with its own adapters.
+I/O, notifications, clipboard, …) are reached only through ports, which each
+host implements with its own adapters: the cross-cutting ones in
+`shared/domain/hostPorts.ts`, and the ones a single feature owns in that
+feature's `domain/ports.ts`.
 Pure Node utilities that exist in any Node host (`path`, `Buffer`) are used
 directly by services and are not considered host capabilities.
 

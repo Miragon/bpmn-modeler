@@ -68,13 +68,14 @@ and Node `path`. Features reach each other only through `shared/`. Services and
 participants import no infrastructure; in infrastructure only the inbound
 `*MessageHandlers` adapters import services. A relative import resolves to a
 feature module, never to the package entry or the test kit, and the core has no
-import cycles. The core architecture test enforces these rules. Today's listed
-exceptions are the protocol imports of three domain files, the template
-marketplace's use of the deployment `HttpClient`, `hostPorts.ts` naming
-deployment and migration types, and services using the editor-session core in
-`shared/infrastructure/`, `MarketplaceCache` and `DiffPaneStore`. Each names the
-issue that removes it, and the test fails when one is no longer needed, so the
-list only shrinks.
+import cycles. The core architecture test enforces these rules. Cross-cutting
+host ports live in `shared/domain/hostPorts.ts`; a port or prompt one feature
+owns lives in that feature's `domain/ports.ts`, so `shared/` names no feature.
+Today's listed exceptions are the protocol imports of two domain files, the
+template marketplace's use of the deployment `HttpClient`, and services using
+the editor-session core in `shared/infrastructure/`, `MarketplaceCache` and
+`DiffPaneStore`. Each names the issue that removes it, and the test fails when
+one is no longer needed, so the list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
