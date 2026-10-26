@@ -8,7 +8,7 @@ import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewNotificationHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewFocusHandlers } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import { DocumentFlushService, documentFlushedHandler } from "@miragon/bpmn-modeler-core";
+import { documentFlushedHandler } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
@@ -125,7 +125,6 @@ export function register(
 ): {
     bpmnService: BpmnModelerService;
     templatesSvc: BpmnElementTemplatesService;
-    documentFlush: DocumentSaveFlushController;
     layoutSvc: BpmnLayoutService;
 } {
     const {
@@ -201,9 +200,6 @@ export function register(
     const formService = new FormModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
     const formValues = new FormValuesController(deps.editorStore, deps.notifier);
     formValues.register(context);
-    // One flush service for both editors: requests are keyed per editorId, so a
-    // single instance behind both routers stays correct.
-    const flushSvc = new DocumentFlushService(deps.editorStore, deps.notifier);
     const dmnSettingsBroadcaster = new DmnSettingsBroadcaster(
         deps.editorStore,
         deps.vsSettings,
@@ -257,7 +253,7 @@ export function register(
         .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
         .on("DiagramFormattedCommand", diagramFormattedHandler(layoutSvc))
         .on("CleanupReportCommand", cleanupReportHandler(layoutSvc))
-        .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc))
+        .on("DocumentFlushedCommand", documentFlushedHandler(deps.flushSvc))
         .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
         .on(
             "OpenScriptEditorsCommand",
@@ -321,7 +317,7 @@ export function register(
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SyncDocumentCommand", syncDocumentHandler(dmnService))
-        .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
+        .on("DocumentFlushedCommand", documentFlushedHandler(deps.flushSvc));
     registerWebviewLogHandlers(dmnMessageRouter, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(dmnMessageRouter, deps.notifier);
     registerWebviewFocusHandlers(dmnMessageRouter, deps.editorStore);
@@ -333,7 +329,7 @@ export function register(
         .on("GetFormInputValuesCommand", getFormInputValuesHandler(formValues))
         .on("UpdateFormOutputValuesCommand", updateFormOutputValuesHandler(formValues))
         .on("SyncDocumentCommand", syncDocumentHandler(formService))
-        .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
+        .on("DocumentFlushedCommand", documentFlushedHandler(deps.flushSvc));
     registerWebviewLogHandlers(formMessageRouter, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(formMessageRouter, deps.notifier);
 
@@ -390,17 +386,12 @@ export function register(
     // action; the diagnostics carry a command link to this controller.
     new FocusLintElementController(deps.editorStore, deps.notifier).register(context);
 
+    deps.pendingEdits.serve(".bpmn", bpmnService);
+    deps.pendingEdits.serve(".dmn", dmnService);
+    deps.pendingEdits.serve(".form", formService);
     // Flush pending webview changes into the buffer before every save so a
     // persist never trails the live model.
-    const documentFlush = new DocumentSaveFlushController(
-        deps.editorStore,
-        flushSvc,
-        bpmnService,
-        dmnService,
-        formService,
-        deps.notifier,
-    );
-    documentFlush.register(context);
+    new DocumentSaveFlushController(deps.editorStore, deps.pendingEdits).register(context);
 
-    return { bpmnService, templatesSvc, documentFlush, layoutSvc };
+    return { bpmnService, templatesSvc, layoutSvc };
 }

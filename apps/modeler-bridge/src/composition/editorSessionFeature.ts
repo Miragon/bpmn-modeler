@@ -7,6 +7,7 @@ import {
     EditorSessionParticipant,
     EngineVersionStatusBarParticipant,
     displayDocumentHandler,
+    documentFlushedHandler,
     registerWebviewFocusHandlers,
     registerWebviewLogHandlers,
     registerWebviewNotificationHandlers,
@@ -37,7 +38,7 @@ function query(type: string, fields: Record<string, unknown>): Query {
  * lifecycle without importing any of them.
  *
  * Webview messages: GetBpmnFileCommand, SyncDocumentCommand,
- * GetPropertiesPanelStateCommand, RequestFocusCommand.
+ * DocumentFlushedCommand, GetPropertiesPanelStateCommand, RequestFocusCommand.
  * RPC (Host → Core): session/register, session/setActive, session/dispose,
  * webview/message, document/didChange.
  */
@@ -62,6 +63,7 @@ export function register(
             session.onDispose(() => bpmnService.disposeSession(session.editorId));
         },
     };
+    deps.pendingEdits.serve(".bpmn", bpmnService);
     const lifecycle = new EditorSessionLifecycle(deps.store, deps.notifier, deps.router, [
         renderSession,
         ...participants,
@@ -79,6 +81,7 @@ export function register(
             displayDocumentHandler(bpmnService, deps.notifier, "Bpmn modeler is ready"),
         )
         .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
+        .on("DocumentFlushedCommand", documentFlushedHandler(deps.flushSvc))
         // The remaining handshake reply is a bridge-level stub because its real
         // service (properties panel) is not wired on this host path. It must still
         // answer, or the webview waits out its reply timeout before restoring the

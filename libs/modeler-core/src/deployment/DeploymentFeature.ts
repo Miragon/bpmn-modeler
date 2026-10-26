@@ -14,6 +14,7 @@ import {
 } from "../shared/domain/hostPorts";
 import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
 import { ArtifactService } from "../shared/service/ArtifactService";
+import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
 import { HttpClient } from "./domain/ports";
 import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
@@ -43,6 +44,7 @@ export interface DeploymentHostPorts {
     artifacts: ArtifactService;
     secrets: SecretStorePort;
     state: DeploymentStatePort;
+    pendingEdits: Pick<PendingEditsFlush, "flushIntoDocument">;
     http?: HttpClient;
 }
 
@@ -145,6 +147,7 @@ export class DeploymentFeature {
             deployment,
             this.status,
             ports.notifier,
+            ports.pendingEdits,
         );
         this.deployFilesService = new DeployFilesService(
             this.targets,

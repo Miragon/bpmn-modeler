@@ -50,21 +50,17 @@ export function activate(context: ExtensionContext): TestApi {
     // Before the editor feature so its status bar participant can join the BPMN
     // session participant list (the same forward hand-off as code-link).
     const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
-    const { bpmnService, templatesSvc, documentFlush, layoutSvc } = editorFeature.register(
-        context,
-        deps,
-        {
-            diffController,
-            scriptTaskSvc,
-            scriptVariableStore,
-            codeLink,
-            marketplaceSvc,
-            deploymentStatusParticipant,
-        },
-    );
+    const { bpmnService, templatesSvc, layoutSvc } = editorFeature.register(context, deps, {
+        diffController,
+        scriptTaskSvc,
+        scriptVariableStore,
+        codeLink,
+        marketplaceSvc,
+        deploymentStatusParticipant,
+    });
     templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
     compareFeature.register(context, deps, { diffController });
-    commandsFeature.register(context, deps, { bpmnService, documentFlush, layoutSvc });
+    commandsFeature.register(context, deps, { bpmnService, layoutSvc });
 
     return {
         diff: {

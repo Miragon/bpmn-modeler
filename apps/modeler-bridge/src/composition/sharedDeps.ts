@@ -1,6 +1,8 @@
 import {
     ArtifactService,
+    DocumentFlushService,
     EditorSessionStore,
+    PendingEditsFlush,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 
@@ -11,8 +13,9 @@ import { Rpc } from "../rpc";
 /**
  * The cross-cutting collaborators every bridge feature draws from: the RPC peer,
  * the host-capability port adapters, the shared editor-session registry, the one
- * webview-message router each feature registers its own surface on, and the
- * stateless `artifactSvc` consumed by templates, code-link, and deployment.
+ * webview-message router each feature registers its own surface on, the
+ * stateless `artifactSvc` consumed by templates, code-link, and deployment, and
+ * the flush that writes a webview's pending edits into its document.
  * Bundling them lets each feature's `register()` take a single `deps` argument
  * instead of the long, order-sensitive parameter list `createBridge` would
  * otherwise thread by hand — the bridge analogue of the VS Code `SharedDeps`.
@@ -30,6 +33,8 @@ export interface BridgeSharedDeps {
     store: EditorSessionStore;
     router: WebviewMessageRouter;
     artifactSvc: ArtifactService;
+    flushSvc: DocumentFlushService;
+    pendingEdits: PendingEditsFlush;
 }
 
 /**
@@ -70,6 +75,8 @@ export function buildSharedDeps(
     // in registration order.
     const router = new WebviewMessageRouter();
 
+    const flushSvc = new DocumentFlushService(store, notifier);
+
     return {
         rpc,
         log,
@@ -83,5 +90,7 @@ export function buildSharedDeps(
         store,
         router,
         artifactSvc,
+        flushSvc,
+        pendingEdits: new PendingEditsFlush(store, flushSvc, notifier),
     };
 }
