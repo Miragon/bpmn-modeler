@@ -647,6 +647,9 @@ describe("DeploymentService.deploy", () => {
         expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
             "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
         });
+        expect(host.notifier.logged("warning")).toEqual([
+            "Deployment succeeded, but saving its connection settings failed: state locked",
+        ]);
     });
 
     it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
@@ -669,7 +672,9 @@ describe("DeploymentService.deploy", () => {
         expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
             "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
         });
-        expect(host.notifier.logged("warning")).toEqual([expect.stringContaining("no OS keyring")]);
+        expect(host.notifier.logged("warning")).toEqual([
+            "Deployment succeeded, but saving its credentials failed: no OS keyring",
+        ]);
     });
 
     it("reports an engine-accepted deploy as deployed when recording the ledger row throws", async () => {
@@ -697,7 +702,7 @@ describe("DeploymentService.deploy", () => {
             password: "secret",
         });
         expect(host.notifier.logged("warning")).toEqual([
-            expect.stringContaining("workspace state unavailable"),
+            "Deployment succeeded, but saving its deployment status failed: workspace state unavailable",
         ]);
     });
 

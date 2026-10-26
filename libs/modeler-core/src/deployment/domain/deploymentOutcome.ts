@@ -15,6 +15,10 @@ const PART_LABELS: Record<RememberedPart, string> = {
     ledgerRow: "deployment status",
 };
 
+export function rememberedPartLabel(part: RememberedPart): string {
+    return PART_LABELS[part];
+}
+
 /**
  * The engine's answer is final: a deploy it accepted stays deployed even when
  * saving its connection, credentials or ledger row afterwards fails, because the
@@ -51,7 +55,7 @@ export class DeploymentOutcome {
     toResult(): DeploymentResult {
         if (this.kind !== "deployedNotRemembered") return this.engineResult;
         const unsaved = this.notRemembered
-            .map(({ part, reason }) => `${PART_LABELS[part]} (${reason})`)
+            .map(({ part, reason }) => `${rememberedPartLabel(part)} (${reason})`)
             .join(", ");
         return new DeploymentResult(
             true,

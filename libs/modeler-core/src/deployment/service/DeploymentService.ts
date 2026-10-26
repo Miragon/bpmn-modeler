@@ -11,7 +11,11 @@ import {
 } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
-import { DeploymentOutcome, RememberedPart } from "../domain/deploymentOutcome";
+import {
+    DeploymentOutcome,
+    RememberedPart,
+    rememberedPartLabel,
+} from "../domain/deploymentOutcome";
 import { EnvLookup } from "../domain/envRef";
 import { loggableHost } from "../domain/urlTemplate";
 import {
@@ -314,7 +318,7 @@ export class DeploymentService {
         } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             this.notifier.logWarning(
-                `Deployment succeeded, but saving its ${part} failed: ${reason}`,
+                `Deployment succeeded, but saving its ${rememberedPartLabel(part)} failed: ${reason}`,
             );
             return outcome.notRemembering(part, reason);
         }

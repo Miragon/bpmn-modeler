@@ -6,6 +6,7 @@ import {
     DeploymentOutcomeKind,
     NotRemembered,
     RememberedPart,
+    rememberedPartLabel,
 } from "./deploymentOutcome";
 
 const ACCEPTED = new DeploymentResult(true, "Deployment 'order' succeeded.", "dep-1");
@@ -100,5 +101,15 @@ describe("DeploymentOutcome", () => {
 
         expect(deployed.kind).toBe("deployed");
         expect(deployed.notRemembered).toEqual([]);
+    });
+});
+
+describe("rememberedPartLabel", () => {
+    it.each<[RememberedPart, string]>([
+        ["connection", "connection settings"],
+        ["credentials", "credentials"],
+        ["ledgerRow", "deployment status"],
+    ])("names the %s part %j to the user", (part, label) => {
+        expect(rememberedPartLabel(part)).toBe(label);
     });
 });
