@@ -7,7 +7,7 @@ describe("coalesceWatcherEvents", () => {
         behaviour: string;
         pending: WatcherEventKind | undefined;
         next: WatcherEventKind;
-        delivered: WatcherEventKind | undefined;
+        delivered: WatcherEventKind;
     }>([
         {
             behaviour: "delivers the first event of a burst as it is",
@@ -22,10 +22,16 @@ describe("coalesceWatcherEvents", () => {
             delivered: "create",
         },
         {
-            behaviour: "drops a file created and deleted in one burst",
+            behaviour: "reports a file created and deleted in one burst as deleted",
             pending: "create",
             next: "delete",
-            delivered: undefined,
+            delivered: "delete",
+        },
+        {
+            behaviour: "keeps repeated creates one create",
+            pending: "create",
+            next: "create",
+            delivered: "create",
         },
         {
             behaviour: "reports a file deleted and created again as changed",
