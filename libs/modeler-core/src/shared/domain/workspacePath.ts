@@ -22,6 +22,9 @@ export function joinWorkspacePath(directory: string, ...segments: string[]): str
     const scheme = directory.startsWith(FILE_SCHEME) ? FILE_SCHEME : "";
     const path = directory.slice(scheme.length);
     const uncRoot = UNC_ROOT.test(path) ? "/" : "";
-    const joined = [path, ...segments].join("/").replace(/\\/g, "/");
+    const joined = [path, ...segments]
+        .filter((segment) => segment !== "")
+        .join("/")
+        .replace(/\\/g, "/");
     return scheme + uncRoot + posix.normalize(joined);
 }
