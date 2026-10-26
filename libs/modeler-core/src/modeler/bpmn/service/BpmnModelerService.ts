@@ -1,5 +1,4 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
-import { DetectedEngine } from "@miragon/bpmn-modeler-types";
 
 import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
 import { getVersions } from "../../../shared/domain/engineVersions";
@@ -81,7 +80,7 @@ export class BpmnModelerService {
                 );
 
                 if (this.isFocused(editorId)) {
-                    this.updateEngineVersionStatus(doc, engine);
+                    this.updateEngineVersionStatus(doc);
                 }
 
                 return sent;
@@ -152,10 +151,10 @@ export class BpmnModelerService {
         );
     }
 
-    private updateEngineVersionStatus(doc: BpmnDocument, engine: DetectedEngine): void {
-        const version = engine ? doc.detectPlatformVersion() : undefined;
-        if (engine && version) {
-            this.statusBar.showEngineVersion(engine, version);
+    private updateEngineVersionStatus(doc: BpmnDocument): void {
+        const status = doc.engineVersionStatus();
+        if (status) {
+            this.statusBar.showEngineVersion(status.platform, status.version);
         } else {
             this.statusBar.hideEngineVersion();
         }

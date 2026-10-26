@@ -37,23 +37,12 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
         if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hideEngineVersion();
     }
 
-    /**
-     * Reads the current document content and updates the engine-version status
-     * bar with the detected platform and version.
-     */
+    // The claimant must also hide: the previous owner's late blur no longer does.
     private updateEngineVersionStatusBar(editorId: string): void {
-        try {
-            const doc = new BpmnDocument(this.documents.getContent(editorId));
-            if (doc.isEmpty()) {
-                return;
-            }
-            const platform = doc.detectPlatform();
-            const version = doc.detectPlatformVersion();
-            if (version) {
-                this.statusBar.showEngineVersion(platform, version);
-            }
-        } catch {
-            // If detection fails (e.g. no platform yet), hide the status bar.
+        const status = new BpmnDocument(this.documents.getContent(editorId)).engineVersionStatus();
+        if (status) {
+            this.statusBar.showEngineVersion(status.platform, status.version);
+        } else {
             this.statusBar.hideEngineVersion();
         }
     }

@@ -144,8 +144,14 @@ export class BpmnDocument {
         return match ? match[1] : undefined;
     }
 
+    /**
+     * The platform and version the engine-version status shows, or `undefined`
+     * when the document lacks either, so the status is hidden.
+     */
     engineVersionStatus(): { platform: Engine; version: string } | undefined {
-        return undefined;
+        const platform = this.detectEngine();
+        const version = this.detectPlatformVersion();
+        return platform && version ? { platform, version } : undefined;
     }
 
     /**
