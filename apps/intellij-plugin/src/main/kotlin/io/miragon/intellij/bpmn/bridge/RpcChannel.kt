@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import java.io.BufferedReader
 import java.io.BufferedWriter
@@ -80,6 +81,22 @@ internal class RpcChannel(
     // leaking it.
     fun replyError(id: Int, message: String) =
         enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null, true)
+
+    fun replyFromEdt(
+        id: Int?,
+        method: String,
+        runOnEdt: (Runnable) -> Unit = { ApplicationManager.getApplication().invokeLater(it) },
+        work: () -> Any?,
+    ) {
+    }
+
+    fun replyLaterFromEdt(
+        id: Int,
+        method: String,
+        runOnEdt: (Runnable) -> Unit = { ApplicationManager.getApplication().invokeLater(it) },
+        work: (PendingReply) -> Unit,
+    ) {
+    }
 
     private fun enqueue(line: String, coalesceKey: String?, reliable: Boolean) {
         synchronized(outboundMonitor) {
@@ -248,6 +265,14 @@ internal class RpcChannel(
     private companion object {
         const val OUTBOUND_CAPACITY = 512
         const val RELIABLE_RETRY_MS = 100L
+    }
+}
+
+internal class PendingReply(private val channel: RpcChannel, private val id: Int?) {
+    fun result(value: Any?) {
+    }
+
+    fun error(message: String) {
     }
 }
 

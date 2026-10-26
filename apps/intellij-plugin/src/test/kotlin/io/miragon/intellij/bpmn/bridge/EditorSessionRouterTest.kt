@@ -123,6 +123,12 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
+    private fun Fixture.dispatchCoreSave() {
+        val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId)
+        wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, 2)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+    }
+
     @Test
     fun `a core write sends no document didChange and never reads the document text`() {
         val f = setUpRouter(INITIAL_XML)
@@ -140,6 +146,33 @@ class EditorSessionRouterTest {
         f.scheduler.runPending()
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a core write the Document refuses still answers the request with an error`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.bpmn.document.setReadOnly(true)
+
+        // Unfixed, the refused setText escapes the EDT pump; only the reply decides the spec.
+        runCatching { f.dispatchCoreWrite(EDITED_XML) }
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(1, reply.get("id").asInt)
+        assertTrue(reply.has("error"), "a refused write settles the core's request")
+        assertEquals(INITIAL_XML, f.bpmn.document.text)
+    }
+
+    @Test
+    fun `a save for an editor that is no longer open answers that nothing was saved`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.disposeSession(f.session)
+        parse(f.wired.fake.nextFrame()) // drain session/dispose
+
+        f.dispatchCoreSave()
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(2, reply.get("id").asInt)
+        assertFalse(reply.getAsJsonObject("result").get("saved").asBoolean)
     }
 
     @Test
