@@ -363,9 +363,10 @@ internal class EditorSessionRouter(
      * Re-seeds every open session into a freshly spawned bridge (the document
      * mirror is rebuilt from the live IntelliJ `Document`, the authoritative
      * source) and replays `GetBpmnFileCommand` so the still-alive JCEF page
-     * re-renders without a reload. The page asks for the lint config only on
-     * load, so `GetBpmnlintConfigCommand` is replayed too: a new bridge starts
-     * with linting on and the page would otherwise show the old bridge's toggle.
+     * re-renders without a reload. A replayed render does not make the page ask
+     * for the lint config again, so `GetBpmnlintConfigCommand` is replayed too:
+     * a new bridge starts with linting on and the page would otherwise show the
+     * old bridge's toggle.
      */
     fun reregisterLiveSessions() {
         if (!deps.isProcessAlive()) return

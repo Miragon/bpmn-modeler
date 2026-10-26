@@ -67,7 +67,8 @@ flowchart TD
 - **Crash recovery:** detects process exit, respawns with linear backoff (giving
   up after repeated rapid crashes), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
-  editors re-render.
+  editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
+  bridge's lint state.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
