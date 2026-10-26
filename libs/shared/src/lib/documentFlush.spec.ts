@@ -14,6 +14,7 @@ describe("createFlushResponder", () => {
             isReady: () => true,
             hasPendingSync: () => true,
             hasPendingHostUpdate: () => false,
+            isEditedSinceHostImport: () => true,
             hostUpdateVersion: () => 0,
             documentRevision: () => 0,
             flushPendingSync: vi.fn().mockResolvedValue(undefined),
@@ -140,7 +141,10 @@ describe("createFlushResponder", () => {
     });
 
     it("exports for a destructive host that cannot drain an already-posted sync", async () => {
-        const source = makeSource({ hasPendingSync: () => false });
+        const source = makeSource({
+            hasPendingSync: () => false,
+            isEditedSinceHostImport: () => true,
+        });
         const post = vi.fn();
 
         await createFlushResponder(source, post)(new FlushDocumentQuery(8, true, true));
@@ -148,6 +152,23 @@ describe("createFlushResponder", () => {
         expect(source.flushPendingSync).toHaveBeenCalledOnce();
         expect(source.exportContent).toHaveBeenCalledOnce();
         expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(8, "<xml/>", "flushed", 0));
+    });
+
+    it("leaves a page nobody edited since its last host import to that host", async () => {
+        const source = makeSource({
+            hasPendingSync: () => false,
+            isEditedSinceHostImport: () => false,
+        });
+        const post = vi.fn();
+        const respond = createFlushResponder(source, post);
+
+        await respond(new FlushDocumentQuery(8, true, true));
+
+        expect(source.beginDestructiveFlush).toHaveBeenCalledOnce();
+        expect(source.flushPendingSync).not.toHaveBeenCalled();
+        expect(source.exportContent).not.toHaveBeenCalled();
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(8, undefined, "clean"));
+        expect(source.endDestructiveFlush).not.toHaveBeenCalled();
     });
 
     it("does not export a destructive flush over an inbound host update", async () => {

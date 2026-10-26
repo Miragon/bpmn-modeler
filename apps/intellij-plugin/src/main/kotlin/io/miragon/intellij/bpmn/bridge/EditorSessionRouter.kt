@@ -523,8 +523,10 @@ internal class EditorSessionRouter(
      * still matches, so neither a close nor a replayed render drops edits the
      * Document never received. A page with a pending external host update is
      * skipped: the host copy is authoritative. The flush is destructive and
-     * exports a clean page too, because a page whose sync was dropped believes
-     * it is clean; it leaves each posted page locked for the caller to release.
+     * also exports a page edited since its last render whose sync already went
+     * out, because that sync may have been dropped. A page nobody edited since
+     * then answers `clean`, so its Document keeps its text. The flush leaves
+     * each posted page locked for the caller to release.
      *
      * The reply goes straight into the Document: the bridge's `document/write`
      * would need the EDT a close blocks. All replies share one
@@ -548,7 +550,7 @@ internal class EditorSessionRouter(
         pageFlushes[editorId] = flush
         entry.session.postToWebview(
             "{\"type\":\"FlushDocumentQuery\",\"token\":${flush.token}," +
-                "\"destructive\":true,\"exportWhenClean\":true}",
+                "\"destructive\":true,\"exportWhenEdited\":true}",
         )
         return flush
     }

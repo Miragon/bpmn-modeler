@@ -51,8 +51,9 @@ export class SyncDocumentCommand extends Command<"SyncDocumentCommand"> {
 /**
  * Host → webview: asks the webview to flush any debounced-but-unsynced document
  * changes *now* and reply with a {@link DocumentFlushedCommand} carrying the
- * same `token`. Sent on a save (VS Code) or tab-close (IntelliJ) so the persist
- * path never races the outbound sync debounce and writes stale content.
+ * same `token`. Sent on a save (VS Code), or a tab close and a bridge restart
+ * (IntelliJ), so the persist path never races the outbound sync debounce and
+ * writes stale content.
  */
 export class FlushDocumentQuery extends Query<"FlushDocumentQuery"> {
     public readonly token: number;
@@ -60,14 +61,18 @@ export class FlushDocumentQuery extends Query<"FlushDocumentQuery"> {
     /** Whether the webview must remain mutation-locked until reload or release. */
     public readonly destructive: boolean;
 
-    /** Whether a destructive host needs an exported snapshot even when debounce is idle. */
-    public readonly exportWhenClean: boolean;
+    /**
+     * Whether a destructive flush also exports an edit whose sync already went
+     * out, for a host that may have lost that sync. A page unedited since its
+     * last host import still answers `clean`.
+     */
+    public readonly exportWhenEdited: boolean;
 
-    constructor(token: number, destructive = false, exportWhenClean = false) {
+    constructor(token: number, destructive = false, exportWhenEdited = false) {
         super("FlushDocumentQuery");
         this.token = token;
         this.destructive = destructive;
-        this.exportWhenClean = exportWhenClean;
+        this.exportWhenEdited = exportWhenEdited;
     }
 }
 

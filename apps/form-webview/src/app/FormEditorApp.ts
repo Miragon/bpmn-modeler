@@ -132,6 +132,10 @@ export class FormEditorApp {
         return this.activeHostUpdates > 0;
     }
 
+    isEditedSinceHostImport(): boolean {
+        return this.revisions.isEditedSinceImport;
+    }
+
     hostUpdateVersion(): number {
         return this.revisions.version;
     }
@@ -211,6 +215,7 @@ export class FormEditorApp {
         const content = this.currentContent();
         if (!force && content === this.lastPostedContent) return false;
         this.lastPostedContent = content;
+        this.revisions.markEdited();
         this.host.postMessage(new SyncDocumentCommand(content, this.revisions.representedRevision));
         return true;
     }

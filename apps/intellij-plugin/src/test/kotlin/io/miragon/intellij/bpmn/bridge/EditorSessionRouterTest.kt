@@ -732,10 +732,11 @@ class EditorSessionRouterTest {
     /**
      * Opens a page on [file] (by default replacing the fixture's page) that
      * answers a flush the way the page's flush responder does when it exports
-     * [content] at [pageRevision] with no sync pending, [editedSinceRender] or
-     * not: only a destructive flush that asks for an export of a clean page gets
-     * the content, any other flush gets `clean`. [whileHostWaits] wraps the
-     * reply, to play what happens while the host waits for it.
+     * [content] at [pageRevision] with no sync pending: only a page
+     * [editedSinceRender] gets the content, and only for a destructive flush
+     * that asks for an edit whose sync already went out; any other flush gets
+     * `clean`. [whileHostWaits] wraps the reply, to play what happens while the
+     * host waits for it.
      */
     private fun Fixture.openPageShowing(
         content: String,
@@ -757,9 +758,10 @@ class EditorSessionRouterTest {
                     "FlushDocumentQuery" -> {
                         val destructive = message.get("destructive")?.asBoolean == true
                         if (destructive) heldLocks.add(token)
-                        val exportsCleanPage = destructive && message.get("exportWhenClean")?.asBoolean == true
+                        val exportsSyncedEdit =
+                            destructive && editedSinceRender && message.get("exportWhenEdited")?.asBoolean == true
                         val reply: Map<String, Any> =
-                            if (exportsCleanPage) {
+                            if (exportsSyncedEdit) {
                                 linkedMapOf(
                                     "type" to "DocumentFlushedCommand",
                                     "token" to token,
