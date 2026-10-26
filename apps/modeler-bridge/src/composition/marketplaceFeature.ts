@@ -108,8 +108,9 @@ export function registerHandlers(
 
 /**
  * Acknowledged persist: the host adds the entry to settings and fans the fresh
- * snapshot to every open bridge. A failure is logged rather than thrown, so it
- * never swallows the surrounding success — the templates are already cached.
+ * snapshot to every open bridge. A rejection must reach the core so the add
+ * fails as it does on VS Code — otherwise the marketplace silently vanishes on
+ * the next IDE restart.
  *
  * `scope` is echoed straight back from the add — the bridge never interprets it.
  * Persistence has to wait for the fetch to succeed, but only the host knows what
@@ -120,13 +121,5 @@ async function persistRegistration(
     location: string,
     scope: MarketplaceAddParams["scope"],
 ): Promise<void> {
-    try {
-        await deps.rpc.request(METHODS.marketplaceStateSave, { location, scope });
-    } catch (error) {
-        deps.notifier.logError(
-            error instanceof Error
-                ? new Error(`Failed to persist marketplace registration: ${error.message}`)
-                : new Error("Failed to persist marketplace registration"),
-        );
-    }
+    await deps.rpc.request(METHODS.marketplaceStateSave, { location, scope });
 }
