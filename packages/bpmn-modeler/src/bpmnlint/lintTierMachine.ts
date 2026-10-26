@@ -25,7 +25,7 @@ export interface LintTierInit {
 }
 
 // "in-page-disabled" remembers a user toggle-off, so a re-import cannot silently reactivate linting.
-export type LintTier = "external" | "in-page" | "in-page-disabled";
+type LintTier = "external" | "in-page" | "in-page-disabled";
 
 export interface LintTierState {
     readonly tier: LintTier;
