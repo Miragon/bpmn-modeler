@@ -15,11 +15,10 @@ import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-c
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability
  * adapters, the shared editor-session registry, the one stateless service
- * (`artifactSvc`) consumed by two unrelated features, and the webview flush
- * that the editors serve and deployment runs before it saves. Bundling them
- * lets each feature's `register()` take a single `deps` argument instead of a
- * long, order-sensitive parameter list that `main.ts` would have to thread by
- * hand.
+ * (`artifactSvc`) consumed by two unrelated features, and the flush that
+ * writes a webview's pending edits into its document. Bundling them lets each
+ * feature's `register()` take a single `deps` argument instead of a long,
+ * order-sensitive parameter list that `main.ts` would have to thread by hand.
  */
 export interface SharedDeps {
     editorStore: EditorSessionStore;

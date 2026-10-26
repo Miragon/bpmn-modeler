@@ -151,6 +151,10 @@ syncs, and a single, snapshot-checked initialization of an empty file that a
 webview reload or a host edit cannot race. Each modeler service adds only its
 document type (the empty content, BPMN's engine prompt, the query it posts),
 and one `DocumentRenderParticipant` re-renders any of them on a host change.
+Before a document is persisted, the core's `PendingEditsFlush` asks the
+webview for the edits its sync debounce still holds and writes them through
+the modeler service served for the file type; VS Code runs it on every save,
+and Deploy Diagram runs it on both hosts.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and

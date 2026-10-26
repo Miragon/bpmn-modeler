@@ -15,8 +15,7 @@ import { Rpc } from "../rpc";
  * the host-capability port adapters, the shared editor-session registry, the one
  * webview-message router each feature registers its own surface on, the
  * stateless `artifactSvc` consumed by templates, code-link, and deployment, and
- * the webview flush that the editor session serves and deployment runs before
- * it saves.
+ * the flush that writes a webview's pending edits into its document.
  * Bundling them lets each feature's `register()` take a single `deps` argument
  * instead of the long, order-sensitive parameter list `createBridge` would
  * otherwise thread by hand — the bridge analogue of the VS Code `SharedDeps`.
