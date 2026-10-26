@@ -24,8 +24,18 @@ export type SourceSlotAction =
     | { readonly kind: "remove"; readonly sourceIndex: number };
 
 export function planSourceCacheRefresh(
-    _cachedSourceIndexes: readonly number[],
-    _outcomes: readonly SourceFetchOutcome[],
+    cachedSourceIndexes: readonly number[],
+    outcomes: readonly SourceFetchOutcome[],
 ): SourceSlotAction[] {
-    return [];
+    const listedSourceIndexes = new Set(outcomes.map((outcome) => outcome.sourceIndex));
+    const removals = cachedSourceIndexes
+        .filter((sourceIndex) => !listedSourceIndexes.has(sourceIndex))
+        .map((sourceIndex): SourceSlotAction => ({ kind: "remove", sourceIndex }));
+    return [...outcomes.map(slotActionFor), ...removals];
+}
+
+function slotActionFor(outcome: SourceFetchOutcome): SourceSlotAction {
+    return outcome.kind === "fetched"
+        ? { kind: "replace", sourceIndex: outcome.sourceIndex, files: outcome.files }
+        : { kind: "keep", sourceIndex: outcome.sourceIndex };
 }

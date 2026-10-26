@@ -7,33 +7,6 @@ function createWorkspace(files: Record<string, string> = {}) {
     return new InMemoryWorkspace([], files);
 }
 
-describe("MarketplaceCache.write", () => {
-    it("writes a normal path under <root>/<id>/<index>/<contentType>/<path>", async () => {
-        const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
-
-        await cache.write("acme", 0, "element-templates", "templates/a.json", "{}");
-
-        expect(workspace.files).toEqual(
-            new Map([["/cache/acme/0/element-templates/templates/a.json", "{}"]]),
-        );
-    });
-
-    it.each([
-        ["a parent-traversal path", "../../../settings.json"],
-        ["an absolute posix path", "/etc/passwd"],
-        ["a backslash traversal path", "..\\..\\settings.json"],
-    ])("rejects %s and never writes", async (_label, repoPath) => {
-        const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
-
-        await expect(cache.write("acme", 0, "element-templates", repoPath, "{}")).rejects.toThrow(
-            /unsafe template path/,
-        );
-        expect(workspace.files.size).toBe(0);
-    });
-});
-
 describe("MarketplaceCache.replaceSource", () => {
     it("writes each file under <root>/<id>/<index>/<contentType>/<path>", async () => {
         const workspace = createWorkspace();

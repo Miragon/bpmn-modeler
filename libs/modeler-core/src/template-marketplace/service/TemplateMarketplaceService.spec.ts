@@ -1327,8 +1327,9 @@ describe("TemplateMarketplaceService cache retention", () => {
         await service.addMarketplace(MARKETPLACE_URL);
 
         upstream.listings.one = ["one/new.json", "../../escape.json"];
-        await service.updateAll();
+        const outcome = await service.updateAll();
 
+        expect(outcome).toEqual({ succeeded: 1, failures: [] });
         expect(workspace.files).toEqual(
             new Map([[`${SLOT}/0/element-templates/one/a.json`, '{"from":"one/a.json"}']]),
         );

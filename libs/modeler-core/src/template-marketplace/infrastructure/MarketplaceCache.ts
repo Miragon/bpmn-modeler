@@ -20,10 +20,10 @@ const ELEMENT_TEMPLATES_SEGMENT: MarketplaceContentType = "element-templates";
  * segment keeps a future JSON content type (lint rules, palette entries) out of
  * the element-template pipeline that reads this cache.
  *
- * Files are overwritten in place on refresh, so a template deleted upstream
- * within a *still-registered* marketplace lingers until its slot is rewritten.
- * A marketplace removed from settings is pruned wholesale via {@link prune},
- * which deletes every top-level slot no longer registered.
+ * A refresh replaces, keeps or removes whole source slots (see
+ * `planSourceCacheRefresh`). A marketplace removed from settings is pruned
+ * wholesale via {@link prune}, which deletes every top-level slot no longer
+ * registered.
  */
 export class MarketplaceCache {
     /**
@@ -35,43 +35,45 @@ export class MarketplaceCache {
         private readonly workspace: WorkspacePort,
     ) {}
 
+    async sourceIndexes(marketplaceId: string): Promise<number[]> {
+        const marketplaceDir = `${this.cacheRoot}/${marketplaceId}`;
+        return (await this.listSubdirectories(marketplaceDir))
+            .map((sourceDir) => sourceDir.slice(marketplaceDir.length + 1))
+            .filter((name) => /^\d+$/.test(name))
+            .map(Number);
+    }
+
     /**
-     * `repoPath` is reproduced verbatim under the slot so distinct upstream
-     * files stay distinct on disk. `contentType` segments the slot so a source's
-     * files never mingle with another content type sharing the same source slot.
+     * Swaps the slot's files for `files`; each `repoPath` is reproduced verbatim
+     * under its content type so distinct upstream files stay distinct on disk.
      *
-     * @throws {Error} when `repoPath` is absolute or contains a `..` segment. A
-     *   self-hosted `baseUrl` is untrusted user-configured infrastructure and can
-     *   return a hostile path (e.g. `../../../settings.json`); without this guard
-     *   the concatenation below would write attacker content outside the cache
-     *   root. Skipped, not fatal — `cacheSource` catches per source.
+     * @throws {Error} when a `repoPath` is absolute or contains a `..` segment,
+     *   before anything is deleted. A self-hosted `baseUrl` is untrusted
+     *   user-configured infrastructure and can return a hostile path (e.g.
+     *   `../../../settings.json`); without this guard the concatenation would
+     *   write attacker content outside the cache root.
      */
-    async write(
+    async replaceSource(
         marketplaceId: string,
         sourceIndex: number,
-        contentType: MarketplaceContentType,
-        repoPath: string,
-        content: string,
+        files: readonly FetchedTemplateFile[],
     ): Promise<void> {
-        this.assertSafeRepoPath(repoPath);
-        const target = `${this.cacheRoot}/${marketplaceId}/${sourceIndex}/${contentType}/${repoPath}`;
-        await this.workspace.writeFile(target, content);
+        for (const file of files) {
+            this.assertSafeRepoPath(file.repoPath);
+        }
+        const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
+        await this.workspace.deleteDirectory(sourceDir);
+        for (const { contentType, repoPath, content } of files) {
+            await this.workspace.writeFile(`${sourceDir}/${contentType}/${repoPath}`, content);
+        }
     }
 
-    async sourceIndexes(_marketplaceId: string): Promise<number[]> {
-        return [];
+    async removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {
+        await this.workspace.deleteDirectory(this.sourceDir(marketplaceId, sourceIndex));
     }
 
-    replaceSource(
-        _marketplaceId: string,
-        _sourceIndex: number,
-        _files: readonly FetchedTemplateFile[],
-    ): Promise<void> {
-        return Promise.resolve();
-    }
-
-    removeSource(_marketplaceId: string, _sourceIndex: number): Promise<void> {
-        return Promise.resolve();
+    private sourceDir(marketplaceId: string, sourceIndex: number): string {
+        return `${this.cacheRoot}/${marketplaceId}/${sourceIndex}`;
     }
 
     /**
@@ -113,8 +115,8 @@ export class MarketplaceCache {
      * Deletes every top-level marketplace slot whose id is not in
      * `registeredIds`, so removing a marketplace from settings also removes the
      * templates it orphaned. A slot's directory name *is* its `marketplaceId`
-     * (that is how {@link write} keys the layout), so the set membership check is
-     * exact. A missing cache root maps to `[]` (nothing cached yet).
+     * (that is how {@link replaceSource} keys the layout), so the set membership
+     * check is exact. A missing cache root maps to `[]` (nothing cached yet).
      *
      * @returns the ids of the slots actually deleted, for the caller to log.
      */
