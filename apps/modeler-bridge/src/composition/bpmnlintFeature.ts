@@ -48,9 +48,13 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
     deps.router
         .on("GetBpmnlintConfigCommand", getBpmnlintConfigHandler(lintSvc))
         .on("UpdateLintResultsCommand", updateLintResultsHandler(lintSvc))
-        .on("SetLintingEnabledCommand", (message) =>
-            deps.settings.setLintingEnabled(message.enabled),
-        );
+        .on("SetLintingEnabledCommand", async (message, editorId) => {
+            // An unchanged value means the page is out of sync, e.g. still showing
+            // "Linting off" after a bridge respawn reset the toggle to on.
+            if (!deps.settings.setLintingEnabled(message.enabled)) {
+                await lintSvc.setBpmnlintConfig(editorId);
+            }
+        });
 
     return {
         participants: [new BpmnlintParticipant(lintSvc, locator, deps.statusBar, deps.notifier)],

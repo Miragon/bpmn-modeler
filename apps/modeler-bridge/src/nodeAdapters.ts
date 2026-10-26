@@ -500,8 +500,8 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
 };
 
 /**
- * Mutable {@link SettingsPort} fed by the host over RPC, plus the change-event hub
- * the core's settings subscriptions ride on.
+ * Mutable {@link SettingsPort} fed by the host over RPC and by the webview's lint
+ * toggle, plus the change-event hub the core's settings subscriptions ride on.
  *
  * The VS Code host reads configuration synchronously and emits
  * `onDidChangeConfiguration`; out-of-process there is no such API, so the host
@@ -536,14 +536,18 @@ export class BridgeSettings implements SettingsPort {
 
     /**
      * The webview's lint toggle. IntelliJ has no setting for it, so the choice
-     * lives as long as this bridge process: one project, until the IDE restarts.
+     * lives as long as this bridge process: one project, until the IDE restarts or
+     * the bridge respawns.
+     *
+     * @returns whether the toggle changed the setting.
      */
-    setLintingEnabled(enabled: boolean): void {
+    setLintingEnabled(enabled: boolean): boolean {
         if (enabled === this.lintingEnabled) {
-            return;
+            return false;
         }
         this.lintingEnabled = enabled;
         this.notify(new Set([`${SETTINGS_PREFIX}.linting.enabled`]));
+        return true;
     }
 
     /** Registers a settings-change listener; the returned subscription unregisters it. */
