@@ -271,7 +271,7 @@ describe("migrateAllDiagrams", () => {
         expect(workspace.files.get("/work/a.bpmn")).toBe(withUnsavedEdit(c8Bpmn("8.8.0")));
     });
 
-    it("does not count an open diagram whose editor rejected the write", async () => {
+    it("reports an open diagram whose editor rejected the write as skipped, not updated", async () => {
         const { service, documents, notifier, openEditor } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
             { engineVersion: "8.8.0" },
@@ -281,8 +281,28 @@ describe("migrateAllDiagrams", () => {
 
         await service.migrateAllDiagrams();
 
-        expect(notifier.infos).not.toContain("Updated 1 diagram(s) to Camunda 8 (8.8.0).");
+        expect(notifier.infos).toEqual([
+            "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
+        ]);
         expect(notifier.logged("warning")).toEqual([expect.stringContaining("/work/open.bpmn")]);
+    });
+
+    it("reports the skipped diagrams next to the updated ones", async () => {
+        const { service, documents, notifier, openEditor, picker } = createHost(
+            { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
+            { migrationScope: "both" },
+        );
+        openEditor("/work/c7.bpmn", c7Bpmn("7.20.0"));
+        vi.spyOn(documents, "write").mockResolvedValue(false);
+        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async (platform) =>
+            platform === "c7" ? "7.24.0" : "8.8.0",
+        );
+
+        await service.migrateAllDiagrams();
+
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
     });
 
     it("does not report an added executionPlatform that the editor rejected", async () => {
@@ -315,6 +335,9 @@ describe("migrateAllDiagrams", () => {
         expect(editor.content).toBe(c7Bpmn("7.20.0"));
         expect(notifier.logged("warning")).toEqual([
             "Skipped a diagram whose engine changed during migration: /work/open.bpmn",
+        ]);
+        expect(notifier.infos).toEqual([
+            "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
         ]);
     });
 
