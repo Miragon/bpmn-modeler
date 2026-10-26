@@ -227,6 +227,37 @@ describe("DeploymentFeature command failures", () => {
 
         expect(host.notifier.errors).toEqual(["Deployment command failed\ntargets file is locked"]);
     });
+
+    it("reports a secret store that cannot be read and sends nothing to the engine", async () => {
+        const http = new RecordingEngineHttp();
+        const basicTarget = new DeploymentTarget(
+            "dev",
+            "c7",
+            "http://localhost:8080/engine-rest",
+            "",
+            "basic",
+            "",
+            "",
+        );
+        const { host, feature } = createFeature(
+            { workspaceFiles: [ORDER_PROCESS] },
+            [basicTarget],
+            { [ORDER_PROCESS]: "<bpmn:definitions/>" },
+            http,
+        );
+        host.deploymentState.activeTargetName = "dev";
+        host.openEditor(ORDER_PROCESS);
+        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(
+            new Error("The OS keyring is not available."),
+        );
+
+        await expect(feature.deployFiles()).resolves.toBeUndefined();
+
+        expect(http.deployments).toEqual([]);
+        expect(host.notifier.errors).toEqual([
+            "Deployment command failed\nThe OS keyring is not available.",
+        ]);
+    });
 });
 
 describe("DeploymentFeature.activeDocumentDir", () => {
