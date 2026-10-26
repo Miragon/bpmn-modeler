@@ -42,16 +42,27 @@ internal class EditorSessionRouter(
         val session: CoreSession,
         val sessionId: Long,
         val documentRevision: AtomicLong = AtomicLong(0),
-    )
+    ) {
+        // The flush token a recovery keeps the page locked with until a render reaches it.
+        private val renderLockToken = AtomicLong(NO_RENDER_LOCK)
+
+        fun holdRenderLock(token: Long) = renderLockToken.set(token)
+
+        /** The token the arriving render unlocks, or null when the page is not held. */
+        fun takeRenderLock(): Long? = renderLockToken.getAndSet(NO_RENDER_LOCK).takeIf { it != NO_RENDER_LOCK }
+
+        /** Gives up the hold on [token] unless a render or a newer recovery already took it. */
+        fun abandonRenderLock(token: Long): Boolean = renderLockToken.compareAndSet(token, NO_RENDER_LOCK)
+    }
 
     private val sessions = ConcurrentHashMap<String, SessionEntry>()
     private val nextSessionId = AtomicLong(0)
 
-    // Editors whose Document is being set by a core `document/write` or a page
-    // flush. The synchronous `DocumentListener` call that `setText` triggers sees
-    // the marker and sends nothing: the write reply or the next `session/register`
-    // tells the bridge what the Document holds, and the page already shows it.
-    private val editorsApplyingCoreWrite: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    // Editors whose Document [setTextWithoutEcho] is setting. The synchronous
+    // `DocumentListener` call that `setText` triggers sees the marker and sends
+    // nothing: the content came from the bridge or from the page itself, so a
+    // `document/didChange` would only render the page's own content back into it.
+    private val editorsSettingTextWithoutEcho: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     // Per-editor debounce timer for *external* edits only (raw-text tab, git
     // checkout, another tool). A newer keystroke cancels and reschedules, so the
@@ -87,10 +98,6 @@ internal class EditorSessionRouter(
     // Monotonic token so a late flush reply can't satisfy a newer flush request.
     private val pageFlushToken = AtomicLong(0)
 
-    // Pages a respawn recovery left locked, so no edit lands between the recovery
-    // and the replayed render that re-imports the Document.
-    private val pagesAwaitingRender = ConcurrentHashMap<String, LockedPage>()
-
     fun register() {
         deps.handlers
             .on("editor/postMessage") { params, _ ->
@@ -109,7 +116,7 @@ internal class EditorSessionRouter(
                 }
                 entry.session.postToWebview(deps.gson.toJson(message))
                 if (query != null) {
-                    pagesAwaitingRender[editorId]?.takeIf { it.entry === entry }?.let { releaseAfterRender(editorId, it) }
+                    entry.takeRenderLock()?.let { entry.session.postToWebview(releaseFlushQuery(it)) }
                     val expected = hostUpdatesAwaitingWebview[editorId]
                     if (
                         expected != null &&
@@ -227,7 +234,7 @@ internal class EditorSessionRouter(
         }
         val isSyncCommand = trimmed.contains(SYNC_COMMAND_MARKER)
         if (isSyncCommand) {
-            if (debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)) return
+            if (hasPendingExternalUpdate(editorId)) return
             val syncRevision = readTopLevelLong(trimmed, "documentRevision", deps.gson)
             if ((syncRevision ?: 0L) < entry.documentRevision.get()) return
         }
@@ -255,7 +262,7 @@ internal class EditorSessionRouter(
      * per diagram edit.
      *
      * **[setTextWithoutEcho] relies on this running synchronously inside `setText`.**
-     * It marks the editor in [editorsApplyingCoreWrite] only for the duration of
+     * It marks the editor in [editorsSettingTextWithoutEcho] only for the duration of
      * the write action, so a deferred listener would mistake the write for an
      * external edit and send it back.
      *
@@ -271,7 +278,7 @@ internal class EditorSessionRouter(
         val seq = (changeSeq[editorId] ?: 0L) + 1L
         changeSeq[editorId] = seq
 
-        if (editorId in editorsApplyingCoreWrite) {
+        if (editorId in editorsSettingTextWithoutEcho) {
             debounceTimers.remove(editorId)?.cancel(false)
             return
         }
@@ -319,6 +326,13 @@ internal class EditorSessionRouter(
         )
     }
 
+    /**
+     * Whether an external edit is still debounced or has not reached the page
+     * yet. Until it has, the host copy wins over anything the page sends.
+     */
+    private fun hasPendingExternalUpdate(editorId: String): Boolean =
+        debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)
+
     /** Tells the core which open editor is focused (drives its active-editor pointer). */
     fun setActiveEditor(editorId: String) {
         val entry = sessions[editorId] ?: return
@@ -355,32 +369,31 @@ internal class EditorSessionRouter(
     }
 
     private fun resetSessionState(editorId: String) {
-        editorsApplyingCoreWrite.remove(editorId)
+        editorsSettingTextWithoutEcho.remove(editorId)
         debounceTimers.remove(editorId)?.cancel(false)
         hostUpdatesAwaitingWebview.remove(editorId)
         changeSeq.remove(editorId)
         pendingSvgRequests.remove(editorId)
-        pagesAwaitingRender.remove(editorId)
         // Unblock any page flush still awaiting a reply so a disposed editor
         // never strands the waiting thread for the full timeout.
         pageFlushes.remove(editorId)?.latch?.countDown()
     }
 
     /**
-     * Re-seeds every open session into the bridge after a respawn or Reload
-     * Modeler (the document mirror is rebuilt from the live IntelliJ `Document`,
-     * the authoritative source) and replays `GetBpmnFileCommand` so the
-     * still-alive JCEF page re-renders without a reload. The replayed render
-     * re-imports the Document, so [recoverPageEdits] first writes the edits the
-     * Document never received (a sync dropped in the restart window or still
-     * debounced), and the page stays locked until that render reaches it.
+     * Re-seeds every open session into the bridge (the document mirror is
+     * rebuilt from the live IntelliJ `Document`, the authoritative source) and
+     * replays `GetBpmnFileCommand` so the still-alive JCEF page re-renders
+     * without a reload. The replayed render re-imports the Document, so
+     * [recoverPageEdits] first writes the edits the Document never received (a
+     * sync dropped in the restart window or still debounced), and the page stays
+     * locked until a render reaches it.
      *
      * A replayed render does not make the page ask for the lint config again,
      * so `GetBpmnlintConfigCommand` is replayed too: a new bridge starts with
      * linting on and the page would otherwise show the old bridge's toggle.
      *
-     * Blocks its caller, the scheduler thread after a crash or the EDT for
-     * Reload Modeler, for at most [PAGE_FLUSH_TIMEOUT_MS].
+     * Waits up to [PAGE_FLUSH_TIMEOUT_MS] for the pages' replies; off the EDT it
+     * then also waits until the EDT has written them.
      */
     fun reregisterLiveSessions() {
         if (!deps.isProcessAlive()) return
@@ -399,12 +412,11 @@ internal class EditorSessionRouter(
     fun clear() {
         debounceTimers.values.forEach { it.cancel(false) }
         sessions.clear()
-        editorsApplyingCoreWrite.clear()
+        editorsSettingTextWithoutEcho.clear()
         debounceTimers.clear()
         hostUpdatesAwaitingWebview.clear()
         changeSeq.clear()
         pendingSvgRequests.clear()
-        pagesAwaitingRender.clear()
         pageFlushes.values.forEach { it.latch.countDown() }
         pageFlushes.clear()
     }
@@ -438,13 +450,7 @@ internal class EditorSessionRouter(
         deps.channel.replyFromEdt(id, "document/write") {
             if (
                 sessions[editorId] !== entry ||
-                (
-                    expectedDocumentRevision == null &&
-                        (
-                            debounceTimers.containsKey(editorId) ||
-                                hostUpdatesAwaitingWebview.containsKey(editorId)
-                        )
-                ) ||
+                (expectedDocumentRevision == null && hasPendingExternalUpdate(editorId)) ||
                 (expectedDocumentRevision != null &&
                     expectedDocumentRevision != entry.documentRevision.get())
             ) {
@@ -537,7 +543,7 @@ internal class EditorSessionRouter(
 
     private fun requestPageFlush(entry: SessionEntry): PageFlush? {
         val editorId = entry.session.editorId
-        if (debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)) return null
+        if (hasPendingExternalUpdate(editorId)) return null
         val flush = PageFlush(entry, pageFlushToken.incrementAndGet(), entry.documentRevision.get())
         pageFlushes[editorId] = flush
         entry.session.postToWebview(
@@ -562,13 +568,19 @@ internal class EditorSessionRouter(
     private fun writeFlushedContent(flush: PageFlush) {
         val entry = flush.entry
         val content = flush.content ?: return
-        if (
+        val exportStillCurrent =
             pageFlushRevisionMatches(flush.expectedDocumentRevision, flush.contentRevision) &&
-            sessions[entry.session.editorId] === entry &&
-            entry.documentRevision.get() == flush.expectedDocumentRevision &&
-            !entry.session.project.isDisposed
-        ) {
+                sessions[entry.session.editorId] === entry &&
+                entry.documentRevision.get() == flush.expectedDocumentRevision &&
+                !entry.session.project.isDisposed
+        if (!exportStillCurrent) return
+        try {
             writeIfChanged(entry.session, content)
+        } catch (e: Exception) {
+            // A Document can refuse the write (a non-writable file); the other
+            // pages still get theirs.
+            if (e is ControlFlowException) throw e
+            log.warn("Could not write the page's content into ${entry.session.editorId}", e)
         }
     }
 
@@ -578,25 +590,23 @@ internal class EditorSessionRouter(
     }
 
     /**
-     * Keeps a recovered page locked until the replayed render reaches it, or
+     * Keeps a recovered page locked until a render reaches it, or
      * [RENDER_REPLAY_TIMEOUT_MS] passed: a bridge that never answers the replay
      * must not leave the page inert.
      */
     private fun holdUntilRendered(flush: PageFlush) {
-        val editorId = flush.entry.session.editorId
-        val lockedPage = LockedPage(flush.entry, flush.token)
-        pagesAwaitingRender[editorId] = lockedPage
+        val entry = flush.entry
+        entry.holdRenderLock(flush.token)
         scheduler.schedule(
-            { releaseAfterRender(editorId, lockedPage) },
+            {
+                // A closed page's browser is already disposed.
+                if (entry.abandonRenderLock(flush.token) && sessions[entry.session.editorId] === entry) {
+                    entry.session.postToWebview(releaseFlushQuery(flush.token))
+                }
+            },
             RENDER_REPLAY_TIMEOUT_MS,
             TimeUnit.MILLISECONDS,
         )
-    }
-
-    private fun releaseAfterRender(editorId: String, lockedPage: LockedPage) {
-        if (pagesAwaitingRender.remove(editorId, lockedPage) && sessions[editorId] === lockedPage.entry) {
-            lockedPage.entry.session.postToWebview(releaseFlushQuery(lockedPage.token))
-        }
     }
 
     private fun releaseFlushQuery(token: Long) = "{\"type\":\"ReleaseDocumentFlushQuery\",\"token\":$token}"
@@ -642,13 +652,13 @@ internal class EditorSessionRouter(
 
     /** Sets [content] so the synchronous [notifyDocumentChanged] call does not take it for an external edit. */
     private fun setTextWithoutEcho(session: CoreSession, document: Document, content: String) {
-        editorsApplyingCoreWrite.add(session.editorId)
+        editorsSettingTextWithoutEcho.add(session.editorId)
         try {
             WriteCommandAction.runWriteCommandAction(session.project) {
                 document.setText(content)
             }
         } finally {
-            editorsApplyingCoreWrite.remove(session.editorId)
+            editorsSettingTextWithoutEcho.remove(session.editorId)
         }
     }
 
@@ -668,9 +678,6 @@ internal class EditorSessionRouter(
         @Volatile
         var contentRevision: Long? = null
     }
-
-    /** A page a respawn recovery locked with [token] until its replayed render arrives. */
-    private class LockedPage(val entry: SessionEntry, val token: Long)
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
@@ -708,6 +715,9 @@ internal class EditorSessionRouter(
         // Covers a respawned bridge re-seeding a session before it renders; past
         // it the page takes edits again even without the replayed render.
         const val RENDER_REPLAY_TIMEOUT_MS = 5_000L
+
+        // [pageFlushToken] starts its tokens at 1.
+        const val NO_RENDER_LOCK = 0L
     }
 }
 
