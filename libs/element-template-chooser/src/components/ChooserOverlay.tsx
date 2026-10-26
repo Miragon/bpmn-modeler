@@ -131,6 +131,13 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
     const visiblePropertyCount = (t: ElementTemplate) =>
         t.properties.filter((p) => p.type !== "Hidden").length;
 
+    const propertyCountLabel = (t: ElementTemplate) => {
+        const count = visiblePropertyCount(t);
+        return translate(count === 1 ? "{count} property" : "{count} properties", {
+            count: String(count),
+        });
+    };
+
     return (
         <div class="etc-backdrop" onClick={onCancel}>
             <div class="etc-modal" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
@@ -278,9 +285,7 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
                                             </span>
                                         )}
                                         <span class="etc-badge etc-badge--props">
-                                            {translate("{count} properties", {
-                                                count: String(visiblePropertyCount(t)),
-                                            })}
+                                            {propertyCountLabel(t)}
                                         </span>
                                     </div>
                                 </div>

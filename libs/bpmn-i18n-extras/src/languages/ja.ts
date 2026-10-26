@@ -55,6 +55,7 @@ const dictionary: Record<string, string> = {
     "required": "必須",
     "thrown by {elements}": "スロー元: {elements}",
     "{count} properties": "{count} 個のプロパティ",
+    "{count} property": "{count} 個のプロパティ",
 };
 
 export default dictionary;

@@ -52,6 +52,19 @@ describe("MarketplaceCommands.add", () => {
         expect(notifier.errors).toEqual(["Failed to add marketplace.\nmarketplace.json not found"]);
     });
 
+    it("fails the add and prunes the fetched cache when the persist fails", async () => {
+        const { commands, marketplaces, templates, notifier } = createCommands();
+
+        await commands.add("/templates", async () => {
+            throw new Error("disk full");
+        });
+
+        expect(marketplaces.pruneOrphanedCaches).toHaveBeenCalledOnce();
+        expect(templates.reloadMarketplaceTemplates).not.toHaveBeenCalled();
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual(["Failed to add marketplace.\ndisk full"]);
+    });
+
     it("leaves the failure toast to the host when it explains the failure itself", async () => {
         const explained: string[] = [];
         const { commands, notifier } = createCommands(async (error) => {

@@ -11,7 +11,8 @@
  * Covered: `marketplace/add` requesting `marketplaceState/save`, then (once acked)
  * refreshing the open editor with the freshly cached template and toasting
  * success; the missing-manifest failure path toasting an error and NOT persisting;
- * and `marketplace/update` folding a piggybacked marketplace list into a summary.
+ * a rejected persist failing the add and pruning the fetched cache; and
+ * `marketplace/update` folding a piggybacked marketplace list into a summary.
  */
 
 import { promises as fs } from "node:fs";
@@ -247,8 +248,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         expect(save.params.location).toBe(folder);
     });
 
-    it("still refreshes editors and confirms the add when persisting it fails", async () => {
-        const { rpc, frames, tmp } = await setup();
+    it("reports the add as failed and drops the fetched cache when persisting it fails", async () => {
+        const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
         await rpc.handleLine(
@@ -257,15 +258,15 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const save = await waitForFrame(frames, isSaveRequest);
         await rpc.handleLine(hostErrorReply(save.id, "disk full"));
 
-        await waitForFrame(frames, isShowInfo("Marketplace added."));
-        expect(frames).toContainEqual({
-            method: "notifier/log",
-            params: {
-                level: "error",
-                message: "Failed to persist marketplace registration: disk full",
-            },
+        const failure = await waitForFrame(frames, (f) => f.method === "notifier/notifyError");
+        expect(failure.params).toEqual({
+            context: "Failed to add marketplace.",
+            message: "disk full",
         });
-        expect(frames.some(isTemplatesQuery(TEMPLATE_NAME))).toBe(true);
+        await settle();
+        expect(frames.some(isShowInfo("Marketplace added."))).toBe(false);
+        expect(frames.some(isTemplatesQuery(TEMPLATE_NAME))).toBe(false);
+        expect(await fs.readdir(cacheRoot)).toEqual([]);
     });
 
     it("says so when no marketplace is configured to update", async () => {

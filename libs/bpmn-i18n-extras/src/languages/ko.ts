@@ -55,6 +55,7 @@ const dictionary: Record<string, string> = {
     "required": "필수",
     "thrown by {elements}": "발생: {elements}",
     "{count} properties": "{count}개 속성",
+    "{count} property": "{count}개 속성",
 };
 
 export default dictionary;

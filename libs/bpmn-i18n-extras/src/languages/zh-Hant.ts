@@ -55,6 +55,7 @@ const dictionary: Record<string, string> = {
     "required": "必填",
     "thrown by {elements}": "拋出方：{elements}",
     "{count} properties": "{count} 個屬性",
+    "{count} property": "{count} 個屬性",
 };
 
 export default dictionary;
