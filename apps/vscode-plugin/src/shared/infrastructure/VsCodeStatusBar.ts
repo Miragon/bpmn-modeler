@@ -83,11 +83,6 @@ export class VsCodeStatusBar implements StatusBarPort {
         this.engineVersionStatusItem?.hide();
     }
 
-    disposeEngineVersionStatus(): void {
-        this.engineVersionStatusItem?.dispose();
-        this.engineVersionStatusItem = undefined;
-    }
-
     showBpmnlintActive(configPath: string): void {
         const item = this.getOrCreateBpmnlintStatusItem();
         item.text = "$(check) BPMNlint";

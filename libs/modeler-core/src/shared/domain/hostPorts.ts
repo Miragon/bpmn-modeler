@@ -262,7 +262,6 @@ export interface StatusBarPort {
     hideElementTemplatesStatus(): void;
     showEngineVersion(platform: Engine, version: string): void;
     hideEngineVersion(): void;
-    disposeEngineVersionStatus(): void;
     showBpmnlintActive(configPath: string): void;
     showBpmnlintUnresolved(configPath: string, unresolved: string[]): void;
     showBpmnlintDefault(platform: Engine | undefined): void;

@@ -441,10 +441,6 @@ export class RpcStatusBar implements StatusBarPort {
         this.rpc.notify(METHODS.statusBarHideEngineVersion, {});
     }
 
-    disposeEngineVersionStatus(): void {
-        this.rpc.notify(METHODS.statusBarDisposeEngineVersion, {});
-    }
-
     showDeploymentTarget(
         name: string | undefined,
         freshness: DeploymentFreshness,

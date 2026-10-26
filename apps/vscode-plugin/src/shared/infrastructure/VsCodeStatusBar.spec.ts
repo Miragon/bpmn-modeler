@@ -115,21 +115,6 @@ describe("VsCodeStatusBar engine version", () => {
 
         expect(renderedStatusBar()).toEqual([]);
     });
-
-    it("brings the engine version back with its click action after disposal", () => {
-        statusBar.showEngineVersion("c7", "7.22.0");
-        statusBar.disposeEngineVersionStatus();
-        expect(renderedStatusBar()).toEqual([]);
-
-        statusBar.showEngineVersion("c8", "8.6.0");
-
-        expect(renderedStatusBar()).toEqual([
-            rightEntry("$(server-environment) Camunda 8 (8.6.0)", {
-                tooltip: "Click to change engine version",
-                command: "bpmn-modeler.changeEngineVersion",
-            }),
-        ]);
-    });
 });
 
 const CONFIG_PATH = "/work/.bpmnlintrc";
@@ -374,7 +359,6 @@ describe("VsCodeStatusBar layout", () => {
     it("leaves the status bar empty when hiding what was never shown", () => {
         statusBar.hideElementTemplatesStatus();
         statusBar.hideEngineVersion();
-        statusBar.disposeEngineVersionStatus();
         statusBar.hideBpmnlintStatus();
         statusBar.hideDeploymentTarget();
 
