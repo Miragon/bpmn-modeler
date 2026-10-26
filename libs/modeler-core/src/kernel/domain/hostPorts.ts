@@ -10,7 +10,7 @@
  * the contract any non-VS-Code host would have to satisfy. The concrete
  * `VsCode*` classes in `infrastructure/` `implements` these.
  *
- * Only cross-cutting ports live here, so `shared/` names no feature. A port or
+ * Only cross-cutting ports live here, so `kernel/` names no feature. A port or
  * prompt one feature owns lives in that feature's `domain/ports.ts`.
  */
 

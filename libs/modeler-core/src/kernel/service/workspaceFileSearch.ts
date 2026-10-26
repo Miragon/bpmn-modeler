@@ -5,7 +5,7 @@ import { joinWorkspacePath } from "../domain/workspacePath";
 
 /**
  * Reusable workspace-search primitives shared by the navigation and code-link
- * features. Kept in `shared/` (exempt from feature isolation) so both features
+ * features. Kept in `kernel/` (exempt from feature isolation) so both features
  * build on one implementation of the find-files-with-fallback and parallel
  * content-search logic instead of duplicating ~80 lines each.
  *

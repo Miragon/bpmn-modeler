@@ -38,7 +38,7 @@ export type FormDeclarationsResult =
  *
  * The workspace search itself (findFiles + fs-walk fallback, parallel content
  * search) lives in {@link findFilesExcluding} / {@link searchFilesContent}
- * under `shared/`; this class only owns the model-specific glob and id lookup.
+ * under `kernel/`; this class only owns the model-specific glob and id lookup.
  */
 export class ReferencedModelLocator {
     constructor(
