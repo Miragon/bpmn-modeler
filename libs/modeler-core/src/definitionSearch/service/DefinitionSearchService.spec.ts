@@ -5,7 +5,7 @@ import {
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import { createTestHost } from "../../testing";
+import { createTestHost, type WorkspaceWatcher } from "../../testing";
 import { DefinitionSearchService } from "./DefinitionSearchService";
 import { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";
 
@@ -48,6 +48,10 @@ function setup(initialFiles: Record<string, string>) {
         answer,
         search,
     };
+}
+
+function liveWatcherRoots(watchers: readonly WorkspaceWatcher[]): string[] {
+    return watchers.filter(({ disposed }) => !disposed).map(({ root }) => root);
 }
 
 describe("DefinitionSearchService", () => {
@@ -129,6 +133,53 @@ describe("DefinitionSearchService", () => {
 
         expect(await answer("bogus" as "message", "x")).toMatchObject({ failed: true });
         expect(findFiles).not.toHaveBeenCalled();
+    });
+
+    it("finds definitions in a workspace folder added after the first search", async () => {
+        const { host, search } = setup({
+            "/work/current.bpmn": model(""),
+            "/work/pay.bpmn": model('<bpmn:message id="M1" name="paid" />'),
+            "/shared/ship.bpmn": model('<bpmn:message id="M2" name="shipped" />'),
+        });
+        await search("message", "");
+
+        host.workspace.addFolder("/shared");
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["paid", "shipped"]);
+    });
+
+    it("keeps an added folder's models current", async () => {
+        const { host, search } = setup({
+            "/work/pay.bpmn": model('<bpmn:message id="M1" name="paid" />'),
+            "/shared/ship.bpmn": model('<bpmn:message id="M2" name="shipped" />'),
+        });
+        await search("message", "");
+        host.workspace.addFolder("/shared");
+        await search("message", "");
+
+        await host.workspace.writeFile(
+            "/shared/ship.bpmn",
+            model('<bpmn:message id="M2" name="dispatched" />'),
+        );
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual([
+            "dispatched",
+            "paid",
+        ]);
+    });
+
+    it("stops listing definitions of a removed workspace folder", async () => {
+        const { host, search } = setup({
+            "/work/pay.bpmn": model('<bpmn:message id="M1" name="paid" />'),
+            "/shared/ship.bpmn": model('<bpmn:message id="M2" name="shipped" />'),
+        });
+        host.workspace.addFolder("/shared");
+        await search("message", "");
+
+        host.workspace.removeFolder("/shared");
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["paid"]);
+        expect(liveWatcherRoots(host.workspace.watchers)).toEqual(["/work"]);
     });
 
     it("stops watching once the last editor of the scope is released", async () => {

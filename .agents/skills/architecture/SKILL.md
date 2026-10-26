@@ -24,6 +24,9 @@ verify details against source because older guides and ADRs may be outdated.
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/app/formTemplate.ts`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/bridge.ts` and `src/composition/`; Kotlin host in `apps/intellij-plugin`. |
 
+Decisions (rules, state transitions, validations) go into the owning feature's
+`domain/` as pure code, written test-first with the [tdd](../tdd/SKILL.md) skill.
+
 ## Preserve the boundaries
 
 - Let applications consume packages and libraries, and packages consume reusable
@@ -44,8 +47,10 @@ verify details against source because older guides and ADRs may be outdated.
 Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 and `apps/vscode-plugin/src`, plus root `eslint.config.cjs`. Package gates protect
 import direction and theme isolation. Core checks reject VS Code and transitive
-host-module imports; this does not make the core browser-safe. VS Code checks
-cover host isolation, cycles, and selected feature-barrel boundaries.
+host-module imports (the core is still not browser-safe), and enforce layer
+direction, feature isolation through `shared/` and no cycles against known
+exceptions that may only shrink. VS Code checks cover host isolation, cycles,
+and selected feature-barrel boundaries.
 
 ## Trace host and session behavior
 
@@ -74,6 +79,7 @@ their resources on disposal. Diff panes have separate coordination.
 
 Consult only the specialist guidance needed for the task:
 
+- [tdd](../tdd/SKILL.md): failing spec first, rules in the domain model.
 - [bpmn-js](../bpmn-js/SKILL.md): DI modules and diagram interactions.
 - [vscode-webviews](../vscode-webviews/SKILL.md) and [vscode-custom-editors](../vscode-custom-editors/SKILL.md): transport, document sync, and lifecycle.
 - [intellij-plugin](../intellij-plugin/SKILL.md): bridge contracts, Gradle, and JCEF.

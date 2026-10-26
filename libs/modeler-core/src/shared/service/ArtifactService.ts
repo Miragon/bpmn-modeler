@@ -1,5 +1,6 @@
 import { posix } from "path";
 
+import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
 
@@ -98,15 +99,9 @@ export class ArtifactService {
         subFolder: string,
     ): Promise<string[]> {
         const dirs: string[] = [];
-        let current = documentDir;
 
-        // Strip a trailing slash so a drive-root workspace (`/c:/`) still matches:
-        // otherwise the guard tests `startsWith("/c://")` and the `===` check never
-        // hits, since the `posix.dirname` walk yields `/c:`, never `/c:/`.
-        const root = this.stripTrailingSlash(workspaceRoot);
-
-        while (current === root || current.startsWith(root + "/")) {
-            const targetDir = posix.join(current, configFolder, subFolder);
+        for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
+            const targetDir = posix.join(directory, configFolder, subFolder);
             try {
                 await this.vsWorkspace.readDirectory(targetDir);
                 dirs.push(targetDir);
@@ -115,19 +110,6 @@ export class ArtifactService {
                     throw error;
                 }
             }
-
-            if (current === root) {
-                break;
-            }
-
-            const parent = posix.dirname(current);
-            /**
-             * Guard against infinite loop at filesystem root.
-             */
-            if (parent === current) {
-                break;
-            }
-            current = parent;
         }
 
         return dirs;
@@ -145,22 +127,10 @@ export class ArtifactService {
         fileName: string,
         workspaceRoot: string,
     ): Promise<string | undefined> {
-        const root = this.stripTrailingSlash(workspaceRoot);
-        let current = documentDir;
-
-        while (current === root || current.startsWith(root + "/")) {
-            if (await this.fileExists(posix.join(current, configFolder, fileName))) {
-                return current;
+        for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
+            if (await this.fileExists(posix.join(directory, configFolder, fileName))) {
+                return directory;
             }
-
-            if (current === root) {
-                break;
-            }
-            const parent = posix.dirname(current);
-            if (parent === current) {
-                break;
-            }
-            current = parent;
         }
 
         return undefined;
@@ -174,15 +144,6 @@ export class ArtifactService {
             if (error instanceof FileNotFound) return false;
             throw error;
         }
-    }
-
-    /**
-     * Drops a single trailing slash unless the path is the filesystem root
-     * itself (`/`). Normalizes a drive-root workspace (`/c:/`) so it compares
-     * against the `posix.dirname` walk, which never re-introduces the slash.
-     */
-    private stripTrailingSlash(path: string): string {
-        return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
     }
 
     async getTemplateDirs(documentDir: string): Promise<string[]> {

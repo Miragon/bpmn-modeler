@@ -30,17 +30,33 @@ function elementRegistry(elements: Element[]): ElementCollection {
 }
 
 describe("readScriptTaskFormat", () => {
-    it("prefers camunda:scriptFormat over the plain attribute", () => {
+    it("reads the format from the attribute a format write targets", () => {
+        const bo = businessObject({
+            "$type": "bpmn:ScriptTask",
+            "camunda:scriptFormat": "javascript",
+            "scriptFormat": "groovy",
+        });
+        const formatTarget = resolveScriptWriteTarget(bo, "script-task", undefined, "format");
+
+        expect(formatTarget).toBeDefined();
+        expect(readScriptTaskFormat(bo)).toBe(bo.get?.(formatTarget!.propertyName));
+    });
+
+    it("prefers the plain scriptFormat over a legacy camunda:scriptFormat", () => {
         const bo = businessObject({
             "camunda:scriptFormat": "javascript",
             "scriptFormat": "groovy",
         });
-        expect(readScriptTaskFormat(bo)).toBe("javascript");
+        expect(readScriptTaskFormat(bo)).toBe("groovy");
     });
 
-    it("falls back to the plain scriptFormat when the namespaced one is unset", () => {
-        const bo = businessObject({ scriptFormat: "groovy" });
+    it("falls back to a legacy camunda:scriptFormat when the plain one is unset", () => {
+        const bo = businessObject({ "camunda:scriptFormat": "groovy" });
         expect(readScriptTaskFormat(bo)).toBe("groovy");
+    });
+
+    it("reads a plain scriptFormat property when the element has no get accessor", () => {
+        expect(readScriptTaskFormat({ scriptFormat: "groovy" })).toBe("groovy");
     });
 
     it("returns an empty string when neither attribute is present", () => {
