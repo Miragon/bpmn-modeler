@@ -21,7 +21,7 @@ import { resolveLintConfig } from "../../../../../../../packages/bpmn-modeler/sr
  *
  * Both sides lint the same moddle tree with the same engine-aware default config
  * (host: `DefaultBpmnlintConfigService`; browser: the Implement-mode default from
- * `resolveLintConfig`, exactly as `LintConfigService` wires it) and must report no
+ * `resolveLintConfig`, exactly as the lint tier machine picks it) and must report no
  * unresolved rules — a non-empty `unresolved` on the browser side would be a real
  * `browserResolver` bug, not a test artefact, so it is asserted, never assumed.
  */

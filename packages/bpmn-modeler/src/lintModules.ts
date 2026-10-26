@@ -18,7 +18,7 @@ let migrationNoticeShown = false;
  *   because it never enabled linting implicitly, so there is nothing to migrate.
  * - `false` — no module, silent.
  * - `{ module, config? }` — one in-page module carrying the mode (+ optional
- *   engine and per-mode config) the {@link LintConfigService} resolves against.
+ *   engine and per-mode config) the lint tier machine resolves against.
  * - `{ module, results: "external" }` — one external module (no config); it
  *   paints host-pushed results and services the `startInPageLinting` handback.
  */

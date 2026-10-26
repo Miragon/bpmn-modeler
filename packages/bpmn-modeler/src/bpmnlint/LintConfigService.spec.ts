@@ -1,52 +1,57 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
+import { BpmnModdle } from "bpmn-moddle";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-// The tier state machine is the unit under test; the actual browser lint run is
-// mocked so these tests never spin up bpmnlint. `runMock` is hoisted so the
-// `vi.mock` factory (itself hoisted) can close over it.
-const { runMock, ctorMock } = vi.hoisted(() => ({ runMock: vi.fn(), ctorMock: vi.fn() }));
-vi.mock("./browserLinter", () => ({
-    // A class (not an arrow) so `new BrowserLinter()` constructs. `ctorMock`
-    // records the single resolved-config arg so a test can assert the config the
-    // resolver picked (or the host handed back) reaches the linter.
-    BrowserLinter: class {
-        constructor(...args: unknown[]) {
-            ctorMock(...args);
-        }
-        run = runMock;
-    },
-}));
+import { LintConfigService, type LintTierInit } from "./LintConfigService";
 
-import type { LintResults } from "@miragon/bpmn-modeler-types";
+// The tier rules are pinned in lintTierMachine.spec.ts, which never sees what the
+// adapter feeds in. These rows cover that wiring (the live diagram state, the
+// host's config token) and what the adapter does with the effects: the vendor
+// linting service, the canvas chrome and the real browser linter.
 
-import { LintConfigService, type LintCallbacks, type LintTierInit } from "./LintConfigService";
-import { type LintConfigOption, resolveLintConfig } from "./lintConfigResolution";
+const XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_1">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_1" />
+  </bpmn:process>
+</bpmn:definitions>`;
 
-/** A canned in-page lint outcome; distinct object identity lets us assert copies. */
-const LINT_EVENT = {
-    results: { "label-required": [{ id: "Task_1", message: "x", category: "warn" }] },
-    unresolved: ["some-plugin/some-rule"],
-};
+const LABEL_RULES: BpmnlintConfig = { rules: { "label-required": "error" } };
+const END_EVENT_RULES: BpmnlintConfig = { rules: { "end-event-required": "error" } };
+const PUSHED: LintResults = { "rule-y": [{ id: "B", message: "y", category: "error" }] };
+
+let definitions: unknown;
+
+beforeAll(async () => {
+    ({ rootElement: definitions } = await BpmnModdle().fromXML(XML));
+});
 
 /** Minimal stand-in for the bpmn-js-bpmnlint `linting` DI service. */
 function fakeLinting() {
     return {
         active: false,
+        updates: 0,
         // Overwritten by the constructor; a real function keeps the fake assignable.
         lint: (() => Promise.resolve({})) as () => Promise<LintResults>,
         isActive(): boolean {
             return this.active;
         },
-        toggle: vi.fn(function (this: { active: boolean }, next?: boolean) {
-            this.active = next ?? !this.active;
-        }),
-        update: vi.fn(),
+        toggle(next: boolean): void {
+            this.active = next;
+        },
+        update(): void {
+            this.updates++;
+        },
     };
 }
 
-/**
- * A fake diagram-js `Canvas` over a fresh `.djs-container` in the document, so
- * the service's state classes and pill lookups are asserted per-container.
- */
+/** A fake diagram-js `Canvas` over a fresh `.djs-container` in the document. */
 function fakeCanvas(): { getContainer(): HTMLElement } {
     const container = document.createElement("div");
     container.className = "djs-container";
@@ -56,550 +61,273 @@ function fakeCanvas(): { getContainer(): HTMLElement } {
 
 /** A fake event bus that records handlers so a test can fire `import.done`. */
 function fakeEventBus() {
-    const handlers: Record<string, Array<(e: unknown) => void>> = {};
+    const handlers: Record<string, Array<(event: unknown) => void>> = {};
     return {
-        on: (event: string, cb: (e: unknown) => void) => {
-            (handlers[event] ??= []).push(cb);
+        on: (event: string, callback: (event: unknown) => void) => {
+            (handlers[event] ??= []).push(callback);
         },
-        fire: (event: string, e?: unknown) => {
-            (handlers[event] ?? []).forEach((h) => h(e));
+        fire: (event: string) => {
+            (handlers[event] ?? []).forEach((handler) => handler(undefined));
         },
     };
 }
 
 /** Appends a vendor summary pill (wrapped, as bpmn-js-bpmnlint mounts it) to a container. */
-function addPill(container: HTMLElement): HTMLButtonElement {
+function addPill(container: HTMLElement): void {
     const pill = document.createElement("button");
     pill.className = "bjsl-button";
     const wrap = document.createElement("div");
     wrap.appendChild(pill);
     container.appendChild(wrap);
-    return pill;
 }
 
-type Bus = ReturnType<typeof fakeEventBus>;
-
-/** Builds a service under test with sensible fakes; overrides via `opts`. */
 function makeService(opts: {
     tier: LintTierInit["tier"];
-    mode?: LintTierInit["mode"];
-    engine?: LintTierInit["engine"];
-    config?: LintConfigOption;
-    callbacks?: LintCallbacks;
+    config?: LintTierInit["config"];
     imported?: boolean;
-    withPill?: boolean;
 }) {
     const linting = fakeLinting();
     const canvas = fakeCanvas();
-    if (opts.withPill !== false) {
-        addPill(canvas.getContainer());
-    }
+    addPill(canvas.getContainer());
     const bus = fakeEventBus();
-    const callbacks: LintCallbacks = opts.callbacks ?? {
-        onLintResults: vi.fn(),
-        onLintingToggled: vi.fn(),
-    };
-    const bpmnjs = { getDefinitions: () => (opts.imported ? {} : null) };
+    const lintRuns: LintRunEvent[] = [];
+    const toggles: boolean[] = [];
+    let imported = opts.imported ?? false;
     const service = new LintConfigService(
         linting,
+        { tier: opts.tier, engine: "c7", mode: "implement", config: opts.config },
         {
-            tier: opts.tier,
-            engine: "engine" in opts ? opts.engine : "c7",
-            mode: opts.mode ?? "implement",
-            config: opts.config,
+            onLintResults: (event) => lintRuns.push(event),
+            onLintingToggled: (enabled) => toggles.push(enabled),
         },
-        callbacks,
-        (s) => s,
+        (template) => template,
         canvas,
-        bpmnjs,
+        { getDefinitions: () => (imported ? definitions : undefined) },
         bus,
     );
-    return { service, linting, canvas, bus: bus as Bus, callbacks };
+    const container = canvas.getContainer();
+    const importDiagram = (): void => {
+        imported = true;
+        bus.fire("import.done");
+    };
+    return { service, linting, container, importDiagram, lintRuns, toggles };
 }
 
-function clickOffButton(container: HTMLElement): void {
-    container
-        .querySelector<HTMLButtonElement>(".lint-off-button")
-        ?.dispatchEvent(new Event("click"));
+function button(container: HTMLElement, selector: string): HTMLButtonElement {
+    const found = container.querySelector<HTMLButtonElement>(selector);
+    if (!found) {
+        throw new Error(`no ${selector} in the container`);
+    }
+    return found;
 }
 
-function clickEnableButton(container: HTMLElement): void {
-    container
-        .querySelector<HTMLButtonElement>(".lint-enable-button")
-        ?.dispatchEvent(new Event("click"));
-}
+const ruleNames = (results: LintResults): string[] => Object.keys(results).sort();
 
 beforeEach(() => {
     document.body.innerHTML = "";
-    vi.clearAllMocks();
-    runMock.mockResolvedValue(LINT_EVENT);
 });
 
-describe("LintConfigService: tier initialisation", () => {
-    it("external tier stays inactive and replays host-pushed results", async () => {
-        const onLintResults = vi.fn();
-        const { linting } = makeService({ tier: "external", callbacks: { onLintResults } });
-
+describe("LintConfigService: in-page tier", () => {
+    it("activates on import and marks its container", () => {
+        const { linting, container, importDiagram } = makeService({ tier: "in-page" });
         expect(linting.isActive()).toBe(false);
-        expect(linting.lint).toBeDefined();
-        // Nothing pushed yet → empty results, and an external lint never echoes.
-        await expect(linting.lint()).resolves.toEqual({});
-        expect(onLintResults).not.toHaveBeenCalled();
-    });
 
-    it("in-page tier activates on import.done and marks its container", () => {
-        const { linting, canvas, bus } = makeService({ tier: "in-page" });
-
-        expect(linting.isActive()).toBe(false);
-        bus.fire("import.done");
+        importDiagram();
 
         expect(linting.isActive()).toBe(true);
-        expect(canvas.getContainer().classList.contains("bpmnlint-active")).toBe(true);
-        expect(canvas.getContainer().querySelector(".lint-off-button")).not.toBeNull();
+        expect(container.classList.contains("bpmnlint-active")).toBe(true);
+        expect(button(container, ".lint-off-button").hidden).toBe(false);
     });
 
-    it("in-page tier activates immediately when a diagram is already imported", () => {
+    it("activates at once when a diagram is already imported", () => {
         const { linting } = makeService({ tier: "in-page", imported: true });
+
         expect(linting.isActive()).toBe(true);
     });
 
-    it("in-page lint runs the browser linter, emits the raw event, and returns its results", async () => {
-        const onLintResults = vi.fn();
-        const { linting, bus } = makeService({ tier: "in-page", callbacks: { onLintResults } });
-        bus.fire("import.done");
-
-        const returned = await linting.lint();
-
-        expect(runMock).toHaveBeenCalled();
-        expect(onLintResults).toHaveBeenCalledWith(LINT_EVENT);
-        expect(returned).toEqual(LINT_EVENT.results);
-    });
-});
-
-describe("LintConfigService: precedence (any push wins)", () => {
-    it("an external push switches an in-page instance to external and suspends in-page lint", async () => {
-        const onLintResults = vi.fn();
-        const { service, bus, linting } = makeService({
+    it("lints with the browser linter, reports the run and returns its results", async () => {
+        const { linting, lintRuns } = makeService({
             tier: "in-page",
-            callbacks: { onLintResults },
-        });
-        bus.fire("import.done");
-        onLintResults.mockClear();
-
-        const pushed = { "rule-y": [{ id: "B", message: "y", category: "error" }] };
-        service.applyLintResults(pushed);
-
-        // Now external: lint replays the pushed results and never echoes.
-        await expect(linting.lint()).resolves.toEqual(pushed);
-        expect(onLintResults).not.toHaveBeenCalled();
-        expect(runMock).not.toHaveBeenCalled();
-    });
-});
-
-describe("LintConfigService: startInPageLinting (host handback)", () => {
-    it("switches an external instance to in-page, activating and emitting on the next run", async () => {
-        const onLintResults = vi.fn();
-        const { service, linting, canvas } = makeService({
-            tier: "external",
+            config: LABEL_RULES,
             imported: true,
-            callbacks: { onLintResults },
         });
-        expect(linting.isActive()).toBe(false);
 
-        service.startInPageLinting();
+        const results = await linting.lint();
 
-        // A diagram is already imported, so it activates immediately.
-        expect(linting.isActive()).toBe(true);
-        expect(canvas.getContainer().classList.contains("bpmnlint-active")).toBe(true);
-        expect(canvas.getContainer().querySelector(".lint-off-button")).not.toBeNull();
-
-        // Now on the in-page path: a relint runs the browser linter and echoes.
-        const returned = await linting.lint();
-        expect(runMock).toHaveBeenCalled();
-        expect(onLintResults).toHaveBeenCalledWith(LINT_EVENT);
-        expect(returned).toEqual(LINT_EVENT.results);
+        expect(ruleNames(results)).toEqual(["label-required"]);
+        expect(lintRuns.map((run) => run.results)).toEqual([results]);
     });
 
-    it("builds the browser linter with the handed-back workspace config", () => {
-        ctorMock.mockClear();
-        const { service } = makeService({ tier: "external", imported: true });
-        const config = { extends: "bpmnlint:recommended" };
-
-        service.startInPageLinting(config);
-
-        // The covered workspace config the host pushed is linted, not the default.
-        expect(ctorMock).toHaveBeenLastCalledWith(config);
-    });
-
-    it("defers activation to import.done when no diagram is imported yet", () => {
-        const { service, linting, bus } = makeService({ tier: "external", imported: false });
-
-        service.startInPageLinting();
-        expect(linting.isActive()).toBe(false);
-
-        bus.fire("import.done");
-        expect(linting.isActive()).toBe(true);
-    });
-
-    it("no-ops when the user has disabled linting from the canvas", async () => {
-        const { service, canvas, bus, linting } = makeService({ tier: "in-page" });
-        bus.fire("import.done");
-        clickOffButton(canvas.getContainer());
-        expect(linting.isActive()).toBe(false);
-        linting.toggle.mockClear();
-
-        // A host instruction must never silently re-enable a user-disabled linter.
-        service.startInPageLinting();
-
-        expect(linting.isActive()).toBe(false);
-        expect(linting.toggle).not.toHaveBeenCalled();
-        expect(canvas.getContainer().querySelector(".lint-disabled-chip")).not.toBeNull();
-        await expect(linting.lint()).resolves.toEqual({});
-    });
-
-    it("still lets a later external push win over the in-page handback", async () => {
-        const onLintResults = vi.fn();
-        const { service, linting } = makeService({
-            tier: "external",
-            imported: true,
-            callbacks: { onLintResults },
-        });
-        service.startInPageLinting();
-        onLintResults.mockClear();
-
-        const pushed = { "rule-y": [{ id: "B", message: "y", category: "error" }] };
-        service.applyLintResults(pushed);
-
-        await expect(linting.lint()).resolves.toEqual(pushed);
-        expect(onLintResults).not.toHaveBeenCalled();
-    });
-});
-
-describe("LintConfigService: payload-free reset (workspace config deleted)", () => {
-    const CUSTOM = { rules: { "label-required": "error" as const } };
-    const DEFAULT_IMPLEMENT = resolveLintConfig("implement", "c7", undefined);
-
-    it("resets a live in-page host config to the resolved default", () => {
-        const { service } = makeService({ tier: "in-page", imported: true });
-        service.startInPageLinting(CUSTOM, "cfg-v1");
-        expect(ctorMock).toHaveBeenLastCalledWith(CUSTOM);
-
-        service.startInPageLinting();
-
-        expect(ctorMock).toHaveBeenLastCalledWith(DEFAULT_IMPLEMENT);
-    });
-
-    it("resets after an intervening external push (deleted rules must not survive)", () => {
-        const { service } = makeService({ tier: "external", imported: true });
-        service.startInPageLinting(CUSTOM, "cfg-v1");
-        service.applyLintResults({ "rule-y": [{ id: "B", message: "y", category: "error" }] });
-
-        service.startInPageLinting();
-
-        expect(ctorMock).toHaveBeenLastCalledWith(DEFAULT_IMPLEMENT);
-    });
-
-    it("follows a create → replace → delete sequence", () => {
-        const configA = { extends: "bpmnlint:recommended" };
-        const configB = { extends: "bpmnlint:all" };
-        const { service } = makeService({ tier: "external", imported: true });
-        ctorMock.mockClear();
-
-        service.startInPageLinting(configA, "cfg-v1");
-        service.startInPageLinting(configB, "cfg-v2");
-        service.startInPageLinting();
-
-        expect(ctorMock.mock.calls).toEqual([[configA], [configB], [DEFAULT_IMPLEMENT]]);
-    });
-
-    it("unfreezes mode switching after the reset", () => {
-        const { service } = makeService({ tier: "in-page", imported: true });
-        service.startInPageLinting(CUSTOM, "cfg-v1");
-
-        service.startInPageLinting();
-        service.setMode("design");
-
-        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
-    });
-
-    it("treats a repeat payload-free handback with no host config as a no-op", () => {
-        const { service, linting } = makeService({ tier: "external", imported: true });
-        service.startInPageLinting();
-        ctorMock.mockClear();
-        linting.toggle.mockClear();
-
-        service.startInPageLinting();
-
-        expect(ctorMock).not.toHaveBeenCalled();
-        expect(linting.toggle).not.toHaveBeenCalled();
-    });
-
-    it("keeps a user-disabled linter off but re-enables with the resolved default", () => {
-        const { service, canvas, bus, linting } = makeService({ tier: "in-page" });
-        bus.fire("import.done");
-        service.startInPageLinting(CUSTOM, "cfg-v1");
-        clickOffButton(canvas.getContainer());
-        ctorMock.mockClear();
-        linting.toggle.mockClear();
-
-        service.startInPageLinting();
-
-        expect(linting.isActive()).toBe(false);
-        expect(ctorMock).not.toHaveBeenCalled();
-        expect(linting.toggle).not.toHaveBeenCalled();
-
-        clickEnableButton(canvas.getContainer());
-
-        expect(linting.isActive()).toBe(true);
-        expect(ctorMock).toHaveBeenLastCalledWith(DEFAULT_IMPLEMENT);
-    });
-});
-
-describe("LintConfigService: setMode (mode-aware re-resolve)", () => {
-    it("is a no-op on the same mode", () => {
-        const { service, linting } = makeService({ tier: "in-page", imported: true });
-        ctorMock.mockClear();
-        linting.toggle.mockClear();
-        linting.update.mockClear();
-
-        service.setMode("implement");
-
-        expect(ctorMock).not.toHaveBeenCalled();
-        expect(linting.update).not.toHaveBeenCalled();
-    });
-
-    it("rebuilds with the new mode's default and re-activates while in-page with a default config", async () => {
-        const onLintResults = vi.fn();
+    it("re-lints with the new mode's rules after setMode", async () => {
         const { service, linting } = makeService({
             tier: "in-page",
+            config: { design: END_EVENT_RULES, implement: LABEL_RULES },
             imported: true,
-            callbacks: { onLintResults },
         });
-        ctorMock.mockClear();
+        const updatesBefore = linting.updates;
 
         service.setMode("design");
 
-        // Rebuilt against the engine-neutral Design default (no camunda-compat).
-        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
-        // Re-activated so the next relint reflects the new mode.
-        expect(linting.update).toHaveBeenCalled();
-        await expect(linting.lint()).resolves.toEqual(LINT_EVENT.results);
-        expect(onLintResults).toHaveBeenCalledWith(LINT_EVENT);
-    });
-
-    it("resolves a per-mode config map entry for the active mode", () => {
-        const design = { extends: "bpmnlint:recommended" };
-        const implement = { extends: "bpmnlint:all" };
-        const { service } = makeService({
-            tier: "in-page",
-            imported: true,
-            config: { design, implement },
-        });
-        ctorMock.mockClear();
-
-        service.setMode("design");
-
-        expect(ctorMock).toHaveBeenLastCalledWith(design);
-    });
-
-    it("does not rebuild while a mode-invariant host config is active", () => {
-        const hostConfig = { extends: "bpmnlint:recommended" };
-        const { service } = makeService({ tier: "external", imported: true });
-        service.startInPageLinting(hostConfig);
-        ctorMock.mockClear();
-
-        service.setMode("design");
-
-        expect(ctorMock).not.toHaveBeenCalled();
-    });
-
-    it("stores the mode while external and applies it on a later handback", () => {
-        const { service } = makeService({ tier: "external", imported: true });
-        ctorMock.mockClear();
-
-        service.setMode("design");
-        expect(ctorMock).not.toHaveBeenCalled();
-
-        // The no-workspace-config handback now resolves the stored Design mode.
-        service.startInPageLinting();
-        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
-    });
-
-    it("stores the mode while disabled and applies it on re-enable", () => {
-        const { service, canvas, bus } = makeService({ tier: "in-page" });
-        bus.fire("import.done");
-        clickOffButton(canvas.getContainer());
-        ctorMock.mockClear();
-
-        service.setMode("design");
-        expect(ctorMock).not.toHaveBeenCalled();
-
-        clickEnableButton(canvas.getContainer());
-        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
+        expect(linting.updates).toBe(updatesBefore + 1);
+        expect(ruleNames(await linting.lint())).toEqual(["end-event-required"]);
     });
 });
 
-describe("LintConfigService: covered-config re-enable (token dedup)", () => {
-    const CONFIG = { extends: "bpmnlint:recommended" };
-    const TOKEN = "cfg-v1";
-
-    it("re-activates after a host disabled push when the same token is re-sent", async () => {
-        // Regression for the covered `.bpmnlintrc` re-enable no-op: disable hard-sets
-        // the tier to `external`, so the next covered instruction must not be dedup'd
-        // away even though the token is unchanged from the pre-disable run.
-        const onLintResults = vi.fn();
-        const { service, linting, canvas } = makeService({
-            tier: "external",
-            imported: true,
-            callbacks: { onLintResults },
-        });
-        service.startInPageLinting(CONFIG, TOKEN);
-        expect(linting.isActive()).toBe(true);
-
-        // Host's user-disabled push (chip off → SetLintingEnabledCommand → pushDisabled).
-        service.applyLintingDisabled();
-        expect(linting.isActive()).toBe(false);
-        linting.toggle.mockClear();
-
-        // Host re-enables and re-sends the covered query with the SAME token.
-        service.startInPageLinting(CONFIG, TOKEN);
-
-        expect(linting.toggle).toHaveBeenCalledWith(true);
-        expect(linting.isActive()).toBe(true);
-        expect(canvas.getContainer().querySelector(".lint-off-button")).not.toBeNull();
-        await expect(linting.lint()).resolves.toEqual(LINT_EVENT.results);
-    });
-
-    it("dedups a repeat covered instruction with the same token while in-page-active", () => {
-        const { service, linting } = makeService({ tier: "external", imported: true });
-        service.startInPageLinting(CONFIG, TOKEN);
-        ctorMock.mockClear();
-        linting.toggle.mockClear();
-
-        // Host re-sends on panel re-activation; the live run must not churn.
-        service.startInPageLinting(CONFIG, TOKEN);
-
-        expect(ctorMock).not.toHaveBeenCalled();
-        expect(linting.toggle).not.toHaveBeenCalled();
-    });
-
-    it("rebuilds when a new token arrives while in-page-active (config version change)", () => {
-        const { service } = makeService({ tier: "external", imported: true });
-        service.startInPageLinting(CONFIG, TOKEN);
-        ctorMock.mockClear();
-
-        const nextConfig = { extends: "bpmnlint:all" };
-        service.startInPageLinting(nextConfig, "cfg-v2");
-
-        expect(ctorMock).toHaveBeenLastCalledWith(nextConfig);
-    });
-});
-
-describe("LintConfigService: toggle matrix", () => {
-    it("in-page off-button disables optimistically and reports the toggle", async () => {
-        const onLintingToggled = vi.fn();
-        const { service, canvas, bus, linting } = makeService({
-            tier: "in-page",
-            callbacks: { onLintingToggled },
-        });
-        void service;
-        bus.fire("import.done");
-        linting.toggle.mockClear();
-
-        clickOffButton(canvas.getContainer());
-
-        expect(onLintingToggled).toHaveBeenCalledWith(false);
-        expect(linting.toggle).toHaveBeenCalledWith(false);
-        expect(canvas.getContainer().querySelector(".lint-disabled-chip")).not.toBeNull();
-        // Suspended: a relint now yields nothing.
+describe("LintConfigService: host pushes", () => {
+    it("replays host-pushed results in the external tier and never echoes them", async () => {
+        const { service, linting, lintRuns } = makeService({ tier: "external", imported: true });
         await expect(linting.lint()).resolves.toEqual({});
+
+        service.applyLintResults(PUSHED);
+
+        await expect(linting.lint()).resolves.toEqual(PUSHED);
+        expect(lintRuns).toEqual([]);
     });
 
-    it("re-enable from the disabled chip reactivates in-page linting", async () => {
-        const onLintingToggled = vi.fn();
-        const { canvas, bus, linting } = makeService({
-            tier: "in-page",
-            callbacks: { onLintingToggled },
-        });
-        bus.fire("import.done");
-        clickOffButton(canvas.getContainer());
-        onLintingToggled.mockClear();
+    it("stops linting in-page once the host pushes results", async () => {
+        const { service, linting, lintRuns } = makeService({ tier: "in-page", imported: true });
 
-        clickEnableButton(canvas.getContainer());
+        service.applyLintResults(PUSHED);
 
-        expect(onLintingToggled).toHaveBeenCalledWith(true);
-        expect(linting.isActive()).toBe(true);
-        await expect(linting.lint()).resolves.toEqual(LINT_EVENT.results);
+        await expect(linting.lint()).resolves.toEqual(PUSHED);
+        expect(lintRuns).toEqual([]);
     });
 
-    it("external off-button reports the toggle only; overlays await the host push", () => {
-        const onLintingToggled = vi.fn();
-        const { service, canvas, linting } = makeService({
+    it("lints the handed-back workspace config in-page", async () => {
+        const { service, linting, container, lintRuns } = makeService({
             tier: "external",
-            callbacks: { onLintingToggled },
+            imported: true,
         });
-        // Host pushed results first, so the off button exists.
-        service.applyLintResults({ "rule-z": [{ id: "C", message: "z", category: "warn" }] });
-        linting.toggle.mockClear();
 
-        clickOffButton(canvas.getContainer());
+        service.startInPageLinting(END_EVENT_RULES, "cfg-v1");
 
-        expect(onLintingToggled).toHaveBeenCalledWith(false);
-        // No optimistic local change in the external tier.
-        expect(linting.toggle).not.toHaveBeenCalled();
-        expect(canvas.getContainer().querySelector(".lint-disabled-chip")).toBeNull();
+        expect(linting.isActive()).toBe(true);
+        expect(container.classList.contains("bpmnlint-active")).toBe(true);
+        expect(button(container, ".lint-off-button").hidden).toBe(false);
+        const results = await linting.lint();
+        expect(ruleNames(results)).toEqual(["end-event-required"]);
+        expect(lintRuns.map((run) => run.results)).toEqual([results]);
     });
 
-    it("programmatic renders never fire the toggle callback", () => {
-        const onLintingToggled = vi.fn();
-        const { service } = makeService({ tier: "external", callbacks: { onLintingToggled } });
+    it("waits for an import before activating a handback that arrives without a diagram", () => {
+        const { service, linting, importDiagram } = makeService({ tier: "external" });
 
-        service.applyLintResults({});
-        service.applyLintResults(null);
-        service.applyLintingDisabled();
+        service.startInPageLinting();
+        expect(linting.isActive()).toBe(false);
 
-        expect(onLintingToggled).not.toHaveBeenCalled();
+        importDiagram();
+        expect(linting.isActive()).toBe(true);
     });
-});
 
-describe("LintConfigService: external rendering (unchanged host flow)", () => {
-    it("activates linting and marks the container active when results arrive", () => {
-        const { service, canvas, linting } = makeService({ tier: "external" });
+    it("keeps the live run when the host repeats the same config token", () => {
+        const { service, linting } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting(END_EVENT_RULES, "cfg-v1");
+        const updatesBefore = linting.updates;
+
+        service.startInPageLinting(END_EVENT_RULES, "cfg-v1");
+
+        expect(linting.updates).toBe(updatesBefore);
+    });
+
+    it("activates linting and marks the container when results arrive", () => {
+        const { service, linting, container } = makeService({ tier: "external" });
 
         service.applyLintResults({});
 
         expect(linting.isActive()).toBe(true);
-        expect(canvas.getContainer().classList.contains("bpmnlint-active")).toBe(true);
+        expect(container.classList.contains("bpmnlint-active")).toBe(true);
         expect(document.body.classList.contains("bpmnlint-active")).toBe(false);
     });
 
     it("deactivates linting and clears the container class when results are null", () => {
-        const { service, canvas, linting } = makeService({ tier: "external" });
+        const { service, linting, container } = makeService({ tier: "external" });
         service.applyLintResults({});
-        linting.toggle.mockClear();
 
         service.applyLintResults(null);
 
-        expect(linting.toggle).toHaveBeenCalledWith(false);
-        expect(canvas.getContainer().classList.contains("bpmnlint-active")).toBe(false);
+        expect(linting.isActive()).toBe(false);
+        expect(container.classList.contains("bpmnlint-active")).toBe(false);
+        expect(button(container, ".lint-off-button").hidden).toBe(true);
+    });
+
+    it("shows the disabled chip for a host disabled push", () => {
+        const { service, linting, container } = makeService({ tier: "in-page", imported: true });
+
+        service.applyLintingDisabled();
+
+        expect(linting.isActive()).toBe(false);
+        expect(container.classList.contains("bpmnlint-disabled")).toBe(true);
+        expect(container.querySelector<HTMLElement>(".lint-disabled-chip")?.hidden).toBe(false);
+    });
+
+    it("never reports a toggle for a host push", () => {
+        const { service, toggles } = makeService({ tier: "external" });
+
+        service.applyLintResults({});
+        service.applyLintResults(null);
+        service.applyLintingDisabled();
+
+        expect(toggles).toEqual([]);
+    });
+});
+
+describe("LintConfigService: canvas toggle", () => {
+    it("turns in-page linting off at once and reports the toggle", async () => {
+        const { linting, container, toggles } = makeService({ tier: "in-page", imported: true });
+
+        button(container, ".lint-off-button").click();
+
+        expect(toggles).toEqual([false]);
+        expect(linting.isActive()).toBe(false);
+        expect(container.classList.contains("bpmnlint-active")).toBe(false);
+        expect(button(container, ".lint-off-button").hidden).toBe(true);
+        expect(container.querySelector<HTMLElement>(".lint-disabled-chip")?.hidden).toBe(false);
+        await expect(linting.lint()).resolves.toEqual({});
+    });
+
+    it("re-enables in-page linting from the disabled chip", async () => {
+        const { linting, container, toggles } = makeService({
+            tier: "in-page",
+            config: LABEL_RULES,
+            imported: true,
+        });
+        button(container, ".lint-off-button").click();
+
+        button(container, ".lint-enable-button").click();
+
+        expect(toggles).toEqual([false, true]);
+        expect(linting.isActive()).toBe(true);
+        expect(container.classList.contains("bpmnlint-disabled")).toBe(false);
+        expect(container.querySelector<HTMLElement>(".lint-disabled-chip")?.hidden).toBe(true);
+        expect(ruleNames(await linting.lint())).toEqual(["label-required"]);
+    });
+
+    it("only reports the external off switch; the overlays wait for the host", () => {
+        const { service, linting, container, toggles } = makeService({ tier: "external" });
+        service.applyLintResults(PUSHED);
+
+        button(container, ".lint-off-button").click();
+
+        expect(toggles).toEqual([false]);
+        expect(linting.isActive()).toBe(true);
+        expect(container.querySelector(".lint-disabled-chip")).toBeNull();
     });
 });
 
 describe("LintConfigService: per-container scoping", () => {
     it("wraps only its own container's pill and marks only its own container", () => {
-        const linting = fakeLinting();
         const canvasA = fakeCanvas();
         const canvasB = fakeCanvas();
         addPill(canvasA.getContainer());
         addPill(canvasB.getContainer());
 
         new LintConfigService(
-            linting,
+            fakeLinting(),
             { tier: "external", engine: "c7", mode: "implement" },
             {},
-            (s) => s,
+            (template) => template,
             canvasA,
-            { getDefinitions: () => null },
+            { getDefinitions: () => undefined },
             fakeEventBus(),
         ).applyLintResults({});
 
