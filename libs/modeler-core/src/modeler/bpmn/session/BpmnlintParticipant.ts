@@ -3,6 +3,7 @@ import {
     EditorSessionParticipant,
 } from "../../../shared/domain/EditorSessionParticipant";
 import { NotifierPort, StatusBarPort } from "../../../shared/domain/hostPorts";
+import { StatusItemOwnership } from "../../../shared/domain/StatusItemOwnership";
 import {
     BpmnLintConfigLocator,
     BpmnlintChangeTarget,
@@ -29,6 +30,7 @@ const RELINT_DEBOUNCE_MS = 400;
  */
 export class BpmnlintParticipant implements EditorSessionParticipant {
     private readonly relintTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    private readonly statusOwnership = new StatusItemOwnership();
 
     constructor(
         private readonly lintSvc: BpmnLintConfigService,
@@ -63,11 +65,13 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
             }
         });
 
+        if (session.isFocused()) this.statusOwnership.claim(session.editorId);
         session.onFocusChange((focused) => {
             if (focused) {
+                this.statusOwnership.claim(session.editorId);
                 this.lintSvc.setBpmnlintConfig(session.editorId);
             } else {
-                this.statusBar.hideBpmnlintStatus();
+                this.hideStatusFor(session.editorId);
             }
         });
 
@@ -79,7 +83,7 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
                 this.relintTimers.delete(session.editorId);
             }
             watchers.forEach((watcher) => watcher.dispose());
-            this.statusBar.hideBpmnlintStatus();
+            this.hideStatusFor(session.editorId);
             this.lintSvc.clearDiagnostics(session.editorId);
         });
 
@@ -110,6 +114,10 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         });
 
         await armWatchers();
+    }
+
+    private hideStatusFor(editorId: string): void {
+        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hideBpmnlintStatus();
     }
 
     private scheduleRelint(session: EditorSessionContext): void {
