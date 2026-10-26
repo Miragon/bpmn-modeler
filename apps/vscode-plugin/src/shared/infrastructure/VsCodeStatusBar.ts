@@ -6,6 +6,7 @@ import { DeploymentFreshness, StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
 const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
+const TEMPLATE_COUNT_VISIBLE_MS = 3000;
 
 const DEPLOYMENT_FRESHNESS_COLORS: Record<DeploymentFreshness, ThemeColor | undefined> = {
     deployed: new ThemeColor("testing.iconPassed"),
@@ -48,6 +49,8 @@ function deploymentTooltip(
 export class VsCodeStatusBar implements StatusBarPort {
     private templateStatusItem: StatusBarItem | undefined;
 
+    private pendingTemplateAutoHide: ReturnType<typeof setTimeout> | undefined;
+
     private engineVersionStatusItem: StatusBarItem | undefined;
 
     private bpmnlintStatusItem: StatusBarItem | undefined;
@@ -55,19 +58,22 @@ export class VsCodeStatusBar implements StatusBarPort {
     private deploymentTargetStatusItem: StatusBarItem | undefined;
 
     showElementTemplatesLoading(): void {
+        this.cancelPendingTemplateAutoHide();
         const item = this.getOrCreateTemplateStatusItem();
         item.text = "$(loading~spin) Loading element templates…";
         item.show();
     }
 
     showElementTemplatesReady(count: number): void {
+        this.cancelPendingTemplateAutoHide();
         const item = this.getOrCreateTemplateStatusItem();
         item.text = `$(check) Element templates (${count})`;
         item.show();
-        setTimeout(() => item.hide(), 3000);
+        this.pendingTemplateAutoHide = setTimeout(() => item.hide(), TEMPLATE_COUNT_VISIBLE_MS);
     }
 
     hideElementTemplatesStatus(): void {
+        this.cancelPendingTemplateAutoHide();
         this.templateStatusItem?.hide();
     }
 
@@ -161,6 +167,11 @@ export class VsCodeStatusBar implements StatusBarPort {
 
     hideDeploymentTarget(): void {
         this.deploymentTargetStatusItem?.hide();
+    }
+
+    // Every load shares the one item, so a stale timer would hide what a later load shows.
+    private cancelPendingTemplateAutoHide(): void {
+        clearTimeout(this.pendingTemplateAutoHide);
     }
 
     private getOrCreateTemplateStatusItem(): StatusBarItem {
