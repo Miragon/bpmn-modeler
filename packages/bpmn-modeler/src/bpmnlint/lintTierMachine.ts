@@ -6,7 +6,7 @@ import type { ModelerMode } from "../mode";
 /**
  * The per-instance tier decision, registered as the `lintTier` DI value by
  * {@link createLintModule}. `"external"` renders host-pushed results;
- * `"in-page"` runs {@link BrowserLinter} in the webview against the config
+ * `"in-page"` runs bpmnlint in the webview against the config
  * `resolveLintConfig` picks from `mode`, `engine`, and the optional `config`.
  * `false`/off never reaches here — a disabled instance registers no lint module
  * at all.
@@ -15,7 +15,7 @@ import type { ModelerMode } from "../mode";
  * execution platform, and its mode default already drops the engine layer. A
  * `config` may be a single {@link BpmnlintConfig} or a per-mode map, so one
  * Camunda-tagged instance can lint Design and Implement differently and
- * re-resolve on a live {@link LintConfigService.setMode}.
+ * re-resolve on a live mode switch.
  */
 export interface LintTierInit {
     tier: "external" | "in-page";
