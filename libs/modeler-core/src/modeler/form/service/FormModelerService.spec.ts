@@ -59,6 +59,20 @@ describe("FormModelerService", () => {
         ]);
     });
 
+    it("saves and renders the seeded form when the host skips a write the document already holds", async () => {
+        const { service, host, editor } = createService("");
+        vi.spyOn(host.documents, "write").mockImplementationOnce(async (_editorId, content) => {
+            editor.content = content;
+            return false;
+        });
+
+        expect(await service.display(editor.id)).toBe(true);
+        expect(editor.content).not.toBe("");
+        expect(editor.saveCount).toBe(1);
+        expect(editor.posted).toEqual([new FormFileQuery(editor.content)]);
+        expect(host.notifier.errors).toEqual([]);
+    });
+
     it("uses one form id when blank initialization overlaps", async () => {
         const { service, host, editor } = createService("");
         const { write, finishWrite } = holdNextWrite(host);
