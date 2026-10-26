@@ -14,13 +14,12 @@
  *  - `setElementTemplates` resolves dirs via `DocumentPort.getFilePath` → a
  *    clean OS path (`fsPath`, no scheme).
  *  - `ArtifactService.createWatcher` does `posix.dirname(editorId)` → a
- *    URI-form path (`file:///…`), and its containment check compares against
- *    whatever {@link NodeWorkspace.getWorkspaceFolderForDocument} returns.
- * So this adapter must be **scheme-tolerant and space-preserving**: strip a
- * leading `file://` only at the fs boundary, and return the workspace root in
+ *    URI-form path (`file:///…`), and watches the folder resolved for it.
+ * So this adapter is **scheme-tolerant and space-preserving**: it strips a
+ * leading `file://` only at the fs boundary, and returns the workspace root in
  * the *same* space as the queried document (URI in → URI out; clean in → clean
- * out). That invariant is what lets `ArtifactService` be reused verbatim across
- * both paths.
+ * out). VS Code answers in the folder's spelling; {@link WorkspacePort} allows
+ * both.
  *
  * Both hosts send system-independent, forward-slash paths (VS Code URIs and
  * IntelliJ's `VirtualFile.path`/`url`, which is always `/`-separated even on
@@ -34,23 +33,25 @@ import { promises as fs, watch as watchFs } from "node:fs";
 import { join, posix, relative, sep } from "node:path";
 
 import {
+    coalesceWatcherEvents,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
     globToRegExp,
+    isWithinRoot,
     joinWorkspacePath,
     NoWorkspaceFolderFoundError,
+    relativeToRoot,
     SettingChange,
     SettingsPort,
     toWorkspacePath,
+    WatcherEventKind,
+    withoutFileScheme,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-/** Strips a leading `file://` so the string is a real OS path Node `fs` accepts. */
-function toFsPath(path: string): string {
-    return path.replace(/^file:\/\//, "");
-}
+import { SeenPaths } from "./seenPaths";
 
 /**
  * Node-`fs`-backed {@link WorkspacePort}. Only the methods on the element-
@@ -115,6 +116,11 @@ function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unkn
  * single recursive watch is one stream, armed in milliseconds.
  */
 function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { close(): unknown } {
+    // FSEvents reports create, rewrite and delete alike as `rename`, and a
+    // birth time cannot tell a new path from a rewritten one: a move or a
+    // timestamp-keeping copy brings an older one. So the first sighting of a
+    // path counts as its create.
+    const seenPaths = new SeenPaths();
     return watchFs(root, { recursive: true }, (_event, filename) => {
         if (!filename) {
             return;
@@ -123,15 +129,20 @@ function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { cl
         if (isIgnoredWatchPath(root, changed)) {
             return;
         }
-        // FSEvents reports create, modify and delete alike as `rename`, so a
-        // path that still exists fires both create and change — every consumer
-        // treats the two the same.
         fs.stat(changed).then(
             () => {
-                emit.onAdd(changed);
-                emit.onChange(changed);
+                const isNew = !seenPaths.has(changed);
+                seenPaths.add(changed);
+                if (isNew) {
+                    emit.onAdd(changed);
+                } else {
+                    emit.onChange(changed);
+                }
             },
-            () => emit.onUnlink(changed),
+            () => {
+                seenPaths.forget(changed);
+                emit.onUnlink(changed);
+            },
         );
     });
 }
@@ -173,13 +184,13 @@ export class NodeWorkspace implements WorkspacePort {
      */
     private enclosingRoot(document: string): string | undefined {
         const hadScheme = document.startsWith("file://");
-        const normDoc = toFsPath(document);
+        const documentPath = withoutFileScheme(document);
         let innermostRoot: string | undefined;
         for (const root of this.roots.keys()) {
-            const normRoot = toFsPath(root);
-            const encloses = normDoc === normRoot || normDoc.startsWith(normRoot + "/");
-            if (encloses && normRoot.length > (innermostRoot?.length ?? -1)) {
-                innermostRoot = normRoot;
+            const rootPath = withoutFileScheme(root);
+            const encloses = isWithinRoot(documentPath, rootPath);
+            if (encloses && rootPath.length > (innermostRoot?.length ?? -1)) {
+                innermostRoot = rootPath;
             }
         }
         if (innermostRoot === undefined) {
@@ -212,7 +223,7 @@ export class NodeWorkspace implements WorkspacePort {
     async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
         let dirents;
         try {
-            dirents = await fs.readdir(toFsPath(path), { withFileTypes: true });
+            dirents = await fs.readdir(withoutFileScheme(path), { withFileTypes: true });
         } catch (error) {
             const code = (error as NodeJS.ErrnoException).code;
             if (code === "ENOENT" || code === "ENOTDIR") {
@@ -241,7 +252,7 @@ export class NodeWorkspace implements WorkspacePort {
      */
     async readFile(path: string): Promise<string> {
         try {
-            return await fs.readFile(toFsPath(path), "utf8");
+            return await fs.readFile(withoutFileScheme(path), "utf8");
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
                 throw new FileNotFound(path);
@@ -252,7 +263,7 @@ export class NodeWorkspace implements WorkspacePort {
 
     async isSymbolicLink(path: string): Promise<boolean> {
         try {
-            return (await fs.lstat(toFsPath(path))).isSymbolicLink();
+            return (await fs.lstat(withoutFileScheme(path))).isSymbolicLink();
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
                 return false;
@@ -262,22 +273,16 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Watches the workspace root via chokidar, firing the matching handler for
-     * every changed path that matches `glob`, debounced ~50ms to coalesce an
-     * editor's multi-event save burst into one notification per file.
+     * Keeps the {@link WorkspacePort.createWatcher} contract: fires the matching
+     * handler for every changed path whose part below the root matches `glob`,
+     * as VS Code's `RelativePattern` does, and debounces each path ~50ms so an
+     * editor's multi-event save burst arrives as one event, coalesced by
+     * `coalesceWatcherEvents`.
      *
-     * Both watch consumers ride this one adapter: `ArtifactService` arms it with
-     * the element-templates glob, and `CodeLinkMapService` with the source glob
-     * (extensions `{java,kt,…}`). The `glob` argument is honoured — an earlier
-     * version hardcoded the template pattern, which silently dropped every
-     * code-link event.
-     *
-     * chokidar replaces `fs.watch({ recursive: true })`: the latter's recursive
-     * mode is unreliable across platforms — under Bun on Linux it only tracks
-     * subdirectories that existed when the watch began (fixed only in Bun
-     * ≥1.3.14), so a freshly-created folder would go unnoticed. chokidar gives
-     * version-independent recursive watching on macOS/Windows/Linux, matching
-     * VS Code's `FileSystemWatcher` behaviour.
+     * Linux and Windows watch through chokidar: under Bun on Linux the
+     * recursive mode of `fs.watch` only tracks the subdirectories that existed
+     * when the watch began (fixed only in Bun ≥1.3.14). macOS uses one recursive
+     * `fs.watch` instead, see {@link watchRecursivelyWithFsEvents}.
      *
      * {@link IGNORED_WATCH_DIRS} are pruned so arming the recursive watch on a
      * large repo stays within the OS watch-descriptor budget (inotify on Linux).
@@ -291,52 +296,56 @@ export class NodeWorkspace implements WorkspacePort {
             onDelete?: (path: string) => void;
         },
     ): { dispose(): void } {
-        const root = toFsPath(rootPath);
+        const root = withoutFileScheme(rootPath);
+        const watchedRoot = toWorkspacePath(root);
         const matcher = globToRegExp(glob);
+
+        const handlerFor: Record<WatcherEventKind, ((path: string) => void) | undefined> = {
+            create: handlers.onCreate,
+            change: handlers.onChange,
+            delete: handlers.onDelete,
+        };
 
         // Per-path timers, not one shared timer: the template handler reloads
         // everything on any event, so coalescing its burst is harmless — but code
         // link needs every distinct changed file. A single timer would drop all
         // but the last file of a multi-file burst (e.g. a branch checkout).
-        const timers = new Map<string, NodeJS.Timeout>();
+        const pending = new Map<string, { kind: WatcherEventKind; timer: NodeJS.Timeout }>();
 
-        const fireDebounced = (
-            handler: ((path: string) => void) | undefined,
-            nativePath: string,
-        ): void => {
+        const deliverDebounced = (kind: WatcherEventKind, nativePath: string): void => {
             // chokidar emits OS-native paths; the core compares them with
             // `findFiles` results.
             const changed = toWorkspacePath(nativePath);
-            if (!handler || !matcher.test(changed)) {
+            const belowRoot = relativeToRoot(changed, watchedRoot);
+            if (belowRoot === undefined || !matcher.test(belowRoot)) {
                 return;
             }
-            const pending = timers.get(changed);
-            if (pending) {
-                clearTimeout(pending);
-            }
-            timers.set(
-                changed,
-                setTimeout(() => {
-                    timers.delete(changed);
-                    handler(changed);
+            const earlier = pending.get(changed);
+            clearTimeout(earlier?.timer);
+            const coalesced = coalesceWatcherEvents(earlier?.kind, kind);
+            pending.set(changed, {
+                kind: coalesced,
+                timer: setTimeout(() => {
+                    pending.delete(changed);
+                    handlerFor[coalesced]?.(changed);
                 }, 50),
-            );
+            });
         };
 
         const subscriber: WatchSubscriber = {
-            onAdd: (p) => fireDebounced(handlers.onCreate, p),
-            onChange: (p) => fireDebounced(handlers.onChange, p),
-            onUnlink: (p) => fireDebounced(handlers.onDelete, p),
+            onAdd: (p) => deliverDebounced("create", p),
+            onChange: (p) => deliverDebounced("change", p),
+            onUnlink: (p) => deliverDebounced("delete", p),
         };
         const shared = this.acquireRootWatcher(root);
         shared.subscribers.add(subscriber);
 
         return {
             dispose: (): void => {
-                for (const timer of timers.values()) {
+                for (const { timer } of pending.values()) {
                     clearTimeout(timer);
                 }
-                timers.clear();
+                pending.clear();
                 this.releaseRootWatcher(root, subscriber);
             },
         };
@@ -399,7 +408,7 @@ export class NodeWorkspace implements WorkspacePort {
      */
     getDocumentDirectory(document: string): string {
         const hadScheme = document.startsWith("file://");
-        const parent = posix.dirname(toFsPath(document));
+        const parent = posix.dirname(withoutFileScheme(document));
         return hadScheme ? "file://" + parent : parent;
     }
 
@@ -409,7 +418,7 @@ export class NodeWorkspace implements WorkspacePort {
      * nested `<configFolder>/code-link/<dir>/…` path that need not exist yet.
      */
     async writeFile(path: string, content: string): Promise<void> {
-        const fsPath = toFsPath(path);
+        const fsPath = withoutFileScheme(path);
         await fs.mkdir(posix.dirname(fsPath), { recursive: true });
         await fs.writeFile(fsPath, content, "utf8");
     }
@@ -420,7 +429,7 @@ export class NodeWorkspace implements WorkspacePort {
      * that was already deleted never throws.
      */
     async deleteDirectory(path: string): Promise<void> {
-        await fs.rm(toFsPath(path), { recursive: true, force: true });
+        await fs.rm(withoutFileScheme(path), { recursive: true, force: true });
     }
 
     /**
@@ -435,7 +444,7 @@ export class NodeWorkspace implements WorkspacePort {
         const excludeRe = exclude ? globToRegExp(exclude) : undefined;
         const results: string[] = [];
         for (const root of this.roots.keys()) {
-            const cwd = toFsPath(root);
+            const cwd = withoutFileScheme(root);
             for await (const match of fs.glob(pattern, { cwd })) {
                 // fs.glob yields the OS separator; the exclude glob expects `/`.
                 const relative = match.split(sep).join("/");

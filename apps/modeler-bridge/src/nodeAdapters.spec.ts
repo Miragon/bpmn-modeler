@@ -2,7 +2,18 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from "vitest";
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    Mock,
+    onTestFinished,
+    vi,
+} from "vitest";
 
 import {
     ArtifactService,
@@ -286,19 +297,40 @@ describe("NodeWorkspace.createWatcher", () => {
         expect(onCreate).toHaveBeenCalled();
     }, 15000);
 
-    it("fires onChange when an existing template is modified", async () => {
+    it("fires onCreate for a template moved in from outside the root", async () => {
+        await fs.mkdir(templatesDir, { recursive: true });
+        const outside = await fs.mkdtemp(join(tmpdir(), "modeler-watch-outside-"));
+        onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
+        const movedFrom = join(outside, "task.json");
+        await fs.writeFile(movedFrom, "[]", "utf8");
+        const onCreate = vi.fn();
+        const onChange = vi.fn();
+        handle = workspace.createWatcher(root, PATTERN, { onCreate, onChange });
+        await sleep(SETTLE_MS);
+
+        await fs.rename(movedFrom, join(templatesDir, "task.json"));
+
+        await waitForCall(onCreate);
+        expect(onChange).not.toHaveBeenCalled();
+    }, 15000);
+
+    // The bridge on macOS cannot tell the first rewrite of a file from its create.
+    it("fires onChange or onCreate when an existing template is modified", async () => {
         await fs.mkdir(templatesDir, { recursive: true });
         const file = join(templatesDir, "task.json");
         await fs.writeFile(file, "[]", "utf8");
 
-        const onChange = vi.fn();
-        handle = workspace.createWatcher(root, PATTERN, { onChange });
+        const onChangeOrCreate = vi.fn();
+        handle = workspace.createWatcher(root, PATTERN, {
+            onChange: onChangeOrCreate,
+            onCreate: onChangeOrCreate,
+        });
         await sleep(SETTLE_MS);
 
         await fs.writeFile(file, '[{"name":"a"}]', "utf8");
 
-        await waitForCall(onChange);
-        expect(onChange).toHaveBeenCalled();
+        await waitForCall(onChangeOrCreate);
+        expect(onChangeOrCreate).toHaveBeenCalled();
     }, 15000);
 
     it("fires onDelete when a template is removed", async () => {

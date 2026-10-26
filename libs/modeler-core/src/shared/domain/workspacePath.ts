@@ -14,6 +14,11 @@ export function toWorkspacePath(path: string): string {
     return joinWorkspacePath(path);
 }
 
+/** The path a `file://` URI names, for the hosts that accept both spellings. */
+export function withoutFileScheme(path: string): string {
+    return path.startsWith(FILE_SCHEME) ? path.slice(FILE_SCHEME.length) : path;
+}
+
 /**
  * `posix.join` spelled like {@link toWorkspacePath}. Only `directory` can open
  * a UNC root: joining onto `/` must not turn `//.git` into one.

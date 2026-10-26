@@ -412,12 +412,16 @@ describe("ArtifactService.readFile", () => {
     });
 });
 
+// Hosts address an editor by its document URI, so the watcher starts from a
+// `file://` directory.
 describe("ArtifactService.createWatcher", () => {
-    it("watches the config glob from the workspace root and wires all three handlers to a template refresh", async () => {
+    const EDITOR_ID = "file:///work/proc/order.bpmn";
+
+    it("watches the config glob from the workspace folder and refreshes the editor on every event", async () => {
         const { service, workspace } = createService({ folders: ["/work"] });
         const target = { refreshElementTemplates: vi.fn() };
 
-        const result = await service.createWatcher("/work/proc/order.bpmn", target as never);
+        const result = await service.createWatcher(EDITOR_ID, target);
 
         expect(result.disposables).toHaveLength(1);
         expect(result.errors).toEqual([]);
@@ -430,12 +434,28 @@ describe("ArtifactService.createWatcher", () => {
         workspace.deleteFile("/work/.camunda/element-templates/x.json");
         await workspace.writeFile("/work/proc/x.json", "{}");
         await workspace.writeFile("/elsewhere/.camunda/element-templates/x.json", "{}");
-        expect(target.refreshElementTemplates).toHaveBeenCalledTimes(4);
-        expect(target.refreshElementTemplates).toHaveBeenNthCalledWith(1, "/work/proc/order.bpmn");
+        expect(target.refreshElementTemplates.mock.calls).toEqual([
+            [EDITOR_ID],
+            [EDITOR_ID],
+            [EDITOR_ID],
+            [EDITOR_ID],
+        ]);
 
         result.disposables[0].dispose();
         await workspace.writeFile("/work/.camunda/element-templates/y.json", "{}");
         expect(target.refreshElementTemplates).toHaveBeenCalledTimes(4);
+    });
+
+    it("watches from the document's directory when no workspace folder encloses it", async () => {
+        const { service, workspace } = createService();
+        const target = { refreshElementTemplates: vi.fn() };
+
+        await service.createWatcher("file:///loose/order.bpmn", target);
+        await workspace.writeFile("/loose/.camunda/element-templates/a.json", "{}");
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(
+            "file:///loose/order.bpmn",
+        );
     });
 
     it("watches element templates when the config folder is empty", async () => {
@@ -445,9 +465,9 @@ describe("ArtifactService.createWatcher", () => {
         });
         const target = { refreshElementTemplates: vi.fn() };
 
-        await service.createWatcher("/work/proc/order.bpmn", target);
+        await service.createWatcher(EDITOR_ID, target);
         await workspace.writeFile("/work/element-templates/a.json", "{}");
 
-        expect(target.refreshElementTemplates).toHaveBeenCalledWith("/work/proc/order.bpmn");
+        expect(target.refreshElementTemplates).toHaveBeenCalledWith(EDITOR_ID);
     });
 });

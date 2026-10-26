@@ -1,7 +1,7 @@
 import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
-import { joinWorkspacePath, toWorkspacePath } from "./workspacePath";
+import { joinWorkspacePath, toWorkspacePath, withoutFileScheme } from "./workspacePath";
 
 describe("toWorkspacePath", () => {
     it.each([
@@ -161,5 +161,37 @@ describe("joinWorkspacePath", () => {
         },
     ])("$behaviour", ({ directory, segments, joined }) => {
         expect(joinWorkspacePath(directory, ...segments)).toBe(joined);
+    });
+});
+
+describe("withoutFileScheme", () => {
+    it.each([
+        {
+            behaviour: "strips the scheme of a URI-form path",
+            path: "file:///work/order.bpmn",
+            stripped: "/work/order.bpmn",
+        },
+        {
+            behaviour: "keeps the drive of an IntelliJ file URL",
+            path: "file://C:/work/order.bpmn",
+            stripped: "C:/work/order.bpmn",
+        },
+        {
+            behaviour: "keeps the UNC root behind the scheme",
+            path: "file:////server/share/order.bpmn",
+            stripped: "//server/share/order.bpmn",
+        },
+        {
+            behaviour: "keeps a path without a scheme unchanged",
+            path: "/work/order.bpmn",
+            stripped: "/work/order.bpmn",
+        },
+        {
+            behaviour: "strips only a leading scheme",
+            path: "/work/file:///order.bpmn",
+            stripped: "/work/file:///order.bpmn",
+        },
+    ])("$behaviour", ({ path, stripped }) => {
+        expect(withoutFileScheme(path)).toBe(stripped);
     });
 });

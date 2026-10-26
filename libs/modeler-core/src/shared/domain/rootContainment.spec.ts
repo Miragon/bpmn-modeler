@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+
+import { isWithinRoot, relativeToRoot } from "./rootContainment";
+
+describe("relativeToRoot", () => {
+    it.each([
+        {
+            behaviour: "returns the path below the root",
+            path: "/work/a/order.bpmn",
+            root: "/work",
+            relative: "a/order.bpmn",
+        },
+        {
+            behaviour: "returns the empty path for the root itself",
+            path: "/work",
+            root: "/work",
+            relative: "",
+        },
+        {
+            behaviour: "ignores a trailing slash on the path",
+            path: "/work/a/",
+            root: "/work",
+            relative: "a",
+        },
+        {
+            behaviour: "ignores a trailing slash on the root",
+            path: "/work/a",
+            root: "/work/",
+            relative: "a",
+        },
+        {
+            behaviour: "contains every absolute path in the filesystem root",
+            path: "/work/order.bpmn",
+            root: "/",
+            relative: "work/order.bpmn",
+        },
+        {
+            behaviour: "contains the paths of a drive root",
+            path: "C:/work/order.bpmn",
+            root: "C:/",
+            relative: "work/order.bpmn",
+        },
+        {
+            behaviour: "contains the paths of a drive root spelled as a URI path",
+            path: "/c:/work/order.bpmn",
+            root: "/c:/",
+            relative: "work/order.bpmn",
+        },
+        {
+            behaviour: "treats a drive root without its slash as the root",
+            path: "/c:",
+            root: "/c:/",
+            relative: "",
+        },
+        {
+            behaviour: "contains the paths of a UNC share",
+            path: "//server/share/repo/order.bpmn",
+            root: "//server/share/repo",
+            relative: "order.bpmn",
+        },
+        {
+            behaviour: "keeps a file:// root and path in one spelling",
+            path: "file:///work/a/order.bpmn",
+            root: "file:///work",
+            relative: "a/order.bpmn",
+        },
+        {
+            behaviour: "does not contain a sibling that shares the root's name prefix",
+            path: "/work2/order.bpmn",
+            root: "/work",
+            relative: undefined,
+        },
+        {
+            behaviour: "does not contain a parent of the root",
+            path: "/",
+            root: "/work",
+            relative: undefined,
+        },
+        {
+            behaviour: "does not contain a path on another drive",
+            path: "D:/work/order.bpmn",
+            root: "C:/",
+            relative: undefined,
+        },
+    ])("$behaviour", ({ path, root, relative }) => {
+        expect(relativeToRoot(path, root)).toBe(relative);
+    });
+});
+
+describe("isWithinRoot", () => {
+    it.each([
+        { path: "/work/order.bpmn", root: "/work", within: true },
+        { path: "/work", root: "/work", within: true },
+        { path: "/work/order.bpmn", root: "/", within: true },
+        { path: "C:/work/order.bpmn", root: "C:/", within: true },
+        { path: "/work2/order.bpmn", root: "/work", within: false },
+        { path: "/", root: "/work", within: false },
+    ])("answers $within for $path in $root", ({ path, root, within }) => {
+        expect(isWithinRoot(path, root)).toBe(within);
+    });
+});

@@ -7,6 +7,8 @@ import {
 } from "../shared/domain/errors";
 import { globToRegExp } from "../shared/domain/globToRegExp";
 import { WorkspacePort } from "../shared/domain/hostPorts";
+import { isWithinRoot, relativeToRoot } from "../shared/domain/rootContainment";
+import { withoutFileScheme } from "../shared/domain/workspacePath";
 
 export interface WatcherHandlers {
     onChange?: (path: string) => void;
@@ -22,9 +24,13 @@ export interface WorkspaceWatcher {
 }
 
 /**
- * Workspace folders and files held in memory. File mutations, through the port
- * or through {@link deleteFile}, notify the live watchers whose root and glob
- * match, so a test drives watcher-based behaviour by changing files.
+ * Workspace folders and files held in memory. Paths are accepted plain or as
+ * `file://` URIs, as the hosts accept them, and are held and reported plain.
+ * Writing a file creates its parent directories, which outlive their last
+ * file as on a disk.
+ * File mutations, through the port or through {@link deleteFile}, notify the
+ * live watchers whose root and glob match before they return, so a test drives
+ * watcher-based behaviour by changing files.
  * `watchers` keeps every watcher ever created, disposed ones included, so a
  * test can check what was watched and fire an event no file change produces.
  * Folders can change later, as in a VS Code multi-root workspace; the port has
@@ -36,11 +42,15 @@ export class InMemoryWorkspace implements WorkspacePort {
     readonly watchers: WorkspaceWatcher[] = [];
 
     private readonly folders: string[];
+    // Holds every ancestor of each member, as `mkdir -p` would.
+    private readonly directories = new Set<string>();
 
     constructor(folders: string[] = [], files: Record<string, string> = {}) {
         this.folders = [...folders];
         for (const [path, content] of Object.entries(files)) {
-            this.files.set(path, content);
+            const filePath = withoutFileScheme(path);
+            this.addDirectory(posix.dirname(filePath));
+            this.files.set(filePath, content);
         }
     }
 
@@ -62,8 +72,9 @@ export class InMemoryWorkspace implements WorkspacePort {
     }
 
     findWorkspaceFolderForDocument(document: string): string | undefined {
+        const documentPath = withoutFileScheme(document);
         return this.folders
-            .filter((folder) => folder === document || isWithin(folder, document))
+            .filter((folder) => isWithinRoot(documentPath, withoutFileScheme(folder)))
             .sort((a, b) => b.length - a.length)[0];
     }
 
@@ -76,20 +87,24 @@ export class InMemoryWorkspace implements WorkspacePort {
     }
 
     async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
+        const directory = withoutFileScheme(path);
         const entries = new Map<string, "file" | "directory">();
-        for (const filePath of this.files.keys()) {
-            if (!isWithin(path, filePath)) continue;
-            const [name, ...rest] = posix.relative(path, filePath).split("/");
-            entries.set(name, rest.length > 0 ? "directory" : "file");
-        }
-        if (entries.size === 0) {
+        const addEntryFor = (known: string, type: "file" | "directory") => {
+            const below = relativeToRoot(known, directory);
+            if (!below) return;
+            const [name, ...deeper] = below.split("/");
+            entries.set(name, deeper.length > 0 ? "directory" : type);
+        };
+        this.files.forEach((_content, filePath) => addEntryFor(filePath, "file"));
+        this.directories.forEach((known) => addEntryFor(known, "directory"));
+        if (entries.size === 0 && !this.directories.has(directory)) {
             throw new DirectoryNotFound(path);
         }
         return [...entries];
     }
 
     async readFile(path: string): Promise<string> {
-        const content = this.files.get(path);
+        const content = this.files.get(withoutFileScheme(path));
         if (content === undefined) {
             throw new FileNotFound(path);
         }
@@ -97,23 +112,35 @@ export class InMemoryWorkspace implements WorkspacePort {
     }
 
     async isSymbolicLink(path: string): Promise<boolean> {
-        return this.symbolicLinks.has(path);
+        return this.symbolicLinks.has(withoutFileScheme(path));
     }
 
     async writeFile(path: string, content: string): Promise<void> {
-        const existed = this.files.has(path);
-        this.files.set(path, content);
-        this.notify(path, existed ? "onChange" : "onCreate");
+        const filePath = withoutFileScheme(path);
+        const existed = this.files.has(filePath);
+        this.addDirectory(posix.dirname(filePath));
+        this.files.set(filePath, content);
+        this.notify(filePath, existed ? "onChange" : "onCreate");
     }
 
     async deleteDirectory(path: string): Promise<void> {
+        const directory = withoutFileScheme(path);
+        for (const known of [...this.directories]) {
+            if (isWithinRoot(known, directory)) this.directories.delete(known);
+        }
         for (const filePath of [...this.files.keys()]) {
-            if (isWithin(path, filePath)) this.deleteFile(filePath);
+            if (isWithinRoot(filePath, directory)) this.deleteFile(filePath);
         }
     }
 
+    /** Creates an empty directory, as another program would; the port cannot. */
+    createDirectory(path: string): void {
+        this.addDirectory(withoutFileScheme(path));
+    }
+
     deleteFile(path: string): void {
-        if (this.files.delete(path)) this.notify(path, "onDelete");
+        const filePath = withoutFileScheme(path);
+        if (this.files.delete(filePath)) this.notify(filePath, "onDelete");
     }
 
     async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
@@ -121,10 +148,10 @@ export class InMemoryWorkspace implements WorkspacePort {
         const excluded = exclude ? globToRegExp(exclude) : undefined;
         const found: string[] = [];
         for (const folder of this.folders) {
+            const folderPath = withoutFileScheme(folder);
             for (const filePath of this.files.keys()) {
-                if (!isWithin(folder, filePath)) continue;
-                const relative = posix.relative(folder, filePath);
-                if (!include.test(relative) || excluded?.test(relative)) continue;
+                const relative = relativeToRoot(filePath, folderPath);
+                if (!relative || !include.test(relative) || excluded?.test(relative)) continue;
                 found.push(filePath);
                 if (limit !== undefined && found.length >= limit) return found;
             }
@@ -142,17 +169,20 @@ export class InMemoryWorkspace implements WorkspacePort {
         };
     }
 
+    private addDirectory(directory: string): void {
+        let current = directory;
+        while (!this.directories.has(current)) {
+            this.directories.add(current);
+            current = posix.dirname(current);
+        }
+    }
+
     private notify(path: string, event: keyof WatcherHandlers): void {
         for (const { root, glob, handlers, disposed } of [...this.watchers]) {
-            if (disposed || !isWithin(root, path)) continue;
-            if (globToRegExp(glob).test(posix.relative(root, path))) {
+            const below = relativeToRoot(path, withoutFileScheme(root));
+            if (!disposed && below && globToRegExp(glob).test(below)) {
                 handlers[event]?.(path);
             }
         }
     }
-}
-
-function isWithin(directory: string, path: string): boolean {
-    const relative = posix.relative(directory, path);
-    return relative !== "" && !relative.startsWith("..") && !posix.isAbsolute(relative);
 }

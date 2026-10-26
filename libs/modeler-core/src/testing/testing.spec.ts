@@ -87,6 +87,14 @@ describe("InMemoryWorkspace", () => {
         await expect(ws.readFile("/missing.bpmn")).rejects.toThrow(FileNotFound);
     });
 
+    it("keeps the directory of a seeded file after that file is deleted, as a disk does", async () => {
+        const ws = new InMemoryWorkspace(["/w"], { "/w/forms/a.form": "{}" });
+
+        await ws.deleteFile("/w/forms/a.form");
+
+        await expect(ws.readDirectory("/w/forms")).resolves.toEqual([]);
+    });
+
     it("reports only registered paths as symbolic links, dangling ones included", async () => {
         const ws = workspace();
         ws.symbolicLinks.add("/work/.env");
