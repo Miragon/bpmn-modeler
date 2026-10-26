@@ -766,6 +766,44 @@ describe("bootstrap", () => {
             expect(isCollapsed()).toBe(false);
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([]);
         });
+
+        it("keeps and reports a toggle made while the host default is pending", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetPropertiesPanelStateCommand: unanswered },
+            });
+            boot(host);
+            await settle();
+
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS);
+
+            expect(isCollapsed()).toBe(true);
+            expect(host.updateState).toHaveBeenCalledWith({ panelVisible: false });
+            expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
+                expect.objectContaining({ visible: false }),
+            ]);
+        });
+
+        it("keeps a toggle made during the import even when the host already answered", async () => {
+            const modeler = makeModeler();
+            const releaseImport = gateFirstImport(modeler);
+            mocks.createModeler.mockResolvedValue(modeler);
+            const host = makeHost({ file: tagged() });
+            boot(host);
+            await settle();
+
+            document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!.click();
+            releaseImport();
+            await settle();
+
+            expect(isCollapsed()).toBe(true);
+            expect(host.updateState).toHaveBeenCalledWith({ panelVisible: false });
+            expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
+                expect.objectContaining({ visible: false }),
+            ]);
+        });
     });
 
     describe("boot restore chain", () => {
