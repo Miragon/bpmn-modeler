@@ -464,6 +464,21 @@ describe("DeploymentStatusService.pickStatusBarAction", () => {
 });
 
 describe("DeploymentStatusService.refresh", () => {
+    it("keeps the item hidden when a refresh runs after the diagram lost focus to a text editor", async () => {
+        const c = createService();
+        c.editor.becomeActive();
+        await c.service.refresh(c.editor.id);
+        expect(c.host.statusBar.deploymentTarget).toBeDefined();
+
+        // DeploymentStatusParticipant's blur release; the store pointer stays.
+        c.editor.loseFocus();
+        c.service.hide();
+        // e.g. Deploy Files run from the command palette.
+        await c.service.refreshActive();
+
+        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+    });
+
     it("ignores requests from an inactive editor", async () => {
         const c = createService();
         c.host.statusBar.showDeploymentTarget("shown", "deployed");
