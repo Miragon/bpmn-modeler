@@ -87,6 +87,13 @@ describe("detectEngine", () => {
         expect(detectEngine(xml)).toBe("c7");
     });
 
+    it("skips a byte-order mark before the root", () => {
+        const xml = `\uFEFF<?xml version="1.0" encoding="UTF-8"?>\n${definitions(
+            'modeler:executionPlatform="Camunda Cloud"',
+        )}`;
+        expect(detectEngine(xml)).toBe("c8");
+    });
+
     it("returns undefined when the root element is not definitions", () => {
         expect(
             detectEngine(`<bpmn:process modeler:executionPlatform="Camunda Cloud" />`),

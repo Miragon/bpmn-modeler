@@ -181,8 +181,19 @@ const MODELER_NAMESPACE = 'xmlns:modeler="http://camunda.org/schema/modeler/1.0"
 const C7_PLATFORM = 'modeler:executionPlatform="Camunda Platform"';
 const C8_PLATFORM = 'modeler:executionPlatform="Camunda Cloud"';
 const platformVersion = (version: string) => `modeler:executionPlatformVersion="${version}"`;
+const CUSTOM_PREFIX_MODELER_NAMESPACE = 'xmlns:cm="http://camunda.org/schema/modeler/1.0"';
+const CUSTOM_PREFIX_C8_PLATFORM = 'cm:executionPlatform="Camunda Cloud"';
+const customPrefixPlatformVersion = (version: string) => `cm:executionPlatformVersion="${version}"`;
 
 const diagram = (...rootAttributes: string[]) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${rootAttributes.join(" ")}>
+  <bpmn:process id="Process_1" isExecutable="true" />
+</bpmn:definitions>`;
+
+const diagramBehindDefinitionsComment = (
+    ...rootAttributes: string[]
+) => `<?xml version="1.0" encoding="UTF-8"?>
+<!-- <bpmn:definitions> -->
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${rootAttributes.join(" ")}>
   <bpmn:process id="Process_1" isExecutable="true" />
 </bpmn:definitions>`;
@@ -331,6 +342,85 @@ const migrations: {
         expected: {
             kind: "platformStamped",
             xml: `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${ZEEBE_NAMESPACE} ${MODELER_NAMESPACE} ${C8_PLATFORM} ${platformVersion("8.8.0")}/>`,
+        },
+    },
+    {
+        given: "a tagged C8 diagram whose modeler namespace has a custom prefix",
+        xml: diagram(
+            CUSTOM_PREFIX_MODELER_NAMESPACE,
+            CUSTOM_PREFIX_C8_PLATFORM,
+            customPrefixPlatformVersion("8.6.0"),
+        ),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "versionReplaced",
+            xml: diagram(
+                CUSTOM_PREFIX_MODELER_NAMESPACE,
+                CUSTOM_PREFIX_C8_PLATFORM,
+                customPrefixPlatformVersion("8.8.0"),
+            ),
+        },
+    },
+    {
+        given: "a C8 diagram without a version whose modeler namespace has a custom prefix",
+        xml: diagram(CUSTOM_PREFIX_MODELER_NAMESPACE, CUSTOM_PREFIX_C8_PLATFORM),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(
+                CUSTOM_PREFIX_MODELER_NAMESPACE,
+                CUSTOM_PREFIX_C8_PLATFORM,
+                ZEEBE_NAMESPACE,
+                customPrefixPlatformVersion("8.8.0"),
+            ),
+        },
+    },
+    {
+        given: "an untagged C8 diagram whose modeler namespace has a custom prefix",
+        xml: diagram(ZEEBE_NAMESPACE, CUSTOM_PREFIX_MODELER_NAMESPACE),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(
+                ZEEBE_NAMESPACE,
+                CUSTOM_PREFIX_MODELER_NAMESPACE,
+                CUSTOM_PREFIX_C8_PLATFORM,
+                customPrefixPlatformVersion("8.8.0"),
+            ),
+        },
+    },
+    {
+        given: "a C8 diagram behind a comment that holds a definitions tag",
+        xml: diagramBehindDefinitionsComment(ZEEBE_NAMESPACE),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagramBehindDefinitionsComment(
+                ZEEBE_NAMESPACE,
+                MODELER_NAMESPACE,
+                C8_PLATFORM,
+                platformVersion("8.8.0"),
+            ),
+        },
+    },
+    {
+        given: "a C8 diagram with a closing angle bracket in a root attribute value",
+        xml: diagram('targetNamespace="urn:a>b"', ZEEBE_NAMESPACE),
+        engine: "c8",
+        version: "8.8.0",
+        expected: {
+            kind: "platformStamped",
+            xml: diagram(
+                'targetNamespace="urn:a>b"',
+                ZEEBE_NAMESPACE,
+                MODELER_NAMESPACE,
+                C8_PLATFORM,
+                platformVersion("8.8.0"),
+            ),
         },
     },
     {
