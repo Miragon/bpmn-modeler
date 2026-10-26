@@ -255,6 +255,20 @@ class RpcChannelTest {
     }
 
     @Test
+    fun `a request answered from the EDT gets an error reply when its result cannot be serialised`() {
+        val (channel, fake) = attachedChannel()
+
+        channel.replyFromEdt(id = 11, method = "document/write", runOnEdt = runInline) {
+            mapOf("ratio" to Double.NaN)
+        }
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(11, reply.get("id").asInt)
+        assertTrue(reply.has("error"))
+        fake.expectNoFrame()
+    }
+
+    @Test
     fun `a request answered from the EDT gets exactly one reply carrying the work's result`() {
         val (channel, fake) = attachedChannel()
         val edtQueue = mutableListOf<Runnable>()

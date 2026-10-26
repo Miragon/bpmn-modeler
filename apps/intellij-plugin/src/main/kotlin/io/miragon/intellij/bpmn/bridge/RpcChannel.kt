@@ -303,7 +303,15 @@ internal class PendingReply(private val channel: RpcChannel, private val id: Int
 
     private fun answer(send: (Int) -> Unit) {
         val requestId = id ?: return
-        if (answered.compareAndSet(false, true)) send(requestId)
+        if (!answered.compareAndSet(false, true)) return
+        try {
+            send(requestId)
+        } catch (failure: Throwable) {
+            // Nothing was sent (e.g. an unserialisable result), so a later
+            // error reply may still answer the request.
+            answered.set(false)
+            throw failure
+        }
     }
 }
 
