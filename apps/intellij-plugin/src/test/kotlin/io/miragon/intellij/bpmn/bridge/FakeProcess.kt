@@ -113,6 +113,10 @@ internal class FakeProcess : Process(), AutoCloseable {
         inboundFrames.poll(timeoutMillis, TimeUnit.MILLISECONDS)
             ?: error("no frame on bridge stdin within ${timeoutMillis}ms")
 
+    /** Returns every frame the host writes until none arrives within [quietMillis]. */
+    fun framesUntilQuiet(quietMillis: Long = 250): List<String> =
+        generateSequence { inboundFrames.poll(quietMillis, TimeUnit.MILLISECONDS) }.toList()
+
     /** Asserts no frame is written within [timeoutMillis] (e.g. after detach). */
     fun expectNoFrame(timeoutMillis: Long = 250) {
         val line = inboundFrames.poll(timeoutMillis, TimeUnit.MILLISECONDS)

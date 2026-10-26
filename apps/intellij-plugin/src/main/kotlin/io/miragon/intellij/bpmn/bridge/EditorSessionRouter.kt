@@ -12,6 +12,7 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.ModelerSettingsStore
@@ -31,10 +32,13 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * @param scheduler Debounces external `document/didChange` frames. Injectable so
  *   tests step time deterministically instead of waiting on the shared pool.
+ * @param readDocumentText Reads the content a `session/register` frame seeds.
+ *   Injectable so tests can close a tab while its register frame is built.
  */
 internal class EditorSessionRouter(
     private val deps: BridgeDeps,
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
+    private val readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
 ) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
 
@@ -174,12 +178,7 @@ internal class EditorSessionRouter(
 
     private fun sendRegister(entry: SessionEntry) {
         val session = entry.session
-        val content =
-            ApplicationManager.getApplication().runReadAction(
-                Computable {
-                    FileDocumentManager.getInstance().getDocument(session.file)?.text.orEmpty()
-                },
-            )
+        val content = readDocumentText(session.file)
         deps.channel.notify(
             "session/register",
             linkedMapOf(
@@ -776,6 +775,12 @@ internal class EditorSessionRouter(
         const val NO_RENDER_LOCK = 0L
     }
 }
+
+/** The text of [file]'s Document, empty when it has none; callable from any thread. */
+internal fun readDocumentTextInReadAction(file: VirtualFile): String =
+    ApplicationManager.getApplication().runReadAction(
+        Computable { FileDocumentManager.getInstance().getDocument(file)?.text.orEmpty() },
+    )
 
 /** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
 internal data class DocumentFlushedReply(

@@ -10,6 +10,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.junit5.RunInEdt
 import com.intellij.testFramework.junit5.TestApplication
@@ -68,12 +69,16 @@ class EditorSessionRouterTest {
      * Wires a router over a real `.bpmn` Document and an open session, draining the
      * `session/register` frame so the test starts from a quiet channel.
      */
-    private fun setUpRouter(initialXml: String): Fixture {
+    private fun setUpRouter(
+        initialXml: String,
+        readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
+    ): Fixture {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
         val wired = wireChannel()
         val scheduler = DeterministicScheduler()
-        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler)
+        val router =
+            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler, readDocumentText)
         router.register()
 
         val posted = mutableListOf<String>()
@@ -812,6 +817,32 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a session closed while its re-register frame is built ends up disposed in the bridge`() {
+        var closeWhileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                closeWhileRegisterFrameIsBuilt?.invoke()
+                closeWhileRegisterFrameIsBuilt = null
+                readDocumentTextInReadAction(file)
+            }
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        closeWhileRegisterFrameIsBuilt = { f.router.disposeSession(page.session) }
+
+        f.router.reregisterLiveSessions()
+
+        val framesForClosedSession =
+            f.wired.fake.framesUntilQuiet()
+                .map(::parse)
+                .filter { it.getAsJsonObject("params").get("sessionId").asLong == page.sessionId }
+                .map { it.frameLabel() }
+        assertEquals(
+            "session/dispose",
+            framesForClosedSession.last(),
+            "the new bridge must not keep a session for a closed tab: $framesForClosedSession",
+        )
+    }
+
+    @Test
     fun `a page closed before its replayed render gets no release`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -977,7 +1008,7 @@ class EditorSessionRouterTest {
 
     /** The register and replay frames each session got, in the order it got them. */
     private fun List<JsonObject>.bySession(): Map<Long, List<String>> =
-        map { it.getAsJsonObject("params").get("sessionId").asLong to (it.webviewMessageType() ?: it.get("method").asString) }
+        map { it.getAsJsonObject("params").get("sessionId").asLong to it.frameLabel() }
             .filter { (_, label) -> label in REREGISTRATION_FRAMES }
             .groupBy({ it.first }, { it.second })
 
@@ -1168,6 +1199,9 @@ class EditorSessionRouterTest {
 
     private fun JsonObject.webviewMessageType(): String? =
         getAsJsonObject("params").getAsJsonObject("message")?.get("type")?.asString
+
+    /** The forwarded webview message's type, or the frame's method. */
+    private fun JsonObject.frameLabel(): String = webviewMessageType() ?: get("method").asString
 
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
     private fun syncCommand(content: String, documentRevision: Long? = null): String {
