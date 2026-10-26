@@ -79,11 +79,8 @@ export class BpmnModelerService {
                     ),
                 );
 
-                const version = engine ? doc.detectPlatformVersion() : undefined;
-                if (engine && version) {
-                    this.statusBar.showEngineVersion(engine, version);
-                } else {
-                    this.statusBar.hideEngineVersion();
+                if (this.isFocused(editorId)) {
+                    this.updateEngineVersionStatus(doc);
                 }
 
                 return sent;
@@ -142,6 +139,24 @@ export class BpmnModelerService {
                 return false;
             }
             return this.handleError(error as Error);
+        }
+    }
+
+    // A background render (external edit, split view) must not overwrite the
+    // engine item every editor shares; the editor can also close mid-post.
+    private isFocused(editorId: string): boolean {
+        return (
+            this.editorStore.hasEditor(editorId) &&
+            this.editorStore.requireHandle(editorId).isActive()
+        );
+    }
+
+    private updateEngineVersionStatus(doc: BpmnDocument): void {
+        const status = doc.engineVersionStatus();
+        if (status) {
+            this.statusBar.showEngineVersion(status.platform, status.version);
+        } else {
+            this.statusBar.hideEngineVersion();
         }
     }
 
