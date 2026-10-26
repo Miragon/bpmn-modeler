@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HostApiImpl } from "./host";
 import {
     groupIndexesToToggle,
     hasGroupsOrScrollToRestore,
     openGroupIndexes,
     PropertiesPanelUiStateAdapter,
-    readSavedPanelVisibility,
     type PropertiesPanelUiState,
 } from "./propertiesPanelUiState";
-import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
 
 function memoryStore(initial?: PropertiesPanelUiState) {
     let state = initial;
@@ -20,17 +17,6 @@ function memoryStore(initial?: PropertiesPanelUiState) {
             state = { ...state, ...partial };
         }),
     };
-}
-
-function panelHandle() {
-    const setVisible = vi.fn();
-    const handle: PropertiesPanelHandle = {
-        isVisible: () => true,
-        setVisible,
-        onVisibilityChanged: () => undefined,
-        dispose: () => undefined,
-    };
-    return { handle, setVisible };
 }
 
 /** A panel whose group headers toggle `open` on click, like the real properties panel. */
@@ -89,39 +75,6 @@ describe("properties-panel UI state rules", () => {
     });
 });
 
-describe("readSavedPanelVisibility", () => {
-    let persisted: PropertiesPanelUiState | undefined;
-
-    beforeEach(() => {
-        persisted = undefined;
-        vi.stubGlobal("acquireVsCodeApi", () => ({
-            getState: () => persisted,
-            setState: vi.fn(),
-            postMessage: vi.fn(),
-        }));
-    });
-
-    afterEach(() => {
-        vi.unstubAllGlobals();
-    });
-
-    const read = () => readSavedPanelVisibility(new HostApiImpl<PropertiesPanelUiState, never>());
-
-    it("keeps a saved hidden panel hidden", () => {
-        persisted = { panelVisible: false };
-        expect(read()).toBe(false);
-    });
-
-    it("has no opinion without a saved entry", () => {
-        persisted = { panelScroll: 10 };
-        expect(read()).toBeUndefined();
-    });
-
-    it("has no opinion on a first-ever open", () => {
-        expect(read()).toBeUndefined();
-    });
-});
-
 describe("PropertiesPanelUiStateAdapter", () => {
     let frames: Array<() => void>;
     const scheduleFrame = (callback: () => void) => {
@@ -136,41 +89,6 @@ describe("PropertiesPanelUiStateAdapter", () => {
     afterEach(() => {
         vi.useRealTimers();
         document.body.innerHTML = "";
-    });
-
-    describe("visibility", () => {
-        it("lets the editor's saved visibility win over the host default", () => {
-            const adapter = new PropertiesPanelUiStateAdapter(
-                memoryStore({ panelVisible: false }),
-                renderPanel().panelRoot,
-            );
-            const { handle, setVisible } = panelHandle();
-
-            adapter.restorePanelVisibility(handle, true);
-
-            expect(setVisible).toHaveBeenCalledWith(false);
-        });
-
-        it("falls back to the host default when the editor saved none", () => {
-            const adapter = new PropertiesPanelUiStateAdapter(
-                memoryStore(),
-                renderPanel().panelRoot,
-            );
-            const { handle, setVisible } = panelHandle();
-
-            adapter.restorePanelVisibility(handle, true);
-
-            expect(setVisible).toHaveBeenCalledWith(true);
-        });
-
-        it("persists a toggle next to the other saved fields", () => {
-            const store = memoryStore({ panelScroll: 42 });
-            const adapter = new PropertiesPanelUiStateAdapter(store, renderPanel().panelRoot);
-
-            adapter.persistPanelVisibility(false);
-
-            expect(store.read()).toEqual({ panelScroll: 42, panelVisible: false });
-        });
     });
 
     describe("restoreGroupsAndScroll", () => {

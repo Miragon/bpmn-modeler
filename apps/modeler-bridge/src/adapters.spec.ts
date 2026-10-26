@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { NotifierPort, UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import {
@@ -411,15 +411,8 @@ describe("RpcDocumentPort", () => {
 });
 
 describe("RpcDeploymentState", () => {
-    /** Minimal NotifierPort stub; only logError is exercised here. */
-    function fakeNotifier() {
-        return { logError: vi.fn() } as unknown as NotifierPort & {
-            logError: ReturnType<typeof vi.fn>;
-        };
-    }
-
     it("seeds the snapshot and serves it through the synchronous getters", () => {
-        const state = new RpcDeploymentState(new Rpc(() => {}), fakeNotifier());
+        const state = new RpcDeploymentState(new Rpc(() => {}));
         state.seed({ endpoint: "https://engine", tenantId: "t1", authType: "basic" });
 
         expect(state.getEndpoint()).toBe("https://engine");
@@ -429,7 +422,7 @@ describe("RpcDeploymentState", () => {
 
     it("save* emits an acknowledged request and updates the snapshot optimistically", async () => {
         const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const state = new RpcDeploymentState(rpc);
 
         const pending = state.save("https://engine", "t1");
         // The persist is a request (has an id), not a fire-and-forget notification.
@@ -447,7 +440,7 @@ describe("RpcDeploymentState", () => {
 
     it("saveAuthType / saveOAuth2Config also round-trip as requests", async () => {
         const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const state = new RpcDeploymentState(rpc);
 
         const auth = state.saveAuthType("oauth2");
         expect(last(frames)).toMatchObject({
@@ -471,7 +464,7 @@ describe("RpcDeploymentState", () => {
 
     it("lists ledger keys and deletes revisions optimistically with an acknowledged request", async () => {
         const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const state = new RpcDeploymentState(rpc);
         const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
         state.seed({
             ledger: {
@@ -499,20 +492,15 @@ describe("RpcDeploymentState", () => {
         await expect(pending).resolves.toBeUndefined();
     });
 
-    it("logs and does not reject when the host's persist fails", async () => {
+    it("rejects when the host fails to persist and keeps the optimistic snapshot", async () => {
         const { frames, rpc } = harness();
-        const notifier = fakeNotifier();
-        const state = new RpcDeploymentState(rpc, notifier);
+        const state = new RpcDeploymentState(rpc);
 
         const pending = state.save("https://engine", "t1");
-        // The host rejects the persist; the deploy must still succeed.
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
 
-        await expect(pending).resolves.toBeUndefined();
-        expect(notifier.logError).toHaveBeenCalledOnce();
-        expect(notifier.logError.mock.calls[0][0]).toBeInstanceOf(Error);
-        expect((notifier.logError.mock.calls[0][0] as Error).message).toContain("disk full");
-        // The optimistic snapshot is intentionally not rolled back; the next seed reconciles.
+        await expect(pending).rejects.toThrow("disk full");
+        // Rolling back would show stale form values mid-session; the next seed reconciles.
         expect(state.getEndpoint()).toBe("https://engine");
     });
 });

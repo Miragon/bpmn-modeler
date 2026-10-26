@@ -25,7 +25,7 @@ const legal = computed(() => theme.value.miragon?.legal)
     <div class="miragon-legal-inner">
       <p class="miragon-legal-text">
         <span v-if="legal.message">{{ legal.message }}</span>
-        <span>{{ legal.copyright }}</span>
+        <a :href="legal.copyrightLink" target="_blank" rel="noopener noreferrer">{{ legal.copyright }}</a>
       </p>
       <nav class="miragon-legal-links" :aria-label="legal.label">
         <a

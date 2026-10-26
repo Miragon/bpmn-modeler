@@ -291,10 +291,6 @@ export class NodeWorkspace implements WorkspacePort {
         const root = toFsPath(rootPath);
         const matcher = globToRegExp(glob);
 
-        // chokidar emits OS-native paths; normalise separators before matching
-        // the glob, which is always forward-slash.
-        const matches = (changed: string): boolean => matcher.test(changed.replace(/\\/g, "/"));
-
         // Per-path timers, not one shared timer: the template handler reloads
         // everything on any event, so coalescing its burst is harmless — but code
         // link needs every distinct changed file. A single timer would drop all
@@ -303,9 +299,12 @@ export class NodeWorkspace implements WorkspacePort {
 
         const fireDebounced = (
             handler: ((path: string) => void) | undefined,
-            changed: string,
+            nativePath: string,
         ): void => {
-            if (!handler || !matches(changed)) {
+            // chokidar emits OS-native paths; the core compares them with
+            // `findFiles` results, which are always `/`-separated.
+            const changed = nativePath.replace(/\\/g, "/");
+            if (!handler || !matcher.test(changed)) {
                 return;
             }
             const pending = timers.get(changed);

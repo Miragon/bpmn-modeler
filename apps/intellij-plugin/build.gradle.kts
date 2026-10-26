@@ -3,6 +3,7 @@ import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -65,6 +66,14 @@ kotlin {
         // deprecated usages of the inherited platform defaults (e.g.
         // ToolWindowFactory.getIcon) — Marketplace-blocking false positives.
         freeCompilerArgs.add("-jvm-default=no-compatibility")
+    }
+}
+
+tasks.compileTestKotlin {
+    compilerOptions {
+        // Tests run on the IDE's bundled Kotlin stdlib (1.9 on the 242 floor). From API 2.2 the
+        // compiler nulls out spilled coroutine locals through a stdlib function 1.9 lacks.
+        apiVersion = KotlinVersion.KOTLIN_2_1
     }
 }
 

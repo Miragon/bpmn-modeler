@@ -103,9 +103,10 @@ export interface PickerPort {
      * it will affect.
      *
      * Modal by contract: the caller is about to delete model content on the
-     * user's behalf, and a dismissible toast is not consent. `details` is shown
-     * in full where the host can, and otherwise summarised — so it must read as
-     * a list of what goes, not as prose.
+     * user's behalf, and a dismissible toast is not consent. `details` must read
+     * as a list of what goes, not as prose. Callers pass the full list; the
+     * adapter shortens it with `summarizeAffectedItems` before the host
+     * renders it, so no item is dropped without being counted.
      *
      * @returns `true` only on explicit confirmation.
      */
@@ -216,7 +217,12 @@ export interface WorkspacePort {
      */
     deleteDirectory(path: string): Promise<void>;
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
-    /** Returns a handle that disposes the watcher and its listeners in one call. */
+    /**
+     * Handlers receive absolute, `/`-separated paths spelled like
+     * {@link findFiles} results, so consumers can compare them without
+     * normalising. Returns a handle that disposes the watcher and its listeners
+     * in one call.
+     */
     createWatcher(
         rootPath: string,
         glob: string,

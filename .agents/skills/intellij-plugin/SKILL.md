@@ -206,5 +206,13 @@ Bridge (`apps/modeler-bridge/src/`):
 - **Project fixtures in tests**: use `projectFixtureWithoutServicePreload()`,
   not plain `projectFixture()`. Preloaded platform services finish after the
   fixture closes the project on the 2-core CI runner and trip the
-  `LeakHunter` check (`JUnit Jupiter > executionError`). Reproduce CI-only
+  `LeakHunter` check (`JUnit Jupiter > executionError`). It also waits for the
+  `RunManager` the platform builds in the background, otherwise a fast test
+  disposes the project under its constructor ("Uncaught exceptions … parent:
+  Project … (disposed) [Plugin: com.jetbrains.codeWithMe]"). Reproduce CI-only
   flakes locally with `JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount=2`.
+- **Suspend code runs on the IDE's Kotlin stdlib** (1.9 on the 242 floor).
+  Kotlin API 2.2+ emits `SpillingKt.nullOutSpilledVariable`, which fails with
+  `NoClassDefFoundError` there; test compilation pins `apiVersion` to 2.1.
+  Main sources are not pinned, so new suspend code there can hit the same
+  error at runtime in the IDE.

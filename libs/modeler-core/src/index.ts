@@ -8,6 +8,7 @@
  */
 
 // ── shared: domain ──────────────────────────────────────────────────────────
+export * from "./shared/domain/affectedItems";
 export * from "./shared/domain/BpmnDocument";
 export * from "./shared/domain/EditorSession";
 export * from "./shared/domain/EditorSessionParticipant";

@@ -286,18 +286,89 @@
 }
 
 /* =========================================================
-   WORTMARKE UND PRODUKTNAME
-   Produkte zeigen die Wortmarke und schreiben ihren Namen in Geist daneben, mit
-   einer Wortmarkenhöhe Abstand (Schutzraum). Bei 18px ist die Wortmarke 117px
-   breit, über der Mindestgröße von 96px. Ohne Namen (siteTitle: false) gilt nur
-   die Höhe.
+   TITEL: KOMET UND PRODUKTNAME
+   Jede Seite trägt wie eine App das Zeichen von Miragon, den grünen Komet ohne
+   Kachel, und daneben den Namen des Produkts. Gleich auf der Startseite und auf
+   Seiten mit Seitenleiste: Dort steht der Titel ab 960px in deren Spalte (272px,
+   mit ihrem Grau), wo Wortmarke und Name nebeneinander nicht passen. Ein langer
+   Name bricht dort auf zwei Zeilen um. Der Komet ist der Absender, eine
+   Wortmarke steht auf der Seite nicht. Den Komet setzt theme/index.ts in den Slot
+   des Titels.
    ========================================================= */
-:root {
-  --vp-nav-logo-height: 18px;
+.miragon-komet {
+  display: none;
 }
-.VPNavBarTitle .title .logo ~ span {
-  margin-left: calc(var(--vp-nav-logo-height) - 8px);
-  letter-spacing: -0.01em;
+.VPNavBarTitle .title:has(.miragon-komet) {
+  gap: 10px;
+}
+.VPNavBarTitle .title .miragon-komet {
+  display: block;
+  flex: none;
+  width: 36px;
+  height: auto;
+}
+.VPNavBarTitle .title .miragon-komet ~ span {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 18px;
+}
+/* In der Spalte der Seitenleiste und auf schmalen Schirmen darf ein langer Name
+   auf zwei Zeilen umbrechen, statt mitten im Wort zu enden. */
+.VPNavBarTitle.has-sidebar .title .miragon-komet ~ span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-width: 0;
+  overflow: hidden;
+  white-space: normal;
+}
+@media (max-width: 959px) {
+  .VPNavBarTitle .title .miragon-komet ~ span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    max-width: calc(100vw - 200px);
+    overflow: hidden;
+    white-space: normal;
+  }
+}
+
+/* Die Seitenleiste ist ruhig: keine Linien zwischen den Gruppen, Gruppen als
+   leise Labels, die aktuelle Seite als markierte Zeile wie in einer App. */
+:root .VPSidebar .group + .group {
+  border-top: 0;
+  padding-top: 4px;
+}
+:root .VPSidebar .VPSidebarItem.level-0 {
+  padding-bottom: 16px;
+}
+:root .VPSidebar .VPSidebarItem.level-0 > .item .text {
+  padding: 2px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cd-ui-text-leise);
+}
+:root .VPSidebar .VPSidebarItem.level-1 > .item {
+  margin: 0 -10px;
+  padding: 0 10px;
+  border-radius: var(--cd-radius-sm);
+}
+:root .VPSidebar .VPSidebarItem.level-1 > .item .text {
+  padding: 3px 0;
+  font-weight: 400;
+  color: var(--cd-ui-text);
+}
+:root .VPSidebar .VPSidebarItem.level-1.is-active > .item {
+  background: var(--cd-ui-hover);
+}
+:root .VPSidebar .VPSidebarItem.level-1.is-active > .item .text {
+  font-weight: 600;
+}
+:root .VPSidebar .VPSidebarItem.level-1 > .item .indicator {
+  display: none;
 }
 
 /* =========================================================
@@ -441,13 +512,13 @@
   display: flex;
   gap: 20px;
 }
-.miragon-legal-links a {
+.miragon-legal a {
   color: inherit;
   text-decoration-line: underline;
   text-underline-offset: 2px;
   transition: color 0.25s;
 }
-.miragon-legal-links a:hover {
+.miragon-legal a:hover {
   color: var(--vp-c-text-1);
 }
 @media (min-width: 768px) {
@@ -471,6 +542,104 @@
 }
 
 /* =========================================================
+   GITHUB
+   GitHub mit Sternen im Header (GitHubStars.vue): eine Pille mit Haarlinie,
+   links das Icon, rechts der grüne Stern und die Zahl. Sie ersetzt ab 768px das
+   GitHub-Icon von VitePress, darunter steht das Icon im Menü. Dazu die Bitte
+   um einen Stern am Seitenende.
+   ========================================================= */
+.miragon-github {
+  display: none;
+  align-items: stretch;
+  height: 28px;
+  margin-left: 12px;
+  border: 1px solid var(--cd-ui-linie);
+  border-radius: 999px;
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 0.25s;
+}
+@media (min-width: 768px) {
+  .miragon-github {
+    display: inline-flex;
+  }
+  .VPNavBar:has(.miragon-github) .VPNavBarSocialLinks .VPSocialLink:first-child {
+    display: none;
+  }
+}
+.miragon-github:hover {
+  border-color: var(--cd-ui-kontur);
+}
+.miragon-github-icon {
+  width: 15px;
+  margin: 0 9px 0 11px;
+  align-self: center;
+}
+.miragon-github:not(:has(.miragon-github-stars)) .miragon-github-icon {
+  margin-right: 11px;
+}
+.miragon-github-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 11px 0 9px;
+  border-left: 1px solid var(--cd-ui-linie);
+  font-variant-numeric: tabular-nums;
+}
+.miragon-github-stars svg {
+  width: 12px;
+  color: var(--cd-gruen);
+}
+
+/* Bitte um einen Stern am Seitenende (StarPrompt.vue): graue Fläche, rechts
+   eine Pille wie oben. Auf schmalen Schirmen steht die Pille unter dem Text. */
+.miragon-star-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 48px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  background: var(--cd-ui-abschnitt);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+}
+.miragon-star-prompt p {
+  margin: 0;
+}
+.miragon-star-prompt-title {
+  color: var(--vp-c-text-1);
+  font-weight: 600;
+}
+.miragon-star-prompt a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--cd-ui-kontur);
+  border-radius: 999px;
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.25s;
+}
+.miragon-star-prompt a:hover {
+  border-color: var(--vp-c-text-2);
+}
+.miragon-star-prompt svg {
+  width: 13px;
+  color: var(--cd-gruen);
+}
+
+/* =========================================================
    FOKUS
    Sichtbarer Tastatur-Fokus über die Rolle: hell blau-link, dunkel blau-hell.
    :where() hält die Spezifität niedrig, damit Komponenten nicht überschrieben
@@ -486,8 +655,7 @@
    DRUCK
    Gedruckt wird hell: Die Rollen kippen nur auf dem Bildschirm (die Token-CSS
    steht dunkel unter @media screen). VitePress setzt an html.dark aber selbst
-   color-scheme, die dunklen Shiki-Farben und die weiße Wortmarke, alles geht beim
-   Drucken auf hell. Bühnen mit Rollen-Text liegen auf Rollen-Flächen und kippen mit.
+   color-scheme und die dunklen Shiki-Farben, alles geht beim Drucken auf hell. Bühnen mit Rollen-Text liegen auf Rollen-Flächen und kippen mit.
    ========================================================= */
 @media print {
   html.dark {
@@ -495,11 +663,5 @@
   }
   .dark .vp-code span {
     color: var(--shiki-light, inherit);
-  }
-  html.dark .VPNavBarTitle .VPImage.light {
-    display: block;
-  }
-  html.dark .VPNavBarTitle .VPImage.dark {
-    display: none;
   }
 }

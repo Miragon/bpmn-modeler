@@ -14,6 +14,17 @@ const C7_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <bpmn:process id="Process_1" isExecutable="true" />
 </bpmn:definitions>`;
 
+const C7_7_22_XML = C7_XML.replace(
+    'modeler:executionPlatformVersion="7.20.0"',
+    'modeler:executionPlatformVersion="7.22.0"',
+);
+
+/** C7 only through `xmlns:camunda`, as diagrams built with the Camunda model API often are. */
+const C7_UNVERSIONED_XML = C7_XML.replace(
+    ' modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.20.0"',
+    "",
+);
+
 describe("bridge end-to-end (real core over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];
 
@@ -454,11 +465,17 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
     }
 
     /** Registers an editor and drives the initial GetBpmnFileCommand render. */
-    async function open(rpc: Rpc, editorId: string, root: string, fsPath: string): Promise<void> {
+    async function open(
+        rpc: Rpc,
+        editorId: string,
+        root: string,
+        fsPath: string,
+        content = C7_XML,
+    ): Promise<void> {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, fsPath, C7_XML),
+                params: registerParams(editorId, root, fsPath, content),
             }),
         );
         await rpc.handleLine(
@@ -469,6 +486,106 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         );
         await settle();
     }
+
+    /** The host shows one engine item, so the last engine frame is what it shows now. */
+    function lastEngineFrame(
+        frames: { method: string; params?: unknown }[],
+        fromIndex: number,
+    ): { method: string; params?: unknown } | undefined {
+        const engineFrames = frames
+            .slice(fromIndex)
+            .filter((f) => /^statusBar\/(show|hide)EngineVersion$/.test(f.method));
+        return engineFrames[engineFrames.length - 1];
+    }
+
+    async function openTwoEditors(
+        rpc: Rpc,
+        root: string,
+        contentA = C7_XML,
+        contentB = C7_7_22_XML,
+    ): Promise<{ idA: string; idB: string }> {
+        const a = join(root, "a.bpmn");
+        const b = join(root, "b.bpmn");
+        await fs.writeFile(a, contentA, "utf8");
+        await fs.writeFile(b, contentB, "utf8");
+        const idA = `file://${a}`;
+        const idB = `file://${b}`;
+        await open(rpc, idA, root, a, contentA);
+        await open(rpc, idB, root, b, contentB);
+        return { idA, idB };
+    }
+
+    async function setActive(rpc: Rpc, editorId: string): Promise<void> {
+        await rpc.handleLine(JSON.stringify({ method: "session/setActive", params: { editorId } }));
+        await settle();
+    }
+
+    async function dispose(rpc: Rpc, ...editorIds: string[]): Promise<void> {
+        for (const editorId of editorIds) {
+            await rpc.handleLine(
+                JSON.stringify({ method: "session/dispose", params: { editorId } }),
+            );
+        }
+        await settle();
+    }
+
+    it("keeps the engine version shown when focus returns to an earlier-opened editor", async () => {
+        const { rpc, frames, root } = await setup();
+        const { idA, idB } = await openTwoEditors(rpc, root);
+        const fromIndex = frames.length;
+
+        await setActive(rpc, idA);
+
+        expect(lastEngineFrame(frames, fromIndex)).toMatchObject({
+            method: "statusBar/showEngineVersion",
+            params: { platform: "c7", version: "7.20.0" },
+        });
+
+        await dispose(rpc, idA, idB);
+    });
+
+    it("hides the engine version when focus returns to an earlier diagram without a version", async () => {
+        const { rpc, frames, root } = await setup();
+        const { idA, idB } = await openTwoEditors(rpc, root, C7_UNVERSIONED_XML, C7_XML);
+        const fromIndex = frames.length;
+
+        await setActive(rpc, idA);
+
+        expect(lastEngineFrame(frames, fromIndex)).toMatchObject({
+            method: "statusBar/hideEngineVersion",
+        });
+
+        await dispose(rpc, idA, idB);
+    });
+
+    it("keeps the engine version when a background editor closes", async () => {
+        const { rpc, frames, root } = await setup();
+        const { idA, idB } = await openTwoEditors(rpc, root);
+        const fromIndex = frames.length;
+        await setActive(rpc, idA);
+
+        await dispose(rpc, idB);
+
+        expect(lastEngineFrame(frames, fromIndex)).toMatchObject({
+            method: "statusBar/showEngineVersion",
+            params: { platform: "c7", version: "7.20.0" },
+        });
+
+        await dispose(rpc, idA);
+    });
+
+    it("hides the engine version when the focused editor closes", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+        await open(rpc, editorId, root, bpmnPath);
+        const fromIndex = frames.length;
+
+        await dispose(rpc, editorId);
+
+        expect(lastEngineFrame(frames, fromIndex)).toMatchObject({
+            method: "statusBar/hideEngineVersion",
+        });
+    });
 
     it("re-renders the diagram on an external document/didChange", async () => {
         const { rpc, frames, root, bpmnPath } = await setup();

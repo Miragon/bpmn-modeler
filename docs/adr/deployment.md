@@ -73,7 +73,7 @@ the services that issue HTTP requests (`DeploymentService.deploy`/`deployFiles`,
 The expansion itself lives on the domain objects (`DeploymentConfig`,
 `StartInstanceConfig`, `AuthConfig`), which return a request-only copy;
 `EnvValueResolver` only builds the variable lookup. Expansion at the last moment
-is load-bearing: `persistOnSuccess` writes `config.auth` back to the secret store
+is load-bearing: an accepted deploy writes `config.auth` back to the secret store
 and the dispatcher matches the payload against the saved target literally — a
 resolved value there would persist a secret in cleartext or freeze it, and would
 break target matching. The ledger identity is the exception, see
@@ -191,6 +191,13 @@ The core independently resolves the submitted target name within the captured
 document context and rejects missing targets or mismatching operation settings
 before executing or persisting anything. UI disabling alone cannot establish
 which saved destination a request refers to.
+
+The engine's acceptance is final. Saving the ad-hoc connection, the
+credentials and the ledger row afterwards are separate steps: a failed step is
+logged and named in the result message ("Not saved: …"), and the ledger row is
+still written when the credentials fail. A live deployment is never reported as
+failed. `DeploymentOutcome` in the core owns this rule; host adapters report
+write failures and decide nothing.
 
 Private credential requests/replies carry a monotonically increasing request
 ID and the requested target name. Ignore stale replies, including failures;
