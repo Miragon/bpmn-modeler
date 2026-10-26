@@ -74,7 +74,7 @@ function createDispatcher({ openDiagram = true } = {}) {
         openTargetsFile: vi.fn().mockResolvedValue(undefined),
     };
     const deploymentStatusService = {
-        refreshActive: vi.fn().mockResolvedValue(undefined),
+        refreshFocused: vi.fn().mockResolvedValue(undefined),
         recordDeployment: vi.fn().mockResolvedValue(undefined),
         pruneTarget: vi.fn().mockResolvedValue(undefined),
         targetIdentity: vi.fn(async (target: DeploymentTarget) =>
@@ -927,7 +927,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
         await c.dispatcher.handle(new SelectTargetCommand("dev"));
 
         expect(c.deploymentTargetService.setActiveTarget).toHaveBeenCalledWith("dev");
-        expect(c.deploymentStatusService.refreshActive).toHaveBeenCalled();
+        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
         expect(postedQuery(c.post, DeploymentTargetsQuery)).toBeTruthy();
     });
 

@@ -99,6 +99,41 @@ describe("EditorSessionStore", () => {
         expect(store.findEditorIdByPath("/repo/diagram.bpmn")).toBeUndefined();
     });
 
+    // ─── focus ──────────────────────────────────────────────────────────────
+
+    it("reports focus from the handle, not from the active-editor pointer", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        const background = new FakeEditorHandle("/repo/2.bpmn");
+        store.register(focused);
+
+        store.register(background);
+
+        expect(store.getActiveEditorId()).toBe(background.id);
+        expect(store.isFocused(background.id)).toBe(false);
+        expect(store.isFocused(focused.id)).toBe(true);
+        expect(store.getFocusedEditorId()).toBe(focused.id);
+    });
+
+    it("stops reporting focus once the editor blurs or closes", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const blurred = new FakeEditorHandle("/repo/1.bpmn");
+        const closed = new FakeEditorHandle("/repo/2.bpmn");
+        [blurred, closed].forEach((handle) => {
+            handle.active = true;
+            store.register(handle);
+        });
+
+        blurred.loseFocus();
+        store.unregister(closed.id, closed);
+
+        expect(store.isFocused(blurred.id)).toBe(false);
+        expect(store.isFocused(closed.id)).toBe(false);
+        expect(store.isFocused("file:///repo/never-opened.bpmn")).toBe(false);
+        expect(store.getFocusedEditorId()).toBeUndefined();
+    });
+
     // ─── dispose (via the dispose-event path) ────────────────────────────────
 
     it("disposing the active editor reassigns to the most recently registered remaining one", () => {

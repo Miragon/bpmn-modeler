@@ -249,7 +249,7 @@ export class DeploymentFeature {
 
     private async switchAndRefresh(documentDir: string | undefined): Promise<void> {
         await this.targets.switchActiveTarget(documentDir);
-        await this.status.refreshActive();
+        await this.status.refreshFocused();
         await this.openPanel?.sendTargets();
     }
 

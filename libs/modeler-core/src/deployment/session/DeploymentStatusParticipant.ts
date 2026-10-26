@@ -27,6 +27,7 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
     constructor(private readonly statusService: DeploymentStatusService) {}
 
     onResolve(session: EditorSessionContext): void {
+        this.statusService.track(session.editorId);
         session.onFocusChange((focused) => {
             if (focused) {
                 this.statusOwnership.claim(session.editorId);
@@ -49,6 +50,7 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
 
         session.onDispose(() => {
             this.cancelRefresh(session.editorId);
+            this.statusService.untrack(session.editorId);
             this.releaseStatusItem(session.editorId);
         });
         if (session.isFocused()) {

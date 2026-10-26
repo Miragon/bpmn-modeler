@@ -113,7 +113,7 @@ This per-editor cleanup prevents memory leaks when editors are opened and closed
 
 Multiple editors can be open simultaneously (e.g., two `.bpmn` files side by side). `EditorSessionStore` maintains:
 - A `Map` of all open editor handles keyed by `editorId` (the full `document.uri.toString()`)
-- An `activeEditorId` pointer updated via `onDidChangeViewState`
+- An `activeEditorId` pointer updated via `onDidChangeViewState`: the target of commands, not focus. It stays on a diagram while a text editor is active, so status items ask `isFocused(editorId)` or `getFocusedEditorId()` (the handle's `panel.active`) instead
 - Per-editor isolation — each editor has its own webview, subscriptions, and session
 - An `onDidChangeActiveEditor` event that the core `DeploymentFeature` listens to for refreshing the open deployment panel's form defaults
 - A VS Code context variable (`bpmn-modeler.openCustomEditors`) tracking the count of open editors, used in keybinding/menu `when` clauses

@@ -147,11 +147,25 @@ export class EditorSessionStore {
         return handle === session && sameDocumentContent(handle.getContent(), content);
     }
 
+    /**
+     * The editor a command acts on, which is not always the focused one: text
+     * editors are not sessions, so the pointer stays on a diagram while a text
+     * editor is active, and it moves to a session that resolves in the background.
+     */
     getActiveEditorId(): string {
         if (!this.activeEditorId) {
             throw new Error("No active editor.");
         }
         return this.activeEditorId;
+    }
+
+    /** Focus is the handle's `isActive()`; the active-editor pointer is the command target. */
+    isFocused(editorId: string): boolean {
+        return this.editors.get(editorId)?.isActive() ?? false;
+    }
+
+    getFocusedEditorId(): string | undefined {
+        return [...this.editors.values()].find((handle) => handle.isActive())?.id;
     }
 
     onDidChangeActiveEditor(listener: (id: string) => void): EditorSubscription {

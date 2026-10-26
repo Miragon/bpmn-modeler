@@ -28,13 +28,15 @@ import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
  * keeps only targets-file + credential concerns while this one renders the
  * coloured freshness dot and records revisions on a successful deploy.
  *
- * Freshness is decided entirely locally: it compares the active editor content
+ * Freshness is decided entirely locally: it compares the focused editor's content
  * against the fingerprint stored at the last deploy to the active target. No
  * engine round-trip — a `unknown` (gray) dot means "no local record", never
  * "absent on the engine".
  */
 export class DeploymentStatusService {
     private refreshGeneration = 0;
+    /** Sessions whose participant hides the item on blur and close (BPMN, not DMN or Form). */
+    private readonly trackedEditorIds = new Set<string>();
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -158,7 +160,7 @@ export class DeploymentStatusService {
      * hides the item.
      */
     async refresh(editorId: string): Promise<void> {
-        if (!this.isActive(editorId)) return;
+        if (!this.editorStore.isFocused(editorId)) return;
         const generation = ++this.refreshGeneration;
         try {
             const filePath = this.documentPort.getFilePath(editorId);
@@ -172,7 +174,9 @@ export class DeploymentStatusService {
                           this.deploymentState.getTenantId(),
                           documentDir,
                       );
-            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
+            if (generation !== this.refreshGeneration || !this.editorStore.isFocused(editorId)) {
+                return;
+            }
 
             const revision = this.deploymentState.getDeployedRevision(
                 ledgerKeyFor(identity, filePath),
@@ -188,31 +192,31 @@ export class DeploymentStatusService {
             this.notifier.logDebug(
                 `Deployment status refresh skipped: ${(error as Error).message}`,
             );
-            if (generation === this.refreshGeneration && this.isActive(editorId)) this.hide();
+            if (generation === this.refreshGeneration && this.editorStore.isFocused(editorId)) {
+                this.hide();
+            }
         }
     }
 
-    async refreshActive(): Promise<void> {
-        try {
-            await this.refresh(this.editorStore.getActiveEditorId());
-        } catch (error) {
+    track(editorId: string): void {
+        this.trackedEditorIds.add(editorId);
+    }
+
+    untrack(editorId: string): void {
+        this.trackedEditorIds.delete(editorId);
+    }
+
+    async refreshFocused(): Promise<void> {
+        const focusedEditorId = this.editorStore.getFocusedEditorId();
+        if (focusedEditorId !== undefined && this.trackedEditorIds.has(focusedEditorId)) {
+            await this.refresh(focusedEditorId);
+        } else {
             this.hide();
-            this.notifier.logDebug(
-                `No active editor for deployment status: ${(error as Error).message}`,
-            );
         }
     }
 
     hide(): void {
         this.refreshGeneration++;
         this.statusBar.hideDeploymentTarget();
-    }
-
-    private isActive(editorId: string): boolean {
-        try {
-            return this.editorStore.getActiveEditorId() === editorId;
-        } catch {
-            return false;
-        }
     }
 }

@@ -147,7 +147,7 @@ export class DeploymentMessageDispatcher {
     /**
      * Re-pushes the form defaults + process-definition key for the active editor.
      * Called on panel-visible and active-editor-change so the form always reflects
-     * the focused diagram.
+     * the diagram a deploy acts on.
      */
     sendFormDefaults(): void {
         try {
@@ -169,8 +169,8 @@ export class DeploymentMessageDispatcher {
                 this.post(new ProcessDefinitionKeyQuery(""));
             }
         } catch (error) {
-            // No active editor is the expected steady state when no diagram is
-            // focused — a debug breadcrumb, not a warning.
+            // No active editor is the expected steady state when no editor is
+            // open — a debug breadcrumb, not a warning.
             this.notifier.logDebug(
                 `No active editor for deployment form defaults: ${(error as Error).message}`,
             );
@@ -186,7 +186,7 @@ export class DeploymentMessageDispatcher {
             this.post(new ProcessDefinitionKeyQuery(""));
         }
 
-        // The targets select follows the focused diagram's workspace, so refresh
+        // The targets select follows the active diagram's workspace, so refresh
         // it alongside the form defaults. Fire-and-forget: a targets-file read
         // must not block the (synchronous) form seed.
         void this.sendTargets();
@@ -245,7 +245,7 @@ export class DeploymentMessageDispatcher {
     private async handleSelectTarget(name: string): Promise<void> {
         try {
             await this.deploymentTargetService.setActiveTarget(name);
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
             await this.sendTargets();
             this.sendFormDefaults();
         } catch (error) {
@@ -268,7 +268,7 @@ export class DeploymentMessageDispatcher {
                 new TargetSavedQuery(true, `Created deployment target "${message.target.name}".`),
             );
             await this.sendTargets();
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
@@ -304,7 +304,7 @@ export class DeploymentMessageDispatcher {
                 new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
             );
             await this.sendTargets();
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
@@ -325,7 +325,7 @@ export class DeploymentMessageDispatcher {
                 }
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
                 await this.sendTargets();
-                await this.deploymentStatusService.refreshActive();
+                await this.deploymentStatusService.refreshFocused();
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -385,7 +385,7 @@ export class DeploymentMessageDispatcher {
         return target;
     }
 
-    /** Directory of the active editor's document, or `undefined` if none is focused. */
+    /** Directory of the active editor's document, or `undefined` if no editor is open. */
     private activeDocumentDir(): string | undefined {
         try {
             const activeEditorId = this.editorStore.getActiveEditorId();
@@ -544,7 +544,7 @@ export class DeploymentMessageDispatcher {
                 this.notifier.showError(result.message);
             }
 
-            await this.deploymentStatusService.refreshActive();
+            await this.deploymentStatusService.refreshFocused();
 
             this.post(
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),

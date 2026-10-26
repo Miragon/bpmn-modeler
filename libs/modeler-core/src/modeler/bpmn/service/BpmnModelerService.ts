@@ -82,10 +82,7 @@ export class BpmnModelerService {
                     ),
                 );
 
-                if (this.isFocused(editorId)) {
-                    this.updateEngineVersionStatus(doc);
-                }
-
+                this.showEngineVersionIfFocused(editorId, doc);
                 return sent;
             } catch (error) {
                 if (isHiddenEditorError(error)) {
@@ -147,7 +144,6 @@ export class BpmnModelerService {
                 return false;
             }
 
-            this.statusBar.showEngineVersion(platform, newVersion);
             return await this.display(editorId);
         } catch (error) {
             if (error instanceof UserCancelledError) {
@@ -164,16 +160,11 @@ export class BpmnModelerService {
         }
     }
 
-    // A background render (external edit, split view) must not overwrite the
-    // engine item every editor shares; the editor can also close mid-post.
-    private isFocused(editorId: string): boolean {
-        return (
-            this.editorStore.hasEditor(editorId) &&
-            this.editorStore.requireHandle(editorId).isActive()
-        );
-    }
-
-    private updateEngineVersionStatus(doc: BpmnDocument): void {
+    // Every editor shares the engine item: a background render (external edit, split
+    // view) or a command run while a text editor is focused must not write it, and
+    // the editor can also close mid-post.
+    private showEngineVersionIfFocused(editorId: string, doc: BpmnDocument): void {
+        if (!this.editorStore.isFocused(editorId)) return;
         const status = doc.engineVersionStatus();
         if (status) {
             this.statusBar.showEngineVersion(status.platform, status.version);

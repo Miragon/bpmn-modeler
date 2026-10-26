@@ -7,9 +7,12 @@ import { DeploymentStatusParticipant } from "./DeploymentStatusParticipant";
 // The real status service needs deployment targets and ledger state that are
 // irrelevant to focus ownership; casting through a `Pick` keeps the stub typed.
 function createParticipant() {
-    const status = { refresh: vi.fn(), hide: vi.fn() };
+    const status = { refresh: vi.fn(), hide: vi.fn(), track: vi.fn(), untrack: vi.fn() };
     const participant = new DeploymentStatusParticipant(
-        status as Pick<DeploymentStatusService, "refresh" | "hide"> as DeploymentStatusService,
+        status as Pick<
+            DeploymentStatusService,
+            "refresh" | "hide" | "track" | "untrack"
+        > as DeploymentStatusService,
     );
     return { host: createTestHost(), status, participant };
 }
@@ -51,6 +54,17 @@ describe("deployment status focus ownership", () => {
         vi.advanceTimersByTime(301);
         expect(status.refresh).toHaveBeenLastCalledWith(b.id);
         expect(status.hide).not.toHaveBeenCalled();
+    });
+
+    it("tracks the session from resolve until it closes", async () => {
+        const { host, status, participant } = createParticipant();
+        const a = await host.openSession("/work/a.bpmn", [participant]);
+        expect(status.track).toHaveBeenCalledExactlyOnceWith(a.id);
+        expect(status.untrack).not.toHaveBeenCalled();
+
+        a.dispose();
+
+        expect(status.untrack).toHaveBeenCalledExactlyOnceWith(a.id);
     });
 
     it("coalesces active edits and cancels the timer on disposal", async () => {

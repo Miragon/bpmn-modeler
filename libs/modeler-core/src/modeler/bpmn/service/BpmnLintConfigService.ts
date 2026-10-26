@@ -143,8 +143,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * or in-page instruction). Named {@link BpmnlintChangeTarget.setBpmnlintConfig}
      * so the locator's watcher and the participant's hooks can call it uniformly.
      */
-    setBpmnlintConfig(editorId: string, reflectInStatusBar = true): Promise<boolean> {
-        return this.lintAndPush(editorId, reflectInStatusBar);
+    setBpmnlintConfig(editorId: string): Promise<boolean> {
+        return this.lintAndPush(editorId);
     }
 
     /** The live lint path for an editor — `"external"` unless in-page is active. */
@@ -180,8 +180,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      *
      * A clean covered run is cached so a later panel re-activation can restore
      * it. The Problems panel is global, so diagnostics always publish; the status
-     * bar reflects an async push only for the active editor (a background editor's
-     * push must not steal the visible indicator).
+     * bar reflects a push only for the focused editor.
      */
     applyWebviewLintResults(
         editorId: string,
@@ -218,7 +217,6 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                     editorId,
                     negotiation.configPath,
                     JSON.parse(negotiation.rawConfig) as Record<string, unknown>,
-                    this.isActiveEditor(editorId),
                 );
                 return;
             }
@@ -231,7 +229,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 platform,
                 configPath: negotiation.configPath,
             });
-            this.applyFindings(editorId, xml, results, unresolved, this.isActiveEditor(editorId), {
+            this.applyFindings(editorId, xml, results, unresolved, {
                 kind: "in-page",
                 platform,
                 configPath: negotiation.configPath,
@@ -251,10 +249,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const xml = this.vsDocument.getContent(editorId);
         const platform = this.detectPlatform(xml);
         this.lastInPageEvents.set(editorId, { xml, results, unresolved, platform });
-        this.applyFindings(editorId, xml, results, unresolved, this.isActiveEditor(editorId), {
-            kind: "in-page",
-            platform,
-        });
+        this.applyFindings(editorId, xml, results, unresolved, { kind: "in-page", platform });
     }
 
     /**
@@ -269,16 +264,14 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * crashing the editor, and forgets the negotiation so a later valid edit
      * re-negotiates cleanly.
      */
-    private async lintAndPush(editorId: string, reflectInStatusBar: boolean): Promise<boolean> {
+    private async lintAndPush(editorId: string): Promise<boolean> {
         // User opted out of linting entirely: skip the run and clear every
         // surface (overlays, Problems entries), so design-only users are not
         // shown automation rules. Distinct from the no-config state — nothing
         // failed — so the webview can offer a re-enable affordance.
         if (!this.settings.getLintingEnabled()) {
             this.setExternalMode(editorId);
-            if (reflectInStatusBar) {
-                this.statusBar.showBpmnlintDisabled();
-            }
+            this.showStatusIfFocused(editorId, (statusBar) => statusBar.showBpmnlintDisabled());
             this.diagnostics.clear(editorId);
             return this.pushDisabled(editorId);
         }
@@ -291,7 +284,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 // Early return — must NOT fall through to a results push: a
                 // trailing BpmnlintResultsQuery(null) would immediately deactivate
                 // the in-page tier this instruction just started.
-                return this.instructInPage(editorId, reflectInStatusBar);
+                return this.instructInPage(editorId);
             }
 
             const rawConfig = await this.locator.readConfig(configPath);
@@ -309,14 +302,13 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 existing.rawConfig === rawConfig
             ) {
                 if (existing.decision === "escalated") {
-                    return this.runWorkspaceLint(editorId, configPath, config, reflectInStatusBar);
+                    return this.runWorkspaceLint(editorId, configPath, config);
                 }
                 return this.reinstructCoveredInPage(
                     editorId,
                     configPath,
                     config as BpmnlintConfig,
                     existing.token,
-                    reflectInStatusBar,
                 );
             }
 
@@ -339,16 +331,16 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 if (negotiation) {
                     negotiation.decision = "escalated";
                 }
-                return this.runWorkspaceLint(editorId, configPath, config, reflectInStatusBar);
+                return this.runWorkspaceLint(editorId, configPath, config);
             }
 
             // Covered: the webview lints the workspace config in-page. Provisional
             // Active indicator while its first run is in flight (no cache yet).
             this.lintModes.set(editorId, "in-page");
             this.diagnostics.clear(editorId);
-            if (reflectInStatusBar) {
-                this.statusBar.showBpmnlintActive(configPath);
-            }
+            this.showStatusIfFocused(editorId, (statusBar) =>
+                statusBar.showBpmnlintActive(configPath),
+            );
             return this.postInPageInstruction(editorId, config as BpmnlintConfig, token);
         } catch (error) {
             // A malformed .bpmnlintrc or a linter blow-up must not crash the
@@ -359,9 +351,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             );
             this.setExternalMode(editorId);
             this.negotiations.delete(editorId);
-            if (reflectInStatusBar) {
-                this.statusBar.showBpmnlintNoConfig();
-            }
+            this.showStatusIfFocused(editorId, (statusBar) => statusBar.showBpmnlintNoConfig());
             this.diagnostics.clear(editorId);
             return this.pushResults(editorId, null);
         }
@@ -381,14 +371,13 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         editorId: string,
         configPath: string,
         config: Record<string, unknown>,
-        reflectInStatusBar: boolean,
     ): Promise<boolean> {
         try {
             const xml = this.vsDocument.getContent(editorId);
             const { results, unresolved } = await this.lintRunner.lint(xml, configPath, config);
 
             this.setExternalMode(editorId);
-            this.applyFindings(editorId, xml, results, unresolved, reflectInStatusBar, {
+            this.applyFindings(editorId, xml, results, unresolved, {
                 kind: "workspace",
                 configPath,
             });
@@ -399,9 +388,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             );
             this.setExternalMode(editorId);
             this.negotiations.delete(editorId);
-            if (reflectInStatusBar) {
-                this.statusBar.showBpmnlintNoConfig();
-            }
+            this.showStatusIfFocused(editorId, (statusBar) => statusBar.showBpmnlintNoConfig());
             this.diagnostics.clear(editorId);
             return this.pushResults(editorId, null);
         }
@@ -419,24 +406,20 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         configPath: string,
         config: BpmnlintConfig,
         token: string,
-        reflectInStatusBar: boolean,
     ): Promise<boolean> {
         this.lintModes.set(editorId, "in-page");
         const cached = this.lastInPageEvents.get(editorId);
         if (cached) {
-            this.applyFindings(
-                editorId,
-                cached.xml,
-                cached.results,
-                cached.unresolved,
-                reflectInStatusBar,
-                { kind: "in-page", platform: cached.platform, configPath: cached.configPath },
-            );
+            this.applyFindings(editorId, cached.xml, cached.results, cached.unresolved, {
+                kind: "in-page",
+                platform: cached.platform,
+                configPath: cached.configPath,
+            });
         } else {
             this.diagnostics.clear(editorId);
-            if (reflectInStatusBar) {
-                this.statusBar.showBpmnlintActive(configPath);
-            }
+            this.showStatusIfFocused(editorId, (statusBar) =>
+                statusBar.showBpmnlintActive(configPath),
+            );
         }
         return this.postInPageInstruction(editorId, config, token);
     }
@@ -456,27 +439,24 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * for the default tier, so it is dropped in favour of a provisional default
      * indicator while the webview's first default run is in flight.
      */
-    private instructInPage(editorId: string, reflectInStatusBar: boolean): Promise<boolean> {
+    private instructInPage(editorId: string): Promise<boolean> {
         this.lintModes.set(editorId, "in-page");
         this.negotiations.delete(editorId);
 
         const cached = this.lastInPageEvents.get(editorId);
         if (cached && cached.configPath === undefined) {
-            this.applyFindings(
-                editorId,
-                cached.xml,
-                cached.results,
-                cached.unresolved,
-                reflectInStatusBar,
-                { kind: "in-page", platform: cached.platform },
-            );
+            this.applyFindings(editorId, cached.xml, cached.results, cached.unresolved, {
+                kind: "in-page",
+                platform: cached.platform,
+            });
         } else {
             this.lastInPageEvents.delete(editorId);
             this.diagnostics.clear(editorId);
-            if (reflectInStatusBar) {
-                const platform = this.detectPlatform(this.vsDocument.getContent(editorId));
-                this.statusBar.showBpmnlintDefault(platform);
-            }
+            this.showStatusIfFocused(editorId, (statusBar) =>
+                statusBar.showBpmnlintDefault(
+                    this.detectPlatform(this.vsDocument.getContent(editorId)),
+                ),
+            );
         }
 
         return this.postInPageInstruction(editorId);
@@ -485,34 +465,32 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     /**
      * The single results→chrome mapping shared by the workspace-config run and
      * the in-page webview push, so both feed the Problems panel, status bar, and
-     * unresolved warning identically. The status bar
-     * is only touched when `reflectInStatusBar`; diagnostics always publish.
+     * unresolved warning identically. Diagnostics always publish.
      */
     private applyFindings(
         editorId: string,
         xml: string,
         results: LintResults,
         unresolved: readonly string[],
-        reflectInStatusBar: boolean,
         source: LintFindingsSource,
     ): void {
         this.diagnostics.publish(editorId, xml, results);
 
-        if (reflectInStatusBar) {
+        this.showStatusIfFocused(editorId, (statusBar) => {
             if (source.kind === "workspace") {
                 if (unresolved.length > 0) {
-                    this.statusBar.showBpmnlintUnresolved(source.configPath, [...unresolved]);
+                    statusBar.showBpmnlintUnresolved(source.configPath, [...unresolved]);
                 } else {
-                    this.statusBar.showBpmnlintActive(source.configPath);
+                    statusBar.showBpmnlintActive(source.configPath);
                 }
             } else if (source.configPath !== undefined) {
                 // Covered workspace tier: linted in-page, but against a real
                 // .bpmnlintrc — surface it as Active, not the zero-config default.
-                this.statusBar.showBpmnlintActive(source.configPath);
+                statusBar.showBpmnlintActive(source.configPath);
             } else {
-                this.statusBar.showBpmnlintDefault(source.platform);
+                statusBar.showBpmnlintDefault(source.platform);
             }
-        }
+        });
 
         if (unresolved.length > 0) {
             // Surface skipped rules plainly rather than burying them in the
@@ -562,13 +540,12 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.lastInPageEvents.delete(editorId);
     }
 
-    private isActiveEditor(editorId: string): boolean {
-        try {
-            return this.editorStore.getActiveEditorId() === editorId;
-        } catch {
-            // No active editor (e.g. all panels hidden) — treat as not active.
-            return false;
-        }
+    /**
+     * The service's only status write. Discovery and host lints are async, so focus
+     * is checked when the item is written, not when the run starts.
+     */
+    private showStatusIfFocused(editorId: string, show: (statusBar: StatusBarPort) => void): void {
+        if (this.editorStore.isFocused(editorId)) show(this.statusBar);
     }
 
     /**

@@ -13,7 +13,7 @@ export function registerWebviewFocusHandlers(
     editorStore: EditorSessionStore,
 ): void {
     router.on("RequestFocusCommand", async (_message, editorId) => {
-        if (editorStore.requireHandle(editorId).isActive()) {
+        if (editorStore.isFocused(editorId)) {
             await editorStore.postMessage(editorId, new TakeFocusQuery());
         }
     });

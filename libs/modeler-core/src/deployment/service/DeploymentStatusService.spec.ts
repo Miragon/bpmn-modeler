@@ -102,6 +102,7 @@ function createService({
     );
     const host = createTestHost({ answers, folders: ["/work"], files });
     const editor = host.openEditor(filePath, "<a/>");
+    editor.active = true;
     const deploymentTargetService = {
         getActiveTarget: vi.fn().mockResolvedValue(undefined),
         locateTargetsFile: vi.fn().mockResolvedValue({
@@ -125,11 +126,20 @@ function createService({
         host.notifier,
         new EnvValueResolver(deploymentTargetService as never, host.workspace),
     );
+    service.track(editor.id);
 
     return { service, host, editor, deploymentTargetService, dotEnvIo };
 }
 
 type ServiceContext = ReturnType<typeof createService>;
+
+/** Moves focus from the service's diagram to a second one, as a click into it does. */
+function focusOtherDiagram(c: ServiceContext) {
+    c.editor.loseFocus();
+    const other = c.host.openEditor("/work/other.bpmn", "<a/>");
+    other.becomeActive();
+    return other;
+}
 
 const UNREADABLE_DOT_ENVS: [string, (c: ServiceContext) => void][] = [
     ["symlinked", (c) => c.host.workspace.symbolicLinks.add(WORKSPACE_DOT_ENV)],
@@ -464,6 +474,70 @@ describe("DeploymentStatusService.pickStatusBarAction", () => {
 });
 
 describe("DeploymentStatusService.refresh", () => {
+    it("keeps the item hidden when a refresh runs after the diagram lost focus to a text editor", async () => {
+        const c = createService();
+        await c.service.refresh(c.editor.id);
+        expect(c.host.statusBar.deploymentTarget).toBeDefined();
+
+        // DeploymentStatusParticipant's blur release; the store pointer stays.
+        c.editor.loseFocus();
+        c.service.hide();
+        // e.g. Deploy Files run from the command palette.
+        await c.service.refreshFocused();
+
+        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+    });
+
+    it("refreshes the focused diagram, not one resolved behind it", async () => {
+        const c = createService();
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("old"));
+        await c.service.refresh(c.editor.id);
+        // Registering moves the store's pointer to the background diagram.
+        c.host.openEditor("/work/background.bpmn", "<a/>");
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("new"));
+
+        await c.service.refreshFocused();
+
+        expect(c.host.statusBar.deploymentTarget?.name).toBe("new");
+    });
+
+    it("hides the item when a command refreshes with no editor focused", async () => {
+        const c = createService();
+        await c.service.refresh(c.editor.id);
+        expect(c.host.statusBar.deploymentTarget).toBeDefined();
+        // No participant hid it on blur.
+        c.editor.loseFocus();
+
+        await c.service.refreshFocused();
+
+        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+    });
+
+    it("shows no item for a focused editor without a status participant", async () => {
+        const c = createService();
+        // A DMN or Form editor: nothing would hide the item on its blur or close.
+        c.editor.loseFocus();
+        c.host.openEditor("/work/decision.dmn", "<a/>").becomeActive();
+
+        await c.service.refreshFocused();
+
+        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+    });
+
+    it("finishes the focused diagram's refresh when a background diagram asks for one meanwhile", async () => {
+        const c = createService();
+        const pending = deferred<DeploymentTarget | undefined>();
+        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const focusedRefresh = c.service.refresh(c.editor.id);
+        const background = c.host.openEditor("/work/background.bpmn", "<a/>");
+
+        await c.service.refresh(background.id);
+        pending.resolve(target("dev"));
+        await focusedRefresh;
+
+        expect(c.host.statusBar.deploymentTarget?.name).toBe("dev");
+    });
+
     it("ignores requests from an inactive editor", async () => {
         const c = createService();
         c.host.statusBar.showDeploymentTarget("shown", "deployed");
@@ -477,7 +551,7 @@ describe("DeploymentStatusService.refresh", () => {
         const pending = deferred<DeploymentTarget | undefined>();
         c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
         const oldRefresh = c.service.refresh(c.editor.id);
-        const other = c.host.openEditor("/work/other.bpmn", "<a/>");
+        const other = focusOtherDiagram(c);
         await c.service.refresh(other.id);
         const shown = c.host.statusBar.deploymentTarget;
         if (outcome === "resolve") pending.resolve(target("old"));
@@ -502,12 +576,12 @@ describe("DeploymentStatusService.refresh", () => {
         { invalidation: "hidden", invalidate: (c) => c.service.hide(), outcome: "fails" },
         {
             invalidation: "switched to another editor",
-            invalidate: (c) => c.host.openEditor("/work/other.bpmn", "<a/>"),
+            invalidate: focusOtherDiagram,
             outcome: "resolves",
         },
         {
             invalidation: "switched to another editor",
-            invalidate: (c) => c.host.openEditor("/work/other.bpmn", "<a/>"),
+            invalidate: focusOtherDiagram,
             outcome: "fails",
         },
     ])(

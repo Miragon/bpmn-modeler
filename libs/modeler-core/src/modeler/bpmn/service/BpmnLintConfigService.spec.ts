@@ -6,7 +6,10 @@ import {
     BpmnlintResultsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
+import { ArtifactService } from "../../../shared/service/ArtifactService";
+import { BpmnLintConfigLocator } from "../../../shared/service/BpmnLintConfigLocator";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../../testing";
+import { BpmnlintParticipant } from "../session/BpmnlintParticipant";
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
 const PATH = "/work/diagram.bpmn";
@@ -39,6 +42,7 @@ const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 
 function createService(content = XML) {
     const host = createTestHost();
     const editor = host.openEditor(PATH, content);
+    editor.active = true;
     const locator = {
         findNearestConfig: vi.fn().mockResolvedValue(undefined),
         readConfig: vi.fn(),
@@ -123,12 +127,13 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(host.notifier.logged("warning")).toEqual([expect.stringContaining("custom/x")]);
     });
 
-    it("still posts results but leaves the status bar untouched when reflectInStatusBar is false", async () => {
+    it("still posts results but leaves the status bar untouched when the editor is not focused", async () => {
         const { service, host, editor, locator } = createService();
         locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
         locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        editor.loseFocus();
 
-        const result = await service.setBpmnlintConfig(editor.id, false);
+        const result = await service.setBpmnlintConfig(editor.id);
 
         expect(result).toBe(true);
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
@@ -311,10 +316,11 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
         expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c8" });
     });
 
-    it("leaves the status bar untouched when reflectInStatusBar is false", async () => {
+    it("leaves the status bar untouched when the editor is not focused", async () => {
         const { service, host, editor } = createService();
+        editor.loseFocus();
 
-        await service.setBpmnlintConfig(editor.id, false);
+        await service.setBpmnlintConfig(editor.id);
 
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(1);
@@ -355,9 +361,9 @@ describe("BpmnLintConfigService.applyWebviewLintResults", () => {
         ]);
     });
 
-    it("publishes diagnostics but skips the status bar when the editor is not active", async () => {
+    it("publishes diagnostics but skips the status bar when the editor is not focused", async () => {
         const { service, host, editor } = await inPageService();
-        host.openEditor("/other.bpmn");
+        editor.loseFocus();
 
         service.applyWebviewLintResults(editor.id, RESULTS, []);
 
@@ -520,11 +526,12 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
         expect(editor.postedOfType<BpmnLintDisabledQuery>("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 
-    it("leaves the status bar untouched when disabled and reflectInStatusBar is false", async () => {
+    it("leaves the status bar untouched when disabled and the editor is not focused", async () => {
         const { service, host, editor } = createService();
         host.settings.values.lintingEnabled = false;
+        editor.loseFocus();
 
-        await service.setBpmnlintConfig(editor.id, false);
+        await service.setBpmnlintConfig(editor.id);
 
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
         expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
@@ -545,6 +552,119 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
         await service.setBpmnlintConfig(editor.id);
 
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
+        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+    });
+});
+
+describe("BpmnLintConfigService — the status item follows the focused editor", () => {
+    // The real participant and lifecycle play VS Code's focus events: a text
+    // editor taking focus blurs the panel, but the store's active-editor pointer
+    // stays on the diagram because text editors are not sessions.
+    function createSessionHost(files: Record<string, string> = {}) {
+        const host = createTestHost({ folders: ["/work", "/other"], files });
+        const locator = new BpmnLintConfigLocator(
+            host.workspace,
+            host.settings,
+            new ArtifactService(host.workspace, host.settings),
+        );
+        const lintRunner = {
+            lint: vi.fn().mockResolvedValue({ results: RESULTS, unresolved: [] }),
+        };
+        const service = new BpmnLintConfigService(
+            host.store,
+            host.documents,
+            locator,
+            lintRunner,
+            host.diagnostics,
+            host.statusBar,
+            host.notifier,
+            host.settings,
+        );
+        const participant = new BpmnlintParticipant(
+            service,
+            locator,
+            host.statusBar,
+            host.notifier,
+        );
+        const openDiagram = async (path: string, focused: boolean, content = XML) => {
+            const editor = await host.openSession(path, [participant], { content, focused });
+            // What the loaded webview's GetBpmnlintConfigCommand runs.
+            await service.setBpmnlintConfig(editor.id);
+            return editor;
+        };
+        return { host, service, lintRunner, openDiagram };
+    }
+
+    async function blurredDiagramReLintedAfterConfigEdit() {
+        const ctx = createSessionHost({ [CONFIG_PATH]: COVERED_RAW });
+        const editor = await ctx.openDiagram(PATH, true);
+        expect(ctx.host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+
+        // The user edits .bpmnlintrc in a text editor beside the diagram.
+        editor.loseFocus();
+        expect(ctx.host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        ctx.host.workspace.files.set(CONFIG_PATH, JSON.stringify({ extends: "bpmnlint:all" }));
+        ctx.host.workspace.watchers[0].handlers.onChange?.(CONFIG_PATH);
+        await flush();
+
+        // The visible diagram's webview re-lints against the new version.
+        const token = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery")?.configToken;
+        ctx.service.applyWebviewLintResults(editor.id, RESULTS, [], token);
+        return { ...ctx, editor };
+    }
+
+    it("keeps the lint status hidden when a blurred diagram's webview pushes results", async () => {
+        const { host, editor } = await blurredDiagramReLintedAfterConfigEdit();
+
+        expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
+        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+    });
+
+    it("leaves no lint status behind when that blurred diagram is closed", async () => {
+        const { host, editor } = await blurredDiagramReLintedAfterConfigEdit();
+
+        editor.dispose();
+
+        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+    });
+
+    it("shows the focused diagram's lint results, not those of a diagram resolved behind it", async () => {
+        const { host, service, openDiagram } = createSessionHost();
+        const focused = await openDiagram(PATH, true, XML_C7);
+        const background = await openDiagram("/work/other.bpmn", false, XML_C8);
+
+        service.applyWebviewLintResults(background.id, RESULTS, []);
+        service.applyWebviewLintResults(focused.id, RESULTS, []);
+
+        expect(focused.isActive()).toBe(true);
+        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c7" });
+    });
+
+    it("keeps the focused diagram's lint status while a diagram behind it loads", async () => {
+        const { host, openDiagram } = createSessionHost();
+        await openDiagram(PATH, true, XML_C7);
+
+        await openDiagram("/work/other.bpmn", false, XML_C8);
+
+        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c7" });
+    });
+
+    it("keeps the newly focused diagram's status when the previous one's host lint finishes late", async () => {
+        const { host, lintRunner, openDiagram } = createSessionHost({
+            [CONFIG_PATH]: ESCALATING_RAW,
+        });
+        const previous = await openDiagram(PATH, true);
+        let finishLint!: (outcome: { results: typeof RESULTS; unresolved: string[] }) => void;
+        lintRunner.lint.mockReturnValueOnce(new Promise((resolve) => (finishLint = resolve)));
+        host.workspace.watchers[0].handlers.onChange?.(CONFIG_PATH);
+        await flush();
+
+        previous.loseFocus();
+        await openDiagram("/other/next.bpmn", true);
+        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        finishLint({ results: RESULTS, unresolved: [] });
+        await flush();
+
         expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
     });
 });
