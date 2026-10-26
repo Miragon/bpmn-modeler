@@ -52,6 +52,28 @@ describe("InMemoryWorkspace", () => {
         await expect(ws.findFiles("**/*.{bpmn,form}", null, 1)).resolves.toHaveLength(1);
     });
 
+    it("answers with the folders as they are after one is added or removed", async () => {
+        const ws = new InMemoryWorkspace(["/work"], {
+            "/work/order.bpmn": "",
+            "/shared/ship.bpmn": "",
+        });
+
+        ws.addFolder("/shared");
+        ws.addFolder("/shared");
+        expect(ws.getWorkspaceFolderPaths()).toEqual(["/work", "/shared"]);
+        expect(ws.findWorkspaceFolderForDocument("/shared/ship.bpmn")).toBe("/shared");
+        await expect(ws.findFiles("**/*.bpmn")).resolves.toEqual([
+            "/work/order.bpmn",
+            "/shared/ship.bpmn",
+        ]);
+
+        ws.removeFolder("/work");
+        ws.removeFolder("/missing");
+        expect(ws.getWorkspaceFolderPaths()).toEqual(["/shared"]);
+        expect(ws.findWorkspaceFolderForDocument("/work/order.bpmn")).toBeUndefined();
+        await expect(ws.findFiles("**/*.bpmn")).resolves.toEqual(["/shared/ship.bpmn"]);
+    });
+
     it("lists direct children and reports missing files and directories with the core errors", async () => {
         const ws = workspace();
 

@@ -1,11 +1,13 @@
 import { extractModelDefinitions, type ModelDefinition } from "@miragon/bpmn-modeler-types";
 
 import type { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { ScopeMembership } from "../../shared/domain/ScopeMembership";
 import {
-    findFilesInScope,
-    resolveSearchScope,
     type SearchScope,
-} from "../../shared/service/workspaceFileSearch";
+    searchScopeKey,
+    searchScopeRoots,
+} from "../../shared/domain/searchScope";
+import { findFilesInScope, resolveSearchScope } from "../../shared/service/workspaceFileSearch";
 
 const BPMN_GLOB = "**/*.bpmn";
 
@@ -16,7 +18,6 @@ export interface IndexedModel {
 
 interface ScopeState {
     readonly scope: SearchScope;
-    readonly editors: Set<string>;
     readonly watchers: { dispose(): void }[];
     readonly definitionsByPathKey: Map<string, Promise<readonly ModelDefinition[]>>;
     paths?: Promise<string[]>;
@@ -29,7 +30,7 @@ interface ScopeState {
  */
 export class WorkspaceDefinitionIndex {
     private readonly scopes = new Map<string, ScopeState>();
-    private readonly scopeKeyByEditor = new Map<string, string>();
+    private readonly membership = new ScopeMembership();
 
     constructor(
         private readonly workspace: WorkspacePort,
@@ -37,7 +38,7 @@ export class WorkspaceDefinitionIndex {
     ) {}
 
     async modelsFor(editorId: string, sourcePath: string): Promise<IndexedModel[]> {
-        const state = this.acquireScope(editorId, sourcePath);
+        const state = this.scopeStateFor(editorId, sourcePath);
         if (!state) {
             return [];
         }
@@ -51,17 +52,7 @@ export class WorkspaceDefinitionIndex {
     }
 
     releaseEditor(editorId: string): void {
-        const scopeKey = this.scopeKeyByEditor.get(editorId);
-        this.scopeKeyByEditor.delete(editorId);
-        const state = scopeKey === undefined ? undefined : this.scopes.get(scopeKey);
-        if (!state || scopeKey === undefined) {
-            return;
-        }
-        state.editors.delete(editorId);
-        if (state.editors.size === 0) {
-            state.watchers.forEach((watcher) => watcher.dispose());
-            this.scopes.delete(scopeKey);
-        }
+        this.disposeScope(this.membership.release(editorId));
     }
 
     dispose(): void {
@@ -69,31 +60,36 @@ export class WorkspaceDefinitionIndex {
             state.watchers.forEach((watcher) => watcher.dispose());
         }
         this.scopes.clear();
-        this.scopeKeyByEditor.clear();
+        this.membership.clear();
     }
 
-    private acquireScope(editorId: string, sourcePath: string): ScopeState | undefined {
-        const knownKey = this.scopeKeyByEditor.get(editorId);
-        if (knownKey !== undefined) {
-            return this.scopes.get(knownKey);
-        }
+    // Workspace folders can change while an editor is open, so the scope is
+    // resolved again on every search.
+    private scopeStateFor(editorId: string, sourcePath: string): ScopeState | undefined {
         const scope = resolveSearchScope(this.workspace, sourcePath);
         if (!scope) {
             return undefined;
         }
-        const roots = scope.kind === "workspace-folders" ? scope.folders : [scope.directory];
-        const scopeKey = roots.join("\0");
-        const state = this.scopes.get(scopeKey) ?? this.createScope(scope, roots);
-        this.scopes.set(scopeKey, state);
-        state.editors.add(editorId);
-        this.scopeKeyByEditor.set(editorId, scopeKey);
-        return state;
+        const scopeKey = searchScopeKey(scope);
+        const { isNewScope, emptiedScope } = this.membership.assign(editorId, scopeKey);
+        this.disposeScope(emptiedScope);
+        if (isNewScope) {
+            this.scopes.set(scopeKey, this.createScope(scope));
+        }
+        return this.scopes.get(scopeKey);
     }
 
-    private createScope(scope: SearchScope, roots: string[]): ScopeState {
+    private disposeScope(scopeKey: string | undefined): void {
+        if (scopeKey === undefined) {
+            return;
+        }
+        this.scopes.get(scopeKey)?.watchers.forEach((watcher) => watcher.dispose());
+        this.scopes.delete(scopeKey);
+    }
+
+    private createScope(scope: SearchScope): ScopeState {
         const state: ScopeState = {
             scope,
-            editors: new Set(),
             watchers: [],
             definitionsByPathKey: new Map(),
         };
@@ -104,7 +100,7 @@ export class WorkspaceDefinitionIndex {
             forgetFile(path);
             state.paths = undefined;
         };
-        for (const root of roots) {
+        for (const root of searchScopeRoots(scope)) {
             try {
                 state.watchers.push(
                     this.workspace.createWatcher(root, BPMN_GLOB, {

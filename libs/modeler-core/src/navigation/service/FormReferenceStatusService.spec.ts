@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
-import { createTestHost, FakeEditorHandle } from "../../testing";
+import { createTestHost, FakeEditorHandle, type WorkspaceWatcher } from "../../testing";
 import { FormReferenceStatusService } from "./FormReferenceStatusService";
 
 function setup(folders = ["/work"]) {
@@ -30,6 +30,9 @@ function setup(folders = ["/work"]) {
 
 const statuses = (editor: FakeEditorHandle) =>
     editor.postedOfType<FormReferenceStatusQuery>("FormReferenceStatusQuery");
+
+const liveWatcherRoots = (watchers: readonly WorkspaceWatcher[]) =>
+    watchers.filter(({ disposed }) => !disposed).map(({ root }) => root);
 
 beforeEach(() => vi.useFakeTimers());
 
@@ -79,6 +82,28 @@ describe("FormReferenceStatusService", () => {
         expect(watchers[0].disposed).toBe(true);
     });
 
+    it("watches a workspace folder added before the status is requested again", async () => {
+        const { service, host, watchers } = setup(["/work"]);
+        const editor = host.openEditor("/work/process.bpmn");
+        await service.requestStatus(editor.id);
+
+        host.workspace.addFolder("/forms");
+        await service.requestStatus(editor.id);
+
+        expect(liveWatcherRoots(watchers)).toEqual(["/work", "/forms"]);
+    });
+
+    it("drops the watcher of a removed workspace folder", async () => {
+        const { service, host, watchers } = setup(["/work", "/forms"]);
+        const editor = host.openEditor("/work/process.bpmn");
+        await service.requestStatus(editor.id);
+
+        host.workspace.removeFolder("/forms");
+        await service.requestStatus(editor.id);
+
+        expect(liveWatcherRoots(watchers)).toEqual(["/work"]);
+    });
+
     it("shares one watcher refresh scan across editors with the same search scope", async () => {
         const { service, host, locator } = setup();
         await service.requestStatus(host.openEditor("/work/a.bpmn").id);
@@ -87,6 +112,29 @@ describe("FormReferenceStatusService", () => {
         await host.workspace.writeFile("/work/a.form", "{}");
         await vi.runAllTimersAsync();
         await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledTimes(3));
+    });
+
+    it("does not share a scan between editors of different search scopes", async () => {
+        const { service, host, locator } = setup([]);
+        const first = host.openEditor("/first/a.bpmn");
+        const second = host.openEditor("/second/b.bpmn");
+        let finishFirstScan: (value: unknown) => void = () => {};
+        locator.findFormDeclarations.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishFirstScan = resolve;
+            }),
+        );
+
+        const firstRequest = service.requestStatus(first.id);
+        await vi.waitFor(() => expect(locator.findFormDeclarations).toHaveBeenCalledOnce());
+        const secondRequest = service.requestStatus(second.id);
+        await vi.waitFor(() =>
+            expect(locator.findFormDeclarations).toHaveBeenLastCalledWith("/second/b.bpmn"),
+        );
+        finishFirstScan({ kind: "matches", declarations: [], readFailures: [] });
+        await Promise.all([firstRequest, secondRequest]);
+
+        expect(statuses(second)).toEqual([new FormReferenceStatusQuery(["Form_A", "Form_B"])]);
     });
 
     it("does not refresh editors outside the changed loose-file root", async () => {
