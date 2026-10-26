@@ -179,18 +179,6 @@ export class BpmnDocument {
     }
 
     /**
-     * Returns a new `BpmnDocument` with the `modeler:executionPlatformVersion` replaced.
-     */
-    withVersion(version: string): BpmnDocument {
-        return new BpmnDocument(
-            this.xml.replace(
-                /modeler:executionPlatformVersion="\d+\.\d+\.\d+"/,
-                `modeler:executionPlatformVersion="${version}"`,
-            ),
-        );
-    }
-
-    /**
      * Only a stamp adds the engine namespace: bpmn-js drops an unused one on
      * save, so requiring it on tagged diagrams would rewrite them on every run.
      *

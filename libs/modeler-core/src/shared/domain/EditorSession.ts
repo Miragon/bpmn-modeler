@@ -55,7 +55,7 @@ export interface EditorHandle {
     documentScheme(): string;
 
     getContent(): string;
-    /** @returns `true` if applied, `false` if content was unchanged. */
+    /** @returns `true` if applied, `false` if content was unchanged or the host refused the edit. */
     writeContent(content: string, expectedDocumentRevision?: number): Promise<boolean>;
     save(): Promise<boolean>;
 
