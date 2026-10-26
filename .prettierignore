@@ -8,6 +8,9 @@ libs/standalone-extension/lib
 **/build
 **/out
 **/coverage
+**/reports/mutation
+**/.stryker-tmp
+**/stryker-setup-*.js
 **/.nx/cache
 **/.nx/workspace-data
 **/.theia

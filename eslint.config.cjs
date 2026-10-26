@@ -24,6 +24,10 @@ module.exports = [
             "**/src-gen",
             // Vitest HTML coverage reports ship their own JavaScript.
             "**/coverage",
+            // Stryker's HTML mutation report ships its own JavaScript.
+            "**/reports/mutation/**",
+            "**/.stryker-tmp/**",
+            "**/stryker-setup-*.js",
             "**/plugins",
             "**/gen-webpack*.js",
             "**/gen-esbuild*.mjs",

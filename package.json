@@ -46,6 +46,7 @@
         "docs:preview": "corepack yarn workspace @miragon/bpmn-modeler-docs preview",
         "docs:test": "corepack yarn workspace @miragon/bpmn-modeler-docs test",
         "test": "vitest run",
+        "test:mutation": "corepack yarn workspace @miragon/bpmn-modeler-core test:mutation",
         "test:coverage": "corepack yarn workspaces foreach --all --exclude bpmn-modeler --exclude @miragon/bpmn-modeler-docs run test",
         "perf:gen-model": "node scripts/perf/gen-large-bpmn.mjs",
         "perf:webview": "node scripts/perf/bench-webview.mjs",

@@ -17,6 +17,12 @@ apps/vscode-plugin/test/e2e/out
 # Screenshots and logs of the real-VS-Code smoke test (`test:vscode`).
 /test-results
 
+# Stryker mutation reports, incremental state, interrupted-run sandboxes and the
+# vitest runner's per-worker setup files, which survive a worker stopped before it closes.
+**/reports/mutation/
+**/.stryker-tmp/
+**/stryker-setup-*.js
+
 # dependencies
 node_modules
 .yarn/install-state.gz
