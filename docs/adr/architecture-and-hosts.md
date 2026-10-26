@@ -272,6 +272,17 @@ authoritative IntelliJ Documents, replays render requests, and re-seeds
 deployment state. Stdin EOF terminates the bridge; project disposal and shutdown
 cleanup prevent orphan processes.
 
+The replayed render re-imports the Document, and a sync the restart window
+dropped never reached it. Recovery therefore first flushes each page with the
+rule a tab close uses: a destructive flush that also exports a page which
+believes it is clean, written into the Document only while its revision still
+matches, and skipped while an external host update is pending. The page stays
+locked until the replayed render reaches it, or a timeout passes. Reload Modeler
+runs the same recovery against the running bridge. This is host policy and
+stays in Kotlin; a shared render participant must keep the flush before the
+replay. Accepted residual: an edit in the page's import debounce after the
+unlock can still be overwritten, and each replay clears the page's undo stack.
+
 An asynchronous writer drains a soft-bounded outbound queue so editor and JCEF
 threads never block on bridge stdin. Superseded document and host-state updates
 coalesce; authoritative document updates and RPC replies remain reliable across

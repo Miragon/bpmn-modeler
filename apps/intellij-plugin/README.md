@@ -65,10 +65,13 @@ flowchart TD
   from the plugin classpath), not `node` from `PATH`. Dev override:
   `-Dmiragon.bridge=/abs/path` or `MIRAGON_BRIDGE`.
 - **Crash recovery:** detects process exit, respawns with linear backoff (giving
-  up after repeated rapid crashes), re-registers every live session from the
+  up after repeated rapid crashes), writes each page's edits the `Document` never
+  received into it (the close flush), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
-  bridge's lint state.
+  bridge's lint state. The page takes no edits until the render arrives (at
+  most 5 s). Tools ▸ Reload Modeler runs the same recovery against the running
+  bridge.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
@@ -151,6 +154,10 @@ toggle Token Simulation.
 Kill the `modeler-bridge` process (Activity Monitor / `kill`). The open editor
 recovers (the session re-registers and the diagram re-renders) and no orphaned
 process remains. Closing the IDE leaves no `modeler-bridge` process behind.
+
+To check that recovery keeps unsynced edits, pause the bridge first
+(`kill -STOP <pid>`), move a shape, then `kill -9 <pid>`: the re-rendered diagram
+and the file buffer both keep the move.
 
 ## Troubleshooting
 
