@@ -71,7 +71,10 @@ flowchart TD
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
   bridge's lint state. The page takes no edits until the render arrives (at
   most 5 s). Tools ▸ Reload Modeler runs the same recovery against the running
-  bridge.
+  bridge. Like a tab close, recovery writes the modeler's serialization into
+  every open diagram whose text differs from it, even one you never edited, so
+  such a file shows as modified (and in VCS) afterwards. A read-only file keeps
+  its text, and its diagram re-renders from it.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
