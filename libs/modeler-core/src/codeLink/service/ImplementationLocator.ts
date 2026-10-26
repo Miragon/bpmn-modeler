@@ -1,5 +1,3 @@
-import { posix } from "path";
-
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
@@ -198,8 +196,7 @@ export class ImplementationLocator {
             {
                 sourceDocumentPath,
                 logger: this.notifier,
-                matchesWalkedFile: (path) =>
-                    JVM_EXTENSIONS.some((ext) => path.endsWith(`${packagePath}.${ext}`)),
+                matchesWalkedFile: (path) => matchesClassPath(fqcn, path),
             },
         );
         if (paths === undefined) {
@@ -233,8 +230,7 @@ export class ImplementationLocator {
             {
                 sourceDocumentPath,
                 logger: this.notifier,
-                matchesWalkedFile: (path) =>
-                    JVM_EXTENSIONS.some((ext) => posix.basename(path) === `${className}.${ext}`),
+                matchesWalkedFile: (path) => matchesBeanClassName(bean, path),
             },
         );
         if (byName === undefined) {
