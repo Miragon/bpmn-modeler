@@ -1,3 +1,4 @@
+import type { Element } from "bpmn-js/lib/model/Types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
 
@@ -5,8 +6,9 @@ import { createModeler } from "../createModeler";
 import { createDesigner } from "../design/createDesigner";
 import { createViewer } from "../viewer/createViewer";
 import { COLLAPSED_SUBPROCESS_BEFORE_XML } from "../viewer/diff/__fixtures__/collapsedSubprocessDiff";
-import { tagAsCamunda7 } from "../__fixtures__/bpmnXml";
+import { FAR_FROM_ORIGIN_XML, tagAsCamunda7 } from "../__fixtures__/bpmnXml";
 import {
+    afterPaint,
     mountWithPanel,
     removeMounts,
     settleObserver,
@@ -21,7 +23,7 @@ import type { ModeSession, SurfaceFactories, SurfaceHandle } from "./publicApi";
  * factories — the composition the mode strip runs in production.
  * `modeSession.spec.ts` covers the transition failure paths with doubles; this
  * pins that the view state each real surface captures is one the next real
- * surface can restore.
+ * surface can restore, and that an edit reaches the next surface's export.
  */
 
 const DRILLED_IN_VIEWPORT = { x: 1700, y: 1900, width: 1200, height: 900 };
@@ -142,5 +144,68 @@ describe("createModeSession over the real surfaces", () => {
         await settleObserver();
         expect(untagged.getHandle()).not.toBe(designer);
         expectDrilledInViewState(untagged.getHandle());
+    });
+});
+
+const RENAMED_IN_DESIGN = 'name="Renamed in Design"';
+
+async function openInDesign(
+    engine: DetectedEngine,
+    xml: string,
+    onError: () => void,
+): Promise<ModeSession> {
+    const mount = mountWithPanel();
+    session = await createModeSession({
+        container: mount.container,
+        engine,
+        surfaces: realSurfaces(mount.panel),
+        initialMode: "design",
+        onError,
+    });
+    await session.getHandle().loadDiagram(xml);
+    return session;
+}
+
+async function renameTaskInDesign(designSession: ModeSession): Promise<void> {
+    const handle = designSession.getHandle();
+    if (!("newDiagram" in handle)) {
+        throw new Error(`Design is served by a readonly surface (${designSession.getMode()})`);
+    }
+    const task = handle.getService("elementRegistry").get("Task_1") as Element;
+    handle.getService("modeling").updateLabel(task, "Renamed in Design");
+    await afterPaint();
+}
+
+describe("createModeSession hands a Design edit to the next real surface", () => {
+    it("finds a tagged model's edit in the View export and then the Implement export", async () => {
+        const onError = vi.fn();
+        const tagged = await openInDesign("c7", tagAsCamunda7(FAR_FROM_ORIGIN_XML), onError);
+        await renameTaskInDesign(tagged);
+
+        await tagged.requestMode("view");
+        expect(onError).not.toHaveBeenCalled();
+        expect(tagged.getMode()).toBe("view");
+        await expect(tagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
+
+        await tagged.requestMode("implement");
+        expect(onError).not.toHaveBeenCalled();
+        expect(tagged.getMode()).toBe("implement");
+        await expect(tagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
+    });
+
+    it("finds an untagged model's edit in the View export and back in the designer's", async () => {
+        const onError = vi.fn();
+        const untagged = await openInDesign(undefined, FAR_FROM_ORIGIN_XML, onError);
+        await renameTaskInDesign(untagged);
+
+        await untagged.requestMode("view");
+        expect(onError).not.toHaveBeenCalled();
+        expect(untagged.getMode()).toBe("view");
+        await expect(untagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
+
+        await untagged.requestMode("design");
+        expect(onError).not.toHaveBeenCalled();
+        expect(untagged.getMode()).toBe("design");
+        await expect(untagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
     });
 });
