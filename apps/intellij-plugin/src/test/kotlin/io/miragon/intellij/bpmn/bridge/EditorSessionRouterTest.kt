@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
 /**
@@ -599,6 +600,57 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a crash recovery that flushes while a tab close waits still lets the close write the page edit`() {
+        val f = setUpRouter(INITIAL_XML)
+        val closingThread = Thread.currentThread()
+        lateinit var crashRecovery: Future<*>
+        var answerCloseFlush: (() -> Unit)? = null
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                val closeFlushReply = answerCloseFlush
+                if (closeFlushReply == null) {
+                    answerCloseFlush = reply
+                    crashRecovery = runOnceParked(closingThread) { f.router.reregisterLiveSessions() }
+                } else {
+                    closeFlushReply()
+                    reply()
+                }
+            }
+
+        f.router.flushBeforeClose(page.session.editorId)
+        f.router.disposeSession(page.session)
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the recovery's flush does not take the close's reply")
+    }
+
+    @Test
+    fun `a sync forced while a tab close and a crash recovery both wait reaches the close`() {
+        val f = setUpRouter(INITIAL_XML)
+        val closingThread = Thread.currentThread()
+        lateinit var crashRecovery: Future<*>
+        lateinit var page: FakePage
+        page =
+            f.openPageShowing(EDITED_XML) { _ ->
+                if (page.flushQueries.size == 1) {
+                    crashRecovery = runOnceParked(closingThread) { f.router.reregisterLiveSessions() }
+                } else {
+                    // The page's export fails after its forced sync went out.
+                    f.router.forwardWebviewMessage(page.session, syncCommand(EDITED_XML, 0))
+                    page.flushQueries.forEach {
+                        f.router.forwardWebviewMessage(page.session, unavailableFlushReply(it.get("token").asLong))
+                    }
+                }
+            }
+
+        f.router.flushBeforeClose(page.session.editorId)
+        f.router.disposeSession(page.session)
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "every flush in flight keeps the forced sync")
+    }
+
+    @Test
     fun `re-registering does not flush the webview over a pending external host update`() {
         val f = setUpRouter(INITIAL_XML)
 
@@ -779,15 +831,17 @@ class EditorSessionRouterTest {
     }
 
     /** Replies from another thread once the host thread parks to wait for the reply. */
-    private fun replyOnceHostWaits(): (reply: () -> Unit) -> Unit =
-        { reply ->
-            val host = Thread.currentThread()
-            ApplicationManager.getApplication().executeOnPooledThread {
+    private fun replyOnceHostWaits(): (reply: () -> Unit) -> Unit = { reply -> runOnceParked(Thread.currentThread(), reply) }
+
+    /** Runs [action] on a pooled thread once [thread] parks in a timed wait. */
+    private fun runOnceParked(thread: Thread, action: () -> Unit): Future<*> =
+        ApplicationManager.getApplication().executeOnPooledThread(
+            Runnable {
                 val giveUpAt = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-                while (host.state != Thread.State.TIMED_WAITING && System.nanoTime() < giveUpAt) Thread.onSpinWait()
-                reply()
-            }
-        }
+                while (thread.state != Thread.State.TIMED_WAITING && System.nanoTime() < giveUpAt) Thread.onSpinWait()
+                action()
+            },
+        )
 
     /**
      * Opens a page on [file] (by default replacing the fixture's page) that
@@ -1094,6 +1148,9 @@ class EditorSessionRouterTest {
         val revision = documentRevision?.let { ",\"documentRevision\":$it" }.orEmpty()
         return "{\"type\":\"SyncDocumentCommand\",\"content\":${gson.toJson(content)}$revision}"
     }
+
+    /** What the page answers when its export fails. */
+    private fun unavailableFlushReply(token: Long) = "{\"type\":\"DocumentFlushedCommand\",\"token\":$token,\"status\":\"unavailable\"}"
 
     private companion object {
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
