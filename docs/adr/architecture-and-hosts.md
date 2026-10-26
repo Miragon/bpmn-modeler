@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-10-26
 
 ## Context
 
@@ -56,9 +56,21 @@ chrome with the protocol to avoid another workspace for a few helpers.
 `modeler-core` owns domain/services plus `EditorSessionStore`,
 `WebviewMessageRouter` and `DiffPaneStore`. Host applications import its public
 entrypoint and supply capability ports and editor/diff handles. The core is
-VS Code-free; its domain cannot reach host modules transitively. This does not
-make the whole core browser-safe: portable Node utilities and infrastructure
-remain valid there.
+VS Code-free, and no core file reaches a host module (`node:*`, `fs`, `http`),
+directly or transitively. This does not make the whole core browser-safe:
+portable Node utilities such as `path` remain valid there.
+
+Inside the core, each feature folder (`modeler/<editor>` for the editors)
+splits into `domain/`, an application layer of `service/` and `session/` (the
+editor-session participants), `infrastructure/` and root files that compose the
+feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
+and Node `path`. Features reach each other only through `shared/`. Services and
+participants import infrastructure only for the editor-session core in
+`shared/infrastructure/` and two stores (`MarketplaceCache`, `DiffPaneStore`);
+in infrastructure only the inbound `*MessageHandlers` adapters import services.
+The core has no import cycles. The core architecture test lists each known
+violation with the change that removes it, and fails when an entry is no longer
+needed, so the list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
@@ -318,6 +330,9 @@ a cached result must equal an uncached run.
 
 - Leaving the core or its registries inside the VS Code plugin would couple
   other hosts to plugin internals or force them to duplicate session logic.
+- Enforcing the core's layer rules only after the refactors that remove the
+  current violations would let new ones in meanwhile. Known exceptions start
+  the gate now, at the cost of a list that review has to keep from growing.
 - Wiring each feature per host kept the hosts simple to read but let the copies
   drift: the bridge stopped re-linting on edits and setting changes, and did not
   isolate failing session hooks. Feature modules in the core cost a little
