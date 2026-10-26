@@ -206,7 +206,14 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             await waitForFrame(frames, isShowInfo("The diagram is already formatted."));
         });
 
-        async function reportLeftovers(rpc: Rpc, editorId: string): Promise<void> {
+        const shapeIds = (count: number) =>
+            Array.from({ length: count }, (_, i) => `Shape_${i + 1}`);
+
+        async function reportLeftovers(
+            rpc: Rpc,
+            editorId: string,
+            ids = ["Shape_1"],
+        ): Promise<void> {
             await rpc.handleLine(
                 hostNotification("webview/message", {
                     editorId,
@@ -214,7 +221,7 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                         type: "CleanupReportCommand",
                         outcome: {
                             status: "reported",
-                            items: [{ kind: "orphan-di", id: "Shape_1", label: "Shape_1" }],
+                            items: ids.map((id) => ({ kind: "orphan-di", id, label: id })),
                         },
                         applied: false,
                     },
@@ -242,6 +249,15 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                     f.params.message?.type === "CleanupDiagramQuery" &&
                     f.params.message.apply === true,
             );
+        });
+
+        it("sends the host a cleanup list that says how many more items go", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+
+            await reportLeftovers(rpc, editorId, shapeIds(14));
+            const confirm = await waitForFrame(frames, isConfirmRequest);
+
+            expect(confirm.params.details).toEqual([...shapeIds(12), "…and 2 more"]);
         });
 
         it("removes nothing when the user declines the cleanup", async () => {
