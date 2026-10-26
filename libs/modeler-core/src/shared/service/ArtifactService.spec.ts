@@ -396,4 +396,17 @@ describe("ArtifactService.createWatcher", () => {
         await workspace.writeFile("/work/.camunda/element-templates/y.json", "{}");
         expect(target.refreshElementTemplates).toHaveBeenCalledTimes(4);
     });
+
+    it("watches element templates when the config folder is empty", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            settings: { configFolder: "" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+
+        await service.createWatcher("/work/proc/order.bpmn", target);
+        await workspace.writeFile("/work/element-templates/a.json", "{}");
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledWith("/work/proc/order.bpmn");
+    });
 });
