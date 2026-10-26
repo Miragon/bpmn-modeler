@@ -65,7 +65,6 @@ describe("VsCodeStatusBar element templates", () => {
         expect(renderedStatusBar()).toEqual([]);
     });
 
-    // Every load shares the one item, so an older count's timer must not hide what came after it.
     describe("a later show or hide cancels a pending auto-hide", () => {
         beforeEach(() => {
             vi.useFakeTimers();

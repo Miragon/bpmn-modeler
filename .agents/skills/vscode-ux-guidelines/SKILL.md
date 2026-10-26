@@ -61,8 +61,10 @@ statusBar.showEngineVersion(platform, ver);   // Engine version of the focused B
 ```
 
 Every template load shares one item, so **a later show or hide cancels a pending
-auto-hide**: a count stays 3 s after the latest ready, and a spinner stays until
-its load ends. Any status that hides itself keeps that rule.
+auto-hide**. Any status that hides itself keeps that rule. The item shows the
+latest status: a count stays 3 s after the latest ready, and a spinner stays
+until the next ready or hide. It does not track which loads still run, so when
+loads overlap, one load's count or hide ends another load's spinner.
 
 The status bar item is lazily created. Use the **right side** for transient status and progress. Keep items concise — icon + short text, with tooltips for detail.
 
