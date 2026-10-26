@@ -48,7 +48,9 @@ export class InMemoryWorkspace implements WorkspacePort {
     constructor(folders: string[] = [], files: Record<string, string> = {}) {
         this.folders = [...folders];
         for (const [path, content] of Object.entries(files)) {
-            this.files.set(withoutFileScheme(path), content);
+            const filePath = withoutFileScheme(path);
+            this.addDirectory(posix.dirname(filePath));
+            this.files.set(filePath, content);
         }
     }
 
