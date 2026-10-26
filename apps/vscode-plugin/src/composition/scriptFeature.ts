@@ -21,7 +21,12 @@ export function register(
     scriptTaskSvc: ScriptTaskService;
     scriptVariableStore: ScriptVariableStore;
 } {
-    const scriptFiles = new ScriptFileStore(deps.vsWorkspace, deps.vsSettings, deps.artifactSvc);
+    const scriptFiles = new ScriptFileStore(
+        deps.editorStore,
+        deps.vsWorkspace,
+        deps.vsSettings,
+        deps.artifactSvc,
+    );
 
     // Orphan cleanup is a one-shot sweep per base directory on first open (see
     // ScriptFileStore.prepareBaseDir) rather than an activation-time scan — the

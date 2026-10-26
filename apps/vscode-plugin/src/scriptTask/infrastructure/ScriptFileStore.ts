@@ -3,11 +3,16 @@ import { posix } from "path";
 
 import {
     ArtifactService,
+    EditorSessionStore,
     FileNotFound,
     SettingsPort,
     TMP_SCRIPTING_SEGMENT,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
+
+export function keepsScriptsInOsTemp(_documentScheme: string): boolean {
+    return false;
+}
 
 /**
  * Filesystem home of the on-disk inline scripts.
@@ -30,6 +35,7 @@ export class ScriptFileStore {
     private readonly sweptBaseDirs = new Set<string>();
 
     constructor(
+        private readonly editorStore: EditorSessionStore,
         private readonly workspace: WorkspacePort,
         private readonly settings: SettingsPort,
         private readonly artifactSvc: ArtifactService,
