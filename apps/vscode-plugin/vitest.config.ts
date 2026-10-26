@@ -4,7 +4,7 @@ import { coveragePreset, workspaceAliases } from "../../vitest.shared";
 
 // Kept apart so the PR coverage action, which regex-reads the first unquoted
 // `statements:` in this file, reports the global gate rather than a glob tier.
-const overallThresholds = { statements: 81, branches: 75, functions: 77, lines: 83 };
+const overallThresholds = { statements: 88, branches: 82, functions: 83, lines: 89 };
 
 export default defineConfig({
     resolve: { alias: workspaceAliases },
@@ -34,7 +34,7 @@ export default defineConfig({
                 ...overallThresholds,
                 "**/controller/**": { statements: 88, branches: 80, functions: 87, lines: 89 },
                 "**/editor-session/**": { statements: 76, branches: 66, functions: 78, lines: 83 },
-                "**/infrastructure/**": { statements: 71, branches: 69, functions: 64, lines: 70 },
+                "**/infrastructure/**": { statements: 87, branches: 84, functions: 78, lines: 88 },
             },
         },
     },
