@@ -410,7 +410,8 @@ internal class EditorSessionRouter(
      * linting on and the page would otherwise show the old bridge's toggle.
      *
      * Waits up to [PAGE_FLUSH_TIMEOUT_MS] for the pages' replies; off the EDT it
-     * then also waits until the EDT has written them.
+     * then also waits until the EDT has written any export, which an open modal
+     * dialog delays.
      */
     fun reregisterLiveSessions() {
         if (!deps.isProcessAlive()) return
@@ -556,7 +557,9 @@ internal class EditorSessionRouter(
         if (flushes.isEmpty()) return flushes
         val repliesAwaited = awaitReplies(flushes)
         flushes.forEach { pageFlushes.remove(it.entry.session.editorId, it) }
-        if (repliesAwaited) onEdtAndWait { flushes.forEach(::writeFlushedContent) }
+        // Off the EDT the hop waits behind an open modal dialog, so skip it when no page exported anything.
+        val anyPageExported = flushes.any { it.content != null }
+        if (repliesAwaited && anyPageExported) onEdtAndWait { flushes.forEach(::writeFlushedContent) }
         return flushes
     }
 

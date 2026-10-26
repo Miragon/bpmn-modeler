@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.impl.LaterInvocator
 import com.intellij.openapi.command.CommandEvent
 import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.command.WriteCommandAction
@@ -632,6 +633,28 @@ class EditorSessionRouterTest {
             f.reregistrationFrames().single { it.get("method").asString == "session/register" }
         assertEquals(EDITED_XML, f.bpmn.document.text, "the scheduler thread hands the write to the EDT")
         assertEquals(EDITED_XML, register.getAsJsonObject("params").get("content").asString)
+    }
+
+    @Test
+    fun `a respawn off the EDT with nothing to write does not wait for a modal dialog`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML, editedSinceRender = false)
+        val dialog = Any()
+
+        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        LaterInvocator.enterModal(dialog)
+        try {
+            PlatformTestUtil.waitForFuture(respawn, 10_000)
+        } finally {
+            LaterInvocator.leaveModal(dialog)
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        }
+
+        assertEquals(
+            REREGISTRATION_FRAMES,
+            f.reregistrationFrames().bySession()[page.sessionId],
+            "a page with nothing to write is re-registered while the dialog is open",
+        )
     }
 
     @Test
