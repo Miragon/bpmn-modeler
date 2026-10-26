@@ -16,6 +16,7 @@
  */
 import { posix } from "path";
 
+import { joinWorkspacePath } from "../../shared/domain/workspacePath";
 import {
     beanToClassName,
     extractBeanName,
@@ -75,7 +76,7 @@ export function toRelative(absolutePath: string, workspaceRoot: string): string 
 
 /** Absolute path of a workspace-relative POSIX path — the inverse of {@link toRelative}. */
 export function toAbsolute(relativePath: string, workspaceRoot: string): string {
-    return posix.join(workspaceRoot, relativePath);
+    return joinWorkspacePath(workspaceRoot, relativePath);
 }
 
 /**

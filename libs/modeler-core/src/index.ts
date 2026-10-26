@@ -19,6 +19,7 @@ export * from "./shared/domain/hostPorts";
 export * from "./shared/domain/newModelEngine";
 export * from "./shared/domain/session";
 export * from "./shared/domain/viewTypes";
+export * from "./shared/domain/workspacePath";
 
 // ── shared: service + vscode-free infrastructure ────────────────────────────
 export * from "./shared/service/ArtifactService";

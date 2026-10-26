@@ -216,12 +216,17 @@ export interface WorkspacePort {
      * may already have deleted, and re-deleting one must stay silent.
      */
     deleteDirectory(path: string): Promise<void>;
+    /**
+     * Absolute paths of the matches in every workspace folder, spelled as
+     * {@link import("./workspacePath").toWorkspacePath} spells them: `/`-separated,
+     * and `//server/share/repo/src/A.java` under a UNC root, never
+     * `/server/share/…`, which Node's `fs` on Windows opens on the current drive.
+     */
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
     /**
-     * Handlers receive absolute, `/`-separated paths spelled like
-     * {@link findFiles} results, so consumers can compare them without
-     * normalising. Returns a handle that disposes the watcher and its listeners
-     * in one call.
+     * Handlers receive absolute paths spelled like {@link findFiles} results,
+     * so consumers compare the two without normalising. Returns a handle that
+     * disposes the watcher and its listeners in one call.
      */
     createWatcher(
         rootPath: string,

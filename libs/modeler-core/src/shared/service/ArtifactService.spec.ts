@@ -200,6 +200,16 @@ describe("ArtifactService.getWorkspaceRoot", () => {
         );
     });
 
+    it("finds the .git file of a worktree whose directory is in URI form", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "file:///worktrees/feature/.git": "file",
+        });
+
+        await expect(service.getWorkspaceRoot("file:///worktrees/feature/src")).resolves.toBe(
+            "file:///worktrees/feature",
+        );
+    });
+
     it("falls back to the document directory when no git repository encloses it", async () => {
         const service = createServiceOutsideWorkspaceFolders({});
 

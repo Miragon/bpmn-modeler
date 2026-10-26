@@ -106,6 +106,30 @@ describe("joinWorkspacePath", () => {
             joined: "/c:/.git",
         },
         {
+            behaviour: "joins onto the filesystem root without opening a UNC root",
+            directory: "/",
+            segments: [".git"],
+            joined: "/.git",
+        },
+        {
+            behaviour: "joins an empty segment onto the filesystem root without opening a UNC root",
+            directory: "/",
+            segments: ["", "proj"],
+            joined: "/proj",
+        },
+        {
+            behaviour: "joins onto the root of a URI-form path",
+            directory: "file:///",
+            segments: [".git"],
+            joined: "file:///.git",
+        },
+        {
+            behaviour: "turns backslashes in the segments into slashes",
+            directory: "//server/share/repo",
+            segments: ["src\\A.java"],
+            joined: "//server/share/repo/src/A.java",
+        },
+        {
             behaviour: "resolves a config folder that climbs out of the directory",
             directory: "//server/share/repo/app",
             segments: ["../shared", "deployment-targets.json"],

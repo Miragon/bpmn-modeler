@@ -11,6 +11,7 @@ import {
 import { EditorHandle } from "../../shared/domain/EditorSession";
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { joinWorkspacePath } from "../../shared/domain/workspacePath";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import {
@@ -556,7 +557,7 @@ export class CodeLinkMapService {
             return undefined;
         }
         const relBpmn = toRelative(state.documentPath, state.workspaceRoot);
-        return posix.join(
+        return joinWorkspacePath(
             state.workspaceRoot,
             this.vsSettings.getConfigFolder(),
             CODE_LINK_DIR,

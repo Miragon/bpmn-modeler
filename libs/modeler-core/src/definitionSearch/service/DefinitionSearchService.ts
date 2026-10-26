@@ -11,6 +11,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import type { DocumentPort, NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { toWorkspacePath } from "../../shared/domain/workspacePath";
 import type { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import type { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";
 
@@ -61,11 +62,11 @@ export class DefinitionSearchService {
         const sourcePath = this.document.getFilePath(editorId);
         const models = await this.index.modelsFor(editorId, sourcePath);
         return models
-            .filter(({ path }) => toSlashes(path) !== toSlashes(sourcePath))
+            .filter(({ path }) => toWorkspacePath(path) !== toWorkspacePath(sourcePath))
             .flatMap(({ path, definitions }) => {
                 const source = {
                     path: this.relativePath(path),
-                    label: posix.basename(toSlashes(path)),
+                    label: posix.basename(toWorkspacePath(path)),
                 };
                 return definitions
                     .filter((definition) => matchesDefinitionQuery(definition, query))
@@ -82,11 +83,7 @@ export class DefinitionSearchService {
     private relativePath(path: string): string {
         const folder = this.workspace.findWorkspaceFolderForDocument(path);
         return folder === undefined
-            ? toSlashes(path)
-            : posix.relative(toSlashes(folder), toSlashes(path));
+            ? toWorkspacePath(path)
+            : posix.relative(toWorkspacePath(folder), toWorkspacePath(path));
     }
-}
-
-function toSlashes(path: string): string {
-    return path.replace(/\\/g, "/");
 }
