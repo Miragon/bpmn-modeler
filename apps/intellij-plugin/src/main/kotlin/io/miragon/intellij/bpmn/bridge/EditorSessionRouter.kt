@@ -106,11 +106,13 @@ internal class EditorSessionRouter(
     // newer request replaces the pending one (mirrors VS Code disposing the previous).
     private val pendingSvgRequests = ConcurrentHashMap<String, (String) -> Unit>()
 
-    // Per-editor page flush in flight. Armed by [recoverPageEdits] before a tab
-    // closes or a respawn re-registers, resolved by [resolvePageFlush] on the JCEF
-    // handler thread when the webview's `DocumentFlushedCommand` lands. Kept off
-    // [sessions] because its lifetime is a single ≤250ms round-trip.
-    private val pageFlushes = ConcurrentHashMap<String, PageFlush>()
+    // Page flushes in flight, per editor and token: a tab close and a recovery
+    // can each wait on a flush of the same page, and the page answers both.
+    // Armed by [recoverPageEdits] before a tab closes or a respawn re-registers,
+    // resolved by [resolvePageFlush] on the JCEF handler thread when the
+    // webview's `DocumentFlushedCommand` lands. Kept off [sessions] because each
+    // lives for a single ≤250ms round-trip.
+    private val pageFlushes = ConcurrentHashMap<String, ConcurrentHashMap<Long, PageFlush>>()
 
     // Monotonic token so a late flush reply can't satisfy a newer flush request.
     private val pageFlushToken = AtomicLong(0)
@@ -393,7 +395,7 @@ internal class EditorSessionRouter(
         pendingSvgRequests.remove(editorId)
         // Unblock any page flush still awaiting a reply so a disposed editor
         // never strands the waiting thread for the full timeout.
-        pageFlushes.remove(editorId)?.latch?.countDown()
+        pageFlushes.remove(editorId)?.values?.forEach { it.latch.countDown() }
     }
 
     /**
@@ -435,7 +437,7 @@ internal class EditorSessionRouter(
         hostUpdatesAwaitingWebview.clear()
         changeSeq.clear()
         pendingSvgRequests.clear()
-        pageFlushes.values.forEach { it.latch.countDown() }
+        pageFlushes.values.forEach { inFlight -> inFlight.values.forEach { it.latch.countDown() } }
         pageFlushes.clear()
     }
 
@@ -556,7 +558,7 @@ internal class EditorSessionRouter(
         val flushes = entries.mapNotNull(::requestPageFlush)
         if (flushes.isEmpty()) return flushes
         val repliesAwaited = awaitReplies(flushes)
-        flushes.forEach { pageFlushes.remove(it.entry.session.editorId, it) }
+        flushes.forEach(::removePageFlush)
         // Off the EDT the hop waits behind an open modal dialog, so skip it when no page exported anything.
         val anyPageExported = flushes.any { it.content != null }
         if (repliesAwaited && anyPageExported) onEdtAndWait { flushes.forEach(::writeFlushedContent) }
@@ -567,13 +569,23 @@ internal class EditorSessionRouter(
         val editorId = entry.session.editorId
         if (hasPendingExternalUpdate(editorId)) return null
         val flush = PageFlush(entry, pageFlushToken.incrementAndGet(), entry.documentRevision.get())
-        pageFlushes[editorId] = flush
+        pageFlushes.compute(editorId) { _, inFlight ->
+            (inFlight ?: ConcurrentHashMap()).apply { put(flush.token, flush) }
+        }
         entry.postFlush(
             flush.token,
             "{\"type\":\"FlushDocumentQuery\",\"token\":${flush.token}," +
                 "\"destructive\":true,\"exportWhenEdited\":true}",
         )
         return flush
+    }
+
+    private fun removePageFlush(flush: PageFlush) {
+        // An editor with no flush in flight has no entry, so [resolvePageFlush] stays a map miss.
+        pageFlushes.computeIfPresent(flush.entry.session.editorId) { _, inFlight ->
+            inFlight.remove(flush.token)
+            inFlight.takeIf { it.isNotEmpty() }
+        }
     }
 
     /** Returns `false` when interrupted, so no reply is written. */
@@ -636,31 +648,23 @@ internal class EditorSessionRouter(
     private fun releaseFlushQuery(token: Long) = "{\"type\":\"ReleaseDocumentFlushQuery\",\"token\":$token}"
 
     /**
-     * Resolves the armed page flush for [editorId] from a webview message, if
-     * that message is the matching `DocumentFlushedCommand`. Cheap-guarded: only
-     * parses when a flush is actually in progress and the marker is present, so
-     * the hot forward path is untouched during normal editing.
+     * Resolves the page flush in flight for [editorId] whose token a
+     * `DocumentFlushedCommand` names, and copies a forced normal sync into every
+     * flush in flight for it. Cheap-guarded: only parses when a flush is
+     * actually in progress and the marker is present, so the hot forward path is
+     * untouched during normal editing.
      */
     private fun resolvePageFlush(editorId: String, trimmedMessage: String, isSyncCommand: Boolean) {
-        val pending = pageFlushes[editorId] ?: return
+        val inFlight = pageFlushes[editorId] ?: return
         if (isSyncCommand) {
-            parseSyncDocumentReply(trimmedMessage, deps.gson)?.let {
-                pending.content = it.content
-                pending.contentRevision = it.documentRevision
+            parseSyncDocumentReply(trimmedMessage, deps.gson)?.let { sync ->
+                inFlight.values.forEach { it.captureSync(sync) }
             }
             return
         }
         if (!trimmedMessage.contains(FLUSH_COMMAND_MARKER)) return
         val reply = parseDocumentFlushedReply(trimmedMessage, deps.gson) ?: return
-        if (reply.token != pending.token) return
-        pending.content = pageFlushContent(pending.content, reply)
-        pending.contentRevision =
-            when (reply.status) {
-                "flushed" -> reply.documentRevision
-                "unavailable" -> pending.contentRevision
-                else -> null
-            }
-        pending.latch.countDown()
+        inFlight[reply.token]?.resolve(reply)
     }
 
     /** Writes the page's [rawContent] into the Document unless byte-identical (line-normalised). */
@@ -698,9 +702,28 @@ internal class EditorSessionRouter(
 
         @Volatile
         var content: String? = null
+            private set
 
         @Volatile
         var contentRevision: Long? = null
+            private set
+
+        /** Keeps the page's forced normal sync, which an `unavailable` reply falls back to. */
+        fun captureSync(sync: SyncDocumentReply) {
+            content = sync.content
+            contentRevision = sync.documentRevision
+        }
+
+        fun resolve(reply: DocumentFlushedReply) {
+            content = pageFlushContent(content, reply)
+            contentRevision =
+                when (reply.status) {
+                    "flushed" -> reply.documentRevision
+                    "unavailable" -> contentRevision
+                    else -> null
+                }
+            latch.countDown()
+        }
     }
 
     private companion object {
