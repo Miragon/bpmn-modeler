@@ -273,23 +273,16 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Watches the workspace root via chokidar, firing the matching handler for
-     * every changed path whose part below the root matches `glob`, as VS Code's
-     * `RelativePattern` does, debounced ~50ms to coalesce an editor's
-     * multi-event save burst into one notification per file.
+     * Keeps the {@link WorkspacePort.createWatcher} contract: fires the matching
+     * handler for every changed path whose part below the root matches `glob`,
+     * as VS Code's `RelativePattern` does, and debounces each path ~50ms so an
+     * editor's multi-event save burst arrives as one event, coalesced by
+     * `coalesceWatcherEvents`.
      *
-     * Both watch consumers ride this one adapter: `ArtifactService` arms it with
-     * the element-templates glob, and `CodeLinkMapService` with the source glob
-     * (extensions `{java,kt,…}`). The `glob` argument is honoured — an earlier
-     * version hardcoded the template pattern, which silently dropped every
-     * code-link event.
-     *
-     * chokidar replaces `fs.watch({ recursive: true })`: the latter's recursive
-     * mode is unreliable across platforms — under Bun on Linux it only tracks
-     * subdirectories that existed when the watch began (fixed only in Bun
-     * ≥1.3.14), so a freshly-created folder would go unnoticed. chokidar gives
-     * version-independent recursive watching on macOS/Windows/Linux, matching
-     * VS Code's `FileSystemWatcher` behaviour.
+     * Linux and Windows watch through chokidar: under Bun on Linux the
+     * recursive mode of `fs.watch` only tracks the subdirectories that existed
+     * when the watch began (fixed only in Bun ≥1.3.14). macOS uses one recursive
+     * `fs.watch` instead, see {@link watchRecursivelyWithFsEvents}.
      *
      * {@link IGNORED_WATCH_DIRS} are pruned so arming the recursive watch on a
      * large repo stays within the OS watch-descriptor budget (inotify on Linux).
