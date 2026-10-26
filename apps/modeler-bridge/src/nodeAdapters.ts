@@ -114,12 +114,10 @@ function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unkn
  * single recursive watch is one stream, armed in milliseconds.
  */
 function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { close(): unknown } {
-    // FSEvents reports create, modify and delete alike as `rename`, so a path
-    // that exists is new only if this watch has not seen it and it was born
-    // after the watch started; an atomic save keeps a seen path changed. The
-    // start has millisecond resolution, so a file born in that millisecond
-    // counts as older.
-    const watchStartedMs = Date.now();
+    // FSEvents reports create, rewrite and delete alike as `rename`, and a
+    // birth time cannot tell a new path from a rewritten one: a move or a
+    // timestamp-keeping copy brings an older one. So the first sighting of a
+    // path counts as its create.
     const seenPaths = new Set<string>();
     return watchFs(root, { recursive: true }, (_event, filename) => {
         if (!filename) {
@@ -130,8 +128,8 @@ function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { cl
             return;
         }
         fs.stat(changed).then(
-            ({ birthtimeMs }) => {
-                const isNew = !seenPaths.has(changed) && Math.floor(birthtimeMs) > watchStartedMs;
+            () => {
+                const isNew = !seenPaths.has(changed);
                 seenPaths.add(changed);
                 if (isNew) {
                     emit.onAdd(changed);

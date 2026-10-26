@@ -293,20 +293,13 @@ describe("NodeWorkspace.createWatcher on macOS", () => {
         expect(received).toEqual(["create /repo/src/A.java", "change /repo/src/A.java"]);
     });
 
-    it("reports a rewrite of a file that predates the watch as changed", async () => {
+    // A move keeps the birth time, and so does a copy that keeps the timestamps.
+    it("reports a file moved in with a birth time older than the watch as created", async () => {
         const { received, rename } = watchSources();
 
-        await rename("src/A.java", BORN_BEFORE_WATCH);
+        await rename("src/Moved.java", BORN_BEFORE_WATCH);
 
-        expect(received).toEqual(["change /repo/src/A.java"]);
-    });
-
-    it("counts a file born in the millisecond the watch started as older than the watch", async () => {
-        const { received, rename } = watchSources();
-
-        await rename("src/A.java", { birthtimeMs: WATCH_STARTED_MS + 0.5 });
-
-        expect(received).toEqual(["change /repo/src/A.java"]);
+        expect(received).toEqual(["create /repo/src/Moved.java"]);
     });
 
     it("reports an atomic save of a seen file as changed and a recreated file as created", async () => {
@@ -318,9 +311,27 @@ describe("NodeWorkspace.createWatcher on macOS", () => {
         await rename("src/A.java", BORN_DURING_WATCH);
 
         expect(received).toEqual([
-            "change /repo/src/A.java",
+            "create /repo/src/A.java",
             "change /repo/src/A.java",
             "delete /repo/src/A.java",
+            "create /repo/src/A.java",
+        ]);
+    });
+
+    it("forgets a deleted file but not the files beside it", async () => {
+        const { received, rename } = watchSources();
+
+        await rename("src/A.java", BORN_DURING_WATCH);
+        await rename("src/B.java", BORN_DURING_WATCH);
+        await rename("src/A.java", "missing");
+        await rename("src/B.java", BORN_DURING_WATCH);
+        await rename("src/A.java", BORN_DURING_WATCH);
+
+        expect(received).toEqual([
+            "create /repo/src/A.java",
+            "create /repo/src/B.java",
+            "delete /repo/src/A.java",
+            "change /repo/src/B.java",
             "create /repo/src/A.java",
         ]);
     });
