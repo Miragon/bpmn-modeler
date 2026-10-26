@@ -110,8 +110,9 @@ internal class FakeProcess : Process(), AutoCloseable {
      * never-arriving frame surfaces as an error instead of hanging the suite.
      */
     fun nextFrame(timeoutMillis: Long = 2_000): String =
-        inboundFrames.poll(timeoutMillis, TimeUnit.MILLISECONDS)
-            ?: error("no frame on bridge stdin within ${timeoutMillis}ms")
+        pollFrame(timeoutMillis) ?: error("no frame on bridge stdin within ${timeoutMillis}ms")
+
+    fun pollFrame(timeoutMillis: Long = 250): String? = inboundFrames.poll(timeoutMillis, TimeUnit.MILLISECONDS)
 
     /** Asserts no frame is written within [timeoutMillis] (e.g. after detach). */
     fun expectNoFrame(timeoutMillis: Long = 250) {
