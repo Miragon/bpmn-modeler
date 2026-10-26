@@ -542,11 +542,12 @@ internal class EditorSessionRouter(
      * Writes each page's export into its Document while the Document revision
      * still matches, so neither a close nor a replayed render drops edits the
      * Document never received. A page with a pending external host update is
-     * skipped: the host copy is authoritative. The flush is destructive and
-     * also exports a page edited since its last render whose sync already went
-     * out, because that sync may have been dropped. A page nobody edited since
-     * then answers `clean`, so its Document keeps its text. The flush leaves
-     * each posted page locked for the caller to release.
+     * skipped: the host copy is authoritative. So is a page whose flush cannot
+     * be posted, and the other pages still get theirs. The flush is destructive
+     * and also exports a page edited since its last render whose sync already
+     * went out, because that sync may have been dropped. A page nobody edited
+     * since then answers `clean`, so its Document keeps its text. The flush
+     * leaves each posted page locked for the caller to release.
      *
      * The reply goes straight into the Document: the bridge's `document/write`
      * would need the EDT a close blocks. All replies share one
@@ -572,11 +573,19 @@ internal class EditorSessionRouter(
         pageFlushes.compute(editorId) { _, inFlight ->
             (inFlight ?: ConcurrentHashMap()).apply { put(flush.token, flush) }
         }
-        entry.postFlush(
-            flush.token,
-            "{\"type\":\"FlushDocumentQuery\",\"token\":${flush.token}," +
-                "\"destructive\":true,\"exportWhenEdited\":true}",
-        )
+        try {
+            entry.postFlush(
+                flush.token,
+                "{\"type\":\"FlushDocumentQuery\",\"token\":${flush.token}," +
+                    "\"destructive\":true,\"exportWhenEdited\":true}",
+            )
+        } catch (e: Exception) {
+            // A page the host cannot post into is skipped; the other pages still recover.
+            if (e is ControlFlowException) throw e
+            removePageFlush(flush)
+            log.warn("Could not post the page flush into $editorId", e)
+            return null
+        }
         return flush
     }
 
