@@ -51,6 +51,8 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
+import { SeenPaths } from "./seenPaths";
+
 /**
  * Node-`fs`-backed {@link WorkspacePort}. Only the methods on the element-
  * templates path are implemented; the rest throw, since the bridge type-checks
@@ -118,7 +120,7 @@ function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { cl
     // birth time cannot tell a new path from a rewritten one: a move or a
     // timestamp-keeping copy brings an older one. So the first sighting of a
     // path counts as its create.
-    const seenPaths = new Set<string>();
+    const seenPaths = new SeenPaths();
     return watchFs(root, { recursive: true }, (_event, filename) => {
         if (!filename) {
             return;
@@ -138,9 +140,7 @@ function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { cl
                 }
             },
             () => {
-                for (const seen of [...seenPaths]) {
-                    if (isWithinRoot(seen, changed)) seenPaths.delete(seen);
-                }
+                seenPaths.forget(changed);
                 emit.onUnlink(changed);
             },
         );
