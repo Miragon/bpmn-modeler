@@ -20,6 +20,11 @@ const SCRIPT_TASK_MORPHED_XML = C7_SCRIPTS_XML.replace(
     '<bpmn:userTask id="ScriptTask_1" />',
 );
 
+const LEGACY_SCRIPT_FORMAT_XML = C7_SCRIPTS_XML.replace(
+    '<bpmn:scriptTask id="ScriptTask_1" scriptFormat="groovy">',
+    '<bpmn:scriptTask id="ScriptTask_1" camunda:scriptFormat="javascript">',
+);
+
 interface FlowElement {
     id: string;
     script?: string;
@@ -98,6 +103,23 @@ describe("BpmnModeler inline-script sync (C7 with a scripting port)", () => {
         const xml = await modeler.exportDiagram();
         expect(xml).toMatch(/<bpmn:scriptTask id="ScriptTask_1" scriptFormat="javascript">/);
         expect(xml).not.toContain("camunda:scriptFormat");
+    });
+
+    it("reads back a script-task format written over a legacy camunda:scriptFormat", async () => {
+        await modeler.loadDiagram(LEGACY_SCRIPT_FORMAT_XML);
+        expect(modeler.collectInlineScriptTasks()).toContainEqual({
+            elementId: "ScriptTask_1",
+            scriptFormat: "javascript",
+            content: "x = 1",
+        });
+
+        modeler.updateScriptFormat("ScriptTask_1", "script-task", undefined, "groovy");
+
+        expect(modeler.collectInlineScriptTasks()).toContainEqual({
+            elementId: "ScriptTask_1",
+            scriptFormat: "groovy",
+            content: "x = 1",
+        });
     });
 
     it("writes listener scripts into the addressed listener's camunda:script", async () => {
