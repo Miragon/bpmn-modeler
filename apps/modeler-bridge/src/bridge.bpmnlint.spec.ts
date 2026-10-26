@@ -26,10 +26,11 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerParams, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
+import { NodeWorkspace } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 
 // A process with a task but no start/end event, so bpmnlint:recommended reports
@@ -373,6 +374,12 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     });
 
     it("turns host linting off and back on when the webview toggle says so", async () => {
+        // FSEvents reports the just-written .bpmnlintrc late, and that watcher
+        // re-lint would stand in for the one each toggle must trigger.
+        const createWatcher = vi
+            .spyOn(NodeWorkspace.prototype, "createWatcher")
+            .mockReturnValue({ dispose: () => {} });
+        cleanups.push(() => createWatcher.mockRestore());
         const { rpc, frames, editorId } = await setupHostLinted();
 
         const beforeOff = frames.length;
