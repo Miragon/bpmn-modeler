@@ -209,7 +209,7 @@ export class ArtifactService {
         // glob would filter out and the templates would stay stale until reopen.
         // Over-firing is harmless — the refresh re-scans from disk and applies
         // the `.json` filter itself.
-        const pattern = `**/${configFolder}/element-templates/**`;
+        const pattern = posix.join("**", configFolder, "element-templates", "**");
         const refreshTemplates = () => target.refreshElementTemplates(editorId);
         const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
             onCreate: refreshTemplates,
