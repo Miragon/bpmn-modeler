@@ -513,6 +513,8 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
  */
 export class BridgeSettings implements SettingsPort {
     private snapshot: SettingsSnapshot = { ...DEFAULT_SETTINGS };
+    // Outside the snapshot: `apply` would announce it as `lintingEnabled`, not `linting.enabled`.
+    private lintingEnabled = true;
     private readonly listeners = new Set<(event: SettingChange) => void>();
 
     /**
@@ -529,16 +531,19 @@ export class BridgeSettings implements SettingsPort {
             }
         }
         this.snapshot = merged;
-        if (changed.size === 0) {
+        this.notify(changed);
+    }
+
+    /**
+     * The webview's lint toggle. IntelliJ has no setting for it, so the choice
+     * lives as long as this bridge process: one project, until the IDE restarts.
+     */
+    setLintingEnabled(enabled: boolean): void {
+        if (enabled === this.lintingEnabled) {
             return;
         }
-        const event: SettingChange = {
-            affectsConfiguration: (section) => changed.has(section),
-        };
-        // Copy before iterating: a listener may dispose itself on fire.
-        for (const listener of [...this.listeners]) {
-            listener(event);
-        }
+        this.lintingEnabled = enabled;
+        this.notify(new Set([`${SETTINGS_PREFIX}.linting.enabled`]));
     }
 
     /** Registers a settings-change listener; the returned subscription unregisters it. */
@@ -578,16 +583,8 @@ export class BridgeSettings implements SettingsPort {
     getLanguage(): string {
         return this.snapshot.language;
     }
-    /**
-     * IntelliJ has no linting-off toggle yet (out of scope), so linting stays on
-     * in the bridge — the VS Code / standalone `linting.enabled` setting drives
-     * the opt-out on those hosts.
-     */
     getLintingEnabled(): boolean {
-        return true;
-    }
-    setLintingEnabled(_enabled: boolean): void {
-        return;
+        return this.lintingEnabled;
     }
     /**
      * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the
@@ -606,6 +603,19 @@ export class BridgeSettings implements SettingsPort {
      */
     getMarketplaces(): string[] {
         return this.snapshot.marketplaces;
+    }
+
+    private notify(changedSections: ReadonlySet<string>): void {
+        if (changedSections.size === 0) {
+            return;
+        }
+        const event: SettingChange = {
+            affectsConfiguration: (section) => changedSections.has(section),
+        };
+        // Copy before iterating: a listener may dispose itself on fire.
+        for (const listener of [...this.listeners]) {
+            listener(event);
+        }
     }
 }
 

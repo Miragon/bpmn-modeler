@@ -26,7 +26,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * Workspace/Settings/Document/StatusBar ports the bridge already implements.
  * There is no Problems-panel equivalent here, so {@link NoopDiagnostics} stands in.
  *
- * Webview messages: GetBpmnlintConfigCommand, UpdateLintResultsCommand.
+ * Webview messages: GetBpmnlintConfigCommand, UpdateLintResultsCommand,
+ * SetLintingEnabledCommand.
  * Session: the core {@link BpmnlintParticipant}, the same one VS Code runs.
  */
 export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
@@ -46,7 +47,10 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
     // a stale in-page push after a host takeover is ignored there.
     deps.router
         .on("GetBpmnlintConfigCommand", getBpmnlintConfigHandler(lintSvc))
-        .on("UpdateLintResultsCommand", updateLintResultsHandler(lintSvc));
+        .on("UpdateLintResultsCommand", updateLintResultsHandler(lintSvc))
+        .on("SetLintingEnabledCommand", (message) =>
+            deps.settings.setLintingEnabled(message.enabled),
+        );
 
     return {
         participants: [new BpmnlintParticipant(lintSvc, locator, deps.statusBar, deps.notifier)],

@@ -576,11 +576,11 @@ export class SetPropertiesPanelStateCommand extends Command<"SetPropertiesPanelS
 /**
  * Sent by the BPMN webview when the user toggles linting from inside the canvas
  * — the "Turn off linting" affordance on the lint pill, or the "Enable" action
- * on the disabled chip. The host persists the choice to the
+ * on the disabled chip. VS Code persists the choice to the
  * `miragon.bpmnModeler.linting.enabled` User setting (the single source of
  * truth), which re-lints and pushes the new state back down, so the webview
- * never flips its own overlays optimistically. Hosts without the setting (e.g.
- * the IntelliJ bridge) simply ignore it and linting is unaffected.
+ * never flips its own overlays optimistically. The IntelliJ bridge has no such
+ * setting and keeps the choice in memory for the project instead.
  */
 export class SetLintingEnabledCommand extends Command<"SetLintingEnabledCommand"> {
     public readonly enabled: boolean;
