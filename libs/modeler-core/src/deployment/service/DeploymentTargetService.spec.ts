@@ -959,6 +959,22 @@ describe("DeploymentTargetService.getCredentials", () => {
         },
     );
 
+    it.each([
+        ["basic", "getBasicAuth"],
+        ["oauth2", "getOAuth2"],
+    ] as const)(
+        "rejects instead of falling back to no auth when the store cannot read a %s target's secrets",
+        async (authType, read) => {
+            const c = serviceWithTargetsFile();
+            const unavailable = new Error("The OS keyring is not available.");
+            vi.spyOn(c.host.secrets, read).mockRejectedValue(unavailable);
+
+            await expect(
+                c.service.getCredentials(target("dev", { authType }), DOC_DIR),
+            ).rejects.toBe(unavailable);
+        },
+    );
+
     it("returns no auth for a none target without consulting the store", async () => {
         const c = serviceWithTargetsFile();
         const getBasicAuth = vi.spyOn(c.host.secrets, "getBasicAuth");

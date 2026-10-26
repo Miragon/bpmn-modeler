@@ -152,6 +152,19 @@ describe("DeployFilesService.deployFiles", () => {
         expect(c.deploymentStatusService.refreshActive).not.toHaveBeenCalled();
     });
 
+    it("deploys nothing and leaves the status alone when the secret store cannot be read", async () => {
+        const c = createService();
+        const unavailable = new Error("The OS keyring is not available.");
+        c.deploymentTargetService.getCredentials.mockRejectedValue(unavailable);
+
+        await expect(c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker)).rejects.toBe(
+            unavailable,
+        );
+
+        expect(c.calls).toEqual(["pickFiles"]);
+        expect(c.host.notifier.progressTitles).toEqual([]);
+    });
+
     it("works without a host hook or a focused document", async () => {
         const c = createService();
         c.deploymentTargetService.getActiveTarget
