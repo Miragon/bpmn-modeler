@@ -1,7 +1,7 @@
 import { Engine, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
-import { UserCancelledError } from "../../shared/domain/errors";
+import { FileNotFound, UserCancelledError } from "../../shared/domain/errors";
 import { getVersions } from "../../shared/domain/engineVersions";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
 import {
@@ -11,6 +11,11 @@ import {
     WorkspacePort,
 } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+
+interface CurrentDiagram {
+    readonly document: BpmnDocument;
+    readonly editorId: string | undefined;
+}
 
 interface VersionUpdateCounts {
     readonly updated: number;
@@ -147,7 +152,15 @@ export class BpmnMigrationService {
         let skipped = 0;
 
         for (const file of files) {
-            const { document, editorId } = await this.readCurrentDiagram(file.path);
+            const current = await this.readCurrentDiagramIfPresent(file.path);
+            if (current === undefined) {
+                this.notifier.logWarning(
+                    `Skipped a diagram deleted during migration: ${file.path}`,
+                );
+                skipped++;
+                continue;
+            }
+            const { document, editorId } = current;
             if (document.detectEngine() !== platform) {
                 this.notifier.logWarning(
                     `Skipped a diagram whose engine changed during migration: ${file.path}`,
@@ -208,15 +221,24 @@ export class BpmnMigrationService {
     }
 
     /** An open editor's buffer is the diagram; its file on disk may be stale. */
-    private async readCurrentDiagram(
-        path: string,
-    ): Promise<{ document: BpmnDocument; editorId: string | undefined }> {
+    private async readCurrentDiagram(path: string): Promise<CurrentDiagram> {
         const editorId = this.editorStore.findEditorIdByPath(path);
         const content =
             editorId !== undefined
                 ? this.vsDocument.getContent(editorId)
                 : await this.vsWorkspace.readFile(path);
         return { document: new BpmnDocument(content), editorId };
+    }
+
+    private async readCurrentDiagramIfPresent(path: string): Promise<CurrentDiagram | undefined> {
+        try {
+            return await this.readCurrentDiagram(path);
+        } catch (error) {
+            if (error instanceof FileNotFound) {
+                return undefined;
+            }
+            throw error;
+        }
     }
 
     private handleError(error: Error): boolean {
