@@ -114,6 +114,19 @@ describe("FormEditorApp", () => {
         expect(app.hasPendingSync()).toBe(true);
     });
 
+    it("counts a posted visual edit as edited until the next host import", async () => {
+        const { app, editor } = setup();
+        await app.load(ORIGINAL, 1);
+        expect(app.isEditedSinceHostImport()).toBe(false);
+
+        editor.schema = { ...IMPORTED, id: "Form_Changed" };
+        editor.handler();
+        expect(app.isEditedSinceHostImport()).toBe(true);
+
+        await app.load(ORIGINAL, 2);
+        expect(app.isEditedSinceHostImport()).toBe(false);
+    });
+
     it("does not represent a newer revision when its import fails", async () => {
         const { app, editor } = setup();
         await app.load(ORIGINAL, 1);

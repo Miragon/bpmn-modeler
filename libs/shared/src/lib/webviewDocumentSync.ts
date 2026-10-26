@@ -108,6 +108,7 @@ export class WebviewDocumentSync implements FlushSource {
     }
 
     scheduleSync(): void {
+        this.revisions.markEdited();
         void this.debouncedSync();
     }
 
@@ -132,6 +133,10 @@ export class WebviewDocumentSync implements FlushSource {
 
     hasPendingHostUpdate(): boolean {
         return this.debouncedHostUpdate.pending();
+    }
+
+    isEditedSinceHostImport(): boolean {
+        return this.revisions.isEditedSinceImport;
     }
 
     hostUpdateVersion(): number {

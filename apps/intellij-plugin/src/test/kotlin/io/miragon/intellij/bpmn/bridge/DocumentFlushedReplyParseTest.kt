@@ -6,10 +6,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * Pure-parse coverage for the close-flush reply. The latch/EDT flow around it is
- * verified manually (it needs a live JCEF browser), so this pins the one piece
- * that can be tested in isolation: turning the webview's raw JSON into a
- * token+content pair the close hook can act on, and rejecting everything else.
+ * Pure-parse coverage for the page-flush reply that a close and a respawn act
+ * on: turning the webview's raw JSON into a token+content pair, and rejecting
+ * everything else. `EditorSessionRouterTest` covers the round trip around it.
  */
 class DocumentFlushedReplyParseTest {
     private val gson = Gson()
@@ -59,7 +58,7 @@ class DocumentFlushedReplyParseTest {
     }
 
     @Test
-    fun `parses sync content for the close fallback`() {
+    fun `parses sync content for the flush fallback`() {
         assertEquals(
             "<latest/>",
             parseSyncDocumentContent(
@@ -70,7 +69,7 @@ class DocumentFlushedReplyParseTest {
     }
 
     @Test
-    fun `parses sync revision for the close fallback`() {
+    fun `parses sync revision for the flush fallback`() {
         val reply =
             parseSyncDocumentReply(
                 """{"type":"SyncDocumentCommand","content":"<latest/>","documentRevision":6}""",
@@ -82,39 +81,39 @@ class DocumentFlushedReplyParseTest {
     }
 
     @Test
-    fun `close content must represent the current host revision`() {
-        assertEquals(true, closeFlushRevisionMatches(2, 2))
-        assertEquals(false, closeFlushRevisionMatches(2, 1))
-        assertEquals(false, closeFlushRevisionMatches(2, null))
-        assertEquals(true, closeFlushRevisionMatches(0, null))
+    fun `flushed content must represent the current host revision`() {
+        assertEquals(true, pageFlushRevisionMatches(2, 2))
+        assertEquals(false, pageFlushRevisionMatches(2, 1))
+        assertEquals(false, pageFlushRevisionMatches(2, null))
+        assertEquals(true, pageFlushRevisionMatches(0, null))
     }
 
     @Test
     fun `unavailable reply preserves captured sync fallback`() {
         val reply = DocumentFlushedReply(4L, null, "unavailable")
 
-        assertEquals("<latest/>", closeFlushContent("<latest/>", reply))
+        assertEquals("<latest/>", pageFlushContent("<latest/>", reply))
     }
 
     @Test
     fun `flushed reply replaces captured sync fallback`() {
         val reply = DocumentFlushedReply(4L, "<exported/>", "flushed")
 
-        assertEquals("<exported/>", closeFlushContent("<latest/>", reply))
+        assertEquals("<exported/>", pageFlushContent("<latest/>", reply))
     }
 
     @Test
     fun `clean reply discards an older captured sync`() {
         val reply = DocumentFlushedReply(4L, null, "clean")
 
-        assertNull(closeFlushContent("<stale/>", reply))
+        assertNull(pageFlushContent("<stale/>", reply))
     }
 
     @Test
     fun `host update reply discards an older captured sync`() {
         val reply = DocumentFlushedReply(4L, null, "host-updated")
 
-        assertNull(closeFlushContent("<stale/>", reply))
+        assertNull(pageFlushContent("<stale/>", reply))
     }
 
     @Test

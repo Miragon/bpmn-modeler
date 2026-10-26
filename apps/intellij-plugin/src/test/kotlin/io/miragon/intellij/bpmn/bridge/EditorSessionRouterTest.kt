@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.impl.LaterInvocator
 import com.intellij.openapi.command.CommandEvent
 import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.command.WriteCommandAction
@@ -22,6 +23,10 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 
 /**
  * Covers the host side of document sync against a **real** IntelliJ `Document`,
@@ -46,6 +51,7 @@ class EditorSessionRouterTest {
     // Cleaned up in teardown: the bridge threads (ThreadLeakTracker) and the backing
     // file (tempPathFixture only removes the directory when it is empty).
     private var fixture: Fixture? = null
+    private val extraFiles = mutableListOf<BpmnTestFile>()
 
     @AfterEach
     fun tearDown() {
@@ -53,6 +59,7 @@ class EditorSessionRouterTest {
             it.wired.dispose()
             Files.deleteIfExists(it.bpmn.nioPath)
         }
+        extraFiles.forEach { Files.deleteIfExists(it.nioPath) }
     }
 
     private fun parse(line: String): JsonObject = gson.fromJson(line, JsonObject::class.java)
@@ -100,12 +107,12 @@ class EditorSessionRouterTest {
      * listener that `handleWrite`'s `setText` re-enters synchronously. Returns how
      * often the router asked for the document text.
      */
-    private fun Fixture.attachEditorEcho(): () -> Int {
+    private fun Fixture.attachEditorEcho(editorSession: CoreSession = session): () -> Int {
         var contentReads = 0
         bpmn.document.addDocumentListener(
             object : DocumentListener {
                 override fun documentChanged(event: DocumentEvent) {
-                    router.notifyDocumentChanged(session) {
+                    router.notifyDocumentChanged(editorSession) {
                         contentReads++
                         event.document.text
                     }
@@ -271,6 +278,32 @@ class EditorSessionRouterTest {
         f.router.flushBeforeClose(f.session.editorId)
 
         assertTrue(f.posted.isEmpty(), "the authoritative host edit bypasses webview export")
+    }
+
+    @Test
+    fun `close writes a page edit that never reached the Document`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML)
+
+        f.router.flushBeforeClose(f.session.editorId)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the closing page's edit survives in the Document")
+        assertTrue(page.isLocked, "the closing page takes no edit after its export")
+    }
+
+    @Test
+    fun `close releases a page that did not answer the flush`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.router.flushBeforeClose(f.session.editorId)
+
+        val posted = f.posted.map(::parse)
+        assertEquals(
+            listOf("FlushDocumentQuery", "ReleaseDocumentFlushQuery"),
+            posted.map { it.get("type").asString },
+            "a flush the page answers late cannot leave it locked",
+        )
+        assertEquals(1, posted.map { it.get("token").asLong }.distinct().size)
     }
 
     @Test
@@ -457,6 +490,496 @@ class EditorSessionRouterTest {
         frames.forEach { assertEquals(f.sessionId, it.getAsJsonObject("params").get("sessionId").asLong) }
         f.wired.fake.expectNoFrame()
     }
+
+    @Test
+    fun `re-registering keeps a page edit that never reached the Document`() {
+        val f = setUpRouter(INITIAL_XML)
+        // The sync of this edit was dropped in the restart window: the page shows
+        // it and believes it is clean, the Document does not have it.
+        val page = f.openPageShowing(EDITED_XML)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val register =
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
+        assertEquals(
+            EDITED_XML,
+            f.bpmn.document.text,
+            "the replayed render re-imports the Document, so it must hold the page's edit first",
+        )
+        val registered = register.getAsJsonObject("params")
+        assertEquals(
+            EDITED_XML,
+            registered.get("content").asString,
+            "the respawned bridge is seeded with the page's edit",
+        )
+        assertTrue(page.isLocked, "the page takes no new edits before the replayed render")
+
+        f.deliverRenderedFile(page, registered.get("content").asString)
+        assertFalse(page.isLocked, "the page is unlocked once the replayed render reached it")
+    }
+
+    @Test
+    fun `a clean flush reply keeps the Document even when the page's sync lands during the wait`() {
+        val f = setUpRouter(INITIAL_XML)
+        // A host render replaced the page's edit after its sync went out.
+        lateinit var page: FakePage
+        page =
+            f.openPageShowing(EDITED_XML, editedSinceRender = false) { reply ->
+                f.router.forwardWebviewMessage(page.session, syncCommand(EDITED_XML, 0))
+                reply()
+            }
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val query = page.flushQueries.single()
+        assertTrue(
+            query.get("destructive").asBoolean && query.get("exportWhenEdited").asBoolean,
+            "recovery asks the page for any edit since its last render",
+        )
+        val register =
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "the page shows the host's copy, not its replaced edit")
+        assertEquals(INITIAL_XML, register.getAsJsonObject("params").get("content").asString)
+    }
+
+    @Test
+    fun `a recovered page edit is not rendered back as an external edit`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML)
+        f.attachEditorEcho(page.session)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val register =
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
+        assertEquals(
+            0L,
+            register.getAsJsonObject("params").get("documentRevision").asLong,
+            "the page already represents its own edit",
+        )
+        f.deliverRenderedFile(page, EDITED_XML)
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a recovered page takes edits again when the replayed render never arrives`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        f.scheduler.runPending()
+
+        assertFalse(page.isLocked, "a bridge that never renders must not leave the page inert")
+    }
+
+    @Test
+    fun `a crash recovery that finishes after Reload Modeler still lets the replayed render unlock the page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val crashFlushAnswered = CountDownLatch(1)
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                reply()
+                crashFlushAnswered.countDown()
+            }
+
+        // Reload Modeler runs on the EDT while the crash path waits for the EDT to write its reply.
+        val crashRecovery = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        assertTrue(crashFlushAnswered.await(10, TimeUnit.SECONDS))
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        f.deliverRenderedFile(page, EDITED_XML)
+        assertFalse(page.isLocked, "the page holds the token of the last flush it received")
+    }
+
+    @Test
+    fun `a crash recovery that flushes while a tab close waits still lets the close write the page edit`() {
+        val f = setUpRouter(INITIAL_XML)
+        val closingThread = Thread.currentThread()
+        lateinit var crashRecovery: Future<*>
+        var answerCloseFlush: (() -> Unit)? = null
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                val closeFlushReply = answerCloseFlush
+                if (closeFlushReply == null) {
+                    answerCloseFlush = reply
+                    crashRecovery = runOnceParked(closingThread) { f.router.reregisterLiveSessions() }
+                } else {
+                    closeFlushReply()
+                    reply()
+                }
+            }
+
+        f.router.flushBeforeClose(page.session.editorId)
+        f.router.disposeSession(page.session)
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the recovery's flush does not take the close's reply")
+    }
+
+    @Test
+    fun `a sync forced while a tab close and a crash recovery both wait reaches the close`() {
+        val f = setUpRouter(INITIAL_XML)
+        val closingThread = Thread.currentThread()
+        lateinit var crashRecovery: Future<*>
+        lateinit var page: FakePage
+        page =
+            f.openPageShowing(EDITED_XML) { _ ->
+                if (page.flushQueries.size == 1) {
+                    crashRecovery = runOnceParked(closingThread) { f.router.reregisterLiveSessions() }
+                } else {
+                    // The page's export fails after its forced sync went out.
+                    f.router.forwardWebviewMessage(page.session, syncCommand(EDITED_XML, 0))
+                    page.flushQueries.forEach {
+                        f.router.forwardWebviewMessage(page.session, unavailableFlushReply(it.get("token").asLong))
+                    }
+                }
+            }
+
+        f.router.flushBeforeClose(page.session.editorId)
+        f.router.disposeSession(page.session)
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "every flush in flight keeps the forced sync")
+    }
+
+    @Test
+    fun `re-registering does not flush the webview over a pending external host update`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.router.notifyDocumentChanged(f.session) { EDITED_XML }
+        f.router.reregisterLiveSessions()
+
+        assertTrue(f.posted.isEmpty(), "the authoritative host edit bypasses webview export")
+    }
+
+    @Test
+    fun `re-registering does not flush the webview over a host update that has not reached it yet`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.notifyDocumentChanged(f.session) { EDITED_XML }
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        assertEquals("document/didChange", parse(f.wired.fake.nextFrame()).get("method").asString)
+
+        f.router.reregisterLiveSessions()
+
+        assertTrue(f.posted.isEmpty(), "the sent host edit stays authoritative until the core posts it to the page")
+    }
+
+    @Test
+    fun `a respawn off the EDT writes the page edit on the EDT before it re-registers`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageShowing(EDITED_XML)
+
+        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        PlatformTestUtil.waitForFuture(respawn, 10_000)
+
+        val register =
+            f.reregistrationFrames().single { it.get("method").asString == "session/register" }
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the scheduler thread hands the write to the EDT")
+        assertEquals(EDITED_XML, register.getAsJsonObject("params").get("content").asString)
+    }
+
+    @Test
+    fun `a respawn off the EDT with nothing to write does not wait for a modal dialog`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML, editedSinceRender = false)
+        val dialog = Any()
+
+        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        LaterInvocator.enterModal(dialog)
+        try {
+            PlatformTestUtil.waitForFuture(respawn, 10_000)
+        } finally {
+            LaterInvocator.leaveModal(dialog)
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        }
+
+        assertEquals(
+            REREGISTRATION_FRAMES,
+            f.reregistrationFrames().bySession()[page.sessionId],
+            "a page with nothing to write is re-registered while the dialog is open",
+        )
+    }
+
+    @Test
+    fun `a Document that refuses the recovered edit leaves the other pages recovering`() {
+        val f = setUpRouter(INITIAL_XML)
+        val readOnlyPage = f.openPageShowing(EDITED_XML)
+        f.bpmn.document.setReadOnly(true)
+        val second = createSecondBpmnFile()
+        val writablePage = f.openPageShowing(SECOND_EDIT_XML, second)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(INITIAL_XML, f.bpmn.document.text)
+        assertEquals(SECOND_EDIT_XML, second.document.text, "one refused write does not stop the others")
+        assertEquals(
+            mapOf(readOnlyPage.sessionId to REREGISTRATION_FRAMES, writablePage.sessionId to REREGISTRATION_FRAMES),
+            f.reregistrationFrames(sessionCount = 2).bySession(),
+            "every session is re-registered and replayed",
+        )
+        f.deliverRenderedFile(readOnlyPage, INITIAL_XML)
+        f.deliverRenderedFile(writablePage, SECOND_EDIT_XML)
+        assertFalse(readOnlyPage.isLocked || writablePage.isLocked, "no page is left locked")
+    }
+
+    @Test
+    fun `a page whose flush post throws leaves the other pages recovering`() {
+        val f = setUpRouter(INITIAL_XML)
+        val unreachablePage =
+            CoreSession(f.bpmn.file.url, f.bpmn.file, f.session.project) {
+                throw IllegalStateException("the page's browser is gone")
+            }
+        f.router.registerSession(unreachablePage)
+        val unreachableSessionId = parse(f.wired.fake.nextFrame()).getAsJsonObject("params").get("sessionId").asLong
+        val second = createSecondBpmnFile()
+        val page = f.openPageShowing(SECOND_EDIT_XML, second)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(SECOND_EDIT_XML, second.document.text, "one failed post does not stop the others")
+        assertEquals(
+            mapOf(unreachableSessionId to REREGISTRATION_FRAMES, page.sessionId to REREGISTRATION_FRAMES),
+            f.reregistrationFrames(sessionCount = 2).bySession(),
+            "every session is re-registered and replayed",
+        )
+        assertTrue(page.isLocked, "the other page is held until its replayed render")
+        f.deliverRenderedFile(page, SECOND_EDIT_XML)
+        assertFalse(page.isLocked)
+    }
+
+    @Test
+    fun `an external edit during the flush wait wins over the page's export`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(SECOND_EDIT_XML) }
+                reply()
+            }
+        f.attachEditorEcho(page.session)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(SECOND_EDIT_XML, f.bpmn.document.text, "the page exported before the external edit landed")
+    }
+
+    @Test
+    fun `a page export of an older Document revision is not written`() {
+        val f = setUpRouter(INITIAL_XML)
+        // The core posts revision 1 to the page, which still exports what it showed at revision 0.
+        val page = f.openPageShowing(EDITED_XML, pageRevision = 0)
+        f.attachEditorEcho(page.session)
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(SECOND_EDIT_XML) }
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        assertEquals("document/didChange", parse(f.wired.fake.nextFrame()).get("method").asString)
+        f.deliverRenderedFile(page, SECOND_EDIT_XML, documentRevision = 1)
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(SECOND_EDIT_XML, f.bpmn.document.text, "the export predates the page's newest host revision")
+    }
+
+    @Test
+    fun `a page closed during the flush wait is neither written nor re-registered`() {
+        val f = setUpRouter(INITIAL_XML)
+        lateinit var page: FakePage
+        page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                reply()
+                f.router.disposeSession(page.session)
+            }
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "a closed page's export is not written")
+        assertEquals("DocumentFlushedCommand", parse(f.wired.fake.nextFrame()).webviewMessageType())
+        assertEquals("session/dispose", parse(f.wired.fake.nextFrame()).get("method").asString)
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a page closed before its replayed render gets no release`() {
+        val f = setUpRouter(INITIAL_XML)
+        val page = f.openPageShowing(EDITED_XML)
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        f.router.disposeSession(page.session)
+        f.scheduler.runPending()
+
+        assertFalse("ReleaseDocumentFlushQuery" in page.received, "a closed page's browser is gone")
+    }
+
+    @Test
+    fun `pages that answer from another thread while the host waits get their edits written`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageShowing(EDITED_XML, whileHostWaits = replyOnceHostWaits())
+        val second = createSecondBpmnFile()
+        f.openPageShowing(SECOND_EDIT_XML, second, whileHostWaits = replyOnceHostWaits())
+
+        f.router.reregisterLiveSessions()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(EDITED_XML, f.bpmn.document.text)
+        assertEquals(SECOND_EDIT_XML, second.document.text, "both replies land within the one shared wait")
+    }
+
+    @Test
+    fun `a recovery interrupted while it waits writes nothing and still re-registers every page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val answered = f.openPageShowing(EDITED_XML)
+        val second = createSecondBpmnFile()
+        val unanswered = f.openPageShowing(SECOND_EDIT_XML, second) { Thread.currentThread().interrupt() }
+
+        val respawn = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        PlatformTestUtil.waitForFuture(respawn, 10_000)
+
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "an interrupted recovery leaves every Document alone")
+        assertEquals(
+            mapOf(answered.sessionId to REREGISTRATION_FRAMES, unanswered.sessionId to REREGISTRATION_FRAMES),
+            f.reregistrationFrames(sessionCount = 2).bySession(),
+            "the replay still goes out after an interrupted wait",
+        )
+    }
+
+    /** Replies from another thread once the host thread parks to wait for the reply. */
+    private fun replyOnceHostWaits(): (reply: () -> Unit) -> Unit = { reply -> runOnceParked(Thread.currentThread(), reply) }
+
+    /** Runs [action] on a pooled thread once [thread] parks in a timed wait. */
+    private fun runOnceParked(thread: Thread, action: () -> Unit): Future<*> =
+        ApplicationManager.getApplication().executeOnPooledThread(
+            Runnable {
+                val giveUpAt = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+                while (thread.state != Thread.State.TIMED_WAITING && System.nanoTime() < giveUpAt) Thread.onSpinWait()
+                action()
+            },
+        )
+
+    /**
+     * Opens a page on [file] (by default replacing the fixture's page) that
+     * answers a flush the way the page's flush responder does when it exports
+     * [content] at [pageRevision] with no sync pending: only a page
+     * [editedSinceRender] gets the content, and only for a destructive flush
+     * that asks for an edit whose sync already went out; any other flush gets
+     * `clean`. Like the responder, the page keeps only the token of the last
+     * destructive flush it received. [whileHostWaits] wraps the reply, to play
+     * what happens while the host waits for it.
+     */
+    private fun Fixture.openPageShowing(
+        content: String,
+        file: BpmnTestFile = bpmn,
+        pageRevision: Long = 0,
+        editedSinceRender: Boolean = true,
+        whileHostWaits: (reply: () -> Unit) -> Unit = { reply -> reply() },
+    ): FakePage {
+        val page = FakePage()
+        page.session =
+            CoreSession(file.file.url, file.file, session.project) { raw ->
+                val message = parse(raw)
+                val type = message.get("type")?.asString ?: return@CoreSession
+                page.received.add(type)
+                val token = message.get("token")?.asLong ?: return@CoreSession
+                when (type) {
+                    "FlushDocumentQuery" -> {
+                        val destructive = message.get("destructive")?.asBoolean == true
+                        page.flushQueries.add(message)
+                        if (destructive) page.lockToken = token
+                        val exportsSyncedEdit =
+                            destructive && editedSinceRender && message.get("exportWhenEdited")?.asBoolean == true
+                        val reply: Map<String, Any> =
+                            if (exportsSyncedEdit) {
+                                linkedMapOf(
+                                    "type" to "DocumentFlushedCommand",
+                                    "token" to token,
+                                    "content" to content,
+                                    "status" to "flushed",
+                                    "documentRevision" to pageRevision,
+                                )
+                            } else {
+                                linkedMapOf("type" to "DocumentFlushedCommand", "token" to token, "status" to "clean")
+                            }
+                        whileHostWaits { router.forwardWebviewMessage(page.session, wired.channel.gson.toJson(reply)) }
+                    }
+                    "ReleaseDocumentFlushQuery" -> if (page.lockToken == token) page.lockToken = null
+                }
+            }
+        router.registerSession(page.session)
+        page.sessionId = parse(wired.fake.nextFrame()).getAsJsonObject("params").get("sessionId").asLong
+        return page
+    }
+
+    /** [received] lists the type of every message the host posted into the page, [flushQueries] each flush query. */
+    private class FakePage {
+        lateinit var session: CoreSession
+        var sessionId = 0L
+
+        @Volatile
+        var lockToken: Long? = null
+        val received: MutableList<String> = CopyOnWriteArrayList()
+        val flushQueries: MutableList<JsonObject> = CopyOnWriteArrayList()
+
+        val isLocked: Boolean get() = lockToken != null
+    }
+
+    /** A second open diagram next to the fixture's, removed in teardown. */
+    private fun createSecondBpmnFile(): BpmnTestFile =
+        createBpmnFile(tempDirFixture.get(), "second.bpmn", INITIAL_XML).also { extraFiles.add(it) }
+
+    /** Plays the bridge answering the replayed `GetBpmnFileCommand` with [content]. */
+    private fun Fixture.deliverRenderedFile(page: FakePage, content: String, documentRevision: Long = 0) {
+        val rendered =
+            wired.channel.gson
+                .toJsonTree(
+                    mapOf(
+                        "editorId" to page.session.editorId,
+                        "sessionId" to page.sessionId,
+                        "message" to
+                            mapOf(
+                                "type" to "BpmnFileQuery",
+                                "content" to content,
+                                "engine" to "c8",
+                                "documentRevision" to documentRevision,
+                            ),
+                    ),
+                ).asJsonObject
+        wired.handlers.dispatch("editor/postMessage", rendered, null)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+    }
+
+    /**
+     * Reads the frames a re-registration of [sessionCount] sessions sends,
+     * through the last replayed command.
+     */
+    private fun Fixture.reregistrationFrames(sessionCount: Int = 1): List<JsonObject> {
+        val frames = mutableListOf<JsonObject>()
+        var replayedSessions = 0
+        while (replayedSessions < sessionCount) {
+            val frame = parse(wired.fake.nextFrame())
+            frames.add(frame)
+            if (frame.webviewMessageType() == "GetBpmnlintConfigCommand") replayedSessions++
+        }
+        return frames
+    }
+
+    /** The register and replay frames each session got, in the order it got them. */
+    private fun List<JsonObject>.bySession(): Map<Long, List<String>> =
+        map { it.getAsJsonObject("params").get("sessionId").asLong to (it.webviewMessageType() ?: it.get("method").asString) }
+            .filter { (_, label) -> label in REREGISTRATION_FRAMES }
+            .groupBy({ it.first }, { it.second })
 
     @Test
     fun `late traffic and disposal from a replaced same-uri session are ignored`() {
@@ -649,13 +1172,19 @@ class EditorSessionRouterTest {
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
     private fun syncCommand(content: String, documentRevision: Long? = null): String {
         val revision = documentRevision?.let { ",\"documentRevision\":$it" }.orEmpty()
-        return "{\"type\":\"SyncDocumentCommand\",\"content\":\"$content\"$revision}"
+        return "{\"type\":\"SyncDocumentCommand\",\"content\":${gson.toJson(content)}$revision}"
     }
+
+    /** What the page answers when its export fails. */
+    private fun unavailableFlushReply(token: Long) =
+        "{\"type\":\"DocumentFlushedCommand\",\"token\":$token,\"status\":\"unavailable\"}"
 
     private companion object {
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
         const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
         const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
+
+        val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
     }
 }

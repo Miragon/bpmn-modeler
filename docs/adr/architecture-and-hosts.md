@@ -272,6 +272,30 @@ authoritative IntelliJ Documents, replays render requests, and re-seeds
 deployment state. Stdin EOF terminates the bridge; project disposal and shutdown
 cleanup prevent orphan processes.
 
+The replayed render re-imports the Document, and a sync the restart window
+dropped never reached it. Recovery therefore first flushes each page with the
+rule a tab close uses: a destructive `exportWhenEdited` flush, written into the
+Document only while its revision still matches, and skipped while an external
+host update is pending. A page cannot tell a dropped sync from a delivered one,
+but it knows whether it was edited since it last imported a host document
+(`HostDocumentRevisions`). An edited page exports even when its sync already
+went out; a page nobody edited answers `clean`, so recovery never writes the
+modeler's serialization over a diagram nobody touched. A Document that refuses
+the write keeps its text, a page the host cannot post the flush into is
+skipped, and the other pages still recover. Each reply resolves the flush whose
+token it carries, so a tab close and a recovery that flush the same page at
+once both get their answer. The page stays locked until a render reaches it,
+or a timeout after the replay passes; only the recovery that posted the page's
+last flush holds that lock. A crash
+recovery with an edit to write waits for an open modal dialog to close before
+it re-registers. Reload Modeler runs the same recovery against the running
+bridge. This is host policy and stays in Kotlin; a shared render participant
+must keep the flush before the replay.
+Accepted residual: an edit in the page's import debounce after the unlock can
+still be overwritten; the first render to reach the page unlocks it, so a
+render already in flight or an overlapping recovery's replay can unlock it
+before the last replay re-imports; and each replay clears the page's undo stack.
+
 An asynchronous writer drains a soft-bounded outbound queue so editor and JCEF
 threads never block on bridge stdin. Superseded document and host-state updates
 coalesce; authoritative document updates and RPC replies remain reliable across

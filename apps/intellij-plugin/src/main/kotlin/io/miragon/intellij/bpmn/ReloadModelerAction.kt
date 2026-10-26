@@ -8,7 +8,8 @@ import com.intellij.openapi.project.DumbAwareAction
 /**
  * Tools ▸ Reload Modeler — soft-reloads every open BPMN modeler by re-registering
  * its live session, so freshly copied or edited element templates appear without
- * closing the tab (unsaved diagram edits survive; there is no JCEF hard reload).
+ * closing the tab. There is no JCEF hard reload, and each page's edits are written
+ * into the Document before the re-render, so unsaved diagram edits survive.
  *
  * The fallback for setups where the element-template filesystem watcher never
  * fires — most notably a WSL working tree reached through a Windows symlink, where

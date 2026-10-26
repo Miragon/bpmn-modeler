@@ -134,6 +134,54 @@ describe("HostDocumentRevisions", () => {
             expect(revisions.representedRevision).toBe(7);
         });
     });
+    describe("isEditedSinceImport", () => {
+        type Step = { receive: number } | { import: number } | "edit";
+
+        const editedAfter = (steps: Step[]) => {
+            const revisions = new HostDocumentRevisions();
+            for (const step of steps) {
+                if (step === "edit") revisions.markEdited();
+                else if ("receive" in step) revisions.receive(step.receive);
+                else revisions.markImported(step.import);
+            }
+            return revisions.isEditedSinceImport;
+        };
+
+        it.each<[string, Step[], boolean]>([
+            ["a freshly imported document is unedited", [{ receive: 1 }, { import: 1 }], false],
+            ["an edit marks the imported document", [{ receive: 1 }, { import: 1 }, "edit"], true],
+            [
+                "a host push alone keeps the edit",
+                [{ receive: 1 }, { import: 1 }, "edit", { receive: 2 }],
+                true,
+            ],
+            [
+                "the import of a host push replaces the edit",
+                [{ receive: 1 }, { import: 1 }, "edit", { receive: 2 }, { import: 2 }],
+                false,
+            ],
+            [
+                "an import a newer push overtook still replaces the edit",
+                [
+                    { receive: 1 },
+                    { import: 1 },
+                    "edit",
+                    { receive: 2 },
+                    { receive: 3 },
+                    { import: 2 },
+                ],
+                false,
+            ],
+            [
+                "an edit after the last import marks it again",
+                [{ receive: 1 }, { import: 1 }, "edit", { receive: 2 }, { import: 2 }, "edit"],
+                true,
+            ],
+        ])("%s", (_name, steps, expected) => {
+            expect(editedAfter(steps)).toBe(expected);
+        });
+    });
+
     describe("host revision sequences", () => {
         type Step = { receive: number } | { import: number } | "export";
 

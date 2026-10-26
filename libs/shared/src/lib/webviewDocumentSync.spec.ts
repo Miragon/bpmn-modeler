@@ -153,6 +153,25 @@ describe("WebviewDocumentSync", () => {
         ]);
     });
 
+    it("exports an already-synced edit to a recovery flush until a host import replaces it", async () => {
+        const { sync, posted } = createSync();
+        sync.receive(1);
+        await sync.importNow("<host/>", 1);
+        sync.scheduleSync();
+        await vi.advanceTimersByTimeAsync(300);
+
+        await sync.respondToFlush(new FlushDocumentQuery(9, true, true));
+        sync.receive(2);
+        await sync.importNow("<rendered/>", 2);
+        await sync.respondToFlush(new FlushDocumentQuery(10, true, true));
+
+        expect(posted).toEqual([
+            new SyncDocumentCommand("<exported/>", 1),
+            new DocumentFlushedCommand(9, "<exported/>", "flushed", 1),
+            new DocumentFlushedCommand(10, undefined, "clean"),
+        ]);
+    });
+
     it("reports itself unavailable to a flush before the modeler is ready", async () => {
         const { sync, posted, setReady } = createSync();
         setReady(false);

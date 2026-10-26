@@ -13,6 +13,8 @@ export interface FlushSource {
     hasPendingSync(): boolean;
     /** Whether host-authoritative content is waiting to finish importing. */
     hasPendingHostUpdate(): boolean;
+    /** Whether the modeler was edited since it last imported a host document, synced or not. */
+    isEditedSinceHostImport(): boolean;
     /** Monotonic generation incremented as each host update arrives. */
     hostUpdateVersion(): number;
     /** Revision of the host document currently represented by the modeler. */
@@ -37,7 +39,8 @@ export interface FlushSource {
  *   exporting. In either case a lost reply cannot strand the only copy of an edit.
  * - **the pending gates protect host-authoritative content.** The webview model
  *   can lag the host buffer while a raw source edit is importing. Export is
- *   allowed only for a pending outbound edit and never while an inbound host
+ *   allowed only for a pending outbound edit (on an `exportWhenEdited` flush,
+ *   for any edit since the last host import) and never while an inbound host
  *   update is in flight; otherwise the host copy wins with a `clean` reply.
  *
  * A `token` echoes the query so the host can match/expire replies. The explicit
@@ -85,7 +88,10 @@ export function createFlushResponder(
                 lockedToken = flush.token;
                 source.beginDestructiveFlush();
                 hostUpdateVersion = source.hostUpdateVersion();
-                if (hostUpdated() || (!source.hasPendingSync() && !flush.exportWhenClean)) {
+                const mayHoldUnsyncedEdit =
+                    source.hasPendingSync() ||
+                    (flush.exportWhenEdited && source.isEditedSinceHostImport());
+                if (hostUpdated() || !mayHoldUnsyncedEdit) {
                     post(
                         new DocumentFlushedCommand(
                             flush.token,

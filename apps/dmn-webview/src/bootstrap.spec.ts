@@ -238,7 +238,7 @@ describe("DMN bootstrap", () => {
 
         mocks.handle.exportDiagram.mockResolvedValueOnce("<flush />");
         options().onContentChanged?.();
-        dispatch({ type: "FlushDocumentQuery", token: 41, exportWhenClean: true });
+        dispatch({ type: "FlushDocumentQuery", token: 41, exportWhenEdited: true });
         await settle();
         expect(posted).toContainEqual(
             expect.objectContaining({
@@ -502,12 +502,12 @@ describe("DMN bootstrap", () => {
         });
 
         it("keeps an editor that was already inert locked after the release", async () => {
-            await startReady();
+            const { ofType } = await startReady();
             document.body.inert = true;
 
             dispatch(new FlushDocumentQuery(6, true, true));
             await settle();
-            expect(mocks.handle.exportDiagram).toHaveBeenCalled();
+            expect(ofType("DocumentFlushedCommand")).toHaveLength(1);
             dispatch(new ReleaseDocumentFlushQuery(6));
             await settle();
 
