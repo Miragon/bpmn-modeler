@@ -1,4 +1,4 @@
-import { MarketplaceContentType } from "../domain/marketplace";
+import { isSafeRepoPath, MarketplaceContentType } from "../domain/marketplace";
 import { FetchedTemplateFile } from "../domain/sourceCacheRefresh";
 import { DirectoryNotFound } from "../../kernel/domain/errors";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
@@ -58,8 +58,10 @@ export class MarketplaceCache {
         sourceIndex: number,
         files: readonly FetchedTemplateFile[],
     ): Promise<void> {
-        for (const file of files) {
-            this.assertSafeRepoPath(file.repoPath);
+        for (const { repoPath } of files) {
+            if (!isSafeRepoPath(repoPath)) {
+                throw new Error(`Rejected unsafe template path "${repoPath}"`);
+            }
         }
         const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
         await this.workspace.deleteDirectory(sourceDir);
@@ -74,23 +76,6 @@ export class MarketplaceCache {
 
     private sourceDir(marketplaceId: string, sourceIndex: number): string {
         return `${this.cacheRoot}/${marketplaceId}/${sourceIndex}`;
-    }
-
-    /**
-     * Rejects a `repoPath` that would escape its cache slot. Real git trees only
-     * ever use `/`, but a compromised server can send `\` or drive-letter forms,
-     * so both separators are split and every absolute shape is refused — mirrors
-     * the `isAbsolutePath` guard in `domain/marketplace.ts`.
-     */
-    private assertSafeRepoPath(repoPath: string): void {
-        const isAbsolute =
-            repoPath.startsWith("/") ||
-            /^[a-zA-Z]:[\\/]/.test(repoPath) ||
-            repoPath.startsWith("\\\\");
-        const hasTraversal = repoPath.split(/[/\\]/).some((segment) => segment === "..");
-        if (isAbsolute || hasTraversal) {
-            throw new Error(`Rejected unsafe template path "${repoPath}"`);
-        }
     }
 
     /**

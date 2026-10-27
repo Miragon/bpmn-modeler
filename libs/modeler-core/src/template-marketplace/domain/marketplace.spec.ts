@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
     expandHomePath,
     InvalidMarketplaceError,
+    isSafeRepoPath,
     marketplaceEntryLabel,
     parseMarketplace,
     parseMarketplaceEntry,
@@ -303,6 +304,48 @@ describe("parseMarketplaceUrl (local)", () => {
         // not parse as the repo `~/templates`.
         expect(() => parseMarketplaceUrl("~/templates")).toThrow(InvalidMarketplaceError);
         expect(() => parseMarketplaceUrl("~")).toThrow(InvalidMarketplaceError);
+    });
+});
+
+describe("isSafeRepoPath", () => {
+    it.each<{ behaviour: string; repoPath: string; safe: boolean }>([
+        { behaviour: "accepts a nested relative path", repoPath: "templates/a.json", safe: true },
+        { behaviour: "accepts a bare file name", repoPath: "a.json", safe: true },
+        {
+            behaviour: "accepts dots inside a segment",
+            repoPath: "a..b/..hidden/c.json",
+            safe: true,
+        },
+        { behaviour: "rejects a lone parent segment", repoPath: "..", safe: false },
+        {
+            behaviour: "rejects a leading parent traversal",
+            repoPath: "../../../settings.json",
+            safe: false,
+        },
+        {
+            behaviour: "rejects a parent traversal mid-path",
+            repoPath: "templates/../../x.json",
+            safe: false,
+        },
+        {
+            behaviour: "rejects a backslash parent traversal",
+            repoPath: "templates\\..\\..\\settings.json",
+            safe: false,
+        },
+        { behaviour: "rejects an absolute posix path", repoPath: "/etc/passwd", safe: false },
+        {
+            behaviour: "rejects a drive path with a backslash",
+            repoPath: "C:\\Windows\\x.json",
+            safe: false,
+        },
+        { behaviour: "rejects a drive path with a slash", repoPath: "c:/x.json", safe: false },
+        {
+            behaviour: "rejects a UNC path",
+            repoPath: "\\\\server\\share\\x.json",
+            safe: false,
+        },
+    ])("$behaviour", ({ repoPath, safe }) => {
+        expect(isSafeRepoPath(repoPath)).toBe(safe);
     });
 });
 
