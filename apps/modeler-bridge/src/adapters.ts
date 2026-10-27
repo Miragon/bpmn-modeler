@@ -352,8 +352,8 @@ export class RpcDocumentPort implements DocumentPort {
 /**
  * Forwards every {@link NotifierPort} call to the host so it can surface real
  * IntelliJ UI — `Notifications.Bus` balloons for the user-facing methods and an
- * IDE log/console for the diagnostic ones. (Replaces the spike's log-only stub:
- * the host, not the core, decides balloon vs. log.)
+ * IDE log/console for the diagnostic ones. The core picks the method and writes
+ * its text; the host only renders it.
  */
 export class RpcNotifier implements NotifierPort {
     constructor(private readonly rpc: Rpc) {}

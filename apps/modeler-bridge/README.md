@@ -120,4 +120,8 @@ it by writing NDJSON frames to its stdin and reading frames from its stdout.
   editor-session, deployment); `bridge.ts` is the composition root that calls
   them. The marketplace cache root arrives via the
   `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
-- `src/server.ts` — the entrypoint that wires the real core to the adapters.
+- `src/stdioBinding.ts` — feeds stdin frames to the `Rpc` and tags every
+  stderr line with `[core]`; `src/lineFraming.ts` splits the stdin stream
+  into frames.
+- `src/server.ts` — the entrypoint. It only binds the process streams to
+  `createBridge` (`bridge.ts`) and the stdio binding.

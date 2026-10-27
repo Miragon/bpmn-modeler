@@ -417,9 +417,9 @@ Notifications and status indicators are native host UI backed by RPC ports.
 The core writes the text of every notification, including the error balloon
 that puts a `notifyError` context above the error's message
 (`notifiedErrorToastText`), so the host shows that text and composes none of
-its own. Secrets use IntelliJ PasswordSafe, an application-scoped store, corresponding
-to VS Code SecretStorage. Target-specific credential namespacing belongs to
-the [deployment record](deployment.md#targets-and-credentials).
+its own. Secrets use IntelliJ PasswordSafe, an application-scoped store,
+corresponding to VS Code SecretStorage. Target-specific credential namespacing
+belongs to the [deployment record](deployment.md#targets-and-credentials).
 
 ### Host-replicated state
 
