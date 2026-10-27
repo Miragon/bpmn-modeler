@@ -31,7 +31,7 @@ export class ImplementationNavigationService {
                 reference,
                 locate: () => this.locator.resolve(reference, kind, sourceDocumentPath),
                 searchSubject: label,
-                pickPlaceholder: "Select the referenced model to open",
+                pickPlaceholder: "Select the implementation to open",
                 noSearchScopeMessage: (displayReference) =>
                     `No implementation for "${displayReference}" was found. Open a folder to enable code navigation.`,
                 notFoundMessage: (displayReference) =>
