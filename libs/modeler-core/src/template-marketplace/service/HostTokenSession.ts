@@ -27,9 +27,7 @@ import {
  */
 export class HostTokenSession {
     private readonly promptedHosts = new Set<string>();
-    /** host → token resolved this session. `has(host)` = the store (or a prompt)
-     *  was already consulted, so the keychain is read at most once per host;
-     *  the value may be `undefined` (nothing stored / declined). */
+    /** host → token resolved this session; `undefined` = nothing stored, or declined. */
     private readonly hostTokens = new Map<string, string | undefined>();
 
     constructor(
@@ -105,11 +103,10 @@ export class HostTokenSession {
             }
 
             // (b) Lazy store read: the keychain is touched only now, after an auth
-            // failure, and at most once per host per session. Also the rate-limit
-            // escalation path — a stored token raises the anonymous limit.
-            if (!hadToken && !this.hostTokens.has(host)) {
-                const stored = await this.tokens.getToken(host);
-                this.hostTokens.set(host, stored);
+            // failure. Also the rate-limit escalation path — a stored token
+            // raises the anonymous limit.
+            if (!hadToken) {
+                const stored = await this.storedToken(host);
                 if (stored !== undefined) {
                     this.notifier.logDebug(`Using stored token for ${host}`);
                     hadToken = true;
@@ -128,13 +125,20 @@ export class HostTokenSession {
                 }
             }
 
-            // (c) Prompt once per session; a granted token is session-cached so
-            // later same-host fetches pick it up on their first attempt.
-            const fresh = await this.promptOnce(host, hadToken, denial);
+            // (c) Prompt once per session.
+            if (!this.claimPrompt(host)) {
+                this.notifier.logDebug(
+                    `Token prompt for ${host} suppressed (already prompted this run)`,
+                );
+                throw this.accessFailure(denial, hadToken);
+            }
+            const fresh = await this.promptAndStore(
+                host,
+                AccessDenial.of(denial, { tokenTried: hadToken }).promptReason(),
+            );
             if (fresh === undefined) {
                 throw this.accessFailure(denial, hadToken);
             }
-            this.hostTokens.set(host, fresh);
             this.notifier.logDebug(
                 `Retrying ${denial.resource} on ${denial.host} with the new token`,
             );
@@ -160,65 +164,52 @@ export class HostTokenSession {
      *
      * A declared-private source is the one case that justifies a deliberate
      * up-front store read — the marketplace author told us the repo needs a
-     * token. The read still goes through `hostTokens` so nothing double-reads
-     * the keychain, and a resolved token seeds the session cache so the
-     * source's very first fetch already carries it.
+     * token. A resolved token seeds the session cache so the source's very
+     * first fetch already carries it.
      */
     async ensureTokensForPrivateHosts(hosts: readonly string[]): Promise<void> {
         if (hosts.length > 0) {
             this.notifier.logDebug(`Declared-private source host(s): ${hosts.join(", ")}`);
         }
         for (const host of hosts) {
-            if (this.promptedHosts.has(host)) {
-                continue;
+            if ((await this.storedToken(host)) === undefined && this.claimPrompt(host)) {
+                await this.promptAndStore(
+                    host,
+                    `${host} hosts a private template source. Enter a personal access token to fetch it.`,
+                );
             }
-            const known = this.hostTokens.has(host)
-                ? this.hostTokens.get(host)
-                : await this.tokens.getToken(host);
-            this.hostTokens.set(host, known);
-            if (known !== undefined) {
-                continue;
-            }
-            this.promptedHosts.add(host);
-            const reason = `${host} hosts a private template source. Enter a personal access token to fetch it.`;
-            this.hostTokens.set(host, await this.promptAndStore(host, reason));
         }
     }
 
-    /**
-     * Prompts unless this session already prompted the host, adding it
-     * regardless of outcome so a decline is remembered. A granted token is
-     * stored immediately so later same-host fetches pick it up on their first
-     * attempt.
-     */
-    private async promptOnce(
-        host: string,
-        hadToken: boolean,
-        error: RepositoryAccessError,
-    ): Promise<string | undefined> {
+    /** Reads the keychain at most once per host per session; a miss is remembered too. */
+    private async storedToken(host: string): Promise<string | undefined> {
+        if (!this.hostTokens.has(host)) {
+            this.hostTokens.set(host, await this.tokens.getToken(host));
+        }
+        return this.hostTokens.get(host);
+    }
+
+    /** `false` once this session prompted the host, whatever the answer, so a decline is remembered. */
+    private claimPrompt(host: string): boolean {
         if (this.promptedHosts.has(host)) {
-            this.notifier.logDebug(
-                `Token prompt for ${host} suppressed (already prompted this run)`,
-            );
-            return undefined;
+            return false;
         }
         this.promptedHosts.add(host);
-        return this.promptAndStore(
-            host,
-            AccessDenial.of(error, { tokenTried: hadToken }).promptReason(),
-        );
+        return true;
     }
 
     /**
      * The single prompt→store sequence, so the token lifecycle is logged in
-     * exactly one place. Only the host name reaches the log — never the token
-     * value, which upholds the class-level secret-hygiene invariant.
+     * exactly one place. A granted token is session-cached so later same-host
+     * fetches carry it on their first attempt. Only the host name reaches the
+     * log — never the token value.
      */
     private async promptAndStore(host: string, reason: string): Promise<string | undefined> {
         this.notifier.logDebug(`Prompting for a ${host} access token`);
         const token = await this.tokenPrompt.promptForToken(host, reason);
         if (token !== undefined) {
             await this.tokens.setToken(host, token);
+            this.hostTokens.set(host, token);
             this.notifier.logDebug(`Token for ${host} stored`);
         } else {
             this.notifier.logDebug(`Token prompt for ${host} declined`);
