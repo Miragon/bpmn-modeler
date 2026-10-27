@@ -1,7 +1,5 @@
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
-import { BpmnlintIndicator } from "./bpmnlintIndicator";
-
 /**
  * Runs bpmnlint over a diagram in a full Node context (the extension host),
  * resolving built-in, `plugin:*`, and custom `pkg/rule` rules against the
@@ -44,11 +42,6 @@ export interface DiagnosticsPort {
     publish(documentUri: string, xml: string, results: LintResults): void;
     /** Drops all diagnostics for `documentUri` (no config, or editor closed). */
     clear(documentUri: string): void;
-}
-
-/** The bpmnlint status-bar item, beside the cross-cutting `StatusBarPort`. */
-export interface BpmnlintStatusBarPort {
-    showBpmnlint(indicator: BpmnlintIndicator): void;
 }
 
 /**

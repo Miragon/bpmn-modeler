@@ -334,109 +334,6 @@ describe("VsCodeStatusBar engine version", () => {
     });
 });
 
-const CONFIG_PATH = "/work/.bpmnlintrc";
-
-const bpmnlintStates: [string, (bar: VsCodeStatusBar) => void, StatusBarEntry][] = [
-    [
-        "an applied project config",
-        (bar) => bar.showBpmnlint({ state: "active", configPath: CONFIG_PATH }),
-        rightEntry("$(check) BPMNlint", { tooltip: CONFIG_PATH }),
-    ],
-    [
-        "one skipped rule",
-        (bar) =>
-            bar.showBpmnlint({
-                state: "unresolved",
-                configPath: CONFIG_PATH,
-                unresolved: ["camunda-compat/history-time-to-live"],
-            }),
-        rightEntry("$(warning) BPMNlint: 1 rule skipped", {
-            tooltip: `${CONFIG_PATH}\n\nUnresolved (install the plugin providing these): camunda-compat/history-time-to-live`,
-            background: "statusBarItem.warningBackground",
-        }),
-    ],
-    [
-        "several skipped rules",
-        (bar) =>
-            bar.showBpmnlint({
-                state: "unresolved",
-                configPath: CONFIG_PATH,
-                unresolved: ["plugin:acme/recommended", "acme/naming"],
-            }),
-        rightEntry("$(warning) BPMNlint: 2 rules skipped", {
-            tooltip: `${CONFIG_PATH}\n\nUnresolved (install the plugin providing these): plugin:acme/recommended, acme/naming`,
-            background: "statusBarItem.warningBackground",
-        }),
-    ],
-    [
-        "the bundled default for an engine",
-        (bar) => bar.showBpmnlint({ state: "default", platform: "c8" }),
-        rightEntry("$(shield) BPMNlint (default)", {
-            tooltip:
-                "Linting against the bundled default (Camunda 8).\nAdd a .bpmnlintrc to your workspace to override it.",
-        }),
-    ],
-    [
-        "the bundled default without an execution platform",
-        (bar) => bar.showBpmnlint({ state: "default", platform: undefined }),
-        rightEntry("$(shield) BPMNlint (default)", {
-            tooltip:
-                "Linting against the bundled default (no execution platform).\nAdd a .bpmnlintrc to your workspace to override it.",
-        }),
-    ],
-    [
-        "linting turned off",
-        (bar) => bar.showBpmnlint({ state: "disabled" }),
-        rightEntry("$(circle-slash) BPMNlint: off", {
-            tooltip: "BPMN linting is turned off — click to turn it back on.",
-            command: "bpmn-modeler.toggleLinting",
-        }),
-    ],
-    [
-        "a workspace without a config",
-        (bar) => bar.showBpmnlint({ state: "noConfig" }),
-        rightEntry("$(info) BPMNlint: no .bpmnlintrc"),
-    ],
-];
-
-describe("VsCodeStatusBar bpmnlint", () => {
-    it.each(bpmnlintStates)("shows %s", (_state, show, expected) => {
-        show(statusBar);
-
-        expect(renderedStatusBar()).toEqual([expected]);
-    });
-
-    // The warning background and the click-to-enable command must not leak into the next state.
-    describe.each([
-        [
-            "skipped rules",
-            (bar: VsCodeStatusBar) =>
-                bar.showBpmnlint({
-                    state: "unresolved",
-                    configPath: CONFIG_PATH,
-                    unresolved: ["acme/naming"],
-                }),
-        ],
-        ["linting turned off", (bar: VsCodeStatusBar) => bar.showBpmnlint({ state: "disabled" })],
-    ])("after %s", (_previous, showPrevious) => {
-        it.each(bpmnlintStates)("shows %s alone", (_state, show, expected) => {
-            showPrevious(statusBar);
-
-            show(statusBar);
-
-            expect(renderedStatusBar()).toEqual([expected]);
-        });
-    });
-
-    it("hides the bpmnlint status", () => {
-        statusBar.showBpmnlint({ state: "active", configPath: CONFIG_PATH });
-
-        statusBar.showBpmnlint({ state: "hidden" });
-
-        expect(renderedStatusBar()).toEqual([]);
-    });
-});
-
 const DEPLOYED_AT = "2026-09-17T14:40:00.000Z";
 const VERIFIED_AT = "2026-09-17T15:00:00.000Z";
 const deployedWhen = new Date(DEPLOYED_AT).toLocaleString();
@@ -575,7 +472,11 @@ describe("VsCodeStatusBar deployment target", () => {
 describe("VsCodeStatusBar layout", () => {
     it("keeps templates on the left and engine, bpmnlint, deployment in that order on the right", () => {
         statusBar.showDeploymentTarget("dev", "deployed");
-        statusBar.showBpmnlint({ state: "noConfig" });
+        statusBar.show("bpmnlint", {
+            text: "BPMNlint: no .bpmnlintrc",
+            icon: "info",
+            tone: "neutral",
+        });
         statusBar.showEngineVersion("c7", "7.22.0");
         statusBar.showElementTemplatesLoading();
 
@@ -590,7 +491,7 @@ describe("VsCodeStatusBar layout", () => {
     it("leaves the status bar empty when hiding what was never shown", () => {
         statusBar.hideElementTemplatesStatus();
         statusBar.hideEngineVersion();
-        statusBar.showBpmnlint({ state: "hidden" });
+        statusBar.hide("bpmnlint");
         statusBar.hideDeploymentTarget();
 
         expect(renderedStatusBar()).toEqual([]);

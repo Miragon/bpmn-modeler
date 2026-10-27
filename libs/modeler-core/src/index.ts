@@ -51,7 +51,6 @@ export * from "./editorSession/infrastructure/webviewLogMessageHandlers";
 export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
-export * from "./modeler/bpmn/domain/bpmnlintIndicator";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";

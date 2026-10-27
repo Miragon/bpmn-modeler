@@ -4,8 +4,6 @@ import { DeploymentFreshness } from "../deployment/domain/deploymentLedger";
 import { DeploymentStatusBarPort } from "../deployment/domain/ports";
 import { LegacyStatusBarPort, StatusBarPort } from "../kernel/domain/hostPorts";
 import { StatusSlot, StatusView } from "../kernel/domain/statusView";
-import { BpmnlintIndicator } from "../modeler/bpmn/domain/bpmnlintIndicator";
-import { BpmnlintStatusBarPort } from "../modeler/bpmn/domain/ports";
 
 export type ElementTemplatesStatus =
     | { readonly state: "hidden" }
@@ -24,11 +22,10 @@ export interface DeploymentTargetStatus {
  * transient view stays in {@link views}, since the auto-hide is the hosts' timer.
  */
 export class RecordingStatusBar
-    implements StatusBarPort, LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+    implements StatusBarPort, LegacyStatusBarPort, DeploymentStatusBarPort
 {
     elementTemplates: ElementTemplatesStatus = { state: "hidden" };
     engineVersion: { platform: Engine; version: string } | undefined;
-    bpmnlint: BpmnlintIndicator = { state: "hidden" };
     deploymentTarget: DeploymentTargetStatus | undefined;
     views: Partial<Record<StatusSlot, StatusView>> = {};
 
@@ -59,10 +56,6 @@ export class RecordingStatusBar
 
     hideEngineVersion(): void {
         this.engineVersion = undefined;
-    }
-
-    showBpmnlint(indicator: BpmnlintIndicator): void {
-        this.bpmnlint = indicator;
     }
 
     showDeploymentTarget(
