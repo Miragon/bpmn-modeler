@@ -259,6 +259,10 @@ export interface DocumentPort {
      * edit). Only {@link getContent} tells the two apart.
      */
     write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean>;
+    /**
+     * @returns `true` when the document is saved or had nothing to save; `false`
+     * when the host could not save it.
+     */
     save(editorId: string): Promise<boolean>;
 }
 

@@ -558,9 +558,12 @@ internal class EditorSessionRouter(
                 entry?.session?.takeIf {
                     sessions[editorId] === entry && matchesSession(params, entry) && !it.project.isDisposed
                 }
-            val document = liveSession?.let { FileDocumentManager.getInstance().getDocument(it.file) }
-            if (document != null) FileDocumentManager.getInstance().saveDocument(document)
-            mapOf("saved" to (document != null))
+            val documentManager = FileDocumentManager.getInstance()
+            val document = liveSession?.let { documentManager.getDocument(it.file) }
+            // A veto, a memory/disk conflict or a write error leaves the Document
+            // unsaved without throwing.
+            if (document != null) documentManager.saveDocument(document)
+            mapOf("saved" to (document != null && !documentManager.isDocumentUnsaved(document)))
         }
     }
 
