@@ -6,6 +6,7 @@ import { ScriptUri } from "./ScriptUri";
 import { ScriptVariableStore } from "./ScriptVariableStore";
 
 const EDITOR = "file:///work/diagram.bpmn";
+const OTHER_EDITOR = "file:///work/other.bpmn";
 const HASH = ScriptUri.hashEditorId(EDITOR);
 
 function extracted(name: string): VariableDef {
@@ -33,8 +34,31 @@ describe("ScriptVariableStore", () => {
     it("keeps editors apart", () => {
         const store = new ScriptVariableStore();
         store.setExtracted(EDITOR, [extracted("a")]);
-        store.setExtracted("file:///work/other.bpmn", [extracted("b")]);
+        store.setExtracted(OTHER_EDITOR, [extracted("b")]);
         expect(store.getByEditorHash(HASH).map((v) => v.name)).toEqual(["a"]);
+    });
+
+    it("variablesFor(editorId) returns the extracted variables of that editor", () => {
+        const store = new ScriptVariableStore();
+        store.setExtracted(EDITOR, [extracted("a")]);
+        store.setExtracted(OTHER_EDITOR, [extracted("b")]);
+        expect(store.variablesFor(EDITOR).map((v) => v.name)).toEqual(["a"]);
+        expect(store.variablesFor(OTHER_EDITOR).map((v) => v.name)).toEqual(["b"]);
+    });
+
+    it.each([
+        { situation: "never extracted", setUp: () => {} },
+        {
+            situation: "cleared",
+            setUp: (store: ScriptVariableStore) => {
+                store.setExtracted(EDITOR, [extracted("a")]);
+                store.clear(EDITOR);
+            },
+        },
+    ])("variablesFor(editorId) returns no variables for an editor $situation", ({ setUp }) => {
+        const store = new ScriptVariableStore();
+        setUp(store);
+        expect(store.variablesFor(EDITOR)).toEqual([]);
     });
 
     it("clears the editor's variables", () => {

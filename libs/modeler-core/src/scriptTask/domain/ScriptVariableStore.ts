@@ -27,6 +27,10 @@ export class ScriptVariableStore {
         return this.extractedByEditorHash.get(editorHash) ?? [];
     }
 
+    variablesFor(_editorId: string): VariableDef[] {
+        return [];
+    }
+
     /** Drops the editor's model on teardown so closed editors leave no stale completions. */
     clear(editorId: string): void {
         this.extractedByEditorHash.delete(ScriptUri.hashEditorId(editorId));
