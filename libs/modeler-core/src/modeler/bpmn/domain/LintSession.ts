@@ -51,7 +51,7 @@ export type LintSession =
     | { readonly tier: "escalated"; readonly negotiation: Negotiation };
 
 /** The tier linting resumes when it is turned back on for the same config version. */
-export interface SettledNegotiation {
+interface SettledNegotiation {
     readonly tier: "covered" | "escalated";
     readonly negotiation: Negotiation;
 }
