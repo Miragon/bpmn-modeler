@@ -3,10 +3,8 @@ import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import { StatusView } from "../../../kernel/domain/statusView";
 import { BpmnlintIndicator } from "./bpmnlintIndicator";
 
-export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView | undefined {
+export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView {
     switch (indicator.state) {
-        case "hidden":
-            return undefined;
         case "active":
             return {
                 text: "BPMNlint",
@@ -21,7 +19,7 @@ export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView | u
                 icon: "warning",
                 tooltip: `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`,
                 // A warning tone so a partly-applied config can't be mistaken for the
-                // fully-green tick — the exact ambiguity this state exists to remove.
+                // tick of a fully applied one — the exact ambiguity this state exists to remove.
                 tone: "warning",
             };
         }
@@ -31,7 +29,7 @@ export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView | u
                 : "no execution platform";
             return {
                 text: "BPMNlint (default)",
-                // A shield (not the green tick) so a bundled default is never mistaken for
+                // A shield (not the tick) so a bundled default is never mistaken for
                 // a project's own `.bpmnlintrc`.
                 icon: "shield",
                 tooltip: `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`,

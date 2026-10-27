@@ -15,7 +15,6 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
-import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
@@ -281,7 +280,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      */
     private showStatusIfFocused(editorId: string, indicator: BpmnlintIndicator): void {
         if (this.editorStore.isFocused(editorId)) {
-            updateStatusSlot(this.statusBar, "bpmnlint", bpmnlintStatusView(indicator));
+            this.statusBar.show("bpmnlint", bpmnlintStatusView(indicator));
         }
     }
 
