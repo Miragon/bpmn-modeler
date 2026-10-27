@@ -1,9 +1,10 @@
 # `@miragon/bpmn-modeler-types`
 
 The **public**, host-agnostic half of the modeler's shared code: domain/model
-types (engine, lint, settings, scripting, implementation, diff) and browser
-utilities (canvas resize, text-editing-surface predicate) that carry no
-dependency on the webview ↔ host message protocol.
+types (engine, lint, settings, scripting, implementation, diff), browser
+utilities (canvas resize, text-editing-surface predicate) and the pure BPMN
+rules both the webview and `modeler-core` apply (script-surface addressing in
+`scriptSurface.ts`). None of it depends on the webview ↔ host message protocol.
 
 This package draws a hard line so the modeler can ship as a publishable
 `@miragon/bpmn-modeler` npm package without dragging the host protocol along:
@@ -15,6 +16,8 @@ here is safe to publish; everything protocol-shaped stays in
 ## The boundary
 
 - **Public (here):** anything a consumer of the modeler package may import.
+  The npm surface is only what a package entry re-exports by name, so a shared
+  rule here adds nothing to it; `check-dts` and `publicApi.spec.ts` gate it.
 - **Protocol (in `@miragon/bpmn-modeler-shared`):** `Query`/`Command` bases,
   the concrete message classes, `HostApi`, document-flush plumbing.
 
