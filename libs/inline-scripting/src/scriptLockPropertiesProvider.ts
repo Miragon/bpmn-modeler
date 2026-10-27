@@ -10,7 +10,7 @@ import {
 } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
-import { listenerScriptOpenEvent, scriptTaskOpenEvent } from "./scriptModel";
+import { listenerScriptOpenEvent, readScriptField, scriptTaskOpenEvent } from "./scriptModel";
 
 /**
  * Runs *below* the stock Camunda provider (which registers at priority 500).
@@ -290,7 +290,7 @@ export class ScriptLockPropertiesProvider {
         entry.lockBadgeText = this.translate("Read-only");
         entry.lockHintText = `${this.translate("Being edited in")} ${ref.fileName} — ${this.translate("click to focus")}`;
         // Read live so the read-only field mirrors keystrokes streamed from the tab.
-        entry.lockGetValue = () => this.readScriptValue(element, entry.script);
+        entry.lockGetValue = () => this.readScriptValue(element, kind, entry.script);
         entry.lockReveal = () => {
             const payload = this.buildOpenEvent(element, kind, listenerIndex);
             if (payload) {
@@ -301,18 +301,21 @@ export class ScriptLockPropertiesProvider {
         };
     }
 
-    /** Current inline-script content, read from the moddle so it stays live. */
-    private readScriptValue(element: Element, script: ScriptModdle | undefined): string {
-        const bo = script ?? element?.businessObject;
-        const inlineScript = bo && "script" in bo ? bo.script : undefined;
-        return bo?.get?.("value") ?? bo?.get?.("script") ?? inlineScript ?? "";
+    /**
+     * Current inline-script content, read live from the element the stock field
+     * edits: a listener entry's `camunda:Script`, else the script task.
+     */
+    private readScriptValue(
+        element: Element,
+        kind: ScriptKind,
+        script: ScriptModdle | undefined,
+    ): string {
+        return readScriptField(script ?? element?.businessObject, kind, "content") ?? "";
     }
 
     /**
-     * Rebuilds the open-editor payload from the current model so a reveal click
-     * addresses the same script URI the tab was opened with — `scriptFormat`
-     * and `eventName` feed the URI, so they must match or the host would open a
-     * second tab instead of revealing the first.
+     * Rebuilds the open-editor payload from the live model, so a reveal click
+     * reaches the tab the script was opened in.
      */
     private buildOpenEvent(
         element: Element,
