@@ -187,6 +187,28 @@ describe("createTestHost", () => {
         expect(order.saveCount).toBe(1);
     });
 
+    it("blurs the focused editor when another one opens focused, as the hosts do", async () => {
+        const host = createTestHost();
+        const order = host.openEditor("/work/order.bpmn", "", { focused: true });
+        const invoice = host.openEditor("/work/invoice.bpmn", "", { focused: true });
+        host.openEditor("/work/background.bpmn");
+        const invoiceFocusChanges: boolean[] = [];
+        host.store.subscribeToFocusChangeEvent(invoice.id, (focused) =>
+            invoiceFocusChanges.push(focused),
+        );
+
+        expect(host.store.getFocusedEditorId()).toBe(invoice.id);
+
+        const shipment = await host.openSession("/work/shipment.bpmn", []);
+
+        expect([order, invoice, shipment].map((editor) => editor.isActive())).toEqual([
+            false,
+            false,
+            true,
+        ]);
+        expect(invoiceFocusChanges).toEqual([false]);
+    });
+
     it("plays host events into the store and rejects posts to a hidden webview", async () => {
         const host = createTestHost();
         const editor = host.openEditor("/work/order.bpmn");
