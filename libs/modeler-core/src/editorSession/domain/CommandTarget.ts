@@ -28,8 +28,14 @@ export class CommandTarget {
         return editorId;
     }
 
-    blur(_editorId: string, _focusedEditorId: string | undefined): string | undefined {
-        return undefined;
+    /**
+     * A target that blurs while another editor is focused hands the target to it:
+     * a host that reports an editor focused when it opens behind the focused one
+     * corrects that only by blurring it.
+     */
+    blur(editorId: string, focusedEditorId: string | undefined): string | undefined {
+        if (editorId !== this.editorId || focusedEditorId === undefined) return undefined;
+        return this.focus(focusedEditorId);
     }
 
     /**

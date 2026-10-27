@@ -306,7 +306,12 @@ export class EditorSessionStore {
     subscribeToTabChangeEvent(editorId: string): void {
         const handle = this.requireHandle(editorId);
         handle.onDidChangeActive((active) => {
-            if (active && this.editors.get(editorId) === handle) this.setActiveEditor(editorId);
+            if (this.editors.get(editorId) !== handle) return;
+            if (active) this.setActiveEditor(editorId);
+            else
+                this.announceActiveEditor(
+                    this.commandTarget.blur(editorId, this.getFocusedEditorId()),
+                );
         });
     }
 

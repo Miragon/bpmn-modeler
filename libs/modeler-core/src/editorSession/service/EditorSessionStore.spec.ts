@@ -248,6 +248,22 @@ describe("EditorSessionStore", () => {
         expect(announced).toEqual([focused.id]);
     });
 
+    it("ignores a blur from an old handle after a same-id replacement", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const original = new FakeEditorHandle(A_PATH);
+        original.active = true;
+        store.register(original);
+        store.subscribeToTabChangeEvent(original.id);
+        store.register(new FakeEditorHandle(A_PATH));
+        const focused = new FakeEditorHandle("/repo/other.bpmn");
+        store.register(focused);
+        focused.active = true;
+
+        original.loseFocus();
+
+        expect(store.getActiveEditorId()).toBe(A_ID);
+    });
+
     it("stops reporting focus once the editor blurs or closes", () => {
         const store = new EditorSessionStore(vi.fn());
         const blurred = new FakeEditorHandle("/repo/1.bpmn");
