@@ -7,20 +7,60 @@ import {
     BpmnlintStatusBarPort,
     DeploymentFreshness,
     DeploymentStatusBarPort,
+    LegacyStatusBarPort,
+    StatusAction,
     StatusBarPort,
+    StatusIcon,
     StatusSlot,
+    StatusTone,
     StatusView,
 } from "@miragon/bpmn-modeler-core";
-const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
-const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
-const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
-const TEMPLATE_COUNT_VISIBLE_MS = 3000;
 
-const DEPLOYMENT_FRESHNESS_COLORS: Record<DeploymentFreshness, ThemeColor | undefined> = {
-    deployed: new ThemeColor("testing.iconPassed"),
-    changed: new ThemeColor("charts.yellow"),
-    superseded: new ThemeColor("charts.blue"),
-    unknown: undefined,
+const TRANSIENT_VIEW_VISIBLE_MS = 3000;
+
+// VS Code's guideline: workspace-wide status on the left, the focused file's state on the right.
+const SLOT_PLACEMENT: Record<
+    StatusSlot,
+    { readonly alignment: StatusBarAlignment; readonly priority: number }
+> = {
+    elementTemplates: { alignment: StatusBarAlignment.Left, priority: 100 },
+    engineVersion: { alignment: StatusBarAlignment.Right, priority: 200 },
+    bpmnlint: { alignment: StatusBarAlignment.Right, priority: 199 },
+    deploymentTarget: { alignment: StatusBarAlignment.Right, priority: 198 },
+};
+
+const CODICONS: Record<StatusIcon, string> = {
+    loading: "loading~spin",
+    check: "check",
+    engine: "server-environment",
+    warning: "warning",
+    shield: "shield",
+    off: "circle-slash",
+    info: "info",
+    dot: "circle-filled",
+};
+
+// A status bar item colours its whole text, so an icon and its (short) text share
+// one colour — acceptable, and cheaper than a second item.
+const TONE_COLORS: Record<StatusTone, { readonly color?: string; readonly background?: string }> = {
+    neutral: {},
+    success: { color: "testing.iconPassed" },
+    attention: { color: "charts.yellow" },
+    info: { color: "charts.blue" },
+    warning: { background: "statusBarItem.warningBackground" },
+};
+
+const ACTION_COMMANDS: Record<StatusAction, string> = {
+    changeEngineVersion: "bpmn-modeler.changeEngineVersion",
+    toggleLinting: "bpmn-modeler.toggleLinting",
+    deploymentMenu: "bpmn-modeler.deploymentStatusMenu",
+};
+
+const DEPLOYMENT_FRESHNESS_TONES: Record<DeploymentFreshness, StatusTone> = {
+    deployed: "success",
+    changed: "attention",
+    superseded: "info",
+    unknown: "neutral",
 };
 
 function deploymentTooltip(
@@ -54,104 +94,125 @@ function deploymentTooltip(
     }
 }
 
+function bpmnlintView(indicator: BpmnlintIndicator): StatusView | undefined {
+    switch (indicator.state) {
+        case "hidden":
+            return undefined;
+        case "active":
+            return {
+                text: "BPMNlint",
+                icon: "check",
+                tooltip: indicator.configPath,
+                tone: "neutral",
+            };
+        case "unresolved": {
+            const { configPath, unresolved } = indicator;
+            return {
+                text: `BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`,
+                icon: "warning",
+                tooltip: `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`,
+                // A warning tone so a partly-applied config can't be mistaken for the
+                // fully-green tick — the exact ambiguity this state exists to remove.
+                tone: "warning",
+            };
+        }
+        case "default": {
+            const engine = indicator.platform
+                ? ENGINE_LABEL[indicator.platform]
+                : "no execution platform";
+            return {
+                text: "BPMNlint (default)",
+                // A shield (not the green tick) so a bundled default is never mistaken for
+                // a project's own `.bpmnlintrc`.
+                icon: "shield",
+                tooltip: `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`,
+                tone: "neutral",
+            };
+        }
+        case "disabled":
+            return {
+                text: "BPMNlint: off",
+                // Circle-slash (not the info `i`) reads as "deliberately off", and the
+                // action turns it back on with one click for users who never open settings.
+                icon: "off",
+                tooltip: "BPMN linting is turned off — click to turn it back on.",
+                tone: "neutral",
+                action: "toggleLinting",
+            };
+        case "noConfig":
+            return { text: "BPMNlint: no .bpmnlintrc", icon: "info", tone: "neutral" };
+    }
+}
+
 export class VsCodeStatusBar
-    implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+    implements StatusBarPort, LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
 {
-    private templateStatusItem: StatusBarItem | undefined;
+    private readonly items = new Map<StatusSlot, StatusBarItem>();
 
-    private pendingTemplateAutoHide: ReturnType<typeof setTimeout> | undefined;
+    private readonly pendingAutoHides = new Map<StatusSlot, ReturnType<typeof setTimeout>>();
 
-    private engineVersionStatusItem: StatusBarItem | undefined;
-
-    private bpmnlintStatusItem: StatusBarItem | undefined;
-
-    private deploymentTargetStatusItem: StatusBarItem | undefined;
-
-    show(_slot: StatusSlot, _view: StatusView): void {
-        // Rendered once the slots have a placement.
+    show(slot: StatusSlot, view: StatusView): void {
+        this.cancelPendingAutoHide(slot);
+        const item = this.itemFor(slot);
+        const { color, background } = TONE_COLORS[view.tone];
+        item.text = view.icon ? `$(${CODICONS[view.icon]}) ${view.text}` : view.text;
+        item.tooltip = view.tooltip;
+        item.color = color ? new ThemeColor(color) : undefined;
+        item.backgroundColor = background ? new ThemeColor(background) : undefined;
+        item.command = view.action ? ACTION_COMMANDS[view.action] : undefined;
+        item.show();
+        if (view.transient) {
+            this.pendingAutoHides.set(
+                slot,
+                setTimeout(() => this.hide(slot), TRANSIENT_VIEW_VISIBLE_MS),
+            );
+        }
     }
 
-    hide(_slot: StatusSlot): void {
-        // Rendered once the slots have a placement.
+    hide(slot: StatusSlot): void {
+        this.cancelPendingAutoHide(slot);
+        this.items.get(slot)?.hide();
     }
 
     showElementTemplatesLoading(): void {
-        this.cancelPendingTemplateAutoHide();
-        const item = this.getOrCreateTemplateStatusItem();
-        item.text = "$(loading~spin) Loading element templates…";
-        item.show();
+        this.show("elementTemplates", {
+            text: "Loading element templates…",
+            icon: "loading",
+            tone: "neutral",
+        });
     }
 
     showElementTemplatesReady(count: number): void {
-        this.cancelPendingTemplateAutoHide();
-        const item = this.getOrCreateTemplateStatusItem();
-        item.text = `$(check) Element templates (${count})`;
-        item.show();
-        this.pendingTemplateAutoHide = setTimeout(() => item.hide(), TEMPLATE_COUNT_VISIBLE_MS);
+        this.show("elementTemplates", {
+            text: `Element templates (${count})`,
+            icon: "check",
+            tone: "neutral",
+            transient: true,
+        });
     }
 
     hideElementTemplatesStatus(): void {
-        this.cancelPendingTemplateAutoHide();
-        this.templateStatusItem?.hide();
+        this.hide("elementTemplates");
     }
 
     showEngineVersion(platform: Engine, version: string): void {
-        const item = this.getOrCreateEngineVersionStatusItem();
-        const label = ENGINE_LABEL[platform];
-        item.text = `$(server-environment) ${label} (${version})`;
-        item.tooltip = "Click to change engine version";
-        item.show();
+        this.show("engineVersion", {
+            text: `${ENGINE_LABEL[platform]} (${version})`,
+            icon: "engine",
+            tooltip: "Click to change engine version",
+            tone: "neutral",
+            action: "changeEngineVersion",
+        });
     }
 
     hideEngineVersion(): void {
-        this.engineVersionStatusItem?.hide();
+        this.hide("engineVersion");
     }
 
     showBpmnlint(indicator: BpmnlintIndicator): void {
-        if (indicator.state === "hidden") {
-            this.bpmnlintStatusItem?.hide();
-            return;
-        }
-        const item = this.getOrCreateBpmnlintStatusItem();
-        item.tooltip = undefined;
-        item.backgroundColor = undefined;
-        item.command = undefined;
-        switch (indicator.state) {
-            case "active":
-                item.text = "$(check) BPMNlint";
-                item.tooltip = indicator.configPath;
-                break;
-            case "unresolved": {
-                const { configPath, unresolved } = indicator;
-                item.text = `$(warning) BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`;
-                // A warning background so a partly-applied config can't be mistaken for the
-                // fully-green tick — the exact ambiguity this state exists to remove.
-                item.backgroundColor = new ThemeColor("statusBarItem.warningBackground");
-                item.tooltip = `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`;
-                break;
-            }
-            case "default": {
-                // A shield (not the green tick) so a bundled default is never mistaken for
-                // a project's own `.bpmnlintrc`.
-                item.text = "$(shield) BPMNlint (default)";
-                const engine = indicator.platform
-                    ? ENGINE_LABEL[indicator.platform]
-                    : "no execution platform";
-                item.tooltip = `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`;
-                break;
-            }
-            case "disabled":
-                // Circle-slash (not the info `i`) reads as "deliberately off", and the
-                // command turns it back on with one click for users who never open settings.
-                item.text = "$(circle-slash) BPMNlint: off";
-                item.tooltip = "BPMN linting is turned off — click to turn it back on.";
-                item.command = TOGGLE_LINTING_CMD;
-                break;
-            case "noConfig":
-                item.text = "$(info) BPMNlint: no .bpmnlintrc";
-                break;
-        }
-        item.show();
+        const view = bpmnlintView(indicator);
+        if (view) this.show("bpmnlint", view);
+        else this.hide("bpmnlint");
     }
 
     showDeploymentTarget(
@@ -160,57 +221,32 @@ export class VsCodeStatusBar
         deployedAt?: string,
         verifiedAt?: string,
     ): void {
-        const item = this.getOrCreateDeploymentTargetStatusItem();
-        item.text = `$(circle-filled) ${name ?? "No deployment target"}`;
-        // A status bar item colours its whole text, so the dot and the (short)
-        // name share one colour — acceptable, and cheaper than a second item.
-        item.color = DEPLOYMENT_FRESHNESS_COLORS[freshness];
-        item.tooltip = deploymentTooltip(freshness, deployedAt, verifiedAt);
-        item.show();
+        this.show("deploymentTarget", {
+            text: name ?? "No deployment target",
+            icon: "dot",
+            tooltip: deploymentTooltip(freshness, deployedAt, verifiedAt),
+            tone: DEPLOYMENT_FRESHNESS_TONES[freshness],
+            action: "deploymentMenu",
+        });
     }
 
     hideDeploymentTarget(): void {
-        this.deploymentTargetStatusItem?.hide();
+        this.hide("deploymentTarget");
     }
 
-    // Every load shares the one item, so a stale timer would hide what a later load shows.
-    private cancelPendingTemplateAutoHide(): void {
-        clearTimeout(this.pendingTemplateAutoHide);
+    // Every show of a slot reuses its item, so a stale timer would hide what a later show put there.
+    private cancelPendingAutoHide(slot: StatusSlot): void {
+        clearTimeout(this.pendingAutoHides.get(slot));
+        this.pendingAutoHides.delete(slot);
     }
 
-    private getOrCreateTemplateStatusItem(): StatusBarItem {
-        if (!this.templateStatusItem) {
-            this.templateStatusItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
+    private itemFor(slot: StatusSlot): StatusBarItem {
+        let item = this.items.get(slot);
+        if (!item) {
+            const { alignment, priority } = SLOT_PLACEMENT[slot];
+            item = window.createStatusBarItem(alignment, priority);
+            this.items.set(slot, item);
         }
-        return this.templateStatusItem;
-    }
-
-    private getOrCreateEngineVersionStatusItem(): StatusBarItem {
-        if (!this.engineVersionStatusItem) {
-            this.engineVersionStatusItem = window.createStatusBarItem(
-                StatusBarAlignment.Right,
-                200,
-            );
-            this.engineVersionStatusItem.command = CHANGE_ENGINE_VERSION_CMD;
-        }
-        return this.engineVersionStatusItem;
-    }
-
-    private getOrCreateBpmnlintStatusItem(): StatusBarItem {
-        if (!this.bpmnlintStatusItem) {
-            this.bpmnlintStatusItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
-        }
-        return this.bpmnlintStatusItem;
-    }
-
-    private getOrCreateDeploymentTargetStatusItem(): StatusBarItem {
-        if (!this.deploymentTargetStatusItem) {
-            this.deploymentTargetStatusItem = window.createStatusBarItem(
-                StatusBarAlignment.Right,
-                198,
-            );
-            this.deploymentTargetStatusItem.command = DEPLOYMENT_STATUS_MENU_CMD;
-        }
-        return this.deploymentTargetStatusItem;
+        return item;
     }
 }
