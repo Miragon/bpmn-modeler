@@ -69,6 +69,22 @@ describe("scriptBatchSummary", () => {
             expected:
                 "Generated 1 script file(s) in scripts (1 already open, left untouched) — open a file to edit it with live sync into the diagram. Could not write 1 script file(s); see the log for details.",
         },
+        {
+            run: "asks to open no file when nothing was generated",
+            outcome: { generated: 0, alreadyOpen: 0, failed: 0 },
+            expected: "No script files generated in scripts.",
+        },
+        {
+            run: "asks to open no file when every script was already open",
+            outcome: { generated: 0, alreadyOpen: 2, failed: 0 },
+            expected: "No script files generated in scripts (2 already open, left untouched).",
+        },
+        {
+            run: "asks to open no file when every script failed",
+            outcome: { generated: 0, alreadyOpen: 0, failed: 1 },
+            expected:
+                "No script files generated in scripts. Could not write 1 script file(s); see the log for details.",
+        },
     ] satisfies { run: string; outcome: ScriptBatchOutcome; expected: string }[])(
         "$run",
         ({ outcome, expected }) => {
