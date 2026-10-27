@@ -30,6 +30,19 @@ export interface StoredCredentials {
     readonly clientSecret?: string;
 }
 
+export interface DeploymentTargetFields {
+    readonly name: string;
+    readonly engine: Engine;
+    readonly endpoint: string;
+    readonly tenantId?: string;
+    readonly authType: TargetAuthType;
+    readonly tokenEndpoint?: string;
+    readonly audience?: string;
+    readonly deployUrl?: string;
+    readonly startInstanceUrl?: string;
+    readonly credentialRefs?: CredentialRefs;
+}
+
 /**
  * A named, team-shareable deployment connection persisted in
  * `deployment-targets.json`. Holds only non-secret connection metadata —
@@ -49,6 +62,21 @@ export class DeploymentTarget {
         readonly startInstanceUrl?: string,
         readonly credentialRefs: CredentialRefs = CredentialRefs.none(),
     ) {}
+
+    static create(fields: DeploymentTargetFields): DeploymentTarget {
+        return new DeploymentTarget(
+            fields.name,
+            fields.engine,
+            fields.endpoint,
+            fields.tenantId ?? "",
+            fields.authType,
+            fields.tokenEndpoint ?? "",
+            fields.audience ?? "",
+            fields.deployUrl,
+            fields.startInstanceUrl,
+            fields.credentialRefs,
+        );
+    }
 
     /**
      * File refs win over stored values, so a stale secret can't shadow a committed
