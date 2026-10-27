@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { HostApiImpl, MockHostApi } from "./host";
+import { type HostApi, HostApiImpl, MockHostApi } from "./host";
+import type { LogErrorCommand, SyncDocumentCommand } from "./messages";
 
 type ViewState = { mode?: string; zoom?: number };
 
@@ -20,6 +21,23 @@ function createHostBridge(initialState?: ViewState) {
 
 afterEach(() => {
     vi.unstubAllGlobals();
+});
+
+// Type-level spec: the `typecheck` script fails when an expectation breaks.
+describe("HostApi", () => {
+    type SyncChannel = Pick<HostApi<ViewState, SyncDocumentCommand>, "postMessage">;
+    type SyncOrLogChannel = Pick<
+        HostApi<ViewState, SyncDocumentCommand | LogErrorCommand>,
+        "postMessage"
+    >;
+
+    it("lets a channel that takes more messages stand in for one that takes fewer", () => {
+        expectTypeOf<SyncOrLogChannel>().toExtend<SyncChannel>();
+    });
+
+    it("never lets a channel that takes fewer messages stand in for one that takes more", () => {
+        expectTypeOf<SyncChannel>().not.toExtend<SyncOrLogChannel>();
+    });
 });
 
 describe("HostApiImpl", () => {
