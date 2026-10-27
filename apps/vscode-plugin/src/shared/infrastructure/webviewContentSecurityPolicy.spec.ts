@@ -59,7 +59,7 @@ describe("webviewContentSecurityPolicy", () => {
         expect(webviewContentSecurityPolicy(shell, sources).split("; ")).toEqual(directives);
     });
 
-    it("allows the entry script by the nonce of this render", () => {
+    it("allows the entry script by this render's nonce and styles from its webview", () => {
         const policy = webviewContentSecurityPolicy("deployment", {
             cspSource: "vscode-webview://other",
             nonce: "fresh",
