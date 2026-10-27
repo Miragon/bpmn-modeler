@@ -38,6 +38,17 @@ describe("HostApi", () => {
     it("never lets a channel that takes fewer messages stand in for one that takes more", () => {
         expectTypeOf<SyncChannel>().not.toExtend<SyncOrLogChannel>();
     });
+
+    it("never lets a host of a narrower view state store a wider one", () => {
+        type WiderViewState = { mode?: string | number; zoom?: number };
+
+        expectTypeOf<Pick<HostApi<ViewState, unknown>, "setState">>().not.toExtend<
+            Pick<HostApi<WiderViewState, unknown>, "setState">
+        >();
+        expectTypeOf<Pick<HostApi<ViewState, unknown>, "updateState">>().not.toExtend<
+            Pick<HostApi<WiderViewState, unknown>, "updateState">
+        >();
+    });
 });
 
 describe("HostApiImpl", () => {
