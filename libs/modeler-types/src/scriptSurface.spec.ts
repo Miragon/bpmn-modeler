@@ -95,11 +95,11 @@ describe("resolveScriptWriteTarget", () => {
     );
 
     it.each([
-        ["a listener without an inline script", userTask, 0],
+        ["for a listener without an inline script", userTask, 0],
         ["past the last listener of that type", userTask, 2],
         ["without a listener index", userTask, undefined],
-        ["an element without extension elements", plainTask, 0],
-    ])("has no listener target for %s", (_case, element, listenerIndex) => {
+        ["on an element without extension elements", plainTask, 0],
+    ])("has no listener target %s", (_case, element, listenerIndex) => {
         expect(
             resolveScriptWriteTarget(element, "execution-listener", listenerIndex, "content"),
         ).toBeUndefined();
@@ -111,7 +111,7 @@ describe("describeScriptSurface", () => {
         ["script-task", "Task_1"],
         ["execution-listener", "camunda:ExecutionListener #0 on Task_1"],
         ["task-listener", "camunda:TaskListener #0 on Task_1"],
-    ] as const)("names a %s surface", (kind, description) => {
+    ] as const)("names the %s surface", (kind, description) => {
         expect(describeScriptSurface("Task_1", kind, 0)).toBe(description);
     });
 });
