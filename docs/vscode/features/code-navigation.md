@@ -28,8 +28,10 @@ Class and bean lookups search `.java`, `.kt`, `.groovy` and `.scala` files. Topi
   engine-neutral models.
 
 To keep the map on disk (faster reopening, and a file other tools can read), turn on
-`miragon.bpmnModeler.persistCodeLinkMap`. The map is then written to `<configFolder>/code-link/<file>.json`, for
-example `.camunda/code-link/order-process.bpmn.json`.
+`miragon.bpmnModeler.persistCodeLinkMap`. The map is then written to `<configFolder>/code-link/` in the workspace
+folder that holds the diagram, under the diagram's path below that folder plus `.json`. For example,
+`processes/order-process.bpmn` gets `.camunda/code-link/processes/order-process.bpmn.json`. A diagram outside every
+workspace folder uses its Git repository root instead, or else its own folder.
 
 ## Navigate to referenced model
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
     DocumentFlushedCommand,
@@ -190,5 +190,24 @@ describe("WebviewDocumentSync", () => {
 
         expect(posted).toEqual([]);
         expect(flushLock.release).toHaveBeenCalled();
+    });
+});
+
+// Type-level spec: the `typecheck` script fails when an expectation breaks.
+describe("WebviewDocumentSync's host channel", () => {
+    type DocumentSyncChannel = ConstructorParameters<typeof WebviewDocumentSync>[0];
+
+    it("takes a channel that accepts every message the sync posts", () => {
+        expectTypeOf<{
+            postMessage: (
+                message: SyncDocumentCommand | DocumentFlushedCommand | LogErrorCommand,
+            ) => void;
+        }>().toExtend<DocumentSyncChannel>();
+    });
+
+    it("refuses a channel that cannot take the error it reports", () => {
+        expectTypeOf<{
+            postMessage: (message: SyncDocumentCommand | DocumentFlushedCommand) => void;
+        }>().not.toExtend<DocumentSyncChannel>();
     });
 });

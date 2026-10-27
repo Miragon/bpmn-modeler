@@ -17,7 +17,10 @@ import {
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
     HostApiImpl,
+    LanguageQuery,
+    LogDebugCommand,
     LogErrorCommand,
+    LogInfoCommand,
     LogWarningCommand,
     MockHostApi,
     NavigateToImplementationCommand,
@@ -34,12 +37,16 @@ import {
     SwapCompareSidesCommand,
     SyncActivitiesCommand,
     SyncDocumentCommand,
+    TakeFocusQuery,
     UpdateLintResultsCommand,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
     ViewportChangedCommand,
     WorkspaceDefinitionsQuery,
+    type BpmnEditorCommandType,
     type Command,
+    type MessageOfType,
+    type Query,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
@@ -53,6 +60,57 @@ vi.mock("@miragon/bpmn-modeler/diff", async (importOriginal) => {
 });
 
 type Reply = { type: string } & Record<string, unknown>;
+
+// Keyed by the closed list, so a command added there cannot skip the preview check below.
+const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Type> } = {
+    SyncDocumentCommand: new SyncDocumentCommand("<edited />", 1),
+    DocumentFlushedCommand: new DocumentFlushedCommand(1),
+    LogDebugCommand: new LogDebugCommand("debug"),
+    LogInfoCommand: new LogInfoCommand("info"),
+    LogWarningCommand: new LogWarningCommand("warning"),
+    LogErrorCommand: new LogErrorCommand("error"),
+    ShowInfoCommand: new ShowInfoCommand("info"),
+    RequestFocusCommand: new RequestFocusCommand(),
+    GetBpmnFileCommand: new GetBpmnFileCommand(),
+    GetDiagramAsSVGCommand: new GetDiagramAsSVGCommand(),
+    GetElementTemplatesCommand: new GetElementTemplatesCommand(),
+    GetBpmnlintConfigCommand: new GetBpmnlintConfigCommand(),
+    GetBpmnModelerSettingCommand: new GetBpmnModelerSettingCommand(),
+    GetPropertiesPanelStateCommand: new GetPropertiesPanelStateCommand(),
+    SetPropertiesPanelStateCommand: new SetPropertiesPanelStateCommand(false),
+    SetLintingEnabledCommand: new SetLintingEnabledCommand(false),
+    UpdateLintResultsCommand: new UpdateLintResultsCommand({}, []),
+    GetClipboardCommand: new GetClipboardCommand(),
+    SetClipboardCommand: new SetClipboardCommand("<copied />"),
+    GetTextClipboardCommand: new GetTextClipboardCommand(),
+    SetTextClipboardCommand: new SetTextClipboardCommand("label"),
+    NavigateToReferencedModelCommand: new NavigateToReferencedModelCommand("Form_1", "form"),
+    NavigateToImplementationCommand: new NavigateToImplementationCommand(
+        "com.example.Delegate",
+        "javaClass",
+    ),
+    SyncActivitiesCommand: new SyncActivitiesCommand([]),
+    GetFormReferenceStatusCommand: new GetFormReferenceStatusCommand(),
+    SearchWorkspaceDefinitionsCommand: new SearchWorkspaceDefinitionsCommand(1, "message", "order"),
+    OpenScriptEditorCommand: new OpenScriptEditorCommand(
+        "Task_1",
+        "script-task",
+        undefined,
+        undefined,
+        "js",
+        "x",
+    ),
+    OpenScriptEditorsCommand: new OpenScriptEditorsCommand([]),
+    UpdateScriptSourceCommand: new UpdateScriptSourceCommand(
+        "Task_1",
+        "script-task",
+        undefined,
+        "x",
+    ),
+    UpdateScriptVariablesCommand: new UpdateScriptVariablesCommand([]),
+    DiagramFormattedCommand: new DiagramFormattedCommand("formatted", []),
+    CleanupReportCommand: new CleanupReportCommand({ status: "reported", items: [] }, false),
+};
 
 describe("getHostApi", () => {
     afterEach(() => {
@@ -244,36 +302,7 @@ describe("development preview host", () => {
     });
 
     it.each<Command>([
-        new GetBpmnFileCommand(),
-        new GetBpmnModelerSettingCommand(),
-        new GetPropertiesPanelStateCommand(),
-        new SetPropertiesPanelStateCommand(false),
-        new GetElementTemplatesCommand(),
-        new GetBpmnlintConfigCommand(),
-        new SetLintingEnabledCommand(false),
-        new UpdateLintResultsCommand({}, []),
-        new RequestFocusCommand(),
-        new GetClipboardCommand(),
-        new SetClipboardCommand("<copied />"),
-        new GetTextClipboardCommand(),
-        new SetTextClipboardCommand("label"),
-        new SyncDocumentCommand("<edited />", 1),
-        new DocumentFlushedCommand(1),
-        new LogWarningCommand("warning"),
-        new LogErrorCommand("error"),
-        new ShowInfoCommand("info"),
-        new NavigateToReferencedModelCommand("Form_1", "form"),
-        new NavigateToImplementationCommand("com.example.Delegate", "javaClass"),
-        new SyncActivitiesCommand([]),
-        new GetFormReferenceStatusCommand(),
-        new SearchWorkspaceDefinitionsCommand(1, "message", "order"),
-        new OpenScriptEditorCommand("Task_1", "script-task", undefined, undefined, "js", "x"),
-        new OpenScriptEditorsCommand([]),
-        new UpdateScriptSourceCommand("Task_1", "script-task", undefined, "x"),
-        new UpdateScriptVariablesCommand([]),
-        new DiagramFormattedCommand("formatted", []),
-        new CleanupReportCommand({ status: "reported", items: [] }, false),
-        new GetDiagramAsSVGCommand(),
+        ...Object.values(BPMN_EDITOR_COMMANDS),
         new DiffReadyCommand(),
         new ViewportChangedCommand({ x: 0, y: 0, width: 1, height: 1 }),
         new CursorChangedCommand(0),
@@ -285,4 +314,13 @@ describe("development preview host", () => {
 
         expect(() => host.postMessage(command)).not.toThrow();
     });
+
+    it.each<Query>([new LanguageQuery("de"), new TakeFocusQuery()])(
+        "rejects a $type, which only the host sends",
+        (query) => {
+            const host = previewHost();
+
+            expect(() => host.postMessage(query)).toThrow(`Unknown message type: ${query.type}`);
+        },
+    );
 });

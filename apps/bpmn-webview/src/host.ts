@@ -196,10 +196,6 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 console.info("[INFO] ShowInfoCommand", command.message);
                 break;
             }
-            case "LanguageQuery": {
-                console.debug("[DEBUG] LanguageQuery", message);
-                break;
-            }
             case "DiffReadyCommand": {
                 console.debug("[DEBUG] DiffReadyCommand");
                 void this.handleDiffReady();
