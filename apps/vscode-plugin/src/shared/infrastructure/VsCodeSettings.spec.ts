@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const inspectMock = vi.fn();
@@ -22,11 +25,53 @@ vi.mock("vscode", () => ({
 
 import { ConfigurationTarget, workspace } from "vscode";
 
+import { DEFAULT_LINTING_ENABLED, DEFAULT_MODELER_SETTINGS } from "@miragon/bpmn-modeler-core";
+import {
+    readSettingsSnapshot,
+    settingsNormalizationCases,
+} from "@miragon/bpmn-modeler-core/testing";
+
 import { VsCodeSettings } from "./VsCodeSettings";
+
+const SHARED_CASES = settingsNormalizationCases(
+    readFileSync(
+        resolve(
+            __dirname,
+            "../../../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
+        ),
+        "utf8",
+    ),
+);
+
+const CONFIG_NAMESPACE = "miragon.bpmnModeler";
+
+const MANIFEST_DEFAULTS = new Map(
+    Object.entries(
+        (
+            JSON.parse(readFileSync(resolve(__dirname, "../../../package.json"), "utf8")) as {
+                contributes: {
+                    configuration: { properties: Record<string, { default?: unknown }> };
+                };
+            }
+        ).contributes.configuration.properties,
+    ).map(([key, property]) => [key.slice(CONFIG_NAMESPACE.length + 1), property.default]),
+);
 
 /** Sets what inspect("marketplaces") reports for the User/Workspace scopes. */
 function stubInspect(scopes: { globalValue?: unknown[]; workspaceValue?: unknown[] }) {
     inspectMock.mockReturnValue({ key: "marketplaces", ...scopes });
+}
+
+/** Serves `userValues` as VS Code does: what the user set, otherwise the manifest default. */
+function stubConfiguration(userValues: Record<string, unknown>) {
+    getMock.mockImplementation((section: string) =>
+        section in userValues ? userValues[section] : MANIFEST_DEFAULTS.get(section),
+    );
+}
+
+/** The configuration section VS Code stores a snapshot key under. */
+function sectionOf(key: string): string {
+    return key === "scriptingSpin" ? "scripting.spin" : key;
 }
 
 /** Toggles whether VS Code considers a workspace open. */
@@ -41,6 +86,33 @@ beforeEach(() => {
     updateMock.mockResolvedValue(undefined);
     getMock.mockReset();
     setWorkspaceOpen(false);
+});
+
+describe("VsCodeSettings reads", () => {
+    it.each(SHARED_CASES)("$name", ({ raw, normalized }) => {
+        stubConfiguration(
+            Object.fromEntries(Object.entries(raw).map(([key, value]) => [sectionOf(key), value])),
+        );
+        stubInspect({ globalValue: raw.marketplaces as unknown[] });
+
+        expect(readSettingsSnapshot(new VsCodeSettings())).toEqual({
+            ...DEFAULT_MODELER_SETTINGS,
+            ...normalized,
+        });
+    });
+
+    it.each([
+        {
+            case: "the linting flag the user turned off",
+            userValues: { "linting.enabled": false },
+            enabled: false,
+        },
+        { case: "the default linting flag", userValues: {}, enabled: DEFAULT_LINTING_ENABLED },
+    ])("$case", ({ userValues, enabled }) => {
+        stubConfiguration(userValues);
+
+        expect(new VsCodeSettings().getLintingEnabled()).toBe(enabled);
+    });
 });
 
 describe("VsCodeSettings.getMarketplaces", () => {

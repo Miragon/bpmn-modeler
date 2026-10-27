@@ -1,12 +1,20 @@
 package io.miragon.intellij.bpmn
 
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.testFramework.junit5.TestApplication
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import java.nio.file.Files
+import java.nio.file.Path
 
 @TestApplication
 class ModelerSettingsStoreTest {
@@ -25,54 +33,18 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
-    fun `an untouched store reports the VS Code defaults`() {
-        assertEquals(
-            ModelerSettings(
-                alignToOrigin = false,
-                showTransactionBoundaries = true,
-                configFolder = ".camunda",
-                persistCodeLinkMap = false,
-                c8ApiVersion = "v2",
-                colorTheme = "automatic",
-                defaultMode = "implement",
-                favouriteBpmnElements =
-                    listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway"),
-                language = "en",
-                scriptingSpin = true,
-                marketplaces = emptyList(),
-            ),
-            store.current(),
-        )
+    fun `an untouched store reports the defaults the VS Code manifest declares`() {
+        assertEquals(manifestDefaults(), GSON.toJsonTree(store.current()))
     }
 
-    @Test
-    fun `updated settings round-trip`() {
-        val customised =
-            store.current().copy(
-                alignToOrigin = true,
-                showTransactionBoundaries = false,
-                configFolder = "config",
-                persistCodeLinkMap = true,
-                c8ApiVersion = "v1",
-                colorTheme = "light",
-                defaultMode = "view",
-                favouriteBpmnElements = listOf("bpmn:UserTask"),
-                language = "de",
-                scriptingSpin = false,
-                marketplaces = listOf("https://github.com/acme/templates"),
-            )
+    @ParameterizedTest
+    @MethodSource("settingsNormalizationCases")
+    fun `stores and reads settings as the core normalises them`(case: SettingsNormalizationCase) {
+        val defaults = store.current()
 
-        store.update(customised)
+        store.update(defaults.overriddenBy(case.raw))
 
-        assertEquals(customised, store.current())
-    }
-
-    @Test
-    fun `values outside the core's accepted set fall back to the defaults`() {
-        store.update(store.current().copy(colorTheme = "dark", defaultMode = "edit"))
-
-        assertEquals("automatic", store.current().colorTheme)
-        assertEquals("implement", store.current().defaultMode)
+        assertEquals(defaults.overriddenBy(case.normalized), store.current())
     }
 
     @Test
@@ -82,22 +54,6 @@ class ModelerSettingsStoreTest {
 
         assertEquals("automatic", store.current().colorTheme)
         assertEquals("implement", store.current().defaultMode)
-    }
-
-    @Test
-    fun `a blank config folder keeps the default instead of scanning the whole tree`() {
-        store.update(store.current().copy(configFolder = "  "))
-
-        assertEquals(".camunda", store.current().configFolder)
-    }
-
-    @Test
-    fun `favourites are capped at the palette size`() {
-        val eightElements = (1..8).map { "bpmn:Task$it" }
-
-        store.update(store.current().copy(favouriteBpmnElements = eightElements))
-
-        assertEquals(eightElements.take(ModelerSettingsStore.MAX_FAVOURITES), store.current().favouriteBpmnElements)
     }
 
     @Test
@@ -153,22 +109,74 @@ class ModelerSettingsStoreTest {
         assertEquals(listOf("https://app", "https://project"), snapshot["marketplaces"])
     }
 
-    private companion object {
-        const val MARKETPLACES_KEY = "miragon.bpmnModeler.marketplaces"
+    /** A row of the core's `settingsNormalization.cases.json`; every key left out of `normalized` reads its default. */
+    class SettingsNormalizationCase(val raw: JsonObject, val normalized: JsonObject)
 
-        val LIST_KEYS = listOf("miragon.bpmnModeler.favouriteBpmnElements", MARKETPLACES_KEY)
+    companion object {
+        private const val NAMESPACE = "miragon.bpmnModeler."
+        private const val MARKETPLACES_KEY = "${NAMESPACE}marketplaces"
 
-        val SCALAR_KEYS =
+        private val LIST_KEYS = listOf("${NAMESPACE}favouriteBpmnElements", MARKETPLACES_KEY)
+
+        private val SCALAR_KEYS =
             listOf(
-                "miragon.bpmnModeler.alignToOrigin",
-                "miragon.bpmnModeler.showTransactionBoundaries",
-                "miragon.bpmnModeler.configFolder",
-                "miragon.bpmnModeler.persistCodeLinkMap",
-                "miragon.bpmnModeler.c8ApiVersion",
-                "miragon.bpmnModeler.colorTheme",
-                "miragon.bpmnModeler.defaultMode",
-                "miragon.bpmnModeler.language",
-                "miragon.bpmnModeler.scripting.spin",
-            )
+                "alignToOrigin",
+                "showTransactionBoundaries",
+                "configFolder",
+                "persistCodeLinkMap",
+                "c8ApiVersion",
+                "colorTheme",
+                "defaultMode",
+                "language",
+                "scripting.spin",
+            ).map { NAMESPACE + it }
+
+        private val GSON = Gson()
+
+        @JvmStatic
+        fun settingsNormalizationCases(): List<Named<SettingsNormalizationCase>> =
+            readJson("miragon.settingsNormalizationCases").getAsJsonArray("cases").map { row ->
+                val case = row.asJsonObject
+                Named.of(
+                    case.get("name").asString,
+                    SettingsNormalizationCase(case.getAsJsonObject("raw"), case.getAsJsonObject("normalized")),
+                )
+            }
+
+        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names; IntelliJ has no lint setting. */
+        private fun manifestDefaults(): JsonObject {
+            val properties =
+                readJson("miragon.vscodeManifest")
+                    .getAsJsonObject("contributes")
+                    .getAsJsonObject("configuration")
+                    .getAsJsonObject("properties")
+            return JsonObject().apply {
+                properties.entrySet()
+                    .filter { (key, _) -> key.startsWith(NAMESPACE) }
+                    .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
+                    .filter { (name, _) -> name != "lintingEnabled" }
+                    .forEach { (name, default) -> add(name, default) }
+            }
+        }
+
+        /** `scripting.spin` → `scriptingSpin`. */
+        private fun snapshotName(section: String): String {
+            val segments = section.split(".")
+            return segments.first() + segments.drop(1).joinToString("") { segment -> segment.replaceFirstChar { it.uppercaseChar() } }
+        }
+
+        private fun ModelerSettings.overriddenBy(values: JsonObject): ModelerSettings {
+            val merged = GSON.toJsonTree(this).asJsonObject
+            values.entrySet().forEach { (key, value) ->
+                require(merged.has(key)) { "$key is no ModelerSettings field" }
+                merged.add(key, value)
+            }
+            return GSON.fromJson(merged, ModelerSettings::class.java)
+        }
+
+        private fun readJson(property: String): JsonObject {
+            val path = requireNotNull(System.getProperty(property)) { "$property is unset; run the test through Gradle" }
+            return JsonParser.parseString(Files.readString(Path.of(path))).asJsonObject
+        }
     }
 }
