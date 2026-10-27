@@ -25,7 +25,7 @@ function createServices(lintMode: "external" | "in-page" = "external") {
         host.settings,
         new ArtifactService(host.workspace, host.settings),
     );
-    host.statusBar.showBpmnlintActive("/work/.bpmnlintrc");
+    host.statusBar.showBpmnlint({ state: "active", configPath: "/work/.bpmnlintrc" });
     const participant = new BpmnlintParticipant(lintSvc, locator, host.statusBar, host.notifier);
     return { host, lintSvc, locator, participant };
 }

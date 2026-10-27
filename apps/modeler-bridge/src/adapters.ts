@@ -19,6 +19,7 @@ import { posix } from "node:path";
 import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
+    BpmnlintStatusBarPort,
     ClipboardPort,
     DeployedRevision,
     DeploymentFreshness,
@@ -416,7 +417,7 @@ export class RpcNotifier implements NotifierPort {
  * + engine version; deployment target). The core stays the single source of
  * truth for *what* to show; the host decides *how*.
  */
-export class RpcStatusBar implements StatusBarPort, DeploymentStatusBarPort {
+export class RpcStatusBar implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
     showElementTemplatesLoading(): void {
@@ -457,27 +458,7 @@ export class RpcStatusBar implements StatusBarPort, DeploymentStatusBarPort {
         this.rpc.notify(METHODS.statusBarHideDeploymentTarget, {});
     }
 
-    showBpmnlintActive(): void {
-        /* not supported yet for intellij */
-    }
-
-    showBpmnlintUnresolved(): void {
-        /* not supported yet for intellij */
-    }
-
-    showBpmnlintDefault(): void {
-        /* not supported yet for intellij */
-    }
-
-    showBpmnlintDisabled(): void {
-        /* not supported yet for intellij */
-    }
-
-    showBpmnlintNoConfig(): void {
-        /* not supported yet for intellij */
-    }
-
-    hideBpmnlintStatus(): void {
+    showBpmnlint(): void {
         /* not supported yet for intellij */
     }
 }

@@ -14,27 +14,15 @@ import {
 
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../kernel/domain/errors";
-import {
-    DocumentPort,
-    NotifierPort,
-    SettingsPort,
-    StatusBarPort,
-} from "../../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
-import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
-
-/**
- * Where a set of findings came from, so {@link BpmnLintConfigService.applyFindings}
- * can pick the right status-bar indicator and log line. `"workspace"` is a
- * host-side (escalated) Node run against a discovered `.bpmnlintrc`; `"in-page"`
- * is a webview run — either the zero-config default tier (no `configPath`) or the
- * covered workspace tier (`configPath` set, so it shows the `showBpmnlintActive`
- * indicator rather than `showBpmnlintDefault`).
- */
-type LintFindingsSource =
-    | { kind: "workspace"; configPath: string }
-    | { kind: "in-page"; platform: Engine | undefined; configPath?: string };
+import {
+    BpmnlintIndicator,
+    indicatorForFindings,
+    LintFindingsSource,
+} from "../domain/bpmnlintIndicator";
+import { BpmnlintStatusBarPort, DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 
 /**
  * The last in-page lint event received from the webview for one editor, cached
@@ -129,7 +117,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly locator: BpmnLintConfigLocator,
         private readonly lintRunner: LintRunnerPort,
         private readonly diagnostics: DiagnosticsPort,
-        private readonly statusBar: StatusBarPort,
+        private readonly statusBar: BpmnlintStatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {}
@@ -267,7 +255,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         // failed — so the webview can offer a re-enable affordance.
         if (!this.settings.getLintingEnabled()) {
             this.setExternalMode(editorId);
-            this.showStatusIfFocused(editorId, (statusBar) => statusBar.showBpmnlintDisabled());
+            this.showStatusIfFocused(editorId, { state: "disabled" });
             this.diagnostics.clear(editorId);
             return this.pushDisabled(editorId);
         }
@@ -334,9 +322,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             // Active indicator while its first run is in flight (no cache yet).
             this.lintModes.set(editorId, "in-page");
             this.diagnostics.clear(editorId);
-            this.showStatusIfFocused(editorId, (statusBar) =>
-                statusBar.showBpmnlintActive(configPath),
-            );
+            this.showStatusIfFocused(editorId, { state: "active", configPath });
             return this.postInPageInstruction(editorId, config as BpmnlintConfig, token);
         } catch (error) {
             // A malformed .bpmnlintrc or a linter blow-up must not crash the
@@ -347,7 +333,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             );
             this.setExternalMode(editorId);
             this.negotiations.delete(editorId);
-            this.showStatusIfFocused(editorId, (statusBar) => statusBar.showBpmnlintNoConfig());
+            this.showStatusIfFocused(editorId, { state: "noConfig" });
             this.diagnostics.clear(editorId);
             return this.pushResults(editorId, null);
         }
@@ -384,7 +370,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             );
             this.setExternalMode(editorId);
             this.negotiations.delete(editorId);
-            this.showStatusIfFocused(editorId, (statusBar) => statusBar.showBpmnlintNoConfig());
+            this.showStatusIfFocused(editorId, { state: "noConfig" });
             this.diagnostics.clear(editorId);
             return this.pushResults(editorId, null);
         }
@@ -413,9 +399,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             });
         } else {
             this.diagnostics.clear(editorId);
-            this.showStatusIfFocused(editorId, (statusBar) =>
-                statusBar.showBpmnlintActive(configPath),
-            );
+            this.showStatusIfFocused(editorId, { state: "active", configPath });
         }
         return this.postInPageInstruction(editorId, config, token);
     }
@@ -448,11 +432,10 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         } else {
             this.lastInPageEvents.delete(editorId);
             this.diagnostics.clear(editorId);
-            this.showStatusIfFocused(editorId, (statusBar) =>
-                statusBar.showBpmnlintDefault(
-                    this.detectPlatform(this.vsDocument.getContent(editorId)),
-                ),
-            );
+            this.showStatusIfFocused(editorId, {
+                state: "default",
+                platform: this.detectPlatform(this.vsDocument.getContent(editorId)),
+            });
         }
 
         return this.postInPageInstruction(editorId);
@@ -472,21 +455,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     ): void {
         this.diagnostics.publish(editorId, xml, results);
 
-        this.showStatusIfFocused(editorId, (statusBar) => {
-            if (source.kind === "workspace") {
-                if (unresolved.length > 0) {
-                    statusBar.showBpmnlintUnresolved(source.configPath, [...unresolved]);
-                } else {
-                    statusBar.showBpmnlintActive(source.configPath);
-                }
-            } else if (source.configPath !== undefined) {
-                // Covered workspace tier: linted in-page, but against a real
-                // .bpmnlintrc — surface it as Active, not the zero-config default.
-                statusBar.showBpmnlintActive(source.configPath);
-            } else {
-                statusBar.showBpmnlintDefault(source.platform);
-            }
-        });
+        this.showStatusIfFocused(editorId, indicatorForFindings(source, unresolved));
 
         if (unresolved.length > 0) {
             // Surface skipped rules plainly rather than burying them in the
@@ -540,8 +509,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * The service's only status write. Discovery and host lints are async, so focus
      * is checked when the item is written, not when the run starts.
      */
-    private showStatusIfFocused(editorId: string, show: (statusBar: StatusBarPort) => void): void {
-        if (this.editorStore.isFocused(editorId)) show(this.statusBar);
+    private showStatusIfFocused(editorId: string, indicator: BpmnlintIndicator): void {
+        if (this.editorStore.isFocused(editorId)) this.statusBar.showBpmnlint(indicator);
     }
 
     /**

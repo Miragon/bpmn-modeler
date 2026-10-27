@@ -2,8 +2,9 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../editorSession/domain/EditorSessionParticipant";
-import { NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
+import { NotifierPort } from "../../../kernel/domain/hostPorts";
 import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
+import { BpmnlintStatusBarPort } from "../domain/ports";
 import { BpmnLintConfigLocator } from "../service/BpmnLintConfigLocator";
 import { BpmnLintConfigService } from "../service/BpmnLintConfigService";
 
@@ -34,7 +35,7 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
     constructor(
         private readonly lintSvc: BpmnLintConfigService,
         private readonly locator: BpmnLintConfigLocator,
-        private readonly statusBar: StatusBarPort,
+        private readonly statusBar: BpmnlintStatusBarPort,
         private readonly notifier: NotifierPort,
     ) {}
 
@@ -112,7 +113,9 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
     }
 
     private releaseStatusItem(editorId: string): void {
-        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hideBpmnlintStatus();
+        if (this.statusOwnership.release(editorId) === "hide") {
+            this.statusBar.showBpmnlint({ state: "hidden" });
+        }
     }
 
     private scheduleRelint(session: EditorSessionContext): void {
