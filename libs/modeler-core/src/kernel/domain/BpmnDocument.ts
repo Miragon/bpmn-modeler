@@ -161,11 +161,17 @@ export class BpmnDocument {
     }
 
     /**
-     * Extracts the `modeler:executionPlatformVersion` value, or `undefined` if absent.
+     * The `x.y.z` execution-platform version on the `definitions` root, under the
+     * prefix the root binds to the modeler namespace, or `undefined` when the root
+     * carries none or another shape.
      */
     detectPlatformVersion(): string | undefined {
-        const match = this.xml.match(/modeler:executionPlatformVersion="(\d+\.\d+\.\d+)"/);
-        return match ? match[1] : undefined;
+        const attributes = readDefinitionsStartTag(this.xml)?.attributes;
+        if (!attributes) {
+            return undefined;
+        }
+        const names = executionPlatformAttributeNames(attributes);
+        return attributeNamed(attributes, names.version)?.value.match(/^\d+\.\d+\.\d+$/)?.[0];
     }
 
     /**

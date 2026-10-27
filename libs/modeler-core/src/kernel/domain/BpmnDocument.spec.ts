@@ -132,13 +132,66 @@ describe("BpmnDocument.forNewModel", () => {
 });
 
 describe("BpmnDocument.detectPlatformVersion", () => {
-    it("should return the version string when present", () => {
-        expect(new BpmnDocument(c7Xml).detectPlatformVersion()).toBe("7.20.0");
-        expect(new BpmnDocument(c8Xml).detectPlatformVersion()).toBe("8.5.0");
+    it.each([
+        { given: "a C7 diagram", xml: c7Xml, version: "7.20.0" },
+        { given: "a C8 diagram", xml: c8Xml, version: "8.5.0" },
+        {
+            given: "a diagram that binds the modeler namespace to another prefix",
+            xml: diagram(
+                CUSTOM_PREFIX_MODELER_NAMESPACE,
+                CUSTOM_PREFIX_C8_PLATFORM,
+                customPrefixPlatformVersion("8.8.0"),
+            ),
+            version: "8.8.0",
+        },
+        {
+            given: "a single-quoted attribute",
+            xml: diagram(
+                MODELER_NAMESPACE,
+                C8_PLATFORM,
+                "modeler:executionPlatformVersion='8.8.0'",
+            ),
+            version: "8.8.0",
+        },
+        {
+            given: "a version with a two-digit minor and patch",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.10.12")),
+            version: "8.10.12",
+        },
+        {
+            given: "a version with a two-digit major",
+            xml: diagram(MODELER_NAMESPACE, platformVersion("10.0.0")),
+            version: "10.0.0",
+        },
+    ])("reads $version from $given", ({ xml, version }) => {
+        expect(new BpmnDocument(xml).detectPlatformVersion()).toBe(version);
     });
 
-    it("should return undefined when the attribute is absent", () => {
-        expect(new BpmnDocument(c7XmlNoVersion).detectPlatformVersion()).toBeUndefined();
+    it.each([
+        { given: "a diagram without a version", xml: c7XmlNoVersion },
+        {
+            given: "a two-part version",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.6")),
+        },
+        {
+            given: "a version with leading text",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("v8.8.0")),
+        },
+        {
+            given: "a version with trailing text",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0-alpha")),
+        },
+        {
+            given: "a diagram whose version text appears only in a documentation body",
+            xml: `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${MODELER_NAMESPACE} ${C8_PLATFORM}>
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:documentation>${platformVersion("9.9.9")}</bpmn:documentation>
+  </bpmn:process>
+</bpmn:definitions>`,
+        },
+    ])("reads no version from $given", ({ xml }) => {
+        expect(new BpmnDocument(xml).detectPlatformVersion()).toBeUndefined();
     });
 });
 
