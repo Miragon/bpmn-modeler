@@ -5,11 +5,14 @@ import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.impl.LaterInvocator
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileDocumentSynchronizationVetoer
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.junit5.RunInEdt
 import com.intellij.testFramework.junit5.TestApplication
@@ -137,6 +140,19 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
+    /** Refuses every save, as IntelliJ does for a memory/disk conflict, without an exception. */
+    private fun Fixture.vetoEverySave() {
+        ExtensionTestUtil.addExtensions(
+            FileDocumentSynchronizationVetoer.EP_NAME,
+            listOf(
+                object : FileDocumentSynchronizationVetoer() {
+                    override fun maySaveDocument(document: Document, isSaveExplicit: Boolean) = false
+                },
+            ),
+            Disposer.newDisposable(session.project, "save-veto"),
+        )
+    }
+
     private fun Fixture.dispatchCoreSave() {
         val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId)
         wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, 2)
@@ -203,6 +219,21 @@ class EditorSessionRouterTest {
         assertEquals(2, reply.get("id").asInt)
         assertTrue(reply.getAsJsonObject("result").get("saved").asBoolean)
         assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath))
+    }
+
+    @Test
+    fun `reports a Document that stays unsaved as not saved`() {
+        val f = setUpRouter(INITIAL_XML)
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
+        f.vetoEverySave()
+
+        f.dispatchCoreSave()
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(2, reply.get("id").asInt)
+        assertFalse(reply.getAsJsonObject("result").get("saved").asBoolean)
+        assertTrue(FileDocumentManager.getInstance().isDocumentUnsaved(f.bpmn.document))
+        assertEquals(INITIAL_XML, Files.readString(f.bpmn.nioPath))
     }
 
     @Test
