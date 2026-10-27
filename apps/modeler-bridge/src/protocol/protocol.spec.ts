@@ -153,7 +153,6 @@ describe("RPC protocol descriptor", () => {
                     "  notifier/showInfo",
                     "  notifier/showWarning",
                     "  notifier/showError",
-                    "  notifier/notifyError",
                     "  notifier/openConsole",
                     "  notifier/openDocument",
                     "  notifier/log",

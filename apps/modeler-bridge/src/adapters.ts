@@ -39,6 +39,7 @@ import {
     NEW_MODEL_ENGINE_CHOICES,
     NewModelEngine,
     notifiedErrorLogText,
+    notifiedErrorToastText,
     NotifierPort,
     PickerPort,
     ScriptLanguage,
@@ -370,13 +371,11 @@ export class RpcNotifier implements NotifierPort {
     }
 
     notifyError(context: string, error: Error): void {
-        // Preserve the log-then-toast convention: the host logs the detail and
-        // shows a balloon pairing the caller's context with the error message.
         this.rpc.notify(METHODS.notifierLog, {
             level: "error",
             message: notifiedErrorLogText(context, error),
         });
-        this.rpc.notify(METHODS.notifierNotifyError, { context, message: error.message });
+        this.showError(notifiedErrorToastText(context, error));
     }
 
     openLoggingConsole(): void {

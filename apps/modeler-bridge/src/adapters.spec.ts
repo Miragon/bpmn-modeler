@@ -674,7 +674,7 @@ describe("RpcNotifier", () => {
         });
     });
 
-    it("pairs the caller context with the stack when notifying an error", () => {
+    it("logs the context with the stack and shows the context above the message", () => {
         const { frames, rpc } = harness();
         const error = errorThrownInDeploy("kaput");
 
@@ -686,8 +686,8 @@ describe("RpcNotifier", () => {
                 params: { level: "error", message: `While loading: ${error.stack}` },
             },
             {
-                method: "notifier/notifyError",
-                params: { context: "While loading", message: "kaput" },
+                method: "notifier/showError",
+                params: { message: "While loading\nkaput" },
             },
         ]);
     });

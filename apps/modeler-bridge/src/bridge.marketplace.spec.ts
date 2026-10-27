@@ -219,7 +219,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             hostNotification("marketplace/add", { location: folder, settings: {} }),
         );
 
-        await waitForFrame(frames, (f) => f.method === "notifier/notifyError");
+        await waitForFrame(frames, (f) => f.method === "notifier/showError");
         await settle();
         expect(frames.find((f) => f.method === "marketplaceState/save")).toBeUndefined();
         expect(frames.find((f) => f.method === "notifier/showInfo")).toBeUndefined();
@@ -289,11 +289,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const save = await waitForFrame(frames, isSaveRequest);
         await rpc.handleLine(hostErrorReply(save.id, "disk full"));
 
-        const failure = await waitForFrame(frames, (f) => f.method === "notifier/notifyError");
-        expect(failure.params).toEqual({
-            context: "Failed to add marketplace.",
-            message: "disk full",
-        });
+        const failure = await waitForFrame(frames, (f) => f.method === "notifier/showError");
+        expect(failure.params).toEqual({ message: "Failed to add marketplace.\ndisk full" });
         await settle();
         expect(frames.some(isShowInfo("Marketplace added."))).toBe(false);
         expect(frames.some(isTemplatesQuery(TEMPLATE_NAME))).toBe(false);

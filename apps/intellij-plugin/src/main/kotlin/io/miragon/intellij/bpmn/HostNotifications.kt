@@ -30,9 +30,6 @@ class HostNotifications(private val project: Project) {
 
     fun showError(message: String) = balloon(message, NotificationType.ERROR)
 
-    fun notifyError(context: String, message: String) =
-        balloon("$context\n$message", NotificationType.ERROR)
-
     fun log(level: String?, message: String) {
         val text = "[webview] $message"
         when (level) {

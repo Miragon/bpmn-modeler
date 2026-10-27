@@ -60,9 +60,6 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showWarning") { params, _ -> notifications.showWarning(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }
-            .on("notifier/notifyError") { params, _ ->
-                notifications.notifyError(params.get("context").asString, params.get("message").asString)
-            }
             .on("notifier/openConsole") { _, _ -> notifications.openLoggingConsole() }
             .on("notifier/openDocument") { params, _ -> notifications.openDocument(params.get("path").asString) }
             .on("notifier/log") { params, _ ->
