@@ -120,11 +120,6 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
     }
 
     /**
-     * Shows a native list popup for the core's `PickerPort` and replies with the
-     * chosen item indices, or `null` on dismissal. The host renders only the
-     * chooser; the cancel-vs-throw convention is applied core-side.
-     */
-    /**
      * Modal yes/no listing what is about to be removed.
      *
      * Every path that cannot ask replies `false`: a disposed project or a
@@ -153,6 +148,11 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
         }
     }
 
+    /**
+     * Shows a native list popup for the core's `PickerPort` and replies with the
+     * chosen item indices, or `null` on dismissal. The host renders only the
+     * chooser; the cancel-vs-throw convention is applied core-side.
+     */
     private fun handlePick(params: JsonObject, id: Int?) {
         // A picker prompt is always a request expecting a reply; a missing id
         // would mean nothing to answer, so there is nothing to do.
