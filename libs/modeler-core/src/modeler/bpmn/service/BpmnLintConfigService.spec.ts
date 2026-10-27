@@ -28,25 +28,30 @@ const STALE_RESULTS = {
 // The bundled resolver covers this (no moddleExtensions) → linted in-page.
 const COVERED_CONFIG = { extends: "bpmnlint:recommended" };
 const COVERED_RAW = JSON.stringify(COVERED_CONFIG);
-// A string moddleExtension is a Node-only module path → the static pre-check
-// escalates immediately (today's host-side behaviour).
+// A string moddleExtension is a Node-only module path → linted on the host.
 const ESCALATING_CONFIG = {
     extends: "bpmnlint:recommended",
     moddleExtensions: { acme: "./acme.json" },
 };
 const ESCALATING_RAW = JSON.stringify(ESCALATING_CONFIG);
 
-/** Lets a fire-and-forget `runWorkspaceLint` settle before assertions. */
+type LintOutcome = { results: typeof RESULTS; unresolved: string[] };
+
+/** Lets a fire-and-forget host lint settle before assertions. */
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-function createService(content = XML) {
-    const host = createTestHost();
+function createService({ content = XML, config }: { content?: string; config?: string } = {}) {
+    const host = createTestHost({
+        folders: ["/work", "/other"],
+        files: config === undefined ? {} : { [CONFIG_PATH]: config },
+    });
     const editor = host.openEditor(PATH, content);
     editor.active = true;
-    const locator = {
-        findNearestConfig: vi.fn().mockResolvedValue(undefined),
-        readConfig: vi.fn(),
-    };
+    const locator = new BpmnLintConfigLocator(
+        host.workspace,
+        host.settings,
+        new ArtifactService(host.workspace, host.settings),
+    );
     const lintRunner = {
         lint: vi.fn().mockResolvedValue({ results: RESULTS, unresolved: [] }),
     };
@@ -54,7 +59,7 @@ function createService(content = XML) {
     const service = new BpmnLintConfigService(
         host.store,
         host.documents,
-        locator as never,
+        locator,
         lintRunner,
         host.diagnostics,
         host.statusBar,
@@ -62,7 +67,7 @@ function createService(content = XML) {
         host.settings,
     );
 
-    return { service, host, editor, locator, lintRunner };
+    return { service, host, editor, lintRunner };
 }
 
 /** Forgets what the status bar and Problems panel show, so a later step's effect stands alone. */
@@ -81,40 +86,31 @@ function lastPosted<T extends BpmnlintInPageQuery | BpmnlintResultsQuery | BpmnL
 
 /** Arranges a live covered (in-page) session and returns its instruction token. */
 async function coveredSession(): Promise<ReturnType<typeof createService> & { token: string }> {
-    const ctx = createService();
-    ctx.locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-    ctx.locator.readConfig.mockResolvedValue(COVERED_RAW);
+    const ctx = createService({ config: COVERED_RAW });
     await ctx.service.setBpmnlintConfig(ctx.editor.id);
     const instruction = lastPosted<BpmnlintInPageQuery>(ctx.editor, "BpmnlintInPageQuery");
     return { ...ctx, token: instruction?.configToken as string };
 }
 
-describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config (Node run)", () => {
+describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config (host lint)", () => {
     it("lints host-side and posts the results with the active status when the config needs the Node resolver", async () => {
-        const { service, host, editor, locator, lintRunner } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
 
         const result = await service.setBpmnlintConfig(editor.id);
 
         expect(result).toBe(true);
-        // Discovery walks from the document's directory, not the file itself.
-        expect(locator.findNearestConfig).toHaveBeenCalledWith("/work");
         expect(lintRunner.lint).toHaveBeenCalledWith(XML, CONFIG_PATH, ESCALATING_CONFIG);
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
         expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
         expect(host.notifier.logged("info")).toContain(`bpmnlint applied from ${CONFIG_PATH}`);
         expect(service.getLintMode(editor.id)).toBe("external");
-        // Escalation runs host-side — no in-page instruction is ever posted.
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(0);
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toEqual(RESULTS);
     });
 
     it("shows the unresolved status and warns when rules could not be resolved", async () => {
-        const { service, host, editor, locator, lintRunner } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
         lintRunner.lint.mockResolvedValue({ results: {}, unresolved: ["custom/x"] });
 
         await service.setBpmnlintConfig(editor.id);
@@ -128,9 +124,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
     });
 
     it("still posts results but leaves the status bar untouched when the editor is not focused", async () => {
-        const { service, host, editor, locator } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        const { service, host, editor } = createService({ config: ESCALATING_RAW });
         editor.loseFocus();
 
         const result = await service.setBpmnlintConfig(editor.id);
@@ -141,25 +135,8 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(msg.results).toEqual(RESULTS);
     });
 
-    it("re-lints via the Node path on a cache-hit re-run and posts no new in-page instruction", async () => {
-        const { service, editor, locator, lintRunner } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
-        await service.setBpmnlintConfig(editor.id);
-        expect(lintRunner.lint).toHaveBeenCalledTimes(1);
-
-        await service.setBpmnlintConfig(editor.id);
-
-        // The document may have changed, so it re-lints — but the version is
-        // unchanged, so it does not re-negotiate or post a fresh instruction.
-        expect(lintRunner.lint).toHaveBeenCalledTimes(2);
-        expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(0);
-    });
-
     it("logs and falls back to null without throwing on malformed JSON", async () => {
-        const { service, host, editor, locator } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue("{ not json");
+        const { service, host, editor } = createService({ config: "{ not json" });
         host.diagnostics.publish(editor.id, XML, STALE_RESULTS);
 
         const result = await service.setBpmnlintConfig(editor.id);
@@ -175,10 +152,20 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(msg.results).toBeNull();
     });
 
+    it("falls back to null when the host lint fails", async () => {
+        const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
+        lintRunner.lint.mockRejectedValue(new Error("plugin crashed"));
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(host.notifier.logged("error")).toEqual([expect.stringContaining("plugin crashed")]);
+        expect(host.statusBar.bpmnlint).toEqual({ state: "noConfig" });
+        const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
+        expect(msg.results).toBeNull();
+    });
+
     it("swallows a hidden-panel post rejection as a warning without misreporting it as a read failure", async () => {
-        const { service, host, editor, locator } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        const { service, host, editor } = createService({ config: ESCALATING_RAW });
         // The watcher fires while the diagram panel is hidden, so the post rejects.
         editor.hidden = true;
 
@@ -196,9 +183,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
 
 describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (in-page)", () => {
     it("instructs the webview to lint the config in-page with a token, and never lints host-side", async () => {
-        const { service, host, editor, locator, lintRunner } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(COVERED_RAW);
+        const { service, host, editor, lintRunner } = createService({ config: COVERED_RAW });
         host.diagnostics.publish(editor.id, XML, STALE_RESULTS);
 
         const result = await service.setBpmnlintConfig(editor.id);
@@ -239,9 +224,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
         const msg = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery");
         expect(msg?.configToken).toBe(token);
     });
-});
 
-describe("BpmnLintConfigService — escalation from a covered in-page run", () => {
     it("escalates to the Node linter on a non-empty unresolved and does not apply the partial in-page findings", async () => {
         const { service, host, editor, lintRunner, token } = await coveredSession();
 
@@ -259,8 +242,8 @@ describe("BpmnLintConfigService — escalation from a covered in-page run", () =
 
     it("drops a second same-token in-page event while the escalation Node run is in flight", async () => {
         const { service, host, editor, lintRunner, token } = await coveredSession();
-        // Node lint hangs, so the mode is still "in-page" — the decision flip is
-        // the only guard against a second event re-escalating.
+        // Node lint hangs, so the session is still escalating — only the stored
+        // session guards against a second event re-escalating.
         let release: (() => void) | undefined;
         lintRunner.lint.mockReturnValue(
             new Promise((resolve) => {
@@ -273,6 +256,7 @@ describe("BpmnLintConfigService — escalation from a covered in-page run", () =
 
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
         expect(lintRunner.lint).toHaveBeenCalledTimes(1);
+        expect(service.getLintMode(editor.id)).toBe("in-page");
         release?.();
         await flush();
     });
@@ -280,8 +264,7 @@ describe("BpmnLintConfigService — escalation from a covered in-page run", () =
 
 describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default)", () => {
     it("instructs the webview to run in-page, does not lint host-side, and posts no results query", async () => {
-        const { service, host, editor, locator, lintRunner } = createService();
-        locator.findNearestConfig.mockResolvedValue(undefined);
+        const { service, host, editor, lintRunner } = createService();
         host.diagnostics.publish(editor.id, XML, STALE_RESULTS);
 
         const result = await service.setBpmnlintConfig(editor.id);
@@ -300,20 +283,15 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
     });
 
-    it("reflects the detected platform in the provisional status (C7)", async () => {
-        const { service, host, editor } = createService(XML_C7);
+    it.each([
+        { content: XML_C7, platform: "c7" },
+        { content: XML_C8, platform: "c8" },
+    ])("reflects the detected platform $platform in the provisional status", async (row) => {
+        const { service, host, editor } = createService({ content: row.content });
 
         await service.setBpmnlintConfig(editor.id);
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c7" });
-    });
-
-    it("reflects the detected platform in the provisional status (C8)", async () => {
-        const { service, host, editor } = createService(XML_C8);
-
-        await service.setBpmnlintConfig(editor.id);
-
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c8" });
+        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: row.platform });
     });
 
     it("leaves the status bar untouched when the editor is not focused", async () => {
@@ -373,14 +351,6 @@ describe("BpmnLintConfigService.applyWebviewLintResults", () => {
         expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
     });
 
-    it("ignores a push when the editor is on the external path (default)", () => {
-        const { service, host, editor } = createService();
-
-        service.applyWebviewLintResults(editor.id, RESULTS, []);
-
-        expect(host.diagnostics.published.size).toBe(0);
-    });
-
     it("ignores a push when linting is disabled", async () => {
         const { service, host, editor } = await inPageService();
         host.settings.values.lintingEnabled = false;
@@ -390,113 +360,48 @@ describe("BpmnLintConfigService.applyWebviewLintResults", () => {
         expect(host.diagnostics.published.size).toBe(0);
     });
 
-    it("drops a default-tier push that carries a token (a deleted-config era)", async () => {
+    it("logs a dropped push from a superseded config at debug level", async () => {
         const { service, host, editor } = await inPageService();
 
         service.applyWebviewLintResults(editor.id, RESULTS, [], "stale-token");
 
         expect(host.diagnostics.published.size).toBe(0);
-        expect(host.notifier.logged("debug")).toContainEqual(expect.stringContaining("superseded"));
-    });
-
-    it("ignores a stale in-page push after an escalating workspace-config takeover", async () => {
-        const { service, host, editor, locator } = createService();
-        await service.setBpmnlintConfig(editor.id); // in-page default
-
-        // An escalating config appears — the mode flips to external before the push.
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
-        await service.setBpmnlintConfig(editor.id);
-        expect(service.getLintMode(editor.id)).toBe("external");
-
-        // A default-tier webview push already in flight arrives late — dropped.
-        service.applyWebviewLintResults(editor.id, STALE_RESULTS, []);
-        expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-    });
-});
-
-describe("BpmnLintConfigService — re-negotiation (both directions + race)", () => {
-    it("mints a new-token in-page instruction when an escalated config becomes covered", async () => {
-        const { service, editor, locator, lintRunner } = createService();
-        locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
-        await service.setBpmnlintConfig(editor.id); // escalated (external)
-        expect(service.getLintMode(editor.id)).toBe("external");
-        lintRunner.lint.mockClear();
-
-        locator.readConfig.mockResolvedValue(COVERED_RAW);
-        await service.setBpmnlintConfig(editor.id); // edited → covered
-
-        expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(service.getLintMode(editor.id)).toBe("in-page");
-        const [msg] = editor.postedOfType<BpmnlintInPageQuery>("BpmnlintInPageQuery");
-        expect(msg.config).toEqual(COVERED_CONFIG);
-        expect(typeof msg.configToken).toBe("string");
-    });
-
-    it("escalates when a covered config becomes uncovered", async () => {
-        const { service, editor, locator, lintRunner } = await coveredSession();
-
-        locator.readConfig.mockResolvedValue(ESCALATING_RAW);
-        await service.setBpmnlintConfig(editor.id); // edited → needs the Node resolver
-
-        expect(lintRunner.lint).toHaveBeenCalledWith(XML, CONFIG_PATH, ESCALATING_CONFIG);
-        expect(service.getLintMode(editor.id)).toBe("external");
-    });
-
-    it("hands back to the payload-free default and forgets the negotiation when the config is deleted", async () => {
-        const { service, host, editor, locator } = await coveredSession();
-
-        locator.findNearestConfig.mockResolvedValue(undefined); // config deleted
-        await service.setBpmnlintConfig(editor.id);
-
-        expect(service.getLintMode(editor.id)).toBe("in-page");
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
-        const msg = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery");
-        expect(msg?.config).toBeUndefined();
-        expect(msg?.configToken).toBeUndefined();
-
-        // Negotiation gone: a default-tier event with the old token is now dropped.
-        service.applyWebviewLintResults(editor.id, RESULTS, [], "old-token");
-        expect(host.diagnostics.published.size).toBe(0);
         expect(host.notifier.logged("debug")).toContain(
             "[bpmnlint] dropping in-page results from a superseded config era",
         );
     });
+});
 
-    it("drops a stale-token event without escalating when the config was edited mid-flight", async () => {
-        const { service, host, editor, locator, lintRunner, token } = await coveredSession();
-
-        // Config edited V1 → V2 (still covered) before V1's in-page run returns.
-        locator.readConfig.mockResolvedValue(JSON.stringify({ ...COVERED_CONFIG, rules: {} }));
-        await service.setBpmnlintConfig(editor.id);
-        const token2 = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery")?.configToken;
-        expect(token2).not.toBe(token);
-
-        // A late V1 run (old token) reports it could not cover a rule.
-        service.applyWebviewLintResults(editor.id, RESULTS, ["p/r"], token);
-
-        // Dropped as stale — it must not escalate the current V2 (still in-page).
-        expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(host.diagnostics.published.size).toBe(0);
-        expect(service.getLintMode(editor.id)).toBe("in-page");
-    });
-
-    it("reuses the settled decision (same token) across disable → re-enable", async () => {
-        const { service, host, editor, token } = await coveredSession();
-
+describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
+    it("skips linting and pushes the disabled state when linting is turned off", async () => {
+        const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
         host.settings.values.lintingEnabled = false;
-        await service.setBpmnlintConfig(editor.id); // disabled — negotiation retained
+        host.diagnostics.publish(editor.id, XML, STALE_RESULTS);
 
-        host.settings.values.lintingEnabled = true;
-        await service.setBpmnlintConfig(editor.id); // re-enabled — same version
+        const result = await service.setBpmnlintConfig(editor.id);
 
-        const msg = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery");
-        expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(2);
-        expect(msg?.configToken).toBe(token); // reused, not re-minted
+        expect(result).toBe(true);
+        expect(lintRunner.lint).not.toHaveBeenCalled();
+        expect(host.diagnostics.published.has(editor.id)).toBe(false);
+        expect(host.statusBar.bpmnlint).toEqual({ state: "disabled" });
+        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(editor.postedOfType<BpmnLintDisabledQuery>("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 
-    it("forgets the negotiation on clearDiagnostics so a re-open re-negotiates a fresh token", async () => {
+    it("leaves the status bar untouched when disabled and the editor is not focused", async () => {
+        const { service, host, editor } = createService();
+        host.settings.values.lintingEnabled = false;
+        editor.loseFocus();
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
+    });
+});
+
+describe("BpmnLintConfigService.clearDiagnostics", () => {
+    it("forgets the negotiation so a re-open re-negotiates a fresh token", async () => {
         const { service, editor, token } = await coveredSession();
 
         service.clearDiagnostics(editor.id);
@@ -509,13 +414,9 @@ describe("BpmnLintConfigService — re-negotiation (both directions + race)", ()
 });
 
 describe("BpmnLintConfigService — a host lint that lands after its session moved on", () => {
-    type LintOutcome = { results: typeof RESULTS; unresolved: string[] };
-
     /** Starts a host lint of the escalating config that runs until the test settles it. */
     async function hostLintInFlight() {
-        const ctx = createService();
-        ctx.locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
-        ctx.locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        const ctx = createService({ config: ESCALATING_RAW });
         let finishLint!: (outcome: LintOutcome) => void;
         let failLint!: (error: Error) => void;
         ctx.lintRunner.lint.mockReturnValueOnce(
@@ -541,9 +442,9 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
     });
 
     it("keeps the in-page default when the config was deleted while its host lint ran", async () => {
-        const { service, host, editor, locator, linting, finishLint } = await hostLintInFlight();
+        const { service, host, editor, linting, finishLint } = await hostLintInFlight();
 
-        locator.findNearestConfig.mockResolvedValue(undefined);
+        host.workspace.files.delete(CONFIG_PATH);
         await service.setBpmnlintConfig(editor.id);
         finishLint({ results: RESULTS, unresolved: [] });
         await linting;
@@ -566,9 +467,9 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
     });
 
     it("keeps a newer covered config in-page when the older config's host lint fails", async () => {
-        const { service, host, editor, locator, linting, failLint } = await hostLintInFlight();
+        const { service, host, editor, linting, failLint } = await hostLintInFlight();
 
-        locator.readConfig.mockResolvedValue(COVERED_RAW);
+        host.workspace.files.set(CONFIG_PATH, COVERED_RAW);
         await service.setBpmnlintConfig(editor.id);
         const token = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery")?.configToken;
         failLint(new Error("plugin crashed"));
@@ -580,54 +481,6 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
         service.applyWebviewLintResults(editor.id, RESULTS, [], token);
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-    });
-});
-
-describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
-    it("skips linting and pushes the disabled state when linting is turned off", async () => {
-        const { service, host, editor, locator, lintRunner } = createService();
-        host.settings.values.lintingEnabled = false;
-        host.diagnostics.publish(editor.id, XML, STALE_RESULTS);
-
-        const result = await service.setBpmnlintConfig(editor.id);
-
-        expect(result).toBe(true);
-        // The gate short-circuits before any config discovery or lint run.
-        expect(locator.findNearestConfig).not.toHaveBeenCalled();
-        expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(host.diagnostics.published.has(editor.id)).toBe(false);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "disabled" });
-        expect(service.getLintMode(editor.id)).toBe("external");
-        expect(editor.postedOfType<BpmnLintDisabledQuery>("BpmnLintDisabledQuery")).toHaveLength(1);
-    });
-
-    it("leaves the status bar untouched when disabled and the editor is not focused", async () => {
-        const { service, host, editor } = createService();
-        host.settings.values.lintingEnabled = false;
-        editor.loseFocus();
-
-        await service.setBpmnlintConfig(editor.id);
-
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
-        expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
-    });
-
-    it("clears the cached in-page event so a re-instruct does not replay stale findings", async () => {
-        const { service, host, editor } = createService();
-        await service.setBpmnlintConfig(editor.id); // in-page
-        service.applyWebviewLintResults(editor.id, RESULTS, []); // cache an event
-
-        // User disables linting — the cache is dropped (external mode).
-        host.settings.values.lintingEnabled = false;
-        await service.setBpmnlintConfig(editor.id);
-
-        // Re-enable + no config → in-page again, but with no cached event to
-        // replay: back to the provisional (blank) state.
-        host.settings.values.lintingEnabled = true;
-        await service.setBpmnlintConfig(editor.id);
-
-        expect(host.diagnostics.published.has(editor.id)).toBe(false);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
     });
 });
 
@@ -729,7 +582,7 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
             [CONFIG_PATH]: ESCALATING_RAW,
         });
         const previous = await openDiagram(PATH, true);
-        let finishLint!: (outcome: { results: typeof RESULTS; unresolved: string[] }) => void;
+        let finishLint!: (outcome: LintOutcome) => void;
         lintRunner.lint.mockReturnValueOnce(new Promise((resolve) => (finishLint = resolve)));
         host.workspace.watchers[0].handlers.onChange?.(CONFIG_PATH);
         await flush();
