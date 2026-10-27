@@ -403,7 +403,10 @@ const sessionParticipantContract = moduleAt(
     "domain",
     "EditorSessionParticipant.ts",
 );
+const editorSessionStore = moduleAt("editorSession", "service", "EditorSessionStore.ts");
+const editorSessionLifecycle = moduleAt("editorSession", "service", "EditorSessionLifecycle.ts");
 const kernelErrors = moduleAt("kernel", "domain", "errors.ts");
+const kernelHostPorts = moduleAt("kernel", "domain", "hostPorts.ts");
 const artifactService = moduleAt("kernel", "service", "ArtifactService.ts");
 const marketplaceService = moduleAt(
     "template-marketplace",
@@ -424,6 +427,10 @@ const LAYERED_GRAPH: readonly ImportEdge[] = [
     edge(deploymentService, artifactService),
     edge(deploymentParticipant, deploymentService),
     edge(deploymentParticipant, sessionParticipantContract),
+    edge(deploymentService, editorSessionStore),
+    edge(editorSessionLifecycle, editorSessionStore),
+    edge(editorSessionLifecycle, sessionParticipantContract),
+    edge(editorSessionLifecycle, kernelHostPorts),
     edge(deploymentFeature, deploymentService),
     edge(deploymentFeature, camundaClient),
     edge(deploymentHandlers, deploymentService),
@@ -493,6 +500,11 @@ describe("module classification", () => {
             path: "kernel/infrastructure/FetchHttpClient.ts",
             feature: "kernel",
             layer: "infrastructure",
+        },
+        {
+            path: "editorSession/session/DocumentRenderParticipant.ts",
+            feature: "editorSession",
+            layer: "session",
         },
         {
             path: "modeler/bpmn/session/BpmnlintParticipant.ts",
@@ -614,6 +626,11 @@ describe("rules on a synthetic graph", () => {
             name: "domain → feature root",
             violations: domainLayerViolations,
             offending: edge(deploymentTarget, deploymentFeature),
+        },
+        {
+            name: "domain → an editorSession service",
+            violations: domainLayerViolations,
+            offending: edge(deploymentTarget, editorSessionStore),
         },
         {
             name: "feature → another feature",
