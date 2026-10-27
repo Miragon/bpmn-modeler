@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { LogInfoCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
 
 import { RecordingNotifier } from "../../testing";
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
-import { registerWebviewNotificationHandlers } from "./webviewNotificationHandlers";
+import { WebviewMessageRouter } from "../service/WebviewMessageRouter";
+import { registerWebviewNotificationHandlers } from "./webviewNotificationMessageHandlers";
 
 const EDITOR = "file:///w/a.bpmn";
 

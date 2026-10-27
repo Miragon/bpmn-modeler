@@ -1,8 +1,8 @@
 import { Command, NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort } from "../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
-import { MessageHandler } from "../../shared/infrastructure/WebviewMessageRouter";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
+import { MessageHandler } from "../../editorSession/service/WebviewMessageRouter";
 import { FormReferenceStatusService } from "../service/FormReferenceStatusService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
 

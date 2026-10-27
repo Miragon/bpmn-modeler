@@ -1,6 +1,6 @@
 import { EditorSessionContext, EditorSessionParticipant } from "../domain/EditorSessionParticipant";
 import { LoggerPort } from "../../kernel/domain/hostPorts";
-import { ModelerDocumentService } from "../infrastructure/EditorDocumentSync";
+import { ModelerDocumentService } from "../service/EditorDocumentSync";
 
 /**
  * Owns a modeler editor's render lifecycle: registers the document session,

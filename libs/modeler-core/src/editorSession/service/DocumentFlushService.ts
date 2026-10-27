@@ -5,8 +5,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort } from "../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
-import { MessageHandler } from "../infrastructure/WebviewMessageRouter";
+import { EditorSessionStore } from "./EditorSessionStore";
+import { MessageHandler } from "./WebviewMessageRouter";
 
 export type DocumentFlushResult =
     | { status: "clean" }

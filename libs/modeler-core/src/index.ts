@@ -25,25 +25,23 @@ export * from "./kernel/service/ArtifactService";
 export * from "./kernel/infrastructure/FetchHttpClient";
 export * from "./kernel/infrastructure/nonce";
 
-// ── shared: domain ──────────────────────────────────────────────────────────
-export * from "./shared/domain/EditorSession";
-export * from "./shared/domain/EditorSessionParticipant";
-export * from "./shared/domain/session";
-
-// ── shared: service + vscode-free infrastructure ────────────────────────────
-export * from "./shared/service/DocumentFlushService";
-export * from "./shared/service/PendingEditsFlush";
-export * from "./shared/infrastructure/EditorSessionDocuments";
-export * from "./shared/infrastructure/EditorSessionLifecycle";
-export * from "./shared/infrastructure/EditorDocumentSync";
-export * from "./shared/infrastructure/documentMessageHandlers";
-export * from "./shared/session/DocumentRenderParticipant";
-export * from "./shared/infrastructure/EditorSessionStore";
-export * from "./shared/infrastructure/WebviewMessageRouter";
-export * from "./shared/infrastructure/webviewLogHandlers";
-export * from "./shared/infrastructure/webviewNotificationHandlers";
-export * from "./shared/infrastructure/orderedDocumentDispatch";
-export * from "./shared/infrastructure/webviewFocusHandlers";
+// ── editorSession ────────────────────────────────────────────────────────────
+export * from "./editorSession/domain/EditorSession";
+export * from "./editorSession/domain/EditorSessionParticipant";
+export * from "./editorSession/domain/session";
+export * from "./editorSession/service/DocumentFlushService";
+export * from "./editorSession/service/EditorDocumentSync";
+export * from "./editorSession/service/EditorSessionDocuments";
+export * from "./editorSession/service/EditorSessionLifecycle";
+export * from "./editorSession/service/EditorSessionStore";
+export * from "./editorSession/service/orderedDocumentDispatch";
+export * from "./editorSession/service/PendingEditsFlush";
+export * from "./editorSession/service/WebviewMessageRouter";
+export * from "./editorSession/service/webviewLog";
+export * from "./editorSession/session/DocumentRenderParticipant";
+export * from "./editorSession/infrastructure/documentMessageHandlers";
+export * from "./editorSession/infrastructure/webviewFocusMessageHandlers";
+export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
 export * from "./modeler/bpmn/domain/model";

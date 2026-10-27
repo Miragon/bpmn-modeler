@@ -2,7 +2,7 @@ import { BpmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-sh
 
 import { SettingBuilder } from "../domain/model";
 import { NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /**
  * Pushes user-facing modeler settings (toolbar layout, theme, language, …)

@@ -1,7 +1,7 @@
 import {
     EditorSessionContext,
     EditorSessionParticipant,
-} from "../../shared/domain/EditorSessionParticipant";
+} from "../../editorSession/domain/EditorSessionParticipant";
 import { FormReferenceStatusService } from "../service/FormReferenceStatusService";
 
 /** Releases form-status watchers when their BPMN editor session closes. */

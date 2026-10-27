@@ -1,7 +1,7 @@
 import { posix } from "path";
 
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";

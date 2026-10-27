@@ -8,7 +8,7 @@ import {
     UpdateLintResultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { MessageHandler } from "../../../shared/infrastructure/WebviewMessageRouter";
+import { MessageHandler } from "../../../editorSession/service/WebviewMessageRouter";
 import { BpmnClipboardMediator } from "../service/BpmnClipboardMediator";
 import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
 import { BpmnLayoutService } from "../service/BpmnLayoutService";

@@ -1,6 +1,6 @@
 import { Command } from "@miragon/bpmn-modeler-shared";
 
-import { MessageHandler } from "../../../shared/infrastructure/WebviewMessageRouter";
+import { MessageHandler } from "../../../editorSession/service/WebviewMessageRouter";
 import { DmnSettingsBroadcaster } from "../service/DmnSettingsBroadcaster";
 
 /** `GetDmnModelerSettingCommand` → broadcast the current color theme and language. */

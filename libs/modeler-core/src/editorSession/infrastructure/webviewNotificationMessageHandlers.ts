@@ -1,5 +1,5 @@
 import { NotifierPort } from "../../kernel/domain/hostPorts";
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
+import { WebviewMessageRouter } from "../service/WebviewMessageRouter";
 
 /**
  * Registers the webview's {@link ShowInfoCommand} on `router`, surfacing it as

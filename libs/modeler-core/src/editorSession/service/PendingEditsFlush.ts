@@ -1,6 +1,6 @@
 import { LoggerPort } from "../../kernel/domain/hostPorts";
-import { ModelerDocumentService } from "../infrastructure/EditorDocumentSync";
-import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
+import { ModelerDocumentService } from "./EditorDocumentSync";
+import { EditorSessionStore } from "./EditorSessionStore";
 import { DocumentFlushService } from "./DocumentFlushService";
 
 export type PendingEditsFlushResult =

@@ -1,7 +1,7 @@
 import {
     EditorSessionContext,
     EditorSessionParticipant,
-} from "../../shared/domain/EditorSessionParticipant";
+} from "../../editorSession/domain/EditorSessionParticipant";
 import { DefinitionSearchService } from "../service/DefinitionSearchService";
 
 /** Releases the definition index's watchers when their BPMN editor session closes. */

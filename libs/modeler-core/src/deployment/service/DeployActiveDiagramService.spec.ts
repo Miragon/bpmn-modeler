@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DocumentFlushedCommand, FlushDocumentQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentFlushService } from "../../shared/service/DocumentFlushService";
-import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
+import { DocumentFlushService } from "../../editorSession/service/DocumentFlushService";
+import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { NoAuth } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";

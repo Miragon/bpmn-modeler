@@ -9,8 +9,8 @@ import { describe, expect, it } from "vitest";
  * (`node:*`, `fs`, `http`). Pure Node utilities that exist in any Node host
  * (`path`, `Buffer`) are allowed; they are not host capabilities.
  *
- * Inside the core, layers point inward, features meet only in `shared/` and
- * `kernel/`, and `kernel/` imports nothing outside itself. Each exception
+ * Inside the core, layers point inward, features meet only in `kernel/` and
+ * `editorSession/`, and `kernel/` imports nothing outside itself. Each exception
  * below names the issue that removes it, and an exception the code no longer
  * needs fails the gate, so the lists only shrink.
  */
@@ -42,42 +42,19 @@ const LAYER_FOLDERS: readonly Layer[] = ["domain", "service", "session", "infras
 const APPLICATION_LAYERS: readonly Layer[] = ["service", "session"];
 const DOMAIN_PACKAGES: readonly string[] = ["@miragon/bpmn-modeler-types", "path"];
 const KERNEL_FEATURE = "kernel";
-const SUBSTRATE: readonly string[] = ["shared", KERNEL_FEATURE];
+const SUBSTRATE: readonly string[] = [KERNEL_FEATURE, "editorSession"];
 const INBOUND_ADAPTER = /MessageHandlers\.ts$/;
 
 const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
     {
-        from: "shared/domain/EditorSession.ts",
+        from: "editorSession/domain/EditorSession.ts",
         to: "@miragon/bpmn-modeler-shared",
-        until: "#1828 moves the editor session out of shared/",
+        until: "#1828 splits EditorHandle out of the editor-session events",
     },
     {
         from: "scriptTask/domain/ScriptVariableStore.ts",
         to: "@miragon/bpmn-modeler-shared",
         until: "#1834 moves processVariables into modeler-types",
-    },
-];
-
-const SERVICE_INFRASTRUCTURE_EXCEPTIONS: readonly KnownException[] = [
-    {
-        from: "*",
-        to: "shared/infrastructure/EditorSessionStore.ts",
-        until: "#1828 moves the editor-session core into editorSession/",
-    },
-    {
-        from: "*",
-        to: "shared/infrastructure/EditorDocumentSync.ts",
-        until: "#1828 moves the editor-session core into editorSession/",
-    },
-    {
-        from: "*",
-        to: "shared/infrastructure/WebviewMessageRouter.ts",
-        until: "#1828 moves the editor-session core into editorSession/",
-    },
-    {
-        from: "*",
-        to: "shared/infrastructure/webviewLogHandlers.ts",
-        until: "#1828 moves the editor-session core into editorSession/",
     },
 ];
 
@@ -379,7 +356,7 @@ const LAYER_RULES = [
         exceptions: [],
     },
     {
-        rule: "a feature reaches another feature only through shared/ or kernel/",
+        rule: "a feature reaches another feature only through kernel/ or editorSession/",
         violations: crossFeatureViolations,
         exceptions: [],
     },
@@ -389,9 +366,9 @@ const LAYER_RULES = [
         exceptions: [],
     },
     {
-        rule: "services and session participants import only the listed infrastructure",
+        rule: "services and session participants import no infrastructure",
         violations: serviceToInfrastructureViolations,
-        exceptions: SERVICE_INFRASTRUCTURE_EXCEPTIONS,
+        exceptions: [],
     },
     {
         rule: "only inbound *MessageHandlers adapters in infrastructure import services",
@@ -426,7 +403,11 @@ const deploymentParticipant = moduleAt("deployment", "session", "DeploymentStatu
 const deploymentFeature = moduleAt("deployment", "root", "DeploymentFeature.ts");
 const camundaClient = moduleAt("deployment", "infrastructure", "camunda/Camunda7RestClient.ts");
 const deploymentHandlers = moduleAt("deployment", "infrastructure", "deploymentMessageHandlers.ts");
-const sessionParticipantContract = moduleAt("shared", "domain", "EditorSessionParticipant.ts");
+const sessionParticipantContract = moduleAt(
+    "editorSession",
+    "domain",
+    "EditorSessionParticipant.ts",
+);
 const kernelErrors = moduleAt("kernel", "domain", "errors.ts");
 const artifactService = moduleAt("kernel", "service", "ArtifactService.ts");
 const marketplaceService = moduleAt(
@@ -645,7 +626,7 @@ describe("rules on a synthetic graph", () => {
             offending: edge(gitHubSource, deploymentPorts),
         },
         {
-            name: "shared → a feature",
+            name: "editorSession → a feature",
             violations: crossFeatureViolations,
             offending: edge(sessionParticipantContract, deploymentTarget),
         },
@@ -655,7 +636,7 @@ describe("rules on a synthetic graph", () => {
             offending: edge(fetchHttpClient, deploymentPorts),
         },
         {
-            name: "kernel → shared",
+            name: "kernel → editorSession",
             violations: kernelImportViolations,
             offending: edge(artifactService, sessionParticipantContract),
         },

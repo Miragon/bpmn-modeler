@@ -8,8 +8,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { RecordingNotifier } from "../../testing";
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
-import { registerWebviewLogHandlers, routeWebviewLogCommand } from "./webviewLogHandlers";
+import { WebviewMessageRouter } from "../service/WebviewMessageRouter";
+import { registerWebviewLogHandlers, routeWebviewLogCommand } from "../service/webviewLog";
 
 const EDITOR = "file:///w/a.bpmn";
 

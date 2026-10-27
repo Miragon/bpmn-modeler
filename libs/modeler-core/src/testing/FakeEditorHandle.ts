@@ -5,7 +5,7 @@ import {
     EditorHandle,
     EditorSubscription,
     SettingChange,
-} from "../shared/domain/EditorSession";
+} from "../editorSession/domain/EditorSession";
 
 class Listeners<T> {
     private readonly callbacks = new Set<(event: T) => void>();

@@ -1,7 +1,7 @@
 import { TakeFocusQuery } from "@miragon/bpmn-modeler-shared";
 
-import { EditorSessionStore } from "./EditorSessionStore";
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
+import { EditorSessionStore } from "../service/EditorSessionStore";
+import { WebviewMessageRouter } from "../service/WebviewMessageRouter";
 
 /**
  * Registers the webview's {@link RequestFocusCommand} on `router`. Only the

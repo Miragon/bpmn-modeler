@@ -20,7 +20,7 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 

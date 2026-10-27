@@ -16,8 +16,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { ArtifactService } from "../kernel/service/ArtifactService";
-import { DocumentFlushService } from "../shared/service/DocumentFlushService";
-import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
+import { DocumentFlushService } from "../editorSession/service/DocumentFlushService";
+import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
 import { createTestHost, PickerAnswers } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";

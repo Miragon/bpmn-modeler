@@ -1,8 +1,8 @@
-import { EditorSessionParticipant } from "../shared/domain/EditorSessionParticipant";
-import { EditorSessionDocuments } from "../shared/infrastructure/EditorSessionDocuments";
-import { EditorSessionLifecycle } from "../shared/infrastructure/EditorSessionLifecycle";
-import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
-import { WebviewMessageRouter } from "../shared/infrastructure/WebviewMessageRouter";
+import { EditorSessionParticipant } from "../editorSession/domain/EditorSessionParticipant";
+import { EditorSessionDocuments } from "../editorSession/service/EditorSessionDocuments";
+import { EditorSessionLifecycle } from "../editorSession/service/EditorSessionLifecycle";
+import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
+import { WebviewMessageRouter } from "../editorSession/service/WebviewMessageRouter";
 import { DocumentChangeStream, FakeEditorHandle } from "./FakeEditorHandle";
 import {
     InMemorySecretStore,
