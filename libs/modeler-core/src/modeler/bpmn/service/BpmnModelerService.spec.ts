@@ -58,6 +58,15 @@ function holdNextPick(host: TestHost) {
     return (version: string) => finishPick(version);
 }
 
+// engineVersionStatusView.spec pins the whole view; these rows pin which diagram's version shows.
+function engineVersionShown(host: TestHost): string | undefined {
+    return host.statusBar.views.engineVersion?.text;
+}
+
+function showEngineVersion(host: TestHost, text: string): void {
+    host.statusBar.show("engineVersion", { text, tone: "neutral" });
+}
+
 describe("BpmnModelerService.display", () => {
     it("renders a valid document and shows its engine version", async () => {
         const { service, host, editor } = createService(C8_DOC);
@@ -70,7 +79,7 @@ describe("BpmnModelerService.display", () => {
         expect(msg.engine).toBe("c8");
         expect(msg.defaultMode).toBe("implement");
         expect(msg.locale).toBe("de");
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.8.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.8.0)");
     });
 
     it("seeds an empty document with the picked platform before rendering", async () => {
@@ -88,7 +97,7 @@ describe("BpmnModelerService.display", () => {
     it("routes an untagged document to an engine-neutral render without rewriting it", async () => {
         const { service, host, editor } = createService(NO_PLATFORM_DOC);
         editor.active = true;
-        host.statusBar.showEngineVersion("c8", "8.8.0");
+        showEngineVersion(host, "Camunda 8 (8.8.0)");
 
         const rendered = await service.display(editor.id);
 
@@ -96,7 +105,7 @@ describe("BpmnModelerService.display", () => {
         const [msg] = editor.postedOfType<BpmnFileQuery>("BpmnFileQuery");
         expect(msg.engine).toBeUndefined();
         expect(msg.content).toBe(NO_PLATFORM_DOC);
-        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(engineVersionShown(host)).toBeUndefined();
         // No stamp-on-open: the untagged document is never written back.
         expect(editor.content).toBe(NO_PLATFORM_DOC);
         expect(editor.saveCount).toBe(0);
@@ -105,7 +114,7 @@ describe("BpmnModelerService.display", () => {
     it("leaves the focused editor's engine version alone when a background editor re-renders", async () => {
         const { service, host, editor } = createService(C8_DOC);
         editor.active = true;
-        host.statusBar.showEngineVersion("c8", "8.8.0");
+        showEngineVersion(host, "Camunda 8 (8.8.0)");
         const background = host.openEditor("/work/other.bpmn", NO_PLATFORM_DOC);
         service.registerSession(background.id);
 
@@ -113,7 +122,7 @@ describe("BpmnModelerService.display", () => {
 
         expect(rendered).toBe(true);
         expect(background.postedOfType("BpmnFileQuery")).toHaveLength(1);
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.8.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.8.0)");
     });
 
     it("does not report an error when the editor closes while its render is posted", async () => {
@@ -128,7 +137,7 @@ describe("BpmnModelerService.display", () => {
 
         expect(rendered).toBe(true);
         expect(host.notifier.errors).toEqual([]);
-        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(engineVersionShown(host)).toBeUndefined();
     });
 
     it("scaffolds an engine-neutral document when the neutral choice is picked", async () => {
@@ -292,7 +301,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         await service.changeEngineVersion(editor.id);
 
         expect(editor.content).toContain('modeler:executionPlatformVersion="8.5.0"');
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.5.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.5.0)");
         expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(1);
     });
 
@@ -305,7 +314,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         await service.changeEngineVersion(editor.id);
 
         expect(editor.content).toContain('modeler:executionPlatformVersion="7.22.0"');
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c7", version: "7.22.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 7 (7.22.0)");
         expect(host.notifier.infos).toEqual([]);
     });
 
@@ -318,7 +327,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         await service.changeEngineVersion(editor.id);
 
         expect(editor.content).toContain('cm:executionPlatformVersion="8.5.0"');
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.5.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.5.0)");
         expect(host.notifier.infos).toEqual([]);
     });
 
@@ -330,7 +339,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
         expect(result).toBe(false);
         expect(host.notifier.infos).toEqual([VERSION_NOT_CHANGED]);
-        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(engineVersionShown(host)).toBeUndefined();
         expect(editor.content).toBe(C8_DOC);
         expect(editor.postedOfType("BpmnFileQuery")).toEqual([]);
     });
@@ -345,7 +354,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
         expect(await changing).toBe(false);
         expect(host.notifier.infos).toEqual([VERSION_NOT_CHANGED]);
-        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(engineVersionShown(host)).toBeUndefined();
         expect(editor.content).toBe(C8_DOC);
     });
 
@@ -360,7 +369,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         await service.changeEngineVersion(editor.id);
 
         expect(host.notifier.infos).toEqual([]);
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.5.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.5.0)");
         expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(1);
     });
 
@@ -424,12 +433,12 @@ describe("BpmnModelerService.changeEngineVersion", () => {
             "/work/focused.bpmn",
             BpmnDocument.empty("c7", "7.22.0").xml,
         ).becomeActive();
-        host.statusBar.showEngineVersion("c7", "7.22.0");
+        showEngineVersion(host, "Camunda 7 (7.22.0)");
 
         await service.changeEngineVersion(editor.id);
 
         expect(editor.content).toContain('modeler:executionPlatformVersion="8.5.0"');
-        expect(host.statusBar.engineVersion).toEqual({ platform: "c7", version: "7.22.0" });
+        expect(engineVersionShown(host)).toBe("Camunda 7 (7.22.0)");
     });
 
     it("informs and returns false for an untagged diagram with no engine version", async () => {
@@ -463,7 +472,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         expect(await changing).toBe(false);
         expect(editor.content).toBe(C8_DOC);
         expect(replacement.content).toBe(C8_DOC);
-        expect(host.statusBar.engineVersion).toBeUndefined();
+        expect(engineVersionShown(host)).toBeUndefined();
     });
 });
 

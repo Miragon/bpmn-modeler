@@ -21,6 +21,7 @@ import { FOCUS_BPMN_DIAGRAM_MESSAGE } from "@miragon/bpmn-modeler-core";
 import {
     hostNotification,
     hostReply,
+    isStatusSlotUpdate,
     registerParams,
     settle,
     waitForFrame,
@@ -132,11 +133,8 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
 
             await rpc.handleLine(hostReply(write.id, { changed: true, accepted: true }));
 
-            const status = await waitForFrame(
-                frames,
-                (f) => f.method === "statusBar/showEngineVersion",
-            );
-            expect(status.params).toEqual({ platform: "c7", version: pickedVersion });
+            const status = await waitForFrame(frames, isStatusSlotUpdate("engineVersion"));
+            expect(status.params.view).toMatchObject({ text: `Camunda 7 (${pickedVersion})` });
         });
 
         it("writes and reports nothing when the user dismisses the version picker", async () => {
@@ -169,9 +167,7 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
 
             const afterRejection = frames.slice(afterWrite);
             expect(afterRejection.filter(isShowInfo(VERSION_NOT_CHANGED))).toHaveLength(1);
-            expect(
-                afterRejection.filter((f) => f.method === "statusBar/showEngineVersion"),
-            ).toEqual([]);
+            expect(afterRejection.filter(isStatusSlotUpdate("engineVersion"))).toEqual([]);
             expect(postedQueries(afterRejection, "BpmnFileQuery")).toEqual([]);
 
             const beforeReload = frames.length;
