@@ -169,18 +169,16 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
-    it("deploys an unmodified diagram whose save returns false", async () => {
+    it("aborts when the host reports that the save failed", async () => {
         const c = createService();
         vi.spyOn(c.editor, "save").mockResolvedValue(false);
 
         await c.service.deployActive("/work");
 
-        expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
-            [FILE_PATH],
-            target,
-            expect.any(NoAuth),
-            "/work",
-        );
+        expect(c.host.notifier.errors).toEqual([
+            "The diagram could not be saved, so it was not deployed.",
+        ]);
+        expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
     it("saves before deploying", async () => {
