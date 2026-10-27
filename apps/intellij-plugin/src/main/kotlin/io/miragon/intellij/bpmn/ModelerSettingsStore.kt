@@ -183,7 +183,7 @@ class ModelerSettingsStore {
         private const val DEFAULT_C8_API_VERSION = "v2"
         internal const val DEFAULT_COLOR_THEME = "automatic"
         internal const val DEFAULT_DEFAULT_MODE = "implement"
-        private const val DEFAULT_LANGUAGE = "en"
+        internal const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
         private val DEFAULT_FAVOURITE_ELEMENTS =
             listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway")
