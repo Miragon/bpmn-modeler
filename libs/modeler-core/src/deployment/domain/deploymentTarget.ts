@@ -631,18 +631,14 @@ function parseAuth(raw: unknown, index: number): ParsedAuth {
     };
 }
 
-/**
- * Every field is validated so a literal secret under another auth type's key
- * still fails loudly; the target's {@link TargetAuth} keeps only its own refs.
- */
+/** Every key is validated, so a literal secret under another auth type's key still fails loudly. */
 function parseCredentialRefs(auth: Record<string, unknown>, index: number): CredentialRefs {
-    const username = parseCredentialRef(auth.username, index, "auth.username");
-    const password = parseCredentialRef(auth.password, index, "auth.password");
-    const clientId = parseCredentialRef(auth.clientId, index, "auth.clientId");
-    const clientSecret = parseCredentialRef(auth.clientSecret, index, "auth.clientSecret");
-    return auth.type === "oauth2"
-        ? CredentialRefs.oauth2(clientId, clientSecret)
-        : CredentialRefs.basic(username, password);
+    return CredentialRefs.ofFields({
+        username: parseCredentialRef(auth.username, index, "auth.username"),
+        password: parseCredentialRef(auth.password, index, "auth.password"),
+        clientId: parseCredentialRef(auth.clientId, index, "auth.clientId"),
+        clientSecret: parseCredentialRef(auth.clientSecret, index, "auth.clientSecret"),
+    });
 }
 
 function parseCredentialRef(raw: unknown, index: number, field: string): string | undefined {

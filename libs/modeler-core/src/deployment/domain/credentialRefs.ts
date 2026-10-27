@@ -34,8 +34,14 @@ export class CredentialRefs {
         return new CredentialRefs(undefined, undefined, clientId, clientSecret);
     }
 
-    static ofFields(_fields: CredentialRefFields): CredentialRefs {
-        return CredentialRefs.none();
+    /** Every key it is given: a target's `TargetAuth` keeps only those of its own type. */
+    static ofFields(fields: CredentialRefFields): CredentialRefs {
+        return new CredentialRefs(
+            fields.username,
+            fields.password,
+            fields.clientId,
+            fields.clientSecret,
+        );
     }
 
     static of(auth: AuthConfig): CredentialRefs {
