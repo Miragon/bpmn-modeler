@@ -11,6 +11,7 @@ import {
 import {
     readSettingsSnapshot,
     settingsNormalizationCases,
+    TYPESCRIPT_ONLY_SETTINGS_CASES,
 } from "@miragon/bpmn-modeler-core/testing";
 
 import { settle } from "./__fixtures__/bridgeHarness";
@@ -356,16 +357,19 @@ describe("BridgeSettings", () => {
         expect(settings.getLintingEnabled()).toBe(DEFAULT_LINTING_ENABLED);
     });
 
-    it.each(SHARED_SETTINGS_CASES)("$name", ({ raw, normalized }) => {
-        const settings = new BridgeSettings();
+    it.each([...SHARED_SETTINGS_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
+        "$name",
+        ({ raw, normalized }) => {
+            const settings = new BridgeSettings();
 
-        settings.apply(raw);
+            settings.apply(raw);
 
-        expect(readSettingsSnapshot(settings)).toEqual({
-            ...DEFAULT_MODELER_SETTINGS,
-            ...normalized,
-        });
-    });
+            expect(readSettingsSnapshot(settings)).toEqual({
+                ...DEFAULT_MODELER_SETTINGS,
+                ...normalized,
+            });
+        },
+    );
 
     it("fires no change for values that read as the current ones", () => {
         const settings = new BridgeSettings();

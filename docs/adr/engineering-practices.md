@@ -138,6 +138,9 @@ it a test input, so a changed row reruns the test, and the `intellij-plugin`
 CI filter lists the file. A mirrored Kotlin table would drift like the rule it
 copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
+Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
+wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
+and every TypeScript host runs them beside the JSON rows.
 
 ### Coverage gates
 
