@@ -128,7 +128,7 @@ host.postMessage(command);
 
 **Host receives Commands** — the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`, registered in `composition/editorFeature.ts`:
 ```typescript
-// handler factory (libs/modeler-core/src/shared/infrastructure/documentMessageHandlers.ts),
+// handler factory (libs/modeler-core/src/editorSession/infrastructure/documentMessageHandlers.ts),
 // shared by the BPMN, DMN and Form editors
 export function syncDocumentHandler(service: ModelerDocumentService): MessageHandler<SyncDocumentCommand> {
   return async (sync, editorId) => {
@@ -300,7 +300,7 @@ See `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`.
 - **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`)
-- **Message router**: `libs/modeler-core/src/shared/infrastructure/WebviewMessageRouter.ts`
+- **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`
 - **Host API interface + implementations** (`HostApi`/`HostApiImpl`/`MockHostApi`): `libs/shared/src/lib/host.ts`

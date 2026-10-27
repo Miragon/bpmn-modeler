@@ -123,15 +123,15 @@ Services operate on the active editor by default. The echo-prevention guard is p
 ## Key Files
 
 - **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
-- **Session lifecycle + participant contract**: `libs/modeler-core/src/shared/infrastructure/EditorSessionLifecycle.ts`, `libs/modeler-core/src/shared/domain/EditorSessionParticipant.ts`
+- **Session lifecycle + participant contract**: `libs/modeler-core/src/editorSession/service/EditorSessionLifecycle.ts`, `libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts`
 - **Shared participants / handlers**: `libs/modeler-core/src/<feature>/session/`, `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch` `infrastructure/*MessageHandlers.ts`)
 - **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/*/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts` (inline scripts, linting switch)
-- **Message router**: `libs/modeler-core/src/shared/infrastructure/WebviewMessageRouter.ts` (host-agnostic; moved to modeler-core)
+- **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts` (host-agnostic)
 - **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
-- **Editor session store**: `libs/modeler-core/src/shared/infrastructure/EditorSessionStore.ts` (`vscode`-free registry; moved to modeler-core)
-- **Editor handle**: `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts` (concrete VS Code adapter; stays in the app)
-- **Document Adapter**: `libs/modeler-core/src/shared/infrastructure/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store; moved to modeler-core)
+- **Editor session store**: `libs/modeler-core/src/editorSession/service/EditorSessionStore.ts` (`vscode`-free registry)
+- **Editor handle**: contract `libs/modeler-core/src/editorSession/service/EditorHandle.ts`; VS Code adapter `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts`
+- **Session documents**: `libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store)
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`
 - **Editor wiring**: `apps/vscode-plugin/src/composition/editorFeature.ts`; **activation**: `apps/vscode-plugin/src/main.ts`
