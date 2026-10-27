@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { LocateResult } from "../../kernel/domain/locateResult";
 import { PickerAnswers, RecordingNotifier, ScriptedPicker } from "../../testing";
-import { LocateImplementationResult } from "./ImplementationLocator";
 import { ImplementationNavigationService } from "./ImplementationNavigationService";
 
-function createService(result: LocateImplementationResult, answers: PickerAnswers = {}) {
+function createService(result: LocateResult, answers: PickerAnswers = {}) {
     const locator = {
         resolve: vi.fn().mockResolvedValue(result),
     };
@@ -26,9 +26,11 @@ describe("ImplementationNavigationService.navigate", () => {
 
         expect(picker.prompts).toHaveLength(1);
         const { method, args } = picker.prompts[0];
-        expect(method).toBe("searchAndPickReferencedModel");
-        expect(args[0]).toContain("com.example.MyDelegate");
-        expect(args[0]).toContain("class");
+        expect(method).toBe("searchAndPickLocatedFile");
+        expect(args[0]).toEqual({
+            searchingPlaceholder: 'Searching for class "com.example.MyDelegate"…',
+            pickPlaceholder: "Select the referenced model to open",
+        });
         // The scripted picker calls the thunk itself, so a pre-resolved result would throw.
         expect(locator.resolve).toHaveBeenCalled();
     });
@@ -65,7 +67,7 @@ describe("ImplementationNavigationService.navigate", () => {
                 paths: ["/src/A.java", "/src/B.java"],
                 readFailures: [],
             },
-            { referencedModel: "/src/B.java" },
+            { locatedFile: "/src/B.java" },
         );
 
         await service.navigate("t", "jobType");

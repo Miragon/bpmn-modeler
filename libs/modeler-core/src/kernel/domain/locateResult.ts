@@ -12,6 +12,7 @@ export type LocateResult =
     | { kind: "all-unreadable"; attempted: number; failures: string[] }
     | { kind: "matches"; paths: string[]; readFailures: string[] };
 
+/** What a {@link LocateResult} leaves to do: tell the user, open the file, or let them pick. */
 export type LocatedFile =
     | { kind: "noScope" }
     | { kind: "unreadable"; failures: readonly string[] }
@@ -20,6 +21,18 @@ export type LocatedFile =
     | { kind: "ambiguous"; paths: readonly string[]; readFailures: readonly string[] };
 
 export function classifyLocateResult(result: LocateResult): LocatedFile {
-    void result;
-    return { kind: "noScope" };
+    if (result.kind === "no-search-scope") {
+        return { kind: "noScope" };
+    }
+    if (result.kind === "all-unreadable") {
+        return { kind: "unreadable", failures: result.failures };
+    }
+    const { paths, readFailures } = result;
+    if (paths.length === 0) {
+        return { kind: "notFound", readFailures };
+    }
+    if (paths.length === 1) {
+        return { kind: "single", path: paths[0], readFailures };
+    }
+    return { kind: "ambiguous", paths, readFailures };
 }

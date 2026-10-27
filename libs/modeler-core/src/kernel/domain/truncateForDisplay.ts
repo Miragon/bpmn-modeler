@@ -1,4 +1,4 @@
+/** Shortens `value` to at most `maxLength` characters, marking a cut with `…`. */
 export function truncateForDisplay(value: string, maxLength: number): string {
-    void maxLength;
-    return value;
+    return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`;
 }

@@ -4,7 +4,8 @@ import { DeploymentPickerPort } from "../deployment/domain/ports";
 import { MigrationScope } from "../migration/domain/MigrationPlan";
 import { MigrationPickerPort } from "../migration/domain/ports";
 import { UserCancelledError } from "../kernel/domain/errors";
-import { PickerPort } from "../kernel/domain/hostPorts";
+import { LocatePrompts, PickerPort } from "../kernel/domain/hostPorts";
+import { classifyLocateResult, LocateResult } from "../kernel/domain/locateResult";
 import { NewModelEngine } from "../kernel/domain/newModelEngine";
 
 export interface PickerAnswers {
@@ -14,7 +15,7 @@ export interface PickerAnswers {
     workspaceFiles?: string[];
     payloadFile?: { filePath: string; label: string };
     scriptLanguage?: string;
-    referencedModel?: string;
+    locatedFile?: string;
     confirmDestructive?: boolean;
     deploymentTarget?: string;
     deploymentStatusAction?: "switch" | "verify";
@@ -70,14 +71,14 @@ export class ScriptedPicker implements PickerPort, DeploymentPickerPort, Migrati
         return this.answers.scriptLanguage;
     }
 
-    async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
-        placeholder: string,
-        search: () => Promise<R>,
-    ): Promise<{ outcome: R; chosen?: string }> {
-        this.prompts.push({ method: "searchAndPickReferencedModel", args: [placeholder] });
+    async searchAndPickLocatedFile(
+        prompts: LocatePrompts,
+        search: () => Promise<LocateResult>,
+    ): Promise<{ outcome: LocateResult; chosen?: string }> {
+        this.prompts.push({ method: "searchAndPickLocatedFile", args: [prompts] });
         const outcome = await search();
-        const isMultiMatch = (outcome.paths?.length ?? 0) > 1;
-        return { outcome, chosen: isMultiMatch ? this.answers.referencedModel : undefined };
+        const isAmbiguous = classifyLocateResult(outcome).kind === "ambiguous";
+        return { outcome, chosen: isAmbiguous ? this.answers.locatedFile : undefined };
     }
 
     async confirmDestructive(options: {

@@ -1,4 +1,5 @@
 import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
+import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
 
@@ -33,12 +34,15 @@ export class ImplementationNavigationService {
         sourceDocumentPath?: string,
     ): Promise<void> {
         const label = ImplementationTarget.of(kind, reference).label;
-        const display = truncate(reference, REFERENCE_DISPLAY_LIMIT);
+        const display = truncateForDisplay(reference, REFERENCE_DISPLAY_LIMIT);
         // The picker shows the search spinner on the list itself; this service
         // still owns the 0/1/error messaging. `picked` is set only on a
         // multi-match pick.
-        const { outcome: result, chosen: picked } = await this.picker.searchAndPickReferencedModel(
-            `Searching for ${label} "${truncate(reference, PROGRESS_LABEL_LIMIT)}"…`,
+        const { outcome: result, chosen: picked } = await this.picker.searchAndPickLocatedFile(
+            {
+                searchingPlaceholder: `Searching for ${label} "${truncateForDisplay(reference, PROGRESS_LABEL_LIMIT)}"…`,
+                pickPlaceholder: "Select the referenced model to open",
+            },
             () => this.locator.resolve(reference, kind, sourceDocumentPath),
         );
 
@@ -83,8 +87,4 @@ export class ImplementationNavigationService {
             this.notifier.showError(`Could not open ${chosen}: ${(error as Error).message}`);
         }
     }
-}
-
-function truncate(value: string, max: number): string {
-    return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }

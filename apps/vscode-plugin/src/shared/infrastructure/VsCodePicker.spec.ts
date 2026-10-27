@@ -94,7 +94,7 @@ vi.mock("./extensionContext", () => ({
     setContext: vi.fn(),
 }));
 
-import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { LocateResult, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { VsCodePicker } from "./VsCodePicker";
 import type { VsCodeWorkspace } from "./VsCodeWorkspace";
@@ -141,13 +141,22 @@ beforeEach(() => {
     vi.useRealTimers();
 });
 
-describe("VsCodePicker.searchAndPickReferencedModel", () => {
+const LOCATE_PROMPTS = {
+    searchingPlaceholder: "Searching…",
+    pickPlaceholder: "Select the file to open",
+};
+
+describe("VsCodePicker.searchAndPickLocatedFile", () => {
     it("returns the untouched outcome and the picked path for multiple matches", async () => {
         pickBehavior = { action: "accept", index: 0 };
         const sut = new VsCodePicker(stubWorkspace());
-        const outcome = { kind: "matches", paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn"] };
+        const outcome: LocateResult = {
+            kind: "matches",
+            paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn"],
+            readFailures: [],
+        };
 
-        const result = await sut.searchAndPickReferencedModel("Searching…", async () => outcome);
+        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => outcome);
 
         // Outcome passes through untouched so the service can branch on it.
         expect(result.outcome).toBe(outcome);
@@ -158,15 +167,16 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
         pickBehavior = { action: "accept", index: 0 };
         const sut = new VsCodePicker(stubWorkspace());
 
-        await sut.searchAndPickReferencedModel("Searching…", async () => ({
+        await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
             kind: "matches",
             paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn", "/repo/src/m.bpmn"],
+            readFailures: [],
         }));
 
         const qp = lastQuickPick();
         expect(qp.show).toHaveBeenCalled();
         expect(qp.busy).toBe(false);
-        expect(qp.placeholder).toBe("Select the referenced model to open");
+        expect(qp.placeholder).toBe("Select the file to open");
         // Sorted by workspace-relative description so nearby files surface first.
         expect(qp.items.map((i) => i.path)).toEqual([
             "/repo/lib/a.bpmn",
@@ -182,9 +192,10 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
         pickBehavior = { action: "hide" };
         const sut = new VsCodePicker(stubWorkspace());
 
-        const result = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
             kind: "matches",
             paths: ["/a.bpmn", "/b.bpmn"],
+            readFailures: [],
         }));
 
         expect(result.chosen).toBeUndefined();
@@ -194,9 +205,10 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
     it("never reveals a list for a single match and leaves chosen undefined", async () => {
         const sut = new VsCodePicker(stubWorkspace());
 
-        const result = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
             kind: "matches",
             paths: ["/a.bpmn"],
+            readFailures: [],
         }));
 
         const qp = lastQuickPick();
@@ -209,11 +221,12 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
     it("never reveals a list for zero matches or a non-matches outcome", async () => {
         const sut = new VsCodePicker(stubWorkspace());
 
-        const empty = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+        const empty = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
             kind: "matches",
             paths: [],
+            readFailures: [],
         }));
-        const noScope = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+        const noScope = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
             kind: "no-search-scope",
         }));
 
@@ -223,12 +236,11 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
 
     it("reveals a busy list only after the ~150 ms delay while the search runs", async () => {
         vi.useFakeTimers();
-        let resolveSearch!: (r: { kind: string; paths: string[] }) => void;
-        const search = () =>
-            new Promise<{ kind: string; paths: string[] }>((res) => (resolveSearch = res));
+        let resolveSearch!: (r: LocateResult) => void;
+        const search = () => new Promise<LocateResult>((res) => (resolveSearch = res));
         const sut = new VsCodePicker(stubWorkspace());
 
-        const pending = sut.searchAndPickReferencedModel("Searching…", search);
+        const pending = sut.searchAndPickLocatedFile(LOCATE_PROMPTS, search);
         const qp = lastQuickPick();
 
         // Before the delay elapses the list stays hidden.
@@ -241,7 +253,7 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
         expect(qp.placeholder).toBe("Searching…");
 
         // A single-match result then hides the spinner without populating items.
-        resolveSearch({ kind: "matches", paths: ["/a.bpmn"] });
+        resolveSearch({ kind: "matches", paths: ["/a.bpmn"], readFailures: [] });
         await pending;
         expect(qp.hide).toHaveBeenCalled();
     });
@@ -251,9 +263,10 @@ describe("VsCodePicker.searchAndPickReferencedModel", () => {
         const sut = new VsCodePicker(stubWorkspace());
 
         // Search resolves before the 150 ms timer, so the list never shows.
-        const result = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
             kind: "matches",
             paths: ["/a.bpmn"],
+            readFailures: [],
         }));
 
         const qp = lastQuickPick();

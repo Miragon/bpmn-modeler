@@ -1,4 +1,6 @@
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { LocateResult } from "../../kernel/domain/locateResult";
+import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
 import {
     escapeRegex,
@@ -8,20 +10,6 @@ import {
 
 // Max length of a reference id echoed back into a user-facing log line.
 const ID_DISPLAY_LIMIT = 100;
-
-/**
- * Outcome of locating models that declare a process, decision, or form id.
- *
- * - `no-search-scope` — nothing to search: no workspace folder open and no
- *   source URI to fall back to.
- * - `all-unreadable` — the search returned candidates but every read failed.
- * - `matches` — candidates were searched.  `paths` may be empty (nothing
- *   declared the id), or contain one or more absolute paths.
- */
-export type LocateResult =
-    | { kind: "no-search-scope" }
-    | { kind: "all-unreadable"; attempted: number; failures: string[] }
-    | { kind: "matches"; paths: string[]; readFailures: string[] };
 
 export interface FormDeclaration {
     id: string;
@@ -51,7 +39,7 @@ export class ReferencedModelLocator {
         kind: ReferenceKind,
         sourceDocumentPath?: string,
     ): Promise<LocateResult> {
-        const id = truncate(referenceId, ID_DISPLAY_LIMIT);
+        const id = truncateForDisplay(referenceId, ID_DISPLAY_LIMIT);
         this.notifier.logInfo(
             `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
@@ -150,8 +138,4 @@ export class ReferencedModelLocator {
             `<(?:[\\w-]+:)?${tag}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegex(referenceId)}["']`,
         );
     }
-}
-
-function truncate(value: string, max: number): string {
-    return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }

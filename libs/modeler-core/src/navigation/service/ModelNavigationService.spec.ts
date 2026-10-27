@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { LocateResult } from "../../kernel/domain/locateResult";
 import { PickerAnswers, RecordingNotifier, ScriptedPicker } from "../../testing";
 import { ModelNavigationService } from "./ModelNavigationService";
-import { LocateResult } from "./ReferencedModelLocator";
 
 function createService(result: LocateResult, answers: PickerAnswers = {}) {
     const locator = {
@@ -28,8 +28,11 @@ describe("ModelNavigationService.navigate", () => {
 
         expect(picker.prompts).toHaveLength(1);
         const { method, args } = picker.prompts[0];
-        expect(method).toBe("searchAndPickReferencedModel");
-        expect(args[0]).toContain("ProcessB");
+        expect(method).toBe("searchAndPickLocatedFile");
+        expect(args[0]).toEqual({
+            searchingPlaceholder: 'Searching for process "ProcessB"…',
+            pickPlaceholder: "Select the referenced model to open",
+        });
         // The scripted picker calls the thunk itself, so a pre-resolved result would throw.
         expect(locator.findDeclaringFiles).toHaveBeenCalled();
     });
@@ -66,7 +69,7 @@ describe("ModelNavigationService.navigate", () => {
                 paths: ["/a.bpmn", "/b.bpmn"],
                 readFailures: [],
             },
-            { referencedModel: "/b.bpmn" },
+            { locatedFile: "/b.bpmn" },
         );
 
         await service.navigate("Shared", "process");

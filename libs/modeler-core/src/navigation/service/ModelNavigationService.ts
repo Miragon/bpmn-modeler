@@ -1,4 +1,5 @@
 import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
+import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
 
 import { ReferencedModelLocator } from "./ReferencedModelLocator";
@@ -30,12 +31,15 @@ export class ModelNavigationService {
         kind: ReferenceKind,
         sourceDocumentPath?: string,
     ): Promise<void> {
-        const display = truncate(referenceId, REFERENCE_ID_DISPLAY_LIMIT);
+        const display = truncateForDisplay(referenceId, REFERENCE_ID_DISPLAY_LIMIT);
         // The picker shows the search spinner on the list itself; this service
         // still owns the 0/1/error messaging. `picked` is set only on a
         // multi-match pick.
-        const { outcome: result, chosen: picked } = await this.picker.searchAndPickReferencedModel(
-            `Searching for ${kind} "${truncate(referenceId, PROGRESS_LABEL_LIMIT)}"…`,
+        const { outcome: result, chosen: picked } = await this.picker.searchAndPickLocatedFile(
+            {
+                searchingPlaceholder: `Searching for ${kind} "${truncateForDisplay(referenceId, PROGRESS_LABEL_LIMIT)}"…`,
+                pickPlaceholder: "Select the referenced model to open",
+            },
             () => this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentPath),
         );
 
@@ -80,8 +84,4 @@ export class ModelNavigationService {
             this.notifier.showError(`Could not open ${chosen}: ${(error as Error).message}`);
         }
     }
-}
-
-function truncate(value: string, max: number): string {
-    return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }

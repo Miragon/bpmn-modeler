@@ -16,6 +16,7 @@ export * from "./kernel/domain/errors";
 export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/domain/hostPorts";
 export * from "./kernel/domain/http";
+export * from "./kernel/domain/locateResult";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
 export * from "./kernel/domain/rootContainment";
