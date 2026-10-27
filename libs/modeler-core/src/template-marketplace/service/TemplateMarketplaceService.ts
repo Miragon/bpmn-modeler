@@ -27,7 +27,7 @@ import {
     SourceFetchOutcome,
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
-import { MarketplaceCache } from "../infrastructure/MarketplaceCache";
+import { MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";

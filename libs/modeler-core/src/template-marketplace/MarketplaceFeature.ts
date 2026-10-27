@@ -13,7 +13,7 @@ import {
 import { GitHubSource } from "./infrastructure/GitHubSource";
 import { GitLabSource } from "./infrastructure/GitLabSource";
 import { LocalFileSource } from "./infrastructure/LocalFileSource";
-import { MarketplaceCache } from "./infrastructure/MarketplaceCache";
+import { MarketplaceCache } from "./service/MarketplaceCache";
 import { TemplateMarketplaceService } from "./service/TemplateMarketplaceService";
 
 export interface MarketplaceHostPorts {

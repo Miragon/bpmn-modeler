@@ -90,16 +90,6 @@ const SERVICE_INFRASTRUCTURE_EXCEPTIONS: readonly KnownException[] = [
         to: "shared/infrastructure/webviewLogHandlers.ts",
         until: "#1828 moves the editor-session core into editorSession/",
     },
-    {
-        from: "*",
-        to: "template-marketplace/infrastructure/MarketplaceCache.ts",
-        until: "#1845 makes the store a port or moves it out of infrastructure",
-    },
-    {
-        from: "*",
-        to: "diff/infrastructure/DiffPaneStore.ts",
-        until: "#1845 makes the store a port or moves it out of infrastructure",
-    },
 ];
 
 /** Source files under `src/`, as root-relative POSIX-ish paths, specs excluded. */

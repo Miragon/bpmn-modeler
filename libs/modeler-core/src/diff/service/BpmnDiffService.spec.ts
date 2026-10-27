@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
 import { DiffPaneHandle } from "../domain/DiffSession";
-import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
+import { DiffPaneStore } from "./DiffPaneStore";
 import { BpmnDiffService } from "./BpmnDiffService";
 
 // ─── Sample BPMN ──────────────────────────────────────────────────────────────
