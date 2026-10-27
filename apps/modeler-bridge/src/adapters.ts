@@ -32,6 +32,7 @@ import {
     EditorHandle,
     EditorSubscription,
     errorLogText,
+    LegacyStatusBarPort,
     LocatePrompts,
     LocateResult,
     MigrationPickerPort,
@@ -45,7 +46,6 @@ import {
     ScriptLanguage,
     SecretStorePort,
     SettingChange,
-    StatusBarPort,
     summarizeAffectedItems,
     TokenPromptPort,
     TokenStorePort,
@@ -418,12 +418,14 @@ export class RpcNotifier implements NotifierPort {
 }
 
 /**
- * Forwards every {@link StatusBarPort} and {@link DeploymentStatusBarPort} call
- * to the host, which owns the actual `StatusBarWidget`s (element-template count
- * + engine version; deployment target). The core stays the single source of
- * truth for *what* to show; the host decides *how*.
+ * Forwards every {@link LegacyStatusBarPort} and {@link DeploymentStatusBarPort}
+ * call to the host, which owns the actual `StatusBarWidget`s (element-template
+ * count + engine version; deployment target). The core stays the single source
+ * of truth for *what* to show; the host decides *how*.
  */
-export class RpcStatusBar implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort {
+export class RpcStatusBar
+    implements LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+{
     constructor(private readonly rpc: Rpc) {}
 
     showElementTemplatesLoading(): void {

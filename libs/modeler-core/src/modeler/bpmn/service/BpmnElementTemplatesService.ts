@@ -2,7 +2,7 @@ import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
+import { DocumentPort, LegacyStatusBarPort, NotifierPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
 import {
@@ -47,7 +47,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: DocumentPort,
         private readonly artifactSvc: ArtifactService,
-        private readonly statusBar: StatusBarPort,
+        private readonly statusBar: LegacyStatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly marketplaceSvc?: CachedTemplateProvider,
     ) {}

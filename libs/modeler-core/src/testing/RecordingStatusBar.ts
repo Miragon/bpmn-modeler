@@ -2,7 +2,7 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentFreshness } from "../deployment/domain/deploymentLedger";
 import { DeploymentStatusBarPort } from "../deployment/domain/ports";
-import { StatusBarPort } from "../kernel/domain/hostPorts";
+import { LegacyStatusBarPort, StatusBarPort } from "../kernel/domain/hostPorts";
 import { StatusSlot, StatusView } from "../kernel/domain/statusView";
 import { BpmnlintIndicator } from "../modeler/bpmn/domain/bpmnlintIndicator";
 import { BpmnlintStatusBarPort } from "../modeler/bpmn/domain/ports";
@@ -19,9 +19,12 @@ export interface DeploymentTargetStatus {
     readonly verifiedAt?: string;
 }
 
-/** Holds what each status-bar item currently shows, as the real adapters do. */
+/**
+ * Holds what each status-bar item currently shows, as the real adapters do. A
+ * transient view stays in {@link views}, since the auto-hide is the hosts' timer.
+ */
 export class RecordingStatusBar
-    implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+    implements StatusBarPort, LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
 {
     elementTemplates: ElementTemplatesStatus = { state: "hidden" };
     engineVersion: { platform: Engine; version: string } | undefined;
@@ -29,12 +32,13 @@ export class RecordingStatusBar
     deploymentTarget: DeploymentTargetStatus | undefined;
     views: Partial<Record<StatusSlot, StatusView>> = {};
 
-    show(_slot: StatusSlot, _view: StatusView): void {
-        // Recorded once the port carries slots.
+    show(slot: StatusSlot, view: StatusView): void {
+        this.views = { ...this.views, [slot]: view };
     }
 
-    hide(_slot: StatusSlot): void {
-        // Recorded once the port carries slots.
+    hide(slot: StatusSlot): void {
+        const { [slot]: _hidden, ...shown } = this.views;
+        this.views = shown;
     }
 
     showElementTemplatesLoading(): void {

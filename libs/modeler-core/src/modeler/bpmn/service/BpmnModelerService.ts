@@ -5,10 +5,10 @@ import { getVersions } from "../../../kernel/domain/engineVersions";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
     DocumentPort,
+    LegacyStatusBarPort,
     NotifierPort,
     PickerPort,
     SettingsPort,
-    StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
@@ -28,7 +28,7 @@ export class BpmnModelerService {
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: DocumentPort,
         private readonly picker: PickerPort,
-        private readonly statusBar: StatusBarPort,
+        private readonly statusBar: LegacyStatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {

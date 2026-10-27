@@ -18,6 +18,7 @@ import { Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { LocateResult } from "./locateResult";
 import { NewModelEngine } from "./newModelEngine";
+import { StatusSlot, StatusView } from "./statusView";
 
 /**
  * Levelled diagnostic logging to the host's log surface (VS Code's
@@ -275,10 +276,17 @@ export interface DocumentPort {
 }
 
 /**
- * Status-bar indicators for element-template loading and the active engine
- * version. State (which items exist) is owned by the adapter.
+ * The status items the core shows, one view per slot. The host only places a
+ * slot and renders its view; a later `show` or `hide` of a slot cancels the
+ * pending auto-hide of its transient view.
  */
 export interface StatusBarPort {
+    show(slot: StatusSlot, view: StatusView): void;
+    hide(slot: StatusSlot): void;
+}
+
+/** The widget-shaped status methods, kept until every caller shows its slot through {@link StatusBarPort}. */
+export interface LegacyStatusBarPort {
     showElementTemplatesLoading(): void;
     showElementTemplatesReady(count: number): void;
     hideElementTemplatesStatus(): void;
