@@ -72,10 +72,10 @@ export class BpmnSettingsBroadcaster {
     subscribe(editorId: string): void {
         this.editorStore.subscribeToSettingChangeEvent(editorId, (event, id) => {
             if (
-                event.affectsConfiguration("miragon.bpmnModeler.alignToOrigin") ||
-                event.affectsConfiguration("miragon.bpmnModeler.showTransactionBoundaries") ||
-                event.affectsConfiguration("miragon.bpmnModeler.colorTheme") ||
-                event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")
+                event.affects("alignToOrigin") ||
+                event.affects("showTransactionBoundaries") ||
+                event.affects("colorTheme") ||
+                event.affects("favouriteBpmnElements")
             ) {
                 // The change listener has no caller to await it, so guard the
                 // floating promise even though setSettings already logs its own
@@ -86,7 +86,7 @@ export class BpmnSettingsBroadcaster {
                     );
                 });
             }
-            if (event.affectsConfiguration("miragon.bpmnModeler.language")) {
+            if (event.affects("language")) {
                 this.setLanguage(id);
             }
         });

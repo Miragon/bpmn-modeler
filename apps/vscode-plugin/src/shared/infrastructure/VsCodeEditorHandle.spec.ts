@@ -42,6 +42,8 @@ vi.mock("./bootstrapWebview", () => ({
 
 import { workspace } from "vscode";
 
+import { SettingChange } from "@miragon/bpmn-modeler-core";
+
 import { bootstrapWebview } from "./bootstrapWebview";
 import { VsCodeEditorHandle } from "./VsCodeEditorHandle";
 
@@ -345,5 +347,24 @@ describe("VsCodeEditorHandle.onDidChangeDocument", () => {
         expect(edit.documentPath()).toBe("/ws/other.bpmn");
         expect(edit.hasContentChanges()).toBe(true);
         expect(saveOnly.hasContentChanges()).toBe(false);
+    });
+});
+
+describe("VsCodeEditorHandle.onDidChangeSetting", () => {
+    it("looks a setting key up below the miragon.bpmnModeler section", () => {
+        const received = vi.fn<(change: SettingChange) => void>();
+        createHandle(makePanel(), makeDocument()).onDidChangeSetting(received);
+        const listener = vi.mocked(workspace.onDidChangeConfiguration).mock.calls[0][0] as (
+            event: unknown,
+        ) => void;
+
+        listener({
+            affectsConfiguration: (section: string) =>
+                section === "miragon.bpmnModeler.scripting.spin",
+        });
+
+        const [[change]] = received.mock.calls;
+        expect(change.affects("scripting.spin")).toBe(true);
+        expect(change.affects("language")).toBe(false);
     });
 });

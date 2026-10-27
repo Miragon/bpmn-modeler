@@ -15,7 +15,7 @@ describe("BpmnSettingsParticipant", () => {
         ]);
 
         host.settings.values.language = "de";
-        editor.changeSetting("miragon.bpmnModeler.language");
+        editor.changeSetting("language");
 
         expect(editor.postedOfType<LanguageQuery>("LanguageQuery")).toEqual([
             new LanguageQuery("de"),

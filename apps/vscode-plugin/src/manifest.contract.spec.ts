@@ -61,6 +61,7 @@ import {
     DMN_VIEW_TYPE,
     FORM_VIEW_TYPE,
     parseSetting,
+    SettingKey,
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 
@@ -206,11 +207,11 @@ describe("package.json ↔ code contract", () => {
         expect(bpmn?.priority).toEqual({ textEditor: "default", diffEditor: "default" });
     });
 
-    it("keeps config keys in sync between manifest and VsCodeSettings", () => {
-        const declaredKeys = Object.keys(manifest.contributes.configuration.properties)
-            .filter((key) => key.startsWith(`${CONFIG_NAMESPACE}.`))
-            .map((key) => key.slice(CONFIG_NAMESPACE.length + 1));
+    const declaredKeys = Object.keys(manifest.contributes.configuration.properties)
+        .filter((key) => key.startsWith(`${CONFIG_NAMESPACE}.`))
+        .map((key) => key.slice(CONFIG_NAMESPACE.length + 1));
 
+    it("keeps config keys in sync between manifest and VsCodeSettings", () => {
         // This check assumes all config access is centralized in
         // `VsCodeSettings.ts` with string-literal keys — a key read elsewhere, or
         // built from a computed expression, would silently drift past this regex.
@@ -225,6 +226,26 @@ describe("package.json ↔ code contract", () => {
         ].map((match) => match[1]);
 
         expect(new Set(readKeys)).toEqual(new Set(declaredKeys));
+    });
+
+    it("names setting changes by exactly the keys the manifest declares", () => {
+        // A `Record` literal makes the compiler hold this list to the SettingKey union.
+        const settingKeys: Record<SettingKey, true> = {
+            "alignToOrigin": true,
+            "showTransactionBoundaries": true,
+            "configFolder": true,
+            "persistCodeLinkMap": true,
+            "c8ApiVersion": true,
+            "colorTheme": true,
+            "defaultMode": true,
+            "favouriteBpmnElements": true,
+            "language": true,
+            "scripting.spin": true,
+            "marketplaces": true,
+            "linting.enabled": true,
+        };
+
+        expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));
     });
 
     it("gives the core and its in-memory settings the defaults the manifest declares", () => {

@@ -763,10 +763,6 @@ describe("BridgeSettings", () => {
 
         settings.apply({ scriptingSpin: false });
 
-        expect(
-            changes.map((change) =>
-                change.affectsConfiguration("miragon.bpmnModeler.scripting.spin"),
-            ),
-        ).toEqual([true]);
+        expect(changes.map((change) => change.affects("scripting.spin"))).toEqual([true]);
     });
 });

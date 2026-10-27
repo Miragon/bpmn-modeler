@@ -183,8 +183,11 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     onDidChangeSetting(callback: (event: SettingChange) => void): EditorSubscription {
-        // `ConfigurationChangeEvent` already satisfies `SettingChange` structurally.
-        return workspace.onDidChangeConfiguration((event) => callback(event));
+        return workspace.onDidChangeConfiguration((event) =>
+            callback({
+                affects: (key) => event.affectsConfiguration(`miragon.bpmnModeler.${key}`),
+            }),
+        );
     }
 
     /**
