@@ -65,7 +65,7 @@ export class DeploymentStatusService {
     ): Promise<EnvLookup> {
         try {
             return await this.envResolver.createLookup(
-                destination.envScope,
+                destination,
                 documentDir,
                 destination.ledgerEnvRefs(),
             );

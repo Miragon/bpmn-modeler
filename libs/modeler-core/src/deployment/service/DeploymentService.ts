@@ -32,6 +32,7 @@ import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";
+import { storeCredentials } from "./storeCredentials";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -179,11 +180,7 @@ export class DeploymentService {
         try {
             const fileContents = await this.readFileContents(config);
             const documentDir = path.dirname(config.mainFilePath);
-            const lookup = await this.envResolver.createLookup(
-                destination.envScope,
-                documentDir,
-                config,
-            );
+            const lookup = await this.envResolver.createLookup(destination, documentDir, config);
             const requestConfig = config.expandEnvRefs(lookup);
             if (destination.requiresApproval(requestConfig)) {
                 await this.credentialApproval.ensureApproved(
@@ -209,7 +206,7 @@ export class DeploymentService {
                 );
             }
             outcome = await this.remember(outcome, "credentials", () =>
-                this.saveSecrets(persistence.auth, persistence.secretSlot),
+                storeCredentials(this.secretStore, persistence.auth, persistence.secretSlot),
             );
             outcome = await this.remember(outcome, "ledgerRow", () =>
                 this.deploymentStatus.recordDeployment(
@@ -261,11 +258,7 @@ export class DeploymentService {
                     .withAuth(auth)
                     .withDeployUrl(target.deployUrl)
                     .build();
-                pendingLookup ??= this.envResolver.createLookup(
-                    destination.envScope,
-                    documentDir,
-                    config,
-                );
+                pendingLookup ??= this.envResolver.createLookup(destination, documentDir, config);
                 const envLookup = await pendingLookup;
                 const requestConfig = config.expandEnvRefs(envLookup);
                 // One answer covers the batch: every file goes to the same target.
@@ -333,14 +326,6 @@ export class DeploymentService {
         await this.deploymentState.saveAuthType(auth.type);
         if (auth.type === "oauth2") {
             await this.deploymentState.saveOAuth2Config(auth.tokenEndpoint, auth.audience);
-        }
-    }
-
-    private async saveSecrets(auth: AuthConfig, slot?: string): Promise<void> {
-        if (auth.type === "basic") {
-            await this.secretStore.saveBasicAuth(auth.username, auth.password, slot);
-        } else if (auth.type === "oauth2") {
-            await this.secretStore.saveOAuth2(auth.clientId, auth.clientSecret, slot);
         }
     }
 

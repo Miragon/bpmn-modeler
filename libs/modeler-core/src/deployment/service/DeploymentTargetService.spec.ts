@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
 import { createTestHost, TestHostOptions } from "../../testing";
@@ -12,7 +13,11 @@ import {
     TargetsLocation,
     UnknownTarget,
 } from "../domain/deploymentDestination";
-import { serializeDeploymentTargets, DeploymentTarget } from "../domain/deploymentTarget";
+import {
+    serializeDeploymentTargets,
+    DeploymentTarget,
+    TargetAuthType,
+} from "../domain/deploymentTarget";
 import { DeploymentTargetService, toTargetPayload } from "./DeploymentTargetService";
 
 const CONFIG_FOLDER = ".camunda";
@@ -30,7 +35,20 @@ function fileWith(...targets: DeploymentTarget[]): string {
     return serializeDeploymentTargets(targets);
 }
 
-function target(name: string, overrides: Partial<DeploymentTarget> = {}): DeploymentTarget {
+/** The positional constructor's arguments after the name. */
+interface TargetOverrides {
+    readonly engine?: Engine;
+    readonly endpoint?: string;
+    readonly tenantId?: string;
+    readonly authType?: TargetAuthType;
+    readonly tokenEndpoint?: string;
+    readonly audience?: string;
+    readonly deployUrl?: string;
+    readonly startInstanceUrl?: string;
+    readonly credentialRefs?: CredentialRefs;
+}
+
+function target(name: string, overrides: TargetOverrides = {}): DeploymentTarget {
     return new DeploymentTarget(
         name,
         overrides.engine ?? "c7",
@@ -781,26 +799,6 @@ describe("DeploymentTargetService.createTarget", () => {
     });
 });
 
-it("returns OAuth metadata even when this machine has no credentials", async () => {
-    const c = createService({
-        files: {
-            [FILE_PATH]: fileWith(
-                target("shared", {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login/token",
-                    audience: "api",
-                }),
-            ),
-        },
-    });
-    c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-    expect(await c.service.getStoredCredentials("shared", DOC_DIR)).toEqual({
-        authType: "oauth2",
-        tokenEndpoint: "https://login/token",
-        audience: "api",
-    });
-});
-
 describe("DeploymentTargetService.deleteTarget", () => {
     it("removes the target, deletes its slot, and clears the active target", async () => {
         const c = createService({
@@ -1020,6 +1018,62 @@ describe("DeploymentTargetService.getStoredCredentials", () => {
 
         await expect(c.service.getStoredCredentials("dev", DOC_DIR)).resolves.toEqual({
             authType: "basic",
+        });
+    });
+
+    it("returns the token endpoint and audience when an oauth2 target has no client credentials", async () => {
+        const c = serviceWithTargetsFile(
+            fileWith(
+                target("dev", {
+                    authType: "oauth2",
+                    tokenEndpoint: "https://idp/token",
+                    audience: "aud",
+                }),
+            ),
+        );
+
+        await expect(c.service.getStoredCredentials("dev", DOC_DIR)).resolves.toEqual({
+            authType: "oauth2",
+            tokenEndpoint: "https://idp/token",
+            audience: "aud",
+        });
+    });
+});
+
+describe("toTargetPayload", () => {
+    it.each([
+        ["none", target("dev"), { authType: "none" }],
+        ["basic", target("dev", { authType: "basic" }), { authType: "basic" }],
+        [
+            "oauth2",
+            target("dev", {
+                authType: "oauth2",
+                tokenEndpoint: "https://idp/token",
+                audience: "aud",
+            }),
+            { authType: "oauth2", tokenEndpoint: "https://idp/token", audience: "aud" },
+        ],
+    ])("lists a %s target with only the auth settings of its type", (_type, saved, auth) => {
+        expect(toTargetPayload(saved)).toEqual({
+            name: "dev",
+            engine: "c7",
+            endpoint: "http://localhost:8080/engine-rest",
+            tenantId: "",
+            ...auth,
+        });
+    });
+
+    it("lists the URL overrides", () => {
+        expect(
+            toTargetPayload(
+                target("dev", {
+                    deployUrl: "https://gw/deploy",
+                    startInstanceUrl: "https://gw/{processDefinitionKey}/start",
+                }),
+            ),
+        ).toMatchObject({
+            deployUrl: "https://gw/deploy",
+            startInstanceUrl: "https://gw/{processDefinitionKey}/start",
         });
     });
 });

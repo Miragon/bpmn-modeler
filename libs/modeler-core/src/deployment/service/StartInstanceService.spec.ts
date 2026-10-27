@@ -37,11 +37,11 @@ const NAMED_TARGET = new DeploymentTarget("dev", "c7", "${env:MIRAGON_URL}", "",
 /** A start records no ledger row, so the ad-hoc connection's endpoint is never read. */
 const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
 
-function named(target: DeploymentTarget): NamedDestination {
+function named(target: DeploymentTarget, projectDir = PROJECT_DIR): NamedDestination {
     return new NamedDestination(target, {
-        filePath: "/work/.camunda/deployment-targets.json",
+        filePath: `${projectDir}/.camunda/deployment-targets.json`,
         exists: true,
-        projectDir: PROJECT_DIR,
+        projectDir,
     });
 }
 
@@ -75,11 +75,6 @@ function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}
     const artifactService = {
         getPayloadPaths: vi.fn(),
     };
-    const locateTargetsFile = vi.fn().mockResolvedValue({
-        filePath: "/work/.camunda/deployment-targets.json",
-        exists: true,
-        projectDir: PROJECT_DIR,
-    });
     const credentialApproval = new CredentialApprovalService(host.secrets, host.picker);
     const readFile = vi.spyOn(host.workspace, "readFile");
 
@@ -90,7 +85,7 @@ function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}
         host.notifier,
         host.picker,
         artifactService as never,
-        new EnvValueResolver({ locateTargetsFile }, host.workspace),
+        new EnvValueResolver(host.workspace),
         credentialApproval,
     );
 
@@ -100,7 +95,6 @@ function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}
         restClient,
         artifactService,
         readFile,
-        locateTargetsFile,
     };
 }
 
@@ -603,7 +597,7 @@ describe("StartInstanceService.startInstance", () => {
     });
 });
 
-describe("StartInstanceService.startInstance .env scope", () => {
+describe("StartInstanceService.startInstance .env choice", () => {
     const NESTED_PROJECT_DIR = "/work/team";
 
     /**
@@ -619,11 +613,6 @@ describe("StartInstanceService.startInstance .env scope", () => {
                 "/work/.env": "MIRAGON_URL=https://workspace.example/engine-rest",
                 "/work/team/.env": "MIRAGON_URL=https://team.example/engine-rest",
             },
-        });
-        context.locateTargetsFile.mockResolvedValue({
-            filePath: "/work/team/.camunda/deployment-targets.json",
-            exists: true,
-            projectDir: NESTED_PROJECT_DIR,
         });
         context.restClient.startInstance.mockResolvedValue(
             new StartInstanceResult(true, "started"),
@@ -646,23 +635,21 @@ describe("StartInstanceService.startInstance .env scope", () => {
             destination,
         );
 
-    it("reads the workspace folder's .env for the workspaceFolder scope, never a nested targets file's", async () => {
-        const { service, restClient, locateTargetsFile, readFile } = createNestedProjectService();
+    it("reads the workspace folder's .env for an ad-hoc start, never a nested targets file's", async () => {
+        const { service, restClient, readFile } = createNestedProjectService();
 
         await startWithEndpointRef(service, AD_HOC);
 
-        expect(locateTargetsFile).not.toHaveBeenCalled();
         expect(readFile).toHaveBeenCalledExactlyOnceWith("/work/.env");
         const config = restClient.startInstance.mock.calls[0][0] as StartInstanceConfig;
         expect(config.endpoint).toBe("https://workspace.example/engine-rest");
     });
 
-    it("reads the .env beside the targets file for the targetsFile scope", async () => {
-        const { service, restClient, locateTargetsFile, readFile } = createNestedProjectService();
+    it("reads the .env beside the targets file of a named target", async () => {
+        const { service, restClient, readFile } = createNestedProjectService();
 
-        await startWithEndpointRef(service, named(NAMED_TARGET));
+        await startWithEndpointRef(service, named(NAMED_TARGET, NESTED_PROJECT_DIR));
 
-        expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith(NESTED_PROJECT_DIR);
         expect(readFile).toHaveBeenCalledExactlyOnceWith("/work/team/.env");
         const config = restClient.startInstance.mock.calls[0][0] as StartInstanceConfig;
         expect(config.endpoint).toBe("https://team.example/engine-rest");
