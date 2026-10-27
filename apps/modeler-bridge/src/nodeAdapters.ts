@@ -49,6 +49,7 @@ import {
     RawModelerSettings,
     relativeToRoot,
     SettingChange,
+    settingChangeNaming,
     SettingKey,
     SettingsPort,
     toWorkspacePath,
@@ -573,7 +574,7 @@ export class BridgeSettings implements SettingsPort {
         if (changed.length === 0) {
             return;
         }
-        const event: SettingChange = { affects: (key) => changed.includes(key) };
+        const event = settingChangeNaming(changed);
         // Copy before iterating: a listener may dispose itself on fire.
         for (const listener of [...this.listeners]) {
             listener(event);

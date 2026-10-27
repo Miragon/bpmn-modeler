@@ -19,8 +19,10 @@ export interface SettingChange {
     affects(key: SettingKey): boolean;
 }
 
-export function settingChangeNaming(_named: readonly SettingKey[]): SettingChange {
-    return { affects: () => false };
+/** A change that affects exactly the keys it names. */
+export function settingChangeNaming(named: readonly SettingKey[]): SettingChange {
+    const namedKeys: ReadonlySet<SettingKey> = new Set(named);
+    return { affects: (key) => namedKeys.has(key) };
 }
 
 /**
