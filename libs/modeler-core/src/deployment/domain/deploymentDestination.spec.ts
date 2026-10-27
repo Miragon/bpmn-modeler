@@ -180,6 +180,13 @@ describe("DeploymentDestination", () => {
             `target "prod Approved ${"x".repeat(46)}…"`,
         );
     });
+
+    it("keeps a name of exactly the shown length whole", () => {
+        const name = "x".repeat(60);
+        const target = new DeploymentTarget(name, "c7", PROD_ENDPOINT, "", "none", "", "");
+
+        expect(new NamedDestination(target, LOCATION).connectionLabel).toBe(`target "${name}"`);
+    });
 });
 
 describe("targetSecretSlot", () => {
