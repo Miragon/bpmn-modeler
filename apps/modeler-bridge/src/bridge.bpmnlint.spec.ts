@@ -399,6 +399,25 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         ).resolves.toMatchObject({ params: { editorId } });
     });
 
+    it("turns host linting off and back on when the host's status widget toggles it", async () => {
+        ignoreFileChanges();
+        const { rpc, frames, editorId } = await setupHostLinted();
+        const toggleFromHost = () =>
+            rpc.handleLine(JSON.stringify({ method: "linting/toggle", params: {} }));
+
+        const beforeOff = frames.length;
+        await toggleFromHost();
+        await expect(
+            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeOff }),
+        ).resolves.toMatchObject({ params: { editorId } });
+
+        const beforeOn = frames.length;
+        await toggleFromHost();
+        await expect(
+            waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
+        ).resolves.toMatchObject({ params: { editorId } });
+    });
+
     it("re-lints when the webview asks for the linting state the bridge already has", async () => {
         // A respawned bridge starts with linting on while the page still shows "Linting off".
         ignoreFileChanges();

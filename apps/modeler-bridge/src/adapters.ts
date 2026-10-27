@@ -46,6 +46,8 @@ import {
     ScriptLanguage,
     SecretStorePort,
     SettingChange,
+    StatusSlot,
+    StatusView,
     summarizeAffectedItems,
     TokenPromptPort,
     TokenStorePort,
@@ -427,6 +429,14 @@ export class RpcStatusBar
     implements LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
 {
     constructor(private readonly rpc: Rpc) {}
+
+    show(_slot: StatusSlot, _view: StatusView): void {
+        // Sent once the protocol has a status-slot method.
+    }
+
+    hide(_slot: StatusSlot): void {
+        // Sent once the protocol has a status-slot method.
+    }
 
     showElementTemplatesLoading(): void {
         this.rpc.notify(METHODS.statusBarTemplatesLoading, {});
