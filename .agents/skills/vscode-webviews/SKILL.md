@@ -1,11 +1,11 @@
 ---
 name: vscode-webviews
-description: VS Code webview internals — HTML serving, CSP and nonces, the Query/Command postMessage protocol, state persistence and theming. Use when changing webview HTML, messaging or getState/setState.
+description: VS Code webview internals. Covers HTML serving, CSP and nonces, the Query/Command postMessage protocol, state persistence and theming. Use when changing webview HTML, messaging or getState/setState.
 ---
 
 # VS Code Webviews
 
-This skill covers how this project serves, secures, and communicates with webviews — the browser-based UI panels that render BPMN/DMN diagrams inside VS Code.
+This skill covers how this project serves, secures, and communicates with webviews, the browser-based UI panels that render BPMN/DMN diagrams inside VS Code.
 
 ## HTML Generation
 
@@ -15,21 +15,21 @@ Webview HTML is generated at runtime by functions in the infrastructure layer, n
 
 `bpmnEditorUi()` and `dmnModelerHtml()` generate complete HTML documents:
 
-1. **Asset URI resolution** — Webview files are built by Vite and bundled into `dist/apps/vscode-plugin/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
+1. **Asset URI resolution:** Webview files are built by Vite and bundled into `dist/apps/vscode-plugin/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
 
-2. **Nonce generation** — A random nonce is generated per HTML render, set on the entry script and listed in the shell's CSP (see below).
+2. **Nonce generation:** A random nonce is generated per HTML render, set on the entry script and listed in the shell's CSP (see below).
 
-3. **Theme** — Both webviews theme **per-instance**: the theme CSS ships inside the main `index.css` bundle and a shared host adapter (`libs/shared/src/lib/hostTheme.ts`) sets a per-package scope attribute (`data-bpmn-theme` / `data-dmn-theme`) from the VS Code body classes — no `#theme-link`. See [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN).
+3. **Theme:** Both webviews theme **per-instance**: the theme CSS ships inside the main `index.css` bundle and a shared host adapter (`libs/shared/src/lib/hostTheme.ts`) sets a per-package scope attribute (`data-bpmn-theme` / `data-dmn-theme`) from the VS Code body classes, with no `#theme-link`. See [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN).
 
 ### Deployment Webview (`DeploymentWebviewHtml.ts`)
 
-The deployment sidebar's form markup lives in **one** place —
+The deployment sidebar's form markup lives in **one** place:
 `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which the
 bundle injects into `#app` at runtime. Every host shell (Vite `index.html`, the
 VS Code `DeploymentWebviewHtml.ts`, the IntelliJ tool-window `WebviewServer.kt`)
 ships only an empty `<div id="app"></div>`; none carries a copy of the form.
-`DeploymentWebviewHtml.ts` keeps only the CSP nonce + asset-URI injection —
-edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
+`DeploymentWebviewHtml.ts` keeps only the CSP nonce + asset-URI injection.
+Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
 ## Content Security Policy (CSP)
@@ -82,8 +82,8 @@ styles, images or fonts.
 
 Messages are defined across two files in `libs/shared/src/lib/`:
 
-- **`messages.ts`** — Base `Query` and `Command` abstract classes, plus cross-cutting messages (`SyncDocumentCommand`, `LogInfoCommand`, `LogErrorCommand`).
-- **`modeler.ts`** — All modeler-specific concrete message types that extend the base classes.
+- **`messages.ts`**: Base `Query` and `Command` abstract classes, plus cross-cutting messages (`SyncDocumentCommand`, `LogInfoCommand`, `LogErrorCommand`).
+- **`modeler.ts`**: All modeler-specific concrete message types that extend the base classes.
 
 The naming convention:
 - **Query** (host → webview): Carries data for the webview to display or apply. Named `*Query` (e.g., `BpmnFileQuery`, `ClipboardQuery`, `BpmnModelerSettingQuery`).
@@ -94,20 +94,20 @@ Each message has a `type` string discriminator used for routing.
 ### Modeler Message Types (`modeler.ts`)
 
 **Queries (host → webview):**
-- `BpmnFileQuery` — delivers BPMN XML, engine type (`c7` | `c8`) and the initial UI locale
-- `DmnFileQuery` — delivers DMN XML
-- `ElementTemplatesQuery` — delivers the resolved element-template list
-- `BpmnModelerSettingQuery` — delivers modeler settings (alignToOrigin, showTransactionBoundaries)
-- `ClipboardQuery` — delivers clipboard text (host mediates sandboxed reads)
+- `BpmnFileQuery`: delivers BPMN XML, engine type (`c7` | `c8`) and the initial UI locale
+- `DmnFileQuery`: delivers DMN XML
+- `ElementTemplatesQuery`: delivers the resolved element-template list
+- `BpmnModelerSettingQuery`: delivers modeler settings (alignToOrigin, showTransactionBoundaries)
+- `ClipboardQuery`: delivers clipboard text (host mediates sandboxed reads)
 
 **Commands (webview → host):**
-- `GetBpmnFileCommand` — webview is ready; request the BPMN file
-- `GetDmnFileCommand` — webview is ready; request the DMN file
-- `GetElementTemplatesCommand` — request the current element-template list
-- `GetBpmnModelerSettingCommand` — request current modeler settings
-- `GetClipboardCommand` — request clipboard text from the host
-- `SetClipboardCommand` — ask the host to write text to the clipboard
-- `GetDiagramAsSVGCommand` — request an SVG export of the current diagram
+- `GetBpmnFileCommand`: webview is ready; request the BPMN file
+- `GetDmnFileCommand`: webview is ready; request the DMN file
+- `GetElementTemplatesCommand`: request the current element-template list
+- `GetBpmnModelerSettingCommand`: request current modeler settings
+- `GetClipboardCommand`: request clipboard text from the host
+- `SetClipboardCommand`: ask the host to write text to the clipboard
+- `GetDiagramAsSVGCommand`: request an SVG export of the current diagram
 
 ### Sending Messages
 
@@ -128,10 +128,13 @@ The BPMN webview's bootstrap and session modules post through `HostChannel`
 in `BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`).
 `bootstrap` narrows its host to it once; only `DiffMode` gets the full
 `HostApi`. A new BPMN editor command goes into that list, or it does not compile.
+Declare a channel's `postMessage` as a property (`postMessage: (message: M) => void`),
+as `HostApi` does: a method signature compares its parameter bivariantly, so a
+narrowed channel would fit a helper that posts any message.
 
 ### Receiving Messages
 
-**Host receives Commands** — the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`, registered in `composition/editorFeature.ts`:
+**Host receives Commands:** the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`, registered in `composition/editorFeature.ts`:
 ```typescript
 // handler factory (libs/modeler-core/src/editorSession/infrastructure/documentMessageHandlers.ts),
 // shared by the BPMN, DMN and Form editors
@@ -150,7 +153,7 @@ const router = new WebviewMessageRouter()
 // dispatch (EditorSessionLifecycle) — bracketed by received/processed log lines
 editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(message, id));
 ```
-Adding a webview command is "register one more handler" — no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
+Adding a webview command is "register one more handler", with no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
 
 **Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript
@@ -185,7 +188,7 @@ const requestClipboard = async (): Promise<string> => {
 // ClipboardQuery: (reply) => clipboardResolver.done(reply)
 ```
 
-The extension host handles `GetClipboardCommand` by reading the system clipboard via `vscode.env.clipboard.readText()`, then posts a `ClipboardQuery` back to the webview with the text — with empty text when the read fails, so every request is answered.
+The extension host handles `GetClipboardCommand` by reading the system clipboard via `vscode.env.clipboard.readText()`, then posts a `ClipboardQuery` back to the webview with the text, or with empty text when the read fails, so every request is answered.
 
 Bound every awaited host reply, because a reply can still be lost (e.g. IntelliJ drops best-effort frames while the bridge respawns): `wait(HOST_REPLY_TIMEOUT_MS)` for a single-slot reply, or `createReplyRegistry` (both in `libs/shared/src/lib/utils.ts`) when several requests are in flight and each reply carries a `requestId` (workspace definition search). An unanswered request then settles as `undefined`. The initial file requests (`BpmnDocumentSession.waitForInitialHostFile` in `apps/bpmn-webview/src/session/documentSession.ts`, `DmnDocumentSession.openInitialDocument`) deliberately wait indefinitely, since a cold first open can take longer than any backstop.
 
@@ -209,11 +212,11 @@ if (state?.viewbox) {
 }
 ```
 
-Note: BPMN/DMN editors do **not** set `retainContextWhenHidden` — their
+Note: BPMN/DMN editors do **not** set `retainContextWhenHidden`: their
 webviews are torn down when hidden and recreated when shown, so `getState`/
 `setState` is the *only* thing that survives a hide, not just a restart.
 (`VsCodeEditorHandle.postMessage` throws for a hidden panel precisely because
-the webview is gone — see `VsCodeEditorHandle.ts:105`.) Only the deployment
+the webview is gone; see `VsCodeEditorHandle.ts:105`.) Only the deployment
 sidebar view sets `retainContextWhenHidden: true`
 (`DeploymentController.ts:63`), because it uses `registerWebviewViewProvider`,
 not a custom editor.
@@ -225,9 +228,9 @@ project, the raw API is wrapped behind a host-agnostic `HostApi<S, M>` interface
 (from `libs/shared/src/lib/host.ts`) so the same webview code runs under VS Code,
 IntelliJ, or a plain browser. Two implementations back it:
 
-- **`HostApiImpl`** — wraps the real `acquireVsCodeApi()` singleton for
-  production use inside VS Code.
-- **`MockHostApi`** — abstract base for development mocks. The bpmn-webview
+- **`HostApiImpl`**: wraps the real `acquireVsCodeApi()` singleton for
+  production use. VS Code, IntelliJ and the desktop app inject the same shim.
+- **`MockHostApi`**: abstract base for development mocks. The bpmn-webview
   defines `MockHost` (in `apps/bpmn-webview/src/host.ts`) which extends
   `MockHostApi` and dispatches synthetic responses so the webview can run
   standalone in a browser via `vite serve`.
@@ -255,9 +258,9 @@ host.updateState(partial);       // Merge into persisted state, seeding it when 
 ### Detection
 
 VS Code adds a theme **class** to `document.body` (not a `data-` attribute):
-- `vscode-light` — light theme
-- `vscode-dark` — dark theme
-- `vscode-high-contrast` — high contrast
+- `vscode-light`: light theme
+- `vscode-dark`: dark theme
+- `vscode-high-contrast`: high contrast
 
 Both host adapters read these with
 `document.body.classList.contains("vscode-dark")` /

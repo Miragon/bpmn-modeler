@@ -137,7 +137,11 @@ so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
 `libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
 only those, and the bootstrap narrows its host to it once, so neither the
 bootstrap nor a session module can post another surface's command or a query.
-Only the diff pane, which the bootstrap starts instead of the editor, still
+`HostApi` declares its members as properties, not methods, because TypeScript
+compares a method's parameters bivariantly: the narrowed channel could
+otherwise be handed to a helper typed for every message. The shared
+`WebviewDocumentSync` takes a channel for exactly the three messages it posts,
+so handing it the BPMN channel proves they are on the list. Only the diff pane, which the bootstrap starts instead of the editor, still
 posts through the full `HostApi`. The diff pane, the DMN and Form editors and
 the deployment sidebar post their own commands, and a spec fails when a
 protocol command belongs to neither side. A host's router still dispatches an
