@@ -14,7 +14,7 @@
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/properties-panel": "3.58.0",
         "@bpmn-io/svg-to-image": "1.0.1",
         "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
@@ -23,7 +23,7 @@
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/bpmnlint-plugin-rules": "0.15.0",
         "bpmn-auto-layout": "2.0.0-alpha.2",
-        "bpmn-js": "18.31.0",
+        "bpmn-js": "18.31.1",
         "bpmn-js-bpmnlint": "0.25.0",
         "bpmnlint": "11.15.0",
         "tslib": "2.8.1"
