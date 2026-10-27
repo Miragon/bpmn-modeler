@@ -1,13 +1,11 @@
 import type { ModelerCapabilities } from "@miragon/bpmn-modeler";
 import { LAYOUT_FORMATTED_EVENT, type LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import {
-    type Command,
     DiagramFormattedCommand,
     type ElementTemplatesQuery,
     GetBpmnlintConfigCommand,
     GetElementTemplatesCommand,
-    type HostApi,
-    type Query,
+    type WebviewStateHost,
 } from "@miragon/bpmn-modeler-shared";
 import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
 
@@ -21,6 +19,7 @@ import {
 } from "../surface";
 import type { WebviewState } from "../webviewState";
 import type { BpmnDocumentSession } from "./documentSession";
+import type { HostChannel } from "./hostChannel";
 import { createProcessVariablePublisher } from "./processVariablePublisher";
 
 export interface SurfaceBinding {
@@ -44,7 +43,7 @@ interface SurfaceBinderPorts {
 }
 
 export function createSurfaceBinder(
-    host: HostApi<WebviewState, Command | Query>,
+    host: HostChannel & WebviewStateHost<WebviewState>,
     { session, panelRoot, engine, capabilities, elementTemplatesReply }: SurfaceBinderPorts,
 ): SurfaceBinder {
     function bindSurface(handle: SurfaceHandle): SurfaceBinding {

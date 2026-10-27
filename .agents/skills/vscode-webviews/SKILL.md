@@ -123,6 +123,11 @@ webviewPanel.webview.postMessage(query);
 const host = getHostApi();
 host.postMessage(command);
 ```
+The BPMN webview's bootstrap and session modules post through `HostChannel`
+(`apps/bpmn-webview/src/session/hostChannel.ts`), which takes only the commands
+in `BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`).
+`bootstrap` narrows its host to it once; only `DiffMode` gets the full
+`HostApi`. A new BPMN editor command goes into that list, or it does not compile.
 
 ### Receiving Messages
 
@@ -145,7 +150,7 @@ const router = new WebviewMessageRouter()
 // dispatch (EditorSessionLifecycle) — bracketed by received/processed log lines
 editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(message, id));
 ```
-Adding a webview command is "register one more handler" — no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order.
+Adding a webview command is "register one more handler" — no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
 
 **Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript
