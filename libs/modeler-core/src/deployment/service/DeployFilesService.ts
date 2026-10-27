@@ -2,7 +2,7 @@ import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
-import { resolveOrPickActiveTarget } from "./resolveOrPickActiveTarget";
+import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
 
 const DEPLOYABLE_FILES_GLOB = "**/*.{bpmn,dmn}";
 const DEPENDENCY_FOLDERS_GLOB = "**/node_modules/**";
@@ -29,7 +29,7 @@ export class DeployFilesService {
         documentDir: string | undefined,
         afterTargetPicker?: () => Promise<void>,
     ): Promise<void> {
-        const destination = await resolveOrPickActiveTarget(
+        const destination = await resolveOrPickNamedDestination(
             this.deploymentTargetService,
             this.deploymentStatusService,
             documentDir,
