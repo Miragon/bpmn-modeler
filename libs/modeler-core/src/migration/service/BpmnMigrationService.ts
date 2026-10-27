@@ -33,7 +33,7 @@ interface ReadCandidates {
  * Workspace-wide migration of BPMN diagrams to a user-selected engine
  * version. Same-engine only — no cross-platform migration (C7↔C8).
  *
- * Lives apart from {@link import("../../modeler/bpmn/index").BpmnModelerService}
+ * Lives apart from {@link import("../../modeler/bpmn/service/BpmnModelerService").BpmnModelerService}
  * because the orchestration of picker/scope/version selection and bulk
  * file writes has no overlap with per-editor session management.
  */
