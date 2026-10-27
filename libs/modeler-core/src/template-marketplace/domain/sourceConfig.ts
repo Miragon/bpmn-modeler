@@ -59,12 +59,12 @@ export function declaredPrivateHosts(sources: readonly TemplateSource[]): readon
  * same as the public ones.
  */
 export function describeSourceConfig(config: RepositorySourceConfig): string {
+    const path = config.path ? ` path "${config.path}"` : "";
     if (config.kind === "local") {
-        return `local folder ${config.rootDir}`;
+        return `local folder ${config.rootDir}${path}`;
     }
     const repo = config.kind === "github" ? `${config.owner}/${config.repo}` : config.projectPath;
     const ref = config.ref ? `@${config.ref}` : "";
-    const path = config.path ? ` path "${config.path}"` : "";
     return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
 }
 
