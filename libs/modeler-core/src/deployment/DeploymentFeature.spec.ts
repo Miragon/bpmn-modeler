@@ -245,6 +245,44 @@ describe("DeploymentFeature panel target commands", () => {
             ]);
         },
     );
+
+    const ledgerKeyOf = (name: string) =>
+        ledgerKeyFor(
+            DeploymentTargetIdentity.fromTarget(target(name), NO_ENV_VARIABLES),
+            ORDER_PROCESS,
+        );
+
+    it.each([
+        {
+            behaviour: "drops the ledger rows of a target renamed in the panel",
+            command: new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+            keptRows: ["prod"],
+        },
+        {
+            behaviour: "drops the ledger rows of a target deleted in the panel",
+            command: new DeleteTargetCommand("dev"),
+            keptRows: ["prod"],
+        },
+        {
+            behaviour: "keeps the ledger rows of a target saved under its name",
+            command: new SaveTargetCommand(toTargetPayload(target("dev")), noAuth, "dev"),
+            keptRows: ["dev", "prod"],
+        },
+    ])("$behaviour", async ({ command, keptRows }) => {
+        const { host, feature } = createFeature({ confirmDestructive: true });
+        host.openEditor(ORDER_PROCESS);
+        for (const name of ["dev", "prod"]) {
+            host.deploymentState.ledger.set(ledgerKeyOf(name), {
+                fingerprint: "f",
+                deployedAt: "2026-01-01T00:00:00.000Z",
+            });
+        }
+        const { panel } = attach(feature, false);
+
+        await panel.handle(command);
+
+        expect([...host.deploymentState.ledger.keys()]).toEqual(keptRows.map(ledgerKeyOf));
+    });
 });
 
 describe("DeploymentFeature.statusMenu", () => {
