@@ -11,8 +11,6 @@
 
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
-export type { ReferenceKind };
-
 /**
  * The shape this module needs from a bpmn-js business object.  Kept loose so
  * the code remains decoupled from bpmn-moddle types — we only care about
