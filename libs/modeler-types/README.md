@@ -41,4 +41,5 @@ import { Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-m
 
 Path resolution is handled by `tsconfig.base.json` (`paths`) plus
 `vite-tsconfig-paths` (webviews) and `tsconfig-paths-webpack-plugin` (extension
-host). Vitest projects hard-code the alias in their own `vitest.config.ts`.
+host). Vitest projects take the `workspaceAliases` that the root
+`vitest.shared.ts` generates from the same `paths`.
