@@ -292,7 +292,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
             [FILE_PATH],
-            target,
+            destination,
             expect.any(NoAuth),
             "/work",
         );
