@@ -1,0 +1,387 @@
+import { describe, expect, it } from "vitest";
+
+import { createTestHost } from "../../testing";
+import { RepositoryAccessError, RepositorySourceConfig } from "../domain/ports";
+import { HostTokenSession } from "./HostTokenSession";
+
+const GITHUB_MARKETPLACE: RepositorySourceConfig = {
+    kind: "github",
+    owner: "acme",
+    repo: "templates",
+    path: "",
+};
+const GITHUB_SOURCE_ONE: RepositorySourceConfig = {
+    kind: "github",
+    owner: "acme",
+    repo: "one",
+    path: "a",
+};
+const GITHUB_SOURCE_TWO: RepositorySourceConfig = {
+    kind: "github",
+    owner: "acme",
+    repo: "two",
+    path: "b",
+};
+const LOCAL_FOLDER: RepositorySourceConfig = { kind: "local", rootDir: "/opt/ext", path: "" };
+const GITLAB_PROJECT: RepositorySourceConfig = {
+    kind: "gitlab",
+    projectPath: "group/proj",
+    path: "",
+};
+const SELF_HOSTED_GITLAB_PROJECT: RepositorySourceConfig = {
+    ...GITLAB_PROJECT,
+    baseUrl: "https://gitlab.acme.com",
+};
+
+const PRIVATE_REPO_404 = new RepositoryAccessError("github.com", 404, "acme/templates", false);
+
+/** `storedTokens` seeds the token store; `tokenAnswers` scripts the prompt (an unanswered host declines). */
+function sessionOver({
+    tokenAnswers,
+    storedTokens = {},
+}: { tokenAnswers?: Record<string, string>; storedTokens?: Record<string, string> } = {}) {
+    const host = createTestHost({ tokenAnswers });
+    for (const [tokenHost, token] of Object.entries(storedTokens)) {
+        host.tokens.tokens.set(tokenHost, token);
+    }
+    return {
+        session: new HostTokenSession(host.tokens, host.tokenPrompt, host.notifier),
+        tokens: host.tokens,
+        tokenPrompt: host.tokenPrompt,
+        notifier: host.notifier,
+    };
+}
+
+/**
+ * A fetch that serves only when `admits` accepts the token its config carries
+ * (`undefined` = anonymous) and otherwise throws `denial`. `attempts` records
+ * that token per try, `configs` the config itself.
+ */
+function fakeFetch(
+    admits: (token: string | undefined) => boolean,
+    denial: Error = PRIVATE_REPO_404,
+) {
+    const attempts: (string | undefined)[] = [];
+    const configs: RepositorySourceConfig[] = [];
+    return {
+        attempts,
+        configs,
+        task: async (config: RepositorySourceConfig): Promise<string> => {
+            configs.push(config);
+            const token = config.kind === "local" ? undefined : config.token;
+            attempts.push(token);
+            if (!admits(token)) {
+                throw denial;
+            }
+            return "served";
+        },
+    };
+}
+
+const anyone = () => true;
+const nobody = () => false;
+const anonymousOnly = (token: string | undefined) => token === undefined;
+const only = (accepted: string) => (token: string | undefined) => token === accepted;
+
+describe("HostTokenSession.run", () => {
+    it("reads the stored token only after an auth failure and never places it on a local config", async () => {
+        const { session, tokens, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "unused" },
+            storedTokens: { "github.com": "stored-tok" },
+        });
+        const privateRepo = fakeFetch(only("stored-tok"));
+        const localFolder = fakeFetch(anyone);
+
+        await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).resolves.toBe("served");
+        await expect(session.run(LOCAL_FOLDER, localFolder.task)).resolves.toBe("served");
+
+        expect(privateRepo.attempts).toEqual([undefined, "stored-tok"]);
+        expect(localFolder.configs).toEqual([LOCAL_FOLDER]);
+        // The store is read once (lazily, after the anonymous 404), never prompted.
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toEqual([]);
+    });
+
+    it("passes a failure that is not an access denial through untouched, never reading the store", async () => {
+        const { session, tokens, tokenPrompt } = sessionOver({
+            storedTokens: { "github.com": "stored-tok" },
+        });
+        const offline = new Error("offline");
+
+        await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody, offline).task)).rejects.toBe(
+            offline,
+        );
+        expect(tokens.reads).toEqual([]);
+        expect(tokenPrompt.prompts).toEqual([]);
+    });
+
+    it("prompts on a private-repo 404, stores the token, retries once, and never logs it", async () => {
+        const { session, tokens, tokenPrompt, notifier } = sessionOver({
+            tokenAnswers: { "github.com": "granted" },
+        });
+        const privateRepo = fakeFetch(only("granted"));
+
+        await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).resolves.toBe("served");
+
+        expect(privateRepo.attempts).toEqual([undefined, "granted"]);
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "github.com", reason: expect.stringMatching(/may be private/) },
+        ]);
+        expect(tokens.tokens.get("github.com")).toBe("granted");
+        expect(notifier.logs.some((entry) => entry.message.includes("granted"))).toBe(false);
+    });
+
+    it("declining rejects with the token-required wording and prompts once", async () => {
+        const { session, tokenPrompt, notifier } = sessionOver();
+
+        await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody).task)).rejects.toThrow(
+            /requires a personal access token/,
+        );
+        expect(tokenPrompt.prompts).toHaveLength(1);
+        expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
+    });
+
+    it("reports 'can't access' when the freshly entered token is also denied", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "still-wrong" },
+        });
+
+        await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody).task)).rejects.toThrow(
+            /can't access/,
+        );
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
+    it("re-prompts with 'was rejected' wording for a stale stored token and overwrites it", async () => {
+        const { session, tokenPrompt, tokens } = sessionOver({
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "old" },
+        });
+
+        await session.run(GITHUB_MARKETPLACE, fakeFetch(only("new")).task);
+
+        expect(tokenPrompt.prompts).toContainEqual({
+            host: "github.com",
+            reason: expect.stringMatching(/was rejected/),
+        });
+        expect(tokens.tokens.get("github.com")).toBe("new");
+    });
+
+    it("retries a session-cached token's public repo anonymously, never prompting", async () => {
+        // A fine-grained token: it reads the private marketplace, but GitHub
+        // answers 403 for a public repo outside its grant.
+        const { session, tokenPrompt, tokens } = sessionOver({
+            tokenAnswers: { "github.com": "should-not-be-used" },
+            storedTokens: { "github.com": "stored-tok" },
+        });
+        await session.run(GITHUB_MARKETPLACE, fakeFetch(only("stored-tok")).task);
+        const publicRepo = fakeFetch(
+            anonymousOnly,
+            new RepositoryAccessError("github.com", 403, "acme/pub", false),
+        );
+
+        await expect(session.run(GITHUB_SOURCE_ONE, publicRepo.task)).resolves.toBe("served");
+
+        expect(publicRepo.attempts).toEqual(["stored-tok", undefined]);
+        expect(tokenPrompt.prompts).toEqual([]);
+        expect(tokens.tokens).toEqual(new Map([["github.com", "stored-tok"]]));
+    });
+
+    it("attempts in order anonymous → stored → new when a stale token guards a private repo", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "old" },
+        });
+        const privateRepo = fakeFetch(only("new"));
+
+        await session.run(GITHUB_MARKETPLACE, privateRepo.task);
+
+        expect(privateRepo.attempts).toEqual([undefined, "old", "new"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
+    it("a rate-limited anonymous 403 retries with the stored token before prompting", async () => {
+        // The anonymous fallback for a rejected token is skipped: it would only
+        // hit the lower limit again.
+        const { session, tokenPrompt } = sessionOver({
+            storedTokens: { "github.com": "have-it" },
+        });
+        const rateLimited = fakeFetch(
+            nobody,
+            new RepositoryAccessError("github.com", 403, "acme/templates", true),
+        );
+
+        await expect(session.run(GITHUB_MARKETPLACE, rateLimited.task)).rejects.toThrow(
+            /rate limit/i,
+        );
+        expect(rateLimited.attempts).toEqual([undefined, "have-it"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
+    it("makes exactly one pre-prompt attempt when no token is stored", async () => {
+        const { session, tokenPrompt, tokens } = sessionOver();
+        const privateRepo = fakeFetch(nobody);
+
+        await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).rejects.toThrow();
+
+        expect(privateRepo.attempts).toEqual([undefined]);
+        // The store is read once, lazily, after the anonymous 404 — and finds nothing.
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
+    it("mentions the rate limit (not a rejection) when a 403 rate-limit persists with a token", async () => {
+        const { session } = sessionOver({ storedTokens: { "github.com": "have-it" } });
+
+        const failure = session.run(
+            GITHUB_MARKETPLACE,
+            fakeFetch(nobody, new RepositoryAccessError("github.com", 403, "acme/templates", true))
+                .task,
+        );
+
+        await expect(failure).rejects.toThrow(/rate limit/i);
+        await expect(failure).rejects.not.toThrow(/can't access/);
+    });
+
+    it("derives the rate-limit warning wording from the failing host (gitlab 429)", async () => {
+        const { session } = sessionOver({ storedTokens: { "gitlab.com": "have-it" } });
+
+        await expect(
+            session.run(
+                GITLAB_PROJECT,
+                fakeFetch(nobody, new RepositoryAccessError("gitlab.com", 429, "group/proj", true))
+                    .task,
+            ),
+        ).rejects.toThrow(/gitlab\.com rate limit exceeded/);
+    });
+
+    // A public marketplace must not raise the macOS keychain popup, which happens
+    // when a fetch eagerly reads the PasswordSafe-backed token store.
+    it("never consults the token store or prompt for a public marketplace", async () => {
+        const { session, tokens, tokenPrompt } = sessionOver();
+        const publicRepos = fakeFetch(anyone);
+
+        await session.run(GITHUB_MARKETPLACE, publicRepos.task);
+        await session.run(GITHUB_SOURCE_ONE, publicRepos.task);
+
+        expect(tokens.reads).toEqual([]);
+        expect(tokenPrompt.prompts).toEqual([]);
+        // No config ever carried a token value (anonymous throughout).
+        const carriedToken = publicRepos.attempts.some((token) => token !== undefined);
+        expect(carriedToken).toBe(false);
+    });
+
+    it("reads the store at most once per host per run after repeated auth failures", async () => {
+        // Two sources that 404 anonymously and with any token; the prompt
+        // declines. The store must be read exactly once.
+        const { session, tokens, tokenPrompt } = sessionOver();
+
+        await expect(session.run(GITHUB_SOURCE_ONE, fakeFetch(nobody).task)).rejects.toThrow();
+        await expect(session.run(GITHUB_SOURCE_TWO, fakeFetch(nobody).task)).rejects.toThrow();
+
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
+    it("session-caches a prompted token and reuses it for later sources without re-reading the store", async () => {
+        const { session, tokens, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "granted" },
+        });
+        const sourceOne = fakeFetch(only("granted"));
+        const sourceTwo = fakeFetch(only("granted"));
+
+        await session.run(GITHUB_MARKETPLACE, fakeFetch(only("granted")).task);
+        await session.run(GITHUB_SOURCE_ONE, sourceOne.task);
+        await session.run(GITHUB_SOURCE_TWO, sourceTwo.task);
+
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+        expect(sourceOne.attempts).toEqual(["granted"]);
+        expect(sourceTwo.attempts).toEqual(["granted"]);
+    });
+
+    it("never sends one host's token to a different host in the same session", async () => {
+        const { session } = sessionOver({ tokenAnswers: { "gitlab.acme.com": "gl-tok" } });
+        const githubRepo = fakeFetch(anyone);
+
+        await session.run(
+            SELF_HOSTED_GITLAB_PROJECT,
+            fakeFetch(
+                only("gl-tok"),
+                new RepositoryAccessError("gitlab.acme.com", 404, "group/proj", false),
+            ).task,
+        );
+        await session.run(GITHUB_MARKETPLACE, githubRepo.task);
+
+        expect(githubRepo.attempts).toEqual([undefined]);
+    });
+});
+
+describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
+    it("prompts once per declared-private host with an empty store, also across calls", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "granted" },
+        });
+
+        await session.ensureTokensForPrivateHosts(["github.com"]);
+        await session.ensureTokensForPrivateHosts(["github.com"]);
+
+        expect(tokenPrompt.prompts).toEqual([
+            {
+                host: "github.com",
+                reason: expect.stringMatching(/hosts a private template source/),
+            },
+        ]);
+    });
+
+    it("does not prompt when a token for the host is already stored, and carries it first try", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "granted" },
+            storedTokens: { "github.com": "have-it" },
+        });
+        const privateRepo = fakeFetch(only("have-it"));
+
+        await session.ensureTokensForPrivateHosts(["github.com"]);
+        await session.run(GITHUB_SOURCE_ONE, privateRepo.task);
+
+        expect(tokenPrompt.prompts).toEqual([]);
+        expect(privateRepo.attempts).toEqual(["have-it"]);
+    });
+
+    it("keys a self-hosted gitlab host's token so its baseUrl config carries it", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "gitlab.acme.com": "granted" },
+        });
+        const privateProject = fakeFetch(only("granted"));
+
+        await session.ensureTokensForPrivateHosts(["gitlab.acme.com"]);
+        await session.run(SELF_HOSTED_GITLAB_PROJECT, privateProject.task);
+
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "gitlab.acme.com", reason: expect.any(String) },
+        ]);
+        expect(privateProject.attempts).toEqual(["granted"]);
+    });
+
+    it("does not prompt again for a host the session already prompted and declined", async () => {
+        const { session, tokens, tokenPrompt } = sessionOver();
+
+        await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody).task)).rejects.toThrow();
+        await session.ensureTokensForPrivateHosts(["github.com"]);
+
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
+    it("remembers a declined pre-prompt, so a later denial on the host does not prompt again", async () => {
+        const { session, tokens, tokenPrompt } = sessionOver();
+
+        await session.ensureTokensForPrivateHosts(["github.com"]);
+
+        await expect(session.run(GITHUB_SOURCE_ONE, fakeFetch(nobody).task)).rejects.toThrow(
+            /requires a personal access token/,
+        );
+        expect(tokens.reads).toEqual(["github.com"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+});
