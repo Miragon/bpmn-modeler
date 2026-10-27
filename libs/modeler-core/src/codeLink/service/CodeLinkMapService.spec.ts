@@ -248,6 +248,37 @@ describe("CodeLinkMapService — warm cache", () => {
             { level: "info", message: expect.stringContaining("warm cache: loaded 1") },
         ]);
     });
+
+    it("handles a source change after a warm cache named an unknown kind", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const warm = JSON.stringify(
+            buildMapJson({
+                bpmnFile: "order.bpmn",
+                generatedAt: "t",
+                workspaceRoot: ROOT,
+                entries: [
+                    {
+                        activityId: "Act",
+                        kind: "bogus" as never,
+                        reference: "pay",
+                        resolved: true,
+                        paths: [worker],
+                    },
+                ],
+            }),
+        );
+        const { service, editor, locator } = createService({
+            persist: true,
+            fileContents: { [ARTIFACT]: warm, [worker]: '@JobWorker(type = "pay")' },
+        });
+        // A failed resolve keeps whatever the warm cache put in the map.
+        locator.resolveMany.mockRejectedValueOnce(new Error("listing failed"));
+        await expect(
+            service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]),
+        ).rejects.toThrow("listing failed");
+
+        await expect(service.onSourceFileChanged(worker, "changed", ROOT)).resolves.toBeUndefined();
+    });
 });
 
 describe("CodeLinkMapService — live linking", () => {

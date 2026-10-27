@@ -87,6 +87,18 @@ describe("CodeLinkMap — JSON artifact", () => {
         expect(rehydrated).toEqual(entries);
     });
 
+    it("re-hydrates no entry of a kind this version does not know", () => {
+        const json = buildMapJson({
+            bpmnFile: "order.bpmn",
+            generatedAt: "t",
+            workspaceRoot: "/work/proj",
+            entries: [...entries, { ...entries[1], activityId: "Act_New", kind: "bogus" as never }],
+        });
+        const parsed = parseMapJson(JSON.stringify(json));
+
+        expect(toAbsoluteEntries(parsed!, "/work/proj")).toEqual(entries);
+    });
+
     it("returns undefined for malformed or wrong-schema input rather than throwing", () => {
         expect(parseMapJson("not json")).toBeUndefined();
         expect(parseMapJson(JSON.stringify({ schemaVersion: 999, entries: [] }))).toBeUndefined();
