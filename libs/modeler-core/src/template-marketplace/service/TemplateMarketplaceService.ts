@@ -180,7 +180,7 @@ export class TemplateMarketplaceService {
     private async pruneCache(prune: CachePrune): Promise<string[]> {
         if (prune.kind === "suppressed") {
             this.notifier.logDebug(
-                "Skipped marketplace cache prune: an unparseable entry left its id unknown",
+                `Skipped marketplace cache prune: an unparseable entry left its id unknown (${prune.unparseable.join("; ")})`,
             );
             return [];
         }
