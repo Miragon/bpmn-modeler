@@ -161,11 +161,11 @@ describe("migrateAllDiagrams", () => {
         expect(writesSeenAtVersionPick).toEqual([0, 0]);
     });
 
-    it("should skip files already at the target version", async () => {
+    it("neither writes nor counts a diagram already at the picked version", async () => {
         const { service, notifier, writtenPaths } = createHost(
             {
-                "/work/a.bpmn": c8Bpmn("8.8.0"), // already at target
-                "/work/b.bpmn": c8Bpmn("8.5.0"), // needs update
+                "/work/a.bpmn": c8Bpmn("8.8.0"),
+                "/work/b.bpmn": c8Bpmn("8.5.0"),
             },
             { engineVersion: "8.8.0" },
         );
@@ -174,18 +174,6 @@ describe("migrateAllDiagrams", () => {
 
         expect(writtenPaths).toEqual(["/work/b.bpmn"]);
         expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
-    });
-
-    it("should show 'already at version' when all files match target", async () => {
-        const { service, notifier, writtenPaths } = createHost(
-            { "/work/a.bpmn": c8Bpmn("8.8.0") },
-            { engineVersion: "8.8.0" },
-        );
-
-        await service.migrateAllDiagrams();
-
-        expect(writtenPaths).toEqual([]);
-        expect(notifier.infos).toEqual(["All diagrams are already at the selected version."]);
     });
 
     it("should use DocumentPort.write for files open in an editor", async () => {

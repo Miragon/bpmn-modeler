@@ -1,28 +1,11 @@
-/**
- * Pure domain value object that groups discovered BPMN files by their
- * Camunda execution platform, enabling the migration command to reason
- * about which files to update.
- */
-
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 
-/**
- * Describes a single BPMN file discovered in the workspace.
- */
-export interface BpmnFileEntry {
-    // Absolute file system path.
-    readonly path: string;
-    // Detected Camunda platform (`"c7"` or `"c8"`).
-    readonly platform: Engine;
-}
-
-/**
- * Which subset of diagrams the user wants to migrate.
- */
+/** Which subset of diagrams the user wants to migrate. */
 export type MigrationScope = Engine | "both";
 
+/** A workspace diagram with the content it has when the migration is planned. */
 export interface MigrationCandidate {
     readonly path: string;
     readonly document: BpmnDocument;
@@ -33,6 +16,7 @@ export type ScopeDecision =
     | { readonly kind: "fixed"; readonly scope: Engine }
     | { readonly kind: "ask"; readonly c7Count: number; readonly c8Count: number };
 
+/** The version picked for each engine in scope. */
 export type MigrationVersions = Partial<Record<Engine, string>>;
 
 export type DiagramWrite =
@@ -40,6 +24,13 @@ export type DiagramWrite =
     | { readonly kind: "unchanged" }
     | { readonly kind: "write"; readonly xml: string; readonly stampedPlatform: boolean };
 
+const ENGINES: readonly Engine[] = ["c7", "c8"];
+
+export function enginesIn(scope: MigrationScope): readonly Engine[] {
+    return scope === "both" ? ENGINES : [scope];
+}
+
+/** A planned diagram and the version picked for the engine it was planned under. */
 export class PlannedWrite {
     constructor(
         readonly path: string,
@@ -47,67 +38,68 @@ export class PlannedWrite {
         readonly version: string,
     ) {}
 
-    writeFrom(_current: BpmnDocument): DiagramWrite {
-        return { kind: "unchanged" };
+    /**
+     * The diagram may have been edited while the versions were picked, so its
+     * write derives from the content it has when written, not when planned.
+     */
+    writeFrom(current: BpmnDocument): DiagramWrite {
+        if (current.detectEngine() !== this.engine) {
+            return { kind: "engineChanged" };
+        }
+        const migration = current.migratedTo(this.engine, this.version);
+        if (migration.kind === "unchanged") {
+            return migration;
+        }
+        return {
+            kind: "write",
+            xml: migration.document.xml,
+            stampedPlatform: migration.kind === "platformStamped",
+        };
     }
 }
 
-export function enginesIn(_scope: MigrationScope): readonly Engine[] {
-    return [];
-}
-
-/**
- * Groups BPMN files by execution platform and exposes query helpers
- * for the migration orchestration logic.
- */
+/** Every candidate lands under exactly one engine or among the undetected paths. */
 export class MigrationPlan {
-    /**
-     * @param c7Files Files detected as Camunda 7.
-     * @param c8Files Files detected as Camunda 8.
-     * @param undetected Files whose platform could not be determined.
-     */
-    constructor(
-        readonly c7Files: readonly BpmnFileEntry[],
-        readonly c8Files: readonly BpmnFileEntry[],
+    private constructor(
+        private readonly pathsByEngine: Readonly<Record<Engine, readonly string[]>>,
         readonly undetected: readonly string[],
     ) {}
 
-    static classify(_candidates: readonly MigrationCandidate[]): MigrationPlan {
-        return new MigrationPlan([], [], []);
+    static classify(candidates: readonly MigrationCandidate[]): MigrationPlan {
+        const pathsByEngine: Record<Engine, string[]> = { c7: [], c8: [] };
+        const undetected: string[] = [];
+        for (const { path, document } of candidates) {
+            const engine = document.detectEngine();
+            if (engine === undefined) {
+                undetected.push(path);
+            } else {
+                pathsByEngine[engine].push(path);
+            }
+        }
+        return new MigrationPlan(pathsByEngine, undetected);
     }
 
     scopeDecision(): ScopeDecision {
+        const c7Count = this.pathsByEngine.c7.length;
+        const c8Count = this.pathsByEngine.c8.length;
+        if (c7Count > 0 && c8Count > 0) {
+            return { kind: "ask", c7Count, c8Count };
+        }
+        if (c7Count > 0) {
+            return { kind: "fixed", scope: "c7" };
+        }
+        if (c8Count > 0) {
+            return { kind: "fixed", scope: "c8" };
+        }
         return { kind: "nothingToMigrate" };
     }
 
-    writesFor(_versions: MigrationVersions): readonly PlannedWrite[] {
-        return [];
-    }
-
-    hasC7(): boolean {
-        return this.c7Files.length > 0;
-    }
-
-    hasC8(): boolean {
-        return this.c8Files.length > 0;
-    }
-
-    hasBothPlatforms(): boolean {
-        return this.hasC7() && this.hasC8();
-    }
-
-    isEmpty(): boolean {
-        return !this.hasC7() && !this.hasC8();
-    }
-
-    fileCount(scope: MigrationScope): number {
-        switch (scope) {
-            case "c7":
-                return this.c7Files.length;
-            case "c8":
-                return this.c8Files.length;
-            case "both":
-                return this.c7Files.length + this.c8Files.length;
-        }
+    writesFor(versions: MigrationVersions): readonly PlannedWrite[] {
+        return ENGINES.flatMap((engine) => {
+            const version = versions[engine];
+            return version === undefined
+                ? []
+                : this.pathsByEngine[engine].map((path) => new PlannedWrite(path, engine, version));
+        });
     }
 }
