@@ -407,7 +407,20 @@ describe("the packaged extension in a real VS Code", () => {
                 ).toBe(false);
                 const close = preview().getByRole("button", { name: "Close form preview" });
                 const closeBox = await close.boundingBox();
+                const refreshBox = await preview()
+                    .getByRole("button", { name: "Refresh", exact: true })
+                    .boundingBox();
                 const panelBox = await preview().boundingBox();
+                expect(closeBox).not.toBeNull();
+                expect(refreshBox).not.toBeNull();
+                expect(
+                    Math.abs(
+                        refreshBox!.y +
+                            refreshBox!.height / 2 -
+                            (closeBox!.y + closeBox!.height / 2),
+                    ),
+                ).toBeLessThanOrEqual(1);
+                expect(closeBox!.x - (refreshBox!.x + refreshBox!.width)).toBeCloseTo(8, 0);
                 expect(closeBox!.x + closeBox!.width).toBeGreaterThan(
                     panelBox!.x + panelBox!.width - 16,
                 );

@@ -16,9 +16,10 @@
 .linked-form-preview > header,
 .linked-form-preview > p { flex-shrink: 0; }
 .linked-form-preview-content { min-height: 0; overflow: auto; }
-.linked-form-preview header { display: flex; align-items: center; gap: 8px; padding-right: 30px; }
-.linked-form-preview [data-close] { position: absolute; right: 6px; top: 6px; padding: 0; width: 26px; height: 26px; font-size: 22px; line-height: 1; }
-.linked-form-preview h2 { flex: 1; margin: 0; font-size: 1.2em; }
+.linked-form-preview header { display: flex; align-items: center; gap: 8px; }
+.linked-form-preview header button { flex-shrink: 0; }
+.linked-form-preview [data-close] { padding: 0; width: 26px; height: 26px; font-size: 22px; line-height: 1; }
+.linked-form-preview h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.2em; }
 .linked-form-preview button {
     background: var(--vscode-button-background, #0067b8);
     color: var(--vscode-button-foreground, #fff);
