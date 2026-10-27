@@ -1,16 +1,26 @@
 /**
- * Outcome of searching the workspace for the files a reference names.
+ * Outcome of searching the workspace's files; `Matches` holds what was found.
  *
  * - `no-search-scope` — nothing to search: no workspace folder open and no
  *   source URI to fall back to.
  * - `all-unreadable` — the search returned candidates but every read failed.
- * - `matches` — candidates were searched. `paths` may be empty (nothing
- *   matched), or contain one or more absolute paths.
+ * - `matches` — candidates were searched; what was found may be empty.
  */
-export type LocateResult =
+export type SearchOutcome<Matches extends object> =
     | { kind: "no-search-scope" }
     | { kind: "all-unreadable"; failures: string[] }
-    | { kind: "matches"; paths: string[]; readFailures: string[] };
+    | ({ kind: "matches"; readFailures: string[] } & Matches);
+
+/** A search for the files a reference names, as absolute `paths`. */
+export type LocateResult = SearchOutcome<{ paths: string[] }>;
+
+export function outcomeAfterReading<Matches extends object>(
+    _attempted: number,
+    _readFailures: string[],
+    _matches: Matches,
+): SearchOutcome<Matches> {
+    return { kind: "no-search-scope" };
+}
 
 /** What a {@link LocateResult} leaves to do: tell the user, open the file, or let them pick. */
 export type LocatedFile =

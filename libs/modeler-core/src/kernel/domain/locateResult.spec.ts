@@ -1,6 +1,84 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyLocateResult, LocatedFile, LocateResult } from "./locateResult";
+import {
+    classifyLocateResult,
+    LocatedFile,
+    LocateResult,
+    outcomeAfterReading,
+    SearchOutcome,
+} from "./locateResult";
+
+describe("outcomeAfterReading", () => {
+    it.each<{
+        behaviour: string;
+        attempted: number;
+        readFailures: string[];
+        paths: string[];
+        outcome: SearchOutcome<{ paths: string[] }>;
+    }>([
+        {
+            behaviour: "keeps what was found when every read succeeded",
+            attempted: 2,
+            readFailures: [],
+            paths: ["/a.bpmn"],
+            outcome: { kind: "matches", paths: ["/a.bpmn"], readFailures: [] },
+        },
+        {
+            behaviour: "keeps the failed reads next to what was found",
+            attempted: 2,
+            readFailures: ["Could not read /b.bpmn"],
+            paths: ["/a.bpmn"],
+            outcome: {
+                kind: "matches",
+                paths: ["/a.bpmn"],
+                readFailures: ["Could not read /b.bpmn"],
+            },
+        },
+        {
+            behaviour: "found nothing when the readable candidates did not match",
+            attempted: 2,
+            readFailures: ["Could not read /b.bpmn"],
+            paths: [],
+            outcome: { kind: "matches", paths: [], readFailures: ["Could not read /b.bpmn"] },
+        },
+        {
+            behaviour: "searched nothing when every read failed",
+            attempted: 2,
+            readFailures: ["Could not read /a.bpmn", "Could not read /b.bpmn"],
+            paths: [],
+            outcome: {
+                kind: "all-unreadable",
+                failures: ["Could not read /a.bpmn", "Could not read /b.bpmn"],
+            },
+        },
+        {
+            behaviour: "searched nothing when the only candidate failed to read",
+            attempted: 1,
+            readFailures: ["Could not read /a.bpmn"],
+            paths: [],
+            outcome: { kind: "all-unreadable", failures: ["Could not read /a.bpmn"] },
+        },
+        {
+            behaviour: "found nothing, rather than nothing readable, without candidates",
+            attempted: 0,
+            readFailures: [],
+            paths: [],
+            outcome: { kind: "matches", paths: [], readFailures: [] },
+        },
+    ])("$behaviour", ({ attempted, readFailures, paths, outcome }) => {
+        expect(outcomeAfterReading(attempted, readFailures, { paths })).toEqual(outcome);
+    });
+
+    it("carries any kind of match", () => {
+        const declarations = [{ id: "Form_A", path: "/a.form" }];
+
+        expect(outcomeAfterReading(1, [], { declarations })).toEqual({
+            kind: "matches",
+            declarations,
+            readFailures: [],
+        });
+    });
+});
 
 describe("classifyLocateResult", () => {
     it.each<{ behaviour: string; result: LocateResult; located: LocatedFile }>([
