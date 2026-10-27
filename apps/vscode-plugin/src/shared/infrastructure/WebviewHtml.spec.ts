@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("vscode", () => import("../../__fixtures__/vscodeFileSystemFake"));
 
 import {
-    directivesOf,
+    contentSecurityPolicyOf,
     scriptNonceOf,
     shellExtensionUri,
     shellWebview,
     stylesheetsOf,
     tagsOf,
 } from "../../__fixtures__/webviewShell";
+import { webviewContentSecurityPolicy, type WebviewShell } from "./webviewContentSecurityPolicy";
 import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
 
 type ShellBuilder = (initialPanelVisible?: boolean) => string;
@@ -29,20 +30,6 @@ function elementById(html: string, id: string): Record<string, string> {
 }
 
 describe("bpmnEditorUi", () => {
-    it("pins the policy the BPMN bundle needs and nothing more", () => {
-        const html = renderBpmn();
-
-        expect(directivesOf(html)).toEqual({
-            "default-src": "'none'",
-            "script-src": `'nonce-${scriptNonceOf(html)}' webview-csp:`,
-            "style-src": "webview-csp: 'unsafe-inline'",
-            "img-src": "webview-csp: data: https:",
-            "font-src": "webview-csp: data:",
-            "base-uri": "'none'",
-            "form-action": "'none'",
-        });
-    });
-
     // A module script: the bundle's chunks resolve their URLs through import.meta.url.
     it("loads the BPMN stylesheet and runs only its nonced module entry", () => {
         const html = renderBpmn();
@@ -61,20 +48,6 @@ describe("bpmnEditorUi", () => {
 });
 
 describe("dmnModelerHtml", () => {
-    it("pins the policy the DMN bundle needs and nothing more", () => {
-        const html = renderDmn();
-
-        expect(directivesOf(html)).toEqual({
-            "default-src": "'none'",
-            "script-src": `'nonce-${scriptNonceOf(html)}' webview-csp:`,
-            "style-src": "webview-csp: 'unsafe-inline'",
-            "img-src": "webview-csp: data:",
-            "font-src": "webview-csp: data:",
-            "base-uri": "'none'",
-            "form-action": "'none'",
-        });
-    });
-
     it("loads the reset and DMN stylesheets and runs only its nonced module entry", () => {
         const html = renderDmn();
 
@@ -134,23 +107,6 @@ describe.each([
 });
 
 describe("formEditorHtml", () => {
-    it("pins the policy the form editor and its HTTPS form components need", () => {
-        const html = renderForm();
-
-        expect(directivesOf(html)).toEqual({
-            "default-src": "'none'",
-            "img-src": "webview-csp: data: blob: https:",
-            "font-src": "webview-csp: data:",
-            "style-src": "webview-csp: 'unsafe-inline'",
-            "script-src": `'nonce-${scriptNonceOf(html)}'`,
-            "connect-src": "https:",
-            "frame-src": "https:",
-            "object-src": "blob:",
-            "base-uri": "'none'",
-            "form-action": "'none'",
-        });
-    });
-
     it("loads the form stylesheet and runs only its nonced entry script", () => {
         const html = renderForm();
 
@@ -170,11 +126,22 @@ describe("formEditorHtml", () => {
     });
 });
 
-describe.each([
-    ["bpmnEditorUi", renderBpmn],
-    ["dmnModelerHtml", renderDmn],
-    ["formEditorHtml", renderForm],
-])("%s nonce", (_shell, render) => {
+describe.each<[string, ShellBuilder, WebviewShell]>([
+    ["bpmnEditorUi", renderBpmn, "bpmn"],
+    ["dmnModelerHtml", renderDmn, "dmn"],
+    ["formEditorHtml", renderForm, "form"],
+])("%s policy", (_builder, render, shell) => {
+    it(`carries the ${shell} shell policy for the nonce of this render`, () => {
+        const html = render();
+
+        expect(contentSecurityPolicyOf(html)).toBe(
+            webviewContentSecurityPolicy(shell, {
+                cspSource: shellWebview.cspSource,
+                nonce: scriptNonceOf(html),
+            }),
+        );
+    });
+
     it("issues a fresh nonce per render", () => {
         const nonces = [scriptNonceOf(render()), scriptNonceOf(render())];
 

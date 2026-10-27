@@ -3,28 +3,28 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("vscode", () => import("../../__fixtures__/vscodeFileSystemFake"));
 
 import {
-    directivesOf,
+    contentSecurityPolicyOf,
     scriptNonceOf,
     shellExtensionUri,
     shellWebview,
     stylesheetsOf,
     tagsOf,
 } from "../../__fixtures__/webviewShell";
+import { webviewContentSecurityPolicy } from "../../shared/infrastructure/webviewContentSecurityPolicy";
 import { deploymentWebviewHtml } from "./DeploymentWebviewHtml";
 
 const renderDeployment = () => deploymentWebviewHtml(shellWebview, shellExtensionUri);
 
 describe("deploymentWebviewHtml", () => {
-    it("allows only the nonced entry script and the bundle's own styles, and no base or form target", () => {
+    it("carries the deployment shell policy for the nonce of this render", () => {
         const html = renderDeployment();
 
-        expect(directivesOf(html)).toEqual({
-            "default-src": "'none'",
-            "style-src": "webview-csp: 'unsafe-inline'",
-            "script-src": `'nonce-${scriptNonceOf(html)}'`,
-            "base-uri": "'none'",
-            "form-action": "'none'",
-        });
+        expect(contentSecurityPolicyOf(html)).toBe(
+            webviewContentSecurityPolicy("deployment", {
+                cspSource: shellWebview.cspSource,
+                nonce: scriptNonceOf(html),
+            }),
+        );
     });
 
     it("loads the deployment stylesheet and runs only its entry script, by the policy's nonce", () => {

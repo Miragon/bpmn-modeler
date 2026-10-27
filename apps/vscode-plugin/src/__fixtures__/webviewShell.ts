@@ -44,21 +44,8 @@ export function contentSecurityPolicyOf(html: string): string {
     return policy;
 }
 
-export function directivesOf(html: string): Record<string, string> {
-    return Object.fromEntries(
-        contentSecurityPolicyOf(html)
-            .split(";")
-            .map((directive) => directive.trim())
-            .filter((directive) => directive.length > 0)
-            .map((directive) => {
-                const [name, ...sources] = directive.split(/\s+/);
-                return [name, sources.join(" ")];
-            }),
-    );
-}
-
 export function scriptNonceOf(html: string): string {
-    const nonce = /'nonce-([^']+)'/.exec(directivesOf(html)["script-src"] ?? "")?.[1];
+    const nonce = /script-src 'nonce-([^']+)'/.exec(contentSecurityPolicyOf(html))?.[1];
     if (nonce === undefined) {
         throw new Error("The policy allows no nonced script.");
     }
