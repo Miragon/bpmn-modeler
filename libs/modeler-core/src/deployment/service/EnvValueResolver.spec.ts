@@ -181,6 +181,26 @@ describe("EnvValueResolver", () => {
             expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/ws/sub/.env");
         });
 
+        it("reads the .env beside the targets file the target came from, though a nearer one appeared since", async () => {
+            const { resolver, workspace } = setup({
+                dotEnvFiles: {
+                    "/ws/.env": { MIRAGON_TOKEN: "root-secret" },
+                    "/ws/sub/.env": { MIRAGON_TOKEN: "nested-secret" },
+                },
+                targetsLocation: targetsLocationIn("/ws/sub"),
+            });
+
+            const lookup = await resolver.createLookup(
+                named(targetsLocationIn("/ws")),
+                "/ws/sub/processes",
+                REFERENCES_ENV,
+            );
+
+            expect(lookup("MIRAGON_TOKEN")).toBe("root-secret");
+            expect(lookup.source).toBe("/ws/.env");
+            expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/ws/.env");
+        });
+
         it("does not fall back to the root .env when the nested project's .env lacks a variable", async () => {
             const { resolver, workspace } = setup({
                 dotEnvFiles: {

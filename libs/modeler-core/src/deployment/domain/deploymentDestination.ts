@@ -76,6 +76,10 @@ export class NamedDestination {
         return targetSecretSlot(this.location, this.target.name);
     }
 
+    dotEnvDirectory(_workspaceFolder: string | undefined): string | undefined {
+        return undefined;
+    }
+
     /** Approvals live beside the credentials, so they follow the slot. */
     get approvalSlot(): string {
         return this.secretSlot;
@@ -131,6 +135,10 @@ export class AdHocDestination {
         readonly endpoint: string,
         readonly tenantId: string,
     ) {}
+
+    dotEnvDirectory(_workspaceFolder: string | undefined): string | undefined {
+        return undefined;
+    }
 
     /** A typed ad-hoc request is the user's own choice; one carrying `.env` values is not. */
     requiresApproval(request: { carriesEnvValues(): boolean }): boolean {
