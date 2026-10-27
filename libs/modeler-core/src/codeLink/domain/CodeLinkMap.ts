@@ -8,6 +8,7 @@ import { posix } from "path";
 
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { ImplementationKind } from "./ImplementationReference";
+import { ImplementationTarget } from "./ImplementationTarget";
 
 /** Bumped only on a breaking change to {@link CodeLinkMapJson}'s shape. */
 export const CODE_LINK_SCHEMA_VERSION = 1;
@@ -137,11 +138,14 @@ export function toAbsoluteEntries(
     json: CodeLinkMapJson,
     workspaceRoot: string,
 ): CodeLinkMapEntry[] {
-    return json.entries.map((entry) => ({
-        activityId: entry.activityId,
-        kind: entry.kind,
-        reference: entry.reference,
-        resolved: entry.resolved,
-        paths: entry.paths.map((path) => toAbsolute(path, workspaceRoot)),
-    }));
+    // A newer writer or a hand edit can name a kind no target matches.
+    return json.entries
+        .filter((entry) => ImplementationTarget.isKnownKind(entry.kind))
+        .map((entry) => ({
+            activityId: entry.activityId,
+            kind: entry.kind,
+            reference: entry.reference,
+            resolved: entry.resolved,
+            paths: entry.paths.map((path) => toAbsolute(path, workspaceRoot)),
+        }));
 }
