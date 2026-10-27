@@ -1,7 +1,10 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.command.CommandEvent
+import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
@@ -77,6 +80,24 @@ internal fun bridgeDeps(
         parentDisposable = parentDisposable,
         notifications = lazy { error("HostNotifications must not be forced in router tests") },
     )
+
+/**
+ * Throws [failure] from the next command's `commandFinished`, i.e. after the
+ * write's `setText` already changed the Document.
+ */
+internal fun failNextCommandAfterItRuns(project: Project, failure: RuntimeException) {
+    var thrown = false
+    ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+        CommandListener.TOPIC,
+        object : CommandListener {
+            override fun commandFinished(event: CommandEvent) {
+                if (thrown) return
+                thrown = true
+                throw failure
+            }
+        },
+    )
+}
 
 /**
  * A real `.bpmn` [VirtualFile] plus its in-memory [Document], the pair the routers

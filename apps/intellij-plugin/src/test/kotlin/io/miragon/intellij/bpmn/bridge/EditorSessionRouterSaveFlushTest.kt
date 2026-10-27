@@ -117,15 +117,22 @@ class EditorSessionRouterSaveFlushTest {
     }
 
     /** The core's `document/write` for a webview sync, applied on the EDT as the host does. */
-    private fun Fixture.dispatchCoreWrite(content: String) {
+    private fun Fixture.dispatchCoreWrite(content: String, expectedDocumentRevision: Long? = null) {
         val params =
             linkedMapOf<String, Any>("editorId" to bpmn.file.url, "sessionId" to sessionId, "content" to content)
+        expectedDocumentRevision?.let { params["expectedDocumentRevision"] = it }
         wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, 1)
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
     private fun syncCommand(content: String): String =
         gson.toJson(linkedMapOf("type" to "SyncDocumentCommand", "content" to content, "documentRevision" to 0))
+
+    /** Plays another tool setting the Document to [content], as the editor's `DocumentListener` reports it. */
+    private fun Fixture.editExternally(content: String) {
+        WriteCommandAction.runWriteCommandAction(webview.session.project) { bpmn.document.setText(content) }
+        webview.router.notifyDocumentChanged(webview.session) { bpmn.document.text }
+    }
 
     /** Skips the webview messages the router forwards to the core up to the next request reply. */
     private fun Fixture.nextReply(): JsonObject {
@@ -143,9 +150,11 @@ class EditorSessionRouterSaveFlushTest {
 
         assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath), "the saved file holds the webview's last edit")
         assertEquals(1, f.webview.flushQueries.size, "the save asks the webview once")
+        val query = f.webview.flushQueries.single()
+        assertFalse(query.get("destructive")?.asBoolean ?: false, "a save must not lock the page the way a close does")
         assertFalse(
-            f.webview.flushQueries.single().get("destructive")?.asBoolean ?: false,
-            "a save must not lock the page the way a close does",
+            query.get("exportWhenEdited")?.asBoolean ?: false,
+            "a save asks only for the edit the page's sync still holds",
         )
     }
 
@@ -209,8 +218,7 @@ class EditorSessionRouterSaveFlushTest {
     fun `a save-all during a pending external edit keeps the host's content`() {
         val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
         // Another tool changed the file; its debounced render has not reached the page.
-        WriteCommandAction.runWriteCommandAction(f.webview.session.project) { f.bpmn.document.setText(EXTERNAL_XML) }
-        f.webview.router.notifyDocumentChanged(f.webview.session) { f.bpmn.document.text }
+        f.editExternally(EXTERNAL_XML)
 
         FileDocumentManager.getInstance().saveAllDocuments()
 
@@ -226,6 +234,50 @@ class EditorSessionRouterSaveFlushTest {
         FileDocumentManager.getInstance().saveAllDocuments()
 
         assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath), "the core's write of that sync lands after the save")
+    }
+
+    @Test
+    fun `a second write of the saved edit reports no change`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+        FileDocumentManager.getInstance().saveAllDocuments()
+        f.dispatchCoreWrite(EDITED_XML)
+        assertTrue(f.nextReply().getAsJsonObject("result").get("changed").asBoolean)
+
+        f.dispatchCoreWrite(EDITED_XML)
+
+        assertFalse(
+            f.nextReply().getAsJsonObject("result").get("changed").asBoolean,
+            "the first write already gave the core's mirror the saved edit",
+        )
+    }
+
+    @Test
+    fun `a write after an external edit back to the saved edit reports no change`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+        FileDocumentManager.getInstance().saveAllDocuments()
+        f.editExternally(EXTERNAL_XML)
+        f.editExternally(EDITED_XML)
+
+        f.dispatchCoreWrite(EDITED_XML, expectedDocumentRevision = 2)
+
+        val result = f.nextReply().getAsJsonObject("result")
+        assertTrue(result.get("accepted").asBoolean, "the write carries the external edit's revision")
+        assertFalse(result.get("changed").asBoolean, "the external edit's didChange gives the core's mirror that content")
+    }
+
+    @Test
+    fun `a save-all whose write throws after the Document took the edit still tells the late sync it changed`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+        failNextCommandAfterItRuns(f.webview.session.project, IllegalStateException("listener failed"))
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+        f.dispatchCoreWrite(EDITED_XML)
+
+        assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath))
+        assertTrue(
+            f.nextReply().getAsJsonObject("result").get("changed").asBoolean,
+            "the core's mirror never heard of the edit the Document took",
+        )
     }
 
     @Test
