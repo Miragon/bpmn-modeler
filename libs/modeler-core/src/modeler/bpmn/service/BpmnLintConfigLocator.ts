@@ -1,6 +1,7 @@
 import { posix } from "path";
 
 import { ancestorsUpTo } from "../../../kernel/domain/ancestorsUpTo";
+import { configFolderPath } from "../../../kernel/domain/configArtifacts";
 import { DirectoryNotFound } from "../../../kernel/domain/errors";
 import { SettingsPort, WorkspacePort } from "../../../kernel/domain/hostPorts";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
@@ -42,7 +43,7 @@ export class BpmnLintConfigLocator {
             if (await this.hasFile(directory, ".bpmnlintrc")) {
                 return joinWorkspacePath(directory, ".bpmnlintrc");
             }
-            const configDir = joinWorkspacePath(directory, configFolder);
+            const configDir = configFolderPath(directory, configFolder);
             if (await this.hasFile(configDir, ".bpmnlintrc")) {
                 return joinWorkspacePath(configDir, ".bpmnlintrc");
             }

@@ -70,12 +70,12 @@ through them. A feature's `domain/` may import only its own `domain/` and the
 `domain/` of `kernel/` and `editorSession/`.
 
 - `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
-  engine versions, the workspace path, glob, containment and watcher rules, the
-  cross-cutting errors and host ports, and the HTTP contract (`HttpClient`,
-  `HttpTransportError`, `loggableHost`) with its fetch adapter. A service joins
-  `kernel/service/` only when at least two features use it, as
-  `ArtifactService` and the workspace file search do. `kernel/` imports no
-  other folder, so it stays the bottom layer.
+  engine versions, the workspace path, config-folder, glob, containment and
+  watcher rules, the cross-cutting errors and host ports, and the HTTP
+  contract (`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch
+  adapter. A service joins `kernel/service/` only when at least two features
+  use it, as `ArtifactService` and the workspace file search do. `kernel/`
+  imports no other folder, so it stays the bottom layer.
 - `editorSession/` is the application core every editor runs on. Its
   `service/` holds the store, lifecycle, router, document sync, ordered
   dispatch, flush services and webview log routing, `session/` the render

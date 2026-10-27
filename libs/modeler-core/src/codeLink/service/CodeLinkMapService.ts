@@ -4,9 +4,9 @@ import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import { asyncDebounce, ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { EditorHandle } from "../../editorSession/service/EditorHandle";
+import { configArtifactPath } from "../../kernel/domain/configArtifacts";
 import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { parseMapJson, toRelative } from "../domain/codeLinkArtifact";
@@ -19,8 +19,7 @@ import { SourceIndex } from "./SourceIndex";
 /** How a watched source file changed, as reported by the workspace watcher. */
 type SourceChangeKind = "created" | "changed" | "deleted";
 
-// Subfolder of `<configFolder>` the artifact is written under.
-const CODE_LINK_DIR = "code-link";
+const CODE_LINK_AREA = "code-link";
 
 // Long enough that a burst of saves collapses into one write, short enough that
 // the artifact is fresh by the time anyone reads it.
@@ -452,24 +451,25 @@ export class CodeLinkMapService {
         }
     }
 
-    /**
-     * Artifact path mirrors the diagram's workspace-relative location under
-     * `<configFolder>/code-link/` (e.g. `…/order.bpmn` →
-     * `.camunda/code-link/…/order.bpmn.json`). Mirroring the path — rather than
-     * using the bare basename — keeps two same-named diagrams in different
-     * folders from clobbering one file.
-     */
+    /** A document outside its root keeps its map in memory only. */
     private artifactPath(state: EditorState): string | undefined {
         if (!state.workspaceRoot || !state.documentPath) {
             return undefined;
         }
-        const relBpmn = toRelative(state.documentPath, state.workspaceRoot);
-        return joinWorkspacePath(
-            state.workspaceRoot,
-            this.vsSettings.getConfigFolder(),
-            CODE_LINK_DIR,
-            `${relBpmn}.json`,
-        );
+        try {
+            return configArtifactPath({
+                workspaceRoot: state.workspaceRoot,
+                configFolder: this.vsSettings.getConfigFolder(),
+                area: CODE_LINK_AREA,
+                documentPath: state.documentPath,
+                suffix: ".json",
+            });
+        } catch (error) {
+            this.notifier.logWarning(
+                `[code-link] not persisting the map: ${(error as Error).message}`,
+            );
+            return undefined;
+        }
     }
 
     private getOrCreateState(editorId: string): EditorState {

@@ -1,12 +1,12 @@
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
 
+import { configFolderPath } from "../../kernel/domain/configArtifacts";
 import {
     NotifierPort,
     PickerPort,
     SettingsPort,
     WorkspacePort,
 } from "../../kernel/domain/hostPorts";
-import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
@@ -86,7 +86,7 @@ export class DeploymentTargetService {
         );
         const projectDir = foundIn ?? workspaceRoot;
         return {
-            filePath: joinWorkspacePath(projectDir, configFolder, TARGETS_FILE_NAME),
+            filePath: configFolderPath(projectDir, configFolder, TARGETS_FILE_NAME),
             exists: foundIn !== undefined,
             projectDir,
         };
