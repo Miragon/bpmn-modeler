@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-26
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -53,26 +53,39 @@ DOM-id-coupled panel resizers, focus/shortcut bindings and the VS Code body-clas
 theme adapter belong in `shared`. This deliberately mixes private browser
 chrome with the protocol to avoid another workspace for a few helpers.
 
-`modeler-core` owns domain/services plus `EditorSessionStore`,
-`WebviewMessageRouter` and `DiffPaneStore`. Host applications import its public
-entrypoint and supply capability ports and editor/diff handles. The core is
-VS Code-free, and no core file reaches a host module (`node:*`, `fs`, `http`),
-directly or transitively. This does not make the whole core browser-safe:
-portable Node utilities such as `path` remain valid there.
+`modeler-core` owns domain/services, the editor-session core
+(`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) and
+`DiffPaneStore`. Host applications import its public entrypoint and supply
+capability ports and editor/diff handles. The core is VS Code-free, and no core
+file reaches a host module (`node:*`, `fs`, `http`), directly or transitively.
+This does not make the whole core browser-safe: portable Node utilities such as
+`path` remain valid there.
 
 Inside the core, each feature folder (`modeler/<editor>` for the editors)
 splits into `domain/`, an application layer of `service/` and `session/` (the
 editor-session participants), `infrastructure/` and root files that compose the
 feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
-and Node `path`. Features reach each other only through `shared/` and
-`kernel/`. `kernel/` holds the vocabulary several features build on:
-`BpmnDocument`, engine versions, the workspace path, glob, containment and
-watcher rules, the cross-cutting errors and host ports, and the HTTP contract
-(`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch adapter.
-A service joins `kernel/service/` only when at least two features use it, as
-`ArtifactService` and the workspace file search do. `kernel/` imports nothing
-outside itself, so it stays the bottom layer. `shared/` holds the
-editor-session core every editor runs on.
+and Node `path`. Two folders are shared, and features reach each other only
+through them. A feature's `domain/` may import only their `domain/`.
+
+- `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
+  engine versions, the workspace path, glob, containment and watcher rules, the
+  cross-cutting errors and host ports, and the HTTP contract (`HttpClient`,
+  `HttpTransportError`, `loggableHost`) with its fetch adapter. A service joins
+  `kernel/service/` only when at least two features use it, as
+  `ArtifactService` and the workspace file search do. `kernel/` imports no
+  other folder, so it stays the bottom layer.
+- `editorSession/` is the application core every editor runs on. Its
+  `service/` holds the store, lifecycle, router, document sync, ordered
+  dispatch, flush services and webview log routing, `session/` the render
+  participant, and `infrastructure/` only the inbound document, focus, log and
+  notification handlers. Its `domain/` keeps the session events, the
+  participant contract, the echo guard and status-item ownership.
+  `EditorHandle` sits in `service/` because its `postMessage` speaks the
+  private protocol; `EditorSessionDocuments` implements `DocumentPort` on top
+  of the store, so it is a service, not an adapter. `editorSession/` imports
+  only `kernel/`, which the cross-feature rule already implies.
+
 Services and participants import no infrastructure; in infrastructure only the
 inbound `*MessageHandlers` adapters import services. A relative import resolves
 to a feature module, never to the package entry or the test kit, and the core
@@ -82,9 +95,9 @@ or error one feature owns lives in that feature's `domain/` (`ports.ts`,
 `errors.ts`), so `kernel/` names no feature.
 A store that holds application state and reaches the host, if at all, only
 through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
-feature's `service/` with no port of its own. Today's listed exceptions are the
-protocol imports of two domain files and services using the editor-session core
-in `shared/infrastructure/`. Each names the issue that removes it, and the test
+feature's `service/` with no port of its own. Today's only listed exception is
+the protocol import of `ScriptVariableStore` in `scriptTask/domain/`, which
+#1834 removes. An exception names the issue that removes it, and the test
 fails when one is no longer needed, so the list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
@@ -427,6 +440,11 @@ a cached result must equal an uncached run.
 - Enforcing the core's layer rules only after the refactors that remove the
   current violations would let new ones in meanwhile. Known exceptions start
   the gate now, at the cost of a list that review has to keep from growing.
+- `kernel/` and `editorSession/` could be workspaces of their own, which would
+  turn their direction into package dependencies. That adds manifests, path
+  aliases and Vitest targets for code no consumer imports apart from the core,
+  so they stay folders whose import direction the core architecture test
+  enforces.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the
