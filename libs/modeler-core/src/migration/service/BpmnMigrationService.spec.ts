@@ -34,6 +34,10 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:modeler="http://camunda.org/schema/modeler/1.0">
 </bpmn:definitions>`;
 
+const c8WithoutDefinitionsRoot = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:process xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Process_1" />`;
+
 const withUnsavedEdit = (xml: string) =>
     xml.replace("</bpmn:definitions>", `<bpmn:process id="Unsaved_Edit" />\n</bpmn:definitions>`);
 
@@ -59,6 +63,18 @@ const promptedMethods = (picker: { prompts: { method: string }[] }) =>
     picker.prompts.map((prompt) => prompt.method);
 
 const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
+
+const failingOn =
+    <Rest extends unknown[], Result>(
+        failingPath: string,
+        operation: (path: string, ...rest: Rest) => Promise<Result>,
+    ) =>
+    async (path: string, ...rest: Rest): Promise<Result> => {
+        if (path === failingPath) {
+            throw new Error("Permission denied");
+        }
+        return operation(path, ...rest);
+    };
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -359,23 +375,143 @@ describe("migrateAllDiagrams", () => {
         ]);
     });
 
-    it("aborts with an error when a closed diagram cannot be read before it is written", async () => {
+    it("skips a diagram without a definitions root and migrates the rest", async () => {
+        const { service, notifier, workspace } = createHost(
+            {
+                "/work/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/b.bpmn": c8WithoutDefinitionsRoot,
+                "/work/c.bpmn": c8Bpmn("8.5.0"),
+            },
+            { engineVersion: "8.8.0" },
+        );
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8Bpmn("8.8.0"),
+            "/work/b.bpmn": c8WithoutDefinitionsRoot,
+            "/work/c.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be migrated: \/work\/b\.bpmn: Error: The BPMN file does not contain a `definitions` root element\.\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 2 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
+    it("skips a diagram it cannot read and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost(
+            {
+                "/work/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/b.bpmn": c8Bpmn("8.5.0"),
+                "/work/c.bpmn": c8Bpmn("8.5.0"),
+            },
+            { engineVersion: "8.8.0" },
+        );
+        const readFile = workspace.readFile.bind(workspace);
+        vi.spyOn(workspace, "readFile").mockImplementation(failingOn("/work/b.bpmn", readFile));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(promptedMethods(picker)).toEqual(["pickEngineVersion"]);
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8Bpmn("8.8.0"),
+            "/work/b.bpmn": c8Bpmn("8.5.0"),
+            "/work/c.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be read: \/work\/b\.bpmn: Error: Permission denied\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 2 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
+    it("reports a diagram it cannot read when no other diagram has an engine to migrate", async () => {
         const { service, notifier, picker, workspace } = createHost({
             "/work/a.bpmn": c8Bpmn("8.5.0"),
+            "/work/unknown.bpmn": unknownBpmn,
         });
+        const readFile = workspace.readFile.bind(workspace);
+        vi.spyOn(workspace, "readFile").mockImplementation(failingOn("/work/a.bpmn", readFile));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be read: \/work\/a\.bpmn: Error: Permission denied\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(false);
+    });
+
+    it("skips a closed diagram it cannot read when writing it and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+            "/work/b.bpmn": c8Bpmn("8.5.0"),
+        });
+        const readFile = workspace.readFile.bind(workspace);
         vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
-            vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("Permission denied"));
+            vi.spyOn(workspace, "readFile").mockImplementation(failingOn("/work/a.bpmn", readFile));
             return "8.8.0";
         });
 
         const result = await service.migrateAllDiagrams();
 
-        expect(result).toBe(false);
-        expect(workspace.files.get("/work/a.bpmn")).toBe(c8Bpmn("8.5.0"));
-        expect(notifier.errors).toEqual([
-            "A problem occurred while migrating BPMN diagrams.\nPermission denied",
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+            "/work/b.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be migrated: \/work\/a\.bpmn: Error: Permission denied\n/,
+            ),
         ]);
-        expect(notifier.infos).toEqual([]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
+    it("skips a closed diagram whose file cannot be written and migrates the rest", async () => {
+        const { service, notifier, workspace } = createHost(
+            { "/work/a.bpmn": c8BpmnNoVersion, "/work/b.bpmn": c8Bpmn("8.5.0") },
+            { engineVersion: "8.8.0" },
+        );
+        const writeFile = workspace.writeFile.bind(workspace);
+        vi.spyOn(workspace, "writeFile").mockImplementation(failingOn("/work/a.bpmn", writeFile));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8BpmnNoVersion,
+            "/work/b.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be migrated: \/work\/a\.bpmn: Error: Permission denied\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
     });
 
     it("stamps the execution platform on a diagram without a version, declaring each attribute once", async () => {
