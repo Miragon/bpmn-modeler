@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { InMemoryWorkspace, RecordingNotifier } from "../../testing";
+import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
 
@@ -104,7 +105,7 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
     });
 
     it("returns empty matches when the expression has no leading bean id", async () => {
-        const { locator, workspace } = createLocator();
+        const { locator, workspace, notifier } = createLocator();
         const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("${ 1 + 2 }", "expression");
@@ -112,6 +113,9 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
         expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
         // No bean id → nothing to search for.
         expect(findFiles).not.toHaveBeenCalled();
+        expect(notifier.logged("info")).toContain(
+            '[code-link] nothing to search for in expression reference "${ 1 + 2 }"',
+        );
     });
 });
 
@@ -206,6 +210,38 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
             expect(result.paths).toEqual(["/src/good.java"]);
             expect(result.readFailures).toHaveLength(1);
         }
+    });
+});
+
+describe("ImplementationLocator — content search on the walk fallback", () => {
+    it.each<{ kind: ImplementationKind; reference: string; files: Record<string, string> }>([
+        {
+            kind: "jobType",
+            reference: "pay",
+            files: {
+                "/work/src/Worker.java": '@JobWorker(type = "pay")',
+                "/work/process.bpmn": '<zeebe:taskDefinition type="pay" />',
+            },
+        },
+        {
+            kind: "delegateExpression",
+            reference: "${myBean}",
+            files: {
+                "/work/src/Worker.java": '@Service("myBean")\nclass Worker {}',
+                "/work/src/worker.ts": '@Service("myBean")',
+            },
+        },
+    ])("reads only the files a $kind content search covers", async ({ kind, reference, files }) => {
+        const { locator, workspace } = createLocator({ folders: ["/work"], files });
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+
+        const result = await locator.resolve(reference, kind, "/work/process.bpmn");
+
+        expect(result).toEqual({
+            kind: "matches",
+            paths: ["/work/src/Worker.java"],
+            readFailures: [],
+        });
     });
 });
 
