@@ -1298,6 +1298,23 @@ describe("ScriptTaskService.materializeScript", () => {
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
     });
 
+    it("rejects when the script file cannot be written", async () => {
+        const { service, scriptFiles } = createService();
+        scriptFiles.writeFile.mockRejectedValueOnce(new Error("EACCES: permission denied"));
+
+        await expect(
+            service.materializeScript(
+                EDITOR_ID,
+                ELEMENT_ID,
+                KIND,
+                undefined,
+                undefined,
+                "groovy",
+                "x",
+            ),
+        ).rejects.toThrow("EACCES: permission denied");
+    });
+
     it("overwrites stale disk content on a fresh (untracked) materialize", async () => {
         const { service, scriptFiles } = createService();
 
