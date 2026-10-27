@@ -28,8 +28,7 @@ import {
     SOURCE_FILES,
     SourceFileSet,
 } from "./ImplementationReference";
-import { SourceFileFacts } from "./SourceFileFacts";
-import { BEAN_ANNOTATION_PREFIX } from "./sourceText";
+import { BEAN_ANNOTATION_PREFIX, SourceFileFacts } from "./SourceFileFacts";
 
 const KIND_LABELS: Record<ImplementationKind, string> = {
     javaClass: "class",
