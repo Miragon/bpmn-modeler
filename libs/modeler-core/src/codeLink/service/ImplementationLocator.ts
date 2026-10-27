@@ -1,6 +1,8 @@
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { LocateResult } from "../../kernel/domain/locateResult";
+import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
 import {
     ContentSearchResult,
     findFilesExcluding,
@@ -18,20 +20,6 @@ interface ContentTarget {
     activityId: string;
     target: ImplementationTarget;
 }
-
-/**
- * Outcome of locating the source file(s) implementing a task reference.
- * Mirrors `navigation`'s `LocateResult` so the navigation service can be a
- * near-clone.
- *
- * - `no-search-scope` — nothing to search (no folder open, no source URI).
- * - `all-unreadable` — candidates were found but every read failed.
- * - `matches` — `paths` may be empty (nothing matched) or hold one/many hits.
- */
-export type LocateImplementationResult =
-    | { kind: "no-search-scope" }
-    | { kind: "all-unreadable"; attempted: number; failures: string[] }
-    | { kind: "matches"; paths: string[]; readFailures: string[] };
 
 /**
  * Resolves a Camunda implementation reference to workspace source file(s),
@@ -53,16 +41,17 @@ export class ImplementationLocator {
         reference: string,
         kind: ImplementationKind,
         sourceDocumentPath?: string,
-    ): Promise<LocateImplementationResult> {
+    ): Promise<LocateResult> {
+        const displayReference = truncateForDisplay(reference, REFERENCE_DISPLAY_LIMIT);
         this.notifier.logInfo(
-            `[code-link] resolving ${kind} reference="${truncate(reference)}" ` +
+            `[code-link] resolving ${kind} reference="${displayReference}" ` +
                 `sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
 
         const target = ImplementationTarget.of(kind, reference);
         if (!target.isSearchable) {
             this.notifier.logInfo(
-                `[code-link] nothing to search for in ${kind} reference "${truncate(reference)}"`,
+                `[code-link] nothing to search for in ${kind} reference "${displayReference}"`,
             );
             return { kind: "matches", paths: [], readFailures: [] };
         }
@@ -171,7 +160,7 @@ export class ImplementationLocator {
     private async searchContent(
         search: ContentSearch,
         sourceDocumentPath: string | undefined,
-    ): Promise<LocateImplementationResult> {
+    ): Promise<LocateResult> {
         const sources = await findFilesExcluding(this.vsWorkspace, search.files.glob(), {
             sourceDocumentPath,
             logger: this.notifier,
@@ -187,7 +176,7 @@ export class ImplementationLocator {
     }
 }
 
-function toResult(candidates: string[], search: ContentSearchResult): LocateImplementationResult {
+function toResult(candidates: string[], search: ContentSearchResult): LocateResult {
     if (search.allUnreadable) {
         return {
             kind: "all-unreadable",
@@ -196,10 +185,4 @@ function toResult(candidates: string[], search: ContentSearchResult): LocateImpl
         };
     }
     return { kind: "matches", paths: search.matches, readFailures: search.readFailures };
-}
-
-function truncate(value: string): string {
-    return value.length <= REFERENCE_DISPLAY_LIMIT
-        ? value
-        : `${value.slice(0, REFERENCE_DISPLAY_LIMIT - 1)}…`;
 }

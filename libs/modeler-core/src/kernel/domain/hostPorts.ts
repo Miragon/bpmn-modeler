@@ -16,6 +16,7 @@
 
 import { Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
+import { LocateResult } from "./locateResult";
 import { NewModelEngine } from "./newModelEngine";
 
 /**
@@ -58,10 +59,16 @@ export interface NotifierPort extends LoggerPort {
     openDocument(absolutePath: string): Promise<void>;
 }
 
+/** The placeholders of a search-and-pick list: one while it is busy, one over the matches. */
+export interface LocatePrompts {
+    searchingPlaceholder: string;
+    pickPlaceholder: string;
+}
+
 /**
- * Domain-aware quick-pick prompts (engine, engine version, referenced model,
- * …). Each method owns the cancel-vs-throw convention for its prompt so
- * callsites stay free of `vscode` and the convention is not re-derived.
+ * Domain-aware quick-pick prompts (engine, engine version, located file, …).
+ * Each method owns the cancel-vs-throw convention for its prompt so callsites
+ * stay free of `vscode` and the convention is not re-derived.
  */
 export interface PickerPort {
     /**
@@ -83,19 +90,17 @@ export interface PickerPort {
     pickScriptLanguage(currentFormat: string): Promise<string | undefined>;
     /**
      * Runs `search` behind a busy selection list so the spinner sits where the
-     * user is looking, not only in the status bar. Only a multi-match result
+     * user is looking, not only in the status bar. Only a result that
+     * {@link import("./locateResult").classifyLocateResult} calls ambiguous
      * reveals the list to pick from; the untouched `outcome` comes back either
-     * way, so the caller keeps its own 0/1/error branching and messages.
+     * way, so the caller keeps the other cases and their messages.
      *
-     * The constraint carries `kind` (not just `paths?`) because an all-optional
-     * shape is a "weak type" no locate-result union can be assigned to.
-     *
-     * @returns `{ outcome, chosen }` — `chosen` set only on a multi-match pick.
+     * @returns `{ outcome, chosen }` — `chosen` set only on a pick among several matches.
      */
-    searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
-        placeholder: string,
-        search: () => Promise<R>,
-    ): Promise<{ outcome: R; chosen?: string }>;
+    searchAndPickLocatedFile(
+        prompts: LocatePrompts,
+        search: () => Promise<LocateResult>,
+    ): Promise<{ outcome: LocateResult; chosen?: string }>;
 
     /**
      * Confirms an irreversible-looking change before it happens, listing what

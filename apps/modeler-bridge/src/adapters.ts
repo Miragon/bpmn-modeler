@@ -20,6 +20,7 @@ import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
     BpmnlintStatusBarPort,
+    classifyLocateResult,
     ClipboardPort,
     DeployedRevision,
     DeploymentFreshness,
@@ -31,6 +32,8 @@ import {
     EditorHandle,
     EditorSubscription,
     errorLogText,
+    LocatePrompts,
+    LocateResult,
     MigrationPickerPort,
     MigrationScope,
     NEW_MODEL_ENGINE_CHOICES,
@@ -904,30 +907,32 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
         return selected === null ? undefined : actions[selected[0]];
     }
 
-    async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
-        placeholder: string,
-        search: () => Promise<R>,
-    ): Promise<{ outcome: R; chosen?: string }> {
+    async searchAndPickLocatedFile(
+        prompts: LocatePrompts,
+        search: () => Promise<LocateResult>,
+    ): Promise<{ outcome: LocateResult; chosen?: string }> {
         // The host can't render a busy list, so it keeps its status-bar spinner:
         // bracket the local search with the progress notifications, then open the
-        // native picker only for a multi-match.
-        this.rpc.notify(METHODS.notifierProgressStart, { title: placeholder });
-        let outcome: R;
+        // native picker only for an ambiguous result.
+        const title = prompts.searchingPlaceholder;
+        this.rpc.notify(METHODS.notifierProgressStart, { title });
+        let outcome: LocateResult;
         try {
             outcome = await search();
         } finally {
-            this.rpc.notify(METHODS.notifierProgressEnd, { title: placeholder });
+            this.rpc.notify(METHODS.notifierProgressEnd, { title });
         }
 
-        if (!outcome.paths || outcome.paths.length < 2) {
+        const located = classifyLocateResult(outcome);
+        if (located.kind !== "ambiguous") {
             return { outcome, chosen: undefined };
         }
 
         // Sort by path so nearby files surface first. The bridge has no VS Code
         // `asRelativePath`, so the absolute path is both the detail and sort key.
-        const sorted = [...outcome.paths].sort((a, b) => a.localeCompare(b));
+        const sorted = [...located.paths].sort((a, b) => a.localeCompare(b));
         const selected = await this.show({
-            placeholder: "Select the referenced model to open",
+            placeholder: prompts.pickPlaceholder,
             canPickMany: false,
             items: sorted.map((path) => ({ label: posix.basename(path), description: path })),
         });

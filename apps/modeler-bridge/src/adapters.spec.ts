@@ -987,12 +987,16 @@ describe("RpcPicker", () => {
         await expect(pending).resolves.toBeUndefined();
     });
 
-    it("searchAndPickReferencedModel brackets the search with progress, then picks from multiple matches", async () => {
+    it("searchAndPickLocatedFile brackets the search with progress, then picks from multiple matches", async () => {
         const { frames, picker, answerLast } = setup();
-        const pending = picker.searchAndPickReferencedModel("Searching…", async () => ({
-            kind: "matches",
-            paths: ["/w/b.bpmn", "/w/a.bpmn"],
-        }));
+        const pending = picker.searchAndPickLocatedFile(
+            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
+            async () => ({
+                kind: "matches",
+                paths: ["/w/b.bpmn", "/w/a.bpmn"],
+                readFailures: [],
+            }),
+        );
         await settle();
 
         // No busy list on the host, so the search keeps the status-bar spinner:
@@ -1002,25 +1006,30 @@ describe("RpcPicker", () => {
             { method: "notifier/progressEnd", params: { title: "Searching…" } },
         ]);
         const show = frames.find((f) => f.method === "picker/show");
+        expect(show.params.placeholder).toBe("Select the file to open");
         expect(show.params.items.map((item: { description: string }) => item.description)).toEqual([
             "/w/a.bpmn",
             "/w/b.bpmn",
         ]);
         await answerLast({ selected: [0] });
         await expect(pending).resolves.toEqual({
-            outcome: { kind: "matches", paths: ["/w/b.bpmn", "/w/a.bpmn"] },
+            outcome: { kind: "matches", paths: ["/w/b.bpmn", "/w/a.bpmn"], readFailures: [] },
             chosen: "/w/a.bpmn",
         });
     });
 
-    it("searchAndPickReferencedModel skips the picker for a single match", async () => {
+    it("searchAndPickLocatedFile skips the picker for a single match", async () => {
         const { frames, picker } = setup();
-        const result = await picker.searchAndPickReferencedModel("Searching…", async () => ({
-            kind: "matches",
-            paths: ["/w/only.bpmn"],
-        }));
+        const result = await picker.searchAndPickLocatedFile(
+            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
+            async () => ({
+                kind: "matches",
+                paths: ["/w/only.bpmn"],
+                readFailures: [],
+            }),
+        );
         expect(result).toEqual({
-            outcome: { kind: "matches", paths: ["/w/only.bpmn"] },
+            outcome: { kind: "matches", paths: ["/w/only.bpmn"], readFailures: [] },
             chosen: undefined,
         });
         expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
@@ -1030,25 +1039,32 @@ describe("RpcPicker", () => {
         ]);
     });
 
-    it("searchAndPickReferencedModel returns chosen=undefined when the list is dismissed", async () => {
+    it("searchAndPickLocatedFile returns chosen=undefined when the list is dismissed", async () => {
         const { picker, answerLast } = setup();
-        const pending = picker.searchAndPickReferencedModel("Searching…", async () => ({
-            kind: "matches",
-            paths: ["/w/a.bpmn", "/w/b.bpmn"],
-        }));
+        const pending = picker.searchAndPickLocatedFile(
+            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
+            async () => ({
+                kind: "matches",
+                paths: ["/w/a.bpmn", "/w/b.bpmn"],
+                readFailures: [],
+            }),
+        );
         await settle();
         await answerLast({ selected: null });
         await expect(pending).resolves.toEqual({
-            outcome: { kind: "matches", paths: ["/w/a.bpmn", "/w/b.bpmn"] },
+            outcome: { kind: "matches", paths: ["/w/a.bpmn", "/w/b.bpmn"], readFailures: [] },
             chosen: undefined,
         });
     });
 
-    it("searchAndPickReferencedModel still ends the spinner when the search throws", async () => {
+    it("searchAndPickLocatedFile still ends the spinner when the search throws", async () => {
         const { frames, picker } = setup();
-        const run = picker.searchAndPickReferencedModel("Searching…", async () => {
-            throw new Error("scan failed");
-        });
+        const run = picker.searchAndPickLocatedFile(
+            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
+            async () => {
+                throw new Error("scan failed");
+            },
+        );
         await expect(run).rejects.toThrow("scan failed");
         expect(frames.map((f) => f.method)).toEqual([
             "notifier/progressStart",
