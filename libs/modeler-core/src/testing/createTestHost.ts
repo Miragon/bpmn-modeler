@@ -46,6 +46,19 @@ export function createTestHost(options: TestHostOptions = {}) {
     const notifier = new RecordingNotifier();
     const lifecycles = new Map<string, EditorSessionLifecycle>();
     const documentChanges = new DocumentChangeStream();
+    const openHandles = new Set<FakeEditorHandle>();
+    const registerHandle = (handle: FakeEditorHandle, focused: boolean): void => {
+        handle.active = focused;
+        store.register(handle);
+        // Only one editor has focus at a time: the hosts blur the one focused before.
+        if (focused) {
+            openHandles.forEach((other) => {
+                if (other.active) other.loseFocus();
+            });
+        }
+        openHandles.add(handle);
+        handle.onDidDispose(() => openHandles.delete(handle));
+    };
     return {
         store,
         documents: new EditorSessionDocuments(store),
@@ -67,8 +80,7 @@ export function createTestHost(options: TestHostOptions = {}) {
             { focused = false }: { focused?: boolean } = {},
         ): FakeEditorHandle {
             const handle = new FakeEditorHandle(path, { content, documentChanges });
-            handle.active = focused;
-            store.register(handle);
+            registerHandle(handle, focused);
             return handle;
         },
         async openSession(
@@ -81,8 +93,7 @@ export function createTestHost(options: TestHostOptions = {}) {
             }: TestSessionOptions = {},
         ): Promise<FakeEditorHandle> {
             const handle = new FakeEditorHandle(path, { content, documentChanges });
-            handle.active = focused;
-            store.register(handle);
+            registerHandle(handle, focused);
             const lifecycle = new EditorSessionLifecycle(store, notifier, router, participants);
             lifecycles.set(handle.id, lifecycle);
             await lifecycle.open(handle.id);

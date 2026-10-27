@@ -189,13 +189,16 @@ describe("createTestHost", () => {
 
     it("blurs the focused editor when another one opens focused, as the hosts do", async () => {
         const host = createTestHost();
+        const focusChanges: string[] = [];
+        const recordFocusChanges = (editorId: string) =>
+            host.store.subscribeToFocusChangeEvent(editorId, (focused) =>
+                focusChanges.push(`${editorId} ${focused}`),
+            );
         const order = host.openEditor("/work/order.bpmn", "", { focused: true });
+        recordFocusChanges(order.id);
         const invoice = host.openEditor("/work/invoice.bpmn", "", { focused: true });
+        recordFocusChanges(invoice.id);
         host.openEditor("/work/background.bpmn");
-        const invoiceFocusChanges: boolean[] = [];
-        host.store.subscribeToFocusChangeEvent(invoice.id, (focused) =>
-            invoiceFocusChanges.push(focused),
-        );
 
         expect(host.store.getFocusedEditorId()).toBe(invoice.id);
 
@@ -206,7 +209,7 @@ describe("createTestHost", () => {
             false,
             true,
         ]);
-        expect(invoiceFocusChanges).toEqual([false]);
+        expect(focusChanges).toEqual([`${order.id} false`, `${invoice.id} false`]);
     });
 
     it("plays host events into the store and rejects posts to a hidden webview", async () => {
