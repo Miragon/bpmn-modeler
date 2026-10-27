@@ -135,7 +135,7 @@ posts through the full `HostApi`. The diff pane, the DMN and Form editors and
 the deployment sidebar post their own commands, and a spec fails when a
 protocol command belongs to neither side. A host's router still dispatches an
 unrouted type as a no-op, but records a type it drops on purpose with
-`ignore(type, reason)`. `routeOf(type)`
+`ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
 reports a type as handled, ignored with that reason, or unrouted, and a type is
 never both handled and ignored, so a coverage spec can tell a deliberate drop
 from a missing route.

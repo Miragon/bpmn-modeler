@@ -59,8 +59,15 @@ export class WebviewMessageRouter {
      * can tell it from a type nobody routed. Dispatching it stays a no-op.
      */
     ignore(type: ProtocolCommandType, reason: string): this {
+        if (reason.trim() === "") {
+            throw new Error(`${type} needs a reason to be ignored`);
+        }
         if (this.handlers.has(type)) {
             throw new Error(`${type} is handled, so it cannot be ignored`);
+        }
+        const ignoredReason = this.ignoredReasons.get(type);
+        if (ignoredReason !== undefined) {
+            throw new Error(`${type} is already ignored (${ignoredReason})`);
         }
         this.ignoredReasons.set(type, reason);
         return this;
