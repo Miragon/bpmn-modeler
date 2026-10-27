@@ -141,15 +141,15 @@ bootstrap nor a session module can post another surface's command or a query.
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
 `WebviewDocumentSync` takes a channel for exactly the three messages it posts,
-so handing it the BPMN channel proves they are on the list. Only the diff pane, which the bootstrap starts instead of the editor, still
-posts through the full `HostApi`. The diff pane, the DMN and Form editors and
-the deployment sidebar post their own commands, and a spec fails when a
-protocol command belongs to neither side. A host's router still dispatches an
-unrouted type as a no-op, but records a type it drops on purpose with
-`ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
-reports a type as handled, ignored with that reason, or unrouted, and a type is
-never both handled and ignored, so a coverage spec can tell a deliberate drop
-from a missing route.
+so handing it the BPMN channel proves they are on the list. Only the diff pane,
+which the bootstrap starts instead of the editor, still posts through the full
+`HostApi`. The diff pane, the DMN and Form editors and the deployment sidebar
+post their own commands, and a spec fails when a protocol command belongs to
+neither side. A host's router still dispatches an unrouted type as a no-op, but
+records a type it drops on purpose with `ignore(type, reason)`, once and with a
+non-blank reason. `routeOf(type)` reports a type as handled, ignored with that
+reason, or unrouted, and a type is never both handled and ignored, so a
+coverage spec can tell a deliberate drop from a missing route.
 
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while
