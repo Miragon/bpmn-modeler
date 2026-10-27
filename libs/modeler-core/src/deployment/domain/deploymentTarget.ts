@@ -24,6 +24,8 @@ import {
 
 export type TargetAuthType = "none" | "basic" | "oauth2";
 
+const NON_EMPTY_STRING = "must be a non-empty string";
+
 export interface StoredCredentials {
     readonly username?: string;
     readonly password?: string;
@@ -146,12 +148,16 @@ function targetAuthOf(
     return new NoTargetAuth();
 }
 
+/**
+ * The engine and auth type are left to {@link DeploymentTarget.create} to
+ * check: neither the file nor the form's protocol payload is checked on arrival.
+ */
 export interface DeploymentTargetFields {
     readonly name: string;
-    readonly engine: Engine;
+    readonly engine: unknown;
     readonly endpoint: string;
     readonly tenantId?: string;
-    readonly authType: TargetAuthType;
+    readonly authType: unknown;
     readonly tokenEndpoint?: string;
     readonly audience?: string;
     readonly deployUrl?: string;
@@ -189,23 +195,34 @@ export class DeploymentTarget {
      * named ledger keys are built from the endpoint, so trimming it would orphan
      * the rows of a hand-edited file.
      *
-     * @throws {InvalidDeploymentTargetError} for a blank name or endpoint.
+     * @throws {InvalidDeploymentTargetError} for a blank name or endpoint, or an
+     *   engine or auth type outside the known ones.
      * @throws {DisallowedEnvReferenceError} naming the JSON field of the offending reference.
      */
     static create(fields: DeploymentTargetFields): DeploymentTarget {
+        const { engine, authType } = fields;
         const name = fields.name.trim();
         if (name === "") {
-            throw new InvalidDeploymentTargetError("name");
+            throw new InvalidDeploymentTargetError("name", NON_EMPTY_STRING);
+        }
+        if (engine !== "c7" && engine !== "c8") {
+            throw new InvalidDeploymentTargetError("engine", 'must be "c7" or "c8"');
         }
         if (fields.endpoint.trim() === "") {
-            throw new InvalidDeploymentTargetError("endpoint");
+            throw new InvalidDeploymentTargetError("endpoint", NON_EMPTY_STRING);
+        }
+        if (authType !== "none" && authType !== "basic" && authType !== "oauth2") {
+            throw new InvalidDeploymentTargetError(
+                "auth.type",
+                'must be "none", "basic", or "oauth2"',
+            );
         }
         const target = new DeploymentTarget(
             name,
-            fields.engine,
+            engine,
             fields.endpoint,
             fields.tenantId ?? "",
-            fields.authType,
+            authType,
             fields.tokenEndpoint ?? "",
             fields.audience ?? "",
             trimmedOrUndefined(fields.deployUrl),
@@ -399,14 +416,6 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
     const source = entry as Record<string, unknown>;
 
     const name = parseRequiredString(source.name, index, "name");
-
-    const engine = source.engine;
-    if (engine !== "c7" && engine !== "c8") {
-        throw new InvalidDeploymentTargetsFileError(
-            `targets[${index}] "engine" must be "c7" or "c8"`,
-        );
-    }
-
     const endpoint = parseRequiredString(source.endpoint, index, "endpoint");
     const tenantId = parseOptionalString(source.tenantId, index, "tenantId");
 
@@ -414,7 +423,14 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
     const endpoints = parseEndpoints(source.endpoints, index);
 
     try {
-        return DeploymentTarget.create({ name, engine, endpoint, tenantId, ...auth, ...endpoints });
+        return DeploymentTarget.create({
+            name,
+            engine: source.engine,
+            endpoint,
+            tenantId,
+            ...auth,
+            ...endpoints,
+        });
     } catch (error) {
         if (
             error instanceof InvalidDeploymentTargetError ||
@@ -427,7 +443,7 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
 }
 
 interface ParsedAuth {
-    authType: TargetAuthType;
+    authType: unknown;
     tokenEndpoint?: string;
     audience?: string;
     credentialRefs: CredentialRefs;
@@ -441,17 +457,11 @@ function parseAuth(raw: unknown, index: number): ParsedAuth {
         throw new InvalidDeploymentTargetsFileError(`targets[${index}] "auth" must be an object`);
     }
     const auth = raw as Record<string, unknown>;
-    const type = auth.type;
-    if (type !== "none" && type !== "basic" && type !== "oauth2") {
-        throw new InvalidDeploymentTargetsFileError(
-            `targets[${index}] "auth.type" must be "none", "basic", or "oauth2"`,
-        );
-    }
     return {
-        authType: type,
+        authType: auth.type,
         tokenEndpoint: parseOptionalString(auth.tokenEndpoint, index, "auth.tokenEndpoint"),
         audience: parseOptionalString(auth.audience, index, "auth.audience"),
-        credentialRefs: parseCredentialRefs(auth, type, index),
+        credentialRefs: parseCredentialRefs(auth, index),
     };
 }
 
@@ -459,16 +469,12 @@ function parseAuth(raw: unknown, index: number): ParsedAuth {
  * Every field is validated so a literal secret under another auth type's key
  * still fails loudly; the target's {@link TargetAuth} keeps only its own refs.
  */
-function parseCredentialRefs(
-    auth: Record<string, unknown>,
-    type: TargetAuthType,
-    index: number,
-): CredentialRefs {
+function parseCredentialRefs(auth: Record<string, unknown>, index: number): CredentialRefs {
     const username = parseCredentialRef(auth.username, index, "auth.username");
     const password = parseCredentialRef(auth.password, index, "auth.password");
     const clientId = parseCredentialRef(auth.clientId, index, "auth.clientId");
     const clientSecret = parseCredentialRef(auth.clientSecret, index, "auth.clientSecret");
-    return type === "oauth2"
+    return auth.type === "oauth2"
         ? CredentialRefs.oauth2(clientId, clientSecret)
         : CredentialRefs.basic(username, password);
 }
@@ -517,7 +523,7 @@ function parseEndpoints(
 function parseRequiredString(raw: unknown, index: number, field: string): string {
     if (typeof raw !== "string") {
         throw new InvalidDeploymentTargetsFileError(
-            `targets[${index}] "${field}" must be a non-empty string`,
+            `targets[${index}] "${field}" ${NON_EMPTY_STRING}`,
         );
     }
     return raw;

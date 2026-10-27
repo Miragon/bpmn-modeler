@@ -27,10 +27,13 @@ export class InvalidDeploymentTargetsFileError extends Error {
     }
 }
 
-/** Thrown by {@link DeploymentTarget.create} for a required field that is blank. */
+/** Thrown by {@link DeploymentTarget.create} for a field value a target cannot hold. */
 export class InvalidDeploymentTargetError extends Error {
-    constructor(readonly field: string) {
-        super(`"${field}" must be a non-empty string`);
+    constructor(
+        readonly field: string,
+        reason: string,
+    ) {
+        super(`"${field}" ${reason}`);
         this.name = "InvalidDeploymentTargetError";
     }
 }

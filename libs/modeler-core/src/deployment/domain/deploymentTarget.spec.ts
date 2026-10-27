@@ -166,12 +166,14 @@ describe("parseDeploymentTargetsFile", () => {
         [{ name: 42 }, '"name" must be a non-empty string'],
         [{ name: "  " }, '"name" must be a non-empty string'],
         [{ engine: "c9" }, '"engine" must be "c7" or "c8"'],
+        [{ engine: 7 }, '"engine" must be "c7" or "c8"'],
         [{ endpoint: undefined }, '"endpoint" must be a non-empty string'],
         [{ endpoint: " " }, '"endpoint" must be a non-empty string'],
         [{ tenantId: 42 }, '"tenantId" must be a string'],
         [{ auth: "basic" }, '"auth" must be an object'],
         [{ auth: null }, '"auth" must be an object'],
         [{ auth: { type: "x" } }, '"auth.type" must be "none", "basic", or "oauth2"'],
+        [{ auth: {} }, '"auth.type" must be "none", "basic", or "oauth2"'],
         [{ auth: { type: "oauth2", audience: 42 } }, '"auth.audience" must be a string'],
         [{ endpoints: "x" }, '"endpoints" must be an object'],
         [{ endpoints: null }, '"endpoints" must be an object'],
@@ -503,18 +505,23 @@ describe("DeploymentTarget", () => {
             },
         );
 
-        it.each<[string, Partial<DeploymentTargetFields>, string]>([
-            ["an empty name", { name: "" }, "name"],
-            ["a blank name", { name: "   " }, "name"],
-            ["a blank endpoint", { endpoint: " " }, "endpoint"],
-        ])("rejects %s", (_desc, fields, field) => {
+        it.each<[string, Partial<DeploymentTargetFields>, string, string]>([
+            ["an empty name", { name: "" }, "name", "must be a non-empty string"],
+            ["a blank name", { name: "   " }, "name", "must be a non-empty string"],
+            ["a blank endpoint", { endpoint: " " }, "endpoint", "must be a non-empty string"],
+            ["an unknown engine", { engine: "c9" }, "engine", 'must be "c7" or "c8"'],
+            ["a missing engine", { engine: undefined }, "engine", 'must be "c7" or "c8"'],
+            [
+                "an unknown auth type",
+                { authType: "x" },
+                "auth.type",
+                'must be "none", "basic", or "oauth2"',
+            ],
+        ])("rejects %s", (_desc, fields, field, reason) => {
             const error = errorFrom(() => DeploymentTarget.create({ ...FIELDS, ...fields }));
 
             expect(error).toBeInstanceOf(InvalidDeploymentTargetError);
-            expect(error).toMatchObject({
-                field,
-                message: `"${field}" must be a non-empty string`,
-            });
+            expect(error).toMatchObject({ field, message: `"${field}" ${reason}` });
         });
 
         it.each<[string, Partial<DeploymentTargetFields>]>([
