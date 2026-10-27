@@ -124,6 +124,19 @@ describe("CommandTarget", () => {
             announced: ["a", "b", "c"],
         },
         {
+            scenario:
+                "ends on the focused editor once every editor that opened as focused behind it blurs",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "focused"],
+                ["open", "c", "focused"],
+                ["blur", "c", "b"],
+                ["blur", "b", "a"],
+            ],
+            target: "a",
+            announced: ["a", "b", "c", "b", "a"],
+        },
+        {
             scenario: "moves to the editor focused next when the target blurs first",
             steps: [
                 ["open", "a", "focused"],
