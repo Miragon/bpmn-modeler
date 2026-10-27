@@ -10,10 +10,9 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.AutoHidingStatusSlots
-import io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidget
-import io.miragon.intellij.bpmn.EngineStatusBarWidget
 import io.miragon.intellij.bpmn.HostPicker
 import io.miragon.intellij.bpmn.StatusBarSlots
+import io.miragon.intellij.bpmn.StatusSlot
 import io.miragon.intellij.bpmn.StatusSlots
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
@@ -21,14 +20,15 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort`,
- * `DeploymentStatusBarPort` and `NotifierPort` — onto native IntelliJ surfaces.
- * Stateless: every handler delegates to a project-scoped widget, the system
- * clipboard, or the lazy [io.miragon.intellij.bpmn.HostNotifications].
+ * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort` and
+ * its widget-shaped predecessors, and `NotifierPort` — onto native IntelliJ
+ * surfaces. Every status frame becomes one view of one slot in [statusSlots];
+ * the other handlers delegate to the system clipboard or the lazy
+ * [io.miragon.intellij.bpmn.HostNotifications].
  */
 internal class HostUiRouter(
     private val deps: BridgeDeps,
-    @Suppress("unused") private val statusSlots: StatusSlots =
+    private val statusSlots: StatusSlots =
         AutoHidingStatusSlots(StatusBarSlots(deps.project), AppExecutorUtil.getAppScheduledExecutorService()),
 ) {
     private val log = Logger.getInstance(HostUiRouter::class.java)
@@ -48,23 +48,30 @@ internal class HostUiRouter(
             .on("clipboard/read") { _, id -> handleClipboardRead(id) }
             .on("clipboard/write") { params, _ -> handleClipboardWrite(params) }
             .on("statusBar/showEngineVersion") { params, _ ->
-                val label = if (params.get("platform")?.asString == "c7") "Camunda 7" else "Camunda 8"
-                EngineStatusBarWidget.updateEngine(project, "$label ${params.get("version")?.asString}")
+                statusSlots.show(
+                    StatusSlot.ENGINE_VERSION,
+                    LegacyStatusViews.engineVersion(params.get("platform")?.asString, params.get("version")?.asString),
+                )
             }
-            .on("statusBar/hideEngineVersion") { _, _ -> EngineStatusBarWidget.updateEngine(project, null) }
+            .on("statusBar/hideEngineVersion") { _, _ -> statusSlots.hide(StatusSlot.ENGINE_VERSION) }
             .on("statusBar/templatesReady") { params, _ ->
-                EngineStatusBarWidget.updateTemplateCount(project, params.get("count")?.asInt ?: 0)
+                statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesReady(params.get("count")?.asInt ?: 0))
             }
-            .on("statusBar/templatesHide") { _, _ -> EngineStatusBarWidget.updateTemplateCount(project, null) }
-            .on("statusBar/templatesLoading") { _, _ -> EngineStatusBarWidget.showTemplatesLoading(project) }
+            .on("statusBar/templatesHide") { _, _ -> statusSlots.hide(StatusSlot.ELEMENT_TEMPLATES) }
+            .on("statusBar/templatesLoading") { _, _ ->
+                statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesLoading)
+            }
             .on("statusBar/showDeploymentTarget") { params, _ ->
                 val name = params.get("name")?.takeIf { !it.isJsonNull }?.asString
                 val freshness = params.get("freshness")?.takeIf { !it.isJsonNull }?.asString ?: "unknown"
                 val deployedAt = params.get("deployedAt")?.takeIf { !it.isJsonNull }?.asString
                 val verifiedAt = params.get("verifiedAt")?.takeIf { !it.isJsonNull }?.asString
-                DeploymentTargetStatusBarWidget.updateTarget(project, name, freshness, deployedAt, verifiedAt)
+                statusSlots.show(
+                    StatusSlot.DEPLOYMENT_TARGET,
+                    LegacyStatusViews.deploymentTarget(name, freshness, deployedAt, verifiedAt),
+                )
             }
-            .on("statusBar/hideDeploymentTarget") { _, _ -> DeploymentTargetStatusBarWidget.hide(project) }
+            .on("statusBar/hideDeploymentTarget") { _, _ -> statusSlots.hide(StatusSlot.DEPLOYMENT_TARGET) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showWarning") { params, _ -> notifications.showWarning(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }

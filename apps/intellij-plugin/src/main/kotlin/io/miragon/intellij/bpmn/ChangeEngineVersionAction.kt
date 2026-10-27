@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
 
 /**
  * Tools ▸ Change Engine Version — picks a new Camunda engine version for the
@@ -15,11 +16,7 @@ import com.intellij.openapi.project.DumbAwareAction
  */
 class ChangeEngineVersionAction : DumbAwareAction() {
     override fun actionPerformed(event: AnActionEvent) {
-        val project = event.project ?: return
-        val editor = FileEditorManager.getInstance(project).selectedEditor as? BpmnFileEditor ?: return
-        // Pass the session key explicitly (the file url) rather than relying on the
-        // bridge's active-editor pointer, so the right session is targeted.
-        project.getService(CoreProcess::class.java).changeEngineVersion(editor.file.url)
+        changeEngineVersionOfSelectedDiagram(event.project ?: return)
     }
 
     /** Only meaningful with a BPMN modeler focused. */
@@ -31,4 +28,14 @@ class ChangeEngineVersionAction : DumbAwareAction() {
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+    companion object {
+        /** Also the engine widget's click, so both ask about the same diagram. */
+        fun changeEngineVersionOfSelectedDiagram(project: Project) {
+            val editor = FileEditorManager.getInstance(project).selectedEditor as? BpmnFileEditor ?: return
+            // Pass the session key explicitly (the file url) rather than relying on the
+            // bridge's active-editor pointer, so the right session is targeted.
+            project.getService(CoreProcess::class.java).changeEngineVersion(editor.file.url)
+        }
+    }
 }
