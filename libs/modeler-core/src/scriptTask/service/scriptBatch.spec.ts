@@ -9,14 +9,13 @@ import {
     scriptBatchSummary,
 } from "./scriptBatch";
 
-type MaterializeResult = { written: boolean } | undefined;
-type Materialize = (script: ScriptTaskScript) => Promise<MaterializeResult>;
+type Materialize = (script: ScriptTaskScript) => Promise<ScriptMaterialization>;
 
 function script(elementId: string): ScriptTaskScript {
     return { elementId, scriptFormat: "javascript", content: `// ${elementId}` };
 }
 
-function materializedIds(materialize: Pick<Mock<Materialize>, "mock">): string[] {
+function materializedIds(materialize: Mock<Materialize>): string[] {
     return materialize.mock.calls.map(([materialized]) => materialized.elementId);
 }
 
@@ -26,62 +25,54 @@ describe("materializeScriptBatch", () => {
     it("reports nothing generated for a diagram without inline scripts", async () => {
         const materialize = vi.fn<Materialize>();
 
-        const outcome = await materializeScriptBatch([], materialize);
+        const outcome = await materializeScriptBatch([], materialize, new RecordingNotifier());
 
-        expect(outcome).toEqual({ generated: 0, alreadyOpen: 0 });
+        expect(outcome).toEqual({ generated: 0, alreadyOpen: 0, failed: 0 });
         expect(materialize).not.toHaveBeenCalled();
     });
 
     it("counts written and already-open scripts and skips cancelled ones", async () => {
         const materialize = vi
             .fn<Materialize>()
-            .mockResolvedValueOnce({ written: true })
-            .mockResolvedValueOnce({ written: false })
-            .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce({ written: true });
+            .mockResolvedValueOnce({ kind: "written" })
+            .mockResolvedValueOnce({ kind: "alreadyOpen" })
+            .mockResolvedValueOnce({ kind: "cancelled" })
+            .mockResolvedValueOnce({ kind: "written" });
 
         const outcome = await materializeScriptBatch(
             [script("A"), script("B"), script("C"), script("D")],
             materialize,
+            new RecordingNotifier(),
         );
 
-        expect(outcome).toEqual({ generated: 2, alreadyOpen: 1 });
+        expect(outcome).toEqual({ generated: 2, alreadyOpen: 1, failed: 0 });
         expect(materializedIds(materialize)).toEqual(["A", "B", "C", "D"]);
     });
 
     it("materialises the next script only once the previous one has settled", async () => {
-        let finishFirst!: (result: MaterializeResult) => void;
+        let finishFirst!: (result: ScriptMaterialization) => void;
         const materialize = vi
             .fn<Materialize>()
             .mockImplementationOnce(() => new Promise((resolve) => (finishFirst = resolve)))
-            .mockResolvedValue({ written: true });
+            .mockResolvedValue({ kind: "written" });
 
-        const batch = materializeScriptBatch([script("A"), script("B")], materialize);
+        const batch = materializeScriptBatch(
+            [script("A"), script("B")],
+            materialize,
+            new RecordingNotifier(),
+        );
         await flushPendingWork();
 
         expect(materializedIds(materialize)).toEqual(["A"]);
 
-        finishFirst({ written: true });
-        await expect(batch).resolves.toEqual({ generated: 2, alreadyOpen: 0 });
-        expect(materializedIds(materialize)).toEqual(["A", "B"]);
-    });
-
-    it("aborts the remaining scripts when one fails to materialise", async () => {
-        const materialize = vi
-            .fn<Materialize>()
-            .mockResolvedValueOnce({ written: true })
-            .mockRejectedValueOnce(new Error("disk full"))
-            .mockResolvedValue({ written: true });
-
-        await expect(
-            materializeScriptBatch([script("A"), script("B"), script("C")], materialize),
-        ).rejects.toThrow("disk full");
+        finishFirst({ kind: "written" });
+        await expect(batch).resolves.toEqual({ generated: 2, alreadyOpen: 0, failed: 0 });
         expect(materializedIds(materialize)).toEqual(["A", "B"]);
     });
 
     it("counts a failed script and keeps materialising the rest", async () => {
         const materialize = vi
-            .fn<(script: ScriptTaskScript) => Promise<ScriptMaterialization>>()
+            .fn<Materialize>()
             .mockResolvedValueOnce({ kind: "written" })
             .mockRejectedValueOnce(new Error("disk full"))
             .mockResolvedValueOnce({ kind: "failed", error: new Error("read-only") })
@@ -100,13 +91,11 @@ describe("materializeScriptBatch", () => {
     it("logs which script failed and why", async () => {
         const logger = new RecordingNotifier();
         const materialize = vi
-            .fn<(script: ScriptTaskScript) => Promise<ScriptMaterialization>>()
+            .fn<Materialize>()
             .mockRejectedValueOnce(new Error("disk full"))
             .mockResolvedValueOnce({ kind: "failed", error: new Error("read-only") });
 
-        await materializeScriptBatch([script("A"), script("B")], materialize, logger).catch(
-            () => undefined,
-        );
+        await materializeScriptBatch([script("A"), script("B")], materialize, logger);
 
         expect(logger.logged("error")).toEqual([
             expect.stringMatching(/^Could not write the script file of A: Error: disk full/),
@@ -117,13 +106,18 @@ describe("materializeScriptBatch", () => {
 
 describe("scriptBatchSummary", () => {
     it("names the output folder", () => {
-        expect(scriptBatchSummary({ generated: 2, alreadyOpen: 0 }, ".camunda/tmp/scripting")).toBe(
+        expect(
+            scriptBatchSummary(
+                { generated: 2, alreadyOpen: 0, failed: 0 },
+                ".camunda/tmp/scripting",
+            ),
+        ).toBe(
             "Generated 2 script file(s) in .camunda/tmp/scripting — open a file to edit it with live sync into the diagram.",
         );
     });
 
     it("mentions scripts left untouched because they were already open", () => {
-        expect(scriptBatchSummary({ generated: 1, alreadyOpen: 3 }, "scripts")).toBe(
+        expect(scriptBatchSummary({ generated: 1, alreadyOpen: 3, failed: 0 }, "scripts")).toBe(
             "Generated 1 script file(s) in scripts (3 already open, left untouched) — open a file to edit it with live sync into the diagram.",
         );
     });

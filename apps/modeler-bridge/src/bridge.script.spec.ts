@@ -821,7 +821,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
     });
 
-    it("logs a batch that fails mid-way instead of leaving the rejection unhandled", async () => {
+    it("counts a script whose language pick fails as failed and still shows the summary", async () => {
         const { rpc, frames, editorId } = await setup();
 
         await rpc.handleLine(
@@ -843,12 +843,14 @@ describe("bridge script editor (real core over a fake transport)", () => {
         );
         await rpc.handleLine(JSON.stringify({ id: picker.id, error: "host went away" }));
 
-        const log = await waitForFrame(
-            frames,
-            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        expect(info.params.message).toBe(
+            "Generated 0 script file(s) in .camunda/tmp/scripting — open a file to edit it with live sync into the diagram. Could not write 1 script file(s); see the log for details.",
         );
-        expect(log.params.message).toContain("host went away");
-        expect(frames.find((f) => f.method === "notifier/showInfo")).toBeUndefined();
+        const log = frames.find((f) => f.method === "notifier/log" && f.params?.level === "error");
+        expect(log.params.message).toMatch(
+            /^Could not write the script file of Task_1: .*host went away/,
+        );
     });
 
     it("hints to focus a diagram when script/openAll fires with no active editor", async () => {

@@ -91,7 +91,7 @@ export function openScriptEditorHandler(
  *
  * The variable store is seeded once before the first write (the model is
  * identical for all scripts in one diagram); the batch policy — sequential
- * materialisation and the summary toast — lives in
+ * materialisation, failure counting and the summary toast — lives in
  * {@link materializeScriptBatch}, shared with the bridge. An empty batch — a
  * C8 diagram or one with no inline scripts — surfaces a friendly info message.
  */
@@ -108,16 +108,19 @@ export function openScriptEditorsHandler(
         }
         variableStore.setExtracted(editorId, cmd.variables ?? []);
 
-        const outcome = await materializeScriptBatch(cmd.scripts, (script) =>
-            scriptTaskSvc.materializeScript(
-                editorId,
-                script.elementId,
-                "script-task",
-                undefined,
-                undefined,
-                script.scriptFormat,
-                script.content,
-            ),
+        const outcome = await materializeScriptBatch(
+            cmd.scripts,
+            (script) =>
+                scriptTaskSvc.materializeScript(
+                    editorId,
+                    script.elementId,
+                    "script-task",
+                    undefined,
+                    undefined,
+                    script.scriptFormat,
+                    script.content,
+                ),
+            notifier,
         );
 
         const folder = posix.join(settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
