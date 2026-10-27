@@ -297,14 +297,14 @@ describe("EditorSessionStore", () => {
 
     it("ignores a blur from an old handle after a same-id replacement", () => {
         const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/other.bpmn");
+        focused.active = true;
+        store.register(focused);
         const original = new FakeEditorHandle(A_PATH);
         original.active = true;
         store.register(original);
         store.subscribeToTabChangeEvent(original.id);
         store.register(new FakeEditorHandle(A_PATH));
-        const focused = new FakeEditorHandle("/repo/other.bpmn");
-        store.register(focused);
-        focused.active = true;
 
         original.loseFocus();
 

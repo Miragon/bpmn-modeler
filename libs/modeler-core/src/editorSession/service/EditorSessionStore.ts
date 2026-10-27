@@ -309,7 +309,7 @@ export class EditorSessionStore {
             if (this.editors.get(editorId) !== handle) return;
             const newTarget = active
                 ? this.commandTarget.focus(editorId)
-                : this.commandTarget.blur(editorId, this.getFocusedEditorId());
+                : this.commandTarget.blur(editorId);
             this.announceActiveEditor(newTarget);
         });
     }
