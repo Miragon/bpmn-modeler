@@ -1115,7 +1115,7 @@ describe("DeploymentTarget", () => {
                     target("dev", { endpoint: "${env:MIRAGON_URL}" }).expandConnection(
                         lookup({ MIRAGON_URL: value }),
                     ),
-                ).toThrow(InvalidDeploymentConfigError);
+                ).toThrow(new InvalidDeploymentConfigError(["endpoint"]));
             },
         );
 
