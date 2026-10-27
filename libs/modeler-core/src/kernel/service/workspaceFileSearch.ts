@@ -2,7 +2,7 @@ import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
 import { EXCLUDED_DIRS, isInsideExcludedDirBelowEveryFolder } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
-import { LocateResult, outcomeAfterReading } from "../domain/locateResult";
+import { LocateResult, outcomeAfterReading, SearchOutcome } from "../domain/locateResult";
 import { SearchScope } from "../domain/searchScope";
 import { joinWorkspacePath } from "../domain/workspacePath";
 
@@ -54,6 +54,12 @@ interface FindFilesOptions {
     matchesWalkedFile: (absolutePath: string) => boolean;
 }
 
+/** The files a search lists: `glob` for `findFiles`, `matchesWalkedFile` for the walks. */
+export interface WorkspaceFileQuery extends FindFilesOptions {
+    glob: string;
+    sourceDocumentPath?: string;
+}
+
 /**
  * Finds workspace files matching `glob`, excluding build/output dirs, with an
  * fs-walk fallback for hosts where the bundled ripgrep is missing.
@@ -71,11 +77,10 @@ interface FindFilesOptions {
  */
 export async function findFilesExcluding(
     ws: WorkspacePort,
-    glob: string,
-    options: FindFilesOptions & { sourceDocumentPath?: string },
+    query: WorkspaceFileQuery,
 ): Promise<string[] | undefined> {
-    const scope = resolveSearchScope(ws, options.sourceDocumentPath);
-    return scope && findFilesInScope(ws, scope, glob, options);
+    const scope = resolveSearchScope(ws, query.sourceDocumentPath);
+    return scope && findFilesInScope(ws, scope, query.glob, query);
 }
 
 export async function findFilesInScope(
@@ -164,24 +169,41 @@ async function walkWorkspaceTree(
     return out;
 }
 
-/** The candidates whose content matches `pattern` outside XML comments and CDATA sections. */
-export async function searchFilesContent(
+/** The files `query` lists whose content matches `pattern` outside XML comments and CDATA sections. */
+export function searchFilesContent(
     ws: WorkspacePort,
-    paths: string[],
+    query: WorkspaceFileQuery,
     pattern: RegExp,
-    logger?: SearchLogger,
 ): Promise<LocateResult> {
-    const startedAt = Date.now();
-    const { found, readFailures } = await scanFiles(ws, paths, (content, path) =>
-        matchesOutsideCommentsAndCdata(content, pattern) ? path : undefined,
+    return scanWorkspaceFiles(
+        ws,
+        query,
+        (content, path) => (matchesOutsideCommentsAndCdata(content, pattern) ? path : undefined),
+        (paths) => ({ paths }),
     );
+}
 
-    logger?.logInfo(
-        `[search] content: candidates=${paths.length} matches=${found.length} ` +
+/** Lists the files `query` names and keeps what `inspect` finds in each, gathered by `toMatches`. */
+export async function scanWorkspaceFiles<Found, Matches extends object>(
+    ws: WorkspacePort,
+    query: WorkspaceFileQuery,
+    inspect: (content: string, path: string) => Found | undefined,
+    toMatches: (found: Found[]) => Matches,
+): Promise<SearchOutcome<Matches>> {
+    const paths = await findFilesExcluding(ws, query);
+    if (paths === undefined) {
+        query.logger?.logInfo("[search] no search scope (no folder, no source uri)");
+        return { kind: "no-search-scope" };
+    }
+
+    const startedAt = Date.now();
+    const { found, readFailures } = await scanFiles(ws, paths, inspect);
+    query.logger?.logInfo(
+        `[search] read: candidates=${paths.length} found=${found.length} ` +
             `readFailures=${readFailures.length} reads-took=${Date.now() - startedAt}ms`,
     );
 
-    return outcomeAfterReading(paths.length, readFailures, { paths: found });
+    return outcomeAfterReading(paths.length, readFailures, toMatches(found));
 }
 
 /**
@@ -189,7 +211,7 @@ export async function searchFilesContent(
  * failed read is collected, not thrown, so one unreadable file does not abort
  * the search.
  */
-export async function scanFiles<Found>(
+async function scanFiles<Found>(
     ws: WorkspacePort,
     paths: readonly string[],
     inspect: (content: string, path: string) => Found | undefined,

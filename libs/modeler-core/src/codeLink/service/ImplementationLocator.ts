@@ -139,7 +139,8 @@ export class ImplementationLocator {
         if (target.fileNameGlob === undefined) {
             return [];
         }
-        return findFilesExcluding(this.vsWorkspace, target.fileNameGlob, {
+        return findFilesExcluding(this.vsWorkspace, {
+            glob: target.fileNameGlob,
             sourceDocumentPath,
             logger: this.notifier,
             matchesWalkedFile: (path) => target.matchesFileName(path),
@@ -150,18 +151,19 @@ export class ImplementationLocator {
      * Searches the content of the files `search` covers, listed with the same
      * findFiles → fs-walk fallback as the file-name search.
      */
-    private async searchContent(
+    private searchContent(
         search: ContentSearch,
         sourceDocumentPath: string | undefined,
     ): Promise<LocateResult> {
-        const sources = await findFilesExcluding(this.vsWorkspace, search.files.glob(), {
-            sourceDocumentPath,
-            logger: this.notifier,
-            matchesWalkedFile: search.files.includes,
-        });
-        if (sources === undefined) {
-            return { kind: "no-search-scope" };
-        }
-        return searchFilesContent(this.vsWorkspace, sources, search.pattern, this.notifier);
+        return searchFilesContent(
+            this.vsWorkspace,
+            {
+                glob: search.files.glob(),
+                sourceDocumentPath,
+                logger: this.notifier,
+                matchesWalkedFile: search.files.includes,
+            },
+            search.pattern,
+        );
     }
 }

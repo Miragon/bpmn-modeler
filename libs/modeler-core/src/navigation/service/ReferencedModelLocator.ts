@@ -1,12 +1,12 @@
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { LocateResult, outcomeAfterReading, SearchOutcome } from "../../kernel/domain/locateResult";
+import { LocateResult, SearchOutcome } from "../../kernel/domain/locateResult";
 import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 import {
-    findFilesExcluding,
-    scanFiles,
+    scanWorkspaceFiles,
     searchFilesContent,
+    WorkspaceFileQuery,
 } from "../../kernel/service/workspaceFileSearch";
 
 export interface FormDeclaration {
@@ -20,7 +20,7 @@ export type FormDeclarationsResult = SearchOutcome<{ declarations: FormDeclarati
  * Locates BPMN, DMN, or form files that declare the requested top-level id.
  *
  * The workspace search itself (findFiles + fs-walk fallback, parallel content
- * search) lives in {@link findFilesExcluding} / {@link searchFilesContent}
+ * search) lives in {@link searchFilesContent} / {@link scanWorkspaceFiles}
  * under `kernel/`; this class only owns the model-specific glob and id lookup.
  */
 export class ReferencedModelLocator {
@@ -52,33 +52,33 @@ export class ReferencedModelLocator {
         }
 
         const extension = kind === "process" ? ".bpmn" : ".dmn";
-        const paths = await findFilesExcluding(this.vsWorkspace, `**/*${extension}`, {
-            sourceDocumentPath,
-            logger: this.notifier,
-            matchesWalkedFile: (path) => path.endsWith(extension),
-        });
-        if (paths === undefined) {
-            this.notifier.logInfo(`[nav] no search scope (no folder, no source uri)`);
-            return { kind: "no-search-scope" };
-        }
-
-        const pattern = this.buildIdPattern(referenceId, kind);
-        return searchFilesContent(this.vsWorkspace, paths, pattern, this.notifier);
+        return searchFilesContent(
+            this.vsWorkspace,
+            this.filesEndingWith(extension, sourceDocumentPath),
+            this.buildIdPattern(referenceId, kind),
+        );
     }
 
     /** Parses every candidate `.form` once and returns its top-level non-empty id. */
-    async findFormDeclarations(sourceDocumentPath?: string): Promise<FormDeclarationsResult> {
-        const paths = await findFilesExcluding(this.vsWorkspace, "**/*.form", {
+    findFormDeclarations(sourceDocumentPath?: string): Promise<FormDeclarationsResult> {
+        return scanWorkspaceFiles(
+            this.vsWorkspace,
+            this.filesEndingWith(".form", sourceDocumentPath),
+            declarationIn,
+            (declarations) => ({ declarations }),
+        );
+    }
+
+    private filesEndingWith(
+        extension: string,
+        sourceDocumentPath: string | undefined,
+    ): WorkspaceFileQuery {
+        return {
+            glob: `**/*${extension}`,
             sourceDocumentPath,
             logger: this.notifier,
-            matchesWalkedFile: (path) => path.endsWith(".form"),
-        });
-        if (paths === undefined) {
-            return { kind: "no-search-scope" };
-        }
-
-        const { found, readFailures } = await scanFiles(this.vsWorkspace, paths, declarationIn);
-        return outcomeAfterReading(paths.length, readFailures, { declarations: found });
+            matchesWalkedFile: (path) => path.endsWith(extension),
+        };
     }
 
     /**
