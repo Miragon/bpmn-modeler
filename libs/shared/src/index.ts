@@ -8,7 +8,6 @@ export * from "./lib/webviewDocumentSync";
 export * from "./lib/modeler";
 export * from "./lib/protocolMessageMap";
 export * from "./lib/bpmnEditorCommands";
-export * from "./lib/processVariables";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";
 export * from "./lib/canvasAutoFocus";

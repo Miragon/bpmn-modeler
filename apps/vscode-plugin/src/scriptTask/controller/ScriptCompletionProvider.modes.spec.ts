@@ -50,7 +50,7 @@ vi.mock("vscode", () => {
 });
 
 import { ScriptUri, ScriptVariableStore, SettingsPort } from "@miragon/bpmn-modeler-core";
-import { VariableDef } from "@miragon/bpmn-modeler-shared";
+import { VariableDef } from "@miragon/bpmn-modeler-types";
 
 import { ScriptCompletionProvider } from "./ScriptCompletionProvider";
 

@@ -10,9 +10,9 @@ import { describe, expect, it } from "vitest";
  * (`path`, `Buffer`) are allowed; they are not host capabilities.
  *
  * Inside the core, layers point inward, features meet only in `kernel/` and
- * `editorSession/`, and `kernel/` imports nothing outside itself. Each exception
- * below names the issue that removes it, and an exception the code no longer
- * needs fails the gate, so the lists only shrink.
+ * `editorSession/`, and `kernel/` imports nothing outside itself. A known
+ * exception names the issue that removes it, and an exception the code no
+ * longer needs fails the gate, so the lists only shrink.
  */
 const SRC_ROOT = __dirname;
 
@@ -44,14 +44,6 @@ const DOMAIN_PACKAGES: readonly string[] = ["@miragon/bpmn-modeler-types", "path
 const KERNEL_FEATURE = "kernel";
 const SUBSTRATE: readonly string[] = [KERNEL_FEATURE, "editorSession"];
 const INBOUND_ADAPTER = /MessageHandlers\.ts$/;
-
-const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
-    {
-        from: "scriptTask/domain/ScriptVariableStore.ts",
-        to: "@miragon/bpmn-modeler-shared",
-        until: "#1834 moves processVariables into modeler-types",
-    },
-];
 
 /** Source files under `src/`, as root-relative POSIX-ish paths, specs excluded. */
 function listSourceFiles(): string[] {
@@ -339,11 +331,17 @@ function describeEdge({ from, specifier, to }: ImportEdge): string {
     return `${from.path} -> ${to?.path ?? specifier}`;
 }
 
-const LAYER_RULES = [
+interface LayerRule {
+    readonly rule: string;
+    readonly violations: (edges: readonly ImportEdge[]) => ImportEdge[];
+    readonly exceptions: readonly KnownException[];
+}
+
+const LAYER_RULES: readonly LayerRule[] = [
     {
         rule: "domain imports no package but @miragon/bpmn-modeler-types and path",
         violations: domainPackageViolations,
-        exceptions: DOMAIN_PACKAGE_EXCEPTIONS,
+        exceptions: [],
     },
     {
         rule: "domain imports no service, session, infrastructure or feature-root module",
@@ -375,7 +373,7 @@ const LAYER_RULES = [
         violations: unresolvedImportViolations,
         exceptions: [],
     },
-] as const;
+];
 
 function moduleAt(feature: string, layer: Layer, file: string): ModuleRef {
     return {
