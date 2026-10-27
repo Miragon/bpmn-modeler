@@ -304,6 +304,20 @@ describe("ImplementationLocator — resolveMany", () => {
         expect(readFile).not.toHaveBeenCalled();
     });
 
+    it("reads no files for a missing class or an expression without a bean id", async () => {
+        const { locator, workspace } = createLocator({ files: { "/src/Other.java": "" } });
+        const readFile = vi.spyOn(workspace, "readFile");
+
+        const result = await locator.resolveMany([
+            { activityId: "A", kind: "javaClass", reference: "com.example.Missing" },
+            { activityId: "B", kind: "expression", reference: "${ 1 + 2 }" },
+        ]);
+
+        expect(result.get("A")).toEqual([]);
+        expect(result.get("B")).toEqual([]);
+        expect(readFile).not.toHaveBeenCalled();
+    });
+
     it("returns all-empty when there is no search scope", async () => {
         const { locator, workspace } = createLocator({ folders: [] });
         const findFiles = vi.spyOn(workspace, "findFiles");
