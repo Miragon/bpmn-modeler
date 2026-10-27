@@ -27,7 +27,7 @@ describe("ImplementationNavigationService.navigate", () => {
         expect(host.picker.prompts.map((prompt) => prompt.args[0])).toEqual([
             {
                 searchingPlaceholder: 'Searching for class "com.example.MyDelegate"…',
-                pickPlaceholder: "Select the referenced model to open",
+                pickPlaceholder: "Select the implementation to open",
             },
         ]);
         expect(host.notifier.openedDocuments).toEqual(["/work/b/com/example/MyDelegate.kt"]);
