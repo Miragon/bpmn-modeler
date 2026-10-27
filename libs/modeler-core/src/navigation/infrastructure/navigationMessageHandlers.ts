@@ -1,4 +1,5 @@
 import { Command, NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
+import { isReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
@@ -7,7 +8,7 @@ import { FormReferenceStatusService } from "../service/FormReferenceStatusServic
 import { ModelNavigationService } from "../service/ModelNavigationService";
 
 /**
- * `NavigateToReferencedModelCommand` → jump to the referenced process/decision.
+ * `NavigateToReferencedModelCommand` → jump to the referenced process, decision or form.
  *
  * Defence-in-depth: an unknown discriminant is rejected with a warning rather
  * than falling through, so a malformed/hostile message can't be treated as a
@@ -19,11 +20,7 @@ export function navigateToReferencedModelHandler(
     notifier: NotifierPort,
 ): MessageHandler<NavigateToReferencedModelCommand> {
     return async (cmd, editorId) => {
-        if (
-            cmd.referenceKind !== "process" &&
-            cmd.referenceKind !== "decision" &&
-            cmd.referenceKind !== "form"
-        ) {
+        if (!isReferenceKind(cmd.referenceKind)) {
             notifier.logWarning(
                 `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
                     cmd.referenceKind,
