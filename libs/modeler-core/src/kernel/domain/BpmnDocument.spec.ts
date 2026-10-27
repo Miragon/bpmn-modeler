@@ -529,6 +529,11 @@ const diagramWith = (...rootElements: string[]) => `<?xml version="1.0" encoding
   ${rootElements.join("\n  ")}
 </bpmn:definitions>`;
 
+const bpmn2Diagram = (rootAttributeBeforeBinding: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions ${rootAttributeBeforeBinding} xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:process id="P2" isExecutable="true" />
+</bpmn2:definitions>`;
+
 const POOLS = `<bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_External" processRef="External" />
     <bpmn:participant id="Participant_Main" processRef="Main" />
@@ -544,11 +549,18 @@ describe("BpmnDocument.extractProcessId", () => {
         },
         {
             given: "a diagram that binds the BPMN namespace to bpmn2",
-            xml: `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
-  <bpmn2:process id="P2" isExecutable="true" />
-</bpmn2:definitions>`,
+            xml: bpmn2Diagram('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'),
             processId: "P2",
+        },
+        {
+            given: "a diagram whose targetNamespace names the BPMN namespace",
+            xml: bpmn2Diagram(`targetNamespace="${BPMN_NAMESPACE_URI}"`),
+            processId: "P2",
+        },
+        {
+            given: "a process outside a definitions root",
+            xml: '<bpmn:process id="P1" isExecutable="true" />',
+            processId: "P1",
         },
         {
             given: "a diagram in the default BPMN namespace",
@@ -572,6 +584,27 @@ describe("BpmnDocument.extractProcessId", () => {
                 '<bpmn:process id="Main" isExecutable="false" />',
             ),
             processId: "External",
+        },
+        {
+            given: "a diagram whose first process has no id",
+            xml: diagramWith('<bpmn:process isExecutable="false" />', '<bpmn:process id="P1" />'),
+            processId: "P1",
+        },
+        {
+            given: "a longer element name that begins with the process name",
+            xml: diagramWith(
+                '<bpmn:processing id="Other" isExecutable="true" />',
+                '<bpmn:process id="P1" isExecutable="true" />',
+            ),
+            processId: "P1",
+        },
+        {
+            given: "a diagram whose first process tag is malformed",
+            xml: diagramWith(
+                '<bpmn:process id=Broken isExecutable="true" />',
+                '<bpmn:process id="P1" isExecutable="true" />',
+            ),
+            processId: "P1",
         },
     ])("reads $processId from $given", ({ xml, processId }) => {
         expect(new BpmnDocument(xml).extractProcessId()).toBe(processId);

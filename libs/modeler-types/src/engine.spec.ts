@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { detectEngine, executionPlatformAttributeNames, readDefinitionsStartTag } from "./engine";
+import {
+    detectEngine,
+    executionPlatformAttributeNames,
+    readDefinitionsStartTag,
+    readStartTag,
+} from "./engine";
 
 const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
 
@@ -169,6 +174,35 @@ describe("readDefinitionsStartTag", () => {
         },
     ])("reads $given", ({ xml, expected }) => {
         expect(startTagParts(xml)).toEqual(expected);
+    });
+});
+
+describe("readStartTag", () => {
+    it.each([
+        {
+            given: "a tag below the root",
+            xml: `<definitions>\n  <bpmn:process isExecutable="true" id='P1'>`,
+            expected: {
+                name: "bpmn:process",
+                attributes: [
+                    { name: "isExecutable", value: "true" },
+                    { name: "id", value: "P1" },
+                ],
+            },
+        },
+        {
+            given: "a malformed tag below the root",
+            xml: "<definitions>\n  <bpmn:process id=P1>",
+            expected: undefined,
+        },
+    ])("reads $given", ({ xml, expected }) => {
+        const startTag = readStartTag(xml, xml.indexOf("<bpmn:process"));
+        expect(
+            startTag && {
+                name: startTag.name,
+                attributes: startTag.attributes.map(({ name, value }) => ({ name, value })),
+            },
+        ).toEqual(expected);
     });
 });
 

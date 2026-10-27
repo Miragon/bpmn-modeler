@@ -143,7 +143,7 @@ export function readDefinitionsStartTag(xml: string): XmlStartTag | undefined {
 }
 
 /** Reads the start tag whose `<` is at `tagStart`, or `undefined` when it is malformed. */
-function readStartTag(xml: string, tagStart: number): XmlStartTag | undefined {
+export function readStartTag(xml: string, tagStart: number): XmlStartTag | undefined {
     let cursor = tagStart + 1;
     const nameMatch = /^[^\s/>]+/.exec(xml.slice(cursor));
     if (!nameMatch) {

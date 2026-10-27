@@ -17,7 +17,9 @@ import {
     executionPlatformAttributeNames,
     MODELER_NAMESPACE_URI,
     readDefinitionsStartTag,
+    readStartTag,
     XmlAttribute,
+    XmlStartTag,
 } from "@miragon/bpmn-modeler-types";
 
 import { getLatestVersion } from "./engineVersions";
@@ -28,6 +30,8 @@ export type MigrationOutcome =
     | { readonly kind: "unchanged" }
     | { readonly kind: "versionReplaced"; readonly document: BpmnDocument }
     | { readonly kind: "platformStamped"; readonly document: BpmnDocument };
+
+const BPMN_MODEL_NAMESPACE_URI = "http://www.omg.org/spec/BPMN/20100524/MODEL";
 
 const ENGINE_NAMESPACE: Record<
     Engine,
@@ -230,17 +234,55 @@ export class BpmnDocument {
     }
 
     /**
-     * Extracts the process ID from the first `<bpmn:process>` element.
+     * The id of the first executable process, or of the first process when none
+     * is executable: Camunda deploys only executable processes.
      *
-     * @throws {Error} If no `<bpmn:process>` element with an `id` attribute is found.
+     * @throws {Error} When the diagram has no process with an id.
      */
     extractProcessId(): string {
-        const match = this.xml.match(/<bpmn:process\s+[^>]*id="([^"]+)"/);
-        if (match) {
-            return match[1];
+        const processes = startTagsNamed(this.xml, bpmnElementName(this.xml, "process")).flatMap(
+            ({ attributes }) => {
+                const id = attributeNamed(attributes, "id")?.value;
+                const isExecutable = attributeNamed(attributes, "isExecutable")?.value === "true";
+                return id ? [{ id, isExecutable }] : [];
+            },
+        );
+        const process = processes.find(({ isExecutable }) => isExecutable) ?? processes[0];
+        if (process) {
+            return process.id;
         }
         throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
     }
+}
+
+/**
+ * `localName` under the prefix the `definitions` root binds to the BPMN model
+ * namespace, unprefixed for a default namespace, under `bpmn` without a binding.
+ */
+function bpmnElementName(xml: string, localName: string): string {
+    for (const { name, value } of readDefinitionsStartTag(xml)?.attributes ?? []) {
+        const [declaration, prefix] = name.split(":");
+        if (declaration === "xmlns" && value === BPMN_MODEL_NAMESPACE_URI) {
+            return prefix ? `${prefix}:${localName}` : localName;
+        }
+    }
+    return `bpmn:${localName}`;
+}
+
+function startTagsNamed(xml: string, qualifiedName: string): XmlStartTag[] {
+    const opening = `<${qualifiedName}`;
+    const startTags: XmlStartTag[] = [];
+    for (
+        let tagStart = xml.indexOf(opening);
+        tagStart !== -1;
+        tagStart = xml.indexOf(opening, tagStart + 1)
+    ) {
+        const startTag = readStartTag(xml, tagStart);
+        if (startTag?.name === qualifiedName) {
+            startTags.push(startTag);
+        }
+    }
+    return startTags;
 }
 
 function platformAttributes(
