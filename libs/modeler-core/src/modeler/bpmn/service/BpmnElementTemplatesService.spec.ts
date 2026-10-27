@@ -3,12 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost, FakeEditorHandle } from "../../../testing";
+import { elementTemplatesStatusView } from "../domain/elementTemplatesStatusView";
 import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
 
 const ROOT_TEMPLATES = "/work/.camunda/element-templates";
 const NESTED_TEMPLATES = "/work/sub/.camunda/element-templates";
 const FOLDER_A_TEMPLATES = "/a/.camunda/element-templates";
 const FOLDER_B_TEMPLATES = "/b/.camunda/element-templates";
+const TEMPLATES_LOADING = elementTemplatesStatusView({ state: "loading" });
+const templatesReady = (count: number) => elementTemplatesStatusView({ state: "ready", count })!;
 
 /**
  * Wires the service to the test host over an in-memory template tree: `dirFiles`
@@ -81,16 +84,14 @@ function postedNames(editor: FakeEditorHandle): string[] {
 describe("BpmnElementTemplatesService.setElementTemplates", () => {
     it("loads, name-sorts, and posts templates, then reports readiness", async () => {
         const { service, host, editor, addTemplate } = createService();
-        const showLoading = vi.spyOn(host.statusBar, "showElementTemplatesLoading");
         addTemplate(ROOT_TEMPLATES, "b.json", { name: "Zebra" });
         addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
 
         const result = await service.setElementTemplates(editor.id);
 
         expect(result).toBe(true);
-        expect(showLoading).toHaveBeenCalledOnce();
         expect(postedNames(editor)).toEqual(["Apple", "Zebra"]);
-        expect(host.statusBar.elementTemplates).toEqual({ state: "ready", count: 2 });
+        expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(2));
         expect(host.notifier.logged("info")).toEqual([
             "2 element template(s) loaded from 2 file(s).",
         ]);
@@ -142,7 +143,7 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         const result = await service.setElementTemplates(editor.id);
 
         expect(result).toBe(true);
-        expect(host.statusBar.elementTemplates).toEqual({ state: "ready", count: 0 });
+        expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(0));
         expect(host.notifier.logged("info")).toEqual([]);
     });
 
@@ -153,7 +154,7 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         const result = await service.setElementTemplates(editor.id);
 
         expect(result).toBe(false);
-        expect(host.statusBar.elementTemplates).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.elementTemplates).toBeUndefined();
         expect(host.notifier.errors).toEqual([
             "A problem occurred while loading element templates.\nSetting the `elementTemplates` failed.",
         ]);
@@ -161,13 +162,13 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
 
     it("hides the status and notifies when loading throws", async () => {
         const { service, host, editor, artifactSvc } = createService();
-        host.statusBar.showElementTemplatesReady(3);
+        host.statusBar.show("elementTemplates", templatesReady(3));
         artifactSvc.getTemplateDirs.mockRejectedValue(new Error("fs blew up"));
 
         const result = await service.setElementTemplates(editor.id);
 
         expect(result).toBe(false);
-        expect(host.statusBar.elementTemplates).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.elementTemplates).toBeUndefined();
         expect(host.notifier.errors).toEqual([
             "A problem occurred while loading element templates.\nfs blew up",
         ]);
@@ -175,14 +176,14 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
 
     it("skips quietly for a disposed editor without touching the status bar or webview", async () => {
         const { service, host, editor, secondEditor, nestedEditor } = createService();
-        host.statusBar.showElementTemplatesReady(3);
+        host.statusBar.show("elementTemplates", templatesReady(3));
 
         const result = await service.setElementTemplates("file:///work/closed.bpmn");
 
         expect(result).toBe(false);
         expect(host.notifier.errors).toEqual([]);
         expect([...editor.posted, ...secondEditor.posted, ...nestedEditor.posted]).toEqual([]);
-        expect(host.statusBar.elementTemplates).toEqual({ state: "ready", count: 3 });
+        expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(3));
         expect(host.notifier.logged("debug")).toHaveLength(1);
     });
 
@@ -203,15 +204,15 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         const loadInA = service.setElementTemplates(editorInA.id);
         const loadInB = service.setElementTemplates(editorInB.id);
         await vi.waitFor(() => expect(heldReads.size).toBe(2));
-        expect(host.statusBar.elementTemplates).toEqual({ state: "loading" });
+        expect(host.statusBar.views.elementTemplates).toEqual(TEMPLATES_LOADING);
 
         heldReads.get(FOLDER_A_TEMPLATES)!();
         await loadInA;
-        expect(host.statusBar.elementTemplates).toEqual({ state: "loading" });
+        expect(host.statusBar.views.elementTemplates).toEqual(TEMPLATES_LOADING);
 
         heldReads.get(FOLDER_B_TEMPLATES)!();
         await loadInB;
-        expect(host.statusBar.elementTemplates).toEqual({ state: "ready", count: 2 });
+        expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(2));
     });
 
     it("does not notify when the editor is disposed mid-load", async () => {
@@ -240,7 +241,7 @@ describe("BpmnElementTemplatesService template cache", () => {
             createService();
         addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
         await service.setElementTemplates(editor.id);
-        host.statusBar.hideElementTemplatesStatus();
+        host.statusBar.hide("elementTemplates");
         vi.clearAllMocks();
 
         await service.setElementTemplates(secondEditor.id);
@@ -248,7 +249,7 @@ describe("BpmnElementTemplatesService template cache", () => {
         expect(artifactSvc.readDirectory).not.toHaveBeenCalled();
         expect(artifactSvc.readFile).not.toHaveBeenCalled();
         expect(marketplaceSvc.getCachedTemplatePaths).not.toHaveBeenCalled();
-        expect(host.statusBar.elementTemplates).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.elementTemplates).toBeUndefined();
         expect(postedNames(secondEditor)).toEqual(["Apple"]);
     });
 
