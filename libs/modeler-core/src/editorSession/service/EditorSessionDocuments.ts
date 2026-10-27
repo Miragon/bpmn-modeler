@@ -2,8 +2,9 @@ import { DocumentPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 
 /**
- * {@link DocumentPort} adapter: routes an `editorId` to the owning
- * {@link EditorHandle} and delegates the actual document I/O to it.
+ * Implements {@link DocumentPort} on top of the session store: routes an
+ * `editorId` to the owning {@link EditorHandle} and delegates the actual
+ * document I/O to it.
  *
  * Every method takes an explicit `editorId` so operations always reach the
  * correct document when editors are open side-by-side — avoiding the split-view

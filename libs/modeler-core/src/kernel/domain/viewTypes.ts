@@ -1,9 +1,10 @@
 /**
  * The custom-editor `viewType` identifiers, kept in one vscode-free module
- * so the editor registration (`composition/editorFeature.ts`) and the webview
- * bootstrap (`shared/infrastructure/bootstrapWebview.ts`) agree by import rather
- * than by two independently-maintained string literals. They must also match
- * `contributes.customEditors[].viewType` in `package.json`; the
+ * so the VS Code editor registration
+ * (`apps/vscode-plugin/src/composition/editorFeature.ts`) and webview bootstrap
+ * (`apps/vscode-plugin/src/shared/infrastructure/bootstrapWebview.ts`) agree by
+ * import rather than by two independently-maintained string literals. They must
+ * also match `contributes.customEditors[].viewType` in `package.json`; the
  * manifest-contract spec asserts that link.
  */
 

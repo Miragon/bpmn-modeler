@@ -66,7 +66,8 @@ splits into `domain/`, an application layer of `service/` and `session/` (the
 editor-session participants), `infrastructure/` and root files that compose the
 feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
 and Node `path`. Two folders are shared, and features reach each other only
-through them. A feature's `domain/` may import only their `domain/`.
+through them. A feature's `domain/` may import only its own `domain/` and the
+`domain/` of `kernel/` and `editorSession/`.
 
 - `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
   engine versions, the workspace path, glob, containment and watcher rules, the

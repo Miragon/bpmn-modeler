@@ -101,7 +101,7 @@
             id="BpmnEngineWidget"
             implementation="io.miragon.intellij.bpmn.EngineStatusBarWidgetFactory"/>
 
-        <!-- Active deployment target; clickable → switch-target. Driven by StatusBarPort. -->
+        <!-- Active deployment target; clickable → switch-target. Driven by DeploymentStatusBarPort. -->
         <statusBarWidgetFactory
             id="BpmnDeploymentTargetWidget"
             implementation="io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidgetFactory"/>

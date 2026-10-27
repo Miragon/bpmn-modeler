@@ -26,8 +26,8 @@ import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
  *  - push core→webview messages into the right JCEF browser (`editor/postMessage`);
  *  - satisfy the document port (`document/write` / `document/save`) against the
  *    real IntelliJ `Document`;
- *  - render the core's `NotifierPort` / `StatusBarPort` as IntelliJ UI, and its
- *    `PickerPort` (`picker/show`) as a native `JBPopup` chooser.
+ *  - render the core's `NotifierPort` and status-bar ports as IntelliJ UI, and
+ *    its pickers (`picker/show`) as a native `JBPopup` chooser.
  *
  * **Role.** This service is the composition root + façade. It wires the bridge
  * collaborators in `io.miragon.intellij.bpmn.bridge` — the [RpcChannel]

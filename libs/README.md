@@ -10,7 +10,7 @@ on.
 
 | Package | What's inside |
 | --- | --- |
-| `modeler-core` | This is the host-agnostic BPMN and DMN engine, holding the domain models, services, host-capability ports, and the `vscode`-free infrastructure registries such as `EditorSessionStore` and `WebviewMessageRouter`. It must never import `vscode`. |
+| `modeler-core` | This is the host-agnostic BPMN and DMN engine, holding the domain models, services, host-capability ports, and the `vscode`-free editor-session registries such as `EditorSessionStore` and `WebviewMessageRouter`. It must never import `vscode`. |
 | `shared` | This holds the `Command` and `Query` message types and utilities that both the extension host and the webviews use, so it defines the vocabulary of the `postMessage` seam. |
 
 ## bpmn-js and dmn-js feature modules

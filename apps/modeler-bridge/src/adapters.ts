@@ -411,9 +411,10 @@ export class RpcNotifier implements NotifierPort {
 }
 
 /**
- * Forwards every {@link StatusBarPort} call to the host, which owns the actual
- * `StatusBarWidget` (element-template count + engine version). The core stays
- * the single source of truth for *what* to show; the host decides *how*.
+ * Forwards every {@link StatusBarPort} and {@link DeploymentStatusBarPort} call
+ * to the host, which owns the actual `StatusBarWidget`s (element-template count
+ * + engine version; deployment target). The core stays the single source of
+ * truth for *what* to show; the host decides *how*.
  */
 export class RpcStatusBar implements StatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}
@@ -737,7 +738,8 @@ export interface FileFinder {
 }
 
 /**
- * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list and
+ * Real {@link PickerPort}, {@link DeploymentPickerPort} and
+ * {@link MigrationPickerPort} over RPC: the host shows a native `JBPopup` list and
  * replies with the chosen indices (or `null` on dismissal); this class keeps
  * each prompt's item array and re-applies the cancel-vs-throw convention.
  *
