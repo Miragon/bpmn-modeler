@@ -4,10 +4,12 @@ import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import { asyncDebounce, ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { EditorHandle } from "../../editorSession/service/EditorHandle";
-import { configArtifactPath } from "../../kernel/domain/configArtifacts";
+import {
+    configArtifactLocation,
+    ConfigArtifactLocation,
+} from "../../kernel/domain/configArtifacts";
 import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { parseMapJson } from "../domain/codeLinkArtifact";
@@ -377,7 +379,7 @@ export class CodeLinkMapService {
     }
 
     private async loadWarmCache(state: EditorState): Promise<void> {
-        const artifactPath = this.artifactPath(state);
+        const artifactPath = this.artifactLocation(state)?.path;
         if (!artifactPath) {
             return;
         }
@@ -428,13 +430,12 @@ export class CodeLinkMapService {
             if (!state || !state.workspaceRoot || !state.documentPath) {
                 return; // Editor disposed before the debounced write fired.
             }
-            const artifactPath = this.artifactPath(state);
-            const bpmnFile = relativeToRoot(state.documentPath, state.workspaceRoot);
-            if (!artifactPath || bpmnFile === undefined) {
+            const artifact = this.artifactLocation(state);
+            if (!artifact) {
                 return;
             }
             const json = state.map.toArtifact({
-                bpmnFile,
+                bpmnFile: artifact.documentBelowRoot,
                 generatedAt: "",
                 workspaceRoot: state.workspaceRoot,
             });
@@ -445,7 +446,7 @@ export class CodeLinkMapService {
             }
             state.lastWrittenSignature = signature;
             json.generatedAt = new Date().toISOString();
-            await this.vsWorkspace.writeFile(artifactPath, JSON.stringify(json, null, 2));
+            await this.vsWorkspace.writeFile(artifact.path, JSON.stringify(json, null, 2));
         } catch (error) {
             this.notifier.logWarning(
                 `[code-link] failed to persist map: ${(error as Error).message}`,
@@ -454,12 +455,12 @@ export class CodeLinkMapService {
     }
 
     /** A document outside its root keeps its map in memory only. */
-    private artifactPath(state: EditorState): string | undefined {
+    private artifactLocation(state: EditorState): ConfigArtifactLocation | undefined {
         if (!state.workspaceRoot || !state.documentPath) {
             return undefined;
         }
         try {
-            return configArtifactPath({
+            return configArtifactLocation({
                 workspaceRoot: state.workspaceRoot,
                 configFolder: this.vsSettings.getConfigFolder(),
                 area: CODE_LINK_AREA,

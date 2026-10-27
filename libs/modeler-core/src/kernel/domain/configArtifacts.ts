@@ -18,12 +18,18 @@ export function configFolderPath(
     return joinWorkspacePath(directory, configFolder, ...entryPath);
 }
 
+export interface ConfigArtifactLocation {
+    readonly path: string;
+    /** The document's path below the root, which `path` mirrors. */
+    readonly documentBelowRoot: string;
+}
+
 /**
  * Mirrors the document's path below the root, so two same-named documents in
  * different folders get one artifact each. Throws for a document that is not
  * below the root: its relative path would climb out of the area with `../`.
  */
-export function configArtifactPath(artifact: ConfigArtifact): string {
+export function configArtifactLocation(artifact: ConfigArtifact): ConfigArtifactLocation {
     const { workspaceRoot, configFolder, area, documentPath, suffix } = artifact;
     const documentBelowRoot = relativeToRoot(documentPath, workspaceRoot);
     if (!documentBelowRoot) {
@@ -31,5 +37,8 @@ export function configArtifactPath(artifact: ConfigArtifact): string {
             `No config artifact for ${documentPath}: it is not below the workspace root ${workspaceRoot}.`,
         );
     }
-    return configFolderPath(workspaceRoot, configFolder, area, `${documentBelowRoot}${suffix}`);
+    return {
+        path: configFolderPath(workspaceRoot, configFolder, area, `${documentBelowRoot}${suffix}`),
+        documentBelowRoot,
+    };
 }
