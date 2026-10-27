@@ -12,6 +12,7 @@ vi.mock("vscode", () => ({
     workspace: { workspaceFolders: undefined, workspaceFile: undefined },
 }));
 
+import { FetchReport } from "@miragon/bpmn-modeler-core";
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { commands, window, workspace } from "vscode";
 import {
@@ -36,7 +37,16 @@ class ReloadRecordingNotifier extends RecordingNotifier {
  */
 function createController() {
     const marketplaceSvc = {
-        addMarketplace: vi.fn().mockResolvedValue(undefined),
+        addMarketplace: vi
+            .fn()
+            .mockResolvedValue(
+                FetchReport.of({
+                    usableSources: 1,
+                    cached: 1,
+                    sourceFailures: [],
+                    skippedTypes: [],
+                }),
+            ),
         updateAll: vi.fn().mockResolvedValue({ succeeded: 1, failures: [] }),
         pruneOrphanedCaches: vi.fn().mockResolvedValue([]),
     };

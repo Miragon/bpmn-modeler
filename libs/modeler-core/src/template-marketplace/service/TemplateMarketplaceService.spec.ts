@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
+import { FetchReport } from "../domain/fetchReport";
 import {
     RepositoryAccessError,
     RepositorySource,
@@ -245,6 +246,41 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         expect(notifier.logged("warning")).toHaveLength(1);
     });
 
+    it("reports each source it could not fetch, with the reason", async () => {
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.path === "") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn().mockResolvedValue(MANIFEST),
+                };
+            }
+            return {
+                listTemplateFiles:
+                    config.path === "resources"
+                        ? vi.fn().mockRejectedValue(new Error("rate limited"))
+                        : vi.fn().mockResolvedValue(["element-templates/t.json"]),
+                fetchFile: vi.fn().mockResolvedValue("{}"),
+            };
+        });
+        const { service } = serviceOver(factory);
+
+        const report = await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(report).toEqual(
+            FetchReport.of({
+                usableSources: 2,
+                cached: 1,
+                sourceFailures: [
+                    {
+                        source: 'github github.com/camunda/camunda-modeler@develop path "resources"',
+                        reason: "rate limited",
+                    },
+                ],
+                skippedTypes: [],
+            }),
+        );
+    });
+
     it("caches a supported source but warns and skips an unknown content type", async () => {
         // A newer marketplace mixing this version's element-templates with a
         // future content type: the known source still caches, the unknown one
@@ -328,6 +364,44 @@ describe("TemplateMarketplaceService.updateAll", () => {
             ],
         });
         expect(notifier.logged("warning")).toHaveLength(1);
+    });
+
+    it("reports a marketplace whose every source failed", async () => {
+        const manifest = JSON.stringify({ sources: [{ path: "element-templates" }] });
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.path === "") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn().mockResolvedValue(manifest),
+                };
+            }
+            const unreachable = config.kind === "github" && config.repo === "one";
+            return {
+                listTemplateFiles: unreachable
+                    ? vi.fn().mockRejectedValue(new Error("offline"))
+                    : vi.fn().mockResolvedValue(["element-templates/t.json"]),
+                fetchFile: vi.fn().mockResolvedValue("{}"),
+            };
+        });
+        const { service, settings } = serviceOver(factory);
+        settings.values.marketplaces = [
+            "https://github.com/acme/one",
+            "https://github.com/acme/two",
+        ];
+
+        const outcome = await service.updateAll();
+
+        expect(outcome).toEqual({
+            succeeded: 1,
+            failures: [
+                {
+                    label: "https://github.com/acme/one",
+                    reason:
+                        "none of its sources could be fetched " +
+                        '(github github.com/acme/one path "element-templates": offline)',
+                },
+            ],
+        });
     });
 
     it("reports a manifest-level failure in the outcome while the healthy one succeeds", async () => {
@@ -846,7 +920,18 @@ describe("TemplateMarketplaceService cache retention", () => {
         upstream.listings.one = ["one/new.json", "../../escape.json"];
         const outcome = await service.updateAll();
 
-        expect(outcome).toEqual({ succeeded: 1, failures: [] });
+        expect(outcome).toEqual({
+            succeeded: 0,
+            failures: [
+                {
+                    label: MARKETPLACE_URL,
+                    reason:
+                        "none of its sources could be fetched " +
+                        '(github github.com/acme/templates path "one": ' +
+                        'Rejected unsafe template path "../../escape.json")',
+                },
+            ],
+        });
         expect(workspace.files).toEqual(
             new Map([[`${SLOT}/0/element-templates/one/a.json`, '{"from":"one/a.json"}']]),
         );
