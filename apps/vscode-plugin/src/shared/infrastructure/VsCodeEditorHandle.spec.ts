@@ -70,6 +70,7 @@ interface FakeDocument {
     uri: { scheme: string; path: string; fsPath: string; toString: () => string };
     getText: () => string;
     lineCount: number;
+    isDirty: boolean;
     save: ReturnType<typeof vi.fn>;
 }
 
@@ -84,6 +85,7 @@ function makeDocument(overrides: Partial<FakeDocument> = {}): FakeDocument {
         },
         getText: () => "<old/>",
         lineCount: 3,
+        isDirty: false,
         save: vi.fn().mockResolvedValue(true),
         ...overrides,
     };
@@ -208,6 +210,20 @@ describe("VsCodeEditorHandle.save", () => {
 
         expect(result).toBe(true);
         expect(document.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports a clean document as saved when VS Code refuses to save it (read-only)", async () => {
+        const document = makeDocument({ isDirty: false, save: vi.fn().mockResolvedValue(false) });
+        const handle = createHandle(makePanel(), document);
+
+        expect(await handle.save()).toBe(true);
+    });
+
+    it("reports a document that stays dirty after the save as not saved", async () => {
+        const document = makeDocument({ isDirty: true, save: vi.fn().mockResolvedValue(false) });
+        const handle = createHandle(makePanel(), document);
+
+        expect(await handle.save()).toBe(false);
     });
 });
 
