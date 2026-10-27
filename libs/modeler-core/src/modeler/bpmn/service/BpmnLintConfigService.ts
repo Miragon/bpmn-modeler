@@ -103,6 +103,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     private async lintAndPush(editorId: string): Promise<boolean> {
+        // Discovery reads the document path, which fails for a closed editor.
+        if (!this.editorStore.hasEditor(editorId)) return false;
         if (!this.settings.getLintingEnabled()) {
             return this.dispatch(editorId, { type: "lintingDisabled" });
         }
@@ -150,10 +152,10 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     private dispatch(editorId: string, event: LintSessionEvent): Promise<boolean> {
-        const session = this.sessionOf(editorId);
-        const { next, action } = reduceLintSession(session, event);
-        // A dropped event must not bring back the entry of a closed editor.
-        if (next !== session) this.sessions.set(editorId, next);
+        // A late event must not bring back the session that closing the editor deleted.
+        if (!this.editorStore.hasEditor(editorId)) return Promise.resolve(false);
+        const { next, action } = reduceLintSession(this.sessionOf(editorId), event);
+        this.sessions.set(editorId, next);
         return this.carryOut(editorId, action);
     }
 
