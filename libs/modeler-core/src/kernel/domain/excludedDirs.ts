@@ -33,3 +33,14 @@ export function pathIsInsideExcludedDir(path: string): boolean {
     }
     return false;
 }
+
+export function isInsideExcludedDirBelow(path: string, _root: string): boolean {
+    return pathIsInsideExcludedDir(path);
+}
+
+export function isInsideExcludedDirBelowEveryFolder(
+    path: string,
+    _folders: readonly string[],
+): boolean {
+    return pathIsInsideExcludedDir(path);
+}
