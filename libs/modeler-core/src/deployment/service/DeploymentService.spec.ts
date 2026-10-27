@@ -114,7 +114,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
     const deploymentStatus = new DeploymentStatusService(
         host.store,
         host.documents,
-        // Recording a deployment never reads the active target.
+        // No editor is tracked, so the refresh after recording never reads the active target.
         targetsLocator as never,
         host.deploymentState,
         host.statusBar,

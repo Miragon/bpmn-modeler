@@ -110,7 +110,9 @@ export class DeploymentStatusService {
             deploymentId,
             origin: "local",
         };
-        await this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision);
+        await this.writeThenRefresh(() =>
+            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
+        );
     }
 
     getRevision(
@@ -125,19 +127,36 @@ export class DeploymentStatusService {
         identity: DeploymentTargetIdentity,
         revision: DeployedRevision,
     ): Promise<void> {
-        await this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision);
+        await this.writeThenRefresh(() =>
+            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
+        );
     }
 
     async forgetRevision(filePath: string, identity: DeploymentTargetIdentity): Promise<void> {
-        await this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]);
+        await this.writeThenRefresh(() =>
+            this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]),
+        );
     }
 
     /** Drops every ledger row of `identity` — target deleted or renamed. */
     async pruneTarget(identity: DeploymentTargetIdentity): Promise<void> {
         const prefix = ledgerKeyPrefixFor(identity);
-        const keys = this.deploymentState.listLedgerKeys().filter((key) => key.startsWith(prefix));
-        if (keys.length > 0) {
-            await this.deploymentState.deleteDeployedRevisions(keys);
+        await this.writeThenRefresh(async () => {
+            const keys = this.deploymentState
+                .listLedgerKeys()
+                .filter((key) => key.startsWith(prefix));
+            if (keys.length > 0) {
+                await this.deploymentState.deleteDeployedRevisions(keys);
+            }
+        });
+    }
+
+    private async writeThenRefresh(writeLedger: () => Promise<void>): Promise<void> {
+        try {
+            await writeLedger();
+        } finally {
+            // Even after a failed write: an ad-hoc deploy first saves the connection the item reads.
+            await this.refreshFocused();
         }
     }
 

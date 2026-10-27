@@ -183,7 +183,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
         );
     });
 
-    it("saves before deploying and refreshes the status bar", async () => {
+    it("saves before deploying", async () => {
         const c = createService();
         let savesBeforeDeploy: number | undefined;
         c.deploymentService.deployFiles.mockImplementation(async () => {
@@ -195,7 +195,6 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         expect(savesBeforeDeploy).toBe(1);
         expect(c.host.notifier.progressTitles).toEqual(['Deploying order-process.bpmn to "dev"']);
-        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
     });
 
     it("hands deployFiles the directory the target was resolved from, so its .env matches", async () => {

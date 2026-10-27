@@ -64,7 +64,7 @@ function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }
 }
 
 describe("DeployFilesService.deployFiles", () => {
-    it("deploys the picked BPMN/DMN files to the active target, then refreshes the status", async () => {
+    it("deploys the picked BPMN/DMN files to the active target", async () => {
         const c = createService();
 
         await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
@@ -93,7 +93,7 @@ describe("DeployFilesService.deployFiles", () => {
             c.credentials,
             DOCUMENT_DIR,
         );
-        expect(c.calls).toEqual(["pickFiles", "deploy", "refreshStatus"]);
+        expect(c.calls).toEqual(["pickFiles", "deploy"]);
     });
 
     it("runs the target picker first when no target is active and deploys to the picked one", async () => {
@@ -112,7 +112,6 @@ describe("DeployFilesService.deployFiles", () => {
             "afterTargetPicker",
             "pickFiles",
             "deploy",
-            "refreshStatus",
         ]);
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             PICKED_FILES,

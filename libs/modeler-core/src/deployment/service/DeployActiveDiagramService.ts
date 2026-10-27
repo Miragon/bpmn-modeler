@@ -69,6 +69,5 @@ export class DeployActiveDiagramService {
         await this.notifier.withProgress(`Deploying ${name} to "${target.name}"`, () =>
             this.deploymentService.deployFiles([filePath], target, auth, dir),
         );
-        await this.deploymentStatusService.refreshFocused();
     }
 }
