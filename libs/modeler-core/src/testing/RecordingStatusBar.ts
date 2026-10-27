@@ -3,6 +3,7 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 import { DeploymentFreshness } from "../deployment/domain/deploymentLedger";
 import { DeploymentStatusBarPort } from "../deployment/domain/ports";
 import { StatusBarPort } from "../kernel/domain/hostPorts";
+import { StatusSlot, StatusView } from "../kernel/domain/statusView";
 import { BpmnlintIndicator } from "../modeler/bpmn/domain/bpmnlintIndicator";
 import { BpmnlintStatusBarPort } from "../modeler/bpmn/domain/ports";
 
@@ -26,6 +27,15 @@ export class RecordingStatusBar
     engineVersion: { platform: Engine; version: string } | undefined;
     bpmnlint: BpmnlintIndicator = { state: "hidden" };
     deploymentTarget: DeploymentTargetStatus | undefined;
+    views: Partial<Record<StatusSlot, StatusView>> = {};
+
+    show(_slot: StatusSlot, _view: StatusView): void {
+        // Recorded once the port carries slots.
+    }
+
+    hide(_slot: StatusSlot): void {
+        // Recorded once the port carries slots.
+    }
 
     showElementTemplatesLoading(): void {
         this.elementTemplates = { state: "loading" };
