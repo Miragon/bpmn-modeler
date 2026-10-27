@@ -4,7 +4,7 @@ import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { createTestHost, FakeEditorHandle } from "../../testing";
-import { buildMapJson } from "../domain/codeLinkArtifact";
+import { CODE_LINK_SCHEMA_VERSION } from "../domain/codeLinkArtifact";
 import { CodeLinkMapService } from "./CodeLinkMapService";
 
 const ROOT = "/work/proj";
@@ -89,6 +89,16 @@ const entry = (
     kind: ImplementationEntry["kind"],
     reference: string,
 ): ImplementationEntry => ({ activityId, kind, reference });
+
+/** An artifact an earlier session wrote, with workspace-relative paths. */
+function warmArtifact(warmEntry: ImplementationEntry, paths: string[]): string {
+    return JSON.stringify({
+        schemaVersion: CODE_LINK_SCHEMA_VERSION,
+        bpmnFile: "order.bpmn",
+        generatedAt: "t",
+        entries: [{ ...warmEntry, resolved: paths.length > 0, paths }],
+    });
+}
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -240,22 +250,9 @@ describe("CodeLinkMapService — sync diff", () => {
 describe("CodeLinkMapService — warm cache", () => {
     it("loads the artifact and verifies, skipping the batched resolve (persist on)", async () => {
         const abs = "/work/proj/src/main/java/com/example/A.java";
-        const warm = JSON.stringify(
-            buildMapJson({
-                bpmnFile: "order.bpmn",
-                generatedAt: "t",
-                workspaceRoot: ROOT,
-                entries: [
-                    {
-                        activityId: "Act",
-                        kind: "javaClass",
-                        reference: "com.example.A",
-                        resolved: true,
-                        paths: [abs],
-                    },
-                ],
-            }),
-        );
+        const warm = warmArtifact(entry("Act", "javaClass", "com.example.A"), [
+            "src/main/java/com/example/A.java",
+        ]);
         const { service, editor, locator } = createService({
             persist: true,
             fileContents: { [ARTIFACT]: warm, [abs]: "class A {}" },
@@ -271,22 +268,9 @@ describe("CodeLinkMapService — warm cache", () => {
 
     it("loads the warm cache when persistence is toggled on mid-session", async () => {
         const abs = "/work/proj/src/main/java/com/example/A.java";
-        const warm = JSON.stringify(
-            buildMapJson({
-                bpmnFile: "order.bpmn",
-                generatedAt: "t",
-                workspaceRoot: ROOT,
-                entries: [
-                    {
-                        activityId: "Act",
-                        kind: "javaClass",
-                        reference: "com.example.A",
-                        resolved: true,
-                        paths: [abs],
-                    },
-                ],
-            }),
-        );
+        const warm = warmArtifact(entry("Act", "javaClass", "com.example.A"), [
+            "src/main/java/com/example/A.java",
+        ]);
         const { service, host, editor } = createService({
             persist: false,
             resolveMap: { "com.example.A": [abs] },
@@ -311,22 +295,7 @@ describe("CodeLinkMapService — warm cache", () => {
 
     it("handles a source change after a warm cache named an unknown kind", async () => {
         const worker = "/work/proj/src/Worker.java";
-        const warm = JSON.stringify(
-            buildMapJson({
-                bpmnFile: "order.bpmn",
-                generatedAt: "t",
-                workspaceRoot: ROOT,
-                entries: [
-                    {
-                        activityId: "Act",
-                        kind: "bogus" as never,
-                        reference: "pay",
-                        resolved: true,
-                        paths: [worker],
-                    },
-                ],
-            }),
-        );
+        const warm = warmArtifact(entry("Act", "bogus" as never, "pay"), ["src/Worker.java"]);
         const { service, editor, locator } = createService({
             persist: true,
             fileContents: { [ARTIFACT]: warm, [worker]: '@JobWorker(type = "pay")' },

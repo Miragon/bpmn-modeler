@@ -1,6 +1,6 @@
 /**
- * Pure domain core of the activity→code map: the in-memory entry shape, the
- * on-disk JSON artifact shape and the relative↔absolute path conversions.
+ * The on-disk JSON artifact of the activity→code map and the relative↔absolute
+ * path conversions. `CodeLinkMap` reads and writes it.
  *
  * No `vscode` / Node host modules — only `path` (string math).
  */
@@ -8,26 +8,14 @@ import { posix } from "path";
 
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { ImplementationKind } from "./ImplementationReference";
-import { ImplementationTarget } from "./ImplementationTarget";
 
 /** Bumped only on a breaking change to {@link CodeLinkMapJson}'s shape. */
 export const CODE_LINK_SCHEMA_VERSION = 1;
 
 /**
- * One activity's resolution state held in memory while the editor is open.
- * `paths` are absolute (the `uri.path` form the workspace search speaks) so they
- * can be read back for verification and compared against watcher events; they
- * are relativised only when written to the artifact.
+ * One entry as persisted, with workspace-relative paths. `resolved` is written
+ * for tooling reading the file; the map derives it from `paths` on load.
  */
-export interface CodeLinkMapEntry {
-    activityId: string;
-    kind: ImplementationKind;
-    reference: string;
-    resolved: boolean;
-    paths: string[];
-}
-
-/** One entry as persisted: identical to {@link CodeLinkMapEntry} but with workspace-relative paths. */
 interface CodeLinkMapJsonEntry {
     activityId: string;
     kind: ImplementationKind;
@@ -62,32 +50,6 @@ export function toAbsolute(relativePath: string, workspaceRoot: string): string 
 }
 
 /**
- * Assembles the artifact from the in-memory entries, relativising every path so
- * the file is workspace-portable. Pure and deterministic given its inputs —
- * `generatedAt` is passed in rather than read from the clock here so the result
- * can be asserted in tests.
- */
-export function buildMapJson(params: {
-    bpmnFile: string;
-    generatedAt: string;
-    workspaceRoot: string;
-    entries: readonly CodeLinkMapEntry[];
-}): CodeLinkMapJson {
-    return {
-        schemaVersion: CODE_LINK_SCHEMA_VERSION,
-        bpmnFile: params.bpmnFile,
-        generatedAt: params.generatedAt,
-        entries: params.entries.map((entry) => ({
-            activityId: entry.activityId,
-            kind: entry.kind,
-            reference: entry.reference,
-            resolved: entry.resolved,
-            paths: entry.paths.map((path) => toRelative(path, params.workspaceRoot)),
-        })),
-    };
-}
-
-/**
  * Parses the artifact, returning `undefined` (not throwing) on anything that is
  * not a current-schema map — a hand-edited, truncated, or older file must
  * degrade to "no warm cache", never crash the open.
@@ -110,7 +72,7 @@ export function parseMapJson(raw: string): CodeLinkMapJson | undefined {
     // Validate each entry's shape too: an `entries` array alone is not enough.
     // A hand-edited/truncated file can carry a malformed element (e.g. `[null]`,
     // a missing field, or a non-string `paths`) that would NPE in
-    // toAbsoluteEntries and crash the open. One bad entry drops the whole file.
+    // CodeLinkMap.fromArtifact and crash the open. One bad entry drops the whole file.
     if (!(parsed as CodeLinkMapJson).entries.every(isValidJsonEntry)) {
         return undefined;
     }
@@ -131,21 +93,4 @@ function isValidJsonEntry(entry: unknown): entry is CodeLinkMapJsonEntry {
         Array.isArray(candidate.paths) &&
         candidate.paths.every((path) => typeof path === "string")
     );
-}
-
-/** Re-hydrates persisted entries to the in-memory shape (relative paths → absolute). */
-export function toAbsoluteEntries(
-    json: CodeLinkMapJson,
-    workspaceRoot: string,
-): CodeLinkMapEntry[] {
-    // A newer writer or a hand edit can name a kind no target matches.
-    return json.entries
-        .filter((entry) => ImplementationTarget.isKnownKind(entry.kind))
-        .map((entry) => ({
-            activityId: entry.activityId,
-            kind: entry.kind,
-            reference: entry.reference,
-            resolved: entry.resolved,
-            paths: entry.paths.map((path) => toAbsolute(path, workspaceRoot)),
-        }));
 }

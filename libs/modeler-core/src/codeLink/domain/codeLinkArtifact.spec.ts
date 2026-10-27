@@ -1,16 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    buildMapJson,
-    CODE_LINK_SCHEMA_VERSION,
-    CodeLinkMapEntry,
-    parseMapJson,
-    toAbsolute,
-    toAbsoluteEntries,
-    toRelative,
-} from "./codeLinkArtifact";
+import { CODE_LINK_SCHEMA_VERSION, parseMapJson, toAbsolute, toRelative } from "./codeLinkArtifact";
 
-describe("CodeLinkMap — path conversion", () => {
+describe("codeLinkArtifact — path conversion", () => {
     it("relativises and re-absolutises a workspace path round-trip", () => {
         const abs = "/work/proj/src/main/java/com/example/Charge.java";
         const root = "/work/proj";
@@ -25,78 +17,24 @@ describe("CodeLinkMap — path conversion", () => {
     });
 });
 
-describe("CodeLinkMap — JSON artifact", () => {
-    const entries: CodeLinkMapEntry[] = [
-        {
-            activityId: "Activity_Charge",
-            kind: "javaClass",
-            reference: "com.example.Charge",
-            resolved: true,
-            paths: ["/work/proj/src/main/java/com/example/Charge.java"],
-        },
-        {
-            activityId: "Activity_Mail",
-            kind: "jobType",
-            reference: "send-mail",
-            resolved: false,
-            paths: [],
-        },
-    ];
-
-    it("builds a workspace-relative artifact including unresolved entries", () => {
-        const json = buildMapJson({
-            bpmnFile: "src/main/resources/order.bpmn",
-            generatedAt: "2026-06-03T10:15:30.000Z",
-            workspaceRoot: "/work/proj",
-            entries,
-        });
-
-        expect(json).toEqual({
+describe("codeLinkArtifact — parseMapJson", () => {
+    it("accepts a current-schema artifact", () => {
+        const artifact = {
             schemaVersion: CODE_LINK_SCHEMA_VERSION,
-            bpmnFile: "src/main/resources/order.bpmn",
-            generatedAt: "2026-06-03T10:15:30.000Z",
+            bpmnFile: "order.bpmn",
+            generatedAt: "t",
             entries: [
                 {
-                    activityId: "Activity_Charge",
-                    kind: "javaClass",
-                    reference: "com.example.Charge",
-                    resolved: true,
-                    paths: ["src/main/java/com/example/Charge.java"],
-                },
-                {
-                    activityId: "Activity_Mail",
+                    activityId: "A",
                     kind: "jobType",
-                    reference: "send-mail",
-                    resolved: false,
-                    paths: [],
+                    reference: "pay",
+                    resolved: true,
+                    paths: ["src/W.java"],
                 },
             ],
-        });
-    });
+        };
 
-    it("round-trips through parse + toAbsoluteEntries", () => {
-        const json = buildMapJson({
-            bpmnFile: "order.bpmn",
-            generatedAt: "t",
-            workspaceRoot: "/work/proj",
-            entries,
-        });
-        const parsed = parseMapJson(JSON.stringify(json));
-        expect(parsed).toBeDefined();
-        const rehydrated = toAbsoluteEntries(parsed!, "/work/proj");
-        expect(rehydrated).toEqual(entries);
-    });
-
-    it("re-hydrates no entry of a kind this version does not know", () => {
-        const json = buildMapJson({
-            bpmnFile: "order.bpmn",
-            generatedAt: "t",
-            workspaceRoot: "/work/proj",
-            entries: [...entries, { ...entries[1], activityId: "Act_New", kind: "bogus" as never }],
-        });
-        const parsed = parseMapJson(JSON.stringify(json));
-
-        expect(toAbsoluteEntries(parsed!, "/work/proj")).toEqual(entries);
+        expect(parseMapJson(JSON.stringify(artifact))).toEqual(artifact);
     });
 
     it("returns undefined for malformed or wrong-schema input rather than throwing", () => {
@@ -111,7 +49,7 @@ describe("CodeLinkMap — JSON artifact", () => {
         const wrap = (entries: unknown[]) =>
             JSON.stringify({ schemaVersion: CODE_LINK_SCHEMA_VERSION, entries });
 
-        // A null element — the case that would NPE in toAbsoluteEntries.
+        // A null element — the case that would NPE in CodeLinkMap.fromArtifact.
         expect(parseMapJson(wrap([null]))).toBeUndefined();
         // A missing field (no `paths`).
         expect(
