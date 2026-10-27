@@ -114,8 +114,8 @@ when upstream bundler/runtime behavior changes.
 
 A new or changed decision (a business rule, state transition, validation or
 classification) starts as a failing pure spec in the owning feature's
-`domain/` folder of `libs/modeler-core`, or in `libs/modeler-types` when the
-webview applies the same rule. Every bug fix starts with a spec that
+`domain/` folder of `libs/modeler-core`, or in `libs/modeler-types` when
+browser code applies the same rule. Every bug fix starts with a spec that
 reproduces it. Services keep one orchestration spec per use case through
 `createTestHost`. bpmn-js wiring, DOM chrome and host-API glue are exempt:
 writing those specs first against real SVG and host APIs costs much and gains
@@ -184,7 +184,7 @@ rules of `libs/modeler-core` (`src/**/domain/**`) and reports which mutants
 the specs fail to kill. Services are left out on purpose: they orchestrate
 ports over in-memory fakes, mutate slowly and mostly yield equivalent mutants.
 The domain is where rules belong, so its score is the measurable proxy for
-"every rule has a spec that bites". Rules the webview applies too live in
+"every rule has a spec that bites". Rules browser code applies too live in
 `libs/modeler-types`, which Stryker does not mutate; their specs are checked
 by breaking the rule by hand.
 

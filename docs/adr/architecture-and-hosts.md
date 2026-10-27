@@ -33,7 +33,7 @@ libraries; libraries import neither applications nor modeler packages.
 | --- | --- |
 | `packages/bpmn-modeler`, `packages/dmn-modeler` | Published, host-free browser composition and deliberately designed factory/handle APIs |
 | Private feature libraries in `libs/` | Reusable behavior, inlined into published packages where needed |
-| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication, and pure rules the webview and the core share |
+| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication, and pure rules browser code shares with the core |
 | `libs/shared` | Private Query/Command protocol, host channel, document-flush plumbing and webview chrome |
 | `libs/modeler-core` | Host-independent domain/service layers and shared editor, routing and diff registries |
 | Host applications and webview bootstraps | Concrete adapters, composition, transport, editor lifecycle and page integration |
@@ -47,12 +47,12 @@ obligations; document them in the package README. Do not publish each private
 feature library as an independently versioned API.
 
 Placement in `modeler-types` requires freedom from the private protocol and
-either a surface worth publishing or a pure BPMN rule that both browser code
-and the core apply. Portable mode types, disposable primitives, engine versions,
-canvas utilities and `isTextEditingSurface` qualify as surface. Script-surface
+either a surface worth publishing or a pure rule that both browser code and the
+core apply. Portable mode types, disposable primitives, engine versions, canvas
+utilities and `isTextEditingSurface` qualify as surface. Script-surface
 addressing (`scriptSurface.ts`) is such a shared rule, and so is the XML comment
 and CDATA scan (`xmlMarkup.ts`) behind the published `extractModelDefinitions`,
-the core's workspace content search and code-link. The webview cannot import
+the core's workspace content search and code-link. Browser code cannot import
 the core, whose barrel exports Node-only modules, so a rule both apply has no
 other common home. The package is private and inlined: its npm surface is only
 what a package entry re-exports by name, which `check-dts` and
@@ -550,7 +550,7 @@ a cached result must equal an uncached run.
 - Enforcing the core's layer rules only after the refactors that remove the
   current violations would let new ones in meanwhile. Known exceptions start
   the gate now, at the cost of a list that review has to keep from growing.
-- A separate library for the pure BPMN rules the webview and the core share
+- A separate library for the pure rules browser code shares with the core
   would need a manifest, path aliases, a Vitest target and entries in the
   inlined-library lists, about ten config edits for a few hundred lines. The
   rules live in `modeler-types` instead, at two costs: a `feat` or `fix` there
