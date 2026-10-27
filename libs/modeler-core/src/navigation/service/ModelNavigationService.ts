@@ -1,6 +1,6 @@
 import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import { openLocatedFile } from "../../kernel/service/openLocatedFile";
-import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import { ReferencedModelLocator } from "./ReferencedModelLocator";
 

@@ -1,7 +1,7 @@
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
 import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
-import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 import {
     escapeRegex,
     findFilesExcluding,
@@ -128,14 +128,12 @@ export class ReferencedModelLocator {
      *
      * Edge-case alternative: `bpmn-moddle` / `dmn-moddle` parse the XML into
      * a typed AST so we could read `process.id` directly.  Not used here
-     * because (1) it isn't a `vscode-plugin` dep yet, (2) per-file parse is
-     * 50-100× slower than this regex, which matters across a 100-file
-     * workspace.
+     * because a per-file parse is 50-100× slower than this regex, which
+     * matters across a 100-file workspace.
      */
-    private buildIdPattern(referenceId: string, kind: "process" | "decision"): RegExp {
-        const tag = kind === "process" ? "process" : "decision";
+    private buildIdPattern(referenceId: string, kind: Exclude<ReferenceKind, "form">): RegExp {
         return new RegExp(
-            `<(?:[\\w-]+:)?${tag}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegex(referenceId)}["']`,
+            `<(?:[\\w-]+:)?${kind}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegex(referenceId)}["']`,
         );
     }
 }

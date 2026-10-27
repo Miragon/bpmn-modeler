@@ -13,11 +13,8 @@ export type {
 } from "./publicApi";
 export type { ThemeMode } from "../publicApi";
 
-export type {
-    ModelNavigationPort,
-    ModelReference,
-    ReferenceKind,
-} from "@miragon/bpmn-model-navigation";
+export type { ModelNavigationPort, ModelReference } from "@miragon/bpmn-model-navigation";
+export type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 export type { BpmnSurfaceHandle } from "../surfaceHandle";
 export type { ViewportManager } from "../viewport";

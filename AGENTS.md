@@ -103,11 +103,12 @@ libs/
                          # infrastructure), consumed by all hosts
   modeler-types/         # Public, host-agnostic modeler types + browser
                          # utilities (engine/lint/settings/scripting/diff,
-                         # theme, canvas-resize, panel focus/resizer). No
+                         # theme, canvas resize and focus indicator). No
                          # protocol dependency — the publishable half of the
                          # old `shared` split out in #1371 (epic #1293)
   shared/                # Private webview ↔ host protocol: Query/Command
-                         # message classes, HostApi, document-flush plumbing
+                         # message classes, HostApi, document-flush plumbing,
+                         # properties-panel focus/resizer
   append-menu/           # bpmn-js append-menu module
   bpmn-clipboard/        # bpmn-js clipboard modules
   bpmn-i18n-extras/      # C7/dmn-js/internal translation overlay merged onto
