@@ -137,9 +137,9 @@ cd apps/intellij-plugin && ./gradlew runIde
 A sandboxed IntelliJ IDEA Community launches. Open any `.bpmn` file — it opens in
 a **BPMN Modeler** tab and the diagram renders. Move/add an element, then
 `Ctrl/Cmd+S`, and switch to the plain-text tab to confirm the round-tripped XML.
-The status bar shows the template load, the engine version and the deployment
-target, one widget each; loading errors surface as balloons. Tail the IDE log
-for `[bridge stderr]` lines to watch the seam.
+The status bar shows the template load, the engine version, the BPMNlint status
+and the deployment target, one widget each; loading errors surface as balloons.
+Tail the IDE log for `[bridge stderr]` lines to watch the seam.
 
 > The Gradle build only repackages the artefacts `intellij:build` produced — a
 > webview/CSS change is **not** picked up until you rebuild them. Re-run
