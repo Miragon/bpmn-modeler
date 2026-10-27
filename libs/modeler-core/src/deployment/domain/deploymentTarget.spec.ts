@@ -450,6 +450,14 @@ describe("DeploymentTarget", () => {
                 created: { credentialRefs: CredentialRefs.none() },
             },
             {
+                behaviour: "drops the client refs of a basic target",
+                fields: {
+                    authType: "basic",
+                    credentialRefs: CredentialRefs.oauth2("${env:MIRAGON_CLIENT_ID}", undefined),
+                },
+                created: { credentialRefs: CredentialRefs.none() },
+            },
+            {
                 behaviour: "drops every credential ref of a target without auth",
                 fields: {
                     credentialRefs: CredentialRefs.basic(
