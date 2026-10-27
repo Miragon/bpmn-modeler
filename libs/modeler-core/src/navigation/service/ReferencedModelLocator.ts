@@ -1,7 +1,7 @@
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
 import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
-import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 import {
     escapeRegex,
     findFilesExcluding,

@@ -15,6 +15,7 @@ export * from "./lint";
 export * from "./settings";
 export * from "./scripting";
 export * from "./implementation";
+export * from "./referenceKind";
 export * from "./diff";
 export * from "./layout";
 export * from "./errors";
