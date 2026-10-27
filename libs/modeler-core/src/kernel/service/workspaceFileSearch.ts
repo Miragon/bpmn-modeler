@@ -1,3 +1,5 @@
+import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
+
 import { EXCLUDED_DIRS, isInsideExcludedDirBelowEveryFolder } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
 import { SearchScope } from "../domain/searchScope";
@@ -213,36 +215,4 @@ export async function searchFilesContent(
         readFailures: failures,
         allUnreadable: paths.length > 0 && failures.length === paths.length,
     };
-}
-
-/**
- * Returns true if `pattern` matches at least one position in `content` that is
- * not inside an XML comment or CDATA section — a commented-out declaration is
- * not a real one. For non-XML source files the comment/CDATA ranges are simply
- * empty, so matching behaves normally.
- *
- * Comment/CDATA ranges are enumerated via regex rather than stripped with
- * `.replace()` to avoid CodeQL's `js/incomplete-multi-character-sanitization`
- * rule (this is filtering, not sanitisation, so the lint is a false positive
- * but easier to dodge than appease).
- */
-function matchesOutsideCommentsAndCdata(content: string, pattern: RegExp): boolean {
-    const excluded: Array<[number, number]> = [];
-    for (const re of [/<!--[\s\S]*?-->/g, /<!\[CDATA\[[\s\S]*?\]\]>/g]) {
-        let m;
-        while ((m = re.exec(content)) !== null) {
-            excluded.push([m.index, m.index + m[0].length]);
-        }
-    }
-    const global = new RegExp(
-        pattern.source,
-        pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
-    );
-    let match;
-    while ((match = global.exec(content)) !== null) {
-        if (!excluded.some(([s, e]) => match!.index >= s && match!.index < e)) {
-            return true;
-        }
-    }
-    return false;
 }

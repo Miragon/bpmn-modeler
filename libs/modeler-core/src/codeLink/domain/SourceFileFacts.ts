@@ -1,9 +1,6 @@
-import {
-    BEAN_ANNOTATION_PREFIX,
-    commentAndCdataRanges,
-    isInsideRanges,
-    TextRange,
-} from "./sourceText";
+import { commentAndCdataRanges, isInsideRanges, TextRange } from "@miragon/bpmn-modeler-types";
+
+import { BEAN_ANNOTATION_PREFIX } from "./sourceText";
 
 const MAX_DECIDABLE_LITERAL_LENGTH = 128;
 const QUOTE = /["']/g;

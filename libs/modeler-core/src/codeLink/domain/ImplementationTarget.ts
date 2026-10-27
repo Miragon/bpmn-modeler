@@ -14,6 +14,8 @@
  */
 import { posix } from "path";
 
+import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
+
 import {
     beanToClassName,
     extractBeanName,
@@ -25,7 +27,7 @@ import {
     SourceFileSet,
 } from "./ImplementationReference";
 import { SourceFileFacts } from "./SourceFileFacts";
-import { BEAN_ANNOTATION_PREFIX, commentAndCdataRanges, isInsideRanges } from "./sourceText";
+import { BEAN_ANNOTATION_PREFIX } from "./sourceText";
 
 const KIND_LABELS: Record<ImplementationKind, string> = {
     javaClass: "class",
@@ -39,7 +41,11 @@ const KNOWN_KINDS: ReadonlySet<unknown> = new Set(Object.keys(KIND_LABELS));
 
 export interface ContentSearch {
     readonly files: SourceFileSet;
-    /** Matched outside XML comments and CDATA sections only. */
+    /**
+     * Matched outside XML comments and CDATA sections only. Java/JS comments
+     * still count: a naive stripper would cut at a `//` inside a string literal
+     * and hide a real match, worse than an extra heuristic link.
+     */
     readonly pattern: RegExp;
 }
 
@@ -250,7 +256,7 @@ function matchesBeanClassName(bean: string, absolutePath: string): boolean {
  * `@JobWorker(type = "payment")` or `taskType: "payment"`.
  */
 export function contentImplementsLiteral(content: string, literal: string): boolean {
-    return matchesOutsideComments(content, literalPattern(literal));
+    return matchesOutsideCommentsAndCdata(content, literalPattern(literal));
 }
 
 /**
@@ -259,7 +265,7 @@ export function contentImplementsLiteral(content: string, literal: string): bool
  * bean (an explicitly named `@Component(value = "myBean")`).
  */
 export function contentDeclaresBean(content: string, bean: string): boolean {
-    return matchesOutsideComments(content, beanAnnotationPattern(bean));
+    return matchesOutsideCommentsAndCdata(content, beanAnnotationPattern(bean));
 }
 
 function literalPattern(literal: string): RegExp {
@@ -273,32 +279,4 @@ function beanAnnotationPattern(bean: string): RegExp {
 /** Escapes regex metacharacters so a user id/literal is matched verbatim. */
 function escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * True if `pattern` matches at least one position outside an XML comment or
- * CDATA section — a commented-out declaration is not a real one. Mirrors the
- * workspace content search so the batched scan and these matchers never
- * disagree about the same file. For non-XML source the excluded ranges are
- * empty and matching behaves normally.
- *
- * Limitation: only XML comments/CDATA are excluded, not Java/JS line (`//`) or
- * block comments, so a commented-out annotation in a `.java` file can still
- * false-match. This is deliberate — a naive comment stripper would truncate on a
- * `//` inside a string literal and wrongly *hide* a real match (a worse failure
- * than an extra heuristic link). Revisit only with a real tokenizer if it bites.
- */
-function matchesOutsideComments(content: string, pattern: RegExp): boolean {
-    const excluded = commentAndCdataRanges(content);
-    const global = new RegExp(
-        pattern.source,
-        pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
-    );
-    let match: RegExpExecArray | null;
-    while ((match = global.exec(content)) !== null) {
-        if (!isInsideRanges(excluded, match.index)) {
-            return true;
-        }
-    }
-    return false;
 }
