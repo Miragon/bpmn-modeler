@@ -1,3 +1,5 @@
+import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
+
 const MASK = "***";
 
 /**
@@ -100,13 +102,10 @@ function pathEncoded(secret: string): string {
 }
 
 function caseInsensitiveEscapesPattern(secret: string): string {
-    return secret
-        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        .replace(
-            /%([0-9A-Fa-f])([0-9A-Fa-f])/g,
-            (_escape, high: string, low: string) =>
-                `%${caseInsensitive(high)}${caseInsensitive(low)}`,
-        );
+    return escapeRegExpLiteral(secret).replace(
+        /%([0-9A-Fa-f])([0-9A-Fa-f])/g,
+        (_escape, high: string, low: string) => `%${caseInsensitive(high)}${caseInsensitive(low)}`,
+    );
 }
 
 function caseInsensitive(hexDigit: string): string {

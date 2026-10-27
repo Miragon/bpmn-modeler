@@ -34,14 +34,6 @@ export interface ContentSearchResult {
 }
 
 /**
- * Escapes regex metacharacters so a user-supplied id / literal is matched
- * verbatim rather than interpreted as a pattern.
- */
-export function escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
  * @returns `undefined` when there is nothing to search (no workspace folder and
  *   no source document to anchor a walk).
  */

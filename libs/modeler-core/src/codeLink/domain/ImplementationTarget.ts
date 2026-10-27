@@ -16,6 +16,8 @@ import { posix } from "path";
 
 import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
+import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
+
 import {
     beanToClassName,
     extractBeanName,
@@ -269,14 +271,9 @@ export function contentDeclaresBean(content: string, bean: string): boolean {
 }
 
 function literalPattern(literal: string): RegExp {
-    return new RegExp(`["']${escapeRegex(literal)}["']`);
+    return new RegExp(`["']${escapeRegExpLiteral(literal)}["']`);
 }
 
 function beanAnnotationPattern(bean: string): RegExp {
-    return new RegExp(`${BEAN_ANNOTATION_PREFIX}${escapeRegex(bean)}["']`);
-}
-
-/** Escapes regex metacharacters so a user id/literal is matched verbatim. */
-function escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`${BEAN_ANNOTATION_PREFIX}${escapeRegExpLiteral(bean)}["']`);
 }

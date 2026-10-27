@@ -1,3 +1,5 @@
+import { escapeRegExpLiteral } from "@miragon/bpmn-modeler-core";
+
 export interface TextPosition {
     readonly line: number;
     readonly character: number;
@@ -65,10 +67,6 @@ function containsQuote(value: string): boolean {
 // The single-pass index cannot represent ids containing quotes; they are not
 // valid XML ids, so this per-id search is not a hot path.
 function searchIdAttribute(xml: string, id: string): number | undefined {
-    const offset = xml.search(new RegExp(`\\sid=["']${escapeRegExp(id)}["']`));
+    const offset = xml.search(new RegExp(`\\sid=["']${escapeRegExpLiteral(id)}["']`));
     return offset < 0 ? undefined : offset;
-}
-
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

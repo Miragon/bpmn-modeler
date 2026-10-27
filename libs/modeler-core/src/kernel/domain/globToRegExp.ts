@@ -1,6 +1,4 @@
-function escapeRegExpLiteral(literal: string): string {
-    return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+import { escapeRegExpLiteral } from "./escapeRegExpLiteral";
 
 /**
  * Compiles a workspace glob into a path-matching `RegExp`, for hosts whose file
