@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { commentAndCdataRanges, isInsideRanges, matchesOutsideCommentsAndCdata } from "./xmlMarkup";
+import {
+    commentAndCdataRanges,
+    containsCommentOrCdataClose,
+    isInsideRanges,
+    matchesOutsideCommentsAndCdata,
+} from "./xmlMarkup";
 
 function hiddenSections(content: string): string[] {
     return commentAndCdataRanges(content).map(([start, end]) => content.slice(start, end));
@@ -71,6 +76,19 @@ describe("commentAndCdataRanges", () => {
         commentAndCdataRanges("<!--<![CDATA[".repeat(50_000));
 
         expect(Date.now() - startedAt).toBeLessThan(1000);
+    });
+});
+
+describe("containsCommentOrCdataClose", () => {
+    it.each([
+        { text: "a-->b", contains: true },
+        { text: "a]]>b", contains: true },
+        { text: "a->b", contains: false },
+        { text: "a]]b", contains: false },
+        { text: "<!--<![CDATA[", contains: false },
+        { text: "", contains: false },
+    ])("is $contains for '$text'", ({ text, contains }) => {
+        expect(containsCommentOrCdataClose(text)).toBe(contains);
     });
 });
 

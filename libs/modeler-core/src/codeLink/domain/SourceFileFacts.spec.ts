@@ -52,7 +52,7 @@ describe("SourceFileFacts", () => {
         );
     });
 
-    it("decides only short literals without quotes, whitespace or comment ends", () => {
+    it("decides only short literals without quotes, whitespace or section closes", () => {
         expect(SourceFileFacts.decidesLiteral("payment-service")).toBe(true);
         expect(SourceFileFacts.decidesLiteral("io.camunda:http-json:1")).toBe(true);
         expect(SourceFileFacts.decidesLiteral("")).toBe(true);

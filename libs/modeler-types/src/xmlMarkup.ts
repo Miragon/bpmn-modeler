@@ -43,6 +43,10 @@ export function commentAndCdataRanges(content: string): TextRange[] {
     }
 }
 
+export function containsCommentOrCdataClose(text: string): boolean {
+    return SECTIONS.some(({ close }) => text.includes(close));
+}
+
 export function isInsideRanges(ranges: readonly TextRange[], offset: number): boolean {
     return ranges.some(([start, end]) => offset >= start && offset < end);
 }
