@@ -3,14 +3,13 @@ import { ConfigurationTarget, workspace } from "vscode";
 import {
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
-    parseLintingEnabled,
     parseSetting,
     settingKeyOf,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { ModelerConfiguration, modelerConfiguration } from "./modelerConfiguration";
+import { lintingEnabled, ModelerConfiguration, modelerConfiguration } from "./modelerConfiguration";
 
 /**
  * Pure VS Code workspace configuration reader for the BPMN modeler. Each value
@@ -26,13 +25,8 @@ export class VsCodeSettings implements SettingsPort {
         return readSetting("showTransactionBoundaries");
     }
 
-    /**
-     * Whether bpmnlint runs. Defaults to `true`, so automation users keep the
-     * zero-config lint experience; design-only users flip it off (globally, from
-     * the webview pill or the settings UI) to silence rules they do not use.
-     */
     getLintingEnabled(): boolean {
-        return parseLintingEnabled(modelerConfiguration().get("linting.enabled"));
+        return lintingEnabled();
     }
 
     getConfigFolder(): string {

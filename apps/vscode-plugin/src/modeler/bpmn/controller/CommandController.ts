@@ -1,12 +1,4 @@
-import {
-    commands,
-    ConfigurationTarget,
-    env,
-    ExtensionContext,
-    Uri,
-    window,
-    workspace,
-} from "vscode";
+import { commands, env, ExtensionContext, Uri, window, workspace } from "vscode";
 
 import { Command, GetDiagramAsSVGCommand, isMessageOfType } from "@miragon/bpmn-modeler-shared";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
@@ -23,15 +15,14 @@ import {
     FORM_VIEW_TYPE,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
-import { modelerConfiguration } from "../../../shared/infrastructure/modelerConfiguration";
+import {
+    lintingEnabled,
+    setLanguage,
+    setLintingEnabled,
+} from "../../../shared/infrastructure/modelerConfiguration";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
 import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import {
-    NotifierPort,
-    parseLintingEnabled,
-    PendingEditsFlush,
-    PickerPort,
-} from "@miragon/bpmn-modeler-core";
+import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 
 export const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
@@ -178,14 +169,7 @@ export class CommandController {
                 return;
             }
 
-            // Language is a personal UI preference rather than a project-scoped
-            // setting — writing at Global (User) level avoids pinning one
-            // collaborator's choice to a shared workspace settings file.
-            await modelerConfiguration().update(
-                "language",
-                picked.description,
-                ConfigurationTarget.Global,
-            );
+            await setLanguage(picked.description);
             // Breadcrumb: a language switch changes UI strings across the modeler,
             // so record it to explain later "why is the panel in German?" reports.
             this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
@@ -193,18 +177,16 @@ export class CommandController {
     }
 
     /**
-     * Flips `miragon.bpmnModeler.linting.enabled` (default on) at Global (User)
-     * scope — the design-only opt-out. Reachable from the command palette and
-     * the "BPMNlint: off" status-bar badge; the webview pill writes the same
-     * setting directly. The config change re-lints every open editor, so no
-     * webview message is sent from here.
+     * Flips `miragon.bpmnModeler.linting.enabled`, the design-only opt-out.
+     * Reachable from the command palette and the "BPMNlint: off" status-bar
+     * badge; the webview pill writes the same setting directly. The config
+     * change re-lints every open editor, so no webview message is sent from here.
      */
     toggleLinting(): Promise<void> {
         return this.logAndRethrow(async () => {
-            const config = modelerConfiguration();
-            const enabled = parseLintingEnabled(config.get("linting.enabled"));
-            await config.update("linting.enabled", !enabled, ConfigurationTarget.Global);
-            this.notifier.logInfo(`BPMN linting ${!enabled ? "enabled" : "disabled"}`);
+            const enabled = !lintingEnabled();
+            await setLintingEnabled(enabled);
+            this.notifier.logInfo(`BPMN linting ${enabled ? "enabled" : "disabled"}`);
         });
     }
 
