@@ -26,8 +26,9 @@ owns it.
   and property a `(kind, listenerIndex)` pair addresses comes from the one
   script-surface table in `@miragon/bpmn-modeler-types`
   (`libs/modeler-types/src/scriptSurface.ts`: `findListenerAt`,
-  `resolveScriptWriteTarget`, `describeScriptSurface`). The core's host-side
-  XML rewrite fallback addresses scripts through the same table.
+  `resolveScriptWriteTarget`, `scriptPropertyName`, `describeScriptSurface`).
+  The core's host-side XML rewrite fallback addresses scripts through the same
+  table.
 
 ## Event contract
 

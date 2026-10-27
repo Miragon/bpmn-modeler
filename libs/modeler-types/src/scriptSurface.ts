@@ -36,6 +36,7 @@ interface ScriptSurface {
 const SCRIPT_SURFACES = {
     "script-task": {
         listenerType: undefined,
+        // The plain BPMN attribute, because the properties panel ignores `camunda:scriptFormat`.
         propertyNames: { content: "script", format: "scriptFormat" },
     },
     "execution-listener": {
@@ -47,6 +48,16 @@ const SCRIPT_SURFACES = {
         propertyNames: { content: "value", format: "scriptFormat" },
     },
 } as const satisfies Record<ScriptKind, ScriptSurface>;
+
+type ScriptSurfaces = typeof SCRIPT_SURFACES;
+
+/** The moddle property that stores `field` of a `kind` script, as a literal type for a known pair. */
+export function scriptPropertyName<Kind extends ScriptKind, Field extends ScriptField>(
+    kind: Kind,
+    field: Field,
+): ScriptSurfaces[Kind]["propertyNames"][Field] {
+    return SCRIPT_SURFACES[kind].propertyNames[field];
+}
 
 /** Names the addressed script surface for host-log messages. */
 export function describeScriptSurface(
@@ -97,7 +108,7 @@ export function resolveScriptWriteTarget<
     listenerIndex: number | undefined,
     field: ScriptField,
 ): ScriptWriteTarget<Element | Body> | undefined {
-    const propertyName = SCRIPT_SURFACES[kind].propertyNames[field];
+    const propertyName = scriptPropertyName(kind, field);
     if (kind === "script-task") {
         // A replace-menu morph keeps the element id; writing anyway would leave a
         // stray `script`/`scriptFormat` attribute on the new element type.

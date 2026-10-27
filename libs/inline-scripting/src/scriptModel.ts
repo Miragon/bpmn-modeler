@@ -1,4 +1,4 @@
-import { findListenerAt } from "@miragon/bpmn-modeler-types";
+import { findListenerAt, scriptPropertyName } from "@miragon/bpmn-modeler-types";
 import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
 import type { ElementCollection, ElementLookup, ScriptTaskBusinessObject } from "./bpmnTypes";
@@ -8,9 +8,6 @@ import type { ElementCollection, ElementLookup, ScriptTaskBusinessObject } from 
  * writes do, so a read and a write agree on which listener a
  * `(kind, listenerIndex)` pair means.
  */
-
-/** The plain BPMN attribute, because the properties panel ignores `camunda:scriptFormat`. */
-const SCRIPT_TASK_FORMAT_PROPERTY = "scriptFormat";
 
 /** Earlier releases of this extension wrote it, so older diagrams may carry only this one. */
 const LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE = "camunda:scriptFormat";
@@ -66,9 +63,10 @@ export function readScriptContent(
  * plain moddle object may expose the attribute only as a direct property.
  */
 export function readScriptTaskFormat(bo: ScriptTaskBusinessObject | undefined): string {
+    const formatProperty = scriptPropertyName("script-task", "format");
     return (
-        bo?.get?.(SCRIPT_TASK_FORMAT_PROPERTY) ||
-        bo?.[SCRIPT_TASK_FORMAT_PROPERTY] ||
+        bo?.get?.(formatProperty) ||
+        bo?.[formatProperty] ||
         bo?.get?.(LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE) ||
         ""
     );
