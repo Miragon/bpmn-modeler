@@ -27,6 +27,9 @@ export interface ModelNavigationPort {
      */
     openReference(reference: ModelReference): void | Promise<void>;
 
+    /** Optional read-only preview; only offered for available form references. */
+    previewForm?(reference: ModelReference): void | Promise<void>;
+
     /**
      * Optionally controls whether an action is shown for a reference. Omitting
      * this hook treats every syntactically valid reference as available.

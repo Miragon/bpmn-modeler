@@ -156,6 +156,43 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
 
+    it("returns fresh saved form content and correlated errors without opening or writing a form", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const path = join(root, "preview.form");
+        const content = JSON.stringify({ id: "Form_Preview", type: "default", components: [] });
+        await fs.writeFile(path, content);
+        async function request(requestId: number, formId = "Form_Preview") {
+            await rpc.handleLine(
+                JSON.stringify({
+                    method: "webview/message",
+                    params: {
+                        editorId,
+                        message: { type: "GetFormPreviewCommand", requestId, formId },
+                    },
+                }),
+            );
+            const frame = await waitForFrame(
+                frames,
+                (f) =>
+                    f.method === "editor/postMessage" &&
+                    f.params.message.type === "FormPreviewQuery" &&
+                    f.params.message.requestId === requestId,
+            );
+            return frame.params.message.result;
+        }
+        expect(await request(1)).toEqual({ kind: "loaded", content });
+        const updated = content.replace('"components":[]', '"components":[],"schemaVersion":19');
+        await fs.writeFile(path, updated);
+        expect(await request(2)).toEqual({ kind: "loaded", content: updated });
+        expect(await fs.readFile(path, "utf8")).toBe(updated);
+        expect(await request(3, "Missing")).toEqual({
+            kind: "unavailable",
+            message: expect.any(String),
+        });
+        expect(frames.find((f) => f.method === "notifier/openDocument")).toBeUndefined();
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
     it("prompts via picker/show when multiple files declare the id, then opens the choice", async () => {
         const { rpc, frames, root, editorId } = await setup();
         const aPath = join(root, "a.bpmn");

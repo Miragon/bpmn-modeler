@@ -107,6 +107,7 @@ export function bootstrap(
         modeController.setTheme(kind);
     });
     const protocolCapabilities = createProtocolCapabilities(host, getSurface);
+    window.addEventListener("pagehide", () => protocolCapabilities.dispose(), { once: true });
     const clipboard = resolveClipboard(opts.clipboard, {
         isDevelopment: process.env.NODE_ENV === "development",
         host,
@@ -135,7 +136,10 @@ export function bootstrap(
     const session = new BpmnDocumentSession(host, {
         surface: createSurfaceDocument(host, modeController),
         page: {
-            cancelPendingSurfaceWork: modeController.disposeSurfaceBinding,
+            cancelPendingSurfaceWork: () => {
+                protocolCapabilities.dispose();
+                modeController.disposeSurfaceBinding();
+            },
             flushViewport: () => modeController.getViewState()?.flushViewport(),
             destroySurface: () => getSurface().destroy(),
             reloadPage: () => (opts.reload ?? (() => window.location.reload()))(),

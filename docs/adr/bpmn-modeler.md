@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -18,6 +18,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 ## Contents
 
 - [Public API and capabilities](#public-api-and-capabilities)
+- [Linked form previews](#linked-form-previews)
 - [Surfaces and modes](#surfaces-and-modes)
 - [Document identity and creation](#document-identity-and-creation)
 - [Properties panel](#properties-panel)
@@ -74,6 +75,33 @@ moddle parse because hosts index whole workspaces.
 `selection`. Their map uses upstream documented types and can be narrowed with
 `Pick`. Other names retain the generic, unstable escape hatch. A separate raw
 instance or services object would duplicate this API and expose more internals.
+
+### Linked form previews
+
+The optional, protocol-free navigation port `previewForm` contributes a second
+context-pad action for locally resolvable C8 user-task form references. The
+existing open-editor action remains independent. The published modeler does
+not depend on form-js or the private host protocol.
+
+The BPMN webview owns an accessible modal preview and lazily loads the same
+form-js viewer version as the form webview. It never constructs a form editor,
+synchronizes a form, or writes a file. Read-only viewer properties and blocked
+link/submit actions leave the preview readable without enabling form actions.
+Viewer theme tokens map to host colors, including high contrast. Components
+requiring frames, document fetching or unsupported extensions are rejected
+with inline feedback instead of widening the BPMN webview CSP.
+
+`GetFormPreviewCommand` / `FormPreviewQuery` are private, request-id-correlated
+messages with a bounded wait. Core `FormPreviewService` reuses workspace form
+resolution and the duplicate picker, then reads saved bytes afresh on every
+open or refresh; availability snapshots never carry or cache form contents.
+Disposal invalidates in-flight UI work, destroys viewers and cancels pending
+replies. The VS Code host and stdio bridge compose the same service.
+
+Enforcement: `FormPreviewService.spec.ts`, `formPreviewHandler.spec.ts`, the
+webview preview/schema/protocol specs, and the packaged-extension linked-form
+smoke test. `VSCODE_SMOKE_FLATPAK=1` selects installed Flatpak VSCodium with a
+throwaway, explicitly shared home-directory profile and no VS Code download.
 
 ### Surfaces and modes
 

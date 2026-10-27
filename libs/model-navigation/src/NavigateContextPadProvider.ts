@@ -9,6 +9,7 @@
  * Clicking the entry calls {@link ModelNavigationPort.openReference}; the
  * consumer performs the workspace lookup and opens the referenced `.bpmn`,
  * `.dmn`, or `.form` file.
+ * An optional preview capability adds a separate read-only linked-form action.
  *
  * The entry is rendered as an inline `html` fragment with an embedded SVG
  * (same approach as the `append` entry from `bpmn-js-create-append-anything`)
@@ -91,8 +92,8 @@ export class NavigateContextPadProvider {
     }
 
     /**
-     * Called by the context pad for the selected element.  Returns a single
-     * entry when the element has a resolvable process, decision, or form reference,
+     * Called by the context pad for the selected element. Returns navigation
+     * entries when the element has a resolvable process, decision, or form reference,
      * or an empty object otherwise (no contribution).
      *
      * @param element The currently selected element.
@@ -110,7 +111,7 @@ export class NavigateContextPadProvider {
             return {};
         }
 
-        return {
+        const entries: ContextPadEntries = {
             "navigate-to-referenced-model": {
                 group: "connect",
                 html: `<div class="entry">${NAVIGATE_ICON_SVG}</div>`,
@@ -131,6 +132,23 @@ export class NavigateContextPadProvider {
                 },
             },
         };
+        if (kind === "form" && this.port.previewForm) {
+            const title = this.translate("Preview linked form");
+            entries["preview-linked-form"] = {
+                group: "connect",
+                html: '<button type="button" class="entry" aria-label="Preview linked form" style="border:0;padding:0;color:inherit;font:inherit"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>',
+                title,
+                action: {
+                    click: (_event, clickedElement) => {
+                        const current = extractReference(clickedElement.businessObject, "form");
+                        if (current && this.formReferenceStatusClient.isResolved(current)) {
+                            void this.port.previewForm?.({ id: current, kind: "form" });
+                        }
+                    },
+                },
+            };
+        }
+        return entries;
     }
 
     private detectKind(element: Element): ReferenceKind | undefined {

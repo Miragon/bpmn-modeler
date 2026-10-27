@@ -3458,6 +3458,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
   dependencies:
+    "@bpmn-io/form-js-viewer": "npm:2.1.1"
     "@bpmn-io/properties-panel": "npm:3.57.0"
     "@bpmn-io/svg-to-image": "npm:1.0.1"
     "@miragon/bpmn-modeler": "workspace:*"

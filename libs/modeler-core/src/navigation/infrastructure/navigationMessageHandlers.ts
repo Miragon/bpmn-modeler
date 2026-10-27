@@ -1,4 +1,6 @@
 import { Command, NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
+import { FormPreviewQuery, type GetFormPreviewCommand } from "@miragon/bpmn-modeler-shared";
+import { FormPreviewService } from "../service/FormPreviewService";
 
 import { NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
@@ -42,5 +44,25 @@ export function getFormReferenceStatusHandler(
 ): MessageHandler {
     return async (_message: Command, editorId: string) => {
         await statusService.requestStatus(editorId);
+    };
+}
+
+export function getFormPreviewHandler(
+    store: EditorSessionStore,
+    service: FormPreviewService,
+): MessageHandler<GetFormPreviewCommand> {
+    return async (command, editorId) => {
+        const handle = store.requireHandle(editorId);
+        const result =
+            typeof command.formId === "string" && command.formId.length > 0
+                ? await service.read(command.formId, handle.documentFsPath())
+                : {
+                      kind: "unavailable" as const,
+                      message: "This task has no local form reference.",
+                  };
+        // A hidden/replaced editor must not receive a result from the old session.
+        if (store.hasEditor(editorId) && store.requireHandle(editorId) === handle) {
+            await handle.postMessage(new FormPreviewQuery(command.requestId, result));
+        }
     };
 }

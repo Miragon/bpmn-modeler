@@ -664,6 +664,27 @@ export class GetFormReferenceStatusCommand extends Command<"GetFormReferenceStat
     }
 }
 
+export class GetFormPreviewCommand extends Command<"GetFormPreviewCommand"> {
+    constructor(
+        public requestId: number,
+        public formId: string,
+    ) {
+        super("GetFormPreviewCommand");
+    }
+}
+
+export type FormPreviewReply =
+    { kind: "loaded"; content: string } | { kind: "unavailable"; message: string };
+
+export class FormPreviewQuery extends Query<"FormPreviewQuery"> {
+    constructor(
+        public requestId: number,
+        public result: FormPreviewReply,
+    ) {
+        super("FormPreviewQuery");
+    }
+}
+
 /**
  * Searches the other `.bpmn` files of the workspace for definitions of
  * {@link kind} whose name or code contains {@link text}. The host answers with a

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
@@ -21,6 +21,18 @@ export const COMMAND_KEY = process.platform === "darwin" ? "Meta" : "Control";
 const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
 const CLOSE_TIMEOUT_MS = 10_000;
+
+/** Bypass Codium's Node CLI shim so Playwright attaches to the actual Electron process. */
+export async function flatpakVSCodium(rootDirectory: string): Promise<string> {
+    const launcher = join(rootDirectory, "flatpak-codium");
+    const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
+    await writeFile(
+        launcher,
+        `#!/bin/sh\nexec flatpak run ${quote(`--filesystem=${rootDirectory}`)} --command=/app/bin/com.vscodium.codium-wrapper com.vscodium.codium "$@"\n`,
+    );
+    await chmod(launcher, 0o700);
+    return launcher;
+}
 
 /**
  * Packs the built extension the way the release workflow does and unpacks the

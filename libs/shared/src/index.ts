@@ -17,3 +17,4 @@ export * from "./lib/webviewStateStore";
 export * from "./lib/propertiesPanelUiState";
 export * from "./lib/propertiesPanelVisibility";
 export * from "./lib/globalErrorForwarding";
+export * from "./lib/formRuntimeCompatibility";

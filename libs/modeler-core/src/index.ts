@@ -74,6 +74,7 @@ export * from "./diff/infrastructure/DiffPaneStore";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";
+export * from "./navigation/service/FormPreviewService";
 export * from "./navigation/service/ReferencedModelLocator";
 export * from "./navigation/service/FormReferenceStatusService";
 export * from "./navigation/session/FormReferenceStatusParticipant";

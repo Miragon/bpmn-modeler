@@ -30,6 +30,7 @@ export type SessionMessageType =
     | "UpdateOpenScriptEditorsQuery"
     | "ImplementationStatusQuery"
     | "FormReferenceStatusQuery"
+    | "FormPreviewQuery"
     | "WorkspaceDefinitionsQuery"
     | "FocusElementQuery"
     | "TakeFocusQuery"
