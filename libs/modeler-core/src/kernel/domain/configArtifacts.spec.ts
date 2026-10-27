@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { configArtifactPath, configFolderPath } from "./configArtifacts";
+import { configArtifactLocation, configFolderPath } from "./configArtifacts";
 
 describe("configFolderPath", () => {
     it.each([
@@ -58,7 +58,7 @@ describe("configFolderPath", () => {
     });
 });
 
-describe("configArtifactPath", () => {
+describe("configArtifactLocation", () => {
     it.each([
         {
             behaviour: "mirrors the document's path below the root under the code-link area",
@@ -67,6 +67,7 @@ describe("configArtifactPath", () => {
             documentPath: "/work/proj/processes/order.bpmn",
             suffix: ".json",
             path: "/work/proj/.camunda/code-link/processes/order.bpmn.json",
+            documentBelowRoot: "processes/order.bpmn",
         },
         {
             behaviour: "appends a compound suffix under the vars area",
@@ -75,6 +76,7 @@ describe("configArtifactPath", () => {
             documentPath: "/work/proj/processes/order.bpmn",
             suffix: ".vars.json",
             path: "/work/proj/.camunda/vars/processes/order.bpmn.vars.json",
+            documentBelowRoot: "processes/order.bpmn",
         },
         {
             behaviour: "places a document at the root directly in the area",
@@ -83,6 +85,7 @@ describe("configArtifactPath", () => {
             documentPath: "/work/proj/order.bpmn",
             suffix: ".json",
             path: "/work/proj/.camunda/code-link/order.bpmn.json",
+            documentBelowRoot: "order.bpmn",
         },
         {
             behaviour: "ignores a trailing slash on the root",
@@ -91,6 +94,7 @@ describe("configArtifactPath", () => {
             documentPath: "/work/proj/order.bpmn",
             suffix: ".json",
             path: "/work/proj/.camunda/code-link/order.bpmn.json",
+            documentBelowRoot: "order.bpmn",
         },
         {
             behaviour: "keeps a drive root reported with its slash",
@@ -99,6 +103,7 @@ describe("configArtifactPath", () => {
             documentPath: "/c:/processes/order.bpmn",
             suffix: ".json",
             path: "/c:/.camunda/code-link/processes/order.bpmn.json",
+            documentBelowRoot: "processes/order.bpmn",
         },
         {
             behaviour: "keeps the vars area of a drive root",
@@ -107,6 +112,7 @@ describe("configArtifactPath", () => {
             documentPath: "/c:/order.bpmn",
             suffix: ".vars.json",
             path: "/c:/.camunda/vars/order.bpmn.vars.json",
+            documentBelowRoot: "order.bpmn",
         },
         {
             behaviour: "keeps the UNC root of a workspace on a share",
@@ -115,6 +121,7 @@ describe("configArtifactPath", () => {
             documentPath: "//server/share/proj/order.bpmn",
             suffix: ".json",
             path: "//server/share/proj/.camunda/code-link/order.bpmn.json",
+            documentBelowRoot: "order.bpmn",
         },
         {
             behaviour: "mirrors the documents of a workspace opened at the filesystem root",
@@ -123,28 +130,29 @@ describe("configArtifactPath", () => {
             documentPath: "/work/order.bpmn",
             suffix: ".json",
             path: "/.camunda/code-link/work/order.bpmn.json",
+            documentBelowRoot: "work/order.bpmn",
         },
-    ])("$behaviour", ({ workspaceRoot, area, documentPath, suffix, path }) => {
+    ])("$behaviour", ({ workspaceRoot, area, documentPath, suffix, path, documentBelowRoot }) => {
         expect(
-            configArtifactPath({
+            configArtifactLocation({
                 workspaceRoot,
                 configFolder: ".camunda",
                 area,
                 documentPath,
                 suffix,
             }),
-        ).toBe(path);
+        ).toEqual({ path, documentBelowRoot });
     });
 
     it("places the area in the configured folder", () => {
         expect(
-            configArtifactPath({
+            configArtifactLocation({
                 workspaceRoot: "/work/proj",
                 configFolder: "config/camunda",
                 area: "code-link",
                 documentPath: "/work/proj/order.bpmn",
                 suffix: ".json",
-            }),
+            }).path,
         ).toBe("/work/proj/config/camunda/code-link/order.bpmn.json");
     });
 
@@ -171,7 +179,7 @@ describe("configArtifactPath", () => {
         },
     ])("$behaviour", ({ workspaceRoot, documentPath }) => {
         expect(() =>
-            configArtifactPath({
+            configArtifactLocation({
                 workspaceRoot,
                 configFolder: ".camunda",
                 area: "code-link",
