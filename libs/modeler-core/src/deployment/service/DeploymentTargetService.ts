@@ -15,23 +15,25 @@ import {
     DeploymentTargets,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TargetChange,
 } from "../domain/deploymentTarget";
 import { CredentialRefs } from "../domain/credentialRefs";
+import {
+    activeDestination,
+    AdHocDestination,
+    DeploymentDestination,
+    DestinationResolution,
+    NamedDestination,
+    namesTarget,
+    prefillDestination,
+    resolveNamedDestination,
+    TargetEdit,
+    TargetsLocation,
+    targetSecretSlot,
+} from "../domain/deploymentDestination";
 import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
-
-/**
- * Where the targets file lives for the current context. `filePath` is the read
- * location (nearest existing file) and the write location (the same file, or a
- * fresh one under the workspace config folder when none exists yet).
- */
-export interface TargetsLocation {
-    readonly filePath: string;
-    readonly exists: boolean;
-    /** The directory holding the config folder; its `.env` is the only one the targets may read. */
-    readonly projectDir: string;
-}
 
 /**
  * Manages named deployment targets: the `deployment-targets.json` file (locate,
@@ -91,14 +93,22 @@ export class DeploymentTargetService {
     }
 
     async listTargets(documentDir?: string): Promise<DeploymentTarget[]> {
+        return (await this.readTargetsFileOrNone(documentDir)).targets;
+    }
+
+    /** An unreadable file is reported and holds no targets, so the sidebar still renders. */
+    private async readTargetsFileOrNone(
+        documentDir: string | undefined,
+    ): Promise<{ location: TargetsLocation | undefined; targets: DeploymentTarget[] }> {
         try {
-            return await this.readTargets(await this.locateTargetsFile(documentDir));
+            const location = await this.locateTargetsFile(documentDir);
+            return { location, targets: await this.readTargets(location) };
         } catch (error) {
             this.notifier.notifyError(
                 "Could not read deployment targets",
                 error instanceof Error ? error : new Error(String(error)),
             );
-            return [];
+            return { location: undefined, targets: [] };
         }
     }
 
@@ -109,10 +119,24 @@ export class DeploymentTargetService {
         );
     }
 
-    async getTarget(name: string, documentDir?: string): Promise<DeploymentTarget | undefined> {
-        return new DeploymentTargets(
-            await this.readTargets(await this.locateTargetsFile(documentDir)),
-        ).find(name);
+    /**
+     * What a request's `targetName` selects. Unlike the sidebar, a request fails
+     * on a targets file it cannot read rather than running unchecked.
+     */
+    async resolveDestination(
+        targetName: string | undefined,
+        adHoc: AdHocDestination,
+        documentDir?: string,
+    ): Promise<DestinationResolution> {
+        if (!namesTarget(targetName)) {
+            return adHoc;
+        }
+        const location = await this.locateTargetsFile(documentDir);
+        return resolveNamedDestination(
+            targetName,
+            location,
+            new DeploymentTargets(await this.readTargets(location)),
+        );
     }
 
     /**
@@ -125,8 +149,8 @@ export class DeploymentTargetService {
         payload: DeploymentTargetPayload,
         auth: AuthConfigPayload,
         documentDir?: string,
-    ): Promise<void> {
-        await this.persistTarget(payload, auth, documentDir, undefined, (targets, target) =>
+    ): Promise<TargetEdit> {
+        return this.persistTarget(payload, auth, documentDir, (targets, target) =>
             targets.add(target),
         );
     }
@@ -143,27 +167,18 @@ export class DeploymentTargetService {
         auth: AuthConfigPayload,
         previousName: string | undefined,
         documentDir?: string,
-    ): Promise<void> {
-        const { location, target } = await this.persistTarget(
-            payload,
-            auth,
-            documentDir,
-            previousName ?? payload.name,
-            (targets, next) => targets.upsert(next, previousName),
+    ): Promise<TargetEdit> {
+        return this.persistTarget(payload, auth, documentDir, (targets, target) =>
+            targets.upsert(target, previousName),
         );
-        if (previousName !== undefined && previousName.trim() !== target.name) {
-            await this.secretStore.delete(this.slotFor(location.filePath, previousName.trim()));
-        }
     }
 
-    /** @param savedName The name the target had before this save; `undefined` for a create. */
     private async persistTarget(
         payload: DeploymentTargetPayload,
         auth: AuthConfigPayload,
         documentDir: string | undefined,
-        savedName: string | undefined,
-        apply: (targets: DeploymentTargets, target: DeploymentTarget) => DeploymentTarget[],
-    ): Promise<{ location: TargetsLocation; target: DeploymentTarget }> {
+        apply: (targets: DeploymentTargets, target: DeploymentTarget) => TargetChange,
+    ): Promise<TargetEdit> {
         const location = await this.locateTargetsFile(documentDir);
         if (location === undefined) {
             throw new Error("Open a workspace folder before saving a deployment target.");
@@ -171,72 +186,87 @@ export class DeploymentTargetService {
 
         const credentials = toAuthConfig(auth);
         credentials.assertCredentialEnvRefsValid();
-        const draft = toDomainTarget(payload, CredentialRefs.of(credentials));
-        draft.assertEnvRefsValid();
-        // Round-tripping through the parser applies every remaining file rule.
-        const [target] = parseDeploymentTargetsFile({ targets: [draft.toJson()] });
+        const target = DeploymentTarget.create({
+            ...payload,
+            credentialRefs: CredentialRefs.of(credentials),
+        });
         const current = new DeploymentTargets(await this.readTargets(location));
-        const saved = savedName === undefined ? undefined : current.find(savedName);
-        const next = apply(current, target);
-        await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
+        const change = apply(current, target);
+        await this.workspace.writeFile(
+            location.filePath,
+            serializeDeploymentTargets(change.targets),
+        );
 
         // Refs are stored too: they overwrite any older literal, and a backend that
         // reads an empty half back as null would drop the literal next to it.
-        const slot = this.slotFor(location.filePath, target.name);
+        const slot = targetSecretSlot(location, target.name);
         await this.saveSecrets(slot, credentials);
-        await this.approveTypedDestinations(slot, target, saved, current, location.filePath);
+        await this.approveTypedDestinations(
+            slot,
+            target,
+            change.approvalsInheritedFrom,
+            current,
+            location,
+        );
         await this.setActiveTarget(target.name);
-        return { location, target };
+        if (change.retiredSlotName !== undefined) {
+            await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
+        }
+        return new TargetEdit(change, location);
     }
 
     /**
      * Saving approves only the hosts the user typed. A host any target in the
      * shared file already names may have reached the form from there — the
      * sidebar's New starts from the selected target — so it still asks at first
-     * use. A create starts from no approvals, so a stale slot can't lend its own.
+     * use.
      */
     private async approveTypedDestinations(
         slot: string,
         target: DeploymentTarget,
-        saved: DeploymentTarget | undefined,
+        approvalsInheritedFrom: string | undefined,
         current: DeploymentTargets,
-        filePath: string,
+        location: TargetsLocation,
     ): Promise<void> {
         const inherited =
-            saved === undefined
+            approvalsInheritedFrom === undefined
                 ? CredentialDestinations.none()
                 : CredentialDestinations.fromOrigins(
                       await this.secretStore.getApprovedDestinations(
-                          this.slotFor(filePath, saved.name),
+                          targetSecretSlot(location, approvalsInheritedFrom),
                       ),
                   );
         const typed = target.knownCredentialDestinations().without(current.knownDestinations());
         await this.secretStore.saveApprovedDestinations(slot, [...inherited.union(typed).origins]);
     }
 
-    async deleteTarget(name: string, documentDir?: string): Promise<boolean> {
+    /** @returns `undefined` when the user cancels or there is no targets file. */
+    async deleteTarget(name: string, documentDir?: string): Promise<TargetEdit | undefined> {
         const confirmed = await this.picker.confirmDestructive({
             title: `Delete deployment target "${name}"?`,
             confirmLabel: "Delete",
             details: [`Target "${name}" and its stored credentials will be removed.`],
         });
         if (!confirmed) {
-            return false;
+            return undefined;
         }
 
         const location = await this.locateTargetsFile(documentDir);
         if (location === undefined || !location.exists) {
-            return false;
+            return undefined;
         }
         const current = await this.readTargets(location);
-        const next = new DeploymentTargets(current).remove(name);
-        await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
-        await this.secretStore.delete(this.slotFor(location.filePath, name));
+        const change = new DeploymentTargets(current).remove(name);
+        await this.workspace.writeFile(
+            location.filePath,
+            serializeDeploymentTargets(change.targets),
+        );
+        await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
 
-        if (this.deploymentState.getActiveTargetName() === name.trim()) {
+        if (this.deploymentState.getActiveTargetName() === change.name) {
             await this.setActiveTarget("");
         }
-        return true;
+        return new TargetEdit(change, location);
     }
 
     /**
@@ -257,15 +287,28 @@ export class DeploymentTargetService {
     }
 
     /**
-     * The active target, or `undefined` for ad-hoc mode. A persisted name that
-     * no longer resolves to a target (file hand-edited) is tolerated as ad-hoc.
+     * The active target, or the remembered ad-hoc connection. A persisted name
+     * that no longer resolves to a target (file hand-edited) is tolerated as ad-hoc.
      */
-    async getActiveTarget(documentDir?: string): Promise<DeploymentTarget | undefined> {
+    async getActiveDestination(documentDir?: string): Promise<DeploymentDestination> {
+        const rememberedAdHoc = new AdHocDestination(
+            this.deploymentState.getEndpoint(),
+            this.deploymentState.getTenantId(),
+        );
         const name = this.deploymentState.getActiveTargetName();
-        if (name === "") {
-            return undefined;
+        if (!namesTarget(name)) {
+            return rememberedAdHoc;
         }
-        return new DeploymentTargets(await this.listTargets(documentDir)).find(name);
+        const { location, targets } = await this.readTargetsFileOrNone(documentDir);
+        return activeDestination(
+            resolveNamedDestination(name, location, new DeploymentTargets(targets)),
+            rememberedAdHoc,
+        );
+    }
+
+    /** The active target, or `undefined` for ad-hoc mode. */
+    async getActiveTarget(documentDir?: string): Promise<DeploymentTarget | undefined> {
+        return (await this.getActiveDestination(documentDir)).target;
     }
 
     async setActiveTarget(name: string): Promise<void> {
@@ -290,11 +333,15 @@ export class DeploymentTargetService {
         targetName: string,
         documentDir?: string,
     ): Promise<AuthConfigPayload> {
-        const target = new DeploymentTargets(await this.listTargets(documentDir)).find(targetName);
-        if (target === undefined) {
+        const { location, targets } = await this.readTargetsFileOrNone(documentDir);
+        const destination = prefillDestination(
+            resolveNamedDestination(targetName, location, new DeploymentTargets(targets)),
+        );
+        if (destination === undefined) {
             return { authType: "none" };
         }
-        const auth = await this.getCredentials(target, documentDir);
+        const { target } = destination;
+        const auth = await this.getCredentials(destination);
         if (auth.type === "basic") {
             return { authType: "basic", username: auth.username, password: auth.password };
         }
@@ -315,33 +362,15 @@ export class DeploymentTargetService {
         };
     }
 
-    /** Resolves an active target's credentials into a domain auth object. */
-    async getCredentials(target: DeploymentTarget, documentDir?: string): Promise<AuthConfig> {
-        const location = await this.locateTargetsFile(documentDir);
-        const slot = location ? this.slotFor(location.filePath, target.name) : undefined;
+    /** Resolves a named target's credentials into a domain auth object. */
+    async getCredentials({ target, secretSlot }: NamedDestination): Promise<AuthConfig> {
         if (target.authType === "basic") {
-            return target.authWith(await this.secretStore.getBasicAuth(slot));
+            return target.authWith(await this.secretStore.getBasicAuth(secretSlot));
         }
         if (target.authType === "oauth2") {
-            return target.authWith(await this.secretStore.getOAuth2(slot));
+            return target.authWith(await this.secretStore.getOAuth2(secretSlot));
         }
         return new NoAuth();
-    }
-
-    /**
-     * The secret slot for `targetName`, or `undefined` for ad-hoc mode / no
-     * workspace. Used by the deploy path to persist credentials under a target.
-     */
-    async resolveSlot(targetName: string, documentDir?: string): Promise<string | undefined> {
-        if (targetName.trim() === "") {
-            return undefined;
-        }
-        const location = await this.locateTargetsFile(documentDir);
-        return location ? this.slotFor(location.filePath, targetName) : undefined;
-    }
-
-    private slotFor(filePath: string, name: string): string {
-        return `${filePath}::${name.trim()}`;
     }
 
     private async saveSecrets(slot: string, auth: AuthConfig): Promise<void> {
@@ -351,24 +380,6 @@ export class DeploymentTargetService {
             await this.secretStore.saveOAuth2(auth.clientId, auth.clientSecret, slot);
         }
     }
-}
-
-function toDomainTarget(
-    payload: DeploymentTargetPayload,
-    credentialRefs: CredentialRefs,
-): DeploymentTarget {
-    return new DeploymentTarget(
-        payload.name.trim(),
-        payload.engine,
-        payload.endpoint,
-        payload.tenantId,
-        payload.authType,
-        payload.tokenEndpoint ?? "",
-        payload.audience ?? "",
-        payload.deployUrl?.trim() ? payload.deployUrl.trim() : undefined,
-        payload.startInstanceUrl?.trim() ? payload.startInstanceUrl.trim() : undefined,
-        credentialRefs,
-    );
 }
 
 export function toAuthConfig(payload: AuthConfigPayload): AuthConfig {

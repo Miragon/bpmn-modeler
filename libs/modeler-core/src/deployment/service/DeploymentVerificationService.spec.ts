@@ -12,6 +12,7 @@ import {
 import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost } from "../../testing";
 import { AuthConfig, BasicAuth, NoAuth } from "../domain/deployment";
+import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { contentFingerprint, DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { DeploymentTarget, parseDeploymentTargetsFile } from "../domain/deploymentTarget";
 import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
@@ -36,6 +37,13 @@ const lookupOf =
 
 const c7TargetWith = (endpoint: string, tenantId = ""): DeploymentTarget =>
     new DeploymentTarget("dev", "c7", endpoint, tenantId, "none", "", "");
+
+const named = (target: DeploymentTarget): NamedDestination =>
+    new NamedDestination(target, {
+        filePath: "/work/.camunda/deployment-targets.json",
+        exists: true,
+        projectDir: "/work",
+    });
 
 interface EnvFailureCase {
     failure: string;
@@ -113,14 +121,13 @@ function createService({
     });
     const editor = host.openEditor(FILE_PATH, content);
     const deploymentTargetService = {
-        getActiveTarget: vi.fn().mockResolvedValue(c7Target),
+        getActiveDestination: vi.fn().mockResolvedValue(named(c7Target)),
         getCredentials: vi.fn().mockResolvedValue(new NoAuth()),
         locateTargetsFile: vi.fn().mockResolvedValue({
             filePath: "/work/.camunda/deployment-targets.json",
             exists: true,
             projectDir: "/work",
         }),
-        resolveSlot: vi.fn().mockResolvedValue(TARGET_SLOT),
     };
     const dotEnvIo = {
         isSymbolicLink: vi.spyOn(host.workspace, "isSymbolicLink"),
@@ -143,7 +150,7 @@ function createService({
         inspectionClient ?? (inspection as never),
         host.notifier,
         new EnvValueResolver(deploymentTargetService as never, host.workspace),
-        new CredentialApprovalService(deploymentTargetService as never, host.secrets, host.picker),
+        new CredentialApprovalService(host.secrets, host.picker),
     );
 
     return {
@@ -190,7 +197,9 @@ describe("DeploymentVerificationService.verifyActive", () => {
 
     it("reports when no named target is active", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(undefined);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            new AdHocDestination("http://localhost:8080/engine-rest", ""),
+        );
 
         await c.service.verifyActive("/work");
 
@@ -202,7 +211,7 @@ describe("DeploymentVerificationService.verifyActive", () => {
 
     it("reports that C8 targets cannot be verified", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(c8Target);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(c8Target));
 
         await c.service.verifyActive("/work");
 
@@ -353,8 +362,8 @@ describe("DeploymentVerificationService.verifyActive", () => {
         const resolvedUrl = "https://camunda.prod/engine-rest";
         const transportFailure = new HttpTransportError("camunda.prod", "ECONNREFUSED");
         const c = createService({ dotEnv: { MIRAGON_URL: resolvedUrl } });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
-            c7TargetWith("${env:MIRAGON_URL}"),
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            named(c7TargetWith("${env:MIRAGON_URL}")),
         );
         c.inspection.fetchLatestDefinition.mockRejectedValue(transportFailure);
 
@@ -433,7 +442,9 @@ describe("DeploymentVerificationService.verifyActive", () => {
         "verifies a target whose only refs are in %s without touching even a broken .env",
         async (_location, refOutsideConnectionTarget) => {
             const c = createService();
-            c.deploymentTargetService.getActiveTarget.mockResolvedValue(refOutsideConnectionTarget);
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+                named(refOutsideConnectionTarget),
+            );
             c.deploymentTargetService.getCredentials.mockResolvedValue(
                 new BasicAuth("admin", "pw"),
             );
@@ -450,10 +461,6 @@ describe("DeploymentVerificationService.verifyActive", () => {
                 auth: new BasicAuth("admin", "pw"),
                 envValues: [],
             });
-            expect(c.deploymentTargetService.resolveSlot).toHaveBeenCalledExactlyOnceWith(
-                "dev",
-                "/work",
-            );
             expect(credentialApprovalPrompts(c)).toHaveLength(1);
             await expect(approvedOrigins(c)).resolves.toEqual(["http://localhost:8080"]);
             expect(c.host.notifier.errors).toEqual([]);
@@ -478,7 +485,7 @@ describe("DeploymentVerificationService.verifyActive", () => {
             "",
         );
         const c = createService({ dotEnv });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(refTarget);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(refTarget));
         c.deploymentTargetService.getCredentials.mockResolvedValue(
             new BasicAuth("admin", "${env:MIRAGON_PW}"),
         );
@@ -500,7 +507,7 @@ describe("DeploymentVerificationService.verifyActive", () => {
         const dotEnv = { MIRAGON_STAGE: "prod" };
         const refTarget = c7TargetWith("https://camunda.${env:MIRAGON_STAGE}/rest");
         const c = createService({ dotEnv });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(refTarget);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(refTarget));
 
         await c.service.verifyActive("/work");
 
@@ -518,7 +525,7 @@ describe("DeploymentVerificationService.verifyActive", () => {
         const dotEnv = { MIRAGON_URL: "https://camunda.prod/rest" };
         const refTarget = c7TargetWith("${env:MIRAGON_URL}");
         const c = createService({ dotEnv });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(refTarget);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(refTarget));
         c.inspection.fetchLatestDefinition.mockResolvedValue(undefined);
 
         await c.service.verifyActive("/work");
@@ -532,8 +539,8 @@ describe("DeploymentVerificationService.verifyActive", () => {
 
     it("resolves an env ref in the tenant id before the lookup", async () => {
         const c = createService({ dotEnv: { MIRAGON_TENANT: "acme" } });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
-            c7TargetWith("http://localhost:8080/engine-rest", "${env:MIRAGON_TENANT}"),
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            named(c7TargetWith("http://localhost:8080/engine-rest", "${env:MIRAGON_TENANT}")),
         );
 
         await c.service.verifyActive("/work");
@@ -613,7 +620,9 @@ describe("DeploymentVerificationService.verifyActive", () => {
         "shows the env error for $failure and skips the lookup, leaving the ledger untouched",
         async ({ target, credentials, breakDotEnv, error }) => {
             const c = createService({ dotEnv: { MIRAGON_PW: "p@ss" } });
-            c.deploymentTargetService.getActiveTarget.mockResolvedValue(target ?? c7Target);
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+                named(target ?? c7Target),
+            );
             c.deploymentTargetService.getCredentials.mockResolvedValue(credentials ?? new NoAuth());
             breakDotEnv?.(c);
 
@@ -634,7 +643,7 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
         const c = createService({
             dotEnv: { MIRAGON_URL: "https://camunda.prod:8443/engine-rest" },
         });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(envTarget);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(envTarget));
         c.deploymentTargetService.getCredentials.mockResolvedValue(new BasicAuth("admin", "pw"));
         let approvedAtLookup: string[] | undefined;
         c.inspection.fetchLatestDefinition.mockImplementation(async () => {
@@ -643,11 +652,6 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
         });
 
         await c.service.verifyActive("/work");
-
-        expect(c.deploymentTargetService.resolveSlot).toHaveBeenCalledExactlyOnceWith(
-            "dev",
-            "/work",
-        );
         expect(credentialApprovalPrompts(c)).toHaveLength(1);
         expect(approvedAtLookup).toEqual(["https://camunda.prod:8443"]);
     });
@@ -658,14 +662,9 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
             "${env:MIRAGON_TENANT}",
         );
         const c = createService({ dotEnv: { MIRAGON_TENANT: "acme" } });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(tenantTarget);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(tenantTarget));
 
         await c.service.verifyActive("/work");
-
-        expect(c.deploymentTargetService.resolveSlot).toHaveBeenCalledExactlyOnceWith(
-            "dev",
-            "/work",
-        );
         expect(credentialApprovalPrompts(c)).toHaveLength(1);
         await expect(approvedOrigins(c)).resolves.toEqual(["https://camunda.prod"]);
         expect(c.inspection.fetchLatestDefinition).toHaveBeenCalledWith(
@@ -692,8 +691,8 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
 
     it("refuses to send credentials to an endpoint without a host, before asking", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
-            c7TargetWith("localhost:8080/engine-rest"),
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            named(c7TargetWith("localhost:8080/engine-rest")),
         );
         c.deploymentTargetService.getCredentials.mockResolvedValue(new BasicAuth("admin", "pw"));
 
@@ -714,8 +713,8 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
             dotEnv: { MIRAGON_KEY: apiKey },
             inspectionClient: createRealRestClient(),
         });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
-            c7TargetWith("https://gw.example/keys/${env:MIRAGON_KEY}/engine-rest"),
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            named(c7TargetWith("https://gw.example/keys/${env:MIRAGON_KEY}/engine-rest")),
         );
         c.deploymentTargetService.getCredentials.mockResolvedValue(
             new BasicAuth("admin", literalPassword),

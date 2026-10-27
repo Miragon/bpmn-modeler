@@ -4,6 +4,7 @@ import { FileNotFound } from "../../kernel/domain/errors";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { EnvScope } from "../domain/deploymentDestination";
 import { parseDotEnv } from "../domain/dotEnv";
 import {
     emptyEnvLookup,
@@ -15,14 +16,6 @@ import {
 import { DeploymentTargetService } from "./DeploymentTargetService";
 
 const DOT_ENV_FILE_NAME = ".env";
-
-/**
- * Where the `.env` comes from: a named target reads the one beside its targets
- * file's config folder; an ad-hoc request — whose endpoint the user typed —
- * reads the one at its workspace folder, so a nested targets file can't supply
- * variables for it.
- */
-export type EnvScope = "targetsFile" | "workspaceFolder";
 
 /**
  * Builds the variable lookup for `${env:…}` expansion from exactly one project

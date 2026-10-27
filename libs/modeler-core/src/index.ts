@@ -107,6 +107,7 @@ export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────
 export * from "./deployment/domain/deployment";
+export * from "./deployment/domain/deploymentDestination";
 export * from "./deployment/domain/deploymentLedger";
 export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";
@@ -133,6 +134,7 @@ export * from "./deployment/infrastructure/camunda/CamundaEngineRouter";
 export * from "./deployment/infrastructure/camunda/MultipartBuilder";
 
 // ── template-marketplace ─────────────────────────────────────────────────────
+export * from "./template-marketplace/domain/fetchReport";
 export * from "./template-marketplace/domain/marketplace";
 export * from "./template-marketplace/domain/ports";
 export * from "./template-marketplace/infrastructure/GitHubSource";

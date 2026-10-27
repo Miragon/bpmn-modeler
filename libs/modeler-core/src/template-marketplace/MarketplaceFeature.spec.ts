@@ -1,12 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../testing";
+import { FetchReport, SourceFailure } from "./domain/fetchReport";
 import { MarketplaceCommands, createTemplateMarketplaceService } from "./MarketplaceFeature";
 import { TemplateMarketplaceService } from "./service/TemplateMarketplaceService";
 
+const offlineSource: SourceFailure = {
+    source: 'github github.com/acme/templates path "element-templates"',
+    reason: "offline",
+};
+
+function fetched(usableSources: number, sourceFailures: SourceFailure[] = []): FetchReport {
+    return FetchReport.of({
+        usableSources,
+        cached: usableSources - sourceFailures.length,
+        sourceFailures,
+        skippedTypes: [],
+    });
+}
+
 function marketplaceDouble() {
     return {
-        addMarketplace: vi.fn().mockResolvedValue(undefined),
+        addMarketplace: vi.fn().mockResolvedValue(fetched(1)),
         updateAll: vi.fn().mockResolvedValue({ succeeded: 0, failures: [] }),
         pruneOrphanedCaches: vi.fn().mockResolvedValue([]),
     };
@@ -38,6 +53,38 @@ describe("MarketplaceCommands.add", () => {
         expect(templates.reloadMarketplaceTemplates).toHaveBeenCalledOnce();
         expect(notifier.progressTitles).toEqual(["Adding marketplace…"]);
         expect(notifier.infos).toEqual(["Marketplace added."]);
+    });
+
+    it("warns instead of reporting a plain success when no source of the added marketplace could be fetched", async () => {
+        const { commands, marketplaces, templates, notifier } = createCommands();
+        marketplaces.addMarketplace.mockResolvedValue(fetched(1, [offlineSource]));
+        const persisted: string[] = [];
+
+        await commands.add("https://github.com/acme/templates", async (location) => {
+            persisted.push(location);
+        });
+
+        // The manifest is valid, so a later update may still reach the sources.
+        expect(persisted).toEqual(["https://github.com/acme/templates"]);
+        expect(templates.reloadMarketplaceTemplates).toHaveBeenCalledOnce();
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.warnings).toEqual([
+            "Marketplace added, but none of its sources could be fetched:\n" +
+                'github github.com/acme/templates path "element-templates": offline',
+        ]);
+    });
+
+    it("names the sources it could not fetch when the added marketplace was fetched in part", async () => {
+        const { commands, marketplaces, notifier } = createCommands();
+        marketplaces.addMarketplace.mockResolvedValue(fetched(2, [offlineSource]));
+
+        await commands.add("https://github.com/acme/templates", async () => {});
+
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.warnings).toEqual([
+            "Marketplace added, but some of its sources could not be fetched:\n" +
+                'github github.com/acme/templates path "element-templates": offline',
+        ]);
     });
 
     it("never persists a location whose fetch failed, and prunes what the fetch cached", async () => {

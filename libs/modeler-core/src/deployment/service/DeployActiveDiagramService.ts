@@ -49,12 +49,12 @@ export class DeployActiveDiagramService {
         }
 
         const dir = documentDir ?? posix.dirname(filePath);
-        const target = await resolveOrPickActiveTarget(
+        const destination = await resolveOrPickActiveTarget(
             this.deploymentTargetService,
             this.deploymentStatusService,
             dir,
         );
-        if (target === undefined) {
+        if (destination === undefined) {
             return;
         }
 
@@ -65,9 +65,9 @@ export class DeployActiveDiagramService {
         }
 
         const name = posix.basename(filePath);
-        const auth = await this.deploymentTargetService.getCredentials(target, dir);
-        await this.notifier.withProgress(`Deploying ${name} to "${target.name}"`, () =>
-            this.deploymentService.deployFiles([filePath], target, auth, dir),
+        const auth = await this.deploymentTargetService.getCredentials(destination);
+        await this.notifier.withProgress(`Deploying ${name} to "${destination.target.name}"`, () =>
+            this.deploymentService.deployFiles([filePath], destination, auth, dir),
         );
     }
 }

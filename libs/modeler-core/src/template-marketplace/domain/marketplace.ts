@@ -306,6 +306,15 @@ function isAbsolutePath(path: string): boolean {
     return path.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith("\\\\");
 }
 
+/**
+ * Whether a listed path stays inside the cache slot it is written under. Real
+ * git trees only use `/`, but a compromised server can send `\` or drive-letter
+ * forms, so both separators split and every absolute shape is refused.
+ */
+export function isSafeRepoPath(repoPath: string): boolean {
+    return !isAbsolutePath(repoPath) && !repoPath.split(/[/\\]/).includes("..");
+}
+
 function isHomePath(path: string): boolean {
     return path === "~" || path.startsWith("~/") || path.startsWith("~\\");
 }
@@ -565,13 +574,14 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
 }
 
 /**
- * One marketplace an update could not refresh at all. Only *manifest*-level
- * failures (the whole marketplace unusable) land here; per-source failures stay
- * in the log channel so a single bad source never masks a healthy marketplace.
+ * One marketplace an update could not refresh at all: its manifest could not be
+ * read, or none of its sources could be fetched. A marketplace with one failed
+ * source among fetched ones is not listed, so a single bad source never masks a
+ * healthy marketplace.
  */
 export interface MarketplaceUpdateFailure {
     readonly label: string; // from marketplaceEntryLabel()
-    readonly reason: string; // error.message (manifest-level failure)
+    readonly reason: string;
 }
 
 /**

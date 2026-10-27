@@ -10,7 +10,8 @@
  *
  * Covered: `marketplace/add` requesting `marketplaceState/save`, then (once acked)
  * refreshing the open editor with the freshly cached template and toasting
- * success; the missing-manifest failure path toasting an error and NOT persisting;
+ * success, or warning when no source could be fetched; the missing-manifest
+ * failure path toasting an error and NOT persisting;
  * a rejected persist failing the add and pruning the fetched cache; and
  * `marketplace/update` folding a piggybacked marketplace list into a summary.
  */
@@ -158,6 +159,36 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         // The template actually landed on disk under the injected cache root.
         const marketplaceDirs = await fs.readdir(cacheRoot);
         expect(marketplaceDirs.length).toBe(1);
+    });
+
+    it("persists an added marketplace whose sources serve nothing, and warns why", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = join(tmp, "future-marketplace");
+        await fs.mkdir(folder, { recursive: true });
+        await fs.writeFile(
+            join(folder, "marketplace.json"),
+            JSON.stringify({ sources: [{ type: "palette-entries", path: "palette" }] }),
+            "utf8",
+        );
+
+        await rpc.handleLine(
+            hostNotification("marketplace/add", { location: folder, settings: {} }),
+        );
+        const save = await waitForFrame(frames, isSaveRequest);
+        await rpc.handleLine(hostReply(save.id, null));
+
+        const toast = await waitForFrame(
+            frames,
+            (f) => f.method === "notifier/showInfo" || f.method === "notifier/showWarning",
+        );
+        expect(toast).toEqual({
+            method: "notifier/showWarning",
+            params: {
+                message:
+                    "Marketplace added, but none of its sources could be fetched:\n" +
+                    'sources[0]: content type "palette-entries" is not supported by this version',
+            },
+        });
     });
 
     it("echoes the add's scope back on the persist request", async () => {

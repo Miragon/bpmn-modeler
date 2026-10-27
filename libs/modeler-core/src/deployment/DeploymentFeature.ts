@@ -97,11 +97,7 @@ export class DeploymentFeature {
             ports.notifier,
         );
         const envResolver = new EnvValueResolver(this.targets, ports.workspace);
-        const credentialApproval = new CredentialApprovalService(
-            this.targets,
-            ports.secrets,
-            ports.picker,
-        );
+        const credentialApproval = new CredentialApprovalService(ports.secrets, ports.picker);
         const startInstance = new StartInstanceService(
             ports.documents,
             ports.workspace,

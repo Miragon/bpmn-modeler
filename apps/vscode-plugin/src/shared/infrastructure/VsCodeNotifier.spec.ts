@@ -32,6 +32,18 @@ describe("VsCodeNotifier toasts", () => {
         ]);
     });
 
+    it("shows a warning as a warning toast without actions", () => {
+        notifier.showWarning("Marketplace added, but none of its sources could be fetched.");
+
+        expect(renderedToasts()).toEqual([
+            {
+                severity: "warning",
+                message: "Marketplace added, but none of its sources could be fetched.",
+                actions: [],
+            },
+        ]);
+    });
+
     it("shows an error as an error toast without actions", () => {
         notifier.showError("No deployment target is configured.");
 

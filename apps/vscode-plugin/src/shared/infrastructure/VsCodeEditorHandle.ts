@@ -106,7 +106,9 @@ export class VsCodeEditorHandle implements EditorHandle {
 
     async save(): Promise<boolean> {
         this.assertWritableFileSystem("save", "persistable");
-        return this.document.save();
+        // VS Code answers false for a read-only document even when it has
+        // nothing to save; a failed write leaves the document dirty.
+        return (await this.document.save()) || !this.document.isDirty;
     }
 
     /**

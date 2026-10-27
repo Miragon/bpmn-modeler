@@ -245,6 +245,44 @@ describe("DeploymentFeature panel target commands", () => {
             ]);
         },
     );
+
+    const ledgerKeyOf = (name: string) =>
+        ledgerKeyFor(
+            DeploymentTargetIdentity.fromTarget(target(name), NO_ENV_VARIABLES),
+            ORDER_PROCESS,
+        );
+
+    it.each([
+        {
+            behaviour: "drops the ledger rows of a target renamed in the panel",
+            command: new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+            keptRows: ["prod"],
+        },
+        {
+            behaviour: "drops the ledger rows of a target deleted in the panel",
+            command: new DeleteTargetCommand("dev"),
+            keptRows: ["prod"],
+        },
+        {
+            behaviour: "keeps the ledger rows of a target saved under its name",
+            command: new SaveTargetCommand(toTargetPayload(target("dev")), noAuth, "dev"),
+            keptRows: ["dev", "prod"],
+        },
+    ])("$behaviour", async ({ command, keptRows }) => {
+        const { host, feature } = createFeature({ confirmDestructive: true });
+        host.openEditor(ORDER_PROCESS);
+        for (const name of ["dev", "prod"]) {
+            host.deploymentState.ledger.set(ledgerKeyOf(name), {
+                fingerprint: "f",
+                deployedAt: "2026-01-01T00:00:00.000Z",
+            });
+        }
+        const { panel } = attach(feature, false);
+
+        await panel.handle(command);
+
+        expect([...host.deploymentState.ledger.keys()]).toEqual(keptRows.map(ledgerKeyOf));
+    });
 });
 
 describe("DeploymentFeature.statusMenu", () => {
@@ -487,7 +525,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
         };
 
         const { panel, posted } = attach(feature, false);
-        return { host, http, panel, posted };
+        return { host, http, editor, panel, posted };
     }
 
     const deployFromSidebar = ({ panel }: Awaited<ReturnType<typeof createEditedDiagram>>) =>
@@ -515,6 +553,20 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
         expect(edited.http.deployments).toHaveLength(1);
         expect(edited.http.deployments[0].body).toContain(WEBVIEW_XML);
         expect(edited.host.workspace.files.get(ORDER_PROCESS)).toBe(WEBVIEW_XML);
+    });
+
+    it("does not deploy when the save fails", async () => {
+        const edited = await createEditedDiagram();
+        vi.spyOn(edited.editor, "save").mockResolvedValue(false);
+
+        await deployFromSidebar(edited);
+
+        const message = "The diagram could not be saved, so it was not deployed.";
+        expect(edited.posted.filter((query) => query instanceof DeploymentResultQuery)).toEqual([
+            expect.objectContaining({ success: false, message }),
+        ]);
+        expect(edited.host.notifier.errors).toEqual([message]);
+        expect(edited.http.deployments).toEqual([]);
     });
 
     it("shows the diagram as deployed right after the deploy", async () => {

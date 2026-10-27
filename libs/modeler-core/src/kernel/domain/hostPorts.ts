@@ -46,6 +46,8 @@ export interface LoggerPort {
  */
 export interface NotifierPort extends LoggerPort {
     showInfo(message: string): void;
+    /** A problem the user can recover from; the operation itself went through. */
+    showWarning(message: string): void;
     showError(message: string): void;
     /** Logs `notifiedErrorLogText`, then shows `notifiedErrorToastText` as an error toast. */
     notifyError(context: string, error: Error): void;
@@ -257,6 +259,10 @@ export interface DocumentPort {
      * edit). Only {@link getContent} tells the two apart.
      */
     write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean>;
+    /**
+     * @returns `true` when the document is saved or had nothing to save; `false`
+     * when the host could not save it.
+     */
     save(editorId: string): Promise<boolean>;
 }
 

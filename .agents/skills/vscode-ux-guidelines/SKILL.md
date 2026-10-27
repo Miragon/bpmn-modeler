@@ -29,6 +29,7 @@ Pick the lightest channel that gets the job done — heavier channels interrupt 
 ```typescript
 // Simple notifications — no action buttons, returns void
 notifier.showInfo('Diagram saved successfully');
+notifier.showWarning('Marketplace added, but none of its sources could be fetched');
 notifier.showError('Failed to deploy process');
 ```
 

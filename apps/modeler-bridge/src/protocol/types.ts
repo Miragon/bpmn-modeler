@@ -208,7 +208,10 @@ export interface DocumentWriteResult {
     normalizedContent?: string;
 }
 
-/** `document/save` — persist the editor; result reports whether a save happened. */
+/**
+ * `document/save` — persist the editor; `saved` is `true` when the Document is
+ * saved or had nothing to save, `false` when the host could not save it.
+ */
 export type DocumentSaveParams = EditorRefParams;
 export interface DocumentSaveResult {
     saved?: boolean;
@@ -354,7 +357,7 @@ export interface ClipboardWriteParams {
     text: string;
 }
 
-/** `notifier/showInfo`, `notifier/showError` — a one-line balloon. */
+/** `notifier/showInfo`, `notifier/showWarning`, `notifier/showError` — a one-line balloon. */
 export interface NotifierMessageParams {
     message: string;
 }

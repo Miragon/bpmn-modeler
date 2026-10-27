@@ -29,15 +29,16 @@ export class DeployFilesService {
         documentDir: string | undefined,
         afterTargetPicker?: () => Promise<void>,
     ): Promise<void> {
-        const target = await resolveOrPickActiveTarget(
+        const destination = await resolveOrPickActiveTarget(
             this.deploymentTargetService,
             this.deploymentStatusService,
             documentDir,
             afterTargetPicker,
         );
-        if (target === undefined) {
+        if (destination === undefined) {
             return;
         }
+        const { target } = destination;
 
         const files = await this.picker.pickWorkspaceFiles({
             glob: DEPLOYABLE_FILES_GLOB,
@@ -48,10 +49,10 @@ export class DeployFilesService {
             return;
         }
 
-        const auth = await this.deploymentTargetService.getCredentials(target, documentDir);
+        const auth = await this.deploymentTargetService.getCredentials(destination);
         await this.notifier.withProgress(
             `Deploying ${files.length} file(s) to "${target.name}"`,
-            () => this.deploymentService.deployFiles(files, target, auth, documentDir),
+            () => this.deploymentService.deployFiles(files, destination, auth, documentDir),
         );
     }
 }

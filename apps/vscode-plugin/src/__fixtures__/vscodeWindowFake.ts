@@ -57,7 +57,7 @@ export interface StatusBarEntry {
     readonly command: string | undefined;
 }
 
-export type ToastSeverity = "information" | "error";
+export type ToastSeverity = "information" | "warning" | "error";
 
 export class FakeToast {
     private answer: (action: string | undefined) => void = () => undefined;
@@ -199,6 +199,8 @@ export const window = {
     },
     showInformationMessage: (message: string, ...actions: string[]) =>
         showMessage("information", message, actions),
+    showWarningMessage: (message: string, ...actions: string[]) =>
+        showMessage("warning", message, actions),
     showErrorMessage: (message: string, ...actions: string[]) =>
         showMessage("error", message, actions),
     createOutputChannel(name: string, options?: { log: true }): FakeLogOutputChannel {

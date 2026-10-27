@@ -12,6 +12,7 @@ vi.mock("vscode", () => ({
     workspace: { workspaceFolders: undefined, workspaceFile: undefined },
 }));
 
+import { FetchReport } from "@miragon/bpmn-modeler-core";
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { commands, window, workspace } from "vscode";
 import {
@@ -30,13 +31,20 @@ class ReloadRecordingNotifier extends RecordingNotifier {
     }
 }
 
+const completeFetch = FetchReport.of({
+    usableSources: 1,
+    cached: 1,
+    sourceFailures: [],
+    skippedTypes: [],
+});
+
 /**
  * Exposes the captured command handlers so a test can invoke a command as VS
  * Code would; `withProgress` runs its task inline so the fetch is observable.
  */
 function createController() {
     const marketplaceSvc = {
-        addMarketplace: vi.fn().mockResolvedValue(undefined),
+        addMarketplace: vi.fn().mockResolvedValue(completeFetch),
         updateAll: vi.fn().mockResolvedValue({ succeeded: 1, failures: [] }),
         pruneOrphanedCaches: vi.fn().mockResolvedValue([]),
     };
