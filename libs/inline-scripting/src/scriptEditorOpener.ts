@@ -1,9 +1,10 @@
-import { findListenerAt } from "@miragon/bpmn-modeler-types";
+import { findListenerAt, scriptPropertyName } from "@miragon/bpmn-modeler-types";
+import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
 import { listenerScriptKind, type PanelListenerType } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
-import { listenerScriptOpenEvent, scriptTaskOpenEvent } from "./scriptModel";
+import { listenerScriptOpenEvent, readScriptField, scriptTaskOpenEvent } from "./scriptModel";
 
 /**
  * Model-side entry point for opening a script in the host editor, shared by
@@ -104,7 +105,7 @@ export class ScriptEditorOpener {
             return false;
         }
 
-        this.ensureInlineScript(element, listener);
+        this.ensureInlineScript(element, kind, listener);
 
         this.eventBus.fire(
             OPEN_SCRIPT_EDITOR_EVENT,
@@ -127,12 +128,16 @@ export class ScriptEditorOpener {
      *   the other implementation attributes in the same update so the
      *   entire switch is one undoable command.
      */
-    private ensureInlineScript(element: Element, listener: ListenerModdle): void {
+    private ensureInlineScript(
+        element: Element,
+        kind: Exclude<ScriptKind, "script-task">,
+        listener: ListenerModdle,
+    ): void {
         const existingScript = listener.script;
-        const existingValue = existingScript?.get?.("value") ?? existingScript?.value;
-        if (typeof existingValue === "string") {
+        if (typeof readScriptField(existingScript, kind, "content") === "string") {
             return;
         }
+        const contentProperty = scriptPropertyName(kind, "content");
 
         if (existingScript) {
             this.modeling.updateModdleProperties(element, listener, {
@@ -142,14 +147,14 @@ export class ScriptEditorOpener {
             });
             this.modeling.updateModdleProperties(element, existingScript, {
                 resource: undefined,
-                value: "",
+                [contentProperty]: "",
             });
             return;
         }
 
         const script = this.bpmnFactory.create("camunda:Script", {
-            scriptFormat: "",
-            value: "",
+            [scriptPropertyName(kind, "format")]: "",
+            [contentProperty]: "",
         });
         this.modeling.updateModdleProperties(element, listener, {
             class: undefined,
