@@ -3,7 +3,7 @@ import { asyncDebounce, serializeAsync } from "@miragon/bpmn-modeler-types";
 import { createFlushResponder, type FlushSource } from "./documentFlush";
 import { type HostDocumentReceipt, HostDocumentRevisions } from "./hostDocumentRevisions";
 import type { InertLock } from "./inertLock";
-import { type Command, LogErrorCommand, type Query, SyncDocumentCommand } from "./messages";
+import { type DocumentFlushedCommand, LogErrorCommand, SyncDocumentCommand } from "./messages";
 
 /** The document I/O the sync needs from whichever modeler is live. */
 export interface DocumentSyncSurface {
@@ -21,7 +21,9 @@ export interface WebviewDocumentSyncOptions {
     readonly isReady: () => boolean;
 }
 
-type HostChannel = { postMessage(message: Command | Query): void };
+type DocumentSyncMessage = SyncDocumentCommand | DocumentFlushedCommand | LogErrorCommand;
+
+type DocumentSyncChannel = { postMessage: (message: DocumentSyncMessage) => void };
 
 export const HOST_UPDATE_DEBOUNCE_MS = 100;
 // The host recovers the sub-300ms tail through the flush protocol.
@@ -56,7 +58,7 @@ export class WebviewDocumentSync implements FlushSource {
     readonly isReady: () => boolean;
 
     constructor(
-        private readonly host: HostChannel,
+        private readonly host: DocumentSyncChannel,
         { surface, flushLock, isReady }: WebviewDocumentSyncOptions,
     ) {
         this.surface = surface;
@@ -184,7 +186,7 @@ export class WebviewDocumentSync implements FlushSource {
         }
     }
 
-    private post(message: Command | Query): void {
+    private post(message: DocumentSyncMessage): void {
         if (!this.disposed) {
             this.host.postMessage(message);
         }

@@ -22,7 +22,9 @@ export interface HostApi<T, M> {
     /** Merge `state` into the persisted state, or seed it when nothing is saved yet. */
     updateState(state: Partial<T>): void;
 
-    postMessage(message: M): void;
+    // A property, not a method: methods compare parameters bivariantly, so a
+    // channel narrowed to a closed set of messages could stand in for a wider one.
+    postMessage: (message: M) => void;
 }
 
 /**
