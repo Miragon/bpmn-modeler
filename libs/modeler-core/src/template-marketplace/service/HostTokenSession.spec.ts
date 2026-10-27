@@ -35,6 +35,7 @@ const SELF_HOSTED_GITLAB_PROJECT: RepositorySourceConfig = {
 
 const PRIVATE_REPO_404 = new RepositoryAccessError("github.com", 404, "acme/templates", false);
 const OUTSIDE_GRANT_403 = new RepositoryAccessError("github.com", 403, "acme/one", false);
+const TOKEN_REJECTED_401 = new RepositoryAccessError("github.com", 401, "acme/templates", false);
 const OFFLINE = new Error("offline");
 
 /** `storedTokens` seeds the token store; `tokenAnswers` scripts the prompt (an unanswered host declines). */
@@ -99,6 +100,15 @@ function scriptedFetch(...outcomes: (Error | "served")[]) {
 /** `rejects.toThrow(regex)` also passes for an `undefined` rejection, so match the error itself. */
 const errorWithMessage = (pattern: RegExp) =>
     expect.objectContaining({ message: expect.stringMatching(pattern) });
+
+async function rejectionOf(run: Promise<unknown>): Promise<Error> {
+    try {
+        await run;
+    } catch (error) {
+        return error as Error;
+    }
+    throw new Error("expected the run to reject");
+}
 
 const anyone = () => true;
 const nobody = () => false;
@@ -217,6 +227,58 @@ describe("HostTokenSession.run", () => {
         );
         expect(tokenPrompt.prompts).toHaveLength(1);
         expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
+    });
+
+    it.each<{
+        rung: string;
+        storedTokens: Record<string, string>;
+        tokenAnswers: Record<string, string>;
+        script: Error[];
+        denial: RepositoryAccessError;
+    }>([
+        {
+            rung: "the prompt is declined",
+            storedTokens: {},
+            tokenAnswers: {},
+            script: [PRIVATE_REPO_404],
+            denial: PRIVATE_REPO_404,
+        },
+        {
+            rung: "the prompt is declined after the stored token was rejected",
+            storedTokens: { "github.com": "old" },
+            tokenAnswers: {},
+            script: [PRIVATE_REPO_404, TOKEN_REJECTED_401],
+            denial: TOKEN_REJECTED_401,
+        },
+        {
+            rung: "the freshly entered token is denied too",
+            storedTokens: {},
+            tokenAnswers: { "github.com": "still-wrong" },
+            script: [PRIVATE_REPO_404, TOKEN_REJECTED_401],
+            denial: TOKEN_REJECTED_401,
+        },
+    ])(
+        "keeps the last denial as the cause of the rewritten failure when $rung",
+        async ({ storedTokens, tokenAnswers, script, denial }) => {
+            const { session } = sessionOver({ storedTokens, tokenAnswers });
+
+            const failure = await rejectionOf(
+                session.run(GITHUB_MARKETPLACE, scriptedFetch(...script).task),
+            );
+
+            expect(failure.cause).toBe(denial);
+        },
+    );
+
+    it("keeps the denial as the cause when an earlier decline suppresses the prompt", async () => {
+        const { session } = sessionOver();
+        await expect(session.run(GITHUB_SOURCE_ONE, fakeFetch(nobody).task)).rejects.toThrow();
+
+        const failure = await rejectionOf(
+            session.run(GITHUB_SOURCE_TWO, fakeFetch(nobody, OUTSIDE_GRANT_403).task),
+        );
+
+        expect(failure.cause).toBe(OUTSIDE_GRANT_403);
     });
 
     it("reports 'can't access' without the token when the freshly entered token is also denied", async () => {

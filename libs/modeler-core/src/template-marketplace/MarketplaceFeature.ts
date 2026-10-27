@@ -131,8 +131,7 @@ export class MarketplaceCommands {
     async remove(count: number, unregister: () => Promise<void> = async () => {}): Promise<void> {
         try {
             await unregister();
-            const pruned = await this.marketplaces.pruneOrphanedCaches();
-            this.notifier.logDebug(`Pruned marketplace cache(s): ${pruned.join(", ") || "none"}`);
+            await this.marketplaces.pruneOrphanedCaches();
             await this.templates.reloadMarketplaceTemplates();
             this.notifier.showInfo(`Removed ${count} marketplace(s).`);
         } catch (error) {

@@ -97,6 +97,20 @@ describe("DiffPaneStore", () => {
         expect(store.findByUri(RIGHT)).toBeUndefined();
     });
 
+    it("a removed session's TTL never sweeps the same pair opened again", () => {
+        const store = new DiffPaneStore();
+        store.remove(store.registerCompareFiles(LEFT, RIGHT));
+        vi.advanceTimersByTime(10_000);
+
+        const reopened = store.registerCompareFiles(LEFT, RIGHT);
+        reopened.attachPane(fakeHandle(LEFT));
+        store.cancelTtl(reopened);
+        vi.advanceTimersByTime(20_000);
+
+        expect(store.findByUri(LEFT)).toBe(reopened);
+        expect(store.findByUri(RIGHT)).toBe(reopened);
+    });
+
     // ─── TTL sweeping ────────────────────────────────────────────────────────
 
     it("sweeps an orphaned compare-files session after the TTL elapses", () => {
