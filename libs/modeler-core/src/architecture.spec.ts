@@ -47,11 +47,6 @@ const INBOUND_ADAPTER = /MessageHandlers\.ts$/;
 
 const DOMAIN_PACKAGE_EXCEPTIONS: readonly KnownException[] = [
     {
-        from: "editorSession/domain/EditorSession.ts",
-        to: "@miragon/bpmn-modeler-shared",
-        until: "#1828 splits EditorHandle out of the editor-session events",
-    },
-    {
         from: "scriptTask/domain/ScriptVariableStore.ts",
         to: "@miragon/bpmn-modeler-shared",
         until: "#1834 moves processVariables into modeler-types",

@@ -8,7 +8,7 @@ import {
     implementationStatusKey,
 } from "@miragon/bpmn-modeler-types";
 
-import { EditorHandle } from "../../editorSession/domain/EditorSession";
+import { EditorHandle } from "../../editorSession/service/EditorHandle";
 import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";

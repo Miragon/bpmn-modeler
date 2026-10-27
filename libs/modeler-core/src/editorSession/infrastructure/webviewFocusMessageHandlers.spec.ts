@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RequestFocusCommand, TakeFocusQuery } from "@miragon/bpmn-modeler-shared";
 
-import type { EditorHandle } from "../domain/EditorSession";
+import type { EditorHandle } from "../service/EditorHandle";
 import { EditorSessionStore } from "../service/EditorSessionStore";
 import { WebviewMessageRouter } from "../service/WebviewMessageRouter";
 import { registerWebviewFocusHandlers } from "./webviewFocusMessageHandlers";

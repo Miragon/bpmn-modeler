@@ -2,10 +2,10 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import {
     DocumentChangeEvent,
-    EditorHandle,
     EditorSubscription,
     SettingChange,
 } from "../editorSession/domain/EditorSession";
+import { EditorHandle } from "../editorSession/service/EditorHandle";
 
 class Listeners<T> {
     private readonly callbacks = new Set<(event: T) => void>();

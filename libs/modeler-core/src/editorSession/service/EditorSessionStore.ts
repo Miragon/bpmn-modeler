@@ -1,11 +1,7 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
-import {
-    DocumentChangeEvent,
-    EditorHandle,
-    EditorSubscription,
-    SettingChange,
-} from "../domain/EditorSession";
+import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
+import { EditorHandle } from "./EditorHandle";
 
 /**
  * Pure, host-agnostic registry of open editor sessions plus active-editor

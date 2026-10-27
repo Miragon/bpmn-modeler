@@ -31,6 +31,7 @@ export * from "./editorSession/domain/EditorSessionParticipant";
 export * from "./editorSession/domain/session";
 export * from "./editorSession/service/DocumentFlushService";
 export * from "./editorSession/service/EditorDocumentSync";
+export * from "./editorSession/service/EditorHandle";
 export * from "./editorSession/service/EditorSessionDocuments";
 export * from "./editorSession/service/EditorSessionLifecycle";
 export * from "./editorSession/service/EditorSessionStore";
