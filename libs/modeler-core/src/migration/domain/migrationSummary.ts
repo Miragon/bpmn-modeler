@@ -8,20 +8,21 @@ export type WriteResult =
     | { readonly kind: "skipped" };
 
 export function migrationSummary(results: readonly WriteResult[]): string {
-    const updatedByEngine = new Map<Engine, PlannedWrite[]>();
+    const updatedByEngine = new Map<Engine, { readonly version: string; readonly count: number }>();
     let skippedCount = 0;
     for (const result of results) {
         if (result.kind === "updated") {
-            const writes = updatedByEngine.get(result.write.engine) ?? [];
-            updatedByEngine.set(result.write.engine, [...writes, result.write]);
+            const { engine, version } = result.write;
+            const count = updatedByEngine.get(engine)?.count ?? 0;
+            updatedByEngine.set(engine, { version, count: count + 1 });
         } else if (result.kind === "skipped") {
             skippedCount++;
         }
     }
 
-    const updatedParts = [...updatedByEngine.entries()].map(
-        ([engine, writes]) =>
-            `${writes.length} diagram(s) to ${ENGINE_LABEL[engine]} (${writes[0].version})`,
+    const updatedParts = [...updatedByEngine].map(
+        ([engine, { version, count }]) =>
+            `${count} diagram(s) to ${ENGINE_LABEL[engine]} (${version})`,
     );
     const updated = updatedParts.length > 0 ? `Updated ${updatedParts.join(" and ")}.` : undefined;
     if (skippedCount === 0) {
