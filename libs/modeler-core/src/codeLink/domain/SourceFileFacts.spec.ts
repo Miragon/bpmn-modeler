@@ -60,6 +60,7 @@ describe("SourceFileFacts", () => {
         expect(SourceFileFacts.decidesLiteral(`say"hi`)).toBe(false);
         expect(SourceFileFacts.decidesLiteral("a-->b")).toBe(false);
         expect(SourceFileFacts.decidesLiteral("a]]>b")).toBe(false);
+        expect(SourceFileFacts.decidesLiteral("x".repeat(128))).toBe(true);
         expect(SourceFileFacts.decidesLiteral("x".repeat(129))).toBe(false);
     });
 
