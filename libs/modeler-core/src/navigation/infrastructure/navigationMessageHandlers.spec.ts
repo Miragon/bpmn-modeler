@@ -14,7 +14,7 @@ import {
 function createHandler() {
     const host = createTestHost();
     const editor = host.openEditor("/src/a.bpmn");
-    host.openEditor("/src/b.bpmn");
+    host.openEditor("/src/b.bpmn", "", { focused: true });
     const modelNavigationService = { navigate: vi.fn().mockResolvedValue(undefined) };
 
     const handler = navigateToReferencedModelHandler(

@@ -175,7 +175,7 @@ describe("createTestHost", () => {
     it("routes document reads and writes to the addressed editor and drops stale revisions", async () => {
         const host = createTestHost();
         const order = host.openEditor("/work/order.bpmn", "<order/>");
-        host.openEditor("/work/invoice.bpmn", "<invoice/>");
+        host.openEditor("/work/invoice.bpmn", "<invoice/>", { focused: true });
         const revision = host.store.markHostDocumentUpdated(order.id);
 
         await expect(host.documents.write(order.id, "<edited/>", revision)).resolves.toBe(true);

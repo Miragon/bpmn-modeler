@@ -103,16 +103,17 @@ describe("EditorSessionStore", () => {
 
     it("reports focus from the handle, not from the active-editor pointer", () => {
         const store = new EditorSessionStore(vi.fn());
-        const focused = new FakeEditorHandle("/repo/1.bpmn");
-        focused.active = true;
-        const background = new FakeEditorHandle("/repo/2.bpmn");
-        store.register(focused);
+        const target = new FakeEditorHandle("/repo/1.bpmn");
+        target.active = true;
+        store.register(target);
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
 
-        store.register(background);
+        // A text editor takes focus; the diagram keeps the command target.
+        target.loseFocus();
 
-        expect(store.isFocused(background.id)).toBe(false);
-        expect(store.isFocused(focused.id)).toBe(true);
-        expect(store.getFocusedEditorId()).toBe(focused.id);
+        expect(store.getActiveEditorId()).toBe(target.id);
+        expect(store.isFocused(target.id)).toBe(false);
+        expect(store.getFocusedEditorId()).toBeUndefined();
     });
 
     // ─── command target (the active-editor pointer) ──────────────────────────
@@ -303,6 +304,7 @@ describe("EditorSessionStore", () => {
         const received = vi.fn();
         store.subscribeToMessageEvent(subscribed.id, received);
         // A second editor becomes active after the subscription is wired.
+        laterActive.active = true;
         store.register(laterActive);
 
         subscribed.receive(aCommand);
@@ -475,6 +477,7 @@ describe("EditorSessionStore", () => {
         store.register(subscribed);
         const received = vi.fn<(event: SettingChange, editorId: string) => void>();
         store.subscribeToSettingChangeEvent(subscribed.id, received);
+        laterActive.active = true;
         store.register(laterActive);
 
         subscribed.changeSetting("miragon.bpmnModeler.language");
