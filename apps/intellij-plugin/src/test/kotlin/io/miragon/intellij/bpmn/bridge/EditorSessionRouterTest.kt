@@ -222,6 +222,17 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a save of an unmodified Document answers that it saved`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.dispatchCoreSave()
+
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(2, reply.get("id").asInt)
+        assertTrue(reply.getAsJsonObject("result").get("saved").asBoolean)
+    }
+
+    @Test
     fun `reports a Document that stays unsaved as not saved`() {
         val f = setUpRouter(INITIAL_XML)
         WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
