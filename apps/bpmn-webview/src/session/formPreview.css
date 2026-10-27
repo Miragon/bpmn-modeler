@@ -1,16 +1,23 @@
 .linked-form-preview {
-    width: min(900px, 90vw);
-    max-height: 85vh;
-    overflow: auto;
-    padding: 20px;
+    position: fixed;
+    z-index: 180; /* Above the minimap (175), below diagram popups (200). */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 12px;
     background: var(--vscode-editor-background, #fff);
     color: var(--vscode-editor-foreground, #222);
     border: 2px solid var(--vscode-contrastBorder, var(--vscode-panel-border, #888));
     font-family: var(--vscode-font-family, sans-serif);
     font-size: var(--vscode-font-size, 13px);
 }
-.linked-form-preview::backdrop { background: rgb(0 0 0 / 45%); }
-.linked-form-preview header { display: flex; align-items: center; gap: 12px; }
+.linked-form-preview[hidden] { display: none; }
+.linked-form-preview > header,
+.linked-form-preview > p { flex-shrink: 0; }
+.linked-form-preview-content { min-height: 0; overflow: auto; }
+.linked-form-preview header { display: flex; align-items: center; gap: 8px; padding-right: 30px; }
+.linked-form-preview [data-close] { position: absolute; right: 6px; top: 6px; padding: 0; width: 26px; height: 26px; font-size: 22px; line-height: 1; }
 .linked-form-preview h2 { flex: 1; margin: 0; font-size: 1.2em; }
 .linked-form-preview button {
     background: var(--vscode-button-background, #0067b8);

@@ -1,7 +1,9 @@
+import type { FormPreviewHandle, FormPreviewRequest } from "@miragon/bpmn-modeler";
 import type { FormPreviewReply } from "@miragon/bpmn-modeler-shared";
 import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-shared";
 
 import { parsePreviewSchema } from "./formPreviewSchema";
+import { positionFormPreview } from "./formPreviewPosition";
 import "@bpmn-io/form-js-viewer/dist/assets/form-js.css";
 import "./formPreview.css";
 
@@ -9,7 +11,6 @@ export interface PreviewViewer {
     importSchema(schema: Record<string, unknown>): Promise<unknown>;
     destroy(): void;
 }
-
 export type PreviewViewerFactory = (container: HTMLElement) => Promise<PreviewViewer>;
 
 async function createViewer(container: HTMLElement): Promise<PreviewViewer> {
@@ -20,52 +21,82 @@ async function createViewer(container: HTMLElement): Promise<PreviewViewer> {
 }
 
 export function createFormPreview(
-    read: (id: string) => Promise<FormPreviewReply>,
+    read: (id: string, automatic: boolean) => Promise<FormPreviewReply>,
     create: PreviewViewerFactory = createViewer,
 ) {
-    let dialog: HTMLDialogElement | undefined;
-    let currentViewer: PreviewViewer | undefined;
-    let generation = 0;
-    let returnFocus: HTMLElement | undefined;
+    let active: FormPreviewHandle | undefined;
 
-    function close(): void {
-        generation++;
-        currentViewer?.destroy();
-        currentViewer = undefined;
-        dialog?.remove();
-        dialog = undefined;
-        if (returnFocus?.isConnected) returnFocus.focus();
-    }
-
-    function open(id: string): void {
-        close();
-        returnFocus =
-            document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-        const panel = document.createElement("dialog");
-        dialog = panel;
+    function open(request: FormPreviewRequest): FormPreviewHandle {
+        active?.close();
+        let generation = 0;
+        let closed = false;
+        let visible = false;
+        let viewer: PreviewViewer | undefined;
+        const panel = document.createElement("section");
         panel.className = "linked-form-preview";
+        panel.setAttribute("role", "region");
         panel.setAttribute("aria-label", "Linked form preview");
         panel.innerHTML =
-            '<header><h2>Linked form preview</h2><button type="button" data-refresh>Refresh</button><button type="button" data-close autofocus>Close</button></header><p>Read-only preview of the saved local form.</p><p role="status" aria-live="polite"></p><div class="linked-form-preview-content"></div>';
-        const status = panel.querySelector<HTMLElement>('[role="status"]')!;
+            '<header><h2>Linked form preview</h2><button type="button" data-refresh>Refresh</button><button type="button" data-close aria-label="Close form preview" title="Close form preview">×</button></header><p>Read-only preview of the saved local form.</p><p role="status" aria-live="polite"></p><div class="linked-form-preview-content"></div>';
         const content = panel.querySelector<HTMLElement>(".linked-form-preview-content")!;
-        const refresh = panel.querySelector<HTMLButtonElement>("[data-refresh]")!;
+        const closeButton = panel.querySelector<HTMLButtonElement>("[data-close]")!;
+        const status = panel.querySelector<HTMLElement>('[role="status"]')!;
 
+        function setVisible(value: boolean): void {
+            if (visible !== value) {
+                visible = value;
+                request.onVisibilityChanged(value);
+            }
+        }
+        function reposition(): void {
+            if (closed || !panel.isConnected) return;
+            const position = positionFormPreview(
+                request.anchor(),
+                340,
+                Math.max(120, panel.scrollHeight - content.clientHeight + content.scrollHeight),
+            );
+            panel.hidden = !position;
+            if (position) {
+                panel.style.left = `${position.left}px`;
+                panel.style.top = `${position.top}px`;
+                panel.style.width = `${position.width}px`;
+                panel.style.maxHeight = `${position.maxHeight}px`;
+            }
+            setVisible(Boolean(position));
+        }
+        const observer =
+            typeof ResizeObserver !== "undefined" ? new ResizeObserver(reposition) : undefined;
+        function close(): void {
+            closed = true;
+            generation++;
+            observer?.disconnect();
+            window.removeEventListener("resize", reposition);
+            panel.remove();
+            viewer?.destroy();
+            viewer = undefined;
+            setVisible(false);
+        }
+        function dismiss(): void {
+            const restoreFocus = panel.contains(document.activeElement);
+            close();
+            request.onClose();
+            if (restoreFocus) request.focusCanvas();
+        }
         async function load(): Promise<void> {
             const token = ++generation;
-            currentViewer?.destroy();
-            currentViewer = undefined;
+            viewer?.destroy();
+            viewer = undefined;
+            panel.remove();
+            setVisible(false);
             content.replaceChildren();
-            status.textContent = "Loading saved form…";
-            content.setAttribute("aria-busy", "true");
-            let viewer: PreviewViewer | undefined;
+            let importing: PreviewViewer | undefined;
             try {
-                const result = await read(id);
-                if (token !== generation) return;
-                if (result.kind === "unavailable") throw new Error(result.message);
+                const result = await read(request.id, request.automatic);
+                if (closed || token !== generation) return;
+                if (result.kind === "unavailable") return;
                 const schema = parsePreviewSchema(result.content);
                 const mount = document.createElement("div");
-                // Keep the form readable to assistive technology without allowing links or submit actions.
+                // Keep content readable to assistive technology without enabling form actions.
                 for (const type of ["click", "auxclick", "submit"]) {
                     mount.addEventListener(
                         type,
@@ -76,36 +107,48 @@ export function createFormPreview(
                         true,
                     );
                 }
-                viewer = await create(mount);
-                if (token !== generation) return;
-                await viewer.importSchema(schema);
-                if (token !== generation) return;
+                importing = await create(mount);
+                if (closed || token !== generation) return;
+                await importing.importSchema(schema);
+                if (closed || token !== generation) return;
+                viewer = importing;
+                importing = undefined;
                 content.replaceChildren(mount);
-                currentViewer = viewer;
-                viewer = undefined;
                 status.textContent = "Saved form loaded.";
-            } catch (error) {
-                if (token === generation) {
-                    status.textContent =
-                        error instanceof Error ? error.message : "The form could not be previewed.";
+                panel.style.width = "340px";
+                document.body.append(panel);
+                reposition();
+                observer?.observe(panel);
+                if (!request.automatic && !panel.hidden) closeButton.focus();
+            } catch {
+                // Failed or unsupported forms have no preview surface.
+                if (!closed && token === generation) {
+                    panel.remove();
+                    setVisible(false);
                 }
             } finally {
-                viewer?.destroy();
-                if (token === generation) content.setAttribute("aria-busy", "false");
+                importing?.destroy();
             }
         }
-
-        refresh.addEventListener("click", () => void load());
-        panel.querySelector("[data-close]")!.addEventListener("click", close);
-        panel.addEventListener("cancel", (event) => {
-            event.preventDefault();
-            close();
+        panel.querySelector("[data-refresh]")!.addEventListener("click", () => void load());
+        closeButton.addEventListener("click", dismiss);
+        panel.addEventListener("keydown", (event) => {
+            event.stopPropagation();
+            if (event.key === "Escape") {
+                event.preventDefault();
+                dismiss();
+            }
         });
-        panel.addEventListener("keydown", (event) => event.stopPropagation());
-        document.body.append(panel);
-        panel.showModal();
+        window.addEventListener("resize", reposition);
+        active = { close, reposition };
         void load();
+        return active;
     }
-
-    return { open, dispose: close };
+    return {
+        open,
+        dispose: () => {
+            active?.close();
+            active = undefined;
+        },
+    };
 }

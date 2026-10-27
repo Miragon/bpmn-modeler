@@ -668,6 +668,7 @@ export class GetFormPreviewCommand extends Command<"GetFormPreviewCommand"> {
     constructor(
         public requestId: number,
         public formId: string,
+        public automatic = false,
     ) {
         super("GetFormPreviewCommand");
     }

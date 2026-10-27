@@ -19,6 +19,23 @@ function setup(files: Record<string, string>, selected?: string) {
 }
 
 describe("form preview reads", () => {
+    it("automatically reads a unique form without opening a picker", async () => {
+        const { service, host } = setup({ "/work/a.form": '{"id":"Form_1"}' });
+        expect(await service.read("Form_1", "/work/a.bpmn", true)).toEqual({
+            kind: "loaded",
+            content: '{"id":"Form_1"}',
+        });
+        expect(host.picker.prompts).toEqual([]);
+    });
+
+    it("silently declines ambiguous automatic previews without prompting", async () => {
+        const { service, host } = setup(
+            { "/work/a.form": '{"id":"Form_1"}', "/work/b.form": '{"id":"Form_1"}' },
+            "/work/b.form",
+        );
+        expect((await service.read("Form_1", "/work/a.bpmn", true)).kind).toBe("unavailable");
+        expect(host.picker.prompts).toEqual([]);
+    });
     it("settles a form disappearing after resolution with retry feedback", async () => {
         const { service, host } = setup({ "/work/a.form": '{"id":"Form_1"}' });
         vi.spyOn(host.workspace, "readFile")

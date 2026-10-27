@@ -21,6 +21,8 @@ function build(
         types?: string[];
         initialAttrs?: Record<string, unknown>;
         preview?: boolean;
+        anchored?: boolean;
+        controller?: { isVisible(element: unknown): boolean; openManual(element: unknown): void };
     } = {},
 ) {
     isMatchers.clear();
@@ -35,7 +37,11 @@ function build(
 
     const contextPad = { registerProvider: vi.fn() };
     const translate = vi.fn((template: string) => `t(${template})`);
-    const port = { openReference: vi.fn(), previewForm: opts.preview ? vi.fn() : undefined };
+    const port = {
+        openReference: vi.fn(),
+        previewForm: opts.preview ? vi.fn() : undefined,
+        formPreview: opts.anchored ? { open: vi.fn() } : undefined,
+    };
     const formReferenceStatusClient = {
         isResolved: vi.fn((formId: string) => formId === "Form_Request"),
     };
@@ -45,6 +51,7 @@ function build(
         translate as never,
         port as never,
         formReferenceStatusClient as never,
+        opts.controller,
     );
 
     return {
@@ -63,6 +70,28 @@ beforeEach(() => {
 });
 
 describe("NavigateContextPadProvider", () => {
+    it("hides the preview icon while anchored preview is visible and restores manual reopen after close", () => {
+        const controller = { isVisible: vi.fn(() => true), openManual: vi.fn() };
+        const { provider, element } = build({
+            types: ["bpmn:UserTask"],
+            anchored: true,
+            controller,
+        });
+        element.businessObject.extensionElements = {
+            values: [{ $type: "zeebe:FormDefinition", formId: "Form_Request" }],
+        };
+        expect(
+            provider.getContextPadEntries(element as never)["preview-linked-form"],
+        ).toBeUndefined();
+        expect(
+            provider.getContextPadEntries(element as never)["navigate-to-referenced-model"],
+        ).toBeDefined();
+        controller.isVisible.mockReturnValue(false);
+        provider
+            .getContextPadEntries(element as never)
+            ["preview-linked-form"].action.click({} as never, element as never);
+        expect(controller.openManual).toHaveBeenCalledWith(element);
+    });
     it("keeps open-editor navigation alongside the optional keyboard-accessible form preview", () => {
         const { provider, element, port } = build({ types: ["bpmn:UserTask"], preview: true });
         const definition = { $type: "zeebe:FormDefinition", formId: "Form_Request" };

@@ -343,7 +343,7 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
-    it("previews linked saved forms read-only, refreshes, reports errors and keeps the dedicated editor", async () => {
+    it("automatically anchors linked saved forms without blocking the canvas and keeps manual reopen", async () => {
         const file = join(workspaceDirectory, FORM_FILE);
         const original = await readFile(file, "utf8");
         await vscode().openFromExplorer("linked-form.bpmn");
@@ -351,12 +351,43 @@ describe("the packaged extension in a real VS Code", () => {
         let webview = vscode().webview();
         await switchMode(webview, "implement");
         const previewAction = () => webview.locator('[data-action="preview-linked-form"]');
-        const openPreview = async () => {
+        const preview = () => webview.getByRole("region", { name: "Linked form preview" });
+        const selectLinked = async () => {
+            await selectElement(webview, "Task_Missing");
             await selectElement(webview, "Task_Linked");
-            await previewAction().waitFor();
-            await previewAction().focus();
-            await vscode().page.keyboard.press("Enter");
-            await webview.getByRole("dialog", { name: "Linked form preview" }).waitFor();
+            await preview().waitFor();
+        };
+        const assertAnchored = async () => {
+            const box = await preview().boundingBox();
+            const canvas = await webview.locator("#js-canvas .djs-container").boundingBox();
+            const task = await webview
+                .locator('.djs-shape[data-element-id="Task_Linked"]')
+                .boundingBox();
+            const pad = await webview.locator(".djs-context-pad.open").boundingBox();
+            expect(box).not.toBeNull();
+            expect(canvas).not.toBeNull();
+            expect(task).not.toBeNull();
+            expect(pad).not.toBeNull();
+            expect(box!.x).toBeGreaterThanOrEqual(canvas!.x);
+            expect(box!.y).toBeGreaterThanOrEqual(canvas!.y);
+            expect(box!.x + box!.width).toBeLessThanOrEqual(canvas!.x + canvas!.width + 1);
+            expect(box!.y + box!.height).toBeLessThanOrEqual(canvas!.y + canvas!.height + 1);
+            const overlaps = (a: NonNullable<typeof box>, b: NonNullable<typeof box>) =>
+                a.x < b.x + b.width &&
+                a.x + a.width > b.x &&
+                a.y < b.y + b.height &&
+                a.y + a.height > b.y;
+            expect(overlaps(box!, task!)).toBe(false);
+            expect(overlaps(box!, pad!)).toBe(false);
+            const gapX = Math.min(
+                Math.abs(box!.x - task!.x - task!.width),
+                Math.abs(task!.x - box!.x - box!.width),
+            );
+            const gapY = Math.min(
+                Math.abs(box!.y - task!.y - task!.height),
+                Math.abs(task!.y - box!.y - box!.height),
+            );
+            expect(Math.min(gapX, gapY)).toBeLessThan(200);
         };
         try {
             for (const theme of COLOR_THEMES) {
@@ -364,8 +395,23 @@ describe("the packaged extension in a real VS Code", () => {
                 await expect
                     .poll(() => webview.locator("body").getAttribute("class"))
                     .toContain(theme.bodyClass);
-                await openPreview();
+                await selectLinked();
                 await webview.getByText("Saved form loaded.", { exact: true }).waitFor();
+                await assertAnchored();
+                expect(await previewAction().count()).toBe(0);
+                expect(
+                    await webview.locator('[data-action="navigate-to-referenced-model"]').count(),
+                ).toBe(1);
+                expect(
+                    await preview().evaluate((node) => node.contains(document.activeElement)),
+                ).toBe(false);
+                const close = preview().getByRole("button", { name: "Close form preview" });
+                const closeBox = await close.boundingBox();
+                const panelBox = await preview().boundingBox();
+                expect(closeBox!.x + closeBox!.width).toBeGreaterThan(
+                    panelBox!.x + panelBox!.width - 16,
+                );
+                expect(closeBox!.y).toBeLessThan(panelBox!.y + 16);
                 const input = webview.getByRole("textbox", { name: "Customer name" });
                 expect(await input.getAttribute("readonly")).not.toBeNull();
                 const colors = await input.evaluate((node) => ({
@@ -374,12 +420,92 @@ describe("the packaged extension in a real VS Code", () => {
                 }));
                 expect(colors.background).not.toBe(colors.color);
                 if (theme.id !== "light") expect(colors.background).not.toBe("rgb(255, 255, 255)");
+                await vscode().screenshot(join(RESULTS_DIRECTORY, `linked-form-${theme.id}.png`));
+                await close.click();
+                await previewAction().waitFor();
+                expect(await preview().count()).toBe(0);
+                await settle(webview);
+                expect(await preview().count()).toBe(0);
+                await previewAction().focus();
+                await vscode().page.keyboard.press("Enter");
+                await preview().waitFor();
+                await preview().getByRole("button", { name: "Close form preview" }).focus();
                 await vscode().page.keyboard.press("Escape");
+                await previewAction().waitFor();
                 expect(
-                    await previewAction().evaluate((node) => node === document.activeElement),
+                    await webview
+                        .locator(".djs-container > svg")
+                        .evaluate((node) => node === document.activeElement),
                 ).toBe(true);
             }
-            await openPreview();
+            await selectLinked();
+            const shape = webview.locator('.djs-shape[data-element-id="Task_Linked"]');
+            const svg = webview.locator(".djs-container > svg");
+            const svgBox = await svg.boundingBox();
+            await svg.hover({ position: { x: 8, y: svgBox!.height - 20 } });
+            const beforePan = await shape.boundingBox();
+            await svg.evaluate((node) =>
+                node.dispatchEvent(
+                    new WheelEvent("wheel", {
+                        bubbles: true,
+                        cancelable: true,
+                        deltaX: 40,
+                        deltaY: 0,
+                    }),
+                ),
+            );
+            await expect.poll(async () => (await shape.boundingBox())!.x).not.toBe(beforePan!.x);
+            await settle(webview);
+            await assertAnchored();
+            const beforeZoom = await shape.boundingBox();
+            await svg.evaluate((node) => {
+                const box = node.getBoundingClientRect();
+                node.dispatchEvent(
+                    new WheelEvent("wheel", {
+                        bubbles: true,
+                        cancelable: true,
+                        ctrlKey: true,
+                        deltaY: -100,
+                        clientX: box.x + box.width / 2,
+                        clientY: box.y + box.height / 2,
+                    }),
+                );
+            });
+            await expect
+                .poll(async () => (await shape.boundingBox())!.width)
+                .not.toBe(beforeZoom!.width);
+            await settle(webview);
+            await assertAnchored();
+            // Restore the viewport before clicking tasks that zooming moved under the palette.
+            await svg.evaluate((node) => {
+                const box = node.getBoundingClientRect();
+                node.dispatchEvent(
+                    new WheelEvent("wheel", {
+                        bubbles: true,
+                        cancelable: true,
+                        ctrlKey: true,
+                        deltaY: 100,
+                        clientX: box.x + box.width / 2,
+                        clientY: box.y + box.height / 2,
+                    }),
+                );
+                node.dispatchEvent(
+                    new WheelEvent("wheel", {
+                        bubbles: true,
+                        cancelable: true,
+                        deltaX: -40,
+                        deltaY: 0,
+                    }),
+                );
+            });
+            await settle(webview);
+            await assertAnchored();
+            await selectElement(webview, "Task_Missing");
+            await expect.poll(() => preview().count()).toBe(0);
+            expect(await previewAction().count()).toBe(0);
+            await selectElement(webview, "Task_Unlinked");
+            expect(await preview().count()).toBe(0);
+            await selectLinked();
             const withLinks = JSON.parse(original);
             withLinks.components.push(
                 {
@@ -419,9 +545,7 @@ describe("the packaged extension in a real VS Code", () => {
                 expect(await webview.locator("html").evaluate(() => window.location.href)).toBe(
                     href,
                 );
-                expect(
-                    await webview.getByRole("dialog", { name: "Linked form preview" }).isVisible(),
-                ).toBe(true);
+                expect(await preview().isVisible()).toBe(true);
             }
             await writeFile(file, original.replace("Customer name", "Saved updated name"));
             await webview.getByRole("button", { name: "Refresh", exact: true }).click();
@@ -432,19 +556,18 @@ describe("the packaged extension in a real VS Code", () => {
             expect(await vscode().isActiveTabDirty()).toBe(false);
             await writeFile(file, original.replace('"textfield"', '"iframe"'));
             await webview.getByRole("button", { name: "Refresh", exact: true }).click();
-            await webview
-                .getByText("This form contains a component that is not supported", { exact: false })
-                .waitFor();
+            await expect.poll(() => preview().count()).toBe(0);
+            await previewAction().waitFor();
             await writeFile(file, "invalid JSON");
-            await webview.getByRole("button", { name: "Refresh", exact: true }).click();
-            await webview.getByText("No readable local form matches", { exact: false }).waitFor();
-            await webview.getByRole("button", { name: "Close", exact: true }).click();
             await selectElement(webview, "Task_Missing");
             expect(await previewAction().count()).toBe(0);
+            await selectElement(webview, "Task_Linked");
+            await settle(webview);
+            expect(await preview().count()).toBe(0);
             await writeFile(file, original);
-            await openPreview();
+            await selectLinked();
             await webview.getByRole("textbox", { name: "Customer name" }).waitFor();
-            await webview.getByRole("button", { name: "Close", exact: true }).click();
+            await preview().getByRole("button", { name: "Close form preview" }).click();
             await webview.locator('[data-action="navigate-to-referenced-model"]').click();
             await vscode().showInCustomEditor(FORM_FILE, (frame) =>
                 frame.getByText("Customer name").first().isVisible(),

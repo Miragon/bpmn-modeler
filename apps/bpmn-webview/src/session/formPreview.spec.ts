@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FormPreviewReply } from "@miragon/bpmn-modeler-shared";
+import type { FormPreviewRequest } from "@miragon/bpmn-modeler";
 import { createFormPreview, type PreviewViewer, type PreviewViewerFactory } from "./formPreview";
 
 const saved = JSON.stringify({ components: [{ type: "textfield", key: "name", id: "Name" }] });
-
 const runtime = vi.hoisted(() => ({
     options: vi.fn(),
     importSchema: vi.fn().mockResolvedValue({ warnings: [] }),
@@ -18,17 +18,28 @@ vi.mock("@bpmn-io/form-js-viewer", () => ({
         destroy = runtime.destroy;
     },
 }));
-
-beforeEach(() => {
-    HTMLDialogElement.prototype.showModal = function () {
-        this.open = true;
-    };
+afterEach(() => {
+    document.body.replaceChildren();
+    vi.clearAllMocks();
 });
-afterEach(() => document.body.replaceChildren());
 
+function request(overrides: Partial<FormPreviewRequest> = {}): FormPreviewRequest {
+    return {
+        id: "Form_1",
+        automatic: true,
+        anchor: () => ({
+            canvas: { x: 0, y: 0, width: 1200, height: 800 },
+            task: { x: 100, y: 100, width: 100, height: 80 },
+        }),
+        onVisibilityChanged: vi.fn(),
+        onClose: vi.fn(),
+        focusCanvas: vi.fn(),
+        ...overrides,
+    };
+}
 function setup(
     read = vi
-        .fn<() => Promise<FormPreviewReply>>()
+        .fn<(id: string, automatic: boolean) => Promise<FormPreviewReply>>()
         .mockResolvedValue({ kind: "loaded", content: saved }),
 ) {
     const viewers: PreviewViewer[] = [];
@@ -40,102 +51,20 @@ function setup(
         viewers.push(viewer);
         return viewer;
     });
-    const preview = createFormPreview(read, create);
-    return { preview, read, create, viewers };
+    return { preview: createFormPreview(read, create), read, viewers, create };
 }
-
-const status = () => document.querySelector('[role="status"]')?.textContent;
+const panel = () =>
+    document.querySelector<HTMLElement>('[role="region"][aria-label="Linked form preview"]');
+const loaded = () => {
+    expect(panel()).not.toBeNull();
+    expect(panel()!.textContent).toContain("Saved form loaded.");
+};
 const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
 
-describe("linked form preview", () => {
-    it("constructs only a read-only viewer and blocks link/submit actions", async () => {
-        const preview = createFormPreview(async () => ({ kind: "loaded", content: saved }));
-        preview.open("Form_1");
-        await vi.waitFor(() => expect(status()).toBe("Saved form loaded."));
-        expect(runtime.options).toHaveBeenCalledWith({
-            container: expect.any(HTMLElement),
-            properties: { readOnly: true },
-        });
-        const mount = document.querySelector(".linked-form-preview-content")!.firstElementChild!;
-        expect(mount.dispatchEvent(new Event("submit", { cancelable: true }))).toBe(false);
-        expect(mount.dispatchEvent(new Event("click", { cancelable: true }))).toBe(false);
-        expect(
-            mount.dispatchEvent(new MouseEvent("auxclick", { button: 1, cancelable: true })),
-        ).toBe(false);
-        preview.dispose();
-        expect(runtime.destroy).toHaveBeenCalledOnce();
-    });
-    it("imports fresh saved schemas on refresh and reopen and destroys the old viewer", async () => {
-        const { preview, read, viewers } = setup();
-        preview.open("Form_1");
-        await vi.waitFor(() => expect(status()).toBe("Saved form loaded."));
-        expect(viewers[0].importSchema).toHaveBeenCalledWith(JSON.parse(saved));
-        read.mockResolvedValue({ kind: "loaded", content: '{"components":[]}' });
-        click("[data-refresh]");
-        await vi.waitFor(() => expect(viewers).toHaveLength(2));
-        expect(viewers[0].destroy).toHaveBeenCalledOnce();
-        expect(viewers[1].importSchema).toHaveBeenCalledWith({ components: [] });
-        click("[data-close]");
-        expect(viewers[1].destroy).toHaveBeenCalledOnce();
-        preview.open("Form_1");
-        await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3));
-        preview.dispose();
-    });
-
-    it("keeps the newest refresh when overlapping reads finish in reverse order", async () => {
-        const finish: Array<(reply: FormPreviewReply) => void> = [];
-        const { preview, viewers } = setup(
-            vi.fn(() => new Promise<FormPreviewReply>((resolve) => finish.push(resolve))),
-        );
-        preview.open("Form_1");
-        click("[data-refresh]");
-        finish[1]({ kind: "loaded", content: '{"components":[],"id":"newest"}' });
-        await vi.waitFor(() => expect(status()).toBe("Saved form loaded."));
-        finish[0]({ kind: "loaded", content: '{"components":[],"id":"stale"}' });
-        await Promise.resolve();
-        expect(viewers).toHaveLength(1);
-        expect(viewers[0].importSchema).toHaveBeenCalledWith({ components: [], id: "newest" });
-        preview.dispose();
-    });
-
-    it.each([
-        { kind: "unavailable", message: "Form not found." },
-        { kind: "loaded", content: "invalid" },
-        { kind: "loaded", content: '{"components":[{"type":"iframe"}]}' },
-    ] satisfies FormPreviewReply[])(
-        "shows nonblocking feedback without importing unsafe content: %j",
-        async (reply) => {
-            const { preview, create } = setup(vi.fn().mockResolvedValue(reply));
-            preview.open("Missing");
-            await vi.waitFor(() => expect(status()).not.toBe("Loading saved form…"));
-            expect(status()).toMatch(/form|component/i);
-            expect(create).not.toHaveBeenCalled();
-            expect(document.querySelector("[data-refresh]")).not.toBeNull();
-            preview.dispose();
-        },
-    );
-
-    it("reports viewer import failures and allows retry", async () => {
-        const { preview, create } = setup();
-        const destroy = vi.fn();
-        create.mockResolvedValueOnce({
-            importSchema: vi.fn().mockRejectedValue(new Error("Unsupported form version.")),
-            destroy,
-        });
-        preview.open("Form_1");
-        await vi.waitFor(() => expect(status()).toBe("Unsupported form version."));
-        expect(destroy).toHaveBeenCalledOnce();
-        click("[data-refresh]");
-        await vi.waitFor(() => expect(status()).toBe("Saved form loaded."));
-        preview.dispose();
-    });
-
-    it("ignores a read finishing after close and restores keyboard focus", async () => {
-        const opener = document.createElement("button");
-        document.body.append(opener);
-        opener.focus();
-        let finish!: (reply: FormPreviewReply) => void;
-        const { preview, create } = setup(
+describe("anchored linked form preview", () => {
+    it("shows nothing while resolving and silently ignores missing forms without stealing focus", async () => {
+        let finish!: (result: FormPreviewReply) => void;
+        const { preview } = setup(
             vi.fn(
                 () =>
                     new Promise<FormPreviewReply>((resolve) => {
@@ -143,16 +72,107 @@ describe("linked form preview", () => {
                     }),
             ),
         );
-        preview.open("Form_1");
-        document.querySelector("dialog")!.dispatchEvent(new Event("cancel", { cancelable: true }));
-        expect(document.activeElement).toBe(opener);
-        finish({ kind: "loaded", content: saved });
+        const button = document.createElement("button");
+        document.body.append(button);
+        button.focus();
+        preview.open(request());
+        expect(panel()).toBeNull();
+        expect(document.activeElement).toBe(button);
+        finish({ kind: "unavailable", message: "Missing" });
         await Promise.resolve();
-        expect(create).not.toHaveBeenCalled();
+        await Promise.resolve();
+        expect(panel()).toBeNull();
+        preview.dispose();
+    });
+    it("constructs a read-only viewer in a nonmodal region and cancels link/submit actions", async () => {
+        const opener = document.createElement("button");
+        document.body.append(opener);
+        opener.focus();
+        const preview = createFormPreview(async () => ({ kind: "loaded", content: saved }));
+        const options = request();
+        preview.open(options);
+        await vi.waitFor(loaded);
         expect(document.querySelector("dialog")).toBeNull();
+        expect(document.activeElement).toBe(opener);
+        expect(runtime.options).toHaveBeenCalledWith({
+            container: expect.any(HTMLElement),
+            properties: { readOnly: true },
+        });
+        expect(options.onVisibilityChanged).toHaveBeenCalledWith(true);
+        const mount = document.querySelector(".linked-form-preview-content")!.firstElementChild!;
+        for (const type of ["click", "auxclick", "submit"])
+            expect(mount.dispatchEvent(new MouseEvent(type, { button: 1, cancelable: true }))).toBe(
+                false,
+            );
+        preview.dispose();
+        expect(runtime.destroy).toHaveBeenCalledOnce();
+    });
+    it("offers an accessible close icon, restores canvas focus only when focus was in the panel", async () => {
+        const { preview } = setup();
+        const options = request({ automatic: false });
+        preview.open(options);
+        await vi.waitFor(loaded);
+        const close = document.querySelector<HTMLButtonElement>(
+            '[aria-label="Close form preview"]',
+        )!;
+        expect(document.activeElement).toBe(close);
+        close.click();
+        expect(panel()).toBeNull();
+        expect(options.onClose).toHaveBeenCalledOnce();
+        expect(options.focusCanvas).toHaveBeenCalledOnce();
+        preview.dispose();
+    });
+    it("rereads saved content on refresh and destroys previous viewers", async () => {
+        const { preview, read, viewers } = setup();
+        preview.open(request());
+        await vi.waitFor(loaded);
+        read.mockResolvedValue({ kind: "loaded", content: '{"components":[]}' });
+        click("[data-refresh]");
+        await vi.waitFor(() => expect(viewers).toHaveLength(2));
+        expect(viewers[0].destroy).toHaveBeenCalledOnce();
+        expect(viewers[1].importSchema).toHaveBeenCalledWith({ components: [] });
+        expect(read).toHaveBeenLastCalledWith("Form_1", true);
+        preview.dispose();
+    });
+    it.each(["invalid", '{"components":[{"type":"iframe"}]}'])(
+        "does not display invalid or unsupported forms: %s",
+        async (content) => {
+            const { preview, create } = setup(
+                vi.fn().mockResolvedValue({ kind: "loaded", content }),
+            );
+            preview.open(request());
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(panel()).toBeNull();
+            expect(create).not.toHaveBeenCalled();
+            preview.dispose();
+        },
+    );
+    it("silently closes if refreshing a displayed form fails", async () => {
+        const { preview, read } = setup();
+        const options = request();
+        preview.open(options);
+        await vi.waitFor(loaded);
+        read.mockResolvedValue({ kind: "unavailable", message: "Missing" });
+        click("[data-refresh]");
+        await vi.waitFor(() => expect(panel()).toBeNull());
+        expect(options.onVisibilityChanged).toHaveBeenLastCalledWith(false);
+        preview.dispose();
     });
 
-    it("destroys an in-flight viewer without displaying a stale result", async () => {
+    it("destroys a viewer that rejects its schema without displaying an error panel", async () => {
+        const { preview, create } = setup();
+        const destroy = vi.fn();
+        create.mockResolvedValueOnce({
+            importSchema: vi.fn().mockRejectedValue(new Error("unsupported version")),
+            destroy,
+        });
+        preview.open(request());
+        await vi.waitFor(() => expect(destroy).toHaveBeenCalledOnce());
+        expect(panel()).toBeNull();
+        preview.dispose();
+    });
+    it("discards old imports when a new selection finishes first", async () => {
         const { preview, create } = setup();
         let finish!: () => void;
         const destroy = vi.fn();
@@ -163,13 +183,52 @@ describe("linked form preview", () => {
                 }),
         );
         create.mockResolvedValueOnce({ importSchema, destroy });
-        preview.open("First");
+        const old = request();
+        preview.open(old);
         await vi.waitFor(() => expect(importSchema).toHaveBeenCalled());
-        preview.open("Second");
-        await vi.waitFor(() => expect(status()).toBe("Saved form loaded."));
+        preview.open(request({ id: "Second" }));
+        await vi.waitFor(loaded);
         finish();
         await vi.waitFor(() => expect(destroy).toHaveBeenCalledOnce());
-        expect(document.querySelectorAll("dialog")).toHaveLength(1);
+        expect(old.onVisibilityChanged).not.toHaveBeenCalledWith(true);
+        expect(document.querySelectorAll('[role="region"]')).toHaveLength(1);
+        preview.dispose();
+    });
+    it("cancels a pending read on disposal", async () => {
+        let finish!: (result: FormPreviewReply) => void;
+        const { preview, create } = setup(
+            vi.fn(
+                () =>
+                    new Promise<FormPreviewReply>((resolve) => {
+                        finish = resolve;
+                    }),
+            ),
+        );
+        const handle = preview.open(request());
+        handle.close();
+        finish({ kind: "loaded", content: saved });
+        await Promise.resolve();
+        expect(create).not.toHaveBeenCalled();
+        expect(panel()).toBeNull();
+        preview.dispose();
+    });
+    it("repositions with a live task anchor without another file read", async () => {
+        const { preview, read } = setup();
+        let x = 100;
+        const handle = preview.open(
+            request({
+                anchor: () => ({
+                    canvas: { x: 0, y: 0, width: 1200, height: 800 },
+                    task: { x, y: 100, width: 100, height: 80 },
+                }),
+            }),
+        );
+        await vi.waitFor(loaded);
+        const before = panel()!.style.left;
+        x = 200;
+        handle.reposition();
+        expect(panel()!.style.left).not.toBe(before);
+        expect(read).toHaveBeenCalledOnce();
         preview.dispose();
     });
 });

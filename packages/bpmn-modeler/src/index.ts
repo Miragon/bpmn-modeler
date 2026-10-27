@@ -33,6 +33,11 @@ export type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-sear
 export type {
     ModelNavigationPort,
     ModelReference,
+    PreviewRect,
+    FormPreviewAnchor,
+    FormPreviewRequest,
+    FormPreviewHandle,
+    FormPreviewPort,
     ReferenceKind,
 } from "@miragon/bpmn-model-navigation";
 

@@ -28,6 +28,7 @@ import { extractReference } from "./extractReference";
 import type { BusinessObjectLike, ReferenceKind } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
+import type { FormPreviewController } from "./FormPreviewController";
 
 interface ContextPad {
     registerProvider(provider: NavigateContextPadProvider): void;
@@ -74,6 +75,7 @@ export class NavigateContextPadProvider {
         "translate",
         "modelNavigationPort",
         "formReferenceStatusClient",
+        "formPreviewController",
     ];
 
     private readonly translate: Translate;
@@ -85,6 +87,10 @@ export class NavigateContextPadProvider {
         translate: Translate,
         modelNavigationPort: ModelNavigationPort,
         private readonly formReferenceStatusClient: FormReferenceStatusClient,
+        private readonly formPreviewController?: Pick<
+            FormPreviewController,
+            "isVisible" | "openManual"
+        >,
     ) {
         this.translate = translate;
         this.port = modelNavigationPort;
@@ -132,7 +138,11 @@ export class NavigateContextPadProvider {
                 },
             },
         };
-        if (kind === "form" && this.port.previewForm) {
+        if (
+            kind === "form" &&
+            (this.port.formPreview || this.port.previewForm) &&
+            !this.formPreviewController?.isVisible(element)
+        ) {
             const title = this.translate("Preview linked form");
             entries["preview-linked-form"] = {
                 group: "connect",
@@ -142,7 +152,9 @@ export class NavigateContextPadProvider {
                     click: (_event, clickedElement) => {
                         const current = extractReference(clickedElement.businessObject, "form");
                         if (current && this.formReferenceStatusClient.isResolved(current)) {
-                            void this.port.previewForm?.({ id: current, kind: "form" });
+                            if (this.port.formPreview)
+                                this.formPreviewController?.openManual(clickedElement);
+                            else void this.port.previewForm?.({ id: current, kind: "form" });
                         }
                     },
                 },

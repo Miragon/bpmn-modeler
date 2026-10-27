@@ -55,7 +55,11 @@ export function getFormPreviewHandler(
         const handle = store.requireHandle(editorId);
         const result =
             typeof command.formId === "string" && command.formId.length > 0
-                ? await service.read(command.formId, handle.documentFsPath())
+                ? await service.read(
+                      command.formId,
+                      handle.documentFsPath(),
+                      command.automatic === true,
+                  )
                 : {
                       kind: "unavailable" as const,
                       message: "This task has no local form reference.",

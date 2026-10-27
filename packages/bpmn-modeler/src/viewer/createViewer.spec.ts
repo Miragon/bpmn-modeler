@@ -201,6 +201,7 @@ describe("createViewer (runtime, jsdom)", () => {
             expect(viewer.getService("contextPad")).toBeDefined();
             expect(viewer.getService("navigateContextPadProvider")).toBeDefined();
             expect(viewer.getService("formReferenceStatusClient")).toBeDefined();
+            expect(viewer.getService("formPreviewController")).toBeDefined();
             expect(viewer.getService("modelNavigationPort")).toBe(port);
 
             // The pad is diagram-js's, not bpmn-js's, so it drags in no editing.

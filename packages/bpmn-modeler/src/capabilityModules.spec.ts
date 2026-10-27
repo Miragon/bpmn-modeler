@@ -39,9 +39,11 @@ describe("capabilityModules", () => {
         expect(modules[0].modelNavigationPort).toEqual(["value", navPort]);
         expect(modules[0].__init__).toEqual([
             "formReferenceStatusClient",
+            "formPreviewController",
             "navigateContextPadProvider",
         ]);
         expect(modules[0].formReferenceStatusClient).toBeDefined();
+        expect(modules[0].formPreviewController).toBeDefined();
         expect(modules[0].navigateContextPadProvider).toBeDefined();
     });
 

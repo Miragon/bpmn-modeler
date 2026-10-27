@@ -17,6 +17,7 @@
  * ```
  */
 import { FormReferenceStatusClient } from "./FormReferenceStatusClient";
+import { FormPreviewController } from "./FormPreviewController";
 import { NavigateContextPadProvider } from "./NavigateContextPadProvider";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
 
@@ -24,6 +25,13 @@ export { extractReference } from "./extractReference";
 export type { ReferenceKind } from "./extractReference";
 export { FormReferenceStatusClient };
 export type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort";
+export type {
+    PreviewRect,
+    FormPreviewAnchor,
+    FormPreviewRequest,
+    FormPreviewHandle,
+    FormPreviewPort,
+} from "./ModelNavigationPort";
 
 /**
  * Builds the DI bundle for the given host port. The port rides along as a
@@ -36,7 +44,12 @@ export type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort"
  */
 export function createModelNavigationModule(port: ModelNavigationPort) {
     return {
-        __init__: ["formReferenceStatusClient", "navigateContextPadProvider"],
+        __init__: [
+            "formReferenceStatusClient",
+            "formPreviewController",
+            "navigateContextPadProvider",
+        ],
+        formPreviewController: ["type", FormPreviewController],
         formReferenceStatusClient: ["type", FormReferenceStatusClient],
         navigateContextPadProvider: ["type", NavigateContextPadProvider],
         modelNavigationPort: ["value", port],

@@ -11,12 +11,16 @@ export class FormPreviewService {
         private readonly picker: PickerPort,
     ) {}
 
-    async read(id: string, sourcePath: string): Promise<FormPreviewResult> {
+    async read(id: string, sourcePath: string, automatic = false): Promise<FormPreviewResult> {
         try {
-            const { outcome, chosen } = await this.picker.searchAndPickReferencedModel(
-                "Select a form to preview…",
-                () => this.locator.findDeclaringFiles(id, "form", sourcePath),
-            );
+            const { outcome, chosen } = automatic
+                ? {
+                      outcome: await this.locator.findDeclaringFiles(id, "form", sourcePath),
+                      chosen: undefined,
+                  }
+                : await this.picker.searchAndPickReferencedModel("Select a form to preview…", () =>
+                      this.locator.findDeclaringFiles(id, "form", sourcePath),
+                  );
             if (outcome.kind !== "matches" || outcome.paths.length === 0) {
                 return {
                     kind: "unavailable",

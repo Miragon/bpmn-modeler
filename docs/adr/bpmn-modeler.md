@@ -78,25 +78,45 @@ instance or services object would duplicate this API and expose more internals.
 
 ### Linked form previews
 
-The optional, protocol-free navigation port `previewForm` contributes a second
-context-pad action for locally resolvable C8 user-task form references. The
-existing open-editor action remains independent. The published modeler does
-not depend on form-js or the private host protocol.
+The optional, protocol-free navigation capability `formPreview.open(request)`
+returns a close/reposition handle. A library-owned DI controller tracks single
+C8 user-task selection, form availability, reference changes and dismissal.
+It automatically requests a preview without moving focus; closing it suppresses
+automatic reopening for that selection/reference. The context pad hides its
+preview icon while the preview is visible, and restores it for explicit reopen.
+Pad refreshes never reset dismissal. The dedicated form-editor action remains
+independent. The older `previewForm` action-only hook remains available for
+embedders without the anchored capability. The published modeler does not depend
+on form-js or the private host protocol.
 
-The BPMN webview owns an accessible modal preview and lazily loads the same
+The BPMN webview owns an accessible, nonmodal region and lazily loads the same
 form-js viewer version as the form webview. It never constructs a form editor,
 synchronizes a form, or writes a file. Read-only viewer properties and blocked
-link/submit actions leave the preview readable without enabling form actions.
+primary/auxiliary link and submit actions leave the preview readable without
+enabling form actions.
 Viewer theme tokens map to host colors, including high contrast. Components
 requiring frames, document fetching or unsupported extensions are rejected
-with inline feedback instead of widening the BPMN webview CSP.
+instead of widening the BPMN webview CSP. Missing, invalid and unsupported forms
+produce no loading/error surface. A successful preview has an accessible X,
+refresh and Escape handling scoped to the panel. Automatic opening never takes
+keyboard focus.
+
+Live task, canvas and context-pad bounds cross the protocol-free capability as
+a browser callback, not host messages. Pan, zoom, moves and resize reposition
+the panel, flipping or using vertical space at canvas edges to keep the task
+and its context actions unobscured. When the task pans wholly offscreen, the
+preview stays clamped inside the canvas so its close control remains reachable.
+Surface destruction closes even pending
+previews; stale read/import callbacks cannot display an old selection.
 
 `GetFormPreviewCommand` / `FormPreviewQuery` are private, request-id-correlated
 messages with a bounded wait. Core `FormPreviewService` reuses workspace form
-resolution and the duplicate picker, then reads saved bytes afresh on every
-open or refresh; availability snapshots never carry or cache form contents.
+resolution, then reads saved bytes afresh on every open or refresh; availability
+snapshots never carry or cache form contents.
 Disposal invalidates in-flight UI work, destroys viewers and cancels pending
-replies. The VS Code host and stdio bridge compose the same service.
+replies. The command's `automatic` flag skips every picker and quietly declines
+ambiguous IDs; explicit manual reopen retains duplicate disambiguation. The
+VS Code host and stdio bridge compose the same service.
 
 Enforcement: `FormPreviewService.spec.ts`, `formPreviewHandler.spec.ts`, the
 webview preview/schema/protocol specs, and the packaged-extension linked-form

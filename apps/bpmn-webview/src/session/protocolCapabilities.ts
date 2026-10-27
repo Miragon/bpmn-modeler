@@ -109,9 +109,9 @@ export function createProtocolCapabilities(
     const formReferences = new FormReferenceAvailability();
     const definitionSearch = createDefinitionSearchRequests(host);
     const previewReplies = createReplyRegistry<FormPreviewQuery>(DEFINITION_SEARCH_TIMEOUT_MS);
-    const preview = createFormPreview(async (id) => {
+    const preview = createFormPreview(async (id, automatic) => {
         const { requestId, reply } = previewReplies.open();
-        host.postMessage(new GetFormPreviewCommand(requestId, id));
+        host.postMessage(new GetFormPreviewCommand(requestId, id, automatic));
         const answer = await reply;
         return (
             answer?.result ?? {
@@ -124,7 +124,7 @@ export function createProtocolCapabilities(
     return {
         capabilities: {
             modelNavigation: {
-                previewForm: ({ id }) => preview.open(id),
+                formPreview: preview,
                 openReference: ({ id, kind }) =>
                     host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
                 isReferenceAvailable: ({ id, kind }) => kind !== "form" || formReferences.has(id),

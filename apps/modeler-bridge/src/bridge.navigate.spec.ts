@@ -193,6 +193,40 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
 
+    it("declines an ambiguous automatic form preview without asking the host to show a picker", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const content = JSON.stringify({ id: "Form_Shared", type: "default", components: [] });
+        await fs.writeFile(join(root, "first.form"), content);
+        await fs.writeFile(join(root, "second.form"), content);
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "GetFormPreviewCommand",
+                        requestId: 15,
+                        formId: "Form_Shared",
+                        automatic: true,
+                    },
+                },
+            }),
+        );
+        const reply = await waitForFrame(
+            frames,
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "FormPreviewQuery",
+        );
+        expect(reply.params.message).toMatchObject({
+            requestId: 15,
+            result: { kind: "unavailable" },
+        });
+        expect(frames.find((frame) => frame.method === "picker/show")).toBeUndefined();
+        expect(frames.find((frame) => frame.method === "notifier/openDocument")).toBeUndefined();
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
     it("prompts via picker/show when multiple files declare the id, then opens the choice", async () => {
         const { rpc, frames, root, editorId } = await setup();
         const aPath = join(root, "a.bpmn");
