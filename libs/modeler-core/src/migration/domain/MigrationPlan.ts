@@ -6,6 +6,8 @@
 
 import { Engine } from "@miragon/bpmn-modeler-types";
 
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+
 /**
  * Describes a single BPMN file discovered in the workspace.
  */
@@ -20,6 +22,39 @@ export interface BpmnFileEntry {
  * Which subset of diagrams the user wants to migrate.
  */
 export type MigrationScope = Engine | "both";
+
+export interface MigrationCandidate {
+    readonly path: string;
+    readonly document: BpmnDocument;
+}
+
+export type ScopeDecision =
+    | { readonly kind: "nothingToMigrate" }
+    | { readonly kind: "fixed"; readonly scope: Engine }
+    | { readonly kind: "ask"; readonly c7Count: number; readonly c8Count: number };
+
+export type MigrationVersions = Partial<Record<Engine, string>>;
+
+export type DiagramWrite =
+    | { readonly kind: "engineChanged" }
+    | { readonly kind: "unchanged" }
+    | { readonly kind: "write"; readonly xml: string; readonly stampedPlatform: boolean };
+
+export class PlannedWrite {
+    constructor(
+        readonly path: string,
+        readonly engine: Engine,
+        readonly version: string,
+    ) {}
+
+    writeFrom(_current: BpmnDocument): DiagramWrite {
+        return { kind: "unchanged" };
+    }
+}
+
+export function enginesIn(_scope: MigrationScope): readonly Engine[] {
+    return [];
+}
 
 /**
  * Groups BPMN files by execution platform and exposes query helpers
@@ -36,6 +71,18 @@ export class MigrationPlan {
         readonly c8Files: readonly BpmnFileEntry[],
         readonly undetected: readonly string[],
     ) {}
+
+    static classify(_candidates: readonly MigrationCandidate[]): MigrationPlan {
+        return new MigrationPlan([], [], []);
+    }
+
+    scopeDecision(): ScopeDecision {
+        return { kind: "nothingToMigrate" };
+    }
+
+    writesFor(_versions: MigrationVersions): readonly PlannedWrite[] {
+        return [];
+    }
 
     hasC7(): boolean {
         return this.c7Files.length > 0;
