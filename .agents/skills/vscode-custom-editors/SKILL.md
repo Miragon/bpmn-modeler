@@ -37,7 +37,7 @@ A single generic controller — `ModelerEditorController` (`src/modeler/editor-s
 VS Code calls this each time a file matching the selector is opened. The `editorId` is the **full URI string** (`document.uri.toString()`, not just the path — so a `git:` diff ref and the `file:` working tree resolve to distinct ids). Inside, the controller:
 
 1. **Diff branch (BPMN only)** — if `options.delegateResolve` returns true the diff controller owns the pane and no session is created.
-2. **Registers the editor** — `editorStore.register(VsCodeEditorHandle.create(...))`, which sets webview HTML. The session becomes the command target only if its panel is active or no session holds the target, so a same-id replacement leaves the target where it is.
+2. **Registers the editor** — `editorStore.register(VsCodeEditorHandle.create(...))`, which sets webview HTML. The session becomes the command target only if its panel is active or no session holds the target, so a replacement that opens in the background leaves the target where it is.
 3. **Hands the session to `EditorSessionLifecycle.open`** (`libs/modeler-core`, the same lifecycle the IntelliJ bridge runs). It wires dispatch/focus/dispose synchronously (before participants run, since the webview is already loading): message dispatch into the router in document order, tab-change tracking, and a single aggregated dispose subscription. Then it runs every participant in isolation — a throw in one is shown and logged, and the rest still run.
 
 ### Per-editor concerns (participants + router)
@@ -103,9 +103,8 @@ DMN files don't use element templates, BPMN settings, inline scripts, or the dif
 Each editor instance gets its own disposable list managed by `EditorSessionStore`. When the editor is closed:
 
 1. `WebviewPanel.onDidDispose` fires the lifecycle's single aggregated dispose subscription
-2. `EditorSessionStore.disposeEditor()` disposes all per-editor subscriptions and removes the entry
-3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTaskSvc.disposeForEditor(editorId)`) — collected by the lifecycle and run **once**, after the store's bookkeeping
-4. If the closed editor was the command target, `CommandTarget` hands it back to the open editor that held it before (the newest remaining editor when none did) until the host reports the next focused one, or clears it
+2. `EditorSessionStore.disposeEditor()` disposes all per-editor subscriptions and removes the entry. If the closed editor was the command target, `CommandTarget` hands it back to the open editor that held it before (the newest remaining editor when none did) until the host reports the next focused one, or clears it
+3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTaskSvc.disposeForEditor(editorId)`). The lifecycle collects them and runs them **once**, after the store's bookkeeping, so the target has already moved
 
 This per-editor cleanup prevents memory leaks when editors are opened and closed repeatedly.
 

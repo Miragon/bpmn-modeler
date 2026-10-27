@@ -181,12 +181,15 @@ editor is focused (a DMN or Form editor, or none) instead of showing an item
 nothing would hide. The store's command target (`CommandTarget`, read as
 `getActiveEditorId`) is the session focused last, not focus. In VS Code it
 stays on a diagram while a text editor is active, because text editors are not
-sessions. Only the first session to open takes it without focus, so a diagram
-that resolves in a background group never takes commands from the focused one,
-and a session that replaces another under the same id leaves the target where
-it is. A closed target goes back to the open editor that held it before, and
-to the newest remaining editor only when none did, until the host reports the
-next focused one. The bridge treats `session/register` as the focused tab, so
+sessions. Only a session that opens while no session holds the target takes it
+without focus. So in VS Code a diagram that resolves in a background group
+never takes commands from the focused one, and a session that replaces another
+under the same id in the background leaves the target where it is. Theia
+creates every custom-editor panel with `active = true`, so in the standalone
+app a diagram that resolves behind the focused one still takes the target. A
+closed target goes back to the open editor that held it before, and to the
+newest remaining editor only when none did, until the host reports the next
+focused one. The bridge treats `session/register` as the focused tab, so
 it marks the handle active before registering it, and it derives `isActive()`
 from the target. On IntelliJ the two agree with each other but not always
 with the selected tab: after a bridge respawn the host re-registers every

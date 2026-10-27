@@ -1,9 +1,9 @@
 /**
  * The editor session a command acts on: the one focused last. Text editors and
  * sidebars are not sessions, so the target stays on a diagram while they have
- * focus. Only the first session to open takes it without focus, so neither a
- * session that opens behind the focused one nor one that replaces it under the
- * same id moves it.
+ * focus. Only a session that opens while no session holds the target takes it
+ * without focus, so neither a session that opens behind the focused one nor a
+ * same-id replacement that opens in the background moves it.
  *
  * Each change returns the editor that became the target, or `undefined` when
  * none did.
