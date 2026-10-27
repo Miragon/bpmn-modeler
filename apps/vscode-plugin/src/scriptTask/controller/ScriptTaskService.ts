@@ -267,8 +267,7 @@ export class ScriptTaskService {
      * Writes an inline script to disk *without* opening a tab, tracking it, or
      * locking the panel — the "Generate Script Files" command's whole job.
      * Live sync starts only once the user opens the file (adoption), so a
-     * generated-but-unopened file stays a plain file. A failed write rejects;
-     * the batch counts it as failed.
+     * generated-but-unopened file stays a plain file. A failed write rejects.
      *
      * A script already owned by an open tab is left untouched (`alreadyOpen`):
      * that tab's buffer is the authoritative copy, so overwriting it from the
@@ -349,12 +348,9 @@ export class ScriptTaskService {
 
     /**
      * Resolves (and caches) the editor's `<…>/tmp/scripting` base directory.
-     * Public so the message handler can name the folder in its completion
-     * notification and the adoption listener can containment-check opened files
-     * against it. Caching keeps teardown deterministic — see
-     * {@link baseDirByEditor}.
+     * Caching keeps teardown deterministic — see {@link baseDirByEditor}.
      */
-    async scriptsBaseDir(editorId: string): Promise<string> {
+    private async scriptsBaseDir(editorId: string): Promise<string> {
         let baseDir = this.baseDirByEditor.get(editorId);
         if (baseDir === undefined) {
             baseDir = await this.scriptFiles.resolveBaseDir(editorId);

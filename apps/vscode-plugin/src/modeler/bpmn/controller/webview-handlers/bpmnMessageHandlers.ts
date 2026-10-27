@@ -90,10 +90,11 @@ export function openScriptEditorHandler(
  * once the user opens one of the generated files (adoption).
  *
  * The variable store is seeded once before the first write (the model is
- * identical for all scripts in one diagram); the batch policy — sequential
- * materialisation, failure counting and the summary toast — lives in
- * {@link materializeScriptBatch}, shared with the bridge. An empty batch — a
- * C8 diagram or one with no inline scripts — surfaces a friendly info message.
+ * identical for all scripts in one diagram). The batch — sequential
+ * materialisation, failure counting and logging — is
+ * {@link materializeScriptBatch}; the toast text is {@link scriptBatchSummary},
+ * which this handler shows. An empty batch — a C8 diagram or one with no inline
+ * scripts — surfaces a friendly info message.
  */
 export function openScriptEditorsHandler(
     scriptTaskSvc: ScriptTaskService,

@@ -239,7 +239,7 @@ export class BridgeScriptEditor {
      * Writes a script file to disk *without* opening a host tab, tracking it, or
      * locking the panel — the "Generate Script Files" command's whole job. Live
      * sync starts only when the user opens the file (see {@link adoptExternalOpen}).
-     * A failed write rejects; the batch logs and counts it.
+     * A failed write rejects.
      *
      * Deliberately does **not** record `filePathByScript`: a later panel-button
      * open then sees no path and rewrites the file from the current model, keeping
