@@ -7,6 +7,8 @@ import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
 
 const ROOT_TEMPLATES = "/work/.camunda/element-templates";
 const NESTED_TEMPLATES = "/work/sub/.camunda/element-templates";
+const FOLDER_A_TEMPLATES = "/a/.camunda/element-templates";
+const FOLDER_B_TEMPLATES = "/b/.camunda/element-templates";
 
 /**
  * Wires the service to the test host over an in-memory template tree: `dirFiles`
@@ -182,6 +184,34 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         expect([...editor.posted, ...secondEditor.posted, ...nestedEditor.posted]).toEqual([]);
         expect(host.statusBar.elementTemplates).toEqual({ state: "ready", count: 3 });
         expect(host.notifier.logged("debug")).toHaveLength(1);
+    });
+
+    it("keeps the spinner while another editor's templates still load", async () => {
+        const { service, host, artifactSvc, addTemplate } = createService({ marketplace: false });
+        addTemplate(FOLDER_A_TEMPLATES, "apple.json", { name: "Apple" });
+        addTemplate(FOLDER_B_TEMPLATES, "banana.json", { name: "Banana" });
+        addTemplate(FOLDER_B_TEMPLATES, "cherry.json", { name: "Cherry" });
+        const editorInA = host.openEditor("/a/order.bpmn");
+        const editorInB = host.openEditor("/b/invoice.bpmn");
+        const readDirectory = artifactSvc.readDirectory.getMockImplementation()!;
+        const heldReads = new Map<string, () => void>();
+        artifactSvc.readDirectory.mockImplementation(
+            (dir: string) =>
+                new Promise((resolve) => heldReads.set(dir, () => resolve(readDirectory(dir)))),
+        );
+
+        const loadInA = service.setElementTemplates(editorInA.id);
+        const loadInB = service.setElementTemplates(editorInB.id);
+        await vi.waitFor(() => expect(heldReads.size).toBe(2));
+        expect(host.statusBar.elementTemplates).toEqual({ state: "loading" });
+
+        heldReads.get(FOLDER_A_TEMPLATES)!();
+        await loadInA;
+        expect(host.statusBar.elementTemplates).toEqual({ state: "loading" });
+
+        heldReads.get(FOLDER_B_TEMPLATES)!();
+        await loadInB;
+        expect(host.statusBar.elementTemplates).toEqual({ state: "ready", count: 2 });
     });
 
     it("does not notify when the editor is disposed mid-load", async () => {
