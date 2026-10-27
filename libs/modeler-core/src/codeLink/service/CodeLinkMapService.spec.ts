@@ -407,6 +407,27 @@ describe("CodeLinkMapService — persistence", () => {
         ]);
     });
 
+    it("keeps the map in memory and writes nothing for a document outside its workspace root", async () => {
+        const abs = "/work/proj/src/A.java";
+        const { service, host, editor, artifactSvc } = createService({
+            persist: true,
+            resolveMap: { "com.example.A": [abs] },
+        });
+        artifactSvc.getWorkspaceRoot.mockResolvedValueOnce("/work/other");
+
+        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
+        await service.writeArtifact(editor.id);
+
+        expect(lastStatus(editor)).toEqual({
+            [implementationStatusKey("Act", "com.example.A")]: true,
+        });
+        expect([...host.workspace.files.keys()]).toEqual([]);
+        expect(host.notifier.logged("warning")).toContain(
+            "[code-link] not persisting the map: No config artifact for /work/proj/order.bpmn: " +
+                "it is not below the workspace root /work/other.",
+        );
+    });
+
     it("does not persist when the setting is off", async () => {
         const { service, host, editor } = createService({
             persist: false,
