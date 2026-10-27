@@ -25,15 +25,16 @@ only fills the residual gap.
 ## Exports
 
 - **`extras`** — `Partial<Record<SupportedLocale, Record<string, string>>>`, the
-  overlay keys per locale (English source string → localized value), for the
-  nine locales the modeler fully covers (`de`, `en`, `es`, `fr`, `nl-nl`,
-  `pt-br`, `ru`, `zh-Hans`, `zh-Hant`).
+  overlay keys per locale (English source string → localized value), for every
+  locale the shared library ships.
 - **`supportedModelerLanguages`** — the shared `supportedLanguages` catalogue
-  narrowed to those nine locales. The shared library additionally bundles `it`,
-  `ja`, and `ko` — fully covered for the main UI, including C7 — but the overlay
-  has no `it`/`ja`/`ko` translation for the script-lock badge strings yet, so
-  they are withheld from the extension host's language QuickPick to keep coverage
-  uniform. Add those overlay values and the locales surface here automatically.
+  (locale code and label): the one list of languages the modeler offers. The VS
+  Code language QuickPick reads it. The copies that cannot import it are pinned
+  to it: `manifest.contract.spec.ts` checks the `miragon.bpmnModeler.language`
+  enum and labels in `apps/vscode-plugin/package.json` and the table in
+  `docs/vscode/features/language-support.md`, and IntelliJ's `ModelerLocalesTest`
+  checks `ModelerLocales.kt` against that manifest. `parity.spec.ts` fails when
+  an offered locale has no overlay dictionary.
 
 ## How the key set is chosen (runtime harvest)
 
