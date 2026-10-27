@@ -358,6 +358,10 @@ export class RpcNotifier implements NotifierPort {
         this.rpc.notify(METHODS.notifierShowInfo, { message });
     }
 
+    showWarning(message: string): void {
+        this.rpc.notify(METHODS.notifierShowWarning, { message });
+    }
+
     showError(message: string): void {
         this.rpc.notify(METHODS.notifierShowError, { message });
     }

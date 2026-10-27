@@ -32,6 +32,10 @@ export class VsCodeNotifier implements NotifierPort {
         window.showInformationMessage(message);
     }
 
+    showWarning(message: string): void {
+        window.showWarningMessage(message);
+    }
+
     showError(message: string): void {
         window.showErrorMessage(message);
     }

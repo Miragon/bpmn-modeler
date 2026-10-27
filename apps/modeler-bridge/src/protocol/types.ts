@@ -354,7 +354,7 @@ export interface ClipboardWriteParams {
     text: string;
 }
 
-/** `notifier/showInfo`, `notifier/showError` — a one-line balloon. */
+/** `notifier/showInfo`, `notifier/showWarning`, `notifier/showError` — a one-line balloon. */
 export interface NotifierMessageParams {
     message: string;
 }

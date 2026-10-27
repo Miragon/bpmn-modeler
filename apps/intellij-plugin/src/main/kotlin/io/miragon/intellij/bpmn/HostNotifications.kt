@@ -26,6 +26,8 @@ class HostNotifications(private val project: Project) {
 
     fun showInfo(message: String) = balloon(message, NotificationType.INFORMATION)
 
+    fun showWarning(message: String) = balloon(message, NotificationType.WARNING)
+
     fun showError(message: String) = balloon(message, NotificationType.ERROR)
 
     fun notifyError(context: String, message: String) =

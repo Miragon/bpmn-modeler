@@ -46,6 +46,8 @@ export interface LoggerPort {
  */
 export interface NotifierPort extends LoggerPort {
     showInfo(message: string): void;
+    /** A problem the user can recover from; the operation itself went through. */
+    showWarning(message: string): void;
     showError(message: string): void;
     /** Logs `notifiedErrorLogText`, then shows `notifiedErrorToastText` as an error toast. */
     notifyError(context: string, error: Error): void;

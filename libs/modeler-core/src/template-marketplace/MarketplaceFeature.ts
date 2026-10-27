@@ -3,6 +3,7 @@ import { join } from "path";
 import { HttpClient } from "../kernel/domain/http";
 import { FetchHttpClient } from "../kernel/infrastructure/FetchHttpClient";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../kernel/domain/hostPorts";
+import { FetchReport } from "./domain/fetchReport";
 import { expandHomePath } from "./domain/marketplace";
 import {
     RepositorySource,
@@ -77,20 +78,21 @@ export class MarketplaceCommands {
     ) {}
 
     /**
-     * Persists the registration only after the fetch succeeds, so a location
-     * whose `marketplace.json` is missing never lands in settings. The location
-     * is persisted expanded, so a later update never sees a `~`.
+     * Persists the registration only after its `marketplace.json` was read, so a
+     * location without one never lands in settings. A valid manifest whose
+     * sources all failed is still persisted: a later update may reach them. The
+     * location is persisted expanded, so a later update never sees a `~`.
      */
     async add(input: string, persist: (location: string) => Promise<void>): Promise<void> {
         const location = expandHomePath(input.trim(), this.homeDir, join);
         try {
-            await this.notifier.withProgress("Adding marketplace…", () =>
+            const report = await this.notifier.withProgress("Adding marketplace…", () =>
                 this.marketplaces.addMarketplace(location),
             );
             await persist(location);
             this.notifier.logDebug(`Marketplace registration persisted: ${location}`);
             await this.templates.reloadMarketplaceTemplates();
-            this.notifier.showInfo("Marketplace added.");
+            this.reportAdded(report);
         } catch (error) {
             await this.reportAddFailure(error as Error);
         }
@@ -136,6 +138,19 @@ export class MarketplaceCommands {
         } catch (error) {
             this.notifier.notifyError("Failed to remove marketplace(s).", error as Error);
         }
+    }
+
+    private reportAdded(report: FetchReport): void {
+        const verdict = report.verdict();
+        if (verdict === "complete") {
+            this.notifier.showInfo("Marketplace added.");
+            return;
+        }
+        const headline =
+            verdict === "partial"
+                ? "Marketplace added, but some of its sources could not be fetched:"
+                : "Marketplace added, but none of its sources could be fetched:";
+        this.notifier.showWarning(`${headline}\n${report.reasons().join("\n")}`);
     }
 
     /** The fetch caches before the persist, so a failed add must not leave that cache behind. */

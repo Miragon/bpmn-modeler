@@ -106,7 +106,7 @@
             id="BpmnDeploymentTargetWidget"
             implementation="io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidgetFactory"/>
 
-        <!-- Balloons for the core's NotifierPort (showInfo / showError / notifyError). -->
+        <!-- Balloons for the core's NotifierPort (showInfo / showWarning / showError / notifyError). -->
         <notificationGroup id="Miragon BPMN Modeler" displayType="BALLOON"/>
 
         <!-- Settings ▸ Tools; persisted via PropertiesComponent and pushed to the core so

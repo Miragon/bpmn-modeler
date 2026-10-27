@@ -574,13 +574,14 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
 }
 
 /**
- * One marketplace an update could not refresh at all. Only *manifest*-level
- * failures (the whole marketplace unusable) land here; per-source failures stay
- * in the log channel so a single bad source never masks a healthy marketplace.
+ * One marketplace an update could not refresh at all: its manifest could not be
+ * read, or none of its sources could be fetched. A marketplace with one failed
+ * source among fetched ones is not listed, so a single bad source never masks a
+ * healthy marketplace.
  */
 export interface MarketplaceUpdateFailure {
     readonly label: string; // from marketplaceEntryLabel()
-    readonly reason: string; // error.message (manifest-level failure)
+    readonly reason: string;
 }
 
 /**
