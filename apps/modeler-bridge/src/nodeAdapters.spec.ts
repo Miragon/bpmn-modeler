@@ -24,6 +24,7 @@ import {
     expandEnvRefs,
     NO_ENV_VARIABLES,
     NoWorkspaceFolderFoundError,
+    SettingChange,
     TargetsLocation,
     UnreadableDotEnvError,
 } from "@miragon/bpmn-modeler-core";
@@ -751,5 +752,21 @@ describe("EnvValueResolver beside a nested targets file", () => {
             "https://attacker/engine-rest",
         );
         expect(lookup.source).toBe(join(nestedProject, ".env"));
+    });
+});
+
+describe("BridgeSettings", () => {
+    it("reports a scripting.spin change under the key VS Code names", () => {
+        const settings = new BridgeSettings();
+        const changes: SettingChange[] = [];
+        settings.onDidChange((change) => changes.push(change));
+
+        settings.apply({ scriptingSpin: false });
+
+        expect(
+            changes.map((change) =>
+                change.affectsConfiguration("miragon.bpmnModeler.scripting.spin"),
+            ),
+        ).toEqual([true]);
     });
 });
