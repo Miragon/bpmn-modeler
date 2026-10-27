@@ -9,6 +9,11 @@ export type MessageHandler<TMessage extends Command = Command> = (
     editorId: string,
 ) => void | Promise<void>;
 
+export type MessageRoute =
+    | { readonly kind: "handled" }
+    | { readonly kind: "ignored"; readonly reason: string }
+    | { readonly kind: "unrouted" };
+
 /**
  * Open/closed dispatch table for webview → host messages.
  *
@@ -49,6 +54,14 @@ export class WebviewMessageRouter {
      * setLanguage → resync) stays in registration order. An unknown type is a
      * silent no-op.
      */
+    ignore<TType extends ProtocolCommandType>(_type: TType, _reason: string): this {
+        return this;
+    }
+
+    routeOf(_type: ProtocolCommandType): MessageRoute {
+        return { kind: "unrouted" };
+    }
+
     async dispatch(message: Command, editorId: string): Promise<void> {
         const handlers = this.handlers.get(message.type);
         if (!handlers) {
