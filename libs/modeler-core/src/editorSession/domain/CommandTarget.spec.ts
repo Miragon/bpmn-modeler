@@ -5,6 +5,7 @@ import { CommandTarget } from "./CommandTarget";
 type Step =
     | readonly ["open", string, "focused" | "background"]
     | readonly ["focus", string]
+    | readonly ["blur", string, string | undefined]
     | readonly ["close", string, readonly string[]];
 
 function play(steps: readonly Step[]): { target: string | undefined; announced: string[] } {
@@ -14,6 +15,7 @@ function play(steps: readonly Step[]): { target: string | undefined; announced: 
         let moved: string | undefined;
         if (step[0] === "open") moved = commandTarget.open(step[1], step[2] === "focused");
         else if (step[0] === "focus") moved = commandTarget.focus(step[1]);
+        else if (step[0] === "blur") moved = commandTarget.blur(step[1], step[2]);
         else moved = commandTarget.close(step[1], step[2]);
         if (moved !== undefined) announced.push(moved);
     }
@@ -90,6 +92,58 @@ describe("CommandTarget", () => {
             ],
             target: "a",
             announced: ["a"],
+        },
+        {
+            scenario: "hands the target to the focused editor when the target blurs",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "focused"],
+                ["blur", "b", "a"],
+            ],
+            target: "a",
+            announced: ["a", "b", "a"],
+        },
+        {
+            scenario: "keeps the target when it blurs and no other editor is focused",
+            steps: [
+                ["open", "a", "focused"],
+                ["blur", "a", undefined],
+            ],
+            target: "a",
+            announced: ["a"],
+        },
+        {
+            scenario: "stays when an editor that does not hold the target blurs",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "focused"],
+                ["open", "c", "focused"],
+                ["blur", "b", "a"],
+            ],
+            target: "c",
+            announced: ["a", "b", "c"],
+        },
+        {
+            scenario: "moves to the editor focused next when the target blurs first",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "background"],
+                ["blur", "a", undefined],
+                ["focus", "b"],
+            ],
+            target: "b",
+            announced: ["a", "b"],
+        },
+        {
+            scenario: "moves to the editor focused next when the target blurs after it",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "background"],
+                ["focus", "b"],
+                ["blur", "a", "b"],
+            ],
+            target: "b",
+            announced: ["a", "b"],
         },
         {
             scenario: "hands a closed target back to the editor focused before it",

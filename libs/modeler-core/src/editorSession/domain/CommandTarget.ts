@@ -28,6 +28,10 @@ export class CommandTarget {
         return editorId;
     }
 
+    blur(_editorId: string, _focusedEditorId: string | undefined): string | undefined {
+        return undefined;
+    }
+
     /**
      * A closed target goes back to the open editor that held it before. When none
      * did, the newest remaining one stands in until the host reports the next
