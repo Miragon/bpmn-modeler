@@ -174,6 +174,14 @@ describe("BpmnDocument.detectPlatformVersion", () => {
             xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.6")),
         },
         {
+            given: "a version with leading text",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("v8.8.0")),
+        },
+        {
+            given: "a version with trailing text",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0-alpha")),
+        },
+        {
             given: "a diagram whose version text appears only in a documentation body",
             xml: `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${MODELER_NAMESPACE} ${C8_PLATFORM}>
