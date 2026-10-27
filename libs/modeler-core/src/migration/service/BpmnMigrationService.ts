@@ -1,4 +1,5 @@
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { notifiedErrorLogText } from "../../kernel/domain/errorLogText";
 import { FileNotFound, UserCancelledError } from "../../kernel/domain/errors";
 import { getVersions } from "../../kernel/domain/engineVersions";
 import {
@@ -21,6 +22,11 @@ import { EditorSessionStore } from "../../editorSession/service/EditorSessionSto
 interface CurrentDiagram {
     readonly document: BpmnDocument;
     readonly editorId: string | undefined;
+}
+
+interface ReadCandidates {
+    readonly candidates: readonly MigrationCandidate[];
+    readonly skippedReads: readonly WriteResult[];
 }
 
 /**
@@ -48,11 +54,14 @@ export class BpmnMigrationService {
                 return false;
             }
 
-            const plan = MigrationPlan.classify(await this.readCandidates(paths));
+            const { candidates, skippedReads } = await this.readCandidates(paths);
+            const plan = MigrationPlan.classify(candidates);
             const scopeDecision = plan.scopeDecision();
             if (scopeDecision.kind === "nothingToMigrate") {
                 this.notifier.showInfo(
-                    "Could not detect the engine for any BPMN file in the workspace.",
+                    skippedReads.length > 0
+                        ? migrationSummary(skippedReads)
+                        : "Could not detect the engine for any BPMN file in the workspace.",
                 );
                 return false;
             }
@@ -79,9 +88,9 @@ export class BpmnMigrationService {
                 versions[engine] = await this.picker.pickEngineVersion(engine, getVersions(engine));
             }
 
-            const results: WriteResult[] = [];
+            const results: WriteResult[] = [...skippedReads];
             for (const plannedWrite of plan.writesFor(versions)) {
-                results.push(await this.write(plannedWrite));
+                results.push(await this.writeOrSkip(plannedWrite));
             }
 
             this.notifier.showInfo(migrationSummary(results));
@@ -95,13 +104,31 @@ export class BpmnMigrationService {
         }
     }
 
-    private async readCandidates(paths: readonly string[]): Promise<MigrationCandidate[]> {
+    private async readCandidates(paths: readonly string[]): Promise<ReadCandidates> {
         const candidates: MigrationCandidate[] = [];
+        const skippedReads: WriteResult[] = [];
         for (const path of paths) {
-            const { document } = await this.readCurrentDiagram(path);
-            candidates.push({ path, document });
+            try {
+                const { document } = await this.readCurrentDiagram(path);
+                candidates.push({ path, document });
+            } catch (error) {
+                this.logSkip(`Skipped a diagram that could not be read: ${path}`, error);
+                skippedReads.push({ kind: "skipped" });
+            }
         }
-        return candidates;
+        return { candidates, skippedReads };
+    }
+
+    private async writeOrSkip(plannedWrite: PlannedWrite): Promise<WriteResult> {
+        try {
+            return await this.write(plannedWrite);
+        } catch (error) {
+            this.logSkip(
+                `Skipped a diagram that could not be migrated: ${plannedWrite.path}`,
+                error,
+            );
+            return { kind: "skipped" };
+        }
     }
 
     /**
@@ -165,6 +192,10 @@ export class BpmnMigrationService {
             }
             throw error;
         }
+    }
+
+    private logSkip(context: string, error: unknown): void {
+        this.notifier.logWarning(notifiedErrorLogText(context, error as Error));
     }
 
     private handleError(error: Error): boolean {
