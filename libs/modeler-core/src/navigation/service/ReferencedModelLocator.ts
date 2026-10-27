@@ -1,8 +1,9 @@
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult, SearchOutcome } from "../../kernel/domain/locateResult";
 import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
-import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 import {
     scanWorkspaceFiles,
     searchFilesContent,
