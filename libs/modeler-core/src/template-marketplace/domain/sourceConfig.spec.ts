@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { MarketplaceLocation, TemplateSource } from "./marketplace";
 import { RepositorySourceConfig } from "./ports";
-import { declaredPrivateHosts, manifestConfig, sourceConfig } from "./sourceConfig";
+import {
+    declaredPrivateHosts,
+    describeSourceConfig,
+    manifestConfig,
+    sourceConfig,
+} from "./sourceConfig";
 
 const GITHUB_MARKETPLACE: MarketplaceLocation = {
     kind: "github",
@@ -272,5 +277,60 @@ describe("declaredPrivateHosts", () => {
         },
     ])("$behaviour", ({ sources, hosts }) => {
         expect(declaredPrivateHosts(sources)).toEqual(hosts);
+    });
+});
+
+describe("describeSourceConfig", () => {
+    it.each<{ behaviour: string; config: RepositorySourceConfig; description: string }>([
+        {
+            behaviour: "names a github repository with its ref and path",
+            config: {
+                kind: "github",
+                owner: "acme",
+                repo: "templates",
+                ref: "main",
+                path: "element-templates",
+            },
+            description: 'github github.com/acme/templates@main path "element-templates"',
+        },
+        {
+            behaviour: "names a github repository root without a ref or path",
+            config: { kind: "github", owner: "acme", repo: "templates", path: "" },
+            description: "github github.com/acme/templates",
+        },
+        {
+            behaviour: "names the host of a GitHub Enterprise repository",
+            config: {
+                kind: "github",
+                owner: "acme",
+                repo: "templates",
+                path: "",
+                baseUrl: "https://ghe.acme.com",
+            },
+            description: "github ghe.acme.com/acme/templates",
+        },
+        {
+            behaviour: "names a self-hosted gitlab project by its full path",
+            config: {
+                kind: "gitlab",
+                projectPath: "group/sub/project",
+                ref: "v2",
+                path: "templates",
+                baseUrl: "https://gitlab.acme.com",
+            },
+            description: 'gitlab gitlab.acme.com/group/sub/project@v2 path "templates"',
+        },
+        {
+            behaviour: "never names the token a remote config carries",
+            config: { kind: "gitlab", projectPath: "group/proj", path: "", token: "secret" },
+            description: "gitlab gitlab.com/group/proj",
+        },
+        {
+            behaviour: "names a local folder",
+            config: { kind: "local", rootDir: "/srv/templates", path: "" },
+            description: "local folder /srv/templates",
+        },
+    ])("$behaviour", ({ config, description }) => {
+        expect(describeSourceConfig(config)).toBe(description);
     });
 });

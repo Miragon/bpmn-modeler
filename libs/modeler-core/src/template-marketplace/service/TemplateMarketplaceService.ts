@@ -11,13 +11,17 @@ import {
 } from "../domain/marketplace";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import {
-    hostForConfig,
     RepositorySourceConfig,
     RepositorySourceFactory,
     TokenPromptPort,
     TokenStorePort,
 } from "../domain/ports";
-import { declaredPrivateHosts, manifestConfig, sourceConfig } from "../domain/sourceConfig";
+import {
+    declaredPrivateHosts,
+    describeSourceConfig,
+    manifestConfig,
+    sourceConfig,
+} from "../domain/sourceConfig";
 import { includedFiles } from "../domain/sourceInclude";
 import {
     FetchedTemplateFile,
@@ -292,7 +296,7 @@ export class TemplateMarketplaceService {
         error: unknown,
     ): SourceFailure {
         return {
-            source: this.describeConfig(sourceConfig(source, registration.location, this.homeDir)),
+            source: describeSourceConfig(sourceConfig(source, registration.location, this.homeDir)),
             reason: (error as Error).message,
         };
     }
@@ -315,7 +319,7 @@ export class TemplateMarketplaceService {
     ): Promise<string> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
-            `Fetching ${MARKETPLACE_MANIFEST} from ${this.describeConfig(baseConfig)}`,
+            `Fetching ${MARKETPLACE_MANIFEST} from ${describeSourceConfig(baseConfig)}`,
         );
         try {
             return await tokenSession.run(baseConfig, (config) =>
@@ -344,7 +348,7 @@ export class TemplateMarketplaceService {
     ): Promise<FetchedTemplateFile[]> {
         const baseConfig = sourceConfig(source, registration.location, this.homeDir);
         this.notifier.logDebug(
-            `Fetching source ${index} of "${registration.url}": ${this.describeConfig(baseConfig)}`,
+            `Fetching source ${index} of "${registration.url}": ${describeSourceConfig(baseConfig)}`,
         );
         return tokenSession.run(baseConfig, async (config) => {
             const repository = this.sourceFactory(config);
@@ -387,7 +391,7 @@ export class TemplateMarketplaceService {
         if (include !== undefined && listedCount > 0) {
             this.notifier.logWarning(
                 `Source ${index} of "${registration.url}": "include" patterns matched none of ` +
-                    `${listedCount} listed file(s) (${this.describeConfig(config)}) — check the patterns`,
+                    `${listedCount} listed file(s) (${describeSourceConfig(config)}) — check the patterns`,
             );
             return;
         }
@@ -397,24 +401,7 @@ export class TemplateMarketplaceService {
         const hint =
             config.kind === "local" ? " — the folder may not exist or holds no .json files" : "";
         this.notifier.logWarning(
-            `Source ${index} of "${registration.url}" has no template files (${this.describeConfig(config)})${hint}`,
+            `Source ${index} of "${registration.url}" has no template files (${describeSourceConfig(config)})${hint}`,
         );
-    }
-
-    /**
-     * A credential-free, log-safe rendering of a source config. Never reads
-     * `token`, so logging it can never leak a secret by construction.
-     * {@link hostForConfig} supplies the host so self-hosted origins read the
-     * same as the public ones.
-     */
-    private describeConfig(config: RepositorySourceConfig): string {
-        if (config.kind === "local") {
-            return `local folder ${config.rootDir}`;
-        }
-        const repo =
-            config.kind === "github" ? `${config.owner}/${config.repo}` : config.projectPath;
-        const ref = config.ref ? `@${config.ref}` : "";
-        const path = config.path ? ` path "${config.path}"` : "";
-        return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
     }
 }
