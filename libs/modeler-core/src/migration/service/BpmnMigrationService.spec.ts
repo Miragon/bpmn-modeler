@@ -123,7 +123,11 @@ describe("migrateAllDiagrams", () => {
 
     it("should show scope picker when both platforms are present", async () => {
         const { service, picker, writtenPaths } = createHost(
-            { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
+            {
+                "/work/c7.bpmn": c7Bpmn("7.20.0"),
+                "/work/c7-other.bpmn": c7Bpmn("7.20.0"),
+                "/work/c8.bpmn": c8Bpmn("8.5.0"),
+            },
             { migrationScope: "c8", engineVersion: "8.8.0" },
         );
 
@@ -134,7 +138,7 @@ describe("migrateAllDiagrams", () => {
          * Only C8 was selected, so only one version picker
          */
         expect(picker.prompts).toEqual([
-            { method: "pickMigrationScope", args: [1, 1] },
+            { method: "pickMigrationScope", args: [2, 1] },
             { method: "pickEngineVersion", args: ["c8", expect.any(Object)] },
         ]);
         expect(writtenPaths).toEqual(["/work/c8.bpmn"]);
