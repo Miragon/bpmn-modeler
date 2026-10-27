@@ -1,4 +1,7 @@
+import { findListenerAt } from "@miragon/bpmn-modeler-types";
+
 import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
+import { listenerScriptKind, type PanelListenerType } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { readScriptTaskFormat } from "./scriptModel";
 
@@ -11,8 +14,6 @@ import { readScriptTaskFormat } from "./scriptModel";
  * identically — including the undoable conversion of non-inline listeners —
  * so that logic lives here once instead of being duplicated per surface.
  */
-
-type ListenerType = "executionListener" | "taskListener";
 
 interface EventBus {
     fire(event: string, payload?: unknown): void;
@@ -57,8 +58,8 @@ export class ScriptEditorOpener {
         if (this.openScriptTask(element)) {
             return true;
         }
-        for (const listenerType of ["executionListener", "taskListener"] as ListenerType[]) {
-            if (this.listenersOf(element, listenerType).length > 0) {
+        for (const listenerType of ["executionListener", "taskListener"] as PanelListenerType[]) {
+            if (findListenerAt(element?.businessObject, listenerScriptKind(listenerType), 0)) {
                 return this.openListener(element.id, listenerType, 0);
             }
         }
@@ -98,18 +99,19 @@ export class ScriptEditorOpener {
      *
      * @returns `true` if the listener exists and the event fired.
      */
-    openListener(elementId: string, listenerType: ListenerType, listenerIndex: number): boolean {
+    openListener(
+        elementId: string,
+        listenerType: PanelListenerType,
+        listenerIndex: number,
+    ): boolean {
         const element = this.elementRegistry.get(elementId);
-        const listener = element
-            ? this.listenersOf(element, listenerType)[listenerIndex]
-            : undefined;
+        const kind = listenerScriptKind(listenerType);
+        const listener = findListenerAt(element?.businessObject, kind, listenerIndex);
         if (!element || !listener) {
             return false;
         }
 
         this.ensureInlineScript(element, listener);
-
-        const kind = listenerType === "executionListener" ? "execution-listener" : "task-listener";
 
         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
             elementId,
@@ -167,16 +169,6 @@ export class ScriptEditorOpener {
             delegateExpression: undefined,
             script,
         });
-    }
-
-    private listenersOf(element: Element, listenerType: ListenerType): ListenerModdle[] {
-        const extensionType =
-            listenerType === "executionListener"
-                ? "camunda:ExecutionListener"
-                : "camunda:TaskListener";
-        return (element?.businessObject?.extensionElements?.values || []).filter(
-            (e) => e.$type === extensionType,
-        );
     }
 }
 

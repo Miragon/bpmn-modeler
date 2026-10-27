@@ -14,6 +14,7 @@ export * from "./surfaceMode";
 export * from "./lint";
 export * from "./settings";
 export * from "./scripting";
+export * from "./scriptSurface";
 export * from "./implementation";
 export * from "./diff";
 export * from "./layout";

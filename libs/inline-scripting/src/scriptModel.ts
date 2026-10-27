@@ -1,120 +1,30 @@
-import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
+import { resolveScriptWriteTarget, scriptPropertyName } from "@miragon/bpmn-modeler-types";
+import type { ScriptKind, ScriptPropertyName, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
-import type {
-    ElementCollection,
-    ElementLookup,
-    ListenerModdle,
-    ScriptModdle,
-    ScriptTaskBusinessObject,
-} from "./bpmnTypes";
+import type { ElementCollection, ElementLookup, ScriptTaskBusinessObject } from "./bpmnTypes";
 
 /**
- * Model-side script lookups shared by {@link BpmnModeler}'s write path and the
- * {@link ScriptSourceWatcher}'s read path, so both resolve a script through
- * the exact same addressing rules and can never disagree about which listener
- * a `(kind, listenerIndex)` pair means.
+ * Model-side script reads. They address scripts through the script-surface
+ * table, as writes do, so a read and a write agree on which element and
+ * property a `(kind, listenerIndex)` pair means.
  */
-
-type ScriptListenerKind = Exclude<ScriptKind, "script-task">;
-
-type ScriptListenerType = "camunda:ExecutionListener" | "camunda:TaskListener";
-
-/** The plain BPMN attribute, because the properties panel ignores `camunda:scriptFormat`. */
-const SCRIPT_TASK_FORMAT_PROPERTY = "scriptFormat";
 
 /** Earlier releases of this extension wrote it, so older diagrams may carry only this one. */
 const LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE = "camunda:scriptFormat";
 
-/** Which half of an inline script a host edit replaces. */
-export type ScriptField = "content" | "format";
-
-/** The moddle element and property a host edit of one {@link ScriptField} writes to. */
-export interface ScriptWriteTarget {
-    readonly moddleElement: ScriptTaskBusinessObject | ScriptModdle;
-    readonly propertyName: "script" | "scriptFormat" | "value";
-}
-
-function scriptListenerType(kind: ScriptListenerKind): ScriptListenerType {
-    return kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
-}
-
-/** Names the addressed script surface for host-log messages. */
-export function describeScriptSurface(
-    elementId: string,
-    kind: ScriptKind,
-    listenerIndex: number | undefined,
-): string {
-    if (kind === "script-task") {
-        return elementId;
-    }
-    return `${scriptListenerType(kind)} #${listenerIndex} on ${elementId}`;
-}
-
-/**
- * Returns the `index`-th listener of `listenerType` from the element's
- * extension elements, or undefined if not found.
- *
- * Mirrors the upstream filtering bpmn-js-properties-panel does in
- * `ExecutionListenerProps` / `TaskListenerProps` so indices stay aligned
- * with what the user sees in the properties panel.
- */
-export function findListenerAt(
-    bo: ScriptTaskBusinessObject | undefined,
-    listenerType: ScriptListenerType,
-    index: number | undefined,
-): ListenerModdle | undefined {
-    if (index === undefined) {
-        return undefined;
-    }
-    const values = bo?.extensionElements?.values ?? [];
-    const filtered = values.filter((v) => v.$type === listenerType);
-    return filtered[index];
-}
-
-/**
- * The write counterpart of {@link readScriptContent}: where a host edit of a
- * script's content or format lands. A script task carries both on itself; a
- * listener carries them on its nested `camunda:Script`. `undefined` means the
- * addressed surface has no inline script to write to — mirroring
- * {@link readScriptContent}, which reports the same surfaces as absent.
- * modeler-core's `resolveScriptBodyTarget` mirrors the content half for the
- * host-side XML fallback; keep the two in step.
- */
-export function resolveScriptWriteTarget(
-    bo: ScriptTaskBusinessObject,
-    kind: ScriptKind,
-    listenerIndex: number | undefined,
-    field: ScriptField,
-): ScriptWriteTarget | undefined {
-    if (kind === "script-task") {
-        // A replace-menu morph keeps the element id; writing anyway would leave a
-        // stray `script`/`scriptFormat` attribute on the new element type.
-        if (bo.$type !== "bpmn:ScriptTask") {
-            return undefined;
-        }
-        return {
-            moddleElement: bo,
-            propertyName: field === "content" ? "script" : SCRIPT_TASK_FORMAT_PROPERTY,
-        };
-    }
-    const listener = findListenerAt(bo, scriptListenerType(kind), listenerIndex);
-    if (!listener?.script) {
-        return undefined;
-    }
-    return {
-        moddleElement: listener.script,
-        propertyName: field === "content" ? "value" : "scriptFormat",
-    };
-}
+// A script task and a nested `camunda:Script` each declare only the properties they store.
+type ScriptPropertyHolder = Partial<Record<ScriptPropertyName, string>>;
 
 /**
  * Reads a script's current content from the model.
  *
  * `undefined` means the script *surface* no longer exists — the element is
- * gone, or a listener (or its nested `camunda:Script`) was removed — which
- * callers treat as "close the editor tab". A script task whose `script`
- * property is merely unset maps to `""` instead: the property is always
- * writable on the element, so the tab can stay open on empty content.
+ * gone, it morphed away from a script task (a replace-menu morph keeps the
+ * id), or a listener (or its nested `camunda:Script`) was removed — which
+ * callers treat as "close the editor tab" rather than strand a detached
+ * buffer. A script task whose `script` property is merely unset maps to `""`
+ * instead: the property is always writable on the element, so the tab can
+ * stay open on empty content.
  */
 export function readScriptContent(
     elementRegistry: ElementLookup,
@@ -122,30 +32,16 @@ export function readScriptContent(
     kind: ScriptKind,
     listenerIndex: number | undefined,
 ): string | undefined {
-    const element = elementRegistry.get(elementId);
-    if (!element) {
+    const businessObject = elementRegistry.get(elementId)?.businessObject;
+    if (!businessObject) {
         return undefined;
     }
-    if (kind === "script-task") {
-        // A replace-menu morph keeps the element id but drops the ScriptTask
-        // surface, so `script` is gone. Report the surface as absent (→ close
-        // the tab) rather than `""`, which would strand an editable-looking but
-        // detached buffer. Mirrors `collectInlineScriptTasks`, which likewise
-        // filters on `$type === "bpmn:ScriptTask"`.
-        if (element.businessObject?.$type !== "bpmn:ScriptTask") {
-            return undefined;
-        }
-        return element.businessObject?.script ?? "";
-    }
-    const listener = findListenerAt(
-        element.businessObject,
-        scriptListenerType(kind),
-        listenerIndex,
-    );
-    if (!listener?.script) {
+    const contentTarget = resolveScriptWriteTarget(businessObject, kind, listenerIndex, "content");
+    if (!contentTarget) {
         return undefined;
     }
-    return listener.script.value ?? "";
+    const contentHolder: ScriptPropertyHolder = contentTarget.moddleElement;
+    return contentHolder[contentTarget.propertyName] ?? "";
 }
 
 /**
@@ -160,9 +56,10 @@ export function readScriptContent(
  * plain moddle object may expose the attribute only as a direct property.
  */
 export function readScriptTaskFormat(bo: ScriptTaskBusinessObject | undefined): string {
+    const formatProperty = scriptPropertyName("script-task", "format");
     return (
-        bo?.get?.(SCRIPT_TASK_FORMAT_PROPERTY) ||
-        bo?.[SCRIPT_TASK_FORMAT_PROPERTY] ||
+        bo?.get?.(formatProperty) ||
+        bo?.[formatProperty] ||
         bo?.get?.(LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE) ||
         ""
     );

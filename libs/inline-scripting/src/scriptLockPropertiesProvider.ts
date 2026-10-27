@@ -1,11 +1,16 @@
 import { Fragment, jsx, jsxs } from "@bpmn-io/properties-panel/preact/jsx-runtime";
+import { findListenerAt } from "@miragon/bpmn-modeler-types";
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ScriptModdle } from "./bpmnTypes";
-import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
+import {
+    LISTENER_ENTRY_ID_PATTERN,
+    listenerScriptKind,
+    type PanelListenerType,
+} from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
-import { findListenerAt, readScriptTaskFormat } from "./scriptModel";
+import { readScriptTaskFormat } from "./scriptModel";
 
 /**
  * Runs *below* the stock Camunda provider (which registers at priority 500).
@@ -237,14 +242,12 @@ export class ScriptLockPropertiesProvider {
                     if (!match || !Array.isArray(item.entries)) {
                         continue;
                     }
-                    const kind: ScriptKind =
-                        match[2] === "executionListener" ? "execution-listener" : "task-listener";
                     this.lockEntry(
                         item.entries,
                         `${item.id}${SCRIPT_VALUE_SUFFIX}`,
                         element,
                         match[1],
-                        kind,
+                        listenerScriptKind(match[2] as PanelListenerType),
                         parseInt(match[3], 10),
                     );
                 }
@@ -332,9 +335,7 @@ export class ScriptLockPropertiesProvider {
             };
         }
 
-        const listenerType =
-            kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
-        const listener = findListenerAt(bo, listenerType, listenerIndex ?? 0);
+        const listener = findListenerAt(bo, kind, listenerIndex ?? 0);
         if (!listener?.script) {
             return undefined;
         }

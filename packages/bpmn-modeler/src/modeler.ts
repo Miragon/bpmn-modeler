@@ -17,23 +17,24 @@ import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnlintConfig,
     BpmnModelerSetting,
+    describeScriptSurface,
     DisposableStore,
     Engine,
     getLatestVersion,
     LintResults,
     OpenScriptEditorRef,
+    resolveScriptWriteTarget,
+    ScriptField,
     ScriptKind,
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
 import {
     collectInlineScriptTasks,
-    describeScriptSurface,
     OpenScriptEditorsStore,
-    resolveScriptWriteTarget,
     ScriptSourceWatcher,
 } from "@miragon/bpmn-modeler-inline-scripting";
-import type { ScriptField, ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
+import type { ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules } from "./lintModules";
 import {
     BPMN_TAB,

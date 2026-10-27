@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-10-26
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -184,7 +184,9 @@ rules of `libs/modeler-core` (`src/**/domain/**`) and reports which mutants
 the specs fail to kill. Services are left out on purpose: they orchestrate
 ports over in-memory fakes, mutate slowly and mostly yield equivalent mutants.
 The domain is where rules belong, so its score is the measurable proxy for
-"every rule has a spec that bites".
+"every rule has a spec that bites". Rules the webview applies too live in
+`libs/modeler-types`, which Stryker does not mutate; their specs are checked
+by breaking the rule by hand.
 
 `@stryker-mutator/core` and `@stryker-mutator/vitest-runner` are declared in
 `libs/modeler-core`, the workspace that runs them, so its focused install and

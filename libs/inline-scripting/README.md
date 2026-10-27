@@ -21,11 +21,14 @@ owns it.
   reports open for a surface the imported diagram no longer has (the task
   changed type while the webview was hidden) is closed the same way; before
   the first successful import no surface counts as gone.
-- **Model helpers** — `collectInlineScriptTasks` / `findListenerAt` /
-  `resolveScriptWriteTarget` read and address inline scripts. The host-side
-  rewrite fallback mirrors the write addressing in
-  `libs/modeler-core/src/scriptTask/domain/scriptBodyTarget.ts`; keep the two
-  in step.
+- **Model reads** — `collectInlineScriptTasks`, `readScriptContent` and
+  `readScriptTaskFormat` read inline scripts off the live model. Which element
+  and property a `(kind, listenerIndex)` pair addresses comes from the one
+  script-surface table in `@miragon/bpmn-modeler-types`
+  (`libs/modeler-types/src/scriptSurface.ts`: `findListenerAt`,
+  `resolveScriptWriteTarget`, `scriptPropertyName`, `describeScriptSurface`).
+  The core's host-side XML rewrite fallback addresses scripts through the same
+  table.
 
 ## Event contract
 

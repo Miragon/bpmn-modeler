@@ -1,19 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveScriptWriteTarget } from "@miragon/bpmn-modeler-types";
+
 import type {
     Element,
     ElementCollection,
     ElementLookup,
-    ListenerModdle,
     ScriptTaskBusinessObject,
 } from "./bpmnTypes";
-import {
-    collectInlineScriptTasks,
-    describeScriptSurface,
-    readScriptContent,
-    readScriptTaskFormat,
-    resolveScriptWriteTarget,
-} from "./scriptModel";
+import { collectInlineScriptTasks, readScriptContent, readScriptTaskFormat } from "./scriptModel";
 
 /**
  * Builds a moddle-like business object whose `get(name)` reads back the same
@@ -103,6 +98,30 @@ describe("readScriptContent", () => {
             readScriptContent(registryWith(element), "Task_1", "script-task", undefined),
         ).toBeUndefined();
     });
+
+    it.each([
+        ["an inline script", { value: "execution()" }, "execution()"],
+        ["an empty inline script", {}, ""],
+    ])(
+        "reads a listener with %s by its index among listeners of that type",
+        (_case, script, content) => {
+            const element = {
+                id: "Task_1",
+                businessObject: {
+                    $type: "bpmn:UserTask",
+                    extensionElements: {
+                        values: [
+                            { $type: "camunda:TaskListener", script: { value: "task()" } },
+                            { $type: "camunda:ExecutionListener", script },
+                        ],
+                    },
+                },
+            };
+            expect(
+                readScriptContent(registryWith(element), "Task_1", "execution-listener", 0),
+            ).toBe(content);
+        },
+    );
 });
 
 describe("collectInlineScriptTasks", () => {
@@ -173,102 +192,5 @@ describe("collectInlineScriptTasks", () => {
             businessObject: businessObject({ $type: "bpmn:ExclusiveGateway" }),
         };
         expect(collectInlineScriptTasks(elementRegistry([gateway]))).toEqual([]);
-    });
-});
-
-describe("resolveScriptWriteTarget", () => {
-    function listener(
-        $type: string,
-        script?: { value: string; scriptFormat: string },
-    ): ListenerModdle {
-        return script ? { $type, script: { $type: "camunda:Script", ...script } } : { $type };
-    }
-
-    const classBasedExecutionListener = listener("camunda:ExecutionListener");
-    const inlineExecutionListener = listener("camunda:ExecutionListener", {
-        value: "execution()",
-        scriptFormat: "javascript",
-    });
-    const inlineTaskListener = listener("camunda:TaskListener", {
-        value: "task()",
-        scriptFormat: "groovy",
-    });
-    // Interleaved types: indices count only the listeners of the addressed type,
-    // the way the properties panel numbers them.
-    const userTask: ScriptTaskBusinessObject = {
-        $type: "bpmn:UserTask",
-        extensionElements: {
-            values: [classBasedExecutionListener, inlineTaskListener, inlineExecutionListener],
-        },
-    };
-
-    it.each([
-        ["content", "script"],
-        ["format", "scriptFormat"],
-    ] as const)("writes a script task's %s to its own %s property", (field, propertyName) => {
-        const scriptTask: ScriptTaskBusinessObject = { $type: "bpmn:ScriptTask", script: "x" };
-
-        expect(resolveScriptWriteTarget(scriptTask, "script-task", undefined, field)).toEqual({
-            moddleElement: scriptTask,
-            propertyName,
-        });
-    });
-
-    it.each([
-        ["content", "value"],
-        ["format", "scriptFormat"],
-    ] as const)("writes a listener's %s to the nested camunda:Script %s", (field, propertyName) => {
-        const executionTarget = resolveScriptWriteTarget(userTask, "execution-listener", 1, field);
-        const taskTarget = resolveScriptWriteTarget(userTask, "task-listener", 0, field);
-
-        expect(executionTarget?.moddleElement).toBe(inlineExecutionListener.script);
-        expect(executionTarget?.propertyName).toBe(propertyName);
-        expect(taskTarget?.moddleElement).toBe(inlineTaskListener.script);
-    });
-
-    it("has no script-task target once the element is no longer a bpmn:ScriptTask", () => {
-        // A replace-menu morph keeps the element id, so a late host push still resolves it.
-        const morphedTask: ScriptTaskBusinessObject = { $type: "bpmn:UserTask" };
-
-        expect(
-            resolveScriptWriteTarget(morphedTask, "script-task", undefined, "content"),
-        ).toBeUndefined();
-        expect(
-            resolveScriptWriteTarget(morphedTask, "script-task", undefined, "format"),
-        ).toBeUndefined();
-    });
-
-    it("has no target for a listener without an inline script", () => {
-        expect(
-            resolveScriptWriteTarget(userTask, "execution-listener", 0, "content"),
-        ).toBeUndefined();
-    });
-
-    it.each([
-        ["past the last listener of that type", 2],
-        ["without a listener index", undefined],
-    ])("has no target %s", (_case, listenerIndex) => {
-        expect(
-            resolveScriptWriteTarget(userTask, "execution-listener", listenerIndex, "content"),
-        ).toBeUndefined();
-    });
-
-    it("has no listener target on an element without extension elements", () => {
-        const plainTask: ScriptTaskBusinessObject = { $type: "bpmn:Task" };
-
-        expect(resolveScriptWriteTarget(plainTask, "task-listener", 0, "format")).toBeUndefined();
-    });
-});
-
-describe("describeScriptSurface", () => {
-    it("names a script task by its element id", () => {
-        expect(describeScriptSurface("Task_1", "script-task", undefined)).toBe("Task_1");
-    });
-
-    it.each([
-        ["execution-listener", "camunda:ExecutionListener #0 on Task_1"],
-        ["task-listener", "camunda:TaskListener #0 on Task_1"],
-    ] as const)("names a %s by type, index, and element", (kind, description) => {
-        expect(describeScriptSurface("Task_1", kind, 0)).toBe(description);
     });
 });
