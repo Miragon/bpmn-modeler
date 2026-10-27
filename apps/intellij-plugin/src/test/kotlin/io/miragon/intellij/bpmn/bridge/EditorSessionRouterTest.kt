@@ -830,14 +830,10 @@ class EditorSessionRouterTest {
 
         f.router.reregisterLiveSessions()
 
-        val framesForClosedSession =
-            f.wired.fake.framesUntilQuiet()
-                .map(::parse)
-                .filter { it.getAsJsonObject("params").get("sessionId").asLong == page.sessionId }
-                .map { it.frameLabel() }
+        val framesForClosedSession = f.wired.fake.framesUntilQuiet().map(::parse).labelsFor(page)
         assertEquals(
             "session/dispose",
-            framesForClosedSession.last(),
+            framesForClosedSession.lastOrNull(),
             "the new bridge must not keep a session for a closed tab: $framesForClosedSession",
         )
     }
