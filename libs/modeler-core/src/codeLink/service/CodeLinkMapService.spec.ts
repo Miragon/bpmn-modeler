@@ -628,6 +628,35 @@ describe("CodeLinkMapService — lifecycle", () => {
         expect(watchers).toEqual([]);
     });
 
+    it("pushes no status to an editor closed while its resolve ran", async () => {
+        const { service, editor, locator } = createService();
+        locator.resolveMany.mockImplementationOnce((entries: ImplementationEntry[]) => {
+            service.disposeEditor(editor.id);
+            return Promise.resolve(
+                new Map(entries.map(({ activityId }) => [activityId, ["/p/a"]])),
+            );
+        });
+
+        await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
+
+        expect(lastStatus(editor)).toBeUndefined();
+    });
+
+    it("pushes no status to an editor closed while a changed file was read", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor } = createService();
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        const pushesBefore = editor.posted.length;
+        vi.spyOn(host.workspace, "readFile").mockImplementationOnce(() => {
+            service.disposeEditor(editor.id);
+            return Promise.resolve('@JobWorker(type = "pay")');
+        });
+
+        await service.onSourceFileChanged(worker, "created", ROOT);
+
+        expect(editor.posted.length).toBe(pushesBefore);
+    });
+
     it("releases the editor's share of the source index when it closes", async () => {
         const { service, editor, sourceIndex } = createService({ resolveMap: { a: ["/p/a"] } });
         await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
