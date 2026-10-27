@@ -26,16 +26,20 @@ other tools require an explicit reconciliation path.
 Store named targets in `<configFolder>/deployment-targets.json`, defaulting to
 `.camunda/deployment-targets.json`. Discover the nearest file by walking from
 the focused document toward its workspace root using the shared config-file
-discovery helper. Target names are trimmed, non-empty and unique.
+discovery helper. Target names are unique.
 `DeploymentTarget.create` owns the target value rules, and both the file parser
-and a form save build targets through it: a trimmed, non-blank name; a
-non-blank endpoint and the tenant kept verbatim, since named ledger keys are
-built from the endpoint and trimming would orphan the rows of a hand-edited
-file; URL overrides trimmed, or dropped when blank; only the fields and
-credential refs of the target's auth type (`TargetAuth`); and valid environment
-references ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
-Parse the team-editable file defensively: the parser checks the JSON shape and
-reports a broken value rule as `targets[i]` plus the field. Register the file's
+and a form save build targets through it: a trimmed, non-blank name; an engine
+of `c7` or `c8`; a non-blank endpoint and the tenant kept verbatim, since named
+ledger keys are built from the endpoint and trimming would orphan the rows of a
+hand-edited file; URL overrides trimmed, or dropped when blank; an auth type of
+`none`, `basic` or `oauth2`, keeping only its own fields and credential refs
+(`TargetAuth`); and valid environment references
+([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+`create` checks the engine and auth type at runtime, because the protocol
+payload of a form save is not checked on arrival: a malformed save is rejected
+before it writes a file that would no longer load. Parse the team-editable file
+defensively: the parser checks the JSON shape and reports a broken value rule
+as `targets[i]` plus the field. Register the file's
 [JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json)
 for editor validation. A malformed file reports an error and yields no targets
 rather than crashing the sidebar.
