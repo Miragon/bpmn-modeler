@@ -622,6 +622,12 @@ describe("RpcNotifier", () => {
         notifier.showInfo("done");
         expect(last(frames)).toEqual({ method: "notifier/showInfo", params: { message: "done" } });
 
+        notifier.showWarning("careful");
+        expect(last(frames)).toEqual({
+            method: "notifier/showWarning",
+            params: { message: "careful" },
+        });
+
         notifier.showError("boom");
         expect(last(frames)).toEqual({
             method: "notifier/showError",
