@@ -144,9 +144,10 @@ export function register(
         const handle = new RpcEditorHandle(params, deps.mirror, deps.rpc, deps.settings);
         handles.set(params.editorId, { handle, sessionId: params.sessionId });
 
-        deps.store.register(handle);
-        // Registering makes the session the active editor, even when its id already was.
+        // The host registers the tab it opens, so the session counts as focused. Set
+        // before registering: the store hands the command target only to a focused session.
         handle.setActive(true);
+        deps.store.register(handle);
         deps.store.setHostDocumentRevision(params.editorId, params.documentRevision ?? 0);
 
         // Seed discovery with the host's authoritative root before the

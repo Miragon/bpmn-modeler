@@ -119,13 +119,13 @@ describe("DeploymentFeature.attachPanel", () => {
         host.openEditor(ORDER_PROCESS);
         const { panel, posted } = attach(feature, false);
 
-        host.openEditor("/ws/src/hidden-switch.bpmn");
+        host.openEditor("/ws/src/hidden-switch.bpmn", "", { focused: true });
         expect(formDefaultsIn(posted)).toEqual([]);
 
         panel.setVisible(true);
-        host.openEditor("/ws/src/invoice.bpmn");
+        host.openEditor("/ws/src/invoice.bpmn", "", { focused: true });
         panel.setVisible(false);
-        host.openEditor("/ws/src/after-hide.bpmn");
+        host.openEditor("/ws/src/after-hide.bpmn", "", { focused: true });
 
         expect(formDefaultsIn(posted).map((query) => query.defaults.deploymentName)).toEqual([
             "hidden-switch",
@@ -141,7 +141,7 @@ describe("DeploymentFeature.attachPanel", () => {
         posted.length = 0;
 
         panel.dispose();
-        host.openEditor("/ws/src/invoice.bpmn");
+        host.openEditor("/ws/src/invoice.bpmn", "", { focused: true });
         await feature.switchTarget();
         await settle();
 

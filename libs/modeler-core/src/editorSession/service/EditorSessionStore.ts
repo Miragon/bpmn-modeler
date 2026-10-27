@@ -1,5 +1,6 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
+import { CommandTarget } from "../domain/CommandTarget";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
 import { EditorHandle } from "./EditorHandle";
 
@@ -27,7 +28,7 @@ export class EditorSessionStore {
     private readonly latestDocumentSync: Map<EditorHandle, string> = new Map();
     private readonly hostDocumentRevisions: Map<EditorHandle, number> = new Map();
 
-    private activeEditorId: string | undefined;
+    private readonly commandTarget = new CommandTarget();
 
     private readonly activeEditorListeners: Set<(id: string) => void> = new Set();
 
@@ -40,11 +41,15 @@ export class EditorSessionStore {
     constructor(private readonly onOpenCountChanged: (count: number) => void) {}
 
     /**
-     * Registers an already-constructed session and makes it active. Webview
-     * bootstrap happens separately in {@link VsCodeEditorHandle.create}.
+     * Registers an already-constructed session. It becomes the command target
+     * if it is focused, if no session holds the target, or if it replaces the
+     * session that does. Webview bootstrap happens separately in
+     * {@link VsCodeEditorHandle.create}.
      */
     register(handle: EditorHandle): void {
         const replaced = this.editors.get(handle.id);
+        // Retiring the replaced session hands the target to another editor first.
+        const replacesTarget = replaced !== undefined && this.commandTarget.editorId === handle.id;
         if (replaced && replaced !== handle) {
             this.editorQueues.delete(replaced);
             this.latestDocumentSync.delete(replaced);
@@ -55,16 +60,14 @@ export class EditorSessionStore {
         }
         this.editors.set(handle.id, handle);
         if (!this.hostDocumentRevisions.has(handle)) this.hostDocumentRevisions.set(handle, 0);
-        this.setActiveEditor(handle.id);
+        this.announceActiveEditor(
+            this.commandTarget.open(handle.id, handle.isActive() || replacesTarget),
+        );
         this.onOpenCountChanged(this.editors.size);
     }
 
     setActiveEditor(id: string): void {
-        if (id === this.activeEditorId) {
-            return;
-        }
-        this.activeEditorId = id;
-        this.activeEditorListeners.forEach((listener) => listener(id));
+        this.announceActiveEditor(this.commandTarget.focus(id));
     }
 
     /**
@@ -143,16 +146,13 @@ export class EditorSessionStore {
         return handle === session && sameDocumentContent(handle.getContent(), content);
     }
 
-    /**
-     * The editor a command acts on, which is not always the focused one: text
-     * editors are not sessions, so the pointer stays on a diagram while a text
-     * editor is active, and it moves to a session that resolves in the background.
-     */
+    /** The editor a command acts on; see {@link CommandTarget}. */
     getActiveEditorId(): string {
-        if (!this.activeEditorId) {
+        const editorId = this.commandTarget.editorId;
+        if (!editorId) {
             throw new Error("No active editor.");
         }
-        return this.activeEditorId;
+        return editorId;
     }
 
     /** Focus is the handle's `isActive()`; the active-editor pointer is the command target. */
@@ -358,10 +358,6 @@ export class EditorSessionStore {
         this.hostDocumentRevisions.clear();
     }
 
-    /**
-     * After disposal, the active-editor pointer moves to the most recently
-     * registered remaining editor, or clears if none remain.
-     */
     private disposeEditor(editorId: string, expected?: EditorHandle): boolean {
         const handle = this.editors.get(editorId);
         if (!handle || (expected && handle !== expected)) return false;
@@ -373,15 +369,13 @@ export class EditorSessionStore {
 
         this.onOpenCountChanged(this.editors.size);
 
-        if (this.activeEditorId === editorId) {
-            const remaining = [...this.editors.keys()];
-            const next = remaining.length > 0 ? remaining[remaining.length - 1] : undefined;
-            this.activeEditorId = next;
-            if (next) {
-                this.activeEditorListeners.forEach((listener) => listener(next));
-            }
-        }
+        this.announceActiveEditor(this.commandTarget.close(editorId, [...this.editors.keys()]));
         return true;
+    }
+
+    private announceActiveEditor(editorId: string | undefined): void {
+        if (editorId === undefined) return;
+        this.activeEditorListeners.forEach((listener) => listener(editorId));
     }
 }
 

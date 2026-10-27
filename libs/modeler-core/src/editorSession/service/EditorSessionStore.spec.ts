@@ -167,6 +167,19 @@ describe("EditorSessionStore", () => {
         expect(store.getActiveEditorId()).toBe(focused.id);
     });
 
+    it("keeps the command target on a document whose session is replaced in the background", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const original = new FakeEditorHandle(A_PATH);
+        original.active = true;
+        store.register(original);
+        store.subscribeToDisposeEvent(original.id);
+        store.register(new FakeEditorHandle("/repo/other.bpmn"));
+
+        store.register(new FakeEditorHandle(A_PATH));
+
+        expect(store.getActiveEditorId()).toBe(A_ID);
+    });
+
     it("moves the command target to a background session once its panel becomes active", () => {
         const store = new EditorSessionStore(vi.fn());
         const focused = new FakeEditorHandle("/repo/1.bpmn");
@@ -210,6 +223,7 @@ describe("EditorSessionStore", () => {
         const third = new FakeEditorHandle("/repo/3.bpmn");
         const thirdDisposeListener = vi.spyOn(third, "onDidDispose");
         [first, second, third].forEach((handle) => {
+            handle.active = true;
             store.register(handle);
             store.subscribeToDisposeEvent(handle.id);
         });
@@ -237,6 +251,7 @@ describe("EditorSessionStore", () => {
         const store = new EditorSessionStore(vi.fn());
         const background = new FakeEditorHandle("/repo/1.bpmn");
         const active = new FakeEditorHandle("/repo/2.bpmn");
+        active.active = true;
         store.register(background);
         store.register(active);
         store.subscribeToDisposeEvent(background.id);

@@ -134,7 +134,7 @@ beforeEach(() => {
 describe("CommandController.toggle", () => {
     it("toggles the text editor for the active document's path", async () => {
         const { controller, host, textEditor } = createController();
-        host.openEditor("/work/other.bpmn");
+        host.openEditor("/work/other.bpmn", "", { focused: true });
 
         await controller.toggle();
 

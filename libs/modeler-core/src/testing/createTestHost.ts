@@ -61,8 +61,13 @@ export function createTestHost(options: TestHostOptions = {}) {
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),
         diagnostics: new RecordingDiagnostics(),
-        openEditor(path: string, content = ""): FakeEditorHandle {
+        openEditor(
+            path: string,
+            content = "",
+            { focused = false }: { focused?: boolean } = {},
+        ): FakeEditorHandle {
             const handle = new FakeEditorHandle(path, { content, documentChanges });
+            handle.active = focused;
             store.register(handle);
             return handle;
         },
