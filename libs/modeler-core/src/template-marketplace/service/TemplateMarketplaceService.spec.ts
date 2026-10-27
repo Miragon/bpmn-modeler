@@ -523,8 +523,8 @@ describe("TemplateMarketplaceService.updateAll", () => {
 
         expect(outcome.failures).toHaveLength(1);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
-        expect(notifier.logged("debug")).toContainEqual(
-            expect.stringContaining("Skipped marketplace cache prune"),
+        expect(notifier.logged("debug")).toContain(
+            'Skipped marketplace cache prune: an unparseable entry left its id unknown ({"provider":"bogus"})',
         );
     });
 });
@@ -560,18 +560,22 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
         expect(cachedPaths()).toEqual([]);
     });
 
-    it("suppresses pruning and returns [] when a settings entry cannot be parsed", async () => {
+    it("suppresses pruning and names every entry that cannot be parsed", async () => {
         const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
         });
-        settings.values.marketplaces = [{ provider: "bogus" } as never];
+        settings.values.marketplaces = [
+            { provider: "bogus" } as never,
+            "https://github.com/acme/one",
+            "~/templates",
+        ];
 
         const pruned = await service.pruneOrphanedCaches();
 
         expect(pruned).toEqual([]);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
-        expect(notifier.logged("debug")).toContainEqual(
-            expect.stringContaining("Skipped marketplace cache prune"),
+        expect(notifier.logged("debug")).toContain(
+            'Skipped marketplace cache prune: an unparseable entry left its id unknown ({"provider":"bogus"}; ~/templates)',
         );
     });
 });
