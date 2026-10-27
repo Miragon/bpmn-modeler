@@ -1,15 +1,9 @@
 import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
-import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
+import { openLocatedFile } from "../../kernel/service/openLocatedFile";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
 
 import { ImplementationLocator } from "./ImplementationLocator";
-
-// Maximum length of a reference echoed back into a user-facing notification.
-const REFERENCE_DISPLAY_LIMIT = 100;
-
-// Tighter cap for the busy-list placeholder — it's space-constrained.
-const PROGRESS_LABEL_LIMIT = 40;
 
 /**
  * Resolves a Camunda implementation reference to a workspace source file and
@@ -17,9 +11,7 @@ const PROGRESS_LABEL_LIMIT = 40;
  * webview.
  *
  * A thin orchestrator: it delegates the search to {@link ImplementationLocator}
- * and maps the structured result to user-facing notifications, a QuickPick (for
- * multi-match), and `vscode.open` — the exact 0/1/N flow of
- * `ModelNavigationService`.
+ * and the 0/1/N flow to {@link openLocatedFile}, and owns only its wording.
  */
 export class ImplementationNavigationService {
     constructor(
@@ -34,57 +26,18 @@ export class ImplementationNavigationService {
         sourceDocumentPath?: string,
     ): Promise<void> {
         const label = ImplementationTarget.of(kind, reference).label;
-        const display = truncateForDisplay(reference, REFERENCE_DISPLAY_LIMIT);
-        // The picker shows the search spinner on the list itself; this service
-        // still owns the 0/1/error messaging. `picked` is set only on a
-        // multi-match pick.
-        const { outcome: result, chosen: picked } = await this.picker.searchAndPickLocatedFile(
+        await openLocatedFile(
             {
-                searchingPlaceholder: `Searching for ${label} "${truncateForDisplay(reference, PROGRESS_LABEL_LIMIT)}"…`,
+                reference,
+                locate: () => this.locator.resolve(reference, kind, sourceDocumentPath),
+                searchSubject: label,
                 pickPlaceholder: "Select the referenced model to open",
+                noSearchScopeMessage: (displayReference) =>
+                    `No implementation for "${displayReference}" was found. Open a folder to enable code navigation.`,
+                notFoundMessage: (displayReference) =>
+                    `No implementation for ${label} "${displayReference}" was found in the workspace.`,
             },
-            () => this.locator.resolve(reference, kind, sourceDocumentPath),
+            { notifier: this.notifier, picker: this.picker },
         );
-
-        if (result.kind === "no-search-scope") {
-            this.notifier.showInfo(
-                `No implementation for "${display}" was found. Open a folder to enable code navigation.`,
-            );
-            return;
-        }
-
-        if (result.kind === "all-unreadable") {
-            result.failures.forEach((message) => this.notifier.logWarning(message));
-            this.notifier.showError(
-                `Could not search for "${display}" — none of the candidate files were readable.`,
-            );
-            return;
-        }
-
-        result.readFailures.forEach((message) => this.notifier.logWarning(message));
-
-        let chosen: string | undefined;
-        if (result.paths.length === 0) {
-            this.notifier.showInfo(
-                `No implementation for ${label} "${display}" was found in the workspace. ` +
-                    `(See Output → bpmn.modeler for what was searched.)`,
-            );
-            return;
-        } else if (result.paths.length === 1) {
-            chosen = result.paths[0];
-        } else {
-            chosen = picked;
-        }
-
-        if (!chosen) {
-            return;
-        }
-
-        try {
-            await this.notifier.openDocument(chosen);
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            this.notifier.showError(`Could not open ${chosen}: ${(error as Error).message}`);
-        }
     }
 }
