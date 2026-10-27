@@ -140,40 +140,47 @@ describe("parseDeploymentTargetsFile", () => {
         expect(parsed.map((t) => t.name)).toEqual(["dev"]);
     });
 
-    it.each([
-        ["a non-object", 42],
-        ["a missing targets array", { targets: "nope" }],
-        ["an empty name", { targets: [{ name: "  ", engine: "c7", endpoint: "http://h" }] }],
-        ["an unknown engine", { targets: [{ name: "d", engine: "c9", endpoint: "http://h" }] }],
-        ["a missing endpoint", { targets: [{ name: "d", engine: "c7" }] }],
+    it.each<[string, unknown, string]>([
+        ["a non-object", 42, "expected a JSON object"],
+        ["null", null, "expected a JSON object"],
+        ["a missing targets array", { targets: "nope" }, "`targets` must be an array"],
+        ["a non-object entry", { targets: [42] }, "targets[0] must be an object"],
+        ["a null entry", { targets: [null] }, "targets[0] must be an object"],
         [
-            "an unknown auth type",
-            { targets: [{ name: "d", engine: "c7", endpoint: "http://h", auth: { type: "x" } }] },
+            "duplicate names",
+            {
+                targets: [
+                    { name: "dev", engine: "c7", endpoint: "http://h" },
+                    { name: " dev ", engine: "c8", endpoint: "http://h2" },
+                ],
+            },
+            'duplicate target name "dev"',
         ],
-    ])("throws on %s", (_desc, json) => {
-        expect(() => parseDeploymentTargetsFile(json)).toThrow(InvalidDeploymentTargetsFileError);
-    });
-
-    it.each<[string, Record<string, unknown>]>([
-        ["name", { name: 42 }],
-        ["name", { name: "  " }],
-        ["endpoint", { endpoint: undefined }],
-        ["endpoint", { endpoint: " " }],
-    ])("names targets[1] when its %s is not a non-empty string: %j", (field, entry) => {
-        expect(parseErrorMessage(entry)).toBe(
-            `Invalid deployment targets file: targets[1] "${field}" must be a non-empty string`,
+    ])("rejects %s", (_desc, json, reason) => {
+        expect(() => parseDeploymentTargetsFile(json)).toThrow(
+            new InvalidDeploymentTargetsFileError(reason),
         );
     });
 
-    it("rejects duplicate names", () => {
-        expect(() =>
-            parseDeploymentTargetsFile({
-                targets: [
-                    { name: "dev", engine: "c7", endpoint: "http://h" },
-                    { name: "dev", engine: "c8", endpoint: "http://h2" },
-                ],
-            }),
-        ).toThrow(InvalidDeploymentTargetsFileError);
+    it.each<[Record<string, unknown>, string]>([
+        [{ name: 42 }, '"name" must be a non-empty string'],
+        [{ name: "  " }, '"name" must be a non-empty string'],
+        [{ engine: "c9" }, '"engine" must be "c7" or "c8"'],
+        [{ endpoint: undefined }, '"endpoint" must be a non-empty string'],
+        [{ endpoint: " " }, '"endpoint" must be a non-empty string'],
+        [{ tenantId: 42 }, '"tenantId" must be a string'],
+        [{ auth: "basic" }, '"auth" must be an object'],
+        [{ auth: null }, '"auth" must be an object'],
+        [{ auth: { type: "x" } }, '"auth.type" must be "none", "basic", or "oauth2"'],
+        [{ auth: { type: "oauth2", audience: 42 } }, '"auth.audience" must be a string'],
+        [{ endpoints: "x" }, '"endpoints" must be an object'],
+        [{ endpoints: null }, '"endpoints" must be an object'],
+        [{ endpoints: { deploy: 42 } }, '"endpoints.deploy" must be a string'],
+        [{ endpoints: { startInstance: 42 } }, '"endpoints.startInstance" must be a string'],
+    ])("names targets[1] in the message for %j", (entry, problem) => {
+        expect(parseErrorMessage(entry)).toBe(
+            `Invalid deployment targets file: targets[1] ${problem}`,
+        );
     });
 
     it("parses whole-value env references in the active auth type's credential fields", () => {
@@ -579,6 +586,20 @@ describe("DeploymentTarget", () => {
             );
         });
 
+        it("keeps a username ref without a password, blanking the password", () => {
+            expect(
+                basicTarget(CredentialRefs.basic("${env:MIRAGON_USER}", undefined)).authWith(
+                    undefined,
+                ),
+            ).toEqual(new BasicAuth("${env:MIRAGON_USER}", ""));
+        });
+
+        it("keeps a stored client secret without a client id, blanking the id", () => {
+            expect(oauth2Target().authWith({ clientSecret: "stored-secret" })).toEqual(
+                new OAuth2Auth("", "stored-secret", "https://login/token", "aud"),
+            );
+        });
+
         it("returns NoAuth when neither the file nor the store has credentials", () => {
             expect(basicTarget().authWith(undefined)).toBeInstanceOf(NoAuth);
             expect(oauth2Target().authWith({})).toBeInstanceOf(NoAuth);
@@ -837,6 +858,12 @@ describe("serializeDeploymentTargets", () => {
         const parsed = parseDeploymentTargetsFile(JSON.parse(serializeDeploymentTargets(targets)));
 
         expect(parsed).toEqual(targets);
+    });
+
+    it("writes the auth type of a target without auth", () => {
+        expect(JSON.parse(serializeDeploymentTargets([target("dev")])).targets[0].auth).toEqual({
+            type: "none",
+        });
     });
 
     it("omits the endpoints block when there are no overrides", () => {
