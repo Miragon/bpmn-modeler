@@ -9,7 +9,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import { EditorHandle } from "../../editorSession/service/EditorHandle";
-import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
@@ -138,7 +138,7 @@ export class CodeLinkMapService {
         // The watcher glob carries no exclude, so a save under build output
         // (`target/`, `build/`, `dist/`, generated sources) still reaches here.
         // Skip it to match the batched scan, which already filters EXCLUDED_DIRS.
-        if (pathIsInsideExcludedDir(path)) {
+        if (isInsideExcludedDirBelow(path, root)) {
             return;
         }
 

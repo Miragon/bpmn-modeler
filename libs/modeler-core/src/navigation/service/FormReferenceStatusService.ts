@@ -1,7 +1,7 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
 import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { searchScopeKey, searchScopeRoots } from "../../kernel/domain/searchScope";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
@@ -106,7 +106,7 @@ export class FormReferenceStatusService {
         }
 
         const changed = (path: string) => {
-            if (!pathIsInsideExcludedDir(path)) this.scheduleRefresh(root);
+            if (!isInsideExcludedDirBelow(path, root)) this.scheduleRefresh(root);
         };
         try {
             const watcher = this.workspace.createWatcher(root, "**/*.form", {

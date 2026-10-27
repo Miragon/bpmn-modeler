@@ -1,6 +1,5 @@
-import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
-import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import { SearchScope, searchScopeKey } from "../../kernel/domain/searchScope";
 import {
@@ -168,7 +167,7 @@ class IndexedSources implements SourceCatalog {
         try {
             for (const folder of scope.folders) {
                 const watch = (onEvent: (path: string) => void) => (path: string) => {
-                    if (!isInsideExcludedDirWithin(folder, path)) {
+                    if (!isInsideExcludedDirBelow(path, folder)) {
                         onEvent(path);
                     }
                 };
@@ -320,12 +319,6 @@ class IndexedSources implements SourceCatalog {
         }
         return false;
     }
-}
-
-// Build output above the workspace folder (a checkout under `~/build/`) must
-// not hide every event inside it.
-function isInsideExcludedDirWithin(folder: string, path: string): boolean {
-    return pathIsInsideExcludedDir(relativeToRoot(path, folder) ?? path);
 }
 
 async function readOrUndefined(
