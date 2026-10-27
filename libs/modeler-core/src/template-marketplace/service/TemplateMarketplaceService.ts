@@ -1,8 +1,7 @@
 import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
+import { AccessDenial } from "../domain/accessDenial";
 import {
-    expandHomePath,
     InvalidMarketplaceError,
-    MarketplaceLocation,
     MarketplaceRegistration,
     MarketplaceUpdateFailure,
     MarketplaceUpdateOutcome,
@@ -10,7 +9,6 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
-import { matchesGlob } from "../domain/glob";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import {
     hostForConfig,
@@ -20,6 +18,8 @@ import {
     TokenPromptPort,
     TokenStorePort,
 } from "../domain/ports";
+import { declaredPrivateHosts, manifestConfig, sourceConfig } from "../domain/sourceConfig";
+import { includedFiles } from "../domain/sourceInclude";
 import {
     FetchedTemplateFile,
     planSourceCacheRefresh,
@@ -292,7 +292,7 @@ export class TemplateMarketplaceService {
         registration: MarketplaceRegistration,
         run: PromptRun,
     ): Promise<string> {
-        const baseConfig = this.configFor(registration.location, "");
+        const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
             `Fetching ${MARKETPLACE_MANIFEST} from ${this.describeConfig(baseConfig)}`,
         );
@@ -317,7 +317,7 @@ export class TemplateMarketplaceService {
         index: number,
         run: PromptRun,
     ): Promise<FetchedTemplateFile[]> {
-        const baseConfig = this.configForSource(registration, source);
+        const baseConfig = sourceConfig(source, registration.location, this.homeDir);
         this.notifier.logDebug(
             `Fetching source ${index} of "${registration.url}": ${this.describeConfig(baseConfig)}`,
         );
@@ -327,7 +327,12 @@ export class TemplateMarketplaceService {
             this.notifier.logDebug(
                 `Source ${index} of "${registration.url}": ${listed.length} template file(s) listed`,
             );
-            const files = this.applyInclude(listed, config.path, source.include, index);
+            const files = includedFiles(listed, config.path, source.include);
+            if (files.length !== listed.length) {
+                this.notifier.logDebug(
+                    `Source ${index}: "include" kept ${files.length} of ${listed.length} listed file(s)`,
+                );
+            }
             if (files.length === 0) {
                 this.warnNoFilesToCache(registration, config, index, source.include, listed.length);
             }
@@ -338,44 +343,6 @@ export class TemplateMarketplaceService {
             }
             return fetched;
         });
-    }
-
-    /**
-     * Narrows the listed files to those whose subtree-relative path matches one
-     * of the source's `include` globs; a source without `include` keeps every
-     * file (the default). Filtering runs here, once, after listing — so it stays
-     * provider-agnostic and the adapters, cache, and ports need no change.
-     *
-     * The kept entries are the *full* listed paths (only stripped for matching),
-     * so the cache key stays the path the adapter reported. `config.path` is the
-     * prefix to strip, not `source.path`: a `provider:"local"` source resolves to
-     * `config.path === ""` while its adapter lists subtree-relative paths. A
-     * listed path unexpectedly lacking the prefix is matched whole rather than
-     * dropped, so a prefix mismatch can never silently swallow a template.
-     */
-    private applyInclude(
-        listed: string[],
-        sourcePath: string,
-        include: readonly string[] | undefined,
-        index: number,
-    ): string[] {
-        if (include === undefined) {
-            return listed;
-        }
-        const prefix = sourcePath === "" ? "" : `${sourcePath}/`;
-        const kept = listed.filter((repoPath) => {
-            const relative =
-                prefix !== "" && repoPath.startsWith(prefix)
-                    ? repoPath.slice(prefix.length)
-                    : repoPath;
-            return include.some((pattern) => matchesGlob(pattern, relative));
-        });
-        if (kept.length !== listed.length) {
-            this.notifier.logDebug(
-                `Source ${index}: "include" kept ${kept.length} of ${listed.length} listed file(s)`,
-            );
-        }
-        return kept;
     }
 
     /**
@@ -544,7 +511,10 @@ export class TemplateMarketplaceService {
             return undefined;
         }
         run.promptedHosts.add(host);
-        return this.promptAndStore(host, this.promptReason(hadToken, error));
+        return this.promptAndStore(
+            host,
+            AccessDenial.of(error, { tokenTried: hadToken }).promptReason(),
+        );
     }
 
     /**
@@ -580,20 +550,9 @@ export class TemplateMarketplaceService {
         sources: TemplateSource[],
         run: PromptRun,
     ): Promise<void> {
-        const hosts = new Set<string>();
-        for (const source of sources) {
-            const isPrivateRemote =
-                (source.kind === "github" || source.kind === "gitlab") &&
-                source.visibility === "private";
-            if (isPrivateRemote) {
-                const host = hostForConfig(this.configForSource(undefined, source));
-                if (host !== undefined) {
-                    hosts.add(host);
-                }
-            }
-        }
-        if (hosts.size > 0) {
-            this.notifier.logDebug(`Declared-private source host(s): ${[...hosts].join(", ")}`);
+        const hosts = declaredPrivateHosts(sources);
+        if (hosts.length > 0) {
+            this.notifier.logDebug(`Declared-private source host(s): ${hosts.join(", ")}`);
         }
         for (const host of hosts) {
             if (run.promptedHosts.has(host)) {
@@ -629,30 +588,8 @@ export class TemplateMarketplaceService {
         return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
     }
 
-    private promptReason(hadToken: boolean, error: RepositoryAccessError): string {
-        if (error.rateLimited && !hadToken) {
-            return `Hit ${error.host}'s rate limit for ${error.resource}. A personal access token raises the limit.`;
-        }
-        if (hadToken) {
-            return `The stored token for ${error.host} was rejected (HTTP ${error.status}) for ${error.resource}. Enter a new token.`;
-        }
-        return `${error.host} denied access to ${error.resource} (HTTP ${error.status}); it may be private. Enter a personal access token.`;
-    }
-
-    private accessFailure(error: RepositoryAccessError, hadToken: boolean): Error {
-        if (error.rateLimited) {
-            return new Error(
-                `${error.host} rate limit exceeded for ${error.resource} — try again later or provide a personal access token.`,
-            );
-        }
-        if (hadToken) {
-            return new Error(
-                `The token for ${error.host} can't access ${error.resource} (HTTP ${error.status}).`,
-            );
-        }
-        return new Error(
-            `${error.resource} on ${error.host} requires a personal access token (none provided).`,
-        );
+    private accessFailure(error: RepositoryAccessError, tokenTried: boolean): Error {
+        return new Error(AccessDenial.of(error, { tokenTried }).failureMessage());
     }
 
     /** Places `token` onto a remote (github/gitlab) config; local configs never carry one. */
@@ -661,68 +598,5 @@ export class TemplateMarketplaceService {
         token: string | undefined,
     ): RepositorySourceConfig {
         return config.kind === "local" ? config : { ...config, token };
-    }
-
-    /**
-     * A relative source resolves against the marketplace's `registration`
-     * location; a github/local source names its own coordinates and ignores it,
-     * so `registration` may be omitted when only the host is needed.
-     */
-    private configForSource(
-        registration: MarketplaceRegistration | undefined,
-        source: TemplateSource,
-    ): RepositorySourceConfig {
-        if (source.kind === "relative") {
-            // A relative source only exists against a registration; the callers
-            // that pass `undefined` never hand in a relative source.
-            return this.configFor(registration!.location, source.path);
-        }
-        if (source.kind === "github") {
-            return {
-                kind: "github",
-                owner: source.owner,
-                repo: source.repo,
-                ref: source.ref,
-                path: source.path,
-                baseUrl: source.baseUrl,
-            };
-        }
-        if (source.kind === "gitlab") {
-            return {
-                kind: "gitlab",
-                projectPath: source.projectPath,
-                ref: source.ref,
-                path: source.path,
-                baseUrl: source.baseUrl,
-            };
-        }
-        return { kind: "local", rootDir: expandHomePath(source.path, this.homeDir), path: "" };
-    }
-
-    /**
-     * The single place a location's provider discriminant is mapped, so the
-     * fetch flow above stays provider-agnostic.
-     */
-    private configFor(location: MarketplaceLocation, path: string): RepositorySourceConfig {
-        if (location.kind === "github") {
-            return {
-                kind: "github",
-                owner: location.owner,
-                repo: location.repo,
-                ref: location.ref,
-                path,
-                baseUrl: location.baseUrl,
-            };
-        }
-        if (location.kind === "gitlab") {
-            return {
-                kind: "gitlab",
-                projectPath: location.projectPath,
-                ref: location.ref,
-                path,
-                baseUrl: location.baseUrl,
-            };
-        }
-        return { kind: "local", rootDir: location.rootDir, path };
     }
 }
