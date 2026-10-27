@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.PlatformTestUtil
@@ -55,8 +56,12 @@ class EditorSessionRouterSaveFlushTest {
         val routerLifetime: Disposable,
     )
 
-    /** Holds the edit the page has made but not synced yet, and answers flush queries with it. */
-    private inner class FakeWebview(val unsyncedContent: String?) {
+    /**
+     * Holds the edit the page has made but not synced yet, and answers flush
+     * queries with it. Before each answer it sends [repliesBefore], the replies
+     * to flushes another requester asked for.
+     */
+    private inner class FakeWebview(val unsyncedContent: String?, val repliesBefore: List<String>) {
         lateinit var router: EditorSessionRouter
         lateinit var session: CoreSession
         val flushQueries: MutableList<JsonObject> = Collections.synchronizedList(mutableListOf())
@@ -76,7 +81,8 @@ class EditorSessionRouterSaveFlushTest {
                 reply["documentRevision"] = 0
             }
             val replyJson = gson.toJson(reply)
-            Thread({ router.forwardWebviewMessage(session, replyJson) }, "fake-jcef-reply").also {
+            val replies = repliesBefore + replyJson
+            Thread({ replies.forEach { router.forwardWebviewMessage(session, it) } }, "fake-jcef-reply").also {
                 replyThreads.add(it)
                 it.start()
             }
@@ -87,7 +93,11 @@ class EditorSessionRouterSaveFlushTest {
         }
     }
 
-    private fun setUpRouter(initialXml: String, unsyncedWebviewXml: String?): Fixture {
+    private fun setUpRouter(
+        initialXml: String,
+        unsyncedWebviewXml: String?,
+        repliesBefore: List<String> = emptyList(),
+    ): Fixture {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
         val wired = wireChannel()
@@ -96,7 +106,7 @@ class EditorSessionRouterSaveFlushTest {
             EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers, routerLifetime), DeterministicScheduler())
         router.register()
 
-        val webview = FakeWebview(unsyncedWebviewXml)
+        val webview = FakeWebview(unsyncedWebviewXml, repliesBefore)
         val session = CoreSession(bpmn.file.url, bpmn.file, project) { webview.receive(it) }
         webview.router = router
         webview.session = session
@@ -177,9 +187,52 @@ class EditorSessionRouterSaveFlushTest {
         )
     }
 
+    @Test
+    fun `a save-all ignores the page's reply to a flush the core asked for`() {
+        // The core numbers its flushes from 1 up; Deploy's flush may still be answered.
+        val coreFlushReply = gson.toJson(linkedMapOf("type" to "DocumentFlushedCommand", "token" to 1, "status" to "clean"))
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML, repliesBefore = listOf(coreFlushReply))
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath), "only the reply to the host's own flush counts")
+        assertTrue(
+            f.webview.flushQueries.single().get("token").asLong < 0,
+            "every page reply also reaches the core, so the host's token must be one the core never hands out",
+        )
+    }
+
+    @Test
+    fun `a save-all during a pending external edit keeps the host's content`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+        // Another tool changed the file; its debounced render has not reached the page.
+        WriteCommandAction.runWriteCommandAction(f.webview.session.project) { f.bpmn.document.setText(EXTERNAL_XML) }
+        f.webview.router.notifyDocumentChanged(f.webview.session) { f.bpmn.document.text }
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertTrue(f.webview.flushQueries.isEmpty(), "the authoritative host edit bypasses webview export")
+        assertEquals(EXTERNAL_XML, Files.readString(f.bpmn.nioPath))
+    }
+
+    @Test
+    fun `the webview's late sync after a save-all and a re-register reports no change`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        f.webview.router.reregisterLiveSessions()
+        f.dispatchCoreWrite(EDITED_XML)
+
+        assertFalse(
+            f.nextReply().getAsJsonObject("result").get("changed").asBoolean,
+            "the re-register already seeded the core's mirror with the saved edit",
+        )
+    }
+
     private companion object {
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
         const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
+        const val EXTERNAL_XML = "<bpmn:definitions id=\"external\"/>\n"
     }
 }

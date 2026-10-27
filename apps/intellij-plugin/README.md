@@ -83,6 +83,15 @@ flowchart TD
   coalesces superseded document-sync frames per editor, so the EDT/JS threads
   never block on bridge stdin.
 
+### Saving
+
+Ctrl+S, autosave and the save on switching to another application first ask
+every open diagram for the edit its 300 ms sync debounce still holds, and write
+it into the `Document`, so the save persists what the diagram shows. The host
+waits at most 250 ms for all diagrams of a project together; a diagram that
+does not answer is saved as it is. See
+[host integrations](../../docs/adr/architecture-and-hosts.md#host-integrations).
+
 ### Display ports
 
 - **Notifier → `Notifications.Bus`** balloons (+ IDE log) via `HostNotifications`.
