@@ -306,6 +306,16 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         });
     });
 
+    it("forgets the editor's variables when the editor is disposed", async () => {
+        const { editor, scriptVariables } = createFullEditor();
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+        await editor.materialize(openCommand("groovy", "x = 1", variables), FULL_EDITOR);
+
+        editor.disposeEditor(FULL_EDITOR);
+
+        expect(scriptVariables.variablesFor(FULL_EDITOR)).toEqual([]);
+    });
+
     describe("adoptExternalOpen", () => {
         it("tracks the file, notifies script/open, broadcasts the lock, and never sweeps", async () => {
             const filePath = scriptFilePath("Task_1", "groovy");
