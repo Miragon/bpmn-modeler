@@ -84,6 +84,30 @@ describe("WebviewMessageRouter", () => {
         expect(router.routeOf("ShowInfoCommand")).toEqual({ kind: "handled" });
     });
 
+    it("refuses to ignore a command without a reason", () => {
+        const router = new WebviewMessageRouter();
+
+        expect(() => router.ignore("ShowInfoCommand", "")).toThrow(
+            "ShowInfoCommand needs a reason to be ignored",
+        );
+        expect(() => router.ignore("ShowInfoCommand", "  ")).toThrow(
+            "ShowInfoCommand needs a reason to be ignored",
+        );
+        expect(router.routeOf("ShowInfoCommand")).toEqual({ kind: "unrouted" });
+    });
+
+    it("refuses to ignore a command twice", () => {
+        const router = new WebviewMessageRouter().ignore("ShowInfoCommand", "no notifications");
+
+        expect(() => router.ignore("ShowInfoCommand", "muted")).toThrow(
+            "ShowInfoCommand is already ignored (no notifications)",
+        );
+        expect(router.routeOf("ShowInfoCommand")).toEqual({
+            kind: "ignored",
+            reason: "no notifications",
+        });
+    });
+
     it("refuses a handler for a command it ignores", () => {
         const router = new WebviewMessageRouter().ignore("ShowInfoCommand", "no notifications");
 
