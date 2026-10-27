@@ -20,8 +20,8 @@ import {
 
 import { posix } from "path";
 
-import { AuthConfig, DeploymentConfigBuilder } from "../domain/deployment";
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentConfigBuilder } from "../domain/deployment";
+import { DeploymentTarget, TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
@@ -343,42 +343,18 @@ export class DeploymentMessageDispatcher {
     }
 
     private async resolveRequestTarget(
-        payload: DeployCommand["config"] | StartInstanceCommand["config"],
-        auth: AuthConfig,
+        targetName: string | undefined,
+        request: TargetRequest,
         documentDir: string | undefined,
     ): Promise<DeploymentTarget | undefined> {
-        if (!payload.targetName?.trim()) return undefined;
-        const target = await this.deploymentTargetService.getTarget(
-            payload.targetName,
-            documentDir,
-        );
+        if (!targetName?.trim()) return undefined;
+        const target = await this.deploymentTargetService.getTarget(targetName, documentDir);
         if (target === undefined) {
             throw new DeploymentTargetChangedError(
                 "The deployment target no longer exists. Select a target again.",
             );
         }
-        const matches =
-            payload.endpoint.trim() === target.endpoint.trim() &&
-            payload.engine === target.engine &&
-            payload.auth.authType === target.authType &&
-            (target.authType !== "oauth2" ||
-                ((payload.auth.tokenEndpoint ?? "").trim() === target.tokenEndpoint.trim() &&
-                    (payload.auth.audience ?? "").trim() === target.audience.trim())) &&
-            ("deploymentName" in payload
-                ? payload.tenantId.trim() === target.tenantId.trim() &&
-                  (payload.deployUrl ?? "").trim() === (target.deployUrl ?? "").trim()
-                : (payload.startInstanceUrl ?? "").trim() ===
-                  (target.startInstanceUrl ?? "").trim());
-        if (!matches) {
-            throw new DeploymentTargetChangedError(
-                "The deployment target changed. Save or reload the target before continuing.",
-            );
-        }
-        if (!target.credentialRefs.admits(auth)) {
-            throw new DeploymentTargetChangedError(
-                "Credential environment references differ from the saved target. Save or reload the target before continuing.",
-            );
-        }
+        target.assertAdmits(request);
         return target;
     }
 
@@ -452,7 +428,17 @@ export class DeploymentMessageDispatcher {
         try {
             const documentDir = this.activeDocumentDir();
             const auth = toAuthConfig(configPayload.auth);
-            const target = await this.resolveRequestTarget(configPayload, auth, documentDir);
+            const target = await this.resolveRequestTarget(
+                configPayload.targetName,
+                {
+                    kind: "startInstance",
+                    endpoint: configPayload.endpoint,
+                    engine: configPayload.engine,
+                    auth,
+                    startInstanceUrl: configPayload.startInstanceUrl,
+                },
+                documentDir,
+            );
 
             const result = await this.startInstanceService.startInstance(
                 configPayload.processDefinitionKey,
@@ -518,7 +504,18 @@ export class DeploymentMessageDispatcher {
                 .build();
 
             const documentDir = posix.dirname(mainFilePath);
-            const target = await this.resolveRequestTarget(configPayload, auth, documentDir);
+            const target = await this.resolveRequestTarget(
+                configPayload.targetName,
+                {
+                    kind: "deploy",
+                    endpoint: configPayload.endpoint,
+                    engine: configPayload.engine,
+                    auth,
+                    tenantId: configPayload.tenantId,
+                    deployUrl: configPayload.deployUrl,
+                },
+                documentDir,
+            );
             const secretSlot =
                 target === undefined
                     ? undefined

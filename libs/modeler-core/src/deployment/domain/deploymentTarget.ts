@@ -1,6 +1,7 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import {
+    DeploymentTargetChangedError,
     DisallowedEnvReferenceError,
     DuplicateDeploymentTargetError,
     InvalidDeploymentConfigError,
@@ -48,6 +49,10 @@ export class NoTargetAuth {
         return new NoAuth();
     }
 
+    matchesSettingsOf(auth: AuthConfig): boolean {
+        return auth.type === this.type;
+    }
+
     knownUrls(): string[] {
         return [];
     }
@@ -75,6 +80,10 @@ export class BasicTargetAuth {
             return new NoAuth();
         }
         return new BasicAuth(username ?? "", password ?? "");
+    }
+
+    matchesSettingsOf(auth: AuthConfig): boolean {
+        return auth.type === this.type;
     }
 
     knownUrls(): string[] {
@@ -115,6 +124,14 @@ export class OAuth2TargetAuth {
             clientSecret ?? "",
             this.tokenEndpoint,
             this.audience,
+        );
+    }
+
+    matchesSettingsOf(auth: AuthConfig): boolean {
+        return (
+            auth.type === this.type &&
+            sameTrimmed(auth.tokenEndpoint, this.tokenEndpoint) &&
+            sameTrimmed(auth.audience, this.audience)
         );
     }
 
@@ -278,8 +295,39 @@ export class DeploymentTarget {
         return this.auth.authWith(stored);
     }
 
-    assertAdmits(_request: TargetRequest): void {
-        // Admits every request until the rule lands.
+    /**
+     * A request runs only against the target as saved: only a saved target is
+     * reviewable, and the webview cannot prove which target a request means.
+     * Values compare trimmed, so the padding of a hand-edited file is no change.
+     *
+     * @throws {DeploymentTargetChangedError} for a changed connection, and only
+     *   then for credential refs the saved target does not hold.
+     */
+    assertAdmits(request: TargetRequest): void {
+        if (!this.matchesConnectionOf(request)) {
+            throw new DeploymentTargetChangedError(
+                "The deployment target changed. Save or reload the target before continuing.",
+            );
+        }
+        if (!this.credentialRefs.admits(request.auth)) {
+            throw new DeploymentTargetChangedError(
+                "Credential environment references differ from the saved target. Save or reload the target before continuing.",
+            );
+        }
+    }
+
+    private matchesConnectionOf(request: TargetRequest): boolean {
+        const operationSettingsMatch =
+            request.kind === "deploy"
+                ? sameTrimmed(request.tenantId, this.tenantId) &&
+                  sameTrimmed(request.deployUrl, this.deployUrl)
+                : sameTrimmed(request.startInstanceUrl, this.startInstanceUrl);
+        return (
+            sameTrimmed(request.endpoint, this.endpoint) &&
+            request.engine === this.engine &&
+            this.auth.matchesSettingsOf(request.auth) &&
+            operationSettingsMatch
+        );
     }
 
     /** What {@link expandConnection} reads, so a lookup is only built when it needs one. */
@@ -572,6 +620,10 @@ export function serializeDeploymentTargets(targets: readonly DeploymentTarget[])
 
 function storedLiteral(value: string | undefined): string | undefined {
     return wholeEnvRefOf(value) === undefined ? value : undefined;
+}
+
+function sameTrimmed(requested: string | undefined, saved: string | undefined): boolean {
+    return (requested ?? "").trim() === (saved ?? "").trim();
 }
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
