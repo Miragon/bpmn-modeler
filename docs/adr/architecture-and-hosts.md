@@ -47,10 +47,12 @@ obligations; document them in the package README. Do not publish each private
 feature library as an independently versioned API.
 
 Placement in `modeler-types` requires freedom from the private protocol and
-either a surface worth publishing or a pure BPMN rule that both the webview and
-the core apply. Portable mode types, disposable primitives, engine versions,
-canvas utilities and `isTextEditingSurface` qualify as surface; script-surface
-addressing (`scriptSurface.ts`) is such a shared rule. The webview cannot import
+either a surface worth publishing or a pure BPMN rule that both browser code
+and the core apply. Portable mode types, disposable primitives, engine versions,
+canvas utilities and `isTextEditingSurface` qualify as surface. Script-surface
+addressing (`scriptSurface.ts`) is such a shared rule, and so is the XML comment
+and CDATA scan (`xmlMarkup.ts`) behind the published `extractModelDefinitions`,
+the core's workspace content search and code-link. The webview cannot import
 the core, whose barrel exports Node-only modules, so a rule both apply has no
 other common home. The package is private and inlined: its npm surface is only
 what a package entry re-exports by name, which `check-dts` and
