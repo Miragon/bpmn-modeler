@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    DeploymentTargetChangedError,
     DisallowedEnvReferenceError,
     InvalidDeploymentConfigError,
     DuplicateDeploymentTargetError,
@@ -10,13 +11,14 @@ import {
 } from "./errors";
 
 import { CredentialRefs } from "./credentialRefs";
-import { BasicAuth, NoAuth, OAuth2Auth } from "./deployment";
+import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "./deployment";
 import {
     DeploymentTarget,
     DeploymentTargetFields,
     DeploymentTargets,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TargetRequest,
 } from "./deploymentTarget";
 import { emptyEnvLookup } from "./envRef";
 
@@ -642,6 +644,320 @@ describe("DeploymentTarget", () => {
             expect(
                 target("dev").authWith({ username: "u", password: "p", clientId: "c" }),
             ).toBeInstanceOf(NoAuth);
+        });
+    });
+
+    describe("assertAdmits", () => {
+        const ENDPOINT = "http://localhost:8080/engine-rest";
+        const USERNAME_REF = "${env:MIRAGON_USER}";
+        const PASSWORD_REF = "${env:MIRAGON_PW}";
+        const CLIENT_ID_REF = "${env:MIRAGON_CLIENT_ID}";
+        const CLIENT_SECRET_REF = "${env:MIRAGON_CLIENT_SECRET}";
+        const CONNECTION_CHANGED =
+            "The deployment target changed. Save or reload the target before continuing.";
+        const CREDENTIAL_REFS_CHANGED =
+            "Credential environment references differ from the saved target. Save or reload the target before continuing.";
+
+        type RequestKind = TargetRequest["kind"];
+
+        interface RequestFields {
+            readonly endpoint?: string;
+            readonly engine?: TargetRequest["engine"];
+            readonly auth?: AuthConfig;
+            readonly tenantId?: string;
+            readonly deployUrl?: string;
+            readonly startInstanceUrl?: string;
+        }
+
+        interface AdmissionCase {
+            readonly behaviour: string;
+            readonly saved: DeploymentTarget;
+            readonly request: TargetRequest;
+            readonly refusal?: string;
+        }
+
+        function requestOf(kind: RequestKind, fields: RequestFields = {}): TargetRequest {
+            const connection = {
+                endpoint: fields.endpoint ?? ENDPOINT,
+                engine: fields.engine ?? "c7",
+                auth: fields.auth ?? new NoAuth(),
+            };
+            return kind === "deploy"
+                ? {
+                      kind,
+                      ...connection,
+                      tenantId: fields.tenantId ?? "",
+                      deployUrl: fields.deployUrl,
+                  }
+                : { kind, ...connection, startInstanceUrl: fields.startInstanceUrl };
+        }
+
+        function refusalOf(saved: DeploymentTarget, request: TargetRequest): string | undefined {
+            try {
+                saved.assertAdmits(request);
+            } catch (error) {
+                expect(error).toBeInstanceOf(DeploymentTargetChangedError);
+                return (error as Error).message;
+            }
+            return undefined;
+        }
+
+        const OAUTH2_TARGET: Partial<DeploymentTarget> = {
+            authType: "oauth2",
+            tokenEndpoint: "https://idp/token",
+            audience: "zeebe-api",
+        };
+        const basicTarget = (credentialRefs: CredentialRefs) =>
+            target("dev", { authType: "basic", credentialRefs });
+        const oauth2Target = (credentialRefs = CredentialRefs.none()) =>
+            target("dev", { ...OAUTH2_TARGET, credentialRefs });
+        const oauth2 = (
+            clientId: string,
+            clientSecret: string,
+            tokenEndpoint = "https://idp/token",
+            audience = "zeebe-api",
+        ) => new OAuth2Auth(clientId, clientSecret, tokenEndpoint, audience);
+
+        const authVariants = [
+            {
+                target: target("dev"),
+                targetLabel: "a target without auth",
+                auth: new NoAuth(),
+                authLabel: "no auth",
+            },
+            {
+                target: basicTarget(CredentialRefs.none()),
+                targetLabel: "a basic target",
+                auth: new BasicAuth("admin", "s3cret"),
+                authLabel: "basic auth",
+            },
+            {
+                target: oauth2Target(),
+                targetLabel: "an OAuth2 target",
+                auth: oauth2("cid", "csecret"),
+                authLabel: "OAuth2 auth",
+            },
+        ];
+
+        const connectionCases = (kind: RequestKind): AdmissionCase[] => [
+            {
+                behaviour: "admits a request that matches the saved target",
+                saved: target("dev"),
+                request: requestOf(kind),
+            },
+            {
+                behaviour:
+                    "admits formatting whitespace around the endpoint of a hand-edited target",
+                saved: target("dev", { endpoint: ` ${ENDPOINT} ` }),
+                request: requestOf(kind),
+            },
+            {
+                behaviour: "admits formatting whitespace around the requested endpoint",
+                saved: target("dev"),
+                request: requestOf(kind, { endpoint: `${ENDPOINT}  ` }),
+            },
+            {
+                behaviour: "refuses a changed endpoint",
+                saved: target("dev", { endpoint: "https://different" }),
+                request: requestOf(kind),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "refuses a changed engine",
+                saved: target("dev"),
+                request: requestOf(kind, { engine: "c8" }),
+                refusal: CONNECTION_CHANGED,
+            },
+            ...authVariants.flatMap((saved) =>
+                authVariants
+                    .filter((requested) => requested !== saved)
+                    .map((requested): AdmissionCase => ({
+                        behaviour: `refuses ${requested.authLabel} against ${saved.targetLabel}`,
+                        saved: saved.target,
+                        request: requestOf(kind, { auth: requested.auth }),
+                        refusal: CONNECTION_CHANGED,
+                    })),
+            ),
+            {
+                behaviour: "refuses a changed OAuth2 token endpoint",
+                saved: oauth2Target(),
+                request: requestOf(kind, { auth: oauth2("cid", "csecret", "https://other/token") }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "refuses a changed OAuth2 audience",
+                saved: oauth2Target(),
+                request: requestOf(kind, {
+                    auth: oauth2("cid", "csecret", "https://idp/token", "another"),
+                }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour:
+                    "admits formatting whitespace around the OAuth2 token endpoint and audience",
+                saved: target("dev", {
+                    ...OAUTH2_TARGET,
+                    tokenEndpoint: " https://idp/token",
+                    audience: "zeebe-api ",
+                }),
+                request: requestOf(kind, {
+                    auth: oauth2("cid", "csecret", "https://idp/token ", " zeebe-api"),
+                }),
+            },
+        ];
+
+        const credentialRefCases = (kind: RequestKind): AdmissionCase[] => [
+            ...(
+                [
+                    ["a basic username", basicTarget, new BasicAuth(USERNAME_REF, "s3cret")],
+                    ["a basic password", basicTarget, new BasicAuth("admin", PASSWORD_REF)],
+                    ["an OAuth2 client id", oauth2Target, oauth2(CLIENT_ID_REF, "csecret")],
+                    ["an OAuth2 client secret", oauth2Target, oauth2("cid", CLIENT_SECRET_REF)],
+                ] as const
+            ).map(([field, savedWith, auth]): AdmissionCase => ({
+                behaviour: `refuses ${field} typed as a ref the targets file does not store`,
+                saved: savedWith(CredentialRefs.none()),
+                request: requestOf(kind, { auth }),
+                refusal: CREDENTIAL_REFS_CHANGED,
+            })),
+            {
+                behaviour: "admits the stored ref beside any store-backed literal",
+                saved: basicTarget(CredentialRefs.basic(undefined, PASSWORD_REF)),
+                request: requestOf(kind, { auth: new BasicAuth("ops", PASSWORD_REF) }),
+            },
+            {
+                behaviour: "admits the stored ref padded with whitespace",
+                saved: basicTarget(CredentialRefs.basic(undefined, PASSWORD_REF)),
+                request: requestOf(kind, { auth: new BasicAuth("admin", `  ${PASSWORD_REF} `) }),
+            },
+            ...(
+                [
+                    ["a literal", "s3cret"],
+                    ["a different ref", "${env:MIRAGON_OTHER_PW}"],
+                    ["an empty value", ""],
+                ] as const
+            ).map(([replacement, password]): AdmissionCase => ({
+                behaviour: `refuses a stored ref the request replaced with ${replacement}`,
+                saved: basicTarget(CredentialRefs.basic(undefined, PASSWORD_REF)),
+                request: requestOf(kind, { auth: new BasicAuth("admin", password) }),
+                refusal: CREDENTIAL_REFS_CHANGED,
+            })),
+            {
+                behaviour: "admits OAuth2 client refs that match the targets file",
+                saved: oauth2Target(CredentialRefs.oauth2(CLIENT_ID_REF, CLIENT_SECRET_REF)),
+                request: requestOf(kind, { auth: oauth2(CLIENT_ID_REF, CLIENT_SECRET_REF) }),
+            },
+            {
+                behaviour: "refuses an OAuth2 client ref the request replaced with a literal",
+                saved: oauth2Target(CredentialRefs.oauth2(CLIENT_ID_REF, CLIENT_SECRET_REF)),
+                request: requestOf(kind, { auth: oauth2("cid", CLIENT_SECRET_REF) }),
+                refusal: CREDENTIAL_REFS_CHANGED,
+            },
+            {
+                behaviour: "admits literal credentials against a target without refs",
+                saved: basicTarget(CredentialRefs.none()),
+                request: requestOf(kind, { auth: new BasicAuth("admin", "s3cret") }),
+            },
+            {
+                behaviour: "reports a changed connection before comparing credential refs",
+                saved: target("dev", {
+                    endpoint: "https://elsewhere/engine-rest",
+                    authType: "basic",
+                }),
+                request: requestOf(kind, { auth: new BasicAuth("admin", PASSWORD_REF) }),
+                refusal: CONNECTION_CHANGED,
+            },
+        ];
+
+        const deployCases: AdmissionCase[] = [
+            {
+                behaviour: "refuses a changed tenant",
+                saved: target("dev"),
+                request: requestOf("deploy", { tenantId: "another" }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "admits formatting whitespace around the tenant of a hand-edited target",
+                saved: target("dev", { tenantId: " " }),
+                request: requestOf("deploy"),
+            },
+            {
+                behaviour: "admits formatting whitespace around the requested tenant",
+                saved: target("dev", { tenantId: "acme" }),
+                request: requestOf("deploy", { tenantId: " acme " }),
+            },
+            {
+                behaviour: "refuses a changed deploy URL",
+                saved: target("dev", { deployUrl: "https://gw/deploy" }),
+                request: requestOf("deploy", { deployUrl: "https://other/deploy" }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "refuses a deploy URL the saved target does not override",
+                saved: target("dev"),
+                request: requestOf("deploy", { deployUrl: "https://other/deploy" }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "refuses a request without the saved deploy URL",
+                saved: target("dev", { deployUrl: "https://gw/deploy" }),
+                request: requestOf("deploy"),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "admits formatting whitespace around the deploy URL",
+                saved: target("dev", { deployUrl: " https://gw/deploy" }),
+                request: requestOf("deploy", { deployUrl: "https://gw/deploy  " }),
+            },
+            {
+                behaviour: "ignores the start-instance URL, which a deploy does not use",
+                saved: target("dev", { startInstanceUrl: "https://host/start" }),
+                request: requestOf("deploy"),
+            },
+        ];
+
+        const startInstanceCases: AdmissionCase[] = [
+            {
+                behaviour: "refuses a changed start-instance URL",
+                saved: target("dev", { startInstanceUrl: "https://host/start" }),
+                request: requestOf("startInstance", { startInstanceUrl: "https://other/start" }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "refuses a start-instance URL the saved target does not override",
+                saved: target("dev"),
+                request: requestOf("startInstance", { startInstanceUrl: "https://host/start" }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "refuses a request without the saved start-instance URL",
+                saved: target("dev", { startInstanceUrl: "https://host/start" }),
+                request: requestOf("startInstance"),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
+                behaviour: "admits formatting whitespace around the start-instance URL",
+                saved: target("dev", { startInstanceUrl: "https://host/start " }),
+                request: requestOf("startInstance", { startInstanceUrl: " https://host/start" }),
+            },
+            {
+                behaviour: "ignores the tenant and deploy URL, which a start does not use",
+                saved: target("dev", { tenantId: "acme", deployUrl: "https://gw/deploy" }),
+                request: requestOf("startInstance"),
+            },
+        ];
+
+        const admissionCases = [
+            ...(["deploy", "startInstance"] as const).flatMap((kind) => [
+                ...connectionCases(kind),
+                ...credentialRefCases(kind),
+            ]),
+            ...deployCases,
+            ...startInstanceCases,
+        ].map((admission) => ({ ...admission, kind: admission.request.kind }));
+
+        it.each(admissionCases)("$kind: $behaviour", ({ saved, request, refusal }) => {
+            expect(refusalOf(saved, request)).toBe(refusal);
         });
     });
 

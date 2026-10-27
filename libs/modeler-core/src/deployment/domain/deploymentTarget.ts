@@ -165,6 +165,26 @@ export interface DeploymentTargetFields {
     readonly credentialRefs?: CredentialRefs;
 }
 
+/** What a deploy or start-instance request sends, with only the target settings its operation uses. */
+export type TargetRequest = DeployTargetRequest | StartInstanceTargetRequest;
+
+interface TargetConnectionRequest {
+    readonly endpoint: string;
+    readonly engine: Engine;
+    readonly auth: AuthConfig;
+}
+
+interface DeployTargetRequest extends TargetConnectionRequest {
+    readonly kind: "deploy";
+    readonly tenantId: string;
+    readonly deployUrl?: string;
+}
+
+interface StartInstanceTargetRequest extends TargetConnectionRequest {
+    readonly kind: "startInstance";
+    readonly startInstanceUrl?: string;
+}
+
 /**
  * A named, team-shareable deployment connection persisted in
  * `deployment-targets.json`. Holds only non-secret connection metadata —
@@ -256,6 +276,10 @@ export class DeploymentTarget {
      */
     authWith(stored: StoredCredentials | undefined): AuthConfig {
         return this.auth.authWith(stored);
+    }
+
+    assertAdmits(_request: TargetRequest): void {
+        // Admits every request until the rule lands.
     }
 
     /** What {@link expandConnection} reads, so a lookup is only built when it needs one. */
