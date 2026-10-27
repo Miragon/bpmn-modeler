@@ -27,7 +27,7 @@ import {
 
 import { CredentialRefs } from "../domain/credentialRefs";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentTarget, DeploymentTargets } from "../domain/deploymentTarget";
 import {
     type AuthConfig,
     BasicAuth,
@@ -46,6 +46,9 @@ import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 const TRUSTED_PATH = "/work/trusted/order-process.bpmn";
 
 const noEnv = () => undefined;
+
+const localTarget = (name: string) =>
+    new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
 
 function createDispatcher({ openDiagram = true } = {}) {
     const host = createTestHost();
@@ -66,9 +69,15 @@ function createDispatcher({ openDiagram = true } = {}) {
         getActiveTarget: vi.fn().mockResolvedValue(undefined),
         getTarget: vi.fn().mockResolvedValue(undefined),
         setActiveTarget: vi.fn().mockResolvedValue(undefined),
-        createTarget: vi.fn().mockResolvedValue(undefined),
-        saveTarget: vi.fn().mockResolvedValue(undefined),
-        deleteTarget: vi.fn().mockResolvedValue(true),
+        createTarget: vi.fn().mockResolvedValue(new DeploymentTargets([]).add(localTarget("dev"))),
+        saveTarget: vi
+            .fn()
+            .mockResolvedValue(
+                new DeploymentTargets([localTarget("dev")]).upsert(localTarget("dev")),
+            ),
+        deleteTarget: vi
+            .fn()
+            .mockResolvedValue(new DeploymentTargets([localTarget("dev")]).remove("dev")),
         getStoredCredentials: vi.fn().mockResolvedValue({ authType: "none" }),
         resolveSlot: vi.fn().mockResolvedValue(undefined),
         openTargetsFile: vi.fn().mockResolvedValue(undefined),
@@ -926,7 +935,6 @@ describe("DeploymentMessageDispatcher target commands", () => {
 
     it("deletes a target and re-sends targets when confirmed", async () => {
         const c = createDispatcher();
-        c.deploymentTargetService.deleteTarget.mockResolvedValue(true);
 
         await c.dispatcher.handle(new DeleteTargetCommand("dev"));
 
@@ -939,7 +947,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
 
     it("does not post when a delete is cancelled", async () => {
         const c = createDispatcher();
-        c.deploymentTargetService.deleteTarget.mockResolvedValue(false);
+        c.deploymentTargetService.deleteTarget.mockResolvedValue(undefined);
 
         await c.dispatcher.handle(new DeleteTargetCommand("dev"));
 
@@ -949,22 +957,16 @@ describe("DeploymentMessageDispatcher target commands", () => {
         expect(c.deploymentStatusService.pruneTarget).not.toHaveBeenCalled();
     });
 
-    it("prunes the deleted target's ledger rows", async () => {
+    it("prunes the deleted target's ledger rows without reading the target first", async () => {
         const c = createDispatcher();
-        const target = new DeploymentTarget(
-            "dev",
-            "c7",
-            "http://localhost:8080/engine-rest",
-            "",
-            "none",
-            "",
-            "",
+        const target = localTarget("dev");
+        c.deploymentTargetService.deleteTarget.mockResolvedValue(
+            new DeploymentTargets([target]).remove("dev"),
         );
-        c.deploymentTargetService.getTarget.mockResolvedValue(target);
-        c.deploymentTargetService.deleteTarget.mockResolvedValue(true);
 
         await c.dispatcher.handle(new DeleteTargetCommand("dev"));
 
+        expect(c.deploymentTargetService.getTarget).not.toHaveBeenCalled();
         expect(c.deploymentStatusService.targetIdentity).toHaveBeenCalledWith(
             target,
             "/work/trusted",
@@ -974,27 +976,18 @@ describe("DeploymentMessageDispatcher target commands", () => {
         );
     });
 
-    it("prunes the old identity's ledger rows on a rename", async () => {
+    it("prunes the old identity's ledger rows on a rename without reading the target first", async () => {
         const c = createDispatcher();
-        const oldTarget = new DeploymentTarget(
-            "staging",
-            "c7",
-            "http://localhost:8080/engine-rest",
-            "",
-            "none",
-            "",
-            "",
+        const oldTarget = localTarget("staging");
+        c.deploymentTargetService.saveTarget.mockResolvedValue(
+            new DeploymentTargets([oldTarget]).upsert(localTarget("dev"), "staging"),
         );
-        c.deploymentTargetService.getTarget.mockResolvedValue(oldTarget);
 
         await c.dispatcher.handle(
             new SaveTargetCommand(targetPayload, { authType: "none" }, "staging"),
         );
 
-        expect(c.deploymentTargetService.getTarget).toHaveBeenCalledWith(
-            "staging",
-            expect.anything(),
-        );
+        expect(c.deploymentTargetService.getTarget).not.toHaveBeenCalled();
         expect(c.deploymentStatusService.targetIdentity).toHaveBeenCalledWith(
             oldTarget,
             "/work/trusted",

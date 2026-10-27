@@ -397,8 +397,95 @@ export class DeploymentTarget {
 }
 
 /**
- * Immutable collection of targets. Mutating operations return a fresh array so
- * callers can persist the new state without in-place aliasing.
+ * What one edit of the targets file does, with the targets to write: the
+ * services retire the slot and ledger rows it names and carry over the
+ * approvals it names.
+ */
+export type TargetChange = TargetCreated | TargetSaved | TargetRenamed | TargetRemoved;
+
+/** A target under a name the file did not hold. */
+export class TargetCreated {
+    readonly kind = "created" as const;
+    readonly before = undefined;
+    readonly retiredTarget = undefined;
+    readonly retiredSlotName = undefined;
+    /** A stale slot under the new name must not lend its approvals. */
+    readonly approvalsInheritedFrom = undefined;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly target: DeploymentTarget,
+    ) {}
+}
+
+export class TargetSaved {
+    readonly kind = "saved" as const;
+    readonly retiredTarget = undefined;
+    readonly retiredSlotName = undefined;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly target: DeploymentTarget,
+        readonly before: DeploymentTarget,
+    ) {}
+
+    get approvalsInheritedFrom(): string {
+        return this.before.name;
+    }
+}
+
+/**
+ * Ledger rows are keyed by name, so the old target's rows go with its slot.
+ * `before` is undefined when the file no longer held the old name; its slot
+ * is retired all the same.
+ */
+export class TargetRenamed {
+    readonly kind = "renamed" as const;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly target: DeploymentTarget,
+        readonly previousName: string,
+        readonly before: DeploymentTarget | undefined,
+    ) {}
+
+    get retiredTarget(): DeploymentTarget | undefined {
+        return this.before;
+    }
+
+    get retiredSlotName(): string {
+        return this.previousName;
+    }
+
+    get approvalsInheritedFrom(): string | undefined {
+        return this.before?.name;
+    }
+}
+
+/** `before` is undefined when the file no longer held the name; its slot is retired all the same. */
+export class TargetRemoved {
+    readonly kind = "removed" as const;
+    readonly approvalsInheritedFrom = undefined;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly name: string,
+        readonly before: DeploymentTarget | undefined,
+    ) {}
+
+    get retiredTarget(): DeploymentTarget | undefined {
+        return this.before;
+    }
+
+    get retiredSlotName(): string {
+        return this.name;
+    }
+}
+
+/**
+ * Immutable collection of targets. An edit returns its {@link TargetChange},
+ * holding a fresh array so callers can persist the new state without in-place
+ * aliasing.
  */
 export class DeploymentTargets {
     constructor(readonly targets: readonly DeploymentTarget[]) {}
@@ -419,35 +506,42 @@ export class DeploymentTargets {
      * Appends a new target. Throws {@link DuplicateDeploymentTargetError} when
      * its name already exists so a create never silently overwrites.
      */
-    add(target: DeploymentTarget): DeploymentTarget[] {
+    add(target: DeploymentTarget): TargetCreated {
         if (this.find(target.name) !== undefined) {
             throw new DuplicateDeploymentTargetError(target.name);
         }
-        return [...this.targets, target];
+        return new TargetCreated([...this.targets, target], target);
     }
 
     /**
-     * Replaces a target in place. `previousName` (a rename) removes the old
-     * entry; identity is the trimmed `name`, matched case-sensitively. A rename
-     * onto another existing target's name throws
+     * Saves `target` over the entry of its name, or of `previousName` for a
+     * rename, and moves it to the end. Identity is the trimmed `name`, matched
+     * case-sensitively. A rename onto another existing target's name throws
      * {@link DuplicateDeploymentTargetError}.
      */
-    upsert(target: DeploymentTarget, previousName?: string): DeploymentTarget[] {
-        const isRename = previousName !== undefined && previousName.trim() !== target.name;
+    upsert(target: DeploymentTarget, previousName?: string): TargetChange {
+        const savedName = previousName?.trim() ?? target.name;
+        const isRename = savedName !== target.name;
         if (isRename && this.find(target.name) !== undefined) {
             throw new DuplicateDeploymentTargetError(target.name);
         }
-        const removeNames = new Set<string>([target.name]);
-        if (previousName !== undefined) {
-            removeNames.add(previousName.trim());
+        const before = this.find(savedName);
+        const targets = [...this.targets.filter((existing) => existing.name !== savedName), target];
+        if (isRename) {
+            return new TargetRenamed(targets, target, savedName, before);
         }
-        const kept = this.targets.filter((existing) => !removeNames.has(existing.name));
-        return [...kept, target];
+        return before === undefined
+            ? new TargetCreated(targets, target)
+            : new TargetSaved(targets, target, before);
     }
 
-    remove(name: string): DeploymentTarget[] {
+    remove(name: string): TargetRemoved {
         const normalized = name.trim();
-        return this.targets.filter((existing) => existing.name !== normalized);
+        return new TargetRemoved(
+            this.targets.filter((existing) => existing.name !== normalized),
+            normalized,
+            this.find(normalized),
+        );
     }
 }
 
