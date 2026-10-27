@@ -145,7 +145,7 @@ export function register(
         handles.set(params.editorId, { handle, sessionId: params.sessionId });
 
         // The host registers the tab it opens, so the session counts as focused. Set
-        // before registering: the store hands the command target only to a focused session.
+        // before registering so the store treats it as focused and gives it the target.
         handle.setActive(true);
         deps.store.register(handle);
         deps.store.setHostDocumentRevision(params.editorId, params.documentRevision ?? 0);
