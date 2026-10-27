@@ -34,6 +34,8 @@ const SELF_HOSTED_GITLAB_PROJECT: RepositorySourceConfig = {
 };
 
 const PRIVATE_REPO_404 = new RepositoryAccessError("github.com", 404, "acme/templates", false);
+const OUTSIDE_GRANT_403 = new RepositoryAccessError("github.com", 403, "acme/one", false);
+const OFFLINE = new Error("offline");
 
 /** `storedTokens` seeds the token store; `tokenAnswers` scripts the prompt (an unanswered host declines). */
 function sessionOver({
@@ -78,6 +80,26 @@ function fakeFetch(
     };
 }
 
+/** A fetch whose n-th attempt meets the n-th outcome: an error to throw, or `"served"`. */
+function scriptedFetch(...outcomes: (Error | "served")[]) {
+    const attempts: (string | undefined)[] = [];
+    return {
+        attempts,
+        task: async (config: RepositorySourceConfig): Promise<string> => {
+            attempts.push(config.kind === "local" ? undefined : config.token);
+            const outcome = outcomes[attempts.length - 1];
+            if (outcome instanceof Error) {
+                throw outcome;
+            }
+            return outcome;
+        },
+    };
+}
+
+/** `rejects.toThrow(regex)` also passes for an `undefined` rejection, so match the error itself. */
+const errorWithMessage = (pattern: RegExp) =>
+    expect.objectContaining({ message: expect.stringMatching(pattern) });
+
 const anyone = () => true;
 const nobody = () => false;
 const anonymousOnly = (token: string | undefined) => token === undefined;
@@ -96,20 +118,76 @@ describe("HostTokenSession.run", () => {
         await expect(session.run(LOCAL_FOLDER, localFolder.task)).resolves.toBe("served");
 
         expect(privateRepo.attempts).toEqual([undefined, "stored-tok"]);
-        expect(localFolder.configs).toEqual([LOCAL_FOLDER]);
+        expect(localFolder.configs).toStrictEqual([LOCAL_FOLDER]);
         // The store is read once (lazily, after the anonymous 404), never prompted.
         expect(tokens.reads).toEqual(["github.com"]);
         expect(tokenPrompt.prompts).toEqual([]);
     });
 
-    it("passes a failure that is not an access denial through untouched, never reading the store", async () => {
+    it.each<{
+        rung: string;
+        storedTokens: Record<string, string>;
+        tokenAnswers: Record<string, string>;
+        script: Error[];
+        reads: string[];
+        prompts: number;
+    }>([
+        {
+            rung: "the first attempt",
+            storedTokens: { "github.com": "stored-tok" },
+            tokenAnswers: {},
+            script: [OFFLINE],
+            reads: [],
+            prompts: 0,
+        },
+        {
+            rung: "the stored-token attempt",
+            storedTokens: { "github.com": "stored-tok" },
+            tokenAnswers: {},
+            script: [PRIVATE_REPO_404, OFFLINE],
+            reads: ["github.com"],
+            prompts: 0,
+        },
+        {
+            rung: "the retry with a new token",
+            storedTokens: {},
+            tokenAnswers: { "github.com": "new" },
+            script: [PRIVATE_REPO_404, OFFLINE],
+            reads: ["github.com"],
+            prompts: 1,
+        },
+    ])(
+        "passes a failure that is not an access denial through untouched from $rung",
+        async ({ storedTokens, tokenAnswers, script, reads, prompts }) => {
+            const { session, tokens, tokenPrompt } = sessionOver({ storedTokens, tokenAnswers });
+
+            await expect(
+                session.run(GITHUB_MARKETPLACE, scriptedFetch(...script).task),
+            ).rejects.toBe(OFFLINE);
+            expect(tokens.reads).toEqual(reads);
+            expect(tokenPrompt.prompts).toHaveLength(prompts);
+        },
+    );
+
+    it("passes a failure that is not an access denial through untouched from the anonymous retry", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            storedTokens: { "github.com": "stored-tok" },
+        });
+        await session.run(GITHUB_MARKETPLACE, fakeFetch(only("stored-tok")).task);
+
+        await expect(
+            session.run(GITHUB_SOURCE_ONE, scriptedFetch(OUTSIDE_GRANT_403, OFFLINE).task),
+        ).rejects.toBe(OFFLINE);
+        expect(tokenPrompt.prompts).toEqual([]);
+    });
+
+    it("never reads the store for a local folder, even on an access-shaped failure", async () => {
         const { session, tokens, tokenPrompt } = sessionOver({
             storedTokens: { "github.com": "stored-tok" },
         });
-        const offline = new Error("offline");
 
-        await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody, offline).task)).rejects.toBe(
-            offline,
+        await expect(session.run(LOCAL_FOLDER, fakeFetch(nobody).task)).rejects.toBe(
+            PRIVATE_REPO_404,
         );
         expect(tokens.reads).toEqual([]);
         expect(tokenPrompt.prompts).toEqual([]);
@@ -135,20 +213,21 @@ describe("HostTokenSession.run", () => {
         const { session, tokenPrompt, notifier } = sessionOver();
 
         await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody).task)).rejects.toThrow(
-            /requires a personal access token/,
+            errorWithMessage(/requires a personal access token/),
         );
         expect(tokenPrompt.prompts).toHaveLength(1);
         expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
     });
 
-    it("reports 'can't access' when the freshly entered token is also denied", async () => {
+    it("reports 'can't access' without the token when the freshly entered token is also denied", async () => {
         const { session, tokenPrompt } = sessionOver({
             tokenAnswers: { "github.com": "still-wrong" },
         });
 
-        await expect(session.run(GITHUB_MARKETPLACE, fakeFetch(nobody).task)).rejects.toThrow(
-            /can't access/,
-        );
+        const failure = session.run(GITHUB_MARKETPLACE, fakeFetch(nobody).task);
+
+        await expect(failure).rejects.toThrow(errorWithMessage(/can't access/));
+        await expect(failure).rejects.not.toThrow(/still-wrong/);
         expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
@@ -187,6 +266,23 @@ describe("HostTokenSession.run", () => {
         expect(tokens.tokens).toEqual(new Map([["github.com", "stored-tok"]]));
     });
 
+    it("prompts with 'was rejected' wording when a session-cached token and the anonymous retry are both denied", async () => {
+        const { session, tokenPrompt, tokens } = sessionOver({
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "stored-tok" },
+        });
+        await session.run(GITHUB_MARKETPLACE, fakeFetch(only("stored-tok")).task);
+        const otherPrivateRepo = fakeFetch(only("new"), OUTSIDE_GRANT_403);
+
+        await expect(session.run(GITHUB_SOURCE_ONE, otherPrivateRepo.task)).resolves.toBe("served");
+
+        expect(otherPrivateRepo.attempts).toEqual(["stored-tok", undefined, "new"]);
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "github.com", reason: expect.stringMatching(/was rejected/) },
+        ]);
+        expect(tokens.reads).toEqual(["github.com"]);
+    });
+
     it("attempts in order anonymous → stored → new when a stale token guards a private repo", async () => {
         const { session, tokenPrompt } = sessionOver({
             tokenAnswers: { "github.com": "new" },
@@ -212,7 +308,7 @@ describe("HostTokenSession.run", () => {
         );
 
         await expect(session.run(GITHUB_MARKETPLACE, rateLimited.task)).rejects.toThrow(
-            /rate limit/i,
+            errorWithMessage(/rate limit/i),
         );
         expect(rateLimited.attempts).toEqual([undefined, "have-it"]);
         expect(tokenPrompt.prompts).toHaveLength(1);
@@ -239,7 +335,7 @@ describe("HostTokenSession.run", () => {
                 .task,
         );
 
-        await expect(failure).rejects.toThrow(/rate limit/i);
+        await expect(failure).rejects.toThrow(errorWithMessage(/rate limit/i));
         await expect(failure).rejects.not.toThrow(/can't access/);
     });
 
@@ -252,7 +348,7 @@ describe("HostTokenSession.run", () => {
                 fakeFetch(nobody, new RepositoryAccessError("gitlab.com", 429, "group/proj", true))
                     .task,
             ),
-        ).rejects.toThrow(/gitlab\.com rate limit exceeded/);
+        ).rejects.toThrow(errorWithMessage(/gitlab\.com rate limit exceeded/));
     });
 
     // A public marketplace must not raise the macOS keychain popup, which happens
@@ -379,7 +475,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await session.ensureTokensForPrivateHosts(["github.com"]);
 
         await expect(session.run(GITHUB_SOURCE_ONE, fakeFetch(nobody).task)).rejects.toThrow(
-            /requires a personal access token/,
+            errorWithMessage(/requires a personal access token/),
         );
         expect(tokens.reads).toEqual(["github.com"]);
         expect(tokenPrompt.prompts).toHaveLength(1);
