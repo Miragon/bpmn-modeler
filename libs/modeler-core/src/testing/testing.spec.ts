@@ -10,6 +10,7 @@ import {
     UserCancelledError,
 } from "../kernel/domain/errors";
 import { createTestHost } from "./createTestHost";
+import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { ScriptedPicker } from "./ScriptedPicker";
 
@@ -128,6 +129,18 @@ describe("InMemoryWorkspace", () => {
         expect(ws.watchers).toEqual([
             expect.objectContaining({ root: "/work", glob: "**/*.bpmn", disposed: true }),
         ]);
+    });
+});
+
+describe("InMemorySettings", () => {
+    it("gives every instance lists of its own", () => {
+        const defaults = structuredClone(new InMemorySettings().values);
+        const edited = new InMemorySettings();
+
+        edited.values.favouriteBpmnElements.push("bpmn:Task");
+        edited.values.marketplaces.push("https://github.com/acme/templates");
+
+        expect(new InMemorySettings().values).toEqual(defaults);
     });
 });
 

@@ -19,6 +19,16 @@ const SHARED_CASES = settingsNormalizationCases(
 
 const ALL_CASES = [...SHARED_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES];
 
+describe("DEFAULT_MODELER_SETTINGS", () => {
+    it("keeps its lists unchangeable", () => {
+        const favourites = DEFAULT_MODELER_SETTINGS.favouriteBpmnElements as string[];
+        const marketplaces = DEFAULT_MODELER_SETTINGS.marketplaces as string[];
+
+        expect(() => favourites.push("bpmn:Task")).toThrow(TypeError);
+        expect(() => marketplaces.push("https://github.com/acme/templates")).toThrow(TypeError);
+    });
+});
+
 describe("normalizeSettings", () => {
     it.each(ALL_CASES)("$name", ({ raw, normalized }) => {
         expect(normalizeSettings(raw)).toEqual({ ...DEFAULT_MODELER_SETTINGS, ...normalized });
@@ -37,6 +47,15 @@ describe("normalizeSettings", () => {
         ]);
 
         expect(namedKeys.filter((key) => !(key in DEFAULT_MODELER_SETTINGS))).toEqual([]);
+    });
+
+    it("hands out lists of its own for the defaults", () => {
+        const first = normalizeSettings({});
+
+        first.favouriteBpmnElements.push("bpmn:Task");
+        first.marketplaces.push("https://github.com/acme/templates");
+
+        expect(normalizeSettings({})).toEqual(DEFAULT_MODELER_SETTINGS);
     });
 
     it("drops a key the snapshot does not hold", () => {
@@ -100,7 +119,7 @@ describe("changedSettingKeys", () => {
             changed: ["marketplaces"],
         },
     ])("reports $case", ({ previous = {}, next, changed }) => {
-        const before: ModelerSettingsSnapshot = { ...DEFAULT_MODELER_SETTINGS, ...previous };
+        const before = normalizeSettings(previous);
 
         expect(changedSettingKeys(before, { ...before, ...next })).toEqual(changed);
     });

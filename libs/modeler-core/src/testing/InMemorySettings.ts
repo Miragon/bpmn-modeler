@@ -3,8 +3,8 @@ import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 import { MarketplaceSettingsEntry, SettingsPort } from "../kernel/domain/hostPorts";
 import {
     DEFAULT_LINTING_ENABLED,
-    DEFAULT_MODELER_SETTINGS,
     ModelerSettingsSnapshot,
+    normalizeSettings,
 } from "../kernel/domain/modelerSettings";
 
 export interface SettingsValues extends ModelerSettingsSnapshot {
@@ -20,7 +20,7 @@ export class InMemorySettings implements SettingsPort {
 
     constructor(overrides: Partial<SettingsValues> = {}) {
         this.values = {
-            ...DEFAULT_MODELER_SETTINGS,
+            ...normalizeSettings({}),
             lintingEnabled: DEFAULT_LINTING_ENABLED,
             ...overrides,
         };

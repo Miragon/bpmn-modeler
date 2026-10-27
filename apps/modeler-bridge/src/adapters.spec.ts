@@ -371,6 +371,15 @@ describe("BridgeSettings", () => {
         },
     );
 
+    it("gives every instance lists of its own", () => {
+        const defaults = structuredClone(readSettingsSnapshot(new BridgeSettings()));
+
+        new BridgeSettings().getFavouriteBpmnElements().push("bpmn:Task");
+        new BridgeSettings().getMarketplaces().push("https://github.com/acme/templates");
+
+        expect(readSettingsSnapshot(new BridgeSettings())).toEqual(defaults);
+    });
+
     it("fires no change for values that read as the current ones", () => {
         const settings = new BridgeSettings();
         const listener = vi.fn();

@@ -28,8 +28,17 @@ export type RawModelerSettings = Partial<Record<keyof ModelerSettingsSnapshot, u
 /** The append-menu palette pins no more. */
 export const MAX_FAVOURITE_BPMN_ELEMENTS = 6;
 
-/** The defaults `apps/vscode-plugin/package.json` declares; its contract spec pins them. */
-export const DEFAULT_MODELER_SETTINGS: Readonly<ModelerSettingsSnapshot> = Object.freeze({
+type ReadonlyList<Value> = Value extends (infer Entry)[] ? readonly Entry[] : Value;
+
+type FrozenModelerSettings = {
+    readonly [Key in keyof ModelerSettingsSnapshot]: ReadonlyList<ModelerSettingsSnapshot[Key]>;
+};
+
+/**
+ * The defaults `apps/vscode-plugin/package.json` declares; its contract spec pins
+ * them. Their lists are frozen too: `normalizeSettings({})` hands out a copy.
+ */
+export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     alignToOrigin: false,
     showTransactionBoundaries: true,
     configFolder: ".camunda",
@@ -37,15 +46,15 @@ export const DEFAULT_MODELER_SETTINGS: Readonly<ModelerSettingsSnapshot> = Objec
     c8ApiVersion: "v2",
     colorTheme: "automatic",
     defaultMode: "implement",
-    favouriteBpmnElements: [
+    favouriteBpmnElements: Object.freeze([
         "bpmn:ServiceTask",
         "bpmn:UserTask",
         "bpmn:CallActivity",
         "bpmn:ExclusiveGateway",
-    ],
+    ]),
     language: "en",
     scriptingSpin: true,
-    marketplaces: [],
+    marketplaces: Object.freeze([]),
 });
 
 /** Outside the snapshot: IntelliJ has no lint setting, the bridge keeps the webview's toggle. */

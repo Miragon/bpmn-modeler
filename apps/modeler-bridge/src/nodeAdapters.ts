@@ -36,7 +36,6 @@ import {
     changedSettingKeys,
     coalesceWatcherEvents,
     DEFAULT_LINTING_ENABLED,
-    DEFAULT_MODELER_SETTINGS,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
@@ -485,7 +484,7 @@ const SETTINGS_PREFIX = "miragon.bpmnModeler";
  */
 export class BridgeSettings implements SettingsPort {
     // Render-safe before the host's first snapshot, which a host may leave out of register.
-    private snapshot: ModelerSettingsSnapshot = DEFAULT_MODELER_SETTINGS;
+    private snapshot: ModelerSettingsSnapshot = normalizeSettings({});
     // Outside the snapshot: `apply` would announce it as `lintingEnabled`, not `linting.enabled`.
     private lintingEnabled = DEFAULT_LINTING_ENABLED;
     private readonly listeners = new Set<(event: SettingChange) => void>();
