@@ -3,19 +3,22 @@ import { posix } from "path";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import {
-    DeploymentStatePort,
     DocumentPort,
     NotifierPort,
     PickerPort,
-    SecretStorePort,
     SettingsPort,
-    StatusBarPort,
     WorkspacePort,
 } from "../shared/domain/hostPorts";
 import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
 import { ArtifactService } from "../shared/service/ArtifactService";
 import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
-import { HttpClient } from "./domain/ports";
+import {
+    DeploymentPickerPort,
+    DeploymentStatePort,
+    DeploymentStatusBarPort,
+    HttpClient,
+    SecretStorePort,
+} from "./domain/ports";
 import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
 import { Camunda8RestClient } from "./infrastructure/camunda/Camunda8RestClient";
@@ -40,8 +43,8 @@ export interface DeploymentHostPorts {
     workspace: WorkspacePort;
     settings: SettingsPort;
     notifier: NotifierPort;
-    picker: PickerPort;
-    statusBar: StatusBarPort;
+    picker: PickerPort & DeploymentPickerPort;
+    statusBar: DeploymentStatusBarPort;
     artifacts: ArtifactService;
     secrets: SecretStorePort;
     state: DeploymentStatePort;

@@ -1,7 +1,7 @@
 /**
  * Host-capability ports: one interface per host-native facility the feature
- * code needs (notifications, pickers, clipboard, settings, workspace fs,
- * documents, status bar, secrets, deployment state).
+ * code needs (logging, notifications, pickers, clipboard, settings, workspace
+ * fs, documents, status bar).
  *
  * These exist so `service/` depends on *interfaces*, not the concrete `Vs*`
  * adapters. That keeps the layer boundary honest (a service can be unit-tested
@@ -9,13 +9,13 @@
  * names, in domain terms, exactly which host facilities the core relies on —
  * the contract any non-VS-Code host would have to satisfy. The concrete
  * `VsCode*` classes in `infrastructure/` `implements` these.
+ *
+ * Only cross-cutting ports live here, so `shared/` names no feature. A port or
+ * prompt one feature owns lives in that feature's `domain/ports.ts`.
  */
 
-import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
-import { Engine, LintResults, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { DeployedRevision, DeploymentFreshness } from "../../deployment/domain/deploymentLedger";
-import { MigrationScope } from "../../migration/domain/MigrationPlan";
 import { NewModelEngine } from "./newModelEngine";
 
 /**
@@ -57,7 +57,7 @@ export interface NotifierPort extends LoggerPort {
 }
 
 /**
- * Domain-aware quick-pick prompts (engine, migration scope, referenced model,
+ * Domain-aware quick-pick prompts (engine, engine version, referenced model,
  * …). Each method owns the cancel-vs-throw convention for its prompt so
  * callsites stay free of `vscode` and the convention is not re-derived.
  */
@@ -69,8 +69,6 @@ export interface PickerPort {
      */
     pickNewModelEngine(placeHolder: string): Promise<NewModelEngine>;
     /** @throws {UserCancelledError} on dismissal. */
-    pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope>;
-    /** @throws {UserCancelledError} on dismissal. */
     pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string>;
     /** @returns chosen absolute paths, or `[]` on dismissal. */
     pickWorkspaceFiles(opts: {
@@ -79,8 +77,6 @@ export interface PickerPort {
         placeholder: string;
         limit?: number;
     }): Promise<string[]>;
-    /** @returns the chosen payload, or `null` on dismissal. */
-    pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null>;
     /** @returns the picked `scriptFormat`, or `undefined` on dismissal. */
     pickScriptLanguage(currentFormat: string): Promise<string | undefined>;
     /**
@@ -116,27 +112,6 @@ export interface PickerPort {
         confirmLabel: string;
         details: string[];
     }): Promise<boolean>;
-
-    /**
-     * Prompts for the active deployment target. `names` are the saved targets;
-     * the picker also offers an explicit "(none — use form values)" entry for
-     * ad-hoc mode.
-     *
-     * @returns the chosen target name, `""` for the ad-hoc entry, or `undefined`
-     *   on dismissal (a no-op, mirroring the engine-version cancel convention).
-     */
-    pickDeploymentTarget(names: string[]): Promise<string | undefined>;
-
-    /**
-     * The status-bar item's click menu: switch the active target, or (for a
-     * Camunda 7 target) verify the ledger against the engine.
-     *
-     * @returns the chosen action, or `undefined` on dismissal (a no-op).
-     */
-    pickDeploymentStatusAction(opts: {
-        targetName?: string;
-        canVerify: boolean;
-    }): Promise<"switch" | "verify" | undefined>;
 }
 
 /**
@@ -302,156 +277,4 @@ export interface StatusBarPort {
     showBpmnlintDisabled(): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
-    /**
-     * `undefined` name renders "No deployment target"; a name renders the active
-     * target. `freshness` drives the coloured dot; `deployedAt` / `verifiedAt`
-     * (ISO) enrich the tooltip when a revision was recorded / engine-verified.
-     */
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void;
-    hideDeploymentTarget(): void;
-}
-
-/**
- * Runs bpmnlint over a diagram in a full Node context (the extension host),
- * resolving built-in, `plugin:*`, and custom `pkg/rule` rules against the
- * workspace `node_modules` rooted at the `.bpmnlintrc` — parity with the CLI.
- *
- * A port because rule resolution needs Node's `require`/module resolution, which
- * only concrete hosts (VS Code, standalone Theia) have; the browser webview never
- * could. Hosts without a Node linter simply don't wire one, and linting stays
- * dormant.
- */
-export interface LintRunnerPort {
-    /**
-     * @param xml the diagram XML to lint.
-     * @param configPath absolute path of the resolved `.bpmnlintrc`; its
-     *   directory anchors module resolution for custom rules/plugins. For the
-     *   zero-config default this is the document's own path (a resolution anchor
-     *   only — the default references no workspace modules).
-     * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
-     * @returns the findings keyed by rule name, plus the names of any
-     *   rules/configs that could not be resolved (skipped, never thrown).
-     */
-    lint(
-        xml: string,
-        configPath: string,
-        config: Record<string, unknown>,
-    ): Promise<{ results: LintResults; unresolved: string[] }>;
-}
-
-/**
- * Publishes bpmnlint findings as host-native diagnostics (VS Code's Problems
- * panel) so they are searchable and clickable without opening the diagram. A
- * port so the core stays free of `vscode.Diagnostic`; hosts without a Problems
- * surface leave it unwired.
- */
-export interface DiagnosticsPort {
-    /**
-     * Replaces the diagnostics for `documentUri` (a `uri.toString()` key) with the
-     * given findings. `xml` is used for best-effort element-id→line mapping.
-     */
-    publish(documentUri: string, xml: string, results: LintResults): void;
-    /** Drops all diagnostics for `documentUri` (no config, or editor closed). */
-    clear(documentUri: string): void;
-}
-
-/**
- * Encrypted-at-rest storage for sensitive deployment credentials.
- *
- * Every method takes an optional trailing `slot` so credentials can be scoped to
- * a named deployment target. `undefined` addresses the legacy unnamed keys
- * (ad-hoc mode). A slot is `<targetsFilePath>::<name>` so the same target name in
- * two workspaces cannot collide in an application-scoped store like IntelliJ's
- * PasswordSafe.
- */
-export interface SecretStorePort {
-    saveBasicAuth(username: string, password: string, slot?: string): Promise<void>;
-    getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined>;
-    saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void>;
-    getOAuth2(slot?: string): Promise<{ clientId: string; clientSecret: string } | undefined>;
-    /**
-     * The origins the user approved `slot`'s credentials for; `[]` when none.
-     * Kept beside the credentials so they share a lifecycle and a resolved
-     * `.env` host is never persisted in cleartext.
-     */
-    getApprovedDestinations(slot: string): Promise<string[]>;
-    saveApprovedDestinations(slot: string, origins: string[]): Promise<void>;
-    /** Removes every credential kind and the approved destinations stored under `slot`. */
-    delete(slot: string): Promise<void>;
-}
-
-/**
- * Encrypted-at-rest storage for per-host personal access tokens reaching
- * private template-marketplace repositories.
- *
- * A sibling of {@link SecretStorePort} rather than a member: that port is
- * deployment-shaped (basic-auth / OAuth2 pairs) and reshaping it would touch
- * every host. Keyed by `host` for a distinct token per origin; setting an
- * existing host overwrites, which is how token rotation is expressed.
- *
- * `getToken` may be user-visible — IntelliJ's PasswordSafe adapter raises a
- * macOS keychain prompt on read — so callers must read lazily, only after an
- * auth-shaped failure, never speculatively before a request that might succeed
- * anonymously.
- */
-export interface TokenStorePort {
-    getToken(host: string): Promise<string | undefined>;
-    setToken(host: string, token: string): Promise<void>;
-}
-
-/**
- * Returns a trimmed token, or `undefined` on decline (empty/whitespace counts as
- * decline). Never throws: a decline is per-run data, not control flow — a
- * background `updateAll` must keep going after one, unlike {@link PickerPort}'s
- * throw-on-cancel prompts.
- */
-export interface TokenPromptPort {
-    promptForToken(host: string, reason: string): Promise<string | undefined>;
-}
-
-/**
- * Persists the global default visibility of the BPMN properties panel across
- * sessions. {@link getVisibility} is synchronous so the webview HTML can be
- * pre-rendered with the correct collapsed state before the webview boots.
- */
-export interface PropertiesPanelStatePort {
-    getVisibility(): boolean;
-    setVisibility(visible: boolean): Promise<void>;
-}
-
-/**
- * Persists non-secret deployment-form state (endpoint, tenant, auth type, …)
- * across sessions so the form can be pre-filled on next use.
- */
-export interface DeploymentStatePort {
-    getEndpoint(): string;
-    getTenantId(): string;
-    getAuthType(): AuthTypePayload;
-    saveAuthType(authType: AuthTypePayload): Promise<void>;
-    getTokenEndpoint(): string;
-    getAudience(): string;
-    saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void>;
-    save(endpoint: string, tenantId: string): Promise<void>;
-    /**
-     * The persisted active deployment-target name, or `""` for ad-hoc mode.
-     * Synchronous so it can ride the initial webview seed.
-     */
-    getActiveTargetName(): string;
-    saveActiveTargetName(name: string): Promise<void>;
-    /**
-     * The recorded revision last deployed under `ledgerKey`, or `undefined` when
-     * this machine has no record. Synchronous so freshness can be
-     * resolved during the initial status-bar render.
-     */
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
-    saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
-    /** Every recorded ledger key. Synchronous, like the getters. */
-    listLedgerKeys(): string[];
-    /** Removes the given ledger slots (target delete/rename, engine says "not deployed"). */
-    deleteDeployedRevisions(ledgerKeys: string[]): Promise<void>;
 }

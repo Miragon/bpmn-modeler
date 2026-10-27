@@ -2,13 +2,8 @@ import { posix } from "path";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
-import {
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    WorkspacePort,
-} from "../../shared/domain/hostPorts";
-import { CamundaEnginePort } from "../domain/ports";
+import { DocumentPort, NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { CamundaEnginePort, DeploymentPickerPort } from "../domain/ports";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DeploymentTarget } from "../domain/deploymentTarget";
@@ -39,7 +34,7 @@ export class StartInstanceService {
         private readonly vsWorkspace: WorkspacePort,
         private readonly restClient: CamundaEnginePort,
         private readonly notifier: NotifierPort,
-        private readonly picker: PickerPort,
+        private readonly picker: DeploymentPickerPort,
         private readonly artifactService: ArtifactService,
         private readonly envResolver: EnvValueResolver,
         private readonly credentialApproval: CredentialApprovalService,

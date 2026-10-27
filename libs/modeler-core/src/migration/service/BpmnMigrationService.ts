@@ -4,6 +4,7 @@ import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { FileNotFound, UserCancelledError } from "../../shared/domain/errors";
 import { getVersions } from "../../shared/domain/engineVersions";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
+import { MigrationPickerPort } from "../domain/ports";
 import {
     DocumentPort,
     NotifierPort,
@@ -35,7 +36,7 @@ export class BpmnMigrationService {
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: DocumentPort,
         private readonly vsWorkspace: WorkspacePort,
-        private readonly picker: PickerPort,
+        private readonly picker: PickerPort & MigrationPickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 

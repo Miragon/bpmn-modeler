@@ -1,12 +1,6 @@
 import { posix } from "path";
 
-import {
-    DeploymentStatePort,
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    StatusBarPort,
-} from "../../shared/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { UnreadableDotEnvError } from "../../shared/domain/errors";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import {
@@ -19,6 +13,11 @@ import {
 } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { EnvLookup, EnvReferencing, NO_ENV_VARIABLES } from "../domain/envRef";
+import {
+    DeploymentPickerPort,
+    DeploymentStatePort,
+    DeploymentStatusBarPort,
+} from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
 
@@ -43,8 +42,8 @@ export class DeploymentStatusService {
         private readonly documentPort: DocumentPort,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly statusBar: StatusBarPort,
-        private readonly picker: PickerPort,
+        private readonly statusBar: DeploymentStatusBarPort,
+        private readonly picker: DeploymentPickerPort,
         private readonly notifier: NotifierPort,
         private readonly envResolver: EnvValueResolver,
     ) {}

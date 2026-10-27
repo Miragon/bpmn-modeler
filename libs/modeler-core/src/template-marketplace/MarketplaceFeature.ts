@@ -2,15 +2,14 @@ import { join } from "path";
 
 import { HttpClient } from "../deployment/domain/ports";
 import { FetchHttpClient } from "../deployment/infrastructure/FetchHttpClient";
+import { NotifierPort, SettingsPort, WorkspacePort } from "../shared/domain/hostPorts";
+import { expandHomePath } from "./domain/marketplace";
 import {
-    NotifierPort,
-    SettingsPort,
+    RepositorySource,
+    RepositorySourceConfig,
     TokenPromptPort,
     TokenStorePort,
-    WorkspacePort,
-} from "../shared/domain/hostPorts";
-import { expandHomePath } from "./domain/marketplace";
-import { RepositorySource, RepositorySourceConfig } from "./domain/ports";
+} from "./domain/ports";
 import { GitHubSource } from "./infrastructure/GitHubSource";
 import { GitLabSource } from "./infrastructure/GitLabSource";
 import { LocalFileSource } from "./infrastructure/LocalFileSource";

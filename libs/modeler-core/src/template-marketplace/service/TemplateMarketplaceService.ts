@@ -1,9 +1,4 @@
-import {
-    NotifierPort,
-    SettingsPort,
-    TokenPromptPort,
-    TokenStorePort,
-} from "../../shared/domain/hostPorts";
+import { NotifierPort, SettingsPort } from "../../shared/domain/hostPorts";
 import {
     expandHomePath,
     InvalidMarketplaceError,
@@ -23,6 +18,8 @@ import {
     RepositoryAccessError,
     RepositorySourceConfig,
     RepositorySourceFactory,
+    TokenPromptPort,
+    TokenStorePort,
 } from "../domain/ports";
 import {
     FetchedTemplateFile,

@@ -1,6 +1,7 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentFreshness } from "../deployment/domain/deploymentLedger";
+import { DeploymentStatusBarPort } from "../deployment/domain/ports";
 import { StatusBarPort } from "../shared/domain/hostPorts";
 
 export type ElementTemplatesStatus =
@@ -24,7 +25,7 @@ export interface DeploymentTargetStatus {
 }
 
 /** Holds what each status-bar item currently shows, as the real adapters do. */
-export class RecordingStatusBar implements StatusBarPort {
+export class RecordingStatusBar implements StatusBarPort, DeploymentStatusBarPort {
     elementTemplates: ElementTemplatesStatus = { state: "hidden" };
     engineVersion: { platform: Engine; version: string } | undefined;
     bpmnlint: BpmnlintStatus = { state: "hidden" };

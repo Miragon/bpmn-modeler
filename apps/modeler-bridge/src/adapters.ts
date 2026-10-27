@@ -22,12 +22,15 @@ import {
     ClipboardPort,
     DeployedRevision,
     DeploymentFreshness,
+    DeploymentPickerPort,
     DeploymentStatePort,
+    DeploymentStatusBarPort,
     DocumentChangeEvent,
     DocumentPort,
     EditorHandle,
     EditorSubscription,
     errorLogText,
+    MigrationPickerPort,
     MigrationScope,
     NEW_MODEL_ENGINE_CHOICES,
     NewModelEngine,
@@ -412,7 +415,7 @@ export class RpcNotifier implements NotifierPort {
  * `StatusBarWidget` (element-template count + engine version). The core stays
  * the single source of truth for *what* to show; the host decides *how*.
  */
-export class RpcStatusBar implements StatusBarPort {
+export class RpcStatusBar implements StatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
     showElementTemplatesLoading(): void {
@@ -742,7 +745,7 @@ export interface FileFinder {
  * to `VsCodePicker` (the contract's reference) and the host carries no
  * per-picker logic — it only renders a generic chooser.
  */
-export class RpcPicker implements PickerPort {
+export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     constructor(
         private readonly rpc: Rpc,
         private readonly fileFinder: FileFinder,
