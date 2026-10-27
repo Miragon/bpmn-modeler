@@ -541,8 +541,6 @@ export class DeploymentMessageDispatcher {
                 this.notifier.showError(result.message);
             }
 
-            await this.deploymentStatusService.refreshFocused();
-
             this.post(
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),
             );

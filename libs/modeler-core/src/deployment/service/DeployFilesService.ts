@@ -53,6 +53,5 @@ export class DeployFilesService {
             `Deploying ${files.length} file(s) to "${target.name}"`,
             () => this.deploymentService.deployFiles(files, target, auth, documentDir),
         );
-        await this.deploymentStatusService.refreshFocused();
     }
 }

@@ -21,7 +21,14 @@ import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
 import { createTestHost, PickerAnswers } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
+import {
+    contentFingerprint,
+    DeployedRevision,
+    DeploymentTargetIdentity,
+    ledgerKeyFor,
+} from "./domain/deploymentLedger";
 import { DeploymentTarget, serializeDeploymentTargets } from "./domain/deploymentTarget";
+import { NO_ENV_VARIABLES } from "./domain/envRef";
 import { HttpClient, HttpResponse } from "../kernel/domain/http";
 import { DeploymentTargetService, toTargetPayload } from "./service/DeploymentTargetService";
 
@@ -58,6 +65,12 @@ class RecordingEngineHttp implements HttpClient {
 
     postForm(): Promise<HttpResponse> {
         throw new Error("unexpected request");
+    }
+}
+
+class EngineWithoutDefinitions extends RecordingEngineHttp {
+    override async getJson(): Promise<HttpResponse> {
+        return { status: 404, body: "" };
     }
 }
 
@@ -511,6 +524,115 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
 
         expect(edited.host.statusBar.deploymentTarget).toEqual(
             expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        );
+    });
+});
+
+describe("DeploymentFeature status after a ledger write", () => {
+    const ORDER_XML = '<bpmn:process id="order-process"/>';
+    const LOCAL_ENGINE = "http://localhost:8080/engine-rest";
+    const DEPLOYED_ORDER_XML: DeployedRevision = {
+        fingerprint: contentFingerprint(ORDER_XML),
+        deployedAt: "2026-10-20T09:00:00.000Z",
+    };
+    const devRow = ledgerKeyFor(
+        DeploymentTargetIdentity.fromTarget(target("dev"), NO_ENV_VARIABLES),
+        ORDER_PROCESS,
+    );
+    const localAdHocRow = ledgerKeyFor(
+        DeploymentTargetIdentity.adHoc(LOCAL_ENGINE, "", NO_ENV_VARIABLES),
+        ORDER_PROCESS,
+    );
+
+    interface FocusOptions {
+        activeTargetName?: string;
+        deployedRows?: string[];
+        http?: HttpClient;
+    }
+
+    /** The order process, focused and saved as the editor shows it. */
+    async function focusOrderProcess({
+        activeTargetName = "dev",
+        deployedRows = [],
+        http = new RecordingEngineHttp(),
+    }: FocusOptions = {}) {
+        const { host, feature } = createFeature(
+            { workspaceFiles: [ORDER_PROCESS] },
+            [target("dev")],
+            { [ORDER_PROCESS]: ORDER_XML },
+            http,
+        );
+        host.deploymentState.activeTargetName = activeTargetName;
+        host.deploymentState.endpoint = LOCAL_ENGINE;
+        for (const row of deployedRows) host.deploymentState.ledger.set(row, DEPLOYED_ORDER_XML);
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: ORDER_XML });
+        await settle();
+        return { host, feature };
+    }
+
+    it("shows the diagram as deployed right after Deploy Diagram", async () => {
+        const { host, feature } = await focusOrderProcess();
+
+        await feature.deployActive();
+
+        expect(host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        );
+    });
+
+    it("shows the focused diagram as deployed right after Deploy Files deployed it", async () => {
+        const { host, feature } = await focusOrderProcess();
+
+        await feature.deployFiles();
+
+        expect(host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        );
+    });
+
+    it("shows the diagram as unknown once verification finds no definition on the engine", async () => {
+        const { host, feature } = await focusOrderProcess({
+            deployedRows: [devRow],
+            http: new EngineWithoutDefinitions(),
+        });
+        expect(host.statusBar.deploymentTarget?.freshness).toBe("deployed");
+
+        await feature.verify();
+
+        expect(host.deploymentState.ledger.has(devRow)).toBe(false);
+        expect(host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: "dev", freshness: "unknown" }),
+        );
+    });
+
+    it("shows the saved connection after an ad-hoc deploy that could not record its ledger row", async () => {
+        const stagingEngine = "http://staging.example.com/engine-rest";
+        const { host, feature } = await focusOrderProcess({
+            activeTargetName: "",
+            deployedRows: [localAdHocRow],
+        });
+        expect(host.statusBar.deploymentTarget?.freshness).toBe("deployed");
+        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+            new Error("workspace state is read-only"),
+        );
+        const { panel } = attach(feature, false);
+
+        await panel.handle(
+            new DeployCommand({
+                deploymentName: "order-process",
+                tenantId: "",
+                endpoint: stagingEngine,
+                engine: "c7",
+                mainFilePath: ORDER_PROCESS,
+                additionalFilePaths: [],
+                auth: { authType: "none" },
+                targetName: "",
+            }),
+        );
+
+        expect(host.deploymentState.endpoint).toBe(stagingEngine);
+        expect(host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: undefined, freshness: "unknown" }),
         );
     });
 });
