@@ -4,10 +4,10 @@ import { SearchScope } from "../domain/searchScope";
 import { joinWorkspacePath } from "../domain/workspacePath";
 
 /**
- * Reusable workspace-search primitives shared by the navigation and code-link
- * features. Kept in `kernel/` (exempt from feature isolation) so both features
- * build on one implementation of the find-files-with-fallback and parallel
- * content-search logic instead of duplicating ~80 lines each.
+ * Reusable workspace-search primitives shared by the navigation, code-link and
+ * definition-search features. Kept in `kernel/` (exempt from feature isolation)
+ * so these features build on one implementation of the find-files-with-fallback
+ * and parallel content-search logic instead of duplicating ~80 lines each.
  *
  * `WorkspacePort` is an interface, so this module never imports `vscode` and
  * the layer-purity arch test (service must not import host modules) stays green.

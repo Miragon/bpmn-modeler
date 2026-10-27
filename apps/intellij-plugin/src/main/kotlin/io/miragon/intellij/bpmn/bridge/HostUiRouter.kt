@@ -17,10 +17,10 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Routes the core's host-UI ports — `PickerPort`, clipboard, `StatusBarPort`,
- * and `NotifierPort` — onto native IntelliJ surfaces. Stateless: every handler
- * delegates to a project-scoped widget, the system clipboard, or the lazy
- * [io.miragon.intellij.bpmn.HostNotifications].
+ * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort`,
+ * `DeploymentStatusBarPort` and `NotifierPort` — onto native IntelliJ surfaces.
+ * Stateless: every handler delegates to a project-scoped widget, the system
+ * clipboard, or the lazy [io.miragon.intellij.bpmn.HostNotifications].
  */
 internal class HostUiRouter(private val deps: BridgeDeps) {
     private val log = Logger.getInstance(HostUiRouter::class.java)

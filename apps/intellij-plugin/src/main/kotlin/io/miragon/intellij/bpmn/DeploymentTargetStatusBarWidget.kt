@@ -19,7 +19,7 @@ import javax.swing.Icon
 import javax.swing.JComponent
 
 /**
- * Status-bar widget surfacing the core's `StatusBarPort.showDeploymentTarget`:
+ * Status-bar widget surfacing the core's `DeploymentStatusBarPort.showDeploymentTarget`:
  * the active deployment target and a coloured freshness dot while a BPMN editor
  * is focused (green = deployed, yellow = undeployed changes, gray = no local
  * record). Clicking it runs the switch-target command (the IntelliJ counterpart

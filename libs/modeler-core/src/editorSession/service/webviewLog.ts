@@ -23,7 +23,7 @@ function isLogMessageCommand(
  * The sandboxed webview cannot write to the output channel / `idea.log`, so it
  * forwards log entries as commands. Callers that own a raw `switch` (the
  * deployment dispatcher, the diff controller) use this to opt into the same
- * routing the {@link WebviewMessageRouter} handlers get, without duplicating the
+ * routing `registerWebviewLogHandlers` gives a router, without duplicating the
  * formatter or the four-way level fan-out — so the two transports can't drift.
  *
  * Each line is tagged `[webview:<source>]` (or `[webview]` when no source is
