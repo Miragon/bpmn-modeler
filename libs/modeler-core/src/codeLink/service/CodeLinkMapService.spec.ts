@@ -357,6 +357,21 @@ describe("CodeLinkMapService — live linking", () => {
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
     });
 
+    it("follows a source change in a workspace below a build directory", async () => {
+        const root = "/home/u/build/repo";
+        const worker = `${root}/src/Worker.java`;
+        const { service, editor } = createService({
+            root,
+            resolveMap: {},
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+
+        await service.onSourceFileChanged(worker, "created", root);
+
+        expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
+    });
+
     it("reads at apply time so the last event's content wins when reads resolve out of order", async () => {
         const worker = "/work/proj/src/Worker.java";
         const { service, host, editor } = createService({

@@ -1,4 +1,4 @@
-import { EXCLUDED_DIRS, pathIsInsideExcludedDir } from "../domain/excludedDirs";
+import { EXCLUDED_DIRS, isInsideExcludedDirBelowEveryFolder } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
 import { SearchScope } from "../domain/searchScope";
 import { joinWorkspacePath } from "../domain/workspacePath";
@@ -106,7 +106,9 @@ export async function findFilesInScope(
     // VS Code defaults do not cover all of them (dist, build, out, target, …).
     const startedAt = Date.now();
     const found = await ws.findFiles(glob);
-    const filtered = found.filter((path) => !pathIsInsideExcludedDir(path));
+    const filtered = found.filter(
+        (path) => !isInsideExcludedDirBelowEveryFolder(path, scope.folders),
+    );
     logger?.logInfo(
         `[search] findFiles("${glob}") returned ${found.length} path(s) ` +
             `(${filtered.length} after exclude filter) in ${Date.now() - startedAt}ms`,
