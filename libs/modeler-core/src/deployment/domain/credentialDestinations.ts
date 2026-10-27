@@ -1,4 +1,4 @@
-import { InvalidCredentialDestinationError } from "../../shared/domain/errors";
+import { InvalidCredentialDestinationError } from "./errors";
 
 /**
  * The origins (`scheme://host[:port]`) a request hands credentials to. Path,

@@ -1,4 +1,4 @@
-import { CredentialDestinationNotApprovedError } from "../../shared/domain/errors";
+import { CredentialDestinationNotApprovedError } from "../domain/errors";
 import { PickerPort } from "../../shared/domain/hostPorts";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { DeploymentTarget } from "../domain/deploymentTarget";

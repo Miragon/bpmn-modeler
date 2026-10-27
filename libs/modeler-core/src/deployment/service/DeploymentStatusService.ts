@@ -1,7 +1,7 @@
 import { posix } from "path";
 
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
-import { UnreadableDotEnvError } from "../../shared/domain/errors";
+import { UnreadableDotEnvError } from "../domain/errors";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import {
     contentFingerprint,

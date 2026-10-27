@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
 
-import { DisallowedEnvReferenceError } from "../../shared/domain/errors";
+import { DisallowedEnvReferenceError } from "../domain/errors";
 import { createTestHost, TestHostOptions } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";

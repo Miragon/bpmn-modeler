@@ -17,7 +17,7 @@ import {
     rememberedPartLabel,
 } from "../domain/deploymentOutcome";
 import { EnvLookup } from "../domain/envRef";
-import { loggableHost } from "../domain/urlTemplate";
+import { loggableHost } from "../../kernel/domain/http";
 import {
     DocumentPort,
     NotifierPort,

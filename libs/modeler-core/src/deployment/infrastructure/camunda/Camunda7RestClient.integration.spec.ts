@@ -3,7 +3,7 @@ import { AddressInfo } from "net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { FetchHttpClient } from "../FetchHttpClient";
+import { FetchHttpClient } from "../../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda7RestClient } from "./Camunda7RestClient";
 import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
@@ -12,7 +12,7 @@ import {
     DeploymentFailedError,
     EngineInspectionFailedError,
     StartInstanceFailedError,
-} from "../../../shared/domain/errors";
+} from "../../domain/errors";
 
 function escapeHtml(value: string | undefined): string {
     return (value ?? "")

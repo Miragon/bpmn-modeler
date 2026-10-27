@@ -1,7 +1,4 @@
-import {
-    DisallowedEnvReferenceError,
-    UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+import { DisallowedEnvReferenceError, UnresolvedEnvVariableError } from "./errors";
 
 /**
  * A committed targets file chooses both the destination and the variables, so

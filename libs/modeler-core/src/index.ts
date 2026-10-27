@@ -7,6 +7,10 @@
  * router, ports, domain handles) and what the VS Code composition root wires.
  */
 
+// ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/http";
+export * from "./kernel/infrastructure/FetchHttpClient";
+
 // ── shared: domain ──────────────────────────────────────────────────────────
 export * from "./shared/domain/affectedItems";
 export * from "./shared/domain/BpmnDocument";
@@ -26,7 +30,6 @@ export * from "./shared/domain/workspacePath";
 
 // ── shared: service + vscode-free infrastructure ────────────────────────────
 export * from "./shared/service/ArtifactService";
-export * from "./shared/service/BpmnLintConfigLocator";
 export * from "./shared/service/DocumentFlushService";
 export * from "./shared/service/PendingEditsFlush";
 export * from "./shared/infrastructure/EditorSessionDocuments";
@@ -48,6 +51,7 @@ export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/infrastructure/bpmnMessageHandlers";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";
+export * from "./modeler/bpmn/service/BpmnLintConfigLocator";
 export * from "./modeler/bpmn/service/BpmnLintConfigService";
 export * from "./modeler/bpmn/service/DefaultBpmnlintConfigService";
 export * from "./modeler/bpmn/infrastructure/bpmnlint/NodeBpmnLinter";
@@ -105,6 +109,7 @@ export * from "./deployment/domain/deploymentLedger";
 export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";
 export * from "./deployment/domain/envRef";
+export * from "./deployment/domain/errors";
 export * from "./deployment/domain/ports";
 export * from "./deployment/domain/startInstance";
 export * from "./deployment/domain/urlTemplate";
@@ -119,7 +124,6 @@ export * from "./deployment/service/DeploymentVerificationService";
 export * from "./deployment/service/DeploymentMessageDispatcher";
 export * from "./deployment/session/DeploymentStatusParticipant";
 export * from "./deployment/DeploymentFeature";
-export * from "./deployment/infrastructure/FetchHttpClient";
 export * from "./deployment/infrastructure/camunda/AuthHeaderResolver";
 export * from "./deployment/infrastructure/camunda/Camunda7RestClient";
 export * from "./deployment/infrastructure/camunda/Camunda8RestClient";

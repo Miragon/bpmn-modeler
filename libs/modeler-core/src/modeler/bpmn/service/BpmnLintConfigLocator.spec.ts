@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost } from "../../testing";
-import { ArtifactService } from "./ArtifactService";
+import { createTestHost } from "../../../testing";
+import { ArtifactService } from "../../../shared/service/ArtifactService";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
 
 function createLocator(files: Record<string, string> = {}, folders = ["/work"]) {

@@ -1,6 +1,4 @@
-import { HttpTransportError } from "../../shared/domain/errors";
-import { HttpClient, HttpResponse } from "../domain/ports";
-import { loggableHost } from "../domain/urlTemplate";
+import { HttpClient, HttpResponse, HttpTransportError, loggableHost } from "../domain/http";
 
 /**
  * {@link HttpClient} implementation backed by `globalThis.fetch`.
