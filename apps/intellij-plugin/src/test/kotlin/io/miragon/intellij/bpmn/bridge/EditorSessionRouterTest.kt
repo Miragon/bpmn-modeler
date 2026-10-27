@@ -843,6 +843,43 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a session closed while its re-register frame is built leaves the other sessions recovering`() {
+        var closeWhileRegisterFrameIsBuilt: ((VirtualFile) -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                closeWhileRegisterFrameIsBuilt?.invoke(file)
+                closeWhileRegisterFrameIsBuilt = null
+                readDocumentTextInReadAction(file)
+            }
+        val pages =
+            listOf(
+                f.openPageShowing(INITIAL_XML, editedSinceRender = false),
+                f.openPageShowing(INITIAL_XML, createSecondBpmnFile(), editedSinceRender = false),
+            )
+        lateinit var closedPage: FakePage
+        // The sessions map has no fixed iteration order: close whichever page re-registers first.
+        closeWhileRegisterFrameIsBuilt = { file ->
+            closedPage = pages.single { it.session.file == file }
+            f.router.disposeSession(closedPage.session)
+        }
+
+        f.router.reregisterLiveSessions()
+
+        val frames = f.wired.fake.framesUntilQuiet().map(::parse)
+        val framesForClosedSession = frames.labelsFor(closedPage)
+        assertEquals(
+            "session/dispose",
+            framesForClosedSession.lastOrNull(),
+            "the new bridge must not keep a session for a closed tab: $framesForClosedSession",
+        )
+        assertEquals(
+            listOf("DocumentFlushedCommand") + REREGISTRATION_FRAMES,
+            frames.labelsFor(pages.single { it !== closedPage }),
+            "a tab closed mid-recovery does not stop the open tab's re-register and replays",
+        )
+    }
+
+    @Test
     fun `a page closed before its replayed render gets no release`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -1011,6 +1048,17 @@ class EditorSessionRouterTest {
         map { it.getAsJsonObject("params").get("sessionId").asLong to it.frameLabel() }
             .filter { (_, label) -> label in REREGISTRATION_FRAMES }
             .groupBy({ it.first }, { it.second })
+
+    /**
+     * The label of every frame addressed to [page]'s session: the bridge finds
+     * a session by its editorId, then checks the sessionId.
+     */
+    private fun List<JsonObject>.labelsFor(page: FakePage): List<String> =
+        filter { frame ->
+            val params = frame.getAsJsonObject("params")
+            params.get("editorId")?.asString == page.session.editorId &&
+                params.get("sessionId")?.asLong == page.sessionId
+        }.map { it.frameLabel() }
 
     @Test
     fun `late traffic and disposal from a replaced same-uri session are ignored`() {
