@@ -11,7 +11,7 @@ function errorWithStack(message: string, stack: string | undefined): Error {
     return error;
 }
 
-/** Feeds `chunk` to a stdin handler whose every frame fails with `failure`; returns stderr. */
+/** Feeds one frame to a stdin handler whose every frame fails with `failure`; returns stderr. */
 async function stderrAfterFailedFrame(failure: unknown): Promise<string> {
     const stderr: string[] = [];
     const handleChunk = createStdinHandler({ handleLine: () => Promise.reject(failure) }, (text) =>

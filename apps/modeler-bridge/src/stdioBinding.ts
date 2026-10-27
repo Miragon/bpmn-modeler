@@ -3,12 +3,23 @@
  * be tested without spawning the binary.
  */
 
+import { errorLogText } from "@miragon/bpmn-modeler-core";
+
 import { createLineSplitter } from "./lineFraming";
 import type { Rpc } from "./rpc";
 
-/** A diagnostic for stderr, tagged so the IDE log tells the core's lines apart. */
+// The host reads stderr line by line and splits at a lone carriage return too.
+const HOST_LINE_BREAK = /\r\n?|\n/;
+
+/**
+ * A diagnostic for stderr. Every line carries the tag, so the lines of a stack
+ * stay attributable to the core once the host has logged them one by one.
+ */
 export function coreLogText(message: string): string {
-    return `[core] ${message}\n`;
+    return message
+        .split(HOST_LINE_BREAK)
+        .map((line) => `[core] ${line}\n`)
+        .join("");
 }
 
 /**
@@ -21,11 +32,7 @@ export function createStdinHandler(
 ): (chunk: string) => void {
     return createLineSplitter((line) => {
         void rpc.handleLine(line).catch((error: unknown) => {
-            writeStderr(
-                coreLogText(
-                    `handler error: ${error instanceof Error ? error.message : String(error)}`,
-                ),
-            );
+            writeStderr(coreLogText(`handler error: ${errorLogText(error)}`));
         });
     });
 }

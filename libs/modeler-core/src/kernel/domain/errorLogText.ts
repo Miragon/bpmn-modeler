@@ -3,9 +3,10 @@ const ENDS_WITH_PUNCTUATION = /[.!?:]$/;
 /**
  * An `Error` as the hosts log it: the stack, which leads with `name: message`
  * and keeps the throw site. The cause chain stays out, as in VS Code's log.
- * A string, such as a webview-forwarded stack, is logged as it is.
+ * A string, such as a webview-forwarded stack, is logged as it is, and any
+ * other thrown value as its text.
  */
-export function errorLogText(error: string | Error): string {
+export function errorLogText(error: unknown): string {
     if (!(error instanceof Error)) return String(error);
     return error.stack ?? `${error.name}: ${error.message}`;
 }
