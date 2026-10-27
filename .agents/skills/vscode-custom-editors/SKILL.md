@@ -37,7 +37,7 @@ A single generic controller — `ModelerEditorController` (`src/modeler/editor-s
 VS Code calls this each time a file matching the selector is opened. The `editorId` is the **full URI string** (`document.uri.toString()`, not just the path — so a `git:` diff ref and the `file:` working tree resolve to distinct ids). Inside, the controller:
 
 1. **Diff branch (BPMN only)** — if `options.delegateResolve` returns true the diff controller owns the pane and no session is created.
-2. **Registers the editor** — `editorStore.register(VsCodeEditorHandle.create(...))`, which sets webview HTML and the active pointer.
+2. **Registers the editor** — `editorStore.register(VsCodeEditorHandle.create(...))`, which sets webview HTML. The session becomes the command target only if its panel is active, no session holds the target, or it replaces the session that does.
 3. **Hands the session to `EditorSessionLifecycle.open`** (`libs/modeler-core`, the same lifecycle the IntelliJ bridge runs). It wires dispatch/focus/dispose synchronously (before participants run, since the webview is already loading): message dispatch into the router in document order, tab-change tracking, and a single aggregated dispose subscription. Then it runs every participant in isolation — a throw in one is shown and logged, and the rest still run.
 
 ### Per-editor concerns (participants + router)
@@ -105,7 +105,7 @@ Each editor instance gets its own disposable list managed by `EditorSessionStore
 1. `WebviewPanel.onDidDispose` fires the lifecycle's single aggregated dispose subscription
 2. `EditorSessionStore.disposeEditor()` disposes all per-editor subscriptions and removes the entry
 3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTaskSvc.disposeForEditor(editorId)`) — collected by the lifecycle and run **once**, after the store's bookkeeping
-4. `EditorSessionStore` moves the active-editor pointer to the most recently registered remaining editor, or clears it
+4. If the closed editor was the command target, `EditorSessionStore` moves the target to the most recently registered remaining editor until the host reports the next focused one, or clears it
 
 This per-editor cleanup prevents memory leaks when editors are opened and closed repeatedly.
 
@@ -113,7 +113,7 @@ This per-editor cleanup prevents memory leaks when editors are opened and closed
 
 Multiple editors can be open simultaneously (e.g., two `.bpmn` files side by side). `EditorSessionStore` maintains:
 - A `Map` of all open editor handles keyed by `editorId` (the full `document.uri.toString()`)
-- An `activeEditorId` pointer updated via `onDidChangeViewState`: the target of commands, not focus. It stays on a diagram while a text editor is active, so status items ask `isFocused(editorId)` or `getFocusedEditorId()` (the handle's `panel.active`) instead
+- A command target (`CommandTarget`, read through `getActiveEditorId()`): the session focused last, not focus. `onDidChangeViewState` moves it to a panel that becomes active; a diagram that resolves in a background group does not take it. It stays on a diagram while a text editor is active, so status items ask `isFocused(editorId)` or `getFocusedEditorId()` (the handle's `panel.active`) instead
 - Per-editor isolation — each editor has its own webview, subscriptions, and session
 - An `onDidChangeActiveEditor` event that the core `DeploymentFeature` listens to for refreshing the open deployment panel's form defaults
 - A VS Code context variable (`bpmn-modeler.openCustomEditors`) tracking the count of open editors, used in keybinding/menu `when` clauses

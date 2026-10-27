@@ -178,14 +178,18 @@ acted on. Each item's participant hides it on blur and close, and
 `StatusItemOwnership` decides only that hide. Only BPMN sessions run these
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
-nothing would hide. The store's active-editor pointer is the target of
-commands, not focus. In VS Code it stays on a diagram while a text editor is
-active, because text editors are not sessions. It also moves to a session that
-resolves in the background. The bridge derives `isActive()` from that pointer,
-so on IntelliJ the two agree with each other but not always with the selected
-tab: after a bridge respawn the host re-registers every session without
-replaying `session/setActive`, so the session registered last counts as
-focused. Theia sets a webview's `active` from `shell.activeWidget`, so in the
+nothing would hide. The store's command target (`CommandTarget`, read as
+`getActiveEditorId`) is the session focused last, not focus. In VS Code it
+stays on a diagram while a text editor is active, because text editors are not
+sessions. A registering session takes it only if it is focused, if no session
+holds it, or if it replaces the session that does, so a diagram that resolves
+in a background group never takes commands from the focused one. The bridge
+treats `session/register` as the focused tab, so it marks the handle active
+before registering it, and it derives `isActive()` from the target. On
+IntelliJ the two agree with each other but not always with the selected tab:
+after a bridge respawn the host re-registers every session without replaying
+`session/setActive`, so the session registered last counts as focused.
+Theia sets a webview's `active` from `shell.activeWidget`, so in the
 standalone app focusing a sidebar view such as the deployment sidebar blurs
 the editor, and the shared items hide while the sidebar has focus. VS Code
 keeps the panel active.
