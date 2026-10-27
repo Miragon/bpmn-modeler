@@ -8,6 +8,8 @@ import {
     DeploymentFreshness,
     DeploymentStatusBarPort,
     StatusBarPort,
+    StatusSlot,
+    StatusView,
 } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
@@ -64,6 +66,14 @@ export class VsCodeStatusBar
     private bpmnlintStatusItem: StatusBarItem | undefined;
 
     private deploymentTargetStatusItem: StatusBarItem | undefined;
+
+    show(_slot: StatusSlot, _view: StatusView): void {
+        // Rendered once the slots have a placement.
+    }
+
+    hide(_slot: StatusSlot): void {
+        // Rendered once the slots have a placement.
+    }
 
     showElementTemplatesLoading(): void {
         this.cancelPendingTemplateAutoHide();
