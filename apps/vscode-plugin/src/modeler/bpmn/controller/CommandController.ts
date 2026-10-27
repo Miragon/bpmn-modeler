@@ -314,10 +314,8 @@ export class CommandController {
 
     /** Requests the current diagram's SVG and writes it to a `.svg` next to the `.bpmn` source. */
     writeToFile(): void {
-        this.requestSvg(async (svg) => {
-            const filePath = this.vsDocument
-                .getFilePath(this.editorStore.getActiveEditorId())
-                .replace(/\.bpmn$/, ".svg");
+        this.requestSvg(async (svg, sourceEditorId) => {
+            const filePath = this.vsDocument.getFilePath(sourceEditorId).replace(/\.bpmn$/, ".svg");
             await workspace.fs.writeFile(Uri.file(filePath), Buffer.from(svg));
             this.notifier.logInfo(`Diagram SVG exported to ${filePath}`);
         });
@@ -329,13 +327,18 @@ export class CommandController {
      * result is awaited so a rejected async sink (a failed `workspace.fs` write, a
      * denied clipboard write) reaches the channel instead of floating away as an
      * unhandled rejection.
+     *
+     * `onSvg` receives the editor the request went to, because the command target
+     * may have moved to another diagram by the time the reply arrives.
      */
-    private requestSvg(onSvg: (svg: string) => void | Promise<void>): void {
-        const activeId = this.editorStore.getActiveEditorId();
+    private requestSvg(onSvg: (svg: string, sourceEditorId: string) => void | Promise<void>): void {
+        const sourceEditorId = this.editorStore.getActiveEditorId();
 
-        this.editorStore.postMessage(activeId, new GetDiagramAsSVGCommand()).catch((error) => {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-        });
+        this.editorStore
+            .postMessage(sourceEditorId, new GetDiagramAsSVGCommand())
+            .catch((error) => {
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            });
 
         // Dispose previous subscription to avoid accumulating listeners.
         this.svgSubscription?.dispose();
@@ -345,7 +348,7 @@ export class CommandController {
                 if (isMessageOfType(message, "GetDiagramAsSVGCommand")) {
                     const cmd = message;
                     if (cmd.svg && cmd.svg.length > 0) {
-                        Promise.resolve(onSvg(cmd.svg)).catch((error) => {
+                        Promise.resolve(onSvg(cmd.svg, sourceEditorId)).catch((error) => {
                             this.notifier.logError(
                                 error instanceof Error ? error : new Error(String(error)),
                             );
