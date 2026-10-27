@@ -181,6 +181,36 @@ describe("EditorSessionStore", () => {
         expect(store.getActiveEditorId()).toBe(A_ID);
     });
 
+    it("does not announce another target while the target's session is replaced", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const original = new FakeEditorHandle(A_PATH);
+        original.active = true;
+        store.register(original);
+        store.subscribeToDisposeEvent(original.id);
+        store.register(new FakeEditorHandle("/repo/other.bpmn"));
+        const announced: string[] = [];
+        store.onDidChangeActiveEditor((editorId) => {
+            announced.push(editorId);
+        });
+
+        store.register(new FakeEditorHandle(A_PATH));
+
+        expect(announced).toEqual([]);
+    });
+
+    it("keeps the open count while a session is replaced", () => {
+        const onOpenCountChanged = vi.fn();
+        const store = new EditorSessionStore(onOpenCountChanged);
+        const original = new FakeEditorHandle(A_PATH);
+        store.register(original);
+        store.subscribeToDisposeEvent(original.id);
+        store.register(new FakeEditorHandle("/repo/other.bpmn"));
+
+        store.register(new FakeEditorHandle(A_PATH));
+
+        expect(onOpenCountChanged.mock.calls.map(([count]) => count)).toEqual([1, 2, 2]);
+    });
+
     it("moves the command target to a background session once its panel becomes active", () => {
         const store = new EditorSessionStore(vi.fn());
         const focused = new FakeEditorHandle("/repo/1.bpmn");
