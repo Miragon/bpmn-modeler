@@ -128,15 +128,17 @@ IntelliJ host matches.
 The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
 `libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
-only those, so a session module cannot post another surface's command or a
-query. The diff pane, the DMN and Form editors and the deployment sidebar post
-their own commands, and a spec fails when a protocol command belongs to neither
-side. A host's router still dispatches an unrouted type as a no-op, but records
-a type it drops on purpose with `ignore(type, reason)`. `routeOf(type)`
+only those, and the bootstrap narrows its host to it once, so neither the
+bootstrap nor a session module can post another surface's command or a query.
+Only the diff pane, which the bootstrap starts instead of the editor, still
+posts through the full `HostApi`. The diff pane, the DMN and Form editors and
+the deployment sidebar post their own commands, and a spec fails when a
+protocol command belongs to neither side. A host's router still dispatches an
+unrouted type as a no-op, but records a type it drops on purpose with
+`ignore(type, reason)`. `routeOf(type)`
 reports a type as handled, ignored with that reason, or unrouted, and a type is
 never both handled and ignored, so a coverage spec can tell a deliberate drop
-from a missing route. The bootstrap, which also starts the diff pane, still
-posts through the full `HostApi`.
+from a missing route.
 
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while
