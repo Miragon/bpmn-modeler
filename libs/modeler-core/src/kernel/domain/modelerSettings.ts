@@ -1,4 +1,4 @@
-import { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { SURFACE_MODES, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { ColorThemeSetting, MarketplaceSettingsEntry } from "./hostPorts";
 
@@ -83,7 +83,6 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
 export const DEFAULT_LINTING_ENABLED = true;
 
 const COLOR_THEMES: readonly ColorThemeSetting[] = ["automatic", "light"];
-const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
 
 const SETTING_PARSERS: {
     readonly [K in keyof ModelerSettingsSnapshot]: (raw: unknown) => ModelerSettingsSnapshot[K];
