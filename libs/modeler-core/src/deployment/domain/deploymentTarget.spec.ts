@@ -779,6 +779,12 @@ describe("DeploymentTarget", () => {
                     })),
             ),
             {
+                behaviour: "refuses basic auth against an OAuth2 target without token settings",
+                saved: target("dev", { authType: "oauth2" }),
+                request: requestOf(kind, { auth: new BasicAuth("admin", "s3cret") }),
+                refusal: CONNECTION_CHANGED,
+            },
+            {
                 behaviour: "refuses a changed OAuth2 token endpoint",
                 saved: oauth2Target(),
                 request: requestOf(kind, { auth: oauth2("cid", "csecret", "https://other/token") }),
