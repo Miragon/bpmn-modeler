@@ -66,8 +66,9 @@ export interface LocatePrompts {
 }
 
 /**
- * Domain-aware quick-pick prompts (engine, engine version, located file, …). Each method owns the cancel-vs-throw convention for its prompt so
- * callsites stay free of `vscode` and the convention is not re-derived.
+ * Domain-aware quick-pick prompts (engine, engine version, located file, …).
+ * Each method owns the cancel-vs-throw convention for its prompt so callsites
+ * stay free of `vscode` and the convention is not re-derived.
  */
 export interface PickerPort {
     /**
