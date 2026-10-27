@@ -304,6 +304,20 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: [""] }]);
             expect(host.workspace.files.size).toBe(0);
         });
+
+        it("writes the .gitignore even when the orphan sweep fails", async () => {
+            const { editor, host } = createFullEditor();
+            vi.spyOn(host.workspace, "deleteDirectory").mockRejectedValueOnce(
+                new Error("EBUSY: resource busy"),
+            );
+
+            await editor.materialize(openCommand("groovy", "x = 1"), FULL_EDITOR);
+
+            expect(host.workspace.files.get("/repo/.camunda/tmp/.gitignore")).toBe("*\n");
+            expect(host.notifier.logged("error")).toEqual([
+                expect.stringContaining("EBUSY: resource busy"),
+            ]);
+        });
     });
 
     it("forgets the editor's variables when the editor is disposed", async () => {
@@ -479,6 +493,32 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             expect(host.workspace.files).toEqual(filesBeforeLateClose);
             expect(lastLockRefs(modelerEditor)).toHaveLength(1);
         });
+    });
+});
+
+describe("BridgeScriptEditor base directory", () => {
+    it("fails the write when a file diagram's workspace lookup fails, instead of using the OS temp folder", async () => {
+        const host = createTestHost({ folders: ["/repo"] });
+        host.openEditor("/repo/process.bpmn");
+        vi.spyOn(host.workspace, "getWorkspaceFolderForDocument").mockImplementation(() => {
+            throw new Error("workspace lookup failed");
+        });
+        const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
+        const editor = new BridgeScriptEditor(
+            host.store,
+            host.picker,
+            rpc as never,
+            host.notifier,
+            host.settings,
+            host.workspace,
+            new ArtifactService(host.workspace, host.settings),
+            new ScriptVariableStore(),
+        );
+
+        await expect(
+            editor.materialize(openCommand("groovy", "x = 1"), "file:///repo/process.bpmn"),
+        ).rejects.toThrow("workspace lookup failed");
+        expect(host.workspace.files.size).toBe(0);
     });
 });
 
