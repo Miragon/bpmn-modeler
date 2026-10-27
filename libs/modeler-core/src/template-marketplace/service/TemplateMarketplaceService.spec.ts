@@ -588,6 +588,11 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         expect(cachedPaths()).toEqual([
             "/cache/acme__templates/0/element-templates/element-templates/t.json",
         ]);
+        // One session spans the manifest and its sources, so the relative source's
+        // first fetch carries the prompted token instead of re-reading the keychain.
+        expect(factory).toHaveBeenCalledWith(
+            expect.objectContaining({ path: "element-templates", token: "granted" }),
+        );
 
         // Secret hygiene: the granted token value must never reach any log line.
         expect(notifier.logs.some((entry) => entry.message.includes("granted"))).toBe(false);
