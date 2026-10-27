@@ -12,6 +12,7 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.ModelerSettingsStore
@@ -31,10 +32,13 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * @param scheduler Debounces external `document/didChange` frames. Injectable so
  *   tests step time deterministically instead of waiting on the shared pool.
+ * @param readDocumentText Reads the content a `session/register` frame seeds.
+ *   Injectable so tests can close a tab while its register frame is built.
  */
 internal class EditorSessionRouter(
     private val deps: BridgeDeps,
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
+    private val readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
 ) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
 
@@ -174,12 +178,7 @@ internal class EditorSessionRouter(
 
     private fun sendRegister(entry: SessionEntry) {
         val session = entry.session
-        val content =
-            ApplicationManager.getApplication().runReadAction(
-                Computable {
-                    FileDocumentManager.getInstance().getDocument(session.file)?.text.orEmpty()
-                },
-            )
+        val content = readDocumentText(session.file)
         deps.channel.notify(
             "session/register",
             linkedMapOf(
@@ -381,9 +380,13 @@ internal class EditorSessionRouter(
         val entry = sessions[editorId] ?: return
         if (entry.session !== session || !sessions.remove(editorId, entry)) return
         resetSessionState(editorId)
+        sendDispose(entry)
+    }
+
+    private fun sendDispose(entry: SessionEntry) {
         deps.channel.notify(
             "session/dispose",
-            linkedMapOf("editorId" to editorId, "sessionId" to entry.sessionId),
+            linkedMapOf("editorId" to entry.session.editorId, "sessionId" to entry.sessionId),
         )
     }
 
@@ -424,6 +427,11 @@ internal class EditorSessionRouter(
             // Armed before the replay goes out, so its render cannot overtake the hold.
             flushesByEntry[entry]?.let(::holdUntilRendered)
             sendRegister(entry)
+            // A tab closed while the frame was built may have sent its dispose ahead of the register.
+            if (sessions[entry.session.editorId] !== entry) {
+                sendDispose(entry)
+                return@forEach
+            }
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
@@ -776,6 +784,12 @@ internal class EditorSessionRouter(
         const val NO_RENDER_LOCK = 0L
     }
 }
+
+/** The text of [file]'s Document, empty when it has none; callable from any thread. */
+internal fun readDocumentTextInReadAction(file: VirtualFile): String =
+    ApplicationManager.getApplication().runReadAction(
+        Computable { FileDocumentManager.getInstance().getDocument(file)?.text.orEmpty() },
+    )
 
 /** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
 internal data class DocumentFlushedReply(
