@@ -160,12 +160,9 @@ export class TemplateMarketplaceService {
      *
      * Reads the post-removal settings and prunes as
      * {@link MarketplaceRegistry.cachePrune} decides, like `updateAll`.
-     *
-     * @returns the ids of the slots actually deleted (`[]` when nothing was
-     *   orphaned or pruning was suppressed), for the caller to log.
      */
-    async pruneOrphanedCaches(): Promise<string[]> {
-        return this.pruneCache(
+    async pruneOrphanedCaches(): Promise<void> {
+        await this.pruneCache(
             MarketplaceRegistry.fromEntries(this.settings.getMarketplaces()).cachePrune(),
         );
     }
@@ -176,13 +173,12 @@ export class TemplateMarketplaceService {
         return { label, reason };
     }
 
-    /** Logs what went and returns the pruned ids, so a caller can report them. */
-    private async pruneCache(prune: CachePrune): Promise<string[]> {
+    private async pruneCache(prune: CachePrune): Promise<void> {
         if (prune.kind === "suppressed") {
             this.notifier.logDebug(
                 `Skipped marketplace cache prune: an unparseable entry left its id unknown (${prune.unparseable.join("; ")})`,
             );
-            return [];
+            return;
         }
         const pruned = await this.cache.prune(prune.ids);
         if (pruned.length > 0) {
@@ -190,7 +186,6 @@ export class TemplateMarketplaceService {
                 `Pruned ${pruned.length} orphaned marketplace cache(s): ${pruned.join(", ")}`,
             );
         }
-        return pruned;
     }
 
     /** The merge input handed to {@link BpmnElementTemplatesService}. */

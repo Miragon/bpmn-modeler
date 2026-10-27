@@ -530,8 +530,8 @@ describe("TemplateMarketplaceService.updateAll", () => {
 });
 
 describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
-    it("prunes using the ids parsed from current settings and returns the pruned ids", async () => {
-        const { service, settings, cachedPaths } = createService({
+    it("prunes using the ids parsed from current settings and logs the pruned ids", async () => {
+        const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: {
                 "/cache/acme__one/0/element-templates/t.json": "{}",
                 "/cache/acme__gone/0/element-templates/t.json": "{}",
@@ -539,14 +539,16 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
         });
         settings.values.marketplaces = ["https://github.com/acme/one"];
 
-        const pruned = await service.pruneOrphanedCaches();
+        await service.pruneOrphanedCaches();
 
-        expect(pruned).toEqual(["acme__gone"]);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
+        expect(notifier.logged("info")).toEqual([
+            "Pruned 1 orphaned marketplace cache(s): acme__gone",
+        ]);
     });
 
     it("removing the last marketplace prunes with an empty set (sweeps every slot)", async () => {
-        const { service, settings, cachedPaths } = createService({
+        const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: {
                 "/cache/acme__one/0/element-templates/t.json": "{}",
                 "/cache/acme__two/0/element-templates/t.json": "{}",
@@ -554,10 +556,23 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
         });
         settings.values.marketplaces = [];
 
-        const pruned = await service.pruneOrphanedCaches();
+        await service.pruneOrphanedCaches();
 
-        expect(pruned).toEqual(["acme__one", "acme__two"]);
         expect(cachedPaths()).toEqual([]);
+        expect(notifier.logged("info")).toEqual([
+            "Pruned 2 orphaned marketplace cache(s): acme__one, acme__two",
+        ]);
+    });
+
+    it("reports no prune when no slot is orphaned", async () => {
+        const { service, settings, notifier } = createService({
+            cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
+        });
+        settings.values.marketplaces = ["https://github.com/acme/one"];
+
+        await service.pruneOrphanedCaches();
+
+        expect(notifier.logged("info")).toEqual([]);
     });
 
     it("suppresses pruning and names every entry that cannot be parsed", async () => {
@@ -570,9 +585,8 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
             "~/templates",
         ];
 
-        const pruned = await service.pruneOrphanedCaches();
+        await service.pruneOrphanedCaches();
 
-        expect(pruned).toEqual([]);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
         expect(notifier.logged("debug")).toContain(
             'Skipped marketplace cache prune: an unparseable entry left its id unknown ({"provider":"bogus"}; ~/templates)',
