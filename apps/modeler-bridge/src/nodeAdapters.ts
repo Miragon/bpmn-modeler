@@ -35,6 +35,7 @@ import { join, posix, relative, sep } from "node:path";
 import {
     changedSettingKeys,
     coalesceWatcherEvents,
+    ColorThemeSetting,
     DEFAULT_LINTING_ENABLED,
     DirectoryNotFound,
     EditorSubscription,
@@ -49,6 +50,7 @@ import {
     RawModelerSettings,
     relativeToRoot,
     SettingChange,
+    settingChangeNaming,
     SettingKey,
     SettingsPort,
     toWorkspacePath,
@@ -540,7 +542,7 @@ export class BridgeSettings implements SettingsPort {
     getC8ApiVersion(): string {
         return this.snapshot.c8ApiVersion;
     }
-    getColorTheme(): "automatic" | "light" {
+    getColorTheme(): ColorThemeSetting {
         return this.snapshot.colorTheme;
     }
     getDefaultMode(): SurfaceMode {
@@ -573,7 +575,7 @@ export class BridgeSettings implements SettingsPort {
         if (changed.length === 0) {
             return;
         }
-        const event: SettingChange = { affects: (key) => changed.includes(key) };
+        const event = settingChangeNaming(changed);
         // Copy before iterating: a listener may dispose itself on fire.
         for (const listener of [...this.listeners]) {
             listener(event);

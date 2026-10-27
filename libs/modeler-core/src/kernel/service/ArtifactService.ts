@@ -22,7 +22,7 @@ export interface WatcherResult {
 
 /**
  * Locates element templates and payloads using a convention-based config
- * folder (default `.camunda/`, overridable via `miragon.bpmnModeler.config`).
+ * folder (default `.camunda/`, overridable via `miragon.bpmnModeler.configFolder`).
  * At every directory level from the BPMN file up to the workspace root,
  * `<configFolder>/element-templates/` and `<configFolder>/payloads/` are
  * collected nearest-first. Also creates filesystem watchers that re-push

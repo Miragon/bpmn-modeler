@@ -19,6 +19,12 @@ export interface SettingChange {
     affects(key: SettingKey): boolean;
 }
 
+/** A change that affects exactly the keys it names. */
+export function settingChangeNaming(named: readonly SettingKey[]): SettingChange {
+    const namedKeys: ReadonlySet<SettingKey> = new Set(named);
+    return { affects: (key) => namedKeys.has(key) };
+}
+
 /**
  * Document-change event, narrowed to what the editor controllers actually read
  * (was `vscode.TextDocumentChangeEvent`). Keeps the callback host-agnostic.

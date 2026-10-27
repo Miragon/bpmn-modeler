@@ -7,8 +7,6 @@ import {
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ConfigurationTarget, workspace } from "vscode";
-
 import { posix } from "path";
 
 import {
@@ -22,6 +20,7 @@ import {
     TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskService } from "../../../../scriptTask/index";
+import { setLintingEnabled } from "../../../../shared/infrastructure/modelerConfiguration";
 
 /**
  * The BPMN webview handlers only VS Code has: the inline script-task editor and
@@ -43,19 +42,14 @@ export function resyncScriptTasksHandler(scriptTaskSvc: ScriptTaskService): Mess
 }
 
 /**
- * `SetLintingEnabledCommand` → persist the user's linting on/off choice.
- *
- * Written at Global (User) scope so a design-only user silences linting across
- * every project in one switch — matching the intent of a personal preference,
- * like {@link CommandController.changeLanguage}. The config write re-triggers a
- * lint (via {@link BpmnlintParticipant}'s change listener), which pushes the new
- * state back to the webview; the webview never flips its own overlays.
+ * `SetLintingEnabledCommand` → persist the user's linting on/off choice. The
+ * config write re-triggers a lint (via {@link BpmnlintParticipant}'s change
+ * listener), which pushes the new state back to the webview; the webview never
+ * flips its own overlays.
  */
 export function setLintingEnabledHandler(): MessageHandler<SetLintingEnabledCommand> {
     return async (message) => {
-        await workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .update("linting.enabled", message.enabled, ConfigurationTarget.Global);
+        await setLintingEnabled(message.enabled);
     };
 }
 

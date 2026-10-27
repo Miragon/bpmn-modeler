@@ -4,6 +4,7 @@ import {
     DocumentChangeEvent,
     EditorSubscription,
     SettingChange,
+    settingChangeNaming,
 } from "../editorSession/domain/EditorSession";
 import { EditorHandle } from "../editorSession/service/EditorHandle";
 import { SettingKey } from "../kernel/domain/modelerSettings";
@@ -185,6 +186,6 @@ export class FakeEditorHandle implements EditorHandle {
 
     /** Plays a host settings change that names exactly the given keys. */
     changeSetting(...changed: SettingKey[]): void {
-        this.settingChanges.emit({ affects: (key) => changed.includes(key) });
+        this.settingChanges.emit(settingChangeNaming(changed));
     }
 }
