@@ -93,45 +93,38 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         configToken?: string,
     ): void {
         const xml = this.vsDocument.getContent(editorId);
-        const action = this.transition(editorId, {
+        void this.dispatch(editorId, {
             type: "webviewLinted",
             output: { xml, results, unresolved },
             platform: this.detectPlatform(xml),
             configToken,
             lintingEnabled: this.settings.getLintingEnabled(),
         });
-        void this.carryOut(editorId, action);
     }
 
     private async lintAndPush(editorId: string): Promise<boolean> {
         if (!this.settings.getLintingEnabled()) {
-            return this.carryOut(editorId, this.transition(editorId, { type: "lintingDisabled" }));
+            return this.dispatch(editorId, { type: "lintingDisabled" });
         }
 
         try {
             const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
             const configPath = await this.locator.findNearestConfig(dir);
             if (!configPath) {
-                return this.carryOut(
-                    editorId,
-                    this.transition(editorId, { type: "noConfigFound" }),
-                );
+                return this.dispatch(editorId, { type: "noConfigFound" });
             }
 
             const rawConfig = await this.locator.readConfig(configPath);
             const config = JSON.parse(rawConfig) as BpmnlintConfig;
-            return this.carryOut(
-                editorId,
-                this.transition(editorId, {
-                    type: "configRead",
-                    version: { configPath, rawConfig, config },
-                    freshToken: this.mintToken(),
-                }),
-            );
+            return this.dispatch(editorId, {
+                type: "configRead",
+                version: { configPath, rawConfig, config },
+                freshToken: this.mintToken(),
+            });
         } catch (error) {
             // A malformed .bpmnlintrc or a linter blow-up must not crash the editor.
             this.logLintFailure(error);
-            return this.carryOut(editorId, this.transition(editorId, { type: "configFailed" }));
+            return this.dispatch(editorId, { type: "configFailed" });
         }
     }
 
@@ -145,29 +138,23 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 configPath,
                 config as Record<string, unknown>,
             );
-            return this.carryOut(
-                editorId,
-                this.transition(editorId, {
-                    type: "hostLintFinished",
-                    token,
-                    output: { xml, results, unresolved },
-                }),
-            );
+            return this.dispatch(editorId, {
+                type: "hostLintFinished",
+                token,
+                output: { xml, results, unresolved },
+            });
         } catch (error) {
             this.logLintFailure(error);
-            return this.carryOut(
-                editorId,
-                this.transition(editorId, { type: "hostLintFailed", token }),
-            );
+            return this.dispatch(editorId, { type: "hostLintFailed", token });
         }
     }
 
-    private transition(editorId: string, event: LintSessionEvent): LintAction {
+    private dispatch(editorId: string, event: LintSessionEvent): Promise<boolean> {
         const session = this.sessionOf(editorId);
         const { next, action } = reduceLintSession(session, event);
         // A dropped event must not bring back the entry of a closed editor.
         if (next !== session) this.sessions.set(editorId, next);
-        return action;
+        return this.carryOut(editorId, action);
     }
 
     private sessionOf(editorId: string): LintSession {
