@@ -12,20 +12,41 @@ export class CommandTarget {
     /** Every open editor that held the target, the current one last. */
     private readonly holders: string[] = [];
 
+    /**
+     * Editors that reported focus and have not blurred since, the oldest first.
+     * A host focuses one editor at a time, so focusing one drops the others:
+     * among them any editor that opened as focused and whose blur never came.
+     */
+    private readonly reportedFocused = new Set<string>();
+
     get editorId(): string | undefined {
         return this.holders[this.holders.length - 1];
     }
 
     open(editorId: string, focused: boolean): string | undefined {
+        if (focused) this.reportedFocused.add(editorId);
+        else this.reportedFocused.delete(editorId);
         if (this.editorId !== undefined && !focused) return undefined;
-        return this.focus(editorId);
+        return this.take(editorId);
     }
 
     focus(editorId: string): string | undefined {
-        if (editorId === this.editorId) return undefined;
-        this.forget(editorId);
-        this.holders.push(editorId);
-        return editorId;
+        this.reportedFocused.clear();
+        this.reportedFocused.add(editorId);
+        return this.take(editorId);
+    }
+
+    /**
+     * A blurred target goes to the editor that has reported focus longest, if
+     * any: a host that reports an editor focused when it opens behind the
+     * focused one corrects that only by blurring it. A target the host focused
+     * keeps the target, since no other editor reports focus after that.
+     */
+    blur(editorId: string): string | undefined {
+        this.reportedFocused.delete(editorId);
+        if (editorId !== this.editorId) return undefined;
+        const [focusedLongest] = this.reportedFocused;
+        return focusedLongest === undefined ? undefined : this.take(focusedLongest);
     }
 
     /**
@@ -36,11 +57,19 @@ export class CommandTarget {
     close(editorId: string, remainingEditorIds: readonly string[]): string | undefined {
         const closesTarget = editorId === this.editorId;
         this.forget(editorId);
+        this.reportedFocused.delete(editorId);
         if (!closesTarget) return undefined;
         if (this.holders.length === 0 && remainingEditorIds.length > 0) {
             this.holders.push(remainingEditorIds[remainingEditorIds.length - 1]);
         }
         return this.editorId;
+    }
+
+    private take(editorId: string): string | undefined {
+        if (editorId === this.editorId) return undefined;
+        this.forget(editorId);
+        this.holders.push(editorId);
+        return editorId;
     }
 
     private forget(editorId: string): void {

@@ -180,14 +180,32 @@ the editor it acted on. Each item's participant hides it on blur and close, and
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
 nothing would hide. The store's command target (`CommandTarget`, read as
-`getActiveEditorId`) is the session focused last, not focus. In VS Code it
-stays on a diagram while a text editor is active, because text editors are not
+`getActiveEditorId`) is the session focused last, not focus. It stays on a
+diagram while a text editor or a sidebar has focus, because those are not
 sessions. Only a session that opens while no session holds the target takes it
 without focus. So in VS Code a diagram that resolves in a background group
 never takes commands from the focused one, and a session that replaces another
-under the same id in the background leaves the target where it is. Theia
-creates every custom-editor panel with `active = true`, so in the standalone
-app a diagram that resolves behind the focused one still takes the target. A
+under the same id in the background leaves the target where it is. When the
+target's panel turns inactive, the target moves to the session that has
+reported focus longest without blurring since, if any. A host focuses one
+editor at a time, so focusing a session drops every other session's report,
+and a target the host focused keeps the target when it blurs. Theia creates
+every custom-editor panel with `active = true`, so in the standalone app a
+diagram that resolves behind the focused one takes the target, and hands it
+back when Theia blurs its panel. Theia does not always send that blur. It
+caches each panel's view state, compares new states against that cache, and
+drops an update for a panel that does not exist yet. A background tab restored
+behind the focused one therefore keeps reporting `active` until the user
+activates and leaves it, and `isFocused` and `getFocusedEditorId` report it
+focused. Such a panel can take the target through a blur hand-off only until
+the host focuses a session. Running the app with Theia 1.76 showed that stale
+tab after a restart. It also showed Theia restoring a hidden tab as its active
+widget and reporting that panel active, and the target follows that report
+like any other activation. So after a restart, commands can still act on a
+diagram the user does not see ([#1911](https://github.com/Miragon/bpmn-modeler/issues/1911)).
+In VS Code only one panel is active at a time, so the target ends on the panel
+VS Code activated whichever view-state event comes first, and the bridge blurs
+only sessions that no longer hold the target. A
 closed target goes back to the open editor that held it before, and to the
 newest remaining editor only when none did, until the host reports the next
 focused one. The bridge treats `session/register` as the focused tab, so
