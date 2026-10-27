@@ -15,7 +15,7 @@ const anotherCommand = { type: "another-command" } as unknown as Command;
 describe("EditorSessionStore", () => {
     // ─── register ──────────────────────────────────────────────────────────
 
-    it("register makes the handle active and reports the open count", () => {
+    it("register makes the first handle the command target and reports the open count", () => {
         const onOpenCountChanged = vi.fn();
         const store = new EditorSessionStore(onOpenCountChanged);
         const handle = new FakeEditorHandle(A_PATH);
@@ -103,17 +103,127 @@ describe("EditorSessionStore", () => {
 
     it("reports focus from the handle, not from the active-editor pointer", () => {
         const store = new EditorSessionStore(vi.fn());
+        const target = new FakeEditorHandle("/repo/1.bpmn");
+        target.active = true;
+        store.register(target);
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        // A text editor takes focus; the diagram keeps the command target.
+        target.loseFocus();
+
+        expect(store.getActiveEditorId()).toBe(target.id);
+        expect(store.isFocused(target.id)).toBe(false);
+        expect(store.getFocusedEditorId()).toBeUndefined();
+    });
+
+    // ─── command target (the active-editor pointer) ──────────────────────────
+
+    it("keeps the command target on the focused editor when another session registers in the background", () => {
+        const store = new EditorSessionStore(vi.fn());
         const focused = new FakeEditorHandle("/repo/1.bpmn");
         focused.active = true;
-        const background = new FakeEditorHandle("/repo/2.bpmn");
         store.register(focused);
 
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        expect(store.getActiveEditorId()).toBe(focused.id);
+    });
+
+    it("keeps the command target on the diagram focused last when a session registers while a text editor has focus", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focusedLast = new FakeEditorHandle("/repo/1.bpmn");
+        store.register(focusedLast);
+        store.subscribeToTabChangeEvent(focusedLast.id);
+        focusedLast.becomeActive();
+        focusedLast.loseFocus();
+
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        expect(store.getActiveEditorId()).toBe(focusedLast.id);
+    });
+
+    it("does not announce a target change when a session registers in the background", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        store.register(focused);
+        const announced: string[] = [];
+        store.onDidChangeActiveEditor((editorId) => {
+            announced.push(editorId);
+        });
+
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        expect(announced).toEqual([]);
+    });
+
+    it("hands the command target to a session that registers focused", () => {
+        const store = new EditorSessionStore(vi.fn());
+        store.register(new FakeEditorHandle("/repo/1.bpmn"));
+        const focused = new FakeEditorHandle("/repo/2.bpmn");
+        focused.active = true;
+
+        store.register(focused);
+
+        expect(store.getActiveEditorId()).toBe(focused.id);
+    });
+
+    it("keeps the command target on a document whose session is replaced in the background", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const original = new FakeEditorHandle(A_PATH);
+        original.active = true;
+        store.register(original);
+        store.subscribeToDisposeEvent(original.id);
+        store.register(new FakeEditorHandle("/repo/other.bpmn"));
+
+        store.register(new FakeEditorHandle(A_PATH));
+
+        expect(store.getActiveEditorId()).toBe(A_ID);
+    });
+
+    it("does not announce another target while the target's session is replaced", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const original = new FakeEditorHandle(A_PATH);
+        original.active = true;
+        store.register(original);
+        store.subscribeToDisposeEvent(original.id);
+        store.register(new FakeEditorHandle("/repo/other.bpmn"));
+        const announced: string[] = [];
+        store.onDidChangeActiveEditor((editorId) => {
+            announced.push(editorId);
+        });
+
+        store.register(new FakeEditorHandle(A_PATH));
+
+        expect(announced).toEqual([]);
+    });
+
+    it("keeps the open count while a session is replaced", () => {
+        const onOpenCountChanged = vi.fn();
+        const store = new EditorSessionStore(onOpenCountChanged);
+        const original = new FakeEditorHandle(A_PATH);
+        store.register(original);
+        store.subscribeToDisposeEvent(original.id);
+        store.register(new FakeEditorHandle("/repo/other.bpmn"));
+
+        store.register(new FakeEditorHandle(A_PATH));
+
+        expect(onOpenCountChanged.mock.calls.map(([count]) => count)).toEqual([1, 2, 2]);
+    });
+
+    it("moves the command target to a background session once its panel becomes active", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        store.register(focused);
+        const background = new FakeEditorHandle("/repo/2.bpmn");
         store.register(background);
+        store.subscribeToTabChangeEvent(background.id);
+
+        focused.loseFocus();
+        background.becomeActive();
 
         expect(store.getActiveEditorId()).toBe(background.id);
-        expect(store.isFocused(background.id)).toBe(false);
-        expect(store.isFocused(focused.id)).toBe(true);
-        expect(store.getFocusedEditorId()).toBe(focused.id);
     });
 
     it("stops reporting focus once the editor blurs or closes", () => {
@@ -136,23 +246,25 @@ describe("EditorSessionStore", () => {
 
     // ─── dispose (via the dispose-event path) ────────────────────────────────
 
-    it("disposing the active editor reassigns to the most recently registered remaining one", () => {
+    it("disposing the active editor hands the target back to the editor focused before it", () => {
         const onOpenCountChanged = vi.fn();
         const store = new EditorSessionStore(onOpenCountChanged);
-        const first = new FakeEditorHandle("/repo/1.bpmn");
-        const second = new FakeEditorHandle("/repo/2.bpmn");
-        const third = new FakeEditorHandle("/repo/3.bpmn");
-        const thirdDisposeListener = vi.spyOn(third, "onDidDispose");
-        [first, second, third].forEach((handle) => {
+        const focusedBefore = new FakeEditorHandle("/repo/1.bpmn");
+        const background = new FakeEditorHandle("/repo/2.bpmn");
+        const active = new FakeEditorHandle("/repo/3.bpmn");
+        const activeDisposeListener = vi.spyOn(active, "onDidDispose");
+        focusedBefore.active = true;
+        active.active = true;
+        [focusedBefore, background, active].forEach((handle) => {
             store.register(handle);
             store.subscribeToDisposeEvent(handle.id);
         });
 
         // Fires only the dispose event, so the store itself must dispose the handle.
-        thirdDisposeListener.mock.calls[0][0]();
+        activeDisposeListener.mock.calls[0][0]();
 
-        expect(third.disposed).toBe(true);
-        expect(store.getActiveEditorId()).toBe(second.id);
+        expect(active.disposed).toBe(true);
+        expect(store.getActiveEditorId()).toBe(focusedBefore.id);
         expect(onOpenCountChanged).toHaveBeenLastCalledWith(2);
     });
 
@@ -171,6 +283,7 @@ describe("EditorSessionStore", () => {
         const store = new EditorSessionStore(vi.fn());
         const background = new FakeEditorHandle("/repo/1.bpmn");
         const active = new FakeEditorHandle("/repo/2.bpmn");
+        active.active = true;
         store.register(background);
         store.register(active);
         store.subscribeToDisposeEvent(background.id);
@@ -222,6 +335,7 @@ describe("EditorSessionStore", () => {
         const received = vi.fn();
         store.subscribeToMessageEvent(subscribed.id, received);
         // A second editor becomes active after the subscription is wired.
+        laterActive.active = true;
         store.register(laterActive);
 
         subscribed.receive(aCommand);
@@ -394,6 +508,7 @@ describe("EditorSessionStore", () => {
         store.register(subscribed);
         const received = vi.fn<(event: SettingChange, editorId: string) => void>();
         store.subscribeToSettingChangeEvent(subscribed.id, received);
+        laterActive.active = true;
         store.register(laterActive);
 
         subscribed.changeSetting("miragon.bpmnModeler.language");

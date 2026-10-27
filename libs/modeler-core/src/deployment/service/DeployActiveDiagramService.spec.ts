@@ -280,6 +280,21 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(c.deploymentService.deployFiles).toHaveBeenCalledOnce();
     });
 
+    it("deploys the focused diagram, not one that resolved behind it", async () => {
+        const c = createService();
+        c.editor.becomeActive();
+        c.host.openEditor("/work/resolved-behind.bpmn");
+
+        await c.service.deployActive("/work");
+
+        expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
+            [FILE_PATH],
+            target,
+            expect.any(NoAuth),
+            "/work",
+        );
+    });
+
     it("resolves the target and deploys from the diagram's own directory when none is given", async () => {
         const c = createService();
 

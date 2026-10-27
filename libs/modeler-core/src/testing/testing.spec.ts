@@ -175,7 +175,7 @@ describe("createTestHost", () => {
     it("routes document reads and writes to the addressed editor and drops stale revisions", async () => {
         const host = createTestHost();
         const order = host.openEditor("/work/order.bpmn", "<order/>");
-        host.openEditor("/work/invoice.bpmn", "<invoice/>");
+        host.openEditor("/work/invoice.bpmn", "<invoice/>", { focused: true });
         const revision = host.store.markHostDocumentUpdated(order.id);
 
         await expect(host.documents.write(order.id, "<edited/>", revision)).resolves.toBe(true);
@@ -185,6 +185,31 @@ describe("createTestHost", () => {
         expect(host.documents.getContent(order.id)).toBe("<edited/>");
         expect(host.documents.getFilePath(order.id)).toBe("/work/order.bpmn");
         expect(order.saveCount).toBe(1);
+    });
+
+    it("blurs the focused editor when another one opens focused, as the hosts do", async () => {
+        const host = createTestHost();
+        const focusChanges: string[] = [];
+        const recordFocusChanges = (editorId: string) =>
+            host.store.subscribeToFocusChangeEvent(editorId, (focused) =>
+                focusChanges.push(`${editorId} ${focused}`),
+            );
+        const order = host.openEditor("/work/order.bpmn", "", { focused: true });
+        recordFocusChanges(order.id);
+        const invoice = host.openEditor("/work/invoice.bpmn", "", { focused: true });
+        recordFocusChanges(invoice.id);
+        host.openEditor("/work/background.bpmn");
+
+        expect(host.store.getFocusedEditorId()).toBe(invoice.id);
+
+        const shipment = await host.openSession("/work/shipment.bpmn", []);
+
+        expect([order, invoice, shipment].map((editor) => editor.isActive())).toEqual([
+            false,
+            false,
+            true,
+        ]);
+        expect(focusChanges).toEqual([`${order.id} false`, `${invoice.id} false`]);
     });
 
     it("plays host events into the store and rejects posts to a hidden webview", async () => {

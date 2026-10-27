@@ -805,7 +805,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
             "",
         );
         c.deploymentTargetService.getTarget.mockImplementation(async () => {
-            c.host.openEditor("/another/diagram.bpmn");
+            c.host.openEditor("/another/diagram.bpmn", "", { focused: true });
             return submittedTarget;
         });
         await c.dispatcher.handle({
