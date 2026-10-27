@@ -119,6 +119,18 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
     });
 });
 
+describe("ImplementationLocator — logging", () => {
+    it("shortens a long reference in its log line like every echoed reference", async () => {
+        const { locator, notifier } = createLocator();
+
+        await locator.resolve("t".repeat(110), "jobType");
+
+        expect(notifier.logged("info")[0]).toBe(
+            `[code-link] resolving jobType reference="${"t".repeat(99)}…" sourceUri=<none>`,
+        );
+    });
+});
+
 describe("ImplementationLocator — externalTopic / jobType", () => {
     it("finds a job worker by the quoted job type literal", async () => {
         const { locator, workspace } = createLocator({

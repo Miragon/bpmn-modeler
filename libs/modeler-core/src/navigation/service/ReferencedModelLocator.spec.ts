@@ -477,6 +477,18 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
     });
 });
 
+describe("findDeclaringFiles — logging", () => {
+    it("shortens a long id in its log line like every echoed reference", async () => {
+        const { locator, notifier } = createLocator({ files: {} });
+
+        await locator.findDeclaringFiles("p".repeat(110), "process");
+
+        expect(notifier.logged("info")[0]).toBe(
+            `[nav] resolving process id="${"p".repeat(99)}…" sourceUri=<none>`,
+        );
+    });
+});
+
 describe("id regex semantics", () => {
     const expectFinds = (id: string, xml: string, kind: "process" | "decision") => {
         const { locator } = createLocator({
