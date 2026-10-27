@@ -4,8 +4,8 @@ import { ImplementationKind } from "./ImplementationReference";
 import { ImplementationTarget } from "./ImplementationTarget";
 import { SourceFileFacts } from "./SourceFileFacts";
 
-const JVM_EXTENSIONS = ["java", "kt", "groovy", "scala"];
-const SOURCE_EXTENSIONS = [...JVM_EXTENSIONS, "js", "ts"];
+const JVM_SOURCES_GLOB = "**/*.{java,kt,groovy,scala}";
+const SOURCES_GLOB = "**/*.{java,kt,groovy,scala,js,ts}";
 
 interface TargetRow {
     kind: ImplementationKind;
@@ -238,36 +238,31 @@ describe("ImplementationTarget", () => {
         },
     );
 
-    it.each<TargetRow & { fileNameMatches: string[]; extensions: string[] | undefined }>([
-        { kind: "javaClass", reference: "com.x.A", fileNameMatches: [], extensions: undefined },
+    it.each<TargetRow & { fileNameMatches: string[]; glob: string | undefined }>([
+        { kind: "javaClass", reference: "com.x.A", fileNameMatches: [], glob: undefined },
         {
             kind: "delegateExpression",
             reference: "${myBean}",
             fileNameMatches: [],
-            extensions: JVM_EXTENSIONS,
+            glob: JVM_SOURCES_GLOB,
         },
         {
             kind: "delegateExpression",
             reference: "${myBean}",
             fileNameMatches: ["/s/MyBean.java"],
-            extensions: undefined,
+            glob: undefined,
         },
-        { kind: "expression", reference: "${1+2}", fileNameMatches: [], extensions: undefined },
-        { kind: "jobType", reference: "pay", fileNameMatches: [], extensions: SOURCE_EXTENSIONS },
-        {
-            kind: "externalTopic",
-            reference: "topic",
-            fileNameMatches: [],
-            extensions: SOURCE_EXTENSIONS,
-        },
+        { kind: "expression", reference: "${1+2}", fileNameMatches: [], glob: undefined },
+        { kind: "jobType", reference: "pay", fileNameMatches: [], glob: SOURCES_GLOB },
+        { kind: "externalTopic", reference: "topic", fileNameMatches: [], glob: SOURCES_GLOB },
     ])(
-        "searches the content of $kind $reference after the file names $fileNameMatches in $extensions",
-        ({ kind, reference, fileNameMatches, extensions }) => {
+        "searches the content of $kind $reference after the file names $fileNameMatches in $glob",
+        ({ kind, reference, fileNameMatches, glob }) => {
             const search = ImplementationTarget.of(kind, reference).contentSearchAfter(
                 fileNameMatches,
             );
 
-            expect(search?.extensions).toEqual(extensions);
+            expect(search?.files.glob()).toBe(glob);
         },
     );
 

@@ -20,7 +20,9 @@ import {
     fqcnToGlobPath,
     ImplementationKind,
     JVM_EXTENSIONS,
-    SOURCE_EXTENSIONS,
+    JVM_SOURCE_FILES,
+    SOURCE_FILES,
+    SourceFileSet,
 } from "./ImplementationReference";
 import { SourceFileFacts } from "./SourceFileFacts";
 import { BEAN_ANNOTATION_PREFIX, commentAndCdataRanges, isInsideRanges } from "./sourceText";
@@ -35,11 +37,8 @@ const KIND_LABELS: Record<ImplementationKind, string> = {
 
 const KNOWN_KINDS: ReadonlySet<unknown> = new Set(Object.keys(KIND_LABELS));
 
-// VS Code's `findFiles` expands `{a,b}`.
-const JVM_GLOB_EXT = `{${JVM_EXTENSIONS.join(",")}}`;
-
 export interface ContentSearch {
-    readonly extensions: readonly string[];
+    readonly files: SourceFileSet;
     /** Matched outside XML comments and CDATA sections only. */
     readonly pattern: RegExp;
 }
@@ -109,16 +108,12 @@ export abstract class ImplementationTarget {
     abstract isDeclaredIn(facts: SourceFileFacts, content: string | undefined): boolean;
 }
 
-/**
- * `camunda:class` is a fully-qualified class name, so the file path itself is
- * the answer. The package path is matched as a suffix so the class is found
- * under any source root (`src/main/java`, …).
- */
+/** `camunda:class` is a fully-qualified class name, so the file path alone decides. */
 class ClassTarget extends ImplementationTarget {
     protected readonly contentSearch = undefined;
 
     get fileNameGlob(): string {
-        return `**/${fqcnToGlobPath(this.reference)}.${JVM_GLOB_EXT}`;
+        return JVM_SOURCE_FILES.glob(fqcnToGlobPath(this.reference));
     }
 
     matchesFileName(absolutePath: string): boolean {
@@ -150,11 +145,11 @@ class BeanTarget extends ImplementationTarget {
     }
 
     get fileNameGlob(): string {
-        return `**/${beanToClassName(this.bean)}.${JVM_GLOB_EXT}`;
+        return JVM_SOURCE_FILES.glob(beanToClassName(this.bean));
     }
 
     protected get contentSearch(): ContentSearch {
-        return { extensions: JVM_EXTENSIONS, pattern: beanAnnotationPattern(this.bean) };
+        return { files: JVM_SOURCE_FILES, pattern: beanAnnotationPattern(this.bean) };
     }
 
     matchesFileName(absolutePath: string): boolean {
@@ -183,7 +178,7 @@ class LiteralTarget extends ImplementationTarget {
     readonly fileNameGlob = undefined;
 
     protected get contentSearch(): ContentSearch {
-        return { extensions: SOURCE_EXTENSIONS, pattern: literalPattern(this.reference) };
+        return { files: SOURCE_FILES, pattern: literalPattern(this.reference) };
     }
 
     override get isDecidedByFacts(): boolean {
@@ -226,10 +221,9 @@ class UnsearchableTarget extends ImplementationTarget {
 }
 
 /**
- * `camunda:class` is a fully-qualified name, so the file path *is* the proof —
- * no content read needed. The package path must sit on a segment boundary
- * (start of path or after `/`) so a no-package `Foo` does not falsely match
- * `MyFoo.java`.
+ * The package path is matched as a suffix so the class is found under any
+ * source root (`src/main/java`, …), on a segment boundary so a no-package
+ * `Foo` does not match `MyFoo.java`.
  */
 function matchesClassPath(fqcn: string, absolutePath: string): boolean {
     const packagePath = fqcnToGlobPath(fqcn);

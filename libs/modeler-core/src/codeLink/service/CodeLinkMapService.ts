@@ -20,17 +20,13 @@ import {
     toAbsoluteEntries,
     toRelative,
 } from "../domain/CodeLinkMap";
-import { JVM_EXTENSIONS, SCRIPT_WORKER_EXTENSIONS } from "../domain/ImplementationReference";
+import { SOURCE_FILES } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
 
 /** How a watched source file changed, as reported by the workspace watcher. */
 type SourceChangeKind = "created" | "changed" | "deleted";
-
-// One watcher per workspace root covers every source language a worker/delegate
-// can live in — the same extension set the locator scans.
-const SOURCE_GLOB = `**/*.{${[...JVM_EXTENSIONS, ...SCRIPT_WORKER_EXTENSIONS].join(",")}}`;
 
 // Subfolder of `<configFolder>` the artifact is written under.
 const CODE_LINK_DIR = "code-link";
@@ -436,7 +432,7 @@ export class CodeLinkMapService {
     private acquireWatcher(root: string): void {
         let watcher = this.watchers.get(root);
         if (!watcher) {
-            const handle = this.vsWorkspace.createWatcher(root, SOURCE_GLOB, {
+            const handle = this.vsWorkspace.createWatcher(root, SOURCE_FILES.glob(), {
                 onCreate: (path) => void this.onSourceFileChanged(path, "created", root),
                 onChange: (path) => void this.onSourceFileChanged(path, "changed", root),
                 onDelete: (path) => void this.onSourceFileChanged(path, "deleted", root),

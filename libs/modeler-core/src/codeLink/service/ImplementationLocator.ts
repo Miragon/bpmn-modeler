@@ -165,23 +165,18 @@ export class ImplementationLocator {
     }
 
     /**
-     * Lists candidate source files for a content scan, with the same
-     * findFiles → fs-walk fallback the file-name search uses.
+     * Searches the content of the files `search` covers, listed with the same
+     * findFiles → fs-walk fallback as the file-name search.
      */
     private async searchContent(
         search: ContentSearch,
         sourceDocumentPath: string | undefined,
     ): Promise<LocateImplementationResult> {
-        const sources = await findFilesExcluding(
-            this.vsWorkspace,
-            `**/*.{${search.extensions.join(",")}}`,
-            {
-                sourceDocumentPath,
-                logger: this.notifier,
-                matchesWalkedFile: (path) =>
-                    search.extensions.some((ext) => path.endsWith(`.${ext}`)),
-            },
-        );
+        const sources = await findFilesExcluding(this.vsWorkspace, search.files.glob(), {
+            sourceDocumentPath,
+            logger: this.notifier,
+            matchesWalkedFile: search.files.includes,
+        });
         if (sources === undefined) {
             return { kind: "no-search-scope" };
         }
