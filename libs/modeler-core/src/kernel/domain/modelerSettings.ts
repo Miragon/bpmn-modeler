@@ -22,6 +22,21 @@ export interface ModelerSettingsSnapshot {
     marketplaces: MarketplaceSettingsEntry[];
 }
 
+/** A modeler setting as VS Code names it below `miragon.bpmnModeler`, on every host. */
+export type SettingKey =
+    | "alignToOrigin"
+    | "showTransactionBoundaries"
+    | "configFolder"
+    | "persistCodeLinkMap"
+    | "c8ApiVersion"
+    | "colorTheme"
+    | "defaultMode"
+    | "favouriteBpmnElements"
+    | "language"
+    | "scripting.spin"
+    | "marketplaces"
+    | "linting.enabled";
+
 /** Settings as a host hands them over: any key may be missing or hold any value. */
 export type RawModelerSettings = Partial<Record<keyof ModelerSettingsSnapshot, unknown>>;
 
