@@ -33,7 +33,7 @@ libraries; libraries import neither applications nor modeler packages.
 | --- | --- |
 | `packages/bpmn-modeler`, `packages/dmn-modeler` | Published, host-free browser composition and deliberately designed factory/handle APIs |
 | Private feature libraries in `libs/` | Reusable behavior, inlined into published packages where needed |
-| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication |
+| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication, and pure rules the webview and the core share |
 | `libs/shared` | Private Query/Command protocol, host channel, document-flush plumbing and webview chrome |
 | `libs/modeler-core` | Host-independent domain/service layers and shared editor, routing and diff registries |
 | Host applications and webview bootstraps | Concrete adapters, composition, transport, editor lifecycle and page integration |

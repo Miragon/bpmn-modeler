@@ -36,7 +36,7 @@ by `apps/standalone` and `libs/standalone-extension`.
 | `packages/bpmn-modeler` | Public `@miragon/bpmn-modeler` browser API over bpmn-js: modeling, viewing, design, diff, and optional linting. |
 | `packages/dmn-modeler` | Public `@miragon/dmn-modeler` browser API over dmn-js: decision diagrams, tables, expressions, and simulation. |
 | `libs/modeler-core` | Host-agnostic services for documents, editor sessions, deployment, templates, navigation, scripting, and diff coordination. |
-| `libs/modeler-types` | Public-facing model types and browser utilities suitable for inclusion in the published packages. |
+| `libs/modeler-types` | Public-facing model types and browser utilities suitable for inclusion in the published packages, and pure rules the webview and the core share. |
 | `libs/shared` | Private Command/Query protocol, `HostApi`, document-flush helpers, and webview chrome such as panel resizing and host-theme adaptation. |
 | Other `libs/` | Reusable feature modules: menus, properties panel, clipboard, navigation, code links, scripting, diff, and translation overlays. |
 | `apps/` | Runnable applications and host adapters: IDE integrations, webviews, bridge, and standalone shell. |
