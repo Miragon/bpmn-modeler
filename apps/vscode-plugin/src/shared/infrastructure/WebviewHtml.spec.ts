@@ -3,14 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("vscode", () => import("../../__fixtures__/vscodeFileSystemFake"));
 
 import {
-    contentSecurityPolicyOf,
+    describeShellPolicy,
     scriptNonceOf,
     shellExtensionUri,
     shellWebview,
     stylesheetsOf,
     tagsOf,
 } from "../../__fixtures__/webviewShell";
-import { webviewContentSecurityPolicy, type WebviewShell } from "./webviewContentSecurityPolicy";
 import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
 
 type ShellBuilder = (initialPanelVisible?: boolean) => string;
@@ -30,6 +29,8 @@ function elementById(html: string, id: string): Record<string, string> {
 }
 
 describe("bpmnEditorUi", () => {
+    describeShellPolicy("bpmn", renderBpmn);
+
     // A module script: the bundle's chunks resolve their URLs through import.meta.url.
     it("loads the BPMN stylesheet and runs only its nonced module entry", () => {
         const html = renderBpmn();
@@ -48,6 +49,8 @@ describe("bpmnEditorUi", () => {
 });
 
 describe("dmnModelerHtml", () => {
+    describeShellPolicy("dmn", renderDmn);
+
     it("loads the reset and DMN stylesheets and runs only its nonced module entry", () => {
         const html = renderDmn();
 
@@ -107,6 +110,8 @@ describe.each([
 });
 
 describe("formEditorHtml", () => {
+    describeShellPolicy("form", renderForm);
+
     it("loads the form stylesheet and runs only its nonced entry script", () => {
         const html = renderForm();
 
@@ -123,34 +128,5 @@ describe("formEditorHtml", () => {
 
     it("gives the bundle a single app root to render into", () => {
         expect(tagsOf(renderForm(), "div")).toEqual([{ id: "app" }]);
-    });
-});
-
-describe.each<[string, ShellBuilder, WebviewShell]>([
-    ["bpmnEditorUi", renderBpmn, "bpmn"],
-    ["dmnModelerHtml", renderDmn, "dmn"],
-    ["formEditorHtml", renderForm, "form"],
-])("%s policy", (_builder, render, shell) => {
-    it(`carries the ${shell} shell policy for the nonce of this render`, () => {
-        const html = render();
-
-        expect(contentSecurityPolicyOf(html)).toBe(
-            webviewContentSecurityPolicy(shell, {
-                cspSource: shellWebview.cspSource,
-                nonce: scriptNonceOf(html),
-            }),
-        );
-    });
-
-    it("issues a fresh nonce per render", () => {
-        const nonces = [scriptNonceOf(render()), scriptNonceOf(render())];
-
-        expect(nonces[0]).not.toBe(nonces[1]);
-    });
-
-    it("allows the entry script by the same nonce it carries", () => {
-        const html = render();
-
-        expect(tagsOf(html, "script").map((script) => script.nonce)).toEqual([scriptNonceOf(html)]);
     });
 });

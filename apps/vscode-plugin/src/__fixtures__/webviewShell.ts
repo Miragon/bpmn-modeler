@@ -1,8 +1,15 @@
 /**
- * Renders webview HTML shells against a fixed webview and reads back what they
- * declare. Specs mock `vscode` with `vscodeFileSystemFake` for its `Uri`.
+ * A fixed webview for rendering shells, readers for what a shell declares, and
+ * the policy checks every shell runs. Specs mock `vscode` with
+ * `vscodeFileSystemFake` for its `Uri`.
  */
+import { describe, expect, it } from "vitest";
 import { Uri, type Webview } from "vscode";
+
+import {
+    webviewContentSecurityPolicy,
+    type WebviewShell,
+} from "../shared/infrastructure/webviewContentSecurityPolicy";
 
 export const shellWebview: Webview = {
     options: {},
@@ -34,7 +41,7 @@ export function stylesheetsOf(html: string): string[] {
         .map((link) => link.href);
 }
 
-export function contentSecurityPolicyOf(html: string): string {
+function contentSecurityPolicyOf(html: string): string {
     const policy = tagsOf(html, "meta").find(
         (meta) => meta["http-equiv"] === "Content-Security-Policy",
     )?.content;
@@ -50,4 +57,24 @@ export function scriptNonceOf(html: string): string {
         throw new Error("The policy allows no nonced script.");
     }
     return nonce;
+}
+
+/** The policy rules every webview shell keeps, run against one shell's renderer. */
+export function describeShellPolicy(shell: WebviewShell, render: () => string): void {
+    describe(`the ${shell} shell policy`, () => {
+        it("is the builder's policy for the nonce of this render", () => {
+            const html = render();
+
+            expect(contentSecurityPolicyOf(html)).toBe(
+                webviewContentSecurityPolicy(shell, {
+                    cspSource: shellWebview.cspSource,
+                    nonce: scriptNonceOf(html),
+                }),
+            );
+        });
+
+        it("issues a fresh nonce per render", () => {
+            expect(scriptNonceOf(render())).not.toBe(scriptNonceOf(render()));
+        });
+    });
 }
