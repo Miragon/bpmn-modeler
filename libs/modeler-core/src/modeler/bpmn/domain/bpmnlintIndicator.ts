@@ -28,8 +28,16 @@ export type BpmnlintIndicator =
     | { readonly state: "noConfig" };
 
 export function indicatorForFindings(
-    _source: LintFindingsSource,
-    _unresolved: readonly string[],
+    source: LintFindingsSource,
+    unresolved: readonly string[],
 ): BpmnlintIndicator {
-    return { state: "hidden" };
+    if (source.kind === "workspace") {
+        return unresolved.length > 0
+            ? { state: "unresolved", configPath: source.configPath, unresolved }
+            : { state: "active", configPath: source.configPath };
+    }
+    // A covered run lints a real `.bpmnlintrc`, so it never reads as the bundled default.
+    return source.configPath !== undefined
+        ? { state: "active", configPath: source.configPath }
+        : { state: "default", platform: source.platform };
 }
