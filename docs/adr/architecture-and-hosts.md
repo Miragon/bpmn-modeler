@@ -262,6 +262,26 @@ counts as focused. Theia sets a webview's `active` from
 the deployment sidebar blurs the editor, and the shared items hide while the
 sidebar has focus. VS Code keeps the panel active.
 
+Status items are published as views, not widget calls. `StatusBarPort` has
+`show(slot, view)` and `hide(slot)` for four closed slots: element templates,
+engine version, BPMNlint and deployment target. A `StatusView` carries the
+text, an icon, a tone, a tooltip, a click action and a `transient` flag, each
+from a closed union in `kernel/domain/statusView.ts`. The kernel owns only the
+slots and the view shape, so it names no feature type; each feature builds its
+slot's view. A host decides where a slot goes and how an icon, a tone and an
+action look, nothing more. VS Code follows its
+[status-bar guideline](https://code.visualstudio.com/api/ux-guidelines/status-bar):
+workspace-wide status on the left (element templates, whose loads also run for
+background diagrams), the focused diagram's state on the right (engine
+version, BPMNlint, deployment target). A transient view hides itself after
+3 s, and a later show or hide of its slot cancels that
+([`VsCodeStatusBar.spec.ts`](../../apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.spec.ts)).
+Until each slot's callers move to the port
+([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
+widget-shaped `LegacyStatusBarPort`, `BpmnlintStatusBarPort` and
+`DeploymentStatusBarPort` remain: VS Code builds their views in its adapter,
+and the bridge forwards them as one RPC per widget method.
+
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
 syncs, and a single, snapshot-checked initialization of an empty file that a
