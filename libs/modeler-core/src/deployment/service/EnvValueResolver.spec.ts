@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UnreadableDotEnvError, UnresolvedEnvVariableError } from "../domain/errors";
 import { createTestHost } from "../../testing";
+import { EnvScope, TargetsLocation } from "../domain/deploymentDestination";
 import { EnvLookup, envRefsIn, expandEnvRefs, NO_ENV_VARIABLES } from "../domain/envRef";
-import { TargetsLocation } from "./DeploymentTargetService";
-import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 const REFERENCES_ENV = envRefsIn("${env:MIRAGON_TOKEN}");
 const NO_REFERENCES = envRefsIn("https://engine.example/rest", undefined);

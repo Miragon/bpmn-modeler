@@ -179,17 +179,44 @@ the editor it acted on. Each item's participant hides it on blur and close, and
 `StatusItemOwnership` decides only that hide. Only BPMN sessions run these
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
-nothing would hide. The store's active-editor pointer is the target of
-commands, not focus. In VS Code it stays on a diagram while a text editor is
-active, because text editors are not sessions. It also moves to a session that
-resolves in the background. The bridge derives `isActive()` from that pointer,
-so on IntelliJ the two agree with each other but not always with the selected
-tab: after a bridge respawn the host re-registers every session without
-replaying `session/setActive`, so the session registered last counts as
-focused. Theia sets a webview's `active` from `shell.activeWidget`, so in the
-standalone app focusing a sidebar view such as the deployment sidebar blurs
-the editor, and the shared items hide while the sidebar has focus. VS Code
-keeps the panel active.
+nothing would hide. The store's command target (`CommandTarget`, read as
+`getActiveEditorId`) is the session focused last, not focus. It stays on a
+diagram while a text editor or a sidebar has focus, because those are not
+sessions. Only a session that opens while no session holds the target takes it
+without focus. So in VS Code a diagram that resolves in a background group
+never takes commands from the focused one, and a session that replaces another
+under the same id in the background leaves the target where it is. When the
+target's panel turns inactive, the target moves to the session that has
+reported focus longest without blurring since, if any. A host focuses one
+editor at a time, so focusing a session drops every other session's report,
+and a target the host focused keeps the target when it blurs. Theia creates
+every custom-editor panel with `active = true`, so in the standalone app a
+diagram that resolves behind the focused one takes the target, and hands it
+back when Theia blurs its panel. Theia does not always send that blur. It
+caches each panel's view state, compares new states against that cache, and
+drops an update for a panel that does not exist yet. A background tab restored
+behind the focused one therefore keeps reporting `active` until the user
+activates and leaves it, and `isFocused` and `getFocusedEditorId` report it
+focused. Such a panel can take the target through a blur hand-off only until
+the host focuses a session. Running the app with Theia 1.76 showed that stale
+tab after a restart. It also showed Theia restoring a hidden tab as its active
+widget and reporting that panel active, and the target follows that report
+like any other activation. So after a restart, commands can still act on a
+diagram the user does not see ([#1911](https://github.com/Miragon/bpmn-modeler/issues/1911)).
+In VS Code only one panel is active at a time, so the target ends on the panel
+VS Code activated whichever view-state event comes first, and the bridge blurs
+only sessions that no longer hold the target. A
+closed target goes back to the open editor that held it before, and to the
+newest remaining editor only when none did, until the host reports the next
+focused one. The bridge treats `session/register` as the focused tab, so
+it marks the handle active before registering it, and it derives `isActive()`
+from the target. On IntelliJ the two agree with each other but not always
+with the selected tab: after a bridge respawn the host re-registers every
+session without replaying `session/setActive`, so the session registered last
+counts as focused. Theia sets a webview's `active` from
+`shell.activeWidget`, so in the standalone app focusing a sidebar view such as
+the deployment sidebar blurs the editor, and the shared items hide while the
+sidebar has focus. VS Code keeps the panel active.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
@@ -383,6 +410,20 @@ keeps explicit local mirrors with these ownership rules:
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
+
+Every host reads a setting the same way, as `normalizeSettings` in the core's
+[`kernel/domain/modelerSettings.ts`](../../libs/modeler-core/src/kernel/domain/modelerSettings.ts)
+decides: a blank config folder, an unknown theme or mode, or a value of the
+wrong type reads as the default, and at most six favourites are pinned. Its
+`DEFAULT_MODELER_SETTINGS` are the defaults the VS Code manifest declares.
+VS Code parses each value as it reads it. The bridge normalises the host's
+snapshot before it compares it with the current one, so a value that reads as
+the current one fires no change. IntelliJ's `ModelerSettingsStore` keeps a
+Kotlin copy, because the IDE's Settings page stores and shows the values
+without the bridge.
+`settingsNormalization.cases.json` beside the rule holds the rows all three
+hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
+the Kotlin test also compares its defaults with the manifest's.
 
 Deployment writes update the optimistic snapshot and await acknowledged host
 persistence. Failures reject, as they do on VS Code, but are not rolled back:

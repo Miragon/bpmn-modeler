@@ -151,6 +151,7 @@ describe("RPC protocol descriptor", () => {
                     "  editor/postMessage",
                     "  clipboard/write",
                     "  notifier/showInfo",
+                    "  notifier/showWarning",
                     "  notifier/showError",
                     "  notifier/notifyError",
                     "  notifier/openConsole",

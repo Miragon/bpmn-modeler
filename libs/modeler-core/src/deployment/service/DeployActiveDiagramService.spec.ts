@@ -6,6 +6,7 @@ import { DocumentFlushService } from "../../editorSession/service/DocumentFlushS
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { NoAuth } from "../domain/deployment";
+import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployActiveDiagramService } from "./DeployActiveDiagramService";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
@@ -21,6 +22,13 @@ const target = new DeploymentTarget(
     "",
     "",
 );
+const destination = new NamedDestination(target, {
+    filePath: "/work/.camunda/deployment-targets.json",
+    exists: true,
+    projectDir: "/work",
+});
+/** No target is active. */
+const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
 
 type PendingEdits = Pick<PendingEditsFlush, "flushIntoDocument">;
 
@@ -43,7 +51,7 @@ function createService({
     const host = createTestHost();
     const editor = host.openEditor(diagramPath, content);
     const deploymentTargetService = {
-        getActiveTarget: vi.fn().mockResolvedValue(target),
+        getActiveDestination: vi.fn().mockResolvedValue(destination),
         switchActiveTarget: vi.fn().mockResolvedValue(undefined),
         getCredentials: vi.fn().mockResolvedValue(new NoAuth()),
     };
@@ -119,7 +127,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
     it("runs the target picker and aborts when none is chosen", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(undefined);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(AD_HOC);
 
         await c.service.deployActive("/work");
 
@@ -130,16 +138,16 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
     it("deploys after the picker selects a target", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget
-            .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce(target);
+        c.deploymentTargetService.getActiveDestination
+            .mockResolvedValueOnce(AD_HOC)
+            .mockResolvedValueOnce(destination);
 
         await c.service.deployActive("/work");
 
         expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith("/work");
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             [FILE_PATH],
-            target,
+            destination,
             expect.any(NoAuth),
             "/work",
         );
@@ -169,18 +177,16 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
-    it("deploys an unmodified diagram whose save returns false", async () => {
+    it("aborts when the host reports that the save failed", async () => {
         const c = createService();
         vi.spyOn(c.editor, "save").mockResolvedValue(false);
 
         await c.service.deployActive("/work");
 
-        expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
-            [FILE_PATH],
-            target,
-            expect.any(NoAuth),
-            "/work",
-        );
+        expect(c.host.notifier.errors).toEqual([
+            "The diagram could not be saved, so it was not deployed.",
+        ]);
+        expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
     it("saves before deploying", async () => {
@@ -202,14 +208,11 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         await c.service.deployActive("/ws/project");
 
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith("/ws/project");
-        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(
-            target,
-            "/ws/project",
-        );
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith("/ws/project");
+        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(destination);
         expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
             [FILE_PATH],
-            target,
+            destination,
             expect.any(NoAuth),
             "/ws/project",
         );
@@ -280,15 +283,30 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(c.deploymentService.deployFiles).toHaveBeenCalledOnce();
     });
 
+    it("deploys the focused diagram, not one that resolved behind it", async () => {
+        const c = createService();
+        c.editor.becomeActive();
+        c.host.openEditor("/work/resolved-behind.bpmn");
+
+        await c.service.deployActive("/work");
+
+        expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
+            [FILE_PATH],
+            destination,
+            expect.any(NoAuth),
+            "/work",
+        );
+    });
+
     it("resolves the target and deploys from the diagram's own directory when none is given", async () => {
         const c = createService();
 
         await c.service.deployActive();
 
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith("/work");
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith("/work");
         expect(c.deploymentService.deployFiles).toHaveBeenCalledExactlyOnceWith(
             [FILE_PATH],
-            target,
+            destination,
             expect.any(NoAuth),
             "/work",
         );

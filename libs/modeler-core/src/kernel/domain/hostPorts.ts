@@ -46,6 +46,8 @@ export interface LoggerPort {
  */
 export interface NotifierPort extends LoggerPort {
     showInfo(message: string): void;
+    /** A problem the user can recover from; the operation itself went through. */
+    showWarning(message: string): void;
     showError(message: string): void;
     /** Logs `notifiedErrorLogText`, then shows `notifiedErrorToastText` as an error toast. */
     notifyError(context: string, error: Error): void;
@@ -257,13 +259,16 @@ export interface DocumentPort {
      * edit). Only {@link getContent} tells the two apart.
      */
     write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean>;
+    /**
+     * @returns `true` when the document is saved or had nothing to save; `false`
+     * when the host could not save it.
+     */
     save(editorId: string): Promise<boolean>;
 }
 
 /**
- * Status-bar indicators for element-template loading, the active engine
- * version, and bpmnlint config discovery. State (which items exist) is owned by
- * the adapter.
+ * Status-bar indicators for element-template loading and the active engine
+ * version. State (which items exist) is owned by the adapter.
  */
 export interface StatusBarPort {
     showElementTemplatesLoading(): void;
@@ -271,10 +276,4 @@ export interface StatusBarPort {
     hideElementTemplatesStatus(): void;
     showEngineVersion(platform: Engine, version: string): void;
     hideEngineVersion(): void;
-    showBpmnlintActive(configPath: string): void;
-    showBpmnlintUnresolved(configPath: string, unresolved: string[]): void;
-    showBpmnlintDefault(platform: Engine | undefined): void;
-    showBpmnlintDisabled(): void;
-    showBpmnlintNoConfig(): void;
-    hideBpmnlintStatus(): void;
 }

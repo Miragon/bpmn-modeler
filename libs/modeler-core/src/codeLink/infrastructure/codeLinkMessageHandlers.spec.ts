@@ -8,7 +8,7 @@ import { navigateToImplementationHandler } from "./codeLinkMessageHandlers";
 function createHandler() {
     const host = createTestHost();
     const editor = host.openEditor("/src/a.bpmn");
-    host.openEditor("/src/b.bpmn");
+    host.openEditor("/src/b.bpmn", "", { focused: true });
     const implementationNavigationService = { navigate: vi.fn().mockResolvedValue(undefined) };
 
     const handler = navigateToImplementationHandler(

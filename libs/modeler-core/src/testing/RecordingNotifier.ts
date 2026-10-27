@@ -14,6 +14,7 @@ export interface LogEntry {
 
 export class RecordingNotifier implements NotifierPort {
     readonly infos: string[] = [];
+    readonly warnings: string[] = [];
     readonly errors: string[] = [];
     readonly logs: LogEntry[] = [];
     readonly loggedErrors: Error[] = [];
@@ -46,6 +47,10 @@ export class RecordingNotifier implements NotifierPort {
         this.infos.push(message);
     }
 
+    showWarning(message: string): void {
+        this.warnings.push(message);
+    }
+
     showError(message: string): void {
         this.errors.push(message);
     }
@@ -73,6 +78,7 @@ export class RecordingNotifier implements NotifierPort {
     transcript(): string {
         return [
             ...this.infos,
+            ...this.warnings,
             ...this.errors,
             ...this.progressTitles,
             ...this.logs.map((entry) => entry.message),

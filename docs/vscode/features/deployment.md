@@ -6,7 +6,7 @@ Deploy BPMN and DMN files to Camunda 7 or Camunda 8 and start process instances 
 
 Open the **Deploy Diagram** view from the rocket icon in the activity bar. It has two tabs:
 
-- **Deploy** saves the open diagram and uploads it, optionally with additional files. Additional files go out as last saved.
+- **Deploy** saves the open diagram and uploads it, optionally with additional files. If the diagram cannot be saved, nothing is uploaded. Additional files go out as last saved.
 - **Start Instance** starts a process instance, optionally with a JSON payload.
 
 Fill in engine, endpoint, tenant and authentication, then deploy. For a quick deploy of the open diagram use the rocket button in the editor title bar.

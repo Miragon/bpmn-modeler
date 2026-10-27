@@ -387,7 +387,7 @@ describe("FormValuesController", () => {
         vscodeMocks.openTabGroups = [{ tabs: [{ input: new TabInputText(retainedUri as never) }] }];
         vscodeMocks.closeTab.mockResolvedValueOnce(false);
         await controller.disposeSession(EDITOR_ID);
-        const other = host.openEditor("/workspace/other.form");
+        const other = host.openEditor("/workspace/other.form", "", { focused: true });
         controller.registerSession(other.id);
         vscodeMocks.activeTextEditor = { document: { uri: retainedUri } };
 

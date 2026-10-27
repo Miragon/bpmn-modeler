@@ -54,7 +54,14 @@ import {
     TOGGLE_FORM_INPUT_VALUES_CMD,
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
 } from "./modeler/form/controller/FormValuesController";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import {
+    BPMN_VIEW_TYPE,
+    DEFAULT_LINTING_ENABLED,
+    DEFAULT_MODELER_SETTINGS,
+    DMN_VIEW_TYPE,
+    FORM_VIEW_TYPE,
+    parseSetting,
+} from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 
 const SRC_DIR = __dirname;
@@ -79,7 +86,9 @@ interface Manifest {
         }[];
         configurationDefaults: Record<string, Record<string, string>>;
         jsonValidation: { fileMatch: string; url: string }[];
-        configuration: { properties: Record<string, { default?: unknown }> };
+        configuration: {
+            properties: Record<string, { default?: unknown; enum?: string[]; maxItems?: number }>;
+        };
     };
 }
 
@@ -218,7 +227,7 @@ describe("package.json ↔ code contract", () => {
         expect(new Set(readKeys)).toEqual(new Set(declaredKeys));
     });
 
-    it("gives the core's in-memory settings the defaults the manifest declares", () => {
+    it("gives the core and its in-memory settings the defaults the manifest declares", () => {
         // `scripting.spin` → `scriptingSpin`
         const settingsValueName = (key: string) =>
             key
@@ -230,7 +239,32 @@ describe("package.json ↔ code contract", () => {
                 .map(([key, property]) => [settingsValueName(key), property.default]),
         );
 
+        expect({ ...DEFAULT_MODELER_SETTINGS, lintingEnabled: DEFAULT_LINTING_ENABLED }).toEqual(
+            manifestDefaults,
+        );
         expect(new InMemorySettings().values).toEqual(manifestDefaults);
+    });
+
+    it.each(
+        (["colorTheme", "defaultMode"] as const).flatMap((key) =>
+            (
+                manifest.contributes.configuration.properties[`${CONFIG_NAMESPACE}.${key}`].enum ??
+                []
+            ).map((value) => ({ key, value })),
+        ),
+    )("reads the $key $value the manifest offers as itself", ({ key, value }) => {
+        expect(parseSetting(key, value)).toBe(value);
+    });
+
+    it("pins as many favourite elements as the manifest allows", () => {
+        const maxItems =
+            manifest.contributes.configuration.properties[
+                `${CONFIG_NAMESPACE}.favouriteBpmnElements`
+            ].maxItems ?? 0;
+        const oneTooMany = Array.from({ length: maxItems + 1 }, (_, index) => `bpmn:Task${index}`);
+
+        expect(maxItems).toBeGreaterThan(0);
+        expect(parseSetting("favouriteBpmnElements", oneTooMany)).toHaveLength(maxItems);
     });
 
     it("never uses the legacy miragon.camundaModeler prefix anywhere in src", () => {

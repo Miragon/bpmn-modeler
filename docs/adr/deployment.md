@@ -26,8 +26,20 @@ other tools require an explicit reconciliation path.
 Store named targets in `<configFolder>/deployment-targets.json`, defaulting to
 `.camunda/deployment-targets.json`. Discover the nearest file by walking from
 the focused document toward its workspace root using the shared config-file
-discovery helper. Target names are trimmed, non-empty and unique. Parse the
-team-editable file defensively and register its
+discovery helper. Target names are unique.
+`DeploymentTarget.create` owns the target value rules, and both the file parser
+and a form save build targets through it: a trimmed, non-blank name; an engine
+of `c7` or `c8`; a non-blank endpoint and the tenant kept verbatim, since named
+ledger keys are built from the endpoint and trimming would orphan the rows of a
+hand-edited file; URL overrides trimmed, or dropped when blank; an auth type of
+`none`, `basic` or `oauth2`, keeping only its own fields and credential refs
+(`TargetAuth`); and valid environment references
+([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+`create` checks the engine and auth type at runtime, because the protocol
+payload of a form save is not checked on arrival: a malformed save is rejected
+before it writes a file that would no longer load. Parse the team-editable file
+defensively: the parser checks the JSON shape and reports a broken value rule
+as `targets[i]` plus the field. Register the file's
 [JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json)
 for editor validation. A malformed file reports an error and yields no targets
 rather than crashing the sidebar.
@@ -39,6 +51,16 @@ slots retain the legacy unnamed keys when absent; deletion/rename cleans up
 the target slot. Never write secrets into the shared file; whole-value
 environment references (below) are the only credential values it may hold.
 
+Each edit of the file returns a `TargetChange` from `DeploymentTargets`
+(`created`, `saved`, `renamed` or `removed`, with the target it replaces or
+removes as `before`), the one place that decides whether a save renames. It names
+the retired slot (the old or deleted name, even when the file no longer holds
+it), the retired target whose ledger rows are pruned, and the name whose
+approvals carry over: the saved or renamed target's, none for a create
+([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+The services act on the change, so nothing reads a target before saving or
+deleting it.
+
 Creating and updating are separate operations so a target is never overwritten
 by accident. **New** creates a target from the entered form data and rejects a
 name that already exists; **Save** updates the selected target in place and is
@@ -48,9 +70,23 @@ anything is written, so a rejected create or rename leaves the file and secret
 store untouched.
 
 Persist the active target name in non-secret host state. The sidebar and
-status-bar target picker use the same value. An unresolved persisted name falls
-back to ad-hoc mode. With no selected target, preserve the legacy unnamed
-connection behavior and write no target file until the user creates a target.
+status-bar target picker use the same value. With no selected target, preserve
+the legacy unnamed connection behavior and write no target file until the user
+creates a target.
+
+A target name is resolved once per request, command or prefill into a
+`DeploymentDestination`: a blank name is the ad-hoc connection
+(`AdHocDestination`), a name the file holds is that target at the
+`TargetsLocation` it was read from (`NamedDestination`), and any other name is
+unknown. The destination is the one place that answers what differs between
+the two: the `.env` scope, whether a request needs approval and under which
+slot, the secret slot, the ledger identity, what an accepted deploy persists,
+admission, and how the approval prompt names the connection. Each caller states
+what an unknown name means: a deploy or start request fails
+(`requestDestination`), the active target falls back to the remembered ad-hoc
+connection (`activeDestination`), and the credentials prefill shows none
+(`prefillDestination`)
+([destination tests](../../libs/modeler-core/src/deployment/domain/deploymentDestination.spec.ts)).
 
 Targets can override complete operation URLs through `endpoints.deploy` and
 `endpoints.startInstance`. Substitute a percent-encoded process definition key
@@ -59,9 +95,9 @@ engine routes. Request bodies remain engine-specific: overrides are for gateways
 proxying that API, not a different deployment protocol.
 
 Any connection or auth field may embed `${env:MIRAGON_NAME}` references,
-resolved from one `.env` (`EnvScope`): for a named target, the one in the
-directory holding its targets file's config folder (`TargetsLocation.projectDir`);
-for an ad-hoc request, the one at the document's workspace folder, so a nearer,
+resolved from one `.env` (the destination's `EnvScope`): for a named target,
+the one in the directory holding its targets file's config folder
+(`TargetsLocation.projectDir`); for an ad-hoc request, the one at the document's workspace folder, so a nearer,
 possibly vendored targets file can't supply variables for an endpoint the user
 typed. With nested workspace folders the innermost one encloses a document on
 both hosts — the bridge matches the longest registered root, as VS Code does —
@@ -74,9 +110,9 @@ The expansion itself lives on the domain objects (`DeploymentConfig`,
 `StartInstanceConfig`, `AuthConfig`), which return a request-only copy;
 `EnvValueResolver` only builds the variable lookup. Expansion at the last moment
 is load-bearing: an accepted deploy writes `config.auth` back to the secret store
-and the dispatcher matches the payload against the saved target literally — a
-resolved value there would persist a secret in cleartext or freeze it, and would
-break target matching. The ledger identity is the exception, see
+and `DeploymentTarget.assertAdmits` matches the request against the saved
+target literally — a resolved value there would persist a secret in cleartext
+or freeze it, and would break target matching. The ledger identity is the exception, see
 [Freshness ledger](#freshness-ledger). A missing variable throws
 `UnresolvedEnvVariableError` (names the variable, field and the `.env` searched);
 it never falls back to the literal. An expanded config is rebuilt through the
@@ -147,12 +183,11 @@ Saving a target through the form approves only the origins the user typed:
 literal ones that no target in the shared file names yet. A host the form merely
 carried over still asks — from the saved target, or from the selected one that
 **New** starts from.
-`${env:…}` URLs are never approved on save, and the parser drops
-`tokenEndpoint`/`audience` from a target that isn't OAuth2, so a hidden token
-endpoint can't be prefilled and pass as typed when the form switches the target
-to OAuth2. Approvals live in the secret store
-beside the credentials under the same slot (`getApprovedDestinations` /
-`saveApprovedDestinations`), so a resolved host is never persisted in
+`${env:…}` URLs are never approved on save, and a target that isn't OAuth2
+keeps no `tokenEndpoint`/`audience`, so a hidden token endpoint can't be
+prefilled and pass as typed when the form switches the target to OAuth2.
+Approvals live in the secret store beside the credentials under the same slot
+(`getApprovedDestinations` / `saveApprovedDestinations`), so a resolved host is never persisted in
 cleartext, `delete` removes them with the credentials, and a rename carries them
 over. Ad-hoc requests are gated only once a `.env` value is substituted into
 them, under one shared `ad-hoc` slot like their credentials: a typed endpoint is
@@ -190,7 +225,15 @@ state and are unavailable during target switches or secret loading.
 The core independently resolves the submitted target name within the captured
 document context and rejects missing targets or mismatching operation settings
 before executing or persisting anything. UI disabling alone cannot establish
-which saved destination a request refers to.
+which saved destination a request refers to. `DeploymentTarget.assertAdmits`
+owns the admission rule for a `TargetRequest`: the endpoint, engine and auth
+type, an OAuth2 token endpoint and audience, and only the settings the
+operation uses (tenant and deploy URL for a deploy, the start URL for a start)
+must equal the saved target's, compared trimmed so a hand-edited file's
+padding is no change. A changed connection is reported before differing
+credential refs ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+The dispatcher only maps the payload into the request; `requestDestination`
+rejects a missing target, and an ad-hoc destination admits any request.
 
 The engine's acceptance is final. Saving the ad-hoc connection, the
 credentials and the ledger row afterwards are separate steps: a failed step is
@@ -235,7 +278,8 @@ through one `SaveBeforeDeploy` step. The sidebar saves only once the config is
 valid and the target admitted, so a request rejected at either step writes
 nothing. A declined credential approval, a failed `.env` lookup and an engine
 error all come after the save, on both deploys, and leave the diagram saved. A
-failed save aborts the deploy. Freshness compares against the current editor
+failed save aborts the deploy, whether the save throws or the host reports that
+it could not save. Freshness compares against the current editor
 buffer, not just disk, so an edit made after the deploy reads `changed` before
 it is saved. Additional sidebar files and Deploy Files… are deployed as saved.
 
@@ -277,7 +321,9 @@ removes the row. A subsequent local deploy writes a local-origin row. Missing
 `origin` on older rows means local, preserving their interpretation.
 
 Named identity includes endpoint host so changing that host invalidates old
-rows. Target rename/delete prunes its ledger keys. Older name-only keys no
+rows. Target rename/delete prunes the ledger keys of the retired target its
+`TargetChange` names, at the file the edit was made in
+(`TargetEdit.retiredDestination`). Older name-only keys no
 longer match and show unknown until verification or deployment seeds a current
 row. This accepted reset avoids reusing a misleading green indicator.
 
@@ -316,7 +362,9 @@ states and timestamps.
   the file named a host and saved after that host was removed counts it as
   typed: the save sees only the file's current state.
 - A non-OAuth2 target loses a hand-written `auth.tokenEndpoint`/`audience` on
-  load; the file never round-tripped them anyway.
+  load and on save, before its references are checked, so a hidden field never
+  blocks a save. Padded URL overrides of a hand-edited file load trimmed and are
+  rewritten trimmed.
 - Environment references trade convenience for containment: no process-env or
   Codespaces variables, a mandatory `MIRAGON_` prefix (existing `CAMUNDA_*`
   entries must be duplicated), literal values may not contain `${env:`, and a

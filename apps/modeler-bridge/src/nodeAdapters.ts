@@ -33,14 +33,20 @@ import { promises as fs, watch as watchFs } from "node:fs";
 import { join, posix, relative, sep } from "node:path";
 
 import {
+    changedSettingKeys,
     coalesceWatcherEvents,
+    DEFAULT_LINTING_ENABLED,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
     globToRegExp,
     isWithinRoot,
     joinWorkspacePath,
+    MarketplaceSettingsEntry,
+    ModelerSettingsSnapshot,
+    normalizeSettings,
     NoWorkspaceFolderFoundError,
+    RawModelerSettings,
     relativeToRoot,
     SettingChange,
     SettingsPort,
@@ -461,53 +467,8 @@ export class NodeWorkspace implements WorkspacePort {
     }
 }
 
-/**
- * The full set of `miragon.bpmnModeler.*` values the core reads through
- * {@link SettingsPort}, as one host-pushed snapshot. The host (IntelliJ) is the
- * single source of truth and sends this on `session/register` and whenever the
- * user edits the Settings page; the bridge never reads configuration itself.
- */
-export interface SettingsSnapshot {
-    alignToOrigin: boolean;
-    showTransactionBoundaries: boolean;
-    configFolder: string;
-    persistCodeLinkMap: boolean;
-    c8ApiVersion: string;
-    colorTheme: "automatic" | "light";
-    defaultMode: SurfaceMode;
-    favouriteBpmnElements: string[];
-    language: string;
-    scriptingSpin: boolean;
-    marketplaces: string[];
-}
-
 /** Mirrors the VS Code config prefix so `affectsConfiguration` keys line up across hosts. */
 const SETTINGS_PREFIX = "miragon.bpmnModeler";
-
-/**
- * Defaults matching `apps/vscode-plugin/package.json` so a session is render-safe
- * before the host's first snapshot arrives (a host that omits `settings`). In the
- * IntelliJ host these are immediately overwritten by the `ModelerSettingsStore`
- * snapshot seeded on register.
- */
-const DEFAULT_SETTINGS: SettingsSnapshot = {
-    alignToOrigin: false,
-    showTransactionBoundaries: true,
-    configFolder: ".camunda",
-    persistCodeLinkMap: false,
-    c8ApiVersion: "v2",
-    colorTheme: "automatic",
-    defaultMode: "implement",
-    favouriteBpmnElements: [
-        "bpmn:ServiceTask",
-        "bpmn:UserTask",
-        "bpmn:CallActivity",
-        "bpmn:ExclusiveGateway",
-    ],
-    language: "en",
-    scriptingSpin: true,
-    marketplaces: [],
-};
 
 /**
  * Mutable {@link SettingsPort} fed by the host over RPC and by the webview's lint
@@ -522,26 +483,23 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
  * lets the unmodified core react identically on both hosts.
  */
 export class BridgeSettings implements SettingsPort {
-    private snapshot: SettingsSnapshot = { ...DEFAULT_SETTINGS };
+    // Render-safe before the host's first snapshot, which a host may leave out of register.
+    private snapshot: ModelerSettingsSnapshot = normalizeSettings({});
     // Outside the snapshot: `apply` would announce it as `lintingEnabled`, not `linting.enabled`.
-    private lintingEnabled = true;
+    private lintingEnabled = DEFAULT_LINTING_ENABLED;
     private readonly listeners = new Set<(event: SettingChange) => void>();
 
     /**
-     * Replaces the snapshot and notifies listeners for each changed key. Listeners
+     * Merges the host's values into the snapshot, read as every host reads them,
+     * and notifies listeners for each key whose read value changed. Listeners
      * are registered per open editor via {@link onDidChange}, so one host frame
      * fans out to every session — mirroring VS Code's global config event.
      */
-    apply(next: Partial<SettingsSnapshot>): void {
-        const merged: SettingsSnapshot = { ...this.snapshot, ...next };
-        const changed = new Set<string>();
-        for (const key of Object.keys(merged) as (keyof SettingsSnapshot)[]) {
-            if (!valuesEqual(this.snapshot[key], merged[key])) {
-                changed.add(`${SETTINGS_PREFIX}.${key}`);
-            }
-        }
-        this.snapshot = merged;
-        this.notify(changed);
+    apply(raw: RawModelerSettings): void {
+        const next = normalizeSettings({ ...this.snapshot, ...raw });
+        const changed = changedSettingKeys(this.snapshot, next);
+        this.snapshot = next;
+        this.notify(new Set(changed.map((key) => `${SETTINGS_PREFIX}.${key}`)));
     }
 
     /**
@@ -610,12 +568,7 @@ export class BridgeSettings implements SettingsPort {
     getScriptingSpin(): boolean {
         return this.snapshot.scriptingSpin;
     }
-    /**
-     * The port widened to `MarketplaceSettingsEntry[]`, but returning `string[]`
-     * stays assignable by return-type covariance and keeps {@link valuesEqual}
-     * correct.
-     */
-    getMarketplaces(): string[] {
+    getMarketplaces(): MarketplaceSettingsEntry[] {
         return this.snapshot.marketplaces;
     }
 
@@ -631,12 +584,4 @@ export class BridgeSettings implements SettingsPort {
             listener(event);
         }
     }
-}
-
-/** Order-sensitive equality covering the snapshot's primitives and the string-array field. */
-function valuesEqual(a: unknown, b: unknown): boolean {
-    if (Array.isArray(a) && Array.isArray(b)) {
-        return a.length === b.length && a.every((value, index) => value === b[index]);
-    }
-    return a === b;
 }

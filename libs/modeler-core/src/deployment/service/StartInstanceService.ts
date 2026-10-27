@@ -6,7 +6,7 @@ import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/h
 import { CamundaEnginePort, DeploymentPickerPort } from "../domain/ports";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentDestination } from "../domain/deploymentDestination";
 import { loggableHost } from "../../kernel/domain/http";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { EnvValueResolver } from "./EnvValueResolver";
@@ -88,7 +88,7 @@ export class StartInstanceService {
      * @param payloadFilePath Absolute path to a JSON payload file, or empty string for no payload.
      * @param startInstanceUrl Optional full-URL override for the start-instance call.
      * @param documentDir Directory anchoring the `.env` lookup for env refs.
-     * @param target The named target the request was validated against; ad-hoc when absent.
+     * @param destination The named target the request was admitted against, or the ad-hoc connection.
      * @returns The outcome of the start-instance attempt.
      */
     async startInstance(
@@ -99,7 +99,7 @@ export class StartInstanceService {
         payloadFilePath: string,
         startInstanceUrl: string | undefined,
         documentDir: string | undefined,
-        target: DeploymentTarget | undefined,
+        destination: DeploymentDestination,
     ): Promise<StartInstanceResult> {
         try {
             let payload: Record<string, unknown> | null = null;
@@ -118,16 +118,14 @@ export class StartInstanceService {
                 startInstanceUrl,
             );
             const lookup = await this.envResolver.createLookup(
-                target === undefined ? "workspaceFolder" : "targetsFile",
+                destination.envScope,
                 documentDir,
                 config,
             );
             const requestConfig = config.expandEnvRefs(lookup);
-            // A typed ad-hoc request is the user's own choice; one carrying `.env` values is not.
-            if (target !== undefined || requestConfig.carriesEnvValues()) {
+            if (destination.requiresApproval(requestConfig)) {
                 await this.credentialApproval.ensureApproved(
-                    target,
-                    documentDir,
+                    destination,
                     requestConfig.sensitiveDestinations(),
                 );
             }

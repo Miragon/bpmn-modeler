@@ -1,45 +1,27 @@
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { MarketplaceSettingsEntry, SettingsPort } from "../kernel/domain/hostPorts";
+import {
+    DEFAULT_LINTING_ENABLED,
+    ModelerSettingsSnapshot,
+    normalizeSettings,
+} from "../kernel/domain/modelerSettings";
 
-export interface SettingsValues {
-    alignToOrigin: boolean;
-    showTransactionBoundaries: boolean;
-    configFolder: string;
-    c8ApiVersion: string;
+export interface SettingsValues extends ModelerSettingsSnapshot {
     lintingEnabled: boolean;
-    colorTheme: "automatic" | "light";
-    defaultMode: SurfaceMode;
-    favouriteBpmnElements: string[];
-    language: string;
-    persistCodeLinkMap: boolean;
-    scriptingSpin: boolean;
-    marketplaces: MarketplaceSettingsEntry[];
 }
 
-/** `values` is mutable so a test can change a setting between two reads. */
+/**
+ * `values` is mutable so a test can change a setting between two reads. They
+ * are not normalised, so a spec can hand the core a value no host would.
+ */
 export class InMemorySettings implements SettingsPort {
     readonly values: SettingsValues;
 
     constructor(overrides: Partial<SettingsValues> = {}) {
         this.values = {
-            alignToOrigin: false,
-            showTransactionBoundaries: true,
-            configFolder: ".camunda",
-            c8ApiVersion: "v2",
-            lintingEnabled: true,
-            colorTheme: "automatic",
-            defaultMode: "implement",
-            favouriteBpmnElements: [
-                "bpmn:ServiceTask",
-                "bpmn:UserTask",
-                "bpmn:CallActivity",
-                "bpmn:ExclusiveGateway",
-            ],
-            language: "en",
-            persistCodeLinkMap: false,
-            scriptingSpin: true,
-            marketplaces: [],
+            ...normalizeSettings({}),
+            lintingEnabled: DEFAULT_LINTING_ENABLED,
             ...overrides,
         };
     }

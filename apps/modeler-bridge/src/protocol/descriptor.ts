@@ -157,6 +157,7 @@ export const METHODS = {
     editorPostMessage: "editor/postMessage",
     clipboardWrite: "clipboard/write",
     notifierShowInfo: "notifier/showInfo",
+    notifierShowWarning: "notifier/showWarning",
     notifierShowError: "notifier/showError",
     notifierNotifyError: "notifier/notifyError",
     notifierOpenConsole: "notifier/openConsole",
@@ -632,6 +633,12 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: { message: "ready" } satisfies NotifierMessageParams,
+    },
+    {
+        method: METHODS.notifierShowWarning,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { message: "careful" } satisfies NotifierMessageParams,
     },
     {
         method: METHODS.notifierShowError,

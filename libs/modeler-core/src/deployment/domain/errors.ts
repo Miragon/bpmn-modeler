@@ -27,6 +27,17 @@ export class InvalidDeploymentTargetsFileError extends Error {
     }
 }
 
+/** Thrown by {@link DeploymentTarget.create} for a field value a target cannot hold. */
+export class InvalidDeploymentTargetError extends Error {
+    constructor(
+        readonly field: string,
+        reason: string,
+    ) {
+        super(`"${field}" ${reason}`);
+        this.name = "InvalidDeploymentTargetError";
+    }
+}
+
 /**
  * Thrown when creating or renaming a target would collide with an existing
  * target's name, which must stay unique.

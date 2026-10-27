@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const inspectMock = vi.fn();
@@ -22,11 +25,54 @@ vi.mock("vscode", () => ({
 
 import { ConfigurationTarget, workspace } from "vscode";
 
+import { DEFAULT_LINTING_ENABLED, DEFAULT_MODELER_SETTINGS } from "@miragon/bpmn-modeler-core";
+import {
+    readSettingsSnapshot,
+    settingsNormalizationCases,
+    TYPESCRIPT_ONLY_SETTINGS_CASES,
+} from "@miragon/bpmn-modeler-core/testing";
+
 import { VsCodeSettings } from "./VsCodeSettings";
 
+const SHARED_CASES = settingsNormalizationCases(
+    readFileSync(
+        resolve(
+            __dirname,
+            "../../../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
+        ),
+        "utf8",
+    ),
+);
+
+const CONFIG_NAMESPACE = "miragon.bpmnModeler";
+
+const MANIFEST_DEFAULTS = new Map(
+    Object.entries(
+        (
+            JSON.parse(readFileSync(resolve(__dirname, "../../../package.json"), "utf8")) as {
+                contributes: {
+                    configuration: { properties: Record<string, { default?: unknown }> };
+                };
+            }
+        ).contributes.configuration.properties,
+    ).map(([key, property]) => [key.slice(CONFIG_NAMESPACE.length + 1), property.default]),
+);
+
 /** Sets what inspect("marketplaces") reports for the User/Workspace scopes. */
-function stubInspect(scopes: { globalValue?: unknown[]; workspaceValue?: unknown[] }) {
+function stubInspect(scopes: { globalValue?: unknown; workspaceValue?: unknown }) {
     inspectMock.mockReturnValue({ key: "marketplaces", ...scopes });
+}
+
+/** Serves `userValues` as VS Code does: what the user set, otherwise the manifest default. */
+function stubConfiguration(userValues: Record<string, unknown>) {
+    getMock.mockImplementation((section: string) =>
+        section in userValues ? userValues[section] : MANIFEST_DEFAULTS.get(section),
+    );
+}
+
+/** The configuration section VS Code stores a snapshot key under. */
+function sectionOf(key: string): string {
+    return key === "scriptingSpin" ? "scripting.spin" : key;
 }
 
 /** Toggles whether VS Code considers a workspace open. */
@@ -41,6 +87,43 @@ beforeEach(() => {
     updateMock.mockResolvedValue(undefined);
     getMock.mockReset();
     setWorkspaceOpen(false);
+});
+
+describe("VsCodeSettings reads", () => {
+    it.each([...SHARED_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
+        "$name",
+        ({ raw, normalized }) => {
+            stubConfiguration(
+                Object.fromEntries(
+                    Object.entries(raw).map(([key, value]) => [sectionOf(key), value]),
+                ),
+            );
+            stubInspect({ globalValue: raw.marketplaces });
+
+            expect(readSettingsSnapshot(new VsCodeSettings())).toEqual({
+                ...DEFAULT_MODELER_SETTINGS,
+                ...normalized,
+            });
+        },
+    );
+
+    it.each([
+        {
+            case: "the linting flag the user turned off",
+            userValues: { "linting.enabled": false },
+            enabled: false,
+        },
+        { case: "the default linting flag", userValues: {}, enabled: DEFAULT_LINTING_ENABLED },
+        {
+            case: "a linting flag that is no boolean as the default",
+            userValues: { "linting.enabled": 0 },
+            enabled: DEFAULT_LINTING_ENABLED,
+        },
+    ])("$case", ({ userValues, enabled }) => {
+        stubConfiguration(userValues);
+
+        expect(new VsCodeSettings().getLintingEnabled()).toBe(enabled);
+    });
 });
 
 describe("VsCodeSettings.getMarketplaces", () => {
@@ -79,6 +162,29 @@ describe("VsCodeSettings.getMarketplaces", () => {
     it("returns an empty list when neither scope has entries", () => {
         stubInspect({});
         expect(new VsCodeSettings().getMarketplaces()).toEqual([]);
+    });
+
+    it.each([
+        {
+            scope: "User",
+            scopes: {
+                globalValue: "https://github.com/acme/user",
+                workspaceValue: ["https://github.com/acme/ws"],
+            },
+            entries: ["https://github.com/acme/ws"],
+        },
+        {
+            scope: "Workspace",
+            scopes: {
+                globalValue: ["https://github.com/acme/user"],
+                workspaceValue: { repo: "acme/ws" },
+            },
+            entries: ["https://github.com/acme/user"],
+        },
+    ])("reads a $scope value that is no list as no entries", ({ scopes, entries }) => {
+        stubInspect(scopes);
+
+        expect(new VsCodeSettings().getMarketplaces()).toEqual(entries);
     });
 });
 
@@ -182,6 +288,22 @@ describe("VsCodeSettings.removeMarketplaces", () => {
         );
     });
 
+    it("leaves a scope whose value is no list untouched", async () => {
+        stubInspect({
+            globalValue: "https://github.com/acme/gone",
+            workspaceValue: ["https://github.com/acme/gone"],
+        });
+
+        await new VsCodeSettings().removeMarketplaces(["https://github.com/acme/gone"]);
+
+        expect(updateMock).toHaveBeenCalledOnce();
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            undefined,
+            ConfigurationTarget.Workspace,
+        );
+    });
+
     it("touches only Global and never throws when no workspace is open", async () => {
         setWorkspaceOpen(false);
         // No workspace open → inspect reports no workspaceValue at all.
@@ -277,6 +399,33 @@ describe("VsCodeSettings.addMarketplace", () => {
             ConfigurationTarget.Global,
         );
     });
+
+    it.each([
+        {
+            scope: "user" as const,
+            target: ConfigurationTarget.Global,
+            value: { globalValue: "https://github.com/acme" },
+        },
+        {
+            scope: "workspace" as const,
+            target: ConfigurationTarget.Workspace,
+            value: { workspaceValue: "https://github.com/acme" },
+        },
+    ])(
+        "replaces a $scope value that is no list with the new entry",
+        async ({ scope, target, value }) => {
+            setWorkspaceOpen(true);
+            stubInspect(value);
+
+            await new VsCodeSettings().addMarketplace("https://github.com/acme/new", scope);
+
+            expect(updateMock).toHaveBeenCalledWith(
+                "marketplaces",
+                ["https://github.com/acme/new"],
+                target,
+            );
+        },
+    );
 
     it("is a no-op for a user add when the URL already exists in the User list", async () => {
         setWorkspaceOpen(true);

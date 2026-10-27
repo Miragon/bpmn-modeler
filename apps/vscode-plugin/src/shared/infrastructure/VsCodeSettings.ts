@@ -1,23 +1,26 @@
 import { ConfigurationTarget, workspace } from "vscode";
 
-import { MarketplaceSettingsEntry, SettingsPort } from "@miragon/bpmn-modeler-core";
+import {
+    MarketplaceSettingsEntry,
+    parseLintingEnabled,
+    parseSetting,
+    SettingsPort,
+} from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /**
- * Pure VS Code workspace configuration reader for the BPMN modeler.
+ * Pure VS Code workspace configuration reader for the BPMN modeler. Each value
+ * is read as the core's `parseSetting` decides, as on every host.
  */
 export class VsCodeSettings implements SettingsPort {
     getAlignToOrigin(): boolean {
-        return (
-            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("alignToOrigin") ?? false
-        );
+        return parseSetting("alignToOrigin", configuration().get("alignToOrigin"));
     }
 
     getShowTransactionBoundaries(): boolean {
-        return (
-            workspace
-                .getConfiguration("miragon.bpmnModeler")
-                .get<boolean>("showTransactionBoundaries") ?? true
+        return parseSetting(
+            "showTransactionBoundaries",
+            configuration().get("showTransactionBoundaries"),
         );
     }
 
@@ -27,44 +30,31 @@ export class VsCodeSettings implements SettingsPort {
      * the webview pill or the settings UI) to silence rules they do not use.
      */
     getLintingEnabled(): boolean {
-        return (
-            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("linting.enabled") ??
-            true
-        );
+        return parseLintingEnabled(configuration().get("linting.enabled"));
     }
 
     getConfigFolder(): string {
-        return workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .get<string>("configFolder", ".camunda");
+        return parseSetting("configFolder", configuration().get("configFolder"));
     }
 
     getC8ApiVersion(): string {
-        return workspace.getConfiguration("miragon.bpmnModeler").get<string>("c8ApiVersion", "v2");
+        return parseSetting("c8ApiVersion", configuration().get("c8ApiVersion"));
     }
 
     getColorTheme(): "automatic" | "light" {
-        const value = workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .get<string>("colorTheme", "automatic");
-        return value === "light" ? "light" : "automatic";
+        return parseSetting("colorTheme", configuration().get("colorTheme"));
     }
 
     getDefaultMode(): SurfaceMode {
-        const value = workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .get<string>("defaultMode", "implement");
-        return value === "view" || value === "design" ? value : "implement";
+        return parseSetting("defaultMode", configuration().get("defaultMode"));
     }
 
     getFavouriteBpmnElements(): string[] {
-        return workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .get<string[]>("favouriteBpmnElements", []);
+        return parseSetting("favouriteBpmnElements", configuration().get("favouriteBpmnElements"));
     }
 
     getLanguage(): string {
-        return workspace.getConfiguration("miragon.bpmnModeler").get<string>("language", "en");
+        return parseSetting("language", configuration().get("language"));
     }
 
     /**
@@ -76,10 +66,7 @@ export class VsCodeSettings implements SettingsPort {
      * external-tooling artifact.
      */
     getPersistCodeLinkMap(): boolean {
-        return (
-            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("persistCodeLinkMap") ??
-            false
-        );
+        return parseSetting("persistCodeLinkMap", configuration().get("persistCodeLinkMap"));
     }
 
     /**
@@ -91,9 +78,7 @@ export class VsCodeSettings implements SettingsPort {
      * project does not have camunda-spin on the classpath.
      */
     getScriptingSpin(): boolean {
-        return (
-            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("scripting.spin") ?? true
-        );
+        return parseSetting("scriptingSpin", configuration().get("scripting.spin"));
     }
 
     /**
@@ -125,16 +110,12 @@ export class VsCodeSettings implements SettingsPort {
         entry: MarketplaceSettingsEntry;
         scopes: ("user" | "workspace")[];
     }[] {
-        const inspected = workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .inspect<MarketplaceSettingsEntry[]>("marketplaces");
+        const { userEntries, workspaceEntries } = marketplacesByScope(configuration());
         // User first so a shared "all my projects" entry annotated with both
         // scopes still reads "User and Workspace settings", not the reverse.
         const scoped: [MarketplaceSettingsEntry, "user" | "workspace"][] = [
-            ...(inspected?.globalValue ?? []).map(
-                (entry) => [entry, "user"] as [MarketplaceSettingsEntry, "user"],
-            ),
-            ...(inspected?.workspaceValue ?? []).map(
+            ...userEntries.map((entry) => [entry, "user"] as [MarketplaceSettingsEntry, "user"]),
+            ...workspaceEntries.map(
                 (entry) => [entry, "workspace"] as [MarketplaceSettingsEntry, "workspace"],
             ),
         ];
@@ -164,23 +145,18 @@ export class VsCodeSettings implements SettingsPort {
      * Matching is by {@link entryKey}, the same structural key the picker dedups
      * on, so an object entry (self-hosted GHE/GitLab) is matched by shape, not
      * reference. No-workspace safety is implicit: with no folder open the
-     * Workspace scope's `workspaceValue` is `undefined`, so its update is never
-     * attempted and VS Code never throws.
+     * Workspace scope holds no entries, so its update is never attempted and
+     * VS Code never throws.
      */
     async removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
-        const config = workspace.getConfiguration("miragon.bpmnModeler");
-        const inspected = config.inspect<MarketplaceSettingsEntry[]>("marketplaces");
+        const config = configuration();
+        const { userEntries, workspaceEntries } = marketplacesByScope(config);
         const removeKeys = new Set(entries.map((entry) => entryKey(entry)));
 
+        await this.removeFromScope(config, userEntries, removeKeys, ConfigurationTarget.Global);
         await this.removeFromScope(
             config,
-            inspected?.globalValue,
-            removeKeys,
-            ConfigurationTarget.Global,
-        );
-        await this.removeFromScope(
-            config,
-            inspected?.workspaceValue,
+            workspaceEntries,
             removeKeys,
             ConfigurationTarget.Workspace,
         );
@@ -194,13 +170,10 @@ export class VsCodeSettings implements SettingsPort {
      */
     private async removeFromScope(
         config: ReturnType<typeof workspace.getConfiguration>,
-        current: MarketplaceSettingsEntry[] | undefined,
+        current: MarketplaceSettingsEntry[],
         removeKeys: ReadonlySet<string>,
         target: ConfigurationTarget,
     ): Promise<void> {
-        if (current === undefined) {
-            return;
-        }
         const filtered = current.filter((entry) => !removeKeys.has(entryKey(entry)));
         if (filtered.length === current.length) {
             return;
@@ -227,8 +200,8 @@ export class VsCodeSettings implements SettingsPort {
      * slips through, costing only a redundant fetch into the same cache slot.
      */
     async addMarketplace(url: string, scope: "workspace" | "user"): Promise<void> {
-        const config = workspace.getConfiguration("miragon.bpmnModeler");
-        const inspected = config.inspect<MarketplaceSettingsEntry[]>("marketplaces");
+        const config = configuration();
+        const { userEntries, workspaceEntries } = marketplacesByScope(config);
         const hasWorkspace =
             workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
         const target =
@@ -238,20 +211,20 @@ export class VsCodeSettings implements SettingsPort {
         if (target === ConfigurationTarget.Global) {
             // Promotion rule: only the User list de-dups a "user" add, so an entry
             // present workspace-level can still be lifted to "all my projects".
-            if ((inspected?.globalValue ?? []).includes(url)) {
+            if (userEntries.includes(url)) {
                 return;
             }
-            await config.update("marketplaces", [...(inspected?.globalValue ?? []), url], target);
+            await config.update("marketplaces", [...userEntries, url], target);
             return;
         }
         // Workspace add: a no-op if the URL already resolves for this project via
         // either scope's list.
-        if (this.getMarketplaces().includes(url)) {
+        if (userEntries.includes(url) || workspaceEntries.includes(url)) {
             return;
         }
         await config.update(
             "marketplaces",
-            [...(inspected?.workspaceValue ?? []), url],
+            [...workspaceEntries, url],
             ConfigurationTarget.Workspace,
         );
     }
@@ -268,4 +241,20 @@ export class VsCodeSettings implements SettingsPort {
  */
 function entryKey(entry: MarketplaceSettingsEntry): string {
     return JSON.stringify(entry);
+}
+
+/** Each scope's own list, read as the core reads `marketplaces`. */
+function marketplacesByScope(config: ReturnType<typeof workspace.getConfiguration>): {
+    userEntries: MarketplaceSettingsEntry[];
+    workspaceEntries: MarketplaceSettingsEntry[];
+} {
+    const inspected = config.inspect("marketplaces");
+    return {
+        userEntries: parseSetting("marketplaces", inspected?.globalValue),
+        workspaceEntries: parseSetting("marketplaces", inspected?.workspaceValue),
+    };
+}
+
+function configuration() {
+    return workspace.getConfiguration("miragon.bpmnModeler");
 }

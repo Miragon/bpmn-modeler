@@ -3,6 +3,8 @@ import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
 import {
+    BpmnlintIndicator,
+    BpmnlintStatusBarPort,
     DeploymentFreshness,
     DeploymentStatusBarPort,
     StatusBarPort,
@@ -50,7 +52,9 @@ function deploymentTooltip(
     }
 }
 
-export class VsCodeStatusBar implements StatusBarPort, DeploymentStatusBarPort {
+export class VsCodeStatusBar
+    implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+{
     private templateStatusItem: StatusBarItem | undefined;
 
     private pendingTemplateAutoHide: ReturnType<typeof setTimeout> | undefined;
@@ -93,60 +97,51 @@ export class VsCodeStatusBar implements StatusBarPort, DeploymentStatusBarPort {
         this.engineVersionStatusItem?.hide();
     }
 
-    showBpmnlintActive(configPath: string): void {
+    showBpmnlint(indicator: BpmnlintIndicator): void {
+        if (indicator.state === "hidden") {
+            this.bpmnlintStatusItem?.hide();
+            return;
+        }
         const item = this.getOrCreateBpmnlintStatusItem();
-        item.text = "$(check) BPMNlint";
-        item.tooltip = configPath;
-        item.backgroundColor = undefined;
-        item.command = undefined;
-        item.show();
-    }
-
-    showBpmnlintUnresolved(configPath: string, unresolved: string[]): void {
-        const item = this.getOrCreateBpmnlintStatusItem();
-        item.text = `$(warning) BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`;
-        // A warning background so a partly-applied config can't be mistaken for the
-        // fully-green tick — the exact ambiguity this state exists to remove.
-        item.backgroundColor = new ThemeColor("statusBarItem.warningBackground");
-        item.tooltip = `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`;
-        item.command = undefined;
-        item.show();
-    }
-
-    showBpmnlintDefault(platform: Engine | undefined): void {
-        const item = this.getOrCreateBpmnlintStatusItem();
-        // A shield (not the green tick) so a bundled default is never mistaken for
-        // a project's own `.bpmnlintrc`.
-        item.text = "$(shield) BPMNlint (default)";
-        const engine = platform ? ENGINE_LABEL[platform] : "no execution platform";
-        item.tooltip = `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`;
-        item.backgroundColor = undefined;
-        item.command = undefined;
-        item.show();
-    }
-
-    showBpmnlintDisabled(): void {
-        const item = this.getOrCreateBpmnlintStatusItem();
-        // Circle-slash (not the info `i`) reads as "deliberately off", and the
-        // command turns it back on with one click for users who never open settings.
-        item.text = "$(circle-slash) BPMNlint: off";
-        item.tooltip = "BPMN linting is turned off — click to turn it back on.";
-        item.backgroundColor = undefined;
-        item.command = TOGGLE_LINTING_CMD;
-        item.show();
-    }
-
-    showBpmnlintNoConfig(): void {
-        const item = this.getOrCreateBpmnlintStatusItem();
-        item.text = "$(info) BPMNlint: no .bpmnlintrc";
         item.tooltip = undefined;
         item.backgroundColor = undefined;
         item.command = undefined;
+        switch (indicator.state) {
+            case "active":
+                item.text = "$(check) BPMNlint";
+                item.tooltip = indicator.configPath;
+                break;
+            case "unresolved": {
+                const { configPath, unresolved } = indicator;
+                item.text = `$(warning) BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`;
+                // A warning background so a partly-applied config can't be mistaken for the
+                // fully-green tick — the exact ambiguity this state exists to remove.
+                item.backgroundColor = new ThemeColor("statusBarItem.warningBackground");
+                item.tooltip = `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`;
+                break;
+            }
+            case "default": {
+                // A shield (not the green tick) so a bundled default is never mistaken for
+                // a project's own `.bpmnlintrc`.
+                item.text = "$(shield) BPMNlint (default)";
+                const engine = indicator.platform
+                    ? ENGINE_LABEL[indicator.platform]
+                    : "no execution platform";
+                item.tooltip = `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`;
+                break;
+            }
+            case "disabled":
+                // Circle-slash (not the info `i`) reads as "deliberately off", and the
+                // command turns it back on with one click for users who never open settings.
+                item.text = "$(circle-slash) BPMNlint: off";
+                item.tooltip = "BPMN linting is turned off — click to turn it back on.";
+                item.command = TOGGLE_LINTING_CMD;
+                break;
+            case "noConfig":
+                item.text = "$(info) BPMNlint: no .bpmnlintrc";
+                break;
+        }
         item.show();
-    }
-
-    hideBpmnlintStatus(): void {
-        this.bpmnlintStatusItem?.hide();
     }
 
     showDeploymentTarget(

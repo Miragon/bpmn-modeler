@@ -16,6 +16,7 @@ export * from "./kernel/domain/errors";
 export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/domain/hostPorts";
 export * from "./kernel/domain/http";
+export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
 export * from "./kernel/domain/rootContainment";
 export * from "./kernel/domain/viewTypes";
@@ -46,6 +47,7 @@ export * from "./editorSession/infrastructure/webviewLogMessageHandlers";
 export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
+export * from "./modeler/bpmn/domain/bpmnlintIndicator";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";
@@ -106,6 +108,7 @@ export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────
 export * from "./deployment/domain/deployment";
+export * from "./deployment/domain/deploymentDestination";
 export * from "./deployment/domain/deploymentLedger";
 export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";
@@ -132,6 +135,7 @@ export * from "./deployment/infrastructure/camunda/CamundaEngineRouter";
 export * from "./deployment/infrastructure/camunda/MultipartBuilder";
 
 // ── template-marketplace ─────────────────────────────────────────────────────
+export * from "./template-marketplace/domain/fetchReport";
 export * from "./template-marketplace/domain/marketplace";
 export * from "./template-marketplace/domain/ports";
 export * from "./template-marketplace/infrastructure/GitHubSource";

@@ -54,35 +54,35 @@ class ModelerSettingsStore {
             configFolder = props.getValue(CONFIG_FOLDER, DEFAULT_CONFIG_FOLDER),
             persistCodeLinkMap = props.getBoolean(PERSIST_CODE_LINK_MAP, DEFAULT_PERSIST_CODE_LINK_MAP),
             c8ApiVersion = props.getValue(C8_API_VERSION, DEFAULT_C8_API_VERSION),
-            colorTheme = normalizeColorTheme(props.getValue(COLOR_THEME, DEFAULT_COLOR_THEME)),
-            defaultMode = normalizeDefaultMode(props.getValue(DEFAULT_MODE, DEFAULT_DEFAULT_MODE)),
+            colorTheme = props.getValue(COLOR_THEME, DEFAULT_COLOR_THEME),
+            defaultMode = props.getValue(DEFAULT_MODE, DEFAULT_DEFAULT_MODE),
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
             marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
-        )
+        ).normalized()
 
-    /** Persists the snapshot, normalising the two constrained fields so stored values stay valid. */
+    /** Persists the snapshot normalised, so stored values stay valid. */
     fun update(settings: ModelerSettings) {
-        props.setValue(ALIGN_TO_ORIGIN, settings.alignToOrigin, DEFAULT_ALIGN_TO_ORIGIN)
-        props.setValue(SHOW_TX_BOUNDARIES, settings.showTransactionBoundaries, DEFAULT_SHOW_TX_BOUNDARIES)
-        // An empty config folder would make discovery scan the whole tree; keep the default instead.
-        props.setValue(CONFIG_FOLDER, settings.configFolder.ifBlank { DEFAULT_CONFIG_FOLDER }, DEFAULT_CONFIG_FOLDER)
-        props.setValue(PERSIST_CODE_LINK_MAP, settings.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
-        props.setValue(C8_API_VERSION, settings.c8ApiVersion, DEFAULT_C8_API_VERSION)
-        props.setValue(COLOR_THEME, normalizeColorTheme(settings.colorTheme), DEFAULT_COLOR_THEME)
-        props.setValue(DEFAULT_MODE, normalizeDefaultMode(settings.defaultMode), DEFAULT_DEFAULT_MODE)
-        // Cap matches the webview append-menu palette (max 6 pinned elements).
-        props.setList(FAVOURITE_ELEMENTS, settings.favouriteBpmnElements.take(MAX_FAVOURITES))
-        props.setValue(LANGUAGE, settings.language, DEFAULT_LANGUAGE)
-        props.setValue(SCRIPTING_SPIN, settings.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
-        props.setList(MARKETPLACES, settings.marketplaces)
+        val normalized = settings.normalized()
+        props.setValue(ALIGN_TO_ORIGIN, normalized.alignToOrigin, DEFAULT_ALIGN_TO_ORIGIN)
+        props.setValue(SHOW_TX_BOUNDARIES, normalized.showTransactionBoundaries, DEFAULT_SHOW_TX_BOUNDARIES)
+        props.setValue(CONFIG_FOLDER, normalized.configFolder, DEFAULT_CONFIG_FOLDER)
+        props.setValue(PERSIST_CODE_LINK_MAP, normalized.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
+        props.setValue(C8_API_VERSION, normalized.c8ApiVersion, DEFAULT_C8_API_VERSION)
+        props.setValue(COLOR_THEME, normalized.colorTheme, DEFAULT_COLOR_THEME)
+        props.setValue(DEFAULT_MODE, normalized.defaultMode, DEFAULT_DEFAULT_MODE)
+        props.setList(FAVOURITE_ELEMENTS, normalized.favouriteBpmnElements)
+        props.setValue(LANGUAGE, normalized.language, DEFAULT_LANGUAGE)
+        props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
+        props.setList(MARKETPLACES, normalized.marketplaces)
     }
 
     /**
      * The snapshot shaped exactly as the bridge's `settings` RPC param (see the
-     * TS `SettingsSnapshot`). Gson serialises the list as a JSON array; the core
-     * computes the per-key change diff, so the host only ever sends the full set.
+     * core's `ModelerSettingsSnapshot` in `kernel/domain/modelerSettings.ts`).
+     * Gson serialises the list as a JSON array; the core computes the per-key
+     * change diff, so the host only ever sends the full set.
      *
      * `project` is required so the `marketplaces` key is the app ∪ project union
      * from [ProjectMarketplacesStore] rather than the app-only list — the core
@@ -101,8 +101,8 @@ class ModelerSettingsStore {
             "defaultMode" to current.defaultMode,
             "favouriteBpmnElements" to current.favouriteBpmnElements,
             "language" to current.language,
-            // The RPC key is the camelCase field name matching the bridge's
-            // `SettingsSnapshot`, NOT the dotted persisted key — a mismatch here
+            // The RPC key is the camelCase field name matching the core's
+            // `ModelerSettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
             "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
@@ -138,18 +138,29 @@ class ModelerSettingsStore {
         }
     }
 
-    /** Constrains the theme to the two values the core's `SettingsPort` accepts. */
-    private fun normalizeColorTheme(value: String): String = if (value == "light") "light" else "automatic"
-
-    /** Constrains the default mode to the three values the core's `SettingsPort` accepts. */
-    private fun normalizeDefaultMode(value: String): String =
-        if (value == "view" || value == "design") value else "implement"
+    /**
+     * The Kotlin copy of the core's `normalizeSettings`; `ModelerSettingsStoreTest` runs the
+     * core's `settingsNormalization.cases.json` against this store.
+     */
+    private fun ModelerSettings.normalized(): ModelerSettings =
+        copy(
+            // A blank folder would make discovery scan the whole tree.
+            configFolder = configFolder.ifBlank { DEFAULT_CONFIG_FOLDER },
+            colorTheme = colorTheme.takeIf { it in COLOR_THEMES } ?: DEFAULT_COLOR_THEME,
+            defaultMode = defaultMode.takeIf { it in DEFAULT_MODES } ?: DEFAULT_DEFAULT_MODE,
+            favouriteBpmnElements = favouriteBpmnElements.take(MAX_FAVOURITES),
+        )
 
     companion object {
         fun getInstance(): ModelerSettingsStore =
             ApplicationManager.getApplication().getService(ModelerSettingsStore::class.java)
 
+        /** The append-menu palette pins no more. */
         const val MAX_FAVOURITES = 6
+
+        /** In the order the Settings page offers them. */
+        internal val COLOR_THEMES = listOf("automatic", "light")
+        internal val DEFAULT_MODES = listOf("implement", "design", "view")
 
         // Keys mirror the VS Code `miragon.bpmnModeler.*` namespace.
         private const val ALIGN_TO_ORIGIN = "miragon.bpmnModeler.alignToOrigin"
@@ -164,14 +175,14 @@ class ModelerSettingsStore {
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
         private const val MARKETPLACES = "miragon.bpmnModeler.marketplaces"
 
-        // Defaults track apps/vscode-plugin/package.json.
+        // Defaults track apps/vscode-plugin/package.json; ModelerSettingsStoreTest compares them.
         private const val DEFAULT_ALIGN_TO_ORIGIN = false
         private const val DEFAULT_SHOW_TX_BOUNDARIES = true
         private const val DEFAULT_CONFIG_FOLDER = ".camunda"
         private const val DEFAULT_PERSIST_CODE_LINK_MAP = false
         private const val DEFAULT_C8_API_VERSION = "v2"
-        private const val DEFAULT_COLOR_THEME = "automatic"
-        private const val DEFAULT_DEFAULT_MODE = "implement"
+        internal const val DEFAULT_COLOR_THEME = "automatic"
+        internal const val DEFAULT_DEFAULT_MODE = "implement"
         private const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
         private val DEFAULT_FAVOURITE_ELEMENTS =

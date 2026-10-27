@@ -11,6 +11,7 @@ function openEditors() {
     const order = new FakeEditorHandle("/work/order.bpmn", { content: "<order/>" });
     const invoice = new FakeEditorHandle("/work/invoice.bpmn", { content: "<invoice/>" });
     editorStore.register(order);
+    invoice.active = true;
     editorStore.register(invoice);
     return { editorStore, order, invoice, document: new EditorSessionDocuments(editorStore) };
 }

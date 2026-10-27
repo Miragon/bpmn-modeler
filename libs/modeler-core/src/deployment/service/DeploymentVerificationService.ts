@@ -8,7 +8,6 @@ import {
 } from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
-import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { reconcile } from "../domain/deploymentVerification";
 import { EngineInspectionPort } from "../domain/ports";
 import { sensitiveDestinations } from "../domain/deployment";
@@ -54,11 +53,12 @@ export class DeploymentVerificationService {
         const content = this.documentPort.getContent(editorId);
 
         const dir = documentDir ?? posix.dirname(filePath);
-        const target = await this.deploymentTargetService.getActiveTarget(dir);
-        if (target === undefined) {
+        const destination = await this.deploymentTargetService.getActiveDestination(dir);
+        if (destination.kind === "adHoc") {
             this.notifier.showInfo("Select a named Camunda 7 target to verify against.");
             return;
         }
+        const { target } = destination;
         if (target.engine !== "c7") {
             this.notifier.showInfo("Verification is not available for Camunda 8 targets.");
             return;
@@ -73,9 +73,9 @@ export class DeploymentVerificationService {
         }
 
         try {
-            const credentials = await this.deploymentTargetService.getCredentials(target, dir);
+            const credentials = await this.deploymentTargetService.getCredentials(destination);
             const lookup = await this.envResolver.createLookup(
-                "targetsFile",
+                destination.envScope,
                 dir,
                 target.connectionEnvRefs(),
                 credentials,
@@ -85,8 +85,7 @@ export class DeploymentVerificationService {
             const { endpoint, tenantId } = target.expandConnection(recording);
             const envValues = [...recording.resolved];
             await this.credentialApproval.ensureApproved(
-                target,
-                dir,
+                destination,
                 sensitiveDestinations(endpoint, auth, envValues),
             );
             const snapshot = await this.notifier.withProgress(
@@ -101,7 +100,7 @@ export class DeploymentVerificationService {
                     }),
             );
 
-            const identity = DeploymentTargetIdentity.fromTarget(target, lookup);
+            const identity = destination.ledgerIdentity(lookup);
             const recorded = this.deploymentStatusService.getRevision(filePath, identity);
             const { outcome, revision } = reconcile(recorded, content, snapshot);
 

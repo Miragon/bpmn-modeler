@@ -1,6 +1,18 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
-import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+import {
+    DEFAULT_LINTING_ENABLED,
+    DEFAULT_MODELER_SETTINGS,
+    UserCancelledError,
+} from "@miragon/bpmn-modeler-core";
+import {
+    readSettingsSnapshot,
+    settingsNormalizationCases,
+    TYPESCRIPT_ONLY_SETTINGS_CASES,
+} from "@miragon/bpmn-modeler-core/testing";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import {
@@ -27,6 +39,16 @@ const META: SessionMeta = {
     scheme: "file",
     workspaceRoot: "/w",
 };
+
+const SHARED_SETTINGS_CASES = settingsNormalizationCases(
+    readFileSync(
+        resolve(
+            __dirname,
+            "../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
+        ),
+        "utf8",
+    ),
+);
 
 /** Returns the last element (ES2021 target has no `Array.prototype.at`). */
 function last<T>(items: T[]): T {
@@ -328,6 +350,59 @@ describe("RpcEditorHandle", () => {
 });
 
 describe("BridgeSettings", () => {
+    it("reads the shared defaults before the host's first snapshot", () => {
+        const settings = new BridgeSettings();
+
+        expect(readSettingsSnapshot(settings)).toEqual(DEFAULT_MODELER_SETTINGS);
+        expect(settings.getLintingEnabled()).toBe(DEFAULT_LINTING_ENABLED);
+    });
+
+    it.each([...SHARED_SETTINGS_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
+        "$name",
+        ({ raw, normalized }) => {
+            const settings = new BridgeSettings();
+
+            settings.apply(raw);
+
+            expect(readSettingsSnapshot(settings)).toEqual({
+                ...DEFAULT_MODELER_SETTINGS,
+                ...normalized,
+            });
+        },
+    );
+
+    it("gives every instance lists of its own", () => {
+        const defaults = structuredClone(readSettingsSnapshot(new BridgeSettings()));
+
+        new BridgeSettings().getFavouriteBpmnElements().push("bpmn:Task");
+        new BridgeSettings().getMarketplaces().push("https://github.com/acme/templates");
+
+        expect(readSettingsSnapshot(new BridgeSettings())).toEqual(defaults);
+    });
+
+    it("fires no change for values that read as the current ones", () => {
+        const settings = new BridgeSettings();
+        const listener = vi.fn();
+        settings.onDidChange(listener);
+
+        settings.apply({ colorTheme: "dark", defaultMode: "edit", configFolder: " " });
+
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it("keeps the values a partial snapshot leaves out", () => {
+        const settings = new BridgeSettings();
+        settings.apply({ language: "de", configFolder: ".config" });
+
+        settings.apply({ language: "fr" });
+
+        expect(readSettingsSnapshot(settings)).toEqual({
+            ...DEFAULT_MODELER_SETTINGS,
+            language: "fr",
+            configFolder: ".config",
+        });
+    });
+
     it("exposes the host snapshot through the SettingsPort getters", () => {
         const settings = new BridgeSettings();
         settings.apply({
@@ -546,6 +621,12 @@ describe("RpcNotifier", () => {
 
         notifier.showInfo("done");
         expect(last(frames)).toEqual({ method: "notifier/showInfo", params: { message: "done" } });
+
+        notifier.showWarning("careful");
+        expect(last(frames)).toEqual({
+            method: "notifier/showWarning",
+            params: { message: "careful" },
+        });
 
         notifier.showError("boom");
         expect(last(frames)).toEqual({

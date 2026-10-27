@@ -496,6 +496,14 @@
         ]
     },
     {
+        "method": "notifier/showWarning",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "message"
+        ]
+    },
+    {
         "method": "notifier/showError",
         "direction": "coreToHost",
         "kind": "notification",
