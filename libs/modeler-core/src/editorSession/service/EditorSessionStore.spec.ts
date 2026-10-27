@@ -226,6 +226,28 @@ describe("EditorSessionStore", () => {
         expect(store.getActiveEditorId()).toBe(background.id);
     });
 
+    it("hands the command target back to the focused diagram when a background panel that registered as active turns inactive", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        store.register(focused);
+        store.subscribeToTabChangeEvent(focused.id);
+        // Theia creates every custom-editor panel active and blurs a background one afterwards.
+        const background = new FakeEditorHandle("/repo/2.bpmn");
+        background.active = true;
+        store.register(background);
+        store.subscribeToTabChangeEvent(background.id);
+        const announced: string[] = [];
+        store.onDidChangeActiveEditor((editorId) => {
+            announced.push(editorId);
+        });
+
+        background.loseFocus();
+
+        expect(store.getActiveEditorId()).toBe(focused.id);
+        expect(announced).toEqual([focused.id]);
+    });
+
     it("stops reporting focus once the editor blurs or closes", () => {
         const store = new EditorSessionStore(vi.fn());
         const blurred = new FakeEditorHandle("/repo/1.bpmn");
