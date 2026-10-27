@@ -86,9 +86,9 @@ The expansion itself lives on the domain objects (`DeploymentConfig`,
 `StartInstanceConfig`, `AuthConfig`), which return a request-only copy;
 `EnvValueResolver` only builds the variable lookup. Expansion at the last moment
 is load-bearing: an accepted deploy writes `config.auth` back to the secret store
-and the dispatcher matches the payload against the saved target literally — a
-resolved value there would persist a secret in cleartext or freeze it, and would
-break target matching. The ledger identity is the exception, see
+and `DeploymentTarget.assertAdmits` matches the request against the saved
+target literally — a resolved value there would persist a secret in cleartext
+or freeze it, and would break target matching. The ledger identity is the exception, see
 [Freshness ledger](#freshness-ledger). A missing variable throws
 `UnresolvedEnvVariableError` (names the variable, field and the `.env` searched);
 it never falls back to the literal. An expanded config is rebuilt through the
@@ -201,7 +201,15 @@ state and are unavailable during target switches or secret loading.
 The core independently resolves the submitted target name within the captured
 document context and rejects missing targets or mismatching operation settings
 before executing or persisting anything. UI disabling alone cannot establish
-which saved destination a request refers to.
+which saved destination a request refers to. `DeploymentTarget.assertAdmits`
+owns the admission rule for a `TargetRequest`: the endpoint, engine and auth
+type, an OAuth2 token endpoint and audience, and only the settings the
+operation uses (tenant and deploy URL for a deploy, the start URL for a start)
+must equal the saved target's, compared trimmed so a hand-edited file's
+padding is no change. A changed connection is reported before differing
+credential refs ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+The dispatcher only maps the payload into the request and keeps the
+missing-target check.
 
 The engine's acceptance is final. Saving the ad-hoc connection, the
 credentials and the ledger row afterwards are separate steps: a failed step is
