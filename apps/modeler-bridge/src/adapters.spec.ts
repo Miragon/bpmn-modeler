@@ -692,6 +692,24 @@ describe("RpcNotifier", () => {
         ]);
     });
 
+    it("shows a thrown string in the error balloon below the context", () => {
+        const { frames, rpc } = harness();
+        const thrownString = "EACCES" as unknown as Error;
+
+        new RpcNotifier(rpc).notifyError("Reading the element templates failed", thrownString);
+
+        expect(frames).toEqual([
+            {
+                method: "notifier/log",
+                params: { level: "error", message: "Reading the element templates failed: EACCES" },
+            },
+            {
+                method: "notifier/showError",
+                params: { message: "Reading the element templates failed\nEACCES" },
+            },
+        ]);
+    });
+
     it.each([
         { error: new Error("bad"), logged: "Error: bad" },
         { error: new TypeError("bad"), logged: "TypeError: bad" },
