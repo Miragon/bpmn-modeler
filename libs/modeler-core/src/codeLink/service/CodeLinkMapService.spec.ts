@@ -176,6 +176,25 @@ describe("CodeLinkMapService — sync diff", () => {
         });
     });
 
+    it("re-resolves an activity whose linked file no longer implements it", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor, locator } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        const entries = [entry("Act", "jobType", "pay")];
+        await service.syncActivities(editor.id, entries);
+
+        // Edited without a watcher event, so only the verification read sees it.
+        host.workspace.files.set(worker, "class Worker {}");
+        await service.syncActivities(editor.id, entries);
+
+        expect(locator.resolveMany.mock.calls.map(([resolved]) => resolved)).toEqual([
+            entries,
+            entries,
+        ]);
+    });
+
     it("re-resolves when a reference changes", async () => {
         const { service, editor, locator } = createService({
             resolveMap: { "com.example.A": ["/p/A.java"], "com.example.B": ["/p/B.java"] },
@@ -655,6 +674,27 @@ describe("CodeLinkMapService — lifecycle", () => {
         await service.onSourceFileChanged(worker, "created", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
+    });
+
+    it("does not register an editor closed while its links were verified", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor, sourceIndex } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        sourceIndex.sourcesFor.mockClear();
+        vi.spyOn(host.workspace, "readFile").mockImplementationOnce(() => {
+            service.disposeEditor(editor.id);
+            return Promise.resolve('@JobWorker(type = "pay")');
+        });
+
+        await service.syncActivities(editor.id, [
+            entry("Act", "jobType", "pay"),
+            entry("New", "jobType", "refund"),
+        ]);
+
+        expect(sourceIndex.sourcesFor).not.toHaveBeenCalled();
     });
 
     it("releases the editor's share of the source index when it closes", async () => {
