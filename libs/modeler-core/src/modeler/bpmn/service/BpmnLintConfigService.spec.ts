@@ -508,6 +508,81 @@ describe("BpmnLintConfigService — re-negotiation (both directions + race)", ()
     });
 });
 
+describe("BpmnLintConfigService — a host lint that lands after its session moved on", () => {
+    type LintOutcome = { results: typeof RESULTS; unresolved: string[] };
+
+    /** Starts a host lint of the escalating config that runs until the test settles it. */
+    async function hostLintInFlight() {
+        const ctx = createService();
+        ctx.locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
+        ctx.locator.readConfig.mockResolvedValue(ESCALATING_RAW);
+        let finishLint!: (outcome: LintOutcome) => void;
+        let failLint!: (error: Error) => void;
+        ctx.lintRunner.lint.mockReturnValueOnce(
+            new Promise((resolve, reject) => {
+                finishLint = resolve;
+                failLint = reject;
+            }),
+        );
+        const linting = ctx.service.setBpmnlintConfig(ctx.editor.id);
+        await flush();
+        return { ...ctx, linting, finishLint, failLint };
+    }
+
+    it("publishes nothing for a diagram that closed while its host lint ran", async () => {
+        const { service, host, editor, linting, finishLint } = await hostLintInFlight();
+
+        service.clearDiagnostics(editor.id);
+        finishLint({ results: RESULTS, unresolved: [] });
+        await linting;
+
+        expect(host.diagnostics.published.has(editor.id)).toBe(false);
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
+    });
+
+    it("keeps the in-page default when the config was deleted while its host lint ran", async () => {
+        const { service, host, editor, locator, linting, finishLint } = await hostLintInFlight();
+
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        await service.setBpmnlintConfig(editor.id);
+        finishLint({ results: RESULTS, unresolved: [] });
+        await linting;
+
+        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
+    });
+
+    it("keeps linting off when it was turned off while a host lint ran", async () => {
+        const { service, host, editor, linting, finishLint } = await hostLintInFlight();
+
+        host.settings.values.lintingEnabled = false;
+        await service.setBpmnlintConfig(editor.id);
+        finishLint({ results: RESULTS, unresolved: [] });
+        await linting;
+
+        expect(host.statusBar.bpmnlint).toEqual({ state: "disabled" });
+        expect(host.diagnostics.published.has(editor.id)).toBe(false);
+    });
+
+    it("keeps a newer covered config in-page when the older config's host lint fails", async () => {
+        const { service, host, editor, locator, linting, failLint } = await hostLintInFlight();
+
+        locator.readConfig.mockResolvedValue(COVERED_RAW);
+        await service.setBpmnlintConfig(editor.id);
+        const token = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery")?.configToken;
+        failLint(new Error("plugin crashed"));
+        await linting;
+
+        expect(host.notifier.logged("error")).toEqual([expect.stringContaining("plugin crashed")]);
+        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
+        service.applyWebviewLintResults(editor.id, RESULTS, [], token);
+        expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
+    });
+});
+
 describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
     it("skips linting and pushes the disabled state when linting is turned off", async () => {
         const { service, host, editor, locator, lintRunner } = createService();
