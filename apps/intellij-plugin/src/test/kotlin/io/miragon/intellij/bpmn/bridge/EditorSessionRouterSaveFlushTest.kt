@@ -58,10 +58,10 @@ class EditorSessionRouterSaveFlushTest {
 
     /**
      * Holds the edit the page has made but not synced yet, and answers flush
-     * queries with it. Before each answer it sends [repliesBefore], the replies
-     * to flushes another requester asked for.
+     * queries with it. Before each answer it sends [messagesBeforeAnswer]: a
+     * reply to a flush another requester asked for, or a sync its debounce fired.
      */
-    private inner class FakeWebview(val unsyncedContent: String?, val repliesBefore: List<String>) {
+    private inner class FakeWebview(val unsyncedContent: String?, val messagesBeforeAnswer: List<String>) {
         lateinit var router: EditorSessionRouter
         lateinit var session: CoreSession
         val flushQueries: MutableList<JsonObject> = Collections.synchronizedList(mutableListOf())
@@ -81,7 +81,7 @@ class EditorSessionRouterSaveFlushTest {
                 reply["documentRevision"] = 0
             }
             val replyJson = gson.toJson(reply)
-            val replies = repliesBefore + replyJson
+            val replies = messagesBeforeAnswer + replyJson
             Thread({ replies.forEach { router.forwardWebviewMessage(session, it) } }, "fake-jcef-reply").also {
                 replyThreads.add(it)
                 it.start()
@@ -96,7 +96,7 @@ class EditorSessionRouterSaveFlushTest {
     private fun setUpRouter(
         initialXml: String,
         unsyncedWebviewXml: String?,
-        repliesBefore: List<String> = emptyList(),
+        messagesBeforeAnswer: List<String> = emptyList(),
     ): Fixture {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
@@ -106,7 +106,7 @@ class EditorSessionRouterSaveFlushTest {
             EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers, routerLifetime), DeterministicScheduler())
         router.register()
 
-        val webview = FakeWebview(unsyncedWebviewXml, repliesBefore)
+        val webview = FakeWebview(unsyncedWebviewXml, messagesBeforeAnswer)
         val session = CoreSession(bpmn.file.url, bpmn.file, project) { webview.receive(it) }
         webview.router = router
         webview.session = session
@@ -123,6 +123,9 @@ class EditorSessionRouterSaveFlushTest {
         wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, 1)
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
+
+    private fun syncCommand(content: String): String =
+        gson.toJson(linkedMapOf("type" to "SyncDocumentCommand", "content" to content, "documentRevision" to 0))
 
     /** Skips the webview messages the router forwards to the core up to the next request reply. */
     private fun Fixture.nextReply(): JsonObject {
@@ -191,7 +194,7 @@ class EditorSessionRouterSaveFlushTest {
     fun `a save-all ignores the page's reply to a flush the core asked for`() {
         // The core numbers its flushes from 1 up; Deploy's flush may still be answered.
         val coreFlushReply = gson.toJson(linkedMapOf("type" to "DocumentFlushedCommand", "token" to 1, "status" to "clean"))
-        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML, repliesBefore = listOf(coreFlushReply))
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML, messagesBeforeAnswer = listOf(coreFlushReply))
 
         FileDocumentManager.getInstance().saveAllDocuments()
 
@@ -213,6 +216,16 @@ class EditorSessionRouterSaveFlushTest {
 
         assertTrue(f.webview.flushQueries.isEmpty(), "the authoritative host edit bypasses webview export")
         assertEquals(EXTERNAL_XML, Files.readString(f.bpmn.nioPath))
+    }
+
+    @Test
+    fun `a save-all writes the sync the webview sent while the host waited for its clean answer`() {
+        // The page's debounce fired after the host asked, so the page has no sync left pending.
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = null, messagesBeforeAnswer = listOf(syncCommand(EDITED_XML)))
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath), "the core's write of that sync lands after the save")
     }
 
     @Test
