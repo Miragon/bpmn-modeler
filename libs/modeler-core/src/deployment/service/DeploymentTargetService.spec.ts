@@ -1022,6 +1022,62 @@ describe("DeploymentTargetService.getStoredCredentials", () => {
             authType: "basic",
         });
     });
+
+    it("returns the token endpoint and audience when an oauth2 target has no client credentials", async () => {
+        const c = serviceWithTargetsFile(
+            fileWith(
+                target("dev", {
+                    authType: "oauth2",
+                    tokenEndpoint: "https://idp/token",
+                    audience: "aud",
+                }),
+            ),
+        );
+
+        await expect(c.service.getStoredCredentials("dev", DOC_DIR)).resolves.toEqual({
+            authType: "oauth2",
+            tokenEndpoint: "https://idp/token",
+            audience: "aud",
+        });
+    });
+});
+
+describe("toTargetPayload", () => {
+    it.each([
+        ["none", target("dev"), { authType: "none" }],
+        ["basic", target("dev", { authType: "basic" }), { authType: "basic" }],
+        [
+            "oauth2",
+            target("dev", {
+                authType: "oauth2",
+                tokenEndpoint: "https://idp/token",
+                audience: "aud",
+            }),
+            { authType: "oauth2", tokenEndpoint: "https://idp/token", audience: "aud" },
+        ],
+    ])("lists a %s target with only the auth settings of its type", (_type, saved, auth) => {
+        expect(toTargetPayload(saved)).toEqual({
+            name: "dev",
+            engine: "c7",
+            endpoint: "http://localhost:8080/engine-rest",
+            tenantId: "",
+            ...auth,
+        });
+    });
+
+    it("lists the URL overrides", () => {
+        expect(
+            toTargetPayload(
+                target("dev", {
+                    deployUrl: "https://gw/deploy",
+                    startInstanceUrl: "https://gw/{processDefinitionKey}/start",
+                }),
+            ),
+        ).toMatchObject({
+            deployUrl: "https://gw/deploy",
+            startInstanceUrl: "https://gw/{processDefinitionKey}/start",
+        });
+    });
 });
 
 describe("DeploymentTargetService.getCredentials", () => {
