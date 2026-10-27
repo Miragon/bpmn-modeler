@@ -22,20 +22,23 @@ export interface ModelerSettingsSnapshot {
     marketplaces: MarketplaceSettingsEntry[];
 }
 
+const SETTING_KEY_OF_SNAPSHOT_KEY = {
+    alignToOrigin: "alignToOrigin",
+    showTransactionBoundaries: "showTransactionBoundaries",
+    configFolder: "configFolder",
+    persistCodeLinkMap: "persistCodeLinkMap",
+    c8ApiVersion: "c8ApiVersion",
+    colorTheme: "colorTheme",
+    defaultMode: "defaultMode",
+    favouriteBpmnElements: "favouriteBpmnElements",
+    language: "language",
+    scriptingSpin: "scripting.spin",
+    marketplaces: "marketplaces",
+} as const satisfies Record<keyof ModelerSettingsSnapshot, string>;
+
 /** A modeler setting as VS Code names it below `miragon.bpmnModeler`, on every host. */
 export type SettingKey =
-    | "alignToOrigin"
-    | "showTransactionBoundaries"
-    | "configFolder"
-    | "persistCodeLinkMap"
-    | "c8ApiVersion"
-    | "colorTheme"
-    | "defaultMode"
-    | "favouriteBpmnElements"
-    | "language"
-    | "scripting.spin"
-    | "marketplaces"
-    | "linting.enabled";
+    (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot] | "linting.enabled";
 
 /** Settings as a host hands them over: any key may be missing or hold any value. */
 export type RawModelerSettings = Partial<Record<keyof ModelerSettingsSnapshot, unknown>>;
@@ -102,22 +105,6 @@ const SETTING_PARSERS: {
 };
 
 const SNAPSHOT_KEYS = Object.keys(SETTING_PARSERS) as (keyof ModelerSettingsSnapshot)[];
-
-const SETTING_KEY_OF_SNAPSHOT_KEY: {
-    readonly [Key in keyof ModelerSettingsSnapshot]: SettingKey;
-} = {
-    alignToOrigin: "alignToOrigin",
-    showTransactionBoundaries: "showTransactionBoundaries",
-    configFolder: "configFolder",
-    persistCodeLinkMap: "persistCodeLinkMap",
-    c8ApiVersion: "c8ApiVersion",
-    colorTheme: "colorTheme",
-    defaultMode: "defaultMode",
-    favouriteBpmnElements: "favouriteBpmnElements",
-    language: "language",
-    scriptingSpin: "scripting.spin",
-    marketplaces: "marketplaces",
-};
 
 /** One setting as a host must read it, whatever it was handed. */
 export function parseSetting<K extends keyof ModelerSettingsSnapshot>(
