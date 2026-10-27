@@ -17,9 +17,8 @@ function createService(options: TestHostOptions = {}) {
 }
 
 describe("ModelNavigationService.navigate", () => {
-    it("searches for the process id and asks which referenced model to open", async () => {
+    it("searches next to a loose source document and asks which referenced model to open", async () => {
         const { service, host } = createService({
-            folders: ["/work"],
             files: {
                 "/work/a.bpmn": bpmnWithProcess("Shared"),
                 "/work/b.bpmn": bpmnWithProcess("Shared"),

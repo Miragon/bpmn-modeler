@@ -12,9 +12,8 @@ function createService(options: TestHostOptions = {}) {
 }
 
 describe("ImplementationNavigationService.navigate", () => {
-    it("searches for the class and asks which implementation to open", async () => {
+    it("searches next to a loose source document and asks which implementation to open", async () => {
         const { service, host } = createService({
-            folders: ["/work"],
             files: {
                 "/work/a/com/example/MyDelegate.java": "class MyDelegate {}",
                 "/work/b/com/example/MyDelegate.kt": "class MyDelegate",
