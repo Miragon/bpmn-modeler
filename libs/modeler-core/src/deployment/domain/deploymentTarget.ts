@@ -185,8 +185,9 @@ export class DeploymentTarget {
     }
 
     /**
-     * The endpoint and tenant are kept verbatim: ledger keys are built from them,
-     * so trimming would orphan the rows of a hand-edited file.
+     * The endpoint and tenant are kept verbatim, as the file has always been read:
+     * named ledger keys are built from the endpoint, so trimming it would orphan
+     * the rows of a hand-edited file.
      *
      * @throws {InvalidDeploymentTargetError} for a blank name or endpoint.
      * @throws {DisallowedEnvReferenceError} naming the JSON field of the offending reference.

@@ -369,12 +369,12 @@ describe("DeploymentTarget", () => {
                 created: { name: "dev" },
             },
             {
-                behaviour: "keeps the endpoint verbatim, since ledger keys are built from it",
+                behaviour: "keeps the endpoint verbatim, since named ledger keys are built from it",
                 fields: { endpoint: " http://localhost:8080/engine-rest " },
                 created: { endpoint: " http://localhost:8080/engine-rest " },
             },
             {
-                behaviour: "keeps the tenant verbatim, since ad-hoc ledger keys are built from it",
+                behaviour: "keeps the tenant verbatim",
                 fields: { tenantId: " acme " },
                 created: { tenantId: " acme " },
             },
