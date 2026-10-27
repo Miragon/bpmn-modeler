@@ -103,6 +103,17 @@ describe("CommandTarget", () => {
             announced: ["a", "c", "a"],
         },
         {
+            scenario: "hands a target focused twice back to the editor focused in between",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "focused"],
+                ["focus", "a"],
+                ["close", "a", ["b"]],
+            ],
+            target: "b",
+            announced: ["a", "b", "a", "b"],
+        },
+        {
             scenario: "skips an editor that closed after it held the target",
             steps: [
                 ["open", "a", "focused"],

@@ -1,33 +1,50 @@
 /**
  * The editor session a command acts on: the one focused last. Text editors and
  * sidebars are not sessions, so the target stays on a diagram while they have
- * focus, and a session that opens behind the focused one must not take it.
+ * focus. Only the first session to open takes it without focus, so neither a
+ * session that opens behind the focused one nor one that replaces it under the
+ * same id moves it.
  *
  * Each change returns the editor that became the target, or `undefined` when
  * none did.
  */
 export class CommandTarget {
-    private target: string | undefined;
+    /** Every open editor that held the target, the current one last. */
+    private readonly holders: string[] = [];
 
     get editorId(): string | undefined {
-        return this.target;
+        return this.holders[this.holders.length - 1];
     }
 
     open(editorId: string, focused: boolean): string | undefined {
-        if (this.target !== undefined && !focused) return undefined;
+        if (this.editorId !== undefined && !focused) return undefined;
         return this.focus(editorId);
     }
 
     focus(editorId: string): string | undefined {
-        if (editorId === this.target) return undefined;
-        this.target = editorId;
+        if (editorId === this.editorId) return undefined;
+        this.forget(editorId);
+        this.holders.push(editorId);
         return editorId;
     }
 
-    /** Until the host reports the next focused editor, the newest remaining one stands in. */
+    /**
+     * A closed target goes back to the open editor that held it before. When none
+     * did, the newest remaining one stands in until the host reports the next
+     * focused editor.
+     */
     close(editorId: string, remainingEditorIds: readonly string[]): string | undefined {
-        if (editorId !== this.target) return undefined;
-        this.target = remainingEditorIds[remainingEditorIds.length - 1];
-        return this.target;
+        const closesTarget = editorId === this.editorId;
+        this.forget(editorId);
+        if (!closesTarget) return undefined;
+        if (this.holders.length === 0 && remainingEditorIds.length > 0) {
+            this.holders.push(remainingEditorIds[remainingEditorIds.length - 1]);
+        }
+        return this.editorId;
+    }
+
+    private forget(editorId: string): void {
+        const index = this.holders.indexOf(editorId);
+        if (index !== -1) this.holders.splice(index, 1);
     }
 }
