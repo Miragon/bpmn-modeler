@@ -15,7 +15,7 @@ const anotherCommand = { type: "another-command" } as unknown as Command;
 describe("EditorSessionStore", () => {
     // ─── register ──────────────────────────────────────────────────────────
 
-    it("register makes the handle active and reports the open count", () => {
+    it("register makes the first handle the command target and reports the open count", () => {
         const onOpenCountChanged = vi.fn();
         const store = new EditorSessionStore(onOpenCountChanged);
         const handle = new FakeEditorHandle(A_PATH);
@@ -110,10 +110,76 @@ describe("EditorSessionStore", () => {
 
         store.register(background);
 
-        expect(store.getActiveEditorId()).toBe(background.id);
         expect(store.isFocused(background.id)).toBe(false);
         expect(store.isFocused(focused.id)).toBe(true);
         expect(store.getFocusedEditorId()).toBe(focused.id);
+    });
+
+    // ─── command target (the active-editor pointer) ──────────────────────────
+
+    it("keeps the command target on the focused editor when another session registers in the background", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        store.register(focused);
+
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        expect(store.getActiveEditorId()).toBe(focused.id);
+    });
+
+    it("keeps the command target on the diagram focused last when a session registers while a text editor has focus", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focusedLast = new FakeEditorHandle("/repo/1.bpmn");
+        store.register(focusedLast);
+        store.subscribeToTabChangeEvent(focusedLast.id);
+        focusedLast.becomeActive();
+        focusedLast.loseFocus();
+
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        expect(store.getActiveEditorId()).toBe(focusedLast.id);
+    });
+
+    it("does not announce a target change when a session registers in the background", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        store.register(focused);
+        const announced: string[] = [];
+        store.onDidChangeActiveEditor((editorId) => {
+            announced.push(editorId);
+        });
+
+        store.register(new FakeEditorHandle("/repo/2.bpmn"));
+
+        expect(announced).toEqual([]);
+    });
+
+    it("hands the command target to a session that registers focused", () => {
+        const store = new EditorSessionStore(vi.fn());
+        store.register(new FakeEditorHandle("/repo/1.bpmn"));
+        const focused = new FakeEditorHandle("/repo/2.bpmn");
+        focused.active = true;
+
+        store.register(focused);
+
+        expect(store.getActiveEditorId()).toBe(focused.id);
+    });
+
+    it("moves the command target to a background session once its panel becomes active", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const focused = new FakeEditorHandle("/repo/1.bpmn");
+        focused.active = true;
+        store.register(focused);
+        const background = new FakeEditorHandle("/repo/2.bpmn");
+        store.register(background);
+        store.subscribeToTabChangeEvent(background.id);
+
+        focused.loseFocus();
+        background.becomeActive();
+
+        expect(store.getActiveEditorId()).toBe(background.id);
     });
 
     it("stops reporting focus once the editor blurs or closes", () => {
