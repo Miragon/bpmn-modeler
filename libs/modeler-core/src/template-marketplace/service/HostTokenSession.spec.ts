@@ -296,6 +296,45 @@ describe("HostTokenSession.run", () => {
         expect(tokenPrompt.prompts).toHaveLength(1);
     });
 
+    it("prompts from the stored-token denial, not the anonymous one, when the stored token is rejected", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            storedTokens: { "github.com": "old" },
+        });
+        const storedTokenDenied = new RepositoryAccessError(
+            "github.com",
+            401,
+            "acme/templates",
+            false,
+        );
+
+        await expect(
+            session.run(
+                GITHUB_MARKETPLACE,
+                scriptedFetch(PRIVATE_REPO_404, storedTokenDenied).task,
+            ),
+        ).rejects.toThrow(errorWithMessage(/can't access acme\/templates \(HTTP 401\)/));
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "github.com", reason: expect.stringMatching(/was rejected \(HTTP 401\)/) },
+        ]);
+    });
+
+    it("skips the anonymous retry when a session-cached token hits the rate limit", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "stored-tok" },
+        });
+        await session.run(GITHUB_MARKETPLACE, fakeFetch(only("stored-tok")).task);
+        const rateLimited = fakeFetch(
+            only("new"),
+            new RepositoryAccessError("github.com", 403, "acme/one", true),
+        );
+
+        await expect(session.run(GITHUB_SOURCE_ONE, rateLimited.task)).resolves.toBe("served");
+
+        expect(rateLimited.attempts).toEqual(["stored-tok", "new"]);
+        expect(tokenPrompt.prompts).toHaveLength(1);
+    });
+
     it("a rate-limited anonymous 403 retries with the stored token before prompting", async () => {
         // The anonymous fallback for a rejected token is skipped: it would only
         // hit the lower limit again.
@@ -442,6 +481,22 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
 
         expect(tokenPrompt.prompts).toEqual([]);
         expect(privateRepo.attempts).toEqual(["have-it"]);
+    });
+
+    it("still re-prompts a host whose stored token skipped the pre-prompt but is then rejected", async () => {
+        const { session, tokenPrompt } = sessionOver({
+            tokenAnswers: { "github.com": "new" },
+            storedTokens: { "github.com": "stale" },
+        });
+        const privateRepo = fakeFetch(only("new"));
+
+        await session.ensureTokensForPrivateHosts(["github.com"]);
+        await expect(session.run(GITHUB_SOURCE_ONE, privateRepo.task)).resolves.toBe("served");
+
+        expect(privateRepo.attempts).toEqual(["stale", undefined, "new"]);
+        expect(tokenPrompt.prompts).toEqual([
+            { host: "github.com", reason: expect.stringMatching(/was rejected/) },
+        ]);
     });
 
     it("keys a self-hosted gitlab host's token so its baseUrl config carries it", async () => {
