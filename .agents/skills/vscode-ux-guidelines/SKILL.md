@@ -66,7 +66,9 @@ statusBar.show("elementTemplates", {
 statusBar.hide("elementTemplates");    // hide explicitly (used on error paths)
 ```
 
-The widget-shaped methods (`showEngineVersion`, `showBpmnlint`, `showDeploymentTarget`, …) stay until each caller moves to its slot. In VS Code they build a view and show it in the same slot. The element-template service already shows its slot, so `showElementTemplatesLoading` and its siblings have no caller left.
+A feature builds its slot's view in its `domain/` as a pure function that returns `undefined` when the slot is hidden (`elementTemplatesStatusView`, `engineVersionStatusView` in `libs/modeler-core/src/modeler/bpmn/domain/`), and its service hands the result to `updateStatusSlot` (`kernel/service/`), which shows the view or hides the slot.
+
+The widget-shaped methods (`showBpmnlint`, `showDeploymentTarget`, …) stay until each caller moves to its slot. In VS Code they build a view and show it in the same slot. The element-template and engine-version slots already show the core's views, so `LegacyStatusBarPort` (`showElementTemplatesLoading`, `showEngineVersion` and their siblings) has no caller left.
 
 A transient view hides itself after 3 s. Each slot reuses one item, so **a
 later show or hide of a slot cancels its pending auto-hide**. Any status that

@@ -288,10 +288,12 @@ only top-level keys, so `HostUiRouterTest` pins the view fields and
 tone or action has no Kotlin counterpart; at runtime the router logs and drops
 what it does not know. Until each slot's callers move to the port
 ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
-widget-shaped `LegacyStatusBarPort`, `BpmnlintStatusBarPort` and
-`DeploymentStatusBarPort` remain: VS Code builds their views in its adapter,
-the bridge forwards them as one RPC per widget method, and IntelliJ builds the
-same slot's view from them with its old labels.
+widget-shaped `BpmnlintStatusBarPort` and `DeploymentStatusBarPort` remain:
+VS Code builds their views in its adapter, the bridge forwards them as one RPC
+per widget method, and IntelliJ builds the same slot's view from them with its
+old labels. The element-template and engine-version slots already show the
+core's views, so `LegacyStatusBarPort` and its RPCs have no caller left; they
+are removed together with the other two ports.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
