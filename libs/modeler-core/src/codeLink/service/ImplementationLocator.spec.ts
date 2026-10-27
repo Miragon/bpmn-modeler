@@ -190,11 +190,10 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
 
         const result = await locator.resolve("t", "jobType");
 
-        expect(result.kind).toBe("all-unreadable");
-        if (result.kind === "all-unreadable") {
-            expect(result.attempted).toBe(1);
-            expect(result.failures[0]).toContain("EACCES");
-        }
+        expect(result).toEqual({
+            kind: "all-unreadable",
+            failures: [expect.stringContaining("EACCES")],
+        });
     });
 
     it("includes partial read failures alongside a successful match", async () => {

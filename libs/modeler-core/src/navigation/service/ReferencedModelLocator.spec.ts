@@ -218,11 +218,10 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
-        expect(result.kind).toBe("all-unreadable");
-        if (result.kind === "all-unreadable") {
-            expect(result.attempted).toBe(1);
-            expect(result.failures[0]).toContain("EACCES");
-        }
+        expect(result).toEqual({
+            kind: "all-unreadable",
+            failures: [expect.stringContaining("EACCES")],
+        });
     });
 
     it("includes partial read failures alongside successful matches", async () => {

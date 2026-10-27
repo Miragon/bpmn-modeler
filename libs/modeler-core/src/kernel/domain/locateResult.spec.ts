@@ -13,7 +13,6 @@ describe("classifyLocateResult", () => {
             behaviour: "is unreadable when every candidate failed to read",
             result: {
                 kind: "all-unreadable",
-                attempted: 2,
                 failures: ["Could not read /a.bpmn", "Could not read /b.bpmn"],
             },
             located: {

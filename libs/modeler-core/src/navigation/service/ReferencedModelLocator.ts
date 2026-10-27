@@ -15,7 +15,7 @@ export interface FormDeclaration {
 
 export type FormDeclarationsResult =
     | { kind: "no-search-scope" }
-    | { kind: "all-unreadable"; attempted: number; failures: string[] }
+    | { kind: "all-unreadable"; failures: string[] }
     | { kind: "matches"; declarations: FormDeclaration[]; readFailures: string[] };
 
 /**
@@ -72,7 +72,7 @@ export class ReferencedModelLocator {
             this.notifier,
         );
         if (allUnreadable) {
-            return { kind: "all-unreadable", attempted: paths.length, failures: readFailures };
+            return { kind: "all-unreadable", failures: readFailures };
         }
         return { kind: "matches", paths: matches, readFailures };
     }
@@ -113,7 +113,7 @@ export class ReferencedModelLocator {
         ).filter((value): value is FormDeclaration => value !== undefined);
 
         if (paths.length > 0 && readFailures.length === paths.length) {
-            return { kind: "all-unreadable", attempted: paths.length, failures: readFailures };
+            return { kind: "all-unreadable", failures: readFailures };
         }
         return { kind: "matches", declarations, readFailures };
     }

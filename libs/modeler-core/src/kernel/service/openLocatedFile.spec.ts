@@ -121,7 +121,6 @@ describe("openLocatedFile", () => {
     it("logs each failure and shows an error when no candidate was readable", async () => {
         const { open, notifier } = setup({
             kind: "all-unreadable",
-            attempted: 2,
             failures: ["read /bad1 failed: EACCES", "read /bad2 failed: EACCES"],
         });
 

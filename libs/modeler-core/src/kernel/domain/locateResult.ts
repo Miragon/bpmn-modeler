@@ -9,7 +9,7 @@
  */
 export type LocateResult =
     | { kind: "no-search-scope" }
-    | { kind: "all-unreadable"; attempted: number; failures: string[] }
+    | { kind: "all-unreadable"; failures: string[] }
     | { kind: "matches"; paths: string[]; readFailures: string[] };
 
 /** What a {@link LocateResult} leaves to do: tell the user, open the file, or let them pick. */

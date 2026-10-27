@@ -170,19 +170,14 @@ export class ImplementationLocator {
             return { kind: "no-search-scope" };
         }
         return toResult(
-            sources,
             await searchFilesContent(this.vsWorkspace, sources, search.pattern, this.notifier),
         );
     }
 }
 
-function toResult(candidates: string[], search: ContentSearchResult): LocateResult {
+function toResult(search: ContentSearchResult): LocateResult {
     if (search.allUnreadable) {
-        return {
-            kind: "all-unreadable",
-            attempted: candidates.length,
-            failures: search.readFailures,
-        };
+        return { kind: "all-unreadable", failures: search.readFailures };
     }
     return { kind: "matches", paths: search.matches, readFailures: search.readFailures };
 }
