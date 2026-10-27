@@ -29,6 +29,8 @@ export type MessageRoute =
 export class WebviewMessageRouter {
     private readonly handlers = new Map<string, MessageHandler<Command>[]>();
 
+    private readonly ignoredReasons = new Map<string, string>();
+
     /**
      * Registers a handler for a command type. Repeated calls for the same type
      * append; handlers fire in registration order during {@link dispatch}.
@@ -37,6 +39,10 @@ export class WebviewMessageRouter {
         type: TType,
         handler: MessageHandler<MessageOfType<TType>>,
     ): this {
+        const ignoredReason = this.ignoredReasons.get(type);
+        if (ignoredReason !== undefined) {
+            throw new Error(`${type} is ignored (${ignoredReason}), so it cannot be handled`);
+        }
         // Sound because dispatch only hands a handler messages whose type it was registered for.
         const untypedHandler = handler as MessageHandler<Command>;
         const existing = this.handlers.get(type);
@@ -49,19 +55,31 @@ export class WebviewMessageRouter {
     }
 
     /**
-     * Runs every handler registered for `message.type` sequentially, awaiting
-     * each before the next so ordering-dependent fan-out (e.g. setSettings →
-     * setLanguage → resync) stays in registration order. An unknown type is a
-     * silent no-op.
+     * Records a command type this router drops on purpose, so a coverage check
+     * can tell it from a type nobody routed. Dispatching it stays a no-op.
      */
-    ignore<TType extends ProtocolCommandType>(_type: TType, _reason: string): this {
+    ignore(type: ProtocolCommandType, reason: string): this {
+        if (this.handlers.has(type)) {
+            throw new Error(`${type} is handled, so it cannot be ignored`);
+        }
+        this.ignoredReasons.set(type, reason);
         return this;
     }
 
-    routeOf(_type: ProtocolCommandType): MessageRoute {
-        return { kind: "unrouted" };
+    routeOf(type: ProtocolCommandType): MessageRoute {
+        if (this.handlers.has(type)) {
+            return { kind: "handled" };
+        }
+        const reason = this.ignoredReasons.get(type);
+        return reason === undefined ? { kind: "unrouted" } : { kind: "ignored", reason };
     }
 
+    /**
+     * Runs every handler registered for `message.type` sequentially, awaiting
+     * each before the next so ordering-dependent fan-out (e.g. setSettings →
+     * setLanguage → resync) stays in registration order. An ignored or unrouted
+     * type is a silent no-op; {@link routeOf} tells the two apart.
+     */
     async dispatch(message: Command, editorId: string): Promise<void> {
         const handlers = this.handlers.get(message.type);
         if (!handlers) {
