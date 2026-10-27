@@ -259,15 +259,14 @@ describe("CommandController.changeLanguage", () => {
         expect(configUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("persists the picked locale at the Global target", async () => {
+    it("persists the picked locale for the user", async () => {
         const { controller } = createController();
         showQuickPickMock.mockResolvedValue({ label: "English", description: "en" });
 
         await controller.changeLanguage();
 
         expect(getConfigurationMock).toHaveBeenCalledWith("miragon.bpmnModeler");
-        // ConfigurationTarget.Global === 1 in the mock; language is a personal
-        // preference and must not be pinned to a shared workspace file.
+        // ConfigurationTarget.Global === 1 in the mock.
         expect(configUpdateMock).toHaveBeenCalledWith("language", "en", 1);
     });
 });
