@@ -1,0 +1,185 @@
+package io.miragon.intellij.bpmn.bridge
+
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.util.Disposer
+import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.testFramework.junit5.RunInEdt
+import com.intellij.testFramework.junit5.TestApplication
+import com.intellij.testFramework.junit5.fixture.tempPathFixture
+import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.util.Collections
+
+/**
+ * IntelliJ saves on the EDT (Ctrl+S, autosave, the save on frame deactivation),
+ * while the webview syncs its edits after a 300 ms debounce. A save inside that
+ * window must still write the webview's last edit.
+ *
+ * The fake webview answers a `FlushDocumentQuery` from another thread, as the
+ * JCEF handler thread does, because the save holds the EDT.
+ */
+@TestApplication
+@RunInEdt(writeIntent = true)
+class EditorSessionRouterSaveFlushTest {
+    private val projectFixture = projectFixtureWithoutServicePreload()
+    private val tempDirFixture = tempPathFixture()
+
+    private val gson = Gson()
+
+    private var fixture: Fixture? = null
+
+    @AfterEach
+    fun tearDown() {
+        fixture?.let {
+            it.webview.joinReplies()
+            Disposer.dispose(it.routerLifetime)
+            it.wired.dispose()
+            Files.deleteIfExists(it.bpmn.nioPath)
+        }
+    }
+
+    private class Fixture(
+        val sessionId: Long,
+        val bpmn: BpmnTestFile,
+        val wired: WiredBridge,
+        val webview: FakeWebview,
+        val routerLifetime: Disposable,
+    )
+
+    /** Holds the edit the page has made but not synced yet, and answers flush queries with it. */
+    private inner class FakeWebview(val unsyncedContent: String?) {
+        lateinit var router: EditorSessionRouter
+        lateinit var session: CoreSession
+        val flushQueries: MutableList<JsonObject> = Collections.synchronizedList(mutableListOf())
+        private val replyThreads = Collections.synchronizedList(mutableListOf<Thread>())
+
+        fun receive(message: String) {
+            val query = gson.fromJson(message, JsonObject::class.java)
+            if (query.get("type")?.asString != "FlushDocumentQuery") return
+            flushQueries.add(query)
+            val reply =
+                linkedMapOf<String, Any?>("type" to "DocumentFlushedCommand", "token" to query.get("token").asLong)
+            if (unsyncedContent == null) {
+                reply["status"] = "clean"
+            } else {
+                reply["content"] = unsyncedContent
+                reply["status"] = "flushed"
+                reply["documentRevision"] = 0
+            }
+            val replyJson = gson.toJson(reply)
+            Thread({ router.forwardWebviewMessage(session, replyJson) }, "fake-jcef-reply").also {
+                replyThreads.add(it)
+                it.start()
+            }
+        }
+
+        fun joinReplies() {
+            replyThreads.toList().forEach { it.join(5_000) }
+        }
+    }
+
+    private fun setUpRouter(initialXml: String, unsyncedWebviewXml: String?): Fixture {
+        val project = projectFixture.get()
+        val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
+        val wired = wireChannel()
+        val routerLifetime = Disposer.newDisposable("save-flush-router")
+        val router =
+            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers, routerLifetime), DeterministicScheduler())
+        router.register()
+
+        val webview = FakeWebview(unsyncedWebviewXml)
+        val session = CoreSession(bpmn.file.url, bpmn.file, project) { webview.receive(it) }
+        webview.router = router
+        webview.session = session
+        router.registerSession(session)
+        val register = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
+        val sessionId = register.getAsJsonObject("params").get("sessionId").asLong
+        return Fixture(sessionId, bpmn, wired, webview, routerLifetime).also { fixture = it }
+    }
+
+    /** The core's `document/write` for a webview sync, applied on the EDT as the host does. */
+    private fun Fixture.dispatchCoreWrite(content: String) {
+        val params =
+            linkedMapOf<String, Any>("editorId" to bpmn.file.url, "sessionId" to sessionId, "content" to content)
+        wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, 1)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+    }
+
+    /** Skips the webview messages the router forwards to the core up to the next request reply. */
+    private fun Fixture.nextReply(): JsonObject {
+        while (true) {
+            val frame = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
+            if (frame.has("id")) return frame
+        }
+    }
+
+    @Test
+    fun `a save-all writes the edit the webview has not synced yet`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertEquals(EDITED_XML, Files.readString(f.bpmn.nioPath), "the saved file holds the webview's last edit")
+        assertEquals(1, f.webview.flushQueries.size, "the save asks the webview once")
+        assertFalse(
+            f.webview.flushQueries.single().get("destructive")?.asBoolean ?: false,
+            "a save must not lock the page the way a close does",
+        )
+    }
+
+    @Test
+    fun `a save-all writes the webview's newest edit over an older synced one`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = SECOND_EDIT_XML)
+        f.dispatchCoreWrite(EDITED_XML)
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertEquals(
+            SECOND_EDIT_XML,
+            Files.readString(f.bpmn.nioPath),
+            "the earlier synced edit is not the last one the user made",
+        )
+    }
+
+    @Test
+    fun `the webview's late sync after a save-all leaves the Document saved`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+        // The page's debounced sync of the same XML still arrives after the save.
+        f.dispatchCoreWrite(EDITED_XML)
+
+        assertFalse(
+            FileDocumentManager.getInstance().isDocumentUnsaved(f.bpmn.document),
+            "the late sync must not leave the saved Document modified",
+        )
+    }
+
+    @Test
+    fun `the webview's late sync after a save-all tells the core the Document holds the saved edit`() {
+        val f = setUpRouter(INITIAL_XML, unsyncedWebviewXml = EDITED_XML)
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+        f.dispatchCoreWrite(EDITED_XML)
+
+        assertTrue(
+            f.nextReply().getAsJsonObject("result").get("changed").asBoolean,
+            "the bridge's document mirror takes content only from a write reported as changed",
+        )
+    }
+
+    private companion object {
+        const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
+        const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
+        const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
+    }
+}
