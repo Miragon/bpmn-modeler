@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_MODELER_SETTINGS } from "../../../kernel/domain/modelerSettings";
 import { SettingBuilder } from "./model";
 
 describe("SettingBuilder", () => {
-    it("builds with the documented defaults", () => {
+    it("builds with the shared setting defaults", () => {
         const setting = new SettingBuilder().buildBpmnModeler();
 
-        expect(setting.alignToOrigin).toBe(false);
-        expect(setting.showTransactionBoundaries).toBe(true);
-        expect(setting.colorTheme).toBe("automatic");
-        expect(setting.favouriteBpmnElements).toEqual([]);
+        expect(setting.alignToOrigin).toBe(DEFAULT_MODELER_SETTINGS.alignToOrigin);
+        expect(setting.showTransactionBoundaries).toBe(
+            DEFAULT_MODELER_SETTINGS.showTransactionBoundaries,
+        );
+        expect(setting.colorTheme).toBe(DEFAULT_MODELER_SETTINGS.colorTheme);
+        expect(setting.favouriteBpmnElements).toEqual(
+            DEFAULT_MODELER_SETTINGS.favouriteBpmnElements,
+        );
     });
 
     it("returns the same builder from each setter so calls can chain", () => {
