@@ -35,13 +35,13 @@ describe("BpmnlintParticipant", () => {
         const { host, lintSvc, participant } = createServices();
         const editor = await host.openSession(PATH, [participant], { focused: false });
 
-        editor.changeSetting("miragon.bpmnModeler.language");
+        editor.changeSetting("language");
         expect(lintSvc.setBpmnlintConfig).not.toHaveBeenCalled();
 
-        editor.changeSetting("miragon.bpmnModeler.configFolder");
+        editor.changeSetting("configFolder");
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id);
 
-        editor.changeSetting("miragon.bpmnModeler.linting.enabled");
+        editor.changeSetting("linting.enabled");
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledTimes(2);
     });
 

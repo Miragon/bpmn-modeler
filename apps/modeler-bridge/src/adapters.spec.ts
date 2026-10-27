@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
     DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
+    SettingChange,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 import {
@@ -337,9 +338,7 @@ describe("RpcEditorHandle", () => {
         const settings = new BridgeSettings();
         const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}), settings);
         const seen: boolean[] = [];
-        const sub = handle.onDidChangeSetting((event) =>
-            seen.push(event.affectsConfiguration("miragon.bpmnModeler.language")),
-        );
+        const sub = handle.onDidChangeSetting((event) => seen.push(event.affects("language")));
 
         settings.apply({ language: "de" });
         sub.dispose();
@@ -420,17 +419,17 @@ describe("BridgeSettings", () => {
         expect(settings.getLanguage()).toBe("de");
     });
 
-    it("fires affectsConfiguration only for the keys that actually changed", () => {
+    it("names only the settings that actually changed", () => {
         const settings = new BridgeSettings();
-        const events: ((section: string) => boolean)[] = [];
-        settings.onDidChange((event) => events.push(event.affectsConfiguration));
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
 
         settings.apply({ language: "de", alignToOrigin: false }); // alignToOrigin already false
 
         expect(events).toHaveLength(1);
-        expect(events[0]("miragon.bpmnModeler.language")).toBe(true);
-        expect(events[0]("miragon.bpmnModeler.alignToOrigin")).toBe(false);
-        expect(events[0]("miragon.bpmnModeler.configFolder")).toBe(false);
+        expect(events[0].affects("language")).toBe(true);
+        expect(events[0].affects("alignToOrigin")).toBe(false);
+        expect(events[0].affects("configFolder")).toBe(false);
     });
 
     it("does not fire when the snapshot is unchanged", () => {
@@ -452,18 +451,17 @@ describe("BridgeSettings", () => {
         "reports the linting toggles $toggles as $changes linting.enabled change(s)",
         ({ toggles, changed, changes, enabled }) => {
             const settings = new BridgeSettings();
-            const events: ((section: string) => boolean)[] = [];
-            settings.onDidChange((event) => events.push(event.affectsConfiguration));
+            const events: SettingChange[] = [];
+            settings.onDidChange((event) => events.push(event));
 
             const results = toggles.map((toggle) => settings.setLintingEnabled(toggle));
 
             expect(results).toEqual(changed);
             expect(settings.getLintingEnabled()).toBe(enabled);
             expect(events).toHaveLength(changes);
-            for (const affects of events) {
-                expect(affects("miragon.bpmnModeler.linting.enabled")).toBe(true);
-                expect(affects("miragon.bpmnModeler.lintingEnabled")).toBe(false);
-                expect(affects("miragon.bpmnModeler.language")).toBe(false);
+            for (const event of events) {
+                expect(event.affects("linting.enabled")).toBe(true);
+                expect(event.affects("language")).toBe(false);
             }
         },
     );

@@ -22,6 +22,21 @@ export interface ModelerSettingsSnapshot {
     marketplaces: MarketplaceSettingsEntry[];
 }
 
+/** A modeler setting as VS Code names it below `miragon.bpmnModeler`, on every host. */
+export type SettingKey =
+    | "alignToOrigin"
+    | "showTransactionBoundaries"
+    | "configFolder"
+    | "persistCodeLinkMap"
+    | "c8ApiVersion"
+    | "colorTheme"
+    | "defaultMode"
+    | "favouriteBpmnElements"
+    | "language"
+    | "scripting.spin"
+    | "marketplaces"
+    | "linting.enabled";
+
 /** Settings as a host hands them over: any key may be missing or hold any value. */
 export type RawModelerSettings = Partial<Record<keyof ModelerSettingsSnapshot, unknown>>;
 
@@ -86,7 +101,23 @@ const SETTING_PARSERS: {
     marketplaces: (raw) => (Array.isArray(raw) ? raw : []),
 };
 
-const SETTING_KEYS = Object.keys(SETTING_PARSERS) as (keyof ModelerSettingsSnapshot)[];
+const SNAPSHOT_KEYS = Object.keys(SETTING_PARSERS) as (keyof ModelerSettingsSnapshot)[];
+
+const SETTING_KEY_OF_SNAPSHOT_KEY: {
+    readonly [Key in keyof ModelerSettingsSnapshot]: SettingKey;
+} = {
+    alignToOrigin: "alignToOrigin",
+    showTransactionBoundaries: "showTransactionBoundaries",
+    configFolder: "configFolder",
+    persistCodeLinkMap: "persistCodeLinkMap",
+    c8ApiVersion: "c8ApiVersion",
+    colorTheme: "colorTheme",
+    defaultMode: "defaultMode",
+    favouriteBpmnElements: "favouriteBpmnElements",
+    language: "language",
+    scriptingSpin: "scripting.spin",
+    marketplaces: "marketplaces",
+};
 
 /** One setting as a host must read it, whatever it was handed. */
 export function parseSetting<K extends keyof ModelerSettingsSnapshot>(
@@ -120,14 +151,14 @@ export function normalizeSettings(raw: RawModelerSettings): ModelerSettingsSnaps
     };
 }
 
-/** The keys whose values differ, in snapshot order; lists and entries compare by content. */
+/** The settings whose values differ, in snapshot order; lists and entries compare by content. */
 export function changedSettingKeys(
     previous: ModelerSettingsSnapshot,
     next: ModelerSettingsSnapshot,
-): (keyof ModelerSettingsSnapshot)[] {
-    return SETTING_KEYS.filter(
+): SettingKey[] {
+    return SNAPSHOT_KEYS.filter(
         (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
-    );
+    ).map((key) => SETTING_KEY_OF_SNAPSHOT_KEY[key]);
 }
 
 function booleanOr(raw: unknown, fallback: boolean): boolean {
