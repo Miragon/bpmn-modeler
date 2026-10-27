@@ -211,16 +211,18 @@ describe("package.json ↔ code contract", () => {
         .filter((key) => key.startsWith(`${MODELER_SETTINGS_SECTION}.`))
         .map((key) => key.slice(MODELER_SETTINGS_SECTION.length + 1));
 
-    it("asks VS Code for settings only through the modeler configuration", () => {
+    it("reads, writes and watches every VS Code setting only in modelerConfiguration.ts", () => {
         // Its keys are typed `SettingKey`, so the manifest row below covers every key asked.
-        const modelerConfiguration = resolve(
+        const modelerConfigurationFile = resolve(
             SRC_DIR,
             "shared/infrastructure/modelerConfiguration.ts",
         );
         const offenders = productionSourceFiles(SRC_DIR).filter(
             (file) =>
-                file !== modelerConfiguration &&
-                /\b(?:getConfiguration|affectsConfiguration)\(/.test(readFileSync(file, "utf-8")),
+                file !== modelerConfigurationFile &&
+                /\b(?:getConfiguration|affectsConfiguration|onDidChangeConfiguration)\(/.test(
+                    readFileSync(file, "utf-8"),
+                ),
         );
 
         expect(offenders).toEqual([]);

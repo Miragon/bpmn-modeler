@@ -1,4 +1,4 @@
-import { ConfigurationChangeEvent, ConfigurationTarget, workspace } from "vscode";
+import { ConfigurationChangeEvent, ConfigurationTarget, Disposable, workspace } from "vscode";
 
 import { parseLintingEnabled, SettingChange, SettingKey } from "@miragon/bpmn-modeler-core";
 
@@ -14,6 +14,10 @@ export interface ModelerConfiguration {
 
 export function modelerConfiguration(): ModelerConfiguration {
     return workspace.getConfiguration(MODELER_SETTINGS_SECTION);
+}
+
+export function onDidChangeModelerSetting(listener: (change: SettingChange) => void): Disposable {
+    return workspace.onDidChangeConfiguration((event) => listener(settingChangeOf(event)));
 }
 
 export function lintingEnabled(): boolean {
@@ -36,7 +40,7 @@ function updatePersonalPreference(key: SettingKey, value: unknown): Thenable<voi
     return modelerConfiguration().update(key, value, ConfigurationTarget.Global);
 }
 
-export function settingChangeOf(event: ConfigurationChangeEvent): SettingChange {
+function settingChangeOf(event: ConfigurationChangeEvent): SettingChange {
     return {
         affects: (key) => event.affectsConfiguration(`${MODELER_SETTINGS_SECTION}.${key}`),
     };

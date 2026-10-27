@@ -1,13 +1,4 @@
-import {
-    commands,
-    ConfigurationChangeEvent,
-    ExtensionContext,
-    TextDocument,
-    Uri,
-    WebviewPanel,
-    window,
-    workspace,
-} from "vscode";
+import { commands, ExtensionContext, TextDocument, Uri, WebviewPanel, window } from "vscode";
 
 import { asProtocolMessage, Command } from "@miragon/bpmn-modeler-shared";
 
@@ -17,9 +8,10 @@ import {
     DiffSession,
     basenameOfUriString,
     routeWebviewLogCommand,
+    SettingChange,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
-import { settingChangeOf } from "../../shared/infrastructure/modelerConfiguration";
+import { onDidChangeModelerSetting } from "../../shared/infrastructure/modelerConfiguration";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { WebviewPaneHandle } from "../infrastructure/WebviewPaneHandle";
 import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
@@ -68,7 +60,7 @@ export class BpmnDiffController {
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            workspace.onDidChangeConfiguration((event) => this.onConfigurationChanged(event)),
+            onDidChangeModelerSetting((change) => this.onSettingChanged(change)),
         );
     }
 
@@ -318,8 +310,8 @@ export class BpmnDiffController {
      * changes `miragon.bpmnModeler.language`.  Ignores unrelated setting
      * changes so panes only churn when the language actually moves.
      */
-    private onConfigurationChanged(event: ConfigurationChangeEvent): void {
-        if (!settingChangeOf(event).affects("language")) {
+    private onSettingChanged(change: SettingChange): void {
+        if (!change.affects("language")) {
             return;
         }
         this.diffService.rebroadcastLanguage();

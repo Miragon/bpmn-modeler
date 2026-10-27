@@ -3,19 +3,32 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const updateMock = vi.fn();
 const getMock = vi.fn();
 const getConfigurationMock = vi.fn((_section: string) => ({ get: getMock, update: updateMock }));
+const subscription = { dispose: vi.fn() };
+let configurationListener: (event: {
+    affectsConfiguration(section: string): boolean;
+}) => void = () => undefined;
 
 vi.mock("vscode", () => ({
     workspace: {
         getConfiguration: (section: string) => getConfigurationMock(section),
+        onDidChangeConfiguration: (listener: typeof configurationListener) => {
+            configurationListener = listener;
+            return subscription;
+        },
     },
     ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
 }));
 
 import { ConfigurationTarget } from "vscode";
 
-import { DEFAULT_LINTING_ENABLED } from "@miragon/bpmn-modeler-core";
+import { DEFAULT_LINTING_ENABLED, SettingChange } from "@miragon/bpmn-modeler-core";
 
-import { lintingEnabled, setLanguage, setLintingEnabled } from "./modelerConfiguration";
+import {
+    lintingEnabled,
+    onDidChangeModelerSetting,
+    setLanguage,
+    setLintingEnabled,
+} from "./modelerConfiguration";
 
 beforeEach(() => {
     getConfigurationMock.mockClear();
@@ -55,5 +68,18 @@ describe("modelerConfiguration", () => {
 
         expect(getConfigurationMock).toHaveBeenCalledWith("miragon.bpmnModeler");
         expect(updateMock).toHaveBeenCalledWith(key, value, ConfigurationTarget.Global);
+    });
+
+    it("names a changed setting by its key below miragon.bpmnModeler", () => {
+        const received: SettingChange[] = [];
+        const disposable = onDidChangeModelerSetting((change) => received.push(change));
+
+        configurationListener({
+            affectsConfiguration: (section) => section === "miragon.bpmnModeler.scripting.spin",
+        });
+
+        expect(disposable).toBe(subscription);
+        expect(received.map((change) => change.affects("scripting.spin"))).toEqual([true]);
+        expect(received.map((change) => change.affects("language"))).toEqual([false]);
     });
 });

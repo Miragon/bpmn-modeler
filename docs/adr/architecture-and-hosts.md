@@ -448,7 +448,8 @@ from it. Core subscribers ask `affects(key)` the same way on every host:
 VS Code adds the prefix to ask its own event, and the bridge names the keys
 `changedSettingKeys` reports with `settingChangeNaming`. The VS Code adapter
 reads, writes and watches settings only through `modelerConfiguration.ts`,
-whose keys are typed `SettingKey`. IntelliJ's `ModelerSettingsStore` keeps a
+whose keys are typed `SettingKey`; its manifest contract spec fails on a
+configuration call in any other file. IntelliJ's `ModelerSettingsStore` keeps a
 Kotlin copy of the normalisation, because the IDE's Settings page stores and
 shows the values without the bridge.
 `settingsNormalization.cases.json` beside the rule holds the rows all three
