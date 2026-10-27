@@ -7,7 +7,7 @@ import {
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ConfigurationTarget, workspace } from "vscode";
+import { ConfigurationTarget } from "vscode";
 
 import { posix } from "path";
 
@@ -22,6 +22,7 @@ import {
     TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskService } from "../../../../scriptTask/index";
+import { modelerConfiguration } from "../../../../shared/infrastructure/modelerConfiguration";
 
 /**
  * The BPMN webview handlers only VS Code has: the inline script-task editor and
@@ -53,9 +54,11 @@ export function resyncScriptTasksHandler(scriptTaskSvc: ScriptTaskService): Mess
  */
 export function setLintingEnabledHandler(): MessageHandler<SetLintingEnabledCommand> {
     return async (message) => {
-        await workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .update("linting.enabled", message.enabled, ConfigurationTarget.Global);
+        await modelerConfiguration().update(
+            "linting.enabled",
+            message.enabled,
+            ConfigurationTarget.Global,
+        );
     };
 }
 

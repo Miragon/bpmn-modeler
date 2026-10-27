@@ -12,19 +12,18 @@ import {
 import { asProtocolMessage, Command } from "@miragon/bpmn-modeler-shared";
 
 import {
+    BPMN_VIEW_TYPE,
     DiffPaneHandle,
     DiffSession,
     basenameOfUriString,
     routeWebviewLogCommand,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
+import { settingChangeOf } from "../../shared/infrastructure/modelerConfiguration";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { WebviewPaneHandle } from "../infrastructure/WebviewPaneHandle";
 import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
-
-// VS Code view-type identifier for the BPMN custom editor.
-const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
 
 /**
  * URI schemes used by Git-provider extensions to surface ref/index/working-tree
@@ -320,7 +319,7 @@ export class BpmnDiffController {
      * changes so panes only churn when the language actually moves.
      */
     private onConfigurationChanged(event: ConfigurationChangeEvent): void {
-        if (!event.affectsConfiguration("miragon.bpmnModeler.language")) {
+        if (!settingChangeOf(event).affects("language")) {
             return;
         }
         this.diffService.rebroadcastLanguage();

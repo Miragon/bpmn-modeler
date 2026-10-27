@@ -32,6 +32,7 @@ import {
     TYPESCRIPT_ONLY_SETTINGS_CASES,
 } from "@miragon/bpmn-modeler-core/testing";
 
+import { MODELER_SETTINGS_SECTION } from "./modelerConfiguration";
 import { VsCodeSettings } from "./VsCodeSettings";
 
 const SHARED_CASES = settingsNormalizationCases(
@@ -44,8 +45,6 @@ const SHARED_CASES = settingsNormalizationCases(
     ),
 );
 
-const CONFIG_NAMESPACE = "miragon.bpmnModeler";
-
 const MANIFEST_DEFAULTS = new Map(
     Object.entries(
         (
@@ -55,7 +54,7 @@ const MANIFEST_DEFAULTS = new Map(
                 };
             }
         ).contributes.configuration.properties,
-    ).map(([key, property]) => [key.slice(CONFIG_NAMESPACE.length + 1), property.default]),
+    ).map(([key, property]) => [key.slice(MODELER_SETTINGS_SECTION.length + 1), property.default]),
 );
 
 /** Sets what inspect("marketplaces") reports for the User/Workspace scopes. */

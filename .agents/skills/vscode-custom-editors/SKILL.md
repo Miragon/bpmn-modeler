@@ -49,7 +49,7 @@ Lifecycle is split into independently testable `EditorSessionParticipant`s (cont
 | Webview messages | `WebviewMessageRouter.dispatch` → handler factories (host-agnostic ones in `libs/modeler-core`, VS Code-only ones in `<feature>/controller/webview-handlers/`) | Replaces the old `switch(message.type)` |
 | Render + service session | `DocumentRenderParticipant` (one per editor type, with the file extension) | `service.registerSession` + doc-change → `service.display()`; the services share `EditorDocumentSync` (echo guard, revision check, empty-file init) |
 | Element templates | `ElementTemplatesParticipant` (BPMN only) | config-folder watch via `ArtifactService.createWatcher()` |
-| Settings / language | `BpmnSettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (asks `SettingChange.affects` for the `SettingKey`s it pushes; `VsCodeEditorHandle` prefixes `miragon.bpmnModeler.`) |
+| Settings / language | `BpmnSettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (asks `SettingChange.affects` for the `SettingKey`s it pushes). The plugin reads, writes and watches settings only through `shared/infrastructure/modelerConfiguration.ts`, keyed by `SettingKey` |
 | Engine-version status bar | `EngineVersionStatusBarParticipant` (BPMN only) | focus → show/hide |
 | Tab tracking | `editorStore.subscribeToTabChangeEvent` | updates the active-editor pointer |
 | Dispose | the lifecycle aggregates every participant's `onDispose` into one `subscribeToDisposeEvent` | `disposeEditor` runs once, after store bookkeeping |

@@ -442,12 +442,15 @@ VS Code parses each value as it reads it. The bridge normalises the host's
 snapshot before it compares it with the current one, so a value that reads as
 the current one fires no change. A setting change names its settings by the
 closed `SettingKey` union, the keys VS Code stores below `miragon.bpmnModeler`
-(`scripting.spin`, `linting.enabled`), so core subscribers ask
-`affects(key)` the same way on every host: VS Code adds the prefix to ask its
-own event, the bridge maps each changed snapshot key through
-`changedSettingKeys`. IntelliJ's `ModelerSettingsStore` keeps a
-Kotlin copy, because the IDE's Settings page stores and shows the values
-without the bridge.
+(`scripting.spin`, `linting.enabled`). One table in the same file maps each
+snapshot key to its `SettingKey` (`settingKeyOf`), and the union is derived
+from it. Core subscribers ask `affects(key)` the same way on every host:
+VS Code adds the prefix to ask its own event, and the bridge names the keys
+`changedSettingKeys` reports with `settingChangeNaming`. The VS Code adapter
+reads, writes and watches settings only through `modelerConfiguration.ts`,
+whose keys are typed `SettingKey`. IntelliJ's `ModelerSettingsStore` keeps a
+Kotlin copy of the normalisation, because the IDE's Settings page stores and
+shows the values without the bridge.
 `settingsNormalization.cases.json` beside the rule holds the rows all three
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
 the Kotlin test also compares its defaults with the manifest's.

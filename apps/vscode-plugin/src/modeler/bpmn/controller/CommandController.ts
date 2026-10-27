@@ -23,6 +23,7 @@ import {
     FORM_VIEW_TYPE,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
+import { modelerConfiguration } from "../../../shared/infrastructure/modelerConfiguration";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
 import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import {
@@ -180,9 +181,11 @@ export class CommandController {
             // Language is a personal UI preference rather than a project-scoped
             // setting — writing at Global (User) level avoids pinning one
             // collaborator's choice to a shared workspace settings file.
-            await workspace
-                .getConfiguration("miragon.bpmnModeler")
-                .update("language", picked.description, ConfigurationTarget.Global);
+            await modelerConfiguration().update(
+                "language",
+                picked.description,
+                ConfigurationTarget.Global,
+            );
             // Breadcrumb: a language switch changes UI strings across the modeler,
             // so record it to explain later "why is the panel in German?" reports.
             this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
@@ -198,7 +201,7 @@ export class CommandController {
      */
     toggleLinting(): Promise<void> {
         return this.logAndRethrow(async () => {
-            const config = workspace.getConfiguration("miragon.bpmnModeler");
+            const config = modelerConfiguration();
             const enabled = parseLintingEnabled(config.get("linting.enabled"));
             await config.update("linting.enabled", !enabled, ConfigurationTarget.Global);
             this.notifier.logInfo(`BPMN linting ${!enabled ? "enabled" : "disabled"}`);

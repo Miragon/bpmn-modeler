@@ -9,6 +9,7 @@ import {
     SettingChange,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "./bootstrapWebview";
+import { settingChangeOf } from "./modelerConfiguration";
 import { canonicalizeDriveLetter } from "./uriPath";
 
 /**
@@ -183,11 +184,7 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     onDidChangeSetting(callback: (event: SettingChange) => void): EditorSubscription {
-        return workspace.onDidChangeConfiguration((event) =>
-            callback({
-                affects: (key) => event.affectsConfiguration(`miragon.bpmnModeler.${key}`),
-            }),
-        );
+        return workspace.onDidChangeConfiguration((event) => callback(settingChangeOf(event)));
     }
 
     /**
