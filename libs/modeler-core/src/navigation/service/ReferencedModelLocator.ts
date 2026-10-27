@@ -1,9 +1,13 @@
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { LocateResult } from "../../kernel/domain/locateResult";
+import { LocateResult, outcomeAfterReading, SearchOutcome } from "../../kernel/domain/locateResult";
 import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
-import { findFilesExcluding, searchFilesContent } from "../../kernel/service/workspaceFileSearch";
+import {
+    findFilesExcluding,
+    scanFiles,
+    searchFilesContent,
+} from "../../kernel/service/workspaceFileSearch";
 
 // Max length of a reference id echoed back into a user-facing log line.
 const ID_DISPLAY_LIMIT = 100;
@@ -13,10 +17,7 @@ export interface FormDeclaration {
     path: string;
 }
 
-export type FormDeclarationsResult =
-    | { kind: "no-search-scope" }
-    | { kind: "all-unreadable"; failures: string[] }
-    | { kind: "matches"; declarations: FormDeclaration[]; readFailures: string[] };
+export type FormDeclarationsResult = SearchOutcome<{ declarations: FormDeclaration[] }>;
 
 /**
  * Locates BPMN, DMN, or form files that declare the requested top-level id.
@@ -65,16 +66,7 @@ export class ReferencedModelLocator {
         }
 
         const pattern = this.buildIdPattern(referenceId, kind);
-        const { matches, readFailures, allUnreadable } = await searchFilesContent(
-            this.vsWorkspace,
-            paths,
-            pattern,
-            this.notifier,
-        );
-        if (allUnreadable) {
-            return { kind: "all-unreadable", failures: readFailures };
-        }
-        return { kind: "matches", paths: matches, readFailures };
+        return searchFilesContent(this.vsWorkspace, paths, pattern, this.notifier);
     }
 
     /** Parses every candidate `.form` once and returns its top-level non-empty id. */
@@ -88,34 +80,8 @@ export class ReferencedModelLocator {
             return { kind: "no-search-scope" };
         }
 
-        const readFailures: string[] = [];
-        const declarations = (
-            await Promise.all(
-                paths.map(async (path): Promise<FormDeclaration | undefined> => {
-                    let content: string;
-                    try {
-                        content = await this.vsWorkspace.readFile(path);
-                    } catch (error) {
-                        readFailures.push(`Could not read ${path}: ${(error as Error).message}`);
-                        return undefined;
-                    }
-
-                    try {
-                        const parsed = JSON.parse(content) as { id?: unknown };
-                        return typeof parsed.id === "string" && parsed.id.length > 0
-                            ? { id: parsed.id, path }
-                            : undefined;
-                    } catch {
-                        return undefined;
-                    }
-                }),
-            )
-        ).filter((value): value is FormDeclaration => value !== undefined);
-
-        if (paths.length > 0 && readFailures.length === paths.length) {
-            return { kind: "all-unreadable", failures: readFailures };
-        }
-        return { kind: "matches", declarations, readFailures };
+        const { found, readFailures } = await scanFiles(this.vsWorkspace, paths, declarationIn);
+        return outcomeAfterReading(paths.length, readFailures, { declarations: found });
     }
 
     /**
@@ -132,5 +98,16 @@ export class ReferencedModelLocator {
         return new RegExp(
             `<(?:[\\w-]+:)?${kind}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegExpLiteral(referenceId)}["']`,
         );
+    }
+}
+
+function declarationIn(content: string, path: string): FormDeclaration | undefined {
+    try {
+        const parsed = JSON.parse(content) as { id?: unknown };
+        return typeof parsed.id === "string" && parsed.id.length > 0
+            ? { id: parsed.id, path }
+            : undefined;
+    } catch {
+        return undefined;
     }
 }

@@ -2,6 +2,7 @@ import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
 import { EXCLUDED_DIRS, isInsideExcludedDirBelowEveryFolder } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
+import { LocateResult, outcomeAfterReading } from "../domain/locateResult";
 import { SearchScope } from "../domain/searchScope";
 import { joinWorkspacePath } from "../domain/workspacePath";
 
@@ -20,17 +21,9 @@ export interface SearchLogger {
     logInfo(message: string): void;
 }
 
-/**
- * Outcome of reading and matching a set of candidate files.
- *
- * `allUnreadable` is `true` only when at least one file was attempted and every
- * read failed, letting callers distinguish "searched, found nothing" from
- * "could not search because nothing was readable".
- */
-export interface ContentSearchResult {
-    matches: string[];
+interface FileScan<Found> {
+    found: Found[];
     readFailures: string[];
-    allUnreadable: boolean;
 }
 
 /**
@@ -171,40 +164,49 @@ async function walkWorkspaceTree(
     return out;
 }
 
-/**
- * Reads each candidate file in parallel and tests `pattern` against its content
- * (ignoring XML comments and CDATA sections). Read failures are collected
- * rather than thrown so a single unreadable file does not abort the search.
- */
+/** The candidates whose content matches `pattern` outside XML comments and CDATA sections. */
 export async function searchFilesContent(
     ws: WorkspacePort,
     paths: string[],
     pattern: RegExp,
     logger?: SearchLogger,
-): Promise<ContentSearchResult> {
+): Promise<LocateResult> {
     const startedAt = Date.now();
-    const failures: string[] = [];
-    const results = await Promise.all(
-        paths.map(async (path) => {
-            try {
-                const content = await ws.readFile(path);
-                return matchesOutsideCommentsAndCdata(content, pattern) ? path : undefined;
-            } catch (error) {
-                failures.push(`Could not read ${path}: ${(error as Error).message}`);
-                return undefined;
-            }
-        }),
+    const { found, readFailures } = await scanFiles(ws, paths, (content, path) =>
+        matchesOutsideCommentsAndCdata(content, pattern) ? path : undefined,
     );
-    const matches = results.filter((path): path is string => path !== undefined);
 
     logger?.logInfo(
-        `[search] content: candidates=${paths.length} matches=${matches.length} ` +
-            `readFailures=${failures.length} reads-took=${Date.now() - startedAt}ms`,
+        `[search] content: candidates=${paths.length} matches=${found.length} ` +
+            `readFailures=${readFailures.length} reads-took=${Date.now() - startedAt}ms`,
     );
 
-    return {
-        matches,
-        readFailures: failures,
-        allUnreadable: paths.length > 0 && failures.length === paths.length,
-    };
+    return outcomeAfterReading(paths.length, readFailures, { paths: found });
+}
+
+/**
+ * Reads each candidate in parallel and keeps what `inspect` finds in it. A
+ * failed read is collected, not thrown, so one unreadable file does not abort
+ * the search.
+ */
+export async function scanFiles<Found>(
+    ws: WorkspacePort,
+    paths: readonly string[],
+    inspect: (content: string, path: string) => Found | undefined,
+): Promise<FileScan<Found>> {
+    const readFailures: string[] = [];
+    const inspected = await Promise.all(
+        paths.map(async (path): Promise<[Found] | []> => {
+            let content: string;
+            try {
+                content = await ws.readFile(path);
+            } catch (error) {
+                readFailures.push(`Could not read ${path}: ${(error as Error).message}`);
+                return [];
+            }
+            const found = inspect(content, path);
+            return found === undefined ? [] : [found];
+        }),
+    );
+    return { found: inspected.flat(), readFailures };
 }

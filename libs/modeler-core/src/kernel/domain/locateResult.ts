@@ -14,12 +14,16 @@ export type SearchOutcome<Matches extends object> =
 /** A search for the files a reference names, as absolute `paths`. */
 export type LocateResult = SearchOutcome<{ paths: string[] }>;
 
+/** A search whose every read failed searched nothing, which is not finding nothing. */
 export function outcomeAfterReading<Matches extends object>(
-    _attempted: number,
-    _readFailures: string[],
-    _matches: Matches,
+    attempted: number,
+    readFailures: string[],
+    matches: Matches,
 ): SearchOutcome<Matches> {
-    return { kind: "no-search-scope" };
+    if (attempted > 0 && readFailures.length === attempted) {
+        return { kind: "all-unreadable", failures: readFailures };
+    }
+    return { kind: "matches", readFailures, ...matches };
 }
 
 /** What a {@link LocateResult} leaves to do: tell the user, open the file, or let them pick. */

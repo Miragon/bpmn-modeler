@@ -3,11 +3,7 @@ import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
 import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
-import {
-    ContentSearchResult,
-    findFilesExcluding,
-    searchFilesContent,
-} from "../../kernel/service/workspaceFileSearch";
+import { findFilesExcluding, searchFilesContent } from "../../kernel/service/workspaceFileSearch";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ContentSearch, ImplementationTarget } from "../domain/ImplementationTarget";
 import { DirectSourceCatalog, SourceCatalog } from "./SourceIndex";
@@ -169,15 +165,6 @@ export class ImplementationLocator {
         if (sources === undefined) {
             return { kind: "no-search-scope" };
         }
-        return toResult(
-            await searchFilesContent(this.vsWorkspace, sources, search.pattern, this.notifier),
-        );
+        return searchFilesContent(this.vsWorkspace, sources, search.pattern, this.notifier);
     }
-}
-
-function toResult(search: ContentSearchResult): LocateResult {
-    if (search.allUnreadable) {
-        return { kind: "all-unreadable", failures: search.readFailures };
-    }
-    return { kind: "matches", paths: search.matches, readFailures: search.readFailures };
 }
