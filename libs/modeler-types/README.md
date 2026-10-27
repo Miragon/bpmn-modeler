@@ -24,11 +24,15 @@ here is safe to publish; everything protocol-shaped stays in
   the concrete message classes, `HostApi`, document-flush plumbing.
 
 The publishable libraries (`append-menu`, `bpmn-clipboard`, `code-link`,
-`element-template-chooser`, `inline-scripting`, `model-navigation`,
-`flow-navigation`) and the webview `app/` layers may depend on **this** package
-only. An eslint `no-restricted-imports` rule (`BND-PROTOCOL-PRIVATE`) fails the
-build if any of them reach for `@miragon/bpmn-modeler-shared`, and the reverse
-guard forbids this package from importing the protocol package.
+`definition-search`, `element-template-chooser`, `flow-navigation`,
+`inline-scripting`, `model-navigation`, `properties-panel`) and the
+`packages/bpmn-modeler` and `packages/dmn-modeler` npm packages may import
+**this** package but never `@miragon/bpmn-modeler-shared`. An eslint
+`no-restricted-imports` rule (`BND-PROTOCOL-PRIVATE` in `eslint.config.cjs`)
+fails the build if any of them, or this package itself, imports the protocol
+package. The webview apps (`apps/*-webview`) are left out on purpose: they are
+the host adapters that speak the protocol. Each npm package's
+`architecture.spec.ts` also forbids its sources from naming the protocol.
 
 ## Usage
 
