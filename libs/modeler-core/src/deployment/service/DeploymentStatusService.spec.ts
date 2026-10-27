@@ -5,6 +5,7 @@ import { CredentialRefs } from "../domain/credentialRefs";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import {
     contentFingerprint,
+    DeploymentFreshness,
     DeploymentTargetIdentity,
     ledgerKeyFor,
 } from "../domain/deploymentLedger";
@@ -322,6 +323,87 @@ describe("DeploymentStatusService ledger writes", () => {
             expectDotEnvLoggedAsUnreadable(c);
         },
     );
+});
+
+describe("DeploymentStatusService status after a ledger write", () => {
+    const devIdentity = () => DeploymentTargetIdentity.fromTarget(target("dev"), NO_ENV_VARIABLES);
+    const engineRevisionOfOtherContent = {
+        fingerprint: contentFingerprint("<b/>"),
+        deployedAt: "2026-09-17T14:40:00.000Z",
+        deploymentId: "dep-9",
+        origin: "engine" as const,
+        verifiedAt: "2026-09-17T15:00:00.000Z",
+    };
+
+    it.each<{
+        write: string;
+        recordedBefore: boolean;
+        writeLedger: (service: DeploymentStatusService) => Promise<void>;
+        shown: DeploymentFreshness;
+    }>([
+        {
+            write: "recording a deployment of the active diagram",
+            recordedBefore: false,
+            writeLedger: (service) => service.recordDeployment(FILE_PATH, "<a/>", devIdentity()),
+            shown: "deployed",
+        },
+        {
+            write: "adopting an engine revision of the active diagram",
+            recordedBefore: false,
+            writeLedger: (service) =>
+                service.adoptRevision(FILE_PATH, devIdentity(), engineRevisionOfOtherContent),
+            shown: "superseded",
+        },
+        {
+            write: "forgetting the revision of the active diagram",
+            recordedBefore: true,
+            writeLedger: (service) => service.forgetRevision(FILE_PATH, devIdentity()),
+            shown: "unknown",
+        },
+        {
+            write: "pruning the rows of the active target",
+            recordedBefore: true,
+            writeLedger: (service) => service.pruneTarget(devIdentity()),
+            shown: "unknown",
+        },
+    ])("refreshes the status bar after $write", async ({ recordedBefore, writeLedger, shown }) => {
+        const c = createService();
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        if (recordedBefore) await recordRevisionUnder(c, DEV_KEY);
+        await c.service.refresh(c.editor.id);
+
+        await writeLedger(c.service);
+
+        expect(c.host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: "dev", freshness: shown }),
+        );
+    });
+
+    it("refreshes the status bar for the saved ad-hoc connection when its ledger row cannot be written", async () => {
+        const c = createService();
+        const localRow = ledgerKeyFor(
+            DeploymentTargetIdentity.adHoc(LITERAL_ENDPOINT, "", NO_ENV_VARIABLES),
+            FILE_PATH,
+        );
+        useAdHocConnection(c, LITERAL_ENDPOINT, "");
+        await recordRevisionUnder(c, localRow);
+        await c.service.refresh(c.editor.id);
+        useAdHocConnection(c, PROD_URL, "");
+        vi.spyOn(c.host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+            new Error("workspace state is read-only"),
+        );
+
+        const recording = c.service.recordDeployment(
+            FILE_PATH,
+            "<a/>",
+            DeploymentTargetIdentity.adHoc(PROD_URL, "", NO_ENV_VARIABLES),
+        );
+
+        await expect(recording).rejects.toThrow("workspace state is read-only");
+        expect(c.host.statusBar.deploymentTarget).toEqual(
+            expect.objectContaining({ name: undefined, freshness: "unknown" }),
+        );
+    });
 });
 
 describe("DeploymentStatusService.targetIdentity", () => {
