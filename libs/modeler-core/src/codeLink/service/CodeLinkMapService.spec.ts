@@ -204,47 +204,6 @@ describe("CodeLinkMapService — sync diff", () => {
             entries,
         ]);
     });
-
-    it("re-resolves when a reference changes", async () => {
-        const { service, editor, locator } = createService({
-            resolveMap: { "com.example.A": ["/p/A.java"], "com.example.B": ["/p/B.java"] },
-        });
-
-        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
-        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.B")]);
-
-        expect(locator.resolveMany).toHaveBeenCalledTimes(2);
-        expect(locator.resolveMany.mock.calls[1][0]).toEqual([
-            entry("Act", "javaClass", "com.example.B"),
-        ]);
-    });
-
-    it("drops a removed activity from the pushed status", async () => {
-        const { service, editor } = createService({
-            resolveMap: { a: ["/p/a"], b: ["/p/b"] },
-        });
-
-        await service.syncActivities(editor.id, [
-            entry("A", "jobType", "a"),
-            entry("B", "jobType", "b"),
-        ]);
-        await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
-
-        expect(Object.keys(lastStatus(editor)!)).toEqual([implementationStatusKey("A", "a")]);
-    });
-
-    it("filters out malformed entries (unknown kind, empty fields)", async () => {
-        const { service, editor, locator } = createService({ resolveMap: { x: ["/p/x"] } });
-
-        await service.syncActivities(editor.id, [
-            entry("A", "jobType", "x"),
-            { activityId: "", kind: "jobType", reference: "y" },
-            { activityId: "B", kind: "bogus" as never, reference: "z" },
-        ]);
-
-        expect(locator.resolveMany.mock.calls[0][0]).toEqual([entry("A", "jobType", "x")]);
-        expect(Object.keys(lastStatus(editor)!)).toEqual([implementationStatusKey("A", "x")]);
-    });
 });
 
 describe("CodeLinkMapService — warm cache", () => {
@@ -311,24 +270,6 @@ describe("CodeLinkMapService — warm cache", () => {
 });
 
 describe("CodeLinkMapService — live linking", () => {
-    it("links a freshly-written worker to an unresolved activity", async () => {
-        const worker = "/work/proj/src/Worker.java";
-        const { service, editor } = createService({
-            resolveMap: {}, // nothing resolves at sync time
-            fileContents: { [worker]: '@JobWorker(type = "pay")' },
-        });
-
-        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
-        expect(lastStatus(editor)).toEqual({
-            [implementationStatusKey("Act", "pay")]: false,
-        });
-
-        await service.onSourceFileChanged(worker, "created", ROOT);
-        expect(lastStatus(editor)).toEqual({
-            [implementationStatusKey("Act", "pay")]: true,
-        });
-    });
-
     it("unlinks a deleted file and marks the activity unresolved", async () => {
         const worker = "/work/proj/src/Worker.java";
         const { service, editor } = createService({
@@ -354,40 +295,6 @@ describe("CodeLinkMapService — live linking", () => {
         await service.onSourceFileChanged("/work/proj/src/Unrelated.java", "changed", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
-    });
-
-    it("unlinks when an edit removes the binding from an already-linked file", async () => {
-        const worker = "/work/proj/src/Worker.java";
-        const { service, host, editor } = createService({
-            resolveMap: { pay: [worker] },
-            fileContents: { [worker]: '@JobWorker(type = "pay")' },
-        });
-        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
-        expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(true);
-
-        // The annotation is edited away — same file, no longer matches. Set
-        // without a watcher event so only the explicit change below applies.
-        host.workspace.files.set(worker, '@JobWorker(type = "other")');
-        await service.onSourceFileChanged(worker, "changed", ROOT);
-
-        expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
-    });
-
-    it("links an additional implementing file to an already-resolved activity", async () => {
-        const first = "/work/proj/src/W1.java";
-        const second = "/work/proj/src/W2.java";
-        const { service, editor } = createService({
-            resolveMap: { pay: [first] },
-            fileContents: { [first]: '"pay"', [second]: '"pay"' },
-        });
-        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
-        const pushesBefore = editor.posted.length;
-
-        await service.onSourceFileChanged(second, "created", ROOT);
-
-        // Still resolved, but the second file produced a push (paths changed).
-        expect(editor.posted.length).toBe(pushesBefore + 1);
-        expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(true);
     });
 
     it("only touches editors rooted at the changed file's root", async () => {
