@@ -12,9 +12,9 @@ import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 import { lintingEnabled, ModelerConfiguration, modelerConfiguration } from "./modelerConfiguration";
 
 /**
- * Pure VS Code workspace configuration reader for the BPMN modeler. Each value
- * is read under the key `settingKeyOf` names and as the core's `parseSetting`
- * decides, as on every host.
+ * Reads and writes the modeler configuration in VS Code. Each value is read
+ * under the key `settingKeyOf` names and parsed as the core's `parseSetting`
+ * decides, as on every host; the marketplace commands write their lists here.
  */
 export class VsCodeSettings implements SettingsPort {
     getAlignToOrigin(): boolean {
