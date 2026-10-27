@@ -3,7 +3,7 @@ import {
     SyncActivitiesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { NotifierPort } from "../../shared/domain/hostPorts";
+import { NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { MessageHandler } from "../../shared/infrastructure/WebviewMessageRouter";
 import { CodeLinkMapService } from "../service/CodeLinkMapService";

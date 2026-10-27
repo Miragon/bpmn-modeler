@@ -16,7 +16,7 @@
  */
 import { posix } from "path";
 
-import { joinWorkspacePath } from "../../shared/domain/workspacePath";
+import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import {
     beanToClassName,
     extractBeanName,

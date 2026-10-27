@@ -21,7 +21,7 @@ import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import {
     CredentialDestinationNotApprovedError,
     DisallowedEnvReferenceError,

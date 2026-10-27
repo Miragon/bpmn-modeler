@@ -1,7 +1,7 @@
 import { MarketplaceContentType } from "../domain/marketplace";
 import { FetchedTemplateFile } from "../domain/sourceCacheRefresh";
-import { DirectoryNotFound } from "../../shared/domain/errors";
-import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { DirectoryNotFound } from "../../kernel/domain/errors";
+import { WorkspacePort } from "../../kernel/domain/hostPorts";
 
 /**
  * The content-type segment the template pipeline owns. `getCachedTemplatePaths`

@@ -2,7 +2,7 @@ import { Command } from "@miragon/bpmn-modeler-shared";
 
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
 import { EditorSessionContext, EditorSessionParticipant } from "../domain/EditorSessionParticipant";
-import { LoggerPort, NotifierPort } from "../domain/hostPorts";
+import { LoggerPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 import { dispatchInDocumentOrder } from "./orderedDocumentDispatch";
 import { WebviewMessageRouter } from "./WebviewMessageRouter";

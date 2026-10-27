@@ -1,8 +1,8 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
-import { FileNotFound, UserCancelledError } from "../../shared/domain/errors";
-import { getVersions } from "../../shared/domain/engineVersions";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { FileNotFound, UserCancelledError } from "../../kernel/domain/errors";
+import { getVersions } from "../../kernel/domain/engineVersions";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
 import { MigrationPickerPort } from "../domain/ports";
 import {
@@ -10,7 +10,7 @@ import {
     NotifierPort,
     PickerPort,
     WorkspacePort,
-} from "../../shared/domain/hostPorts";
+} from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 
 interface CurrentDiagram {

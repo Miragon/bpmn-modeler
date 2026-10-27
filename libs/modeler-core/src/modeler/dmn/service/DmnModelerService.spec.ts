@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { UserCancelledError } from "../../../shared/domain/errors";
+import { UserCancelledError } from "../../../kernel/domain/errors";
 import { createTestHost, TestHost } from "../../../testing";
 import { DmnModelerService } from "./DmnModelerService";
 

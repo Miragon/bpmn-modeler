@@ -5,9 +5,9 @@ import {
     PickerPort,
     SettingsPort,
     WorkspacePort,
-} from "../../shared/domain/hostPorts";
-import { joinWorkspacePath } from "../../shared/domain/workspacePath";
-import { ArtifactService } from "../../shared/service/ArtifactService";
+} from "../../kernel/domain/hostPorts";
+import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
 import {

@@ -1,6 +1,6 @@
 import { trimTrailingSeparators } from "../domain/marketplace";
-import { DirectoryNotFound } from "../../shared/domain/errors";
-import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { DirectoryNotFound } from "../../kernel/domain/errors";
+import { WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocalSourceConfig, RepositorySource } from "../domain/ports";
 
 /**

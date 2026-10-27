@@ -1,13 +1,13 @@
 import { extractModelDefinitions, type ModelDefinition } from "@miragon/bpmn-modeler-types";
 
-import type { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
-import { ScopeMembership } from "../../shared/domain/ScopeMembership";
+import type { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import {
     type SearchScope,
     searchScopeKey,
     searchScopeRoots,
-} from "../../shared/domain/searchScope";
-import { findFilesInScope, resolveSearchScope } from "../../shared/service/workspaceFileSearch";
+} from "../../kernel/domain/searchScope";
+import { findFilesInScope, resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
 
 const BPMN_GLOB = "**/*.bpmn";
 

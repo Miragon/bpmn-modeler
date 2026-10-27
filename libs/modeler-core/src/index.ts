@@ -8,28 +8,29 @@
  */
 
 // ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/affectedItems";
+export * from "./kernel/domain/BpmnDocument";
+export * from "./kernel/domain/engineVersions";
+export * from "./kernel/domain/errorLogText";
+export * from "./kernel/domain/errors";
+export * from "./kernel/domain/globToRegExp";
+export * from "./kernel/domain/hostPorts";
 export * from "./kernel/domain/http";
+export * from "./kernel/domain/newModelEngine";
+export * from "./kernel/domain/rootContainment";
+export * from "./kernel/domain/viewTypes";
+export * from "./kernel/domain/watcherEvents";
+export * from "./kernel/domain/workspacePath";
+export * from "./kernel/service/ArtifactService";
 export * from "./kernel/infrastructure/FetchHttpClient";
+export * from "./kernel/infrastructure/nonce";
 
 // ── shared: domain ──────────────────────────────────────────────────────────
-export * from "./shared/domain/affectedItems";
-export * from "./shared/domain/BpmnDocument";
 export * from "./shared/domain/EditorSession";
 export * from "./shared/domain/EditorSessionParticipant";
-export * from "./shared/domain/engineVersions";
-export * from "./shared/domain/errorLogText";
-export * from "./shared/domain/errors";
-export * from "./shared/domain/globToRegExp";
-export * from "./shared/domain/hostPorts";
-export * from "./shared/domain/newModelEngine";
-export * from "./shared/domain/rootContainment";
 export * from "./shared/domain/session";
-export * from "./shared/domain/viewTypes";
-export * from "./shared/domain/watcherEvents";
-export * from "./shared/domain/workspacePath";
 
 // ── shared: service + vscode-free infrastructure ────────────────────────────
-export * from "./shared/service/ArtifactService";
 export * from "./shared/service/DocumentFlushService";
 export * from "./shared/service/PendingEditsFlush";
 export * from "./shared/infrastructure/EditorSessionDocuments";
@@ -43,7 +44,6 @@ export * from "./shared/infrastructure/webviewLogHandlers";
 export * from "./shared/infrastructure/webviewNotificationHandlers";
 export * from "./shared/infrastructure/orderedDocumentDispatch";
 export * from "./shared/infrastructure/webviewFocusHandlers";
-export * from "./shared/infrastructure/helpers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
 export * from "./modeler/bpmn/domain/model";

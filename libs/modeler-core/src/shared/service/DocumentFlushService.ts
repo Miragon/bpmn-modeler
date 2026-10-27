@@ -4,7 +4,7 @@ import {
     ReleaseDocumentFlushQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import { NotifierPort } from "../domain/hostPorts";
+import { NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { MessageHandler } from "../infrastructure/WebviewMessageRouter";
 

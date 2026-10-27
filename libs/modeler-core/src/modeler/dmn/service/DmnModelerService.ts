@@ -1,7 +1,7 @@
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
-import { DocumentPort, NotifierPort } from "../../../shared/domain/hostPorts";
+import { isHiddenEditorError, UserCancelledError } from "../../../kernel/domain/errors";
+import { DocumentPort, NotifierPort } from "../../../kernel/domain/hostPorts";
 import { EditorDocumentSync } from "../../../shared/infrastructure/EditorDocumentSync";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 import { EMPTY_DMN_DIAGRAM } from "../domain/emptyDmn";

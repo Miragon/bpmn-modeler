@@ -1,4 +1,4 @@
-import { NotifierPort, SettingsPort } from "../../shared/domain/hostPorts";
+import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
 import {
     expandHomePath,
     InvalidMarketplaceError,

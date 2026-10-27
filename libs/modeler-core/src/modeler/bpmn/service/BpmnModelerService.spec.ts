@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { BpmnModelerService } from "./BpmnModelerService";
-import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
-import { NewModelEngine } from "../../../shared/domain/newModelEngine";
+import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
+import { NewModelEngine } from "../../../kernel/domain/newModelEngine";
 import { createTestHost, PickerAnswers, TestHost } from "../../../testing";
 
 const PATH = "/work/diagram.bpmn";

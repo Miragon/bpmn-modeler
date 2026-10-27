@@ -14,7 +14,7 @@
  * rather than silently dropping it.
  */
 
-import { MarketplaceSettingsEntry } from "../../shared/domain/hostPorts";
+import { MarketplaceSettingsEntry } from "../../kernel/domain/hostPorts";
 
 /**
  * Thrown when a `marketplace.json` (or the URL desugared into a registration)

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DirectoryNotFound } from "../../shared/domain/errors";
-import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { DirectoryNotFound } from "../../kernel/domain/errors";
+import { WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocalFileSource } from "./LocalFileSource";
 
 /**

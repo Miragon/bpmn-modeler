@@ -2,7 +2,7 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../shared/domain/EditorSessionParticipant";
-import { NotifierPort, StatusBarPort } from "../../../shared/domain/hostPorts";
+import { NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { StatusItemOwnership } from "../../../shared/domain/StatusItemOwnership";
 import { BpmnLintConfigLocator } from "../service/BpmnLintConfigLocator";
 import { BpmnLintConfigService } from "../service/BpmnLintConfigService";

@@ -2,7 +2,7 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentFreshness } from "../deployment/domain/deploymentLedger";
 import { DeploymentStatusBarPort } from "../deployment/domain/ports";
-import { StatusBarPort } from "../shared/domain/hostPorts";
+import { StatusBarPort } from "../kernel/domain/hostPorts";
 
 export type ElementTemplatesStatus =
     | { readonly state: "hidden" }

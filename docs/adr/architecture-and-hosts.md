@@ -65,16 +65,21 @@ splits into `domain/`, an application layer of `service/` and `session/` (the
 editor-session participants), `infrastructure/` and root files that compose the
 feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
 and Node `path`. Features reach each other only through `shared/` and
-`kernel/`. `kernel/` holds what several features build on, today the HTTP
-contract (`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch
-adapter, and imports nothing outside itself, so it stays the bottom layer.
+`kernel/`. `kernel/` holds the vocabulary several features build on:
+`BpmnDocument`, engine versions, the workspace path, glob, containment and
+watcher rules, the cross-cutting errors and host ports, and the HTTP contract
+(`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch adapter.
+A service joins `kernel/service/` only when at least two features use it, as
+`ArtifactService` and the workspace file search do. `kernel/` imports nothing
+outside itself, so it stays the bottom layer. `shared/` holds the
+editor-session core every editor runs on.
 Services and participants import no infrastructure; in infrastructure only the
 inbound `*MessageHandlers` adapters import services. A relative import resolves
 to a feature module, never to the package entry or the test kit, and the core
 has no import cycles. The core architecture test enforces these rules.
-Cross-cutting host ports live in `shared/domain/hostPorts.ts`; a port, prompt
+Cross-cutting host ports live in `kernel/domain/hostPorts.ts`; a port, prompt
 or error one feature owns lives in that feature's `domain/` (`ports.ts`,
-`errors.ts`), so `shared/` names no feature.
+`errors.ts`), so `kernel/` names no feature.
 A store that holds application state and reaches the host, if at all, only
 through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
 feature's `service/` with no port of its own. Today's listed exceptions are the
