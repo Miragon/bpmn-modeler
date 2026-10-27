@@ -66,14 +66,15 @@ statusBar.show("elementTemplates", {
 statusBar.hide("elementTemplates");    // hide explicitly (used on error paths)
 ```
 
-The widget-shaped methods (`showElementTemplatesLoading`, `showEngineVersion`, `showBpmnlint`, `showDeploymentTarget`, …) stay until each caller moves to its slot. In VS Code they build a view and show it in the same slot.
+The widget-shaped methods (`showEngineVersion`, `showBpmnlint`, `showDeploymentTarget`, …) stay until each caller moves to its slot. In VS Code they build a view and show it in the same slot. The element-template service already shows its slot, so `showElementTemplatesLoading` and its siblings have no caller left.
 
 A transient view hides itself after 3 s. Each slot reuses one item, so **a
 later show or hide of a slot cancels its pending auto-hide**. Any status that
-hides itself keeps that rule. The template slot shows the latest status: a
-count stays 3 s after the latest ready, and a spinner stays until the next
-ready or hide. It does not track which loads still run, so when loads overlap,
-one load's count or hide ends another load's spinner.
+hides itself keeps that rule. The template loads of all editors share one
+slot, so the core tracks them in `TemplateLoadStatus`
+(`libs/modeler-core/src/modeler/bpmn/domain/`): the spinner stays while any
+load reads from disk, and when the last one ends, the slot shows that load's
+count for 3 s, or hides if it failed or was superseded.
 
 Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/api/ux-guidelines/status-bar) says: status for the whole workspace and its progress on the **left** (the element-template load, which also runs for diagrams in the background), the focused diagram's state on the **right** (engine version, BPMNlint, deployment target). Keep items concise: an icon and short text, with tooltips for detail.
 
