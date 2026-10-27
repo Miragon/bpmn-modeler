@@ -51,6 +51,16 @@ slots retain the legacy unnamed keys when absent; deletion/rename cleans up
 the target slot. Never write secrets into the shared file; whole-value
 environment references (below) are the only credential values it may hold.
 
+Each edit of the file returns a `TargetChange` from `DeploymentTargets`
+(`created`, `saved`, `renamed` or `removed`, with the target it replaces or
+removes as `before`), the one place that decides whether a save renames. It names
+the retired slot (the old or deleted name, even when the file no longer holds
+it), the retired target whose ledger rows are pruned, and the name whose
+approvals carry over: the saved or renamed target's, none for a create
+([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+The services act on the change, so nothing reads a target before saving or
+deleting it.
+
 Creating and updating are separate operations so a target is never overwritten
 by accident. **New** creates a target from the entered form data and rejects a
 name that already exists; **Save** updates the selected target in place and is
@@ -297,7 +307,8 @@ removes the row. A subsequent local deploy writes a local-origin row. Missing
 `origin` on older rows means local, preserving their interpretation.
 
 Named identity includes endpoint host so changing that host invalidates old
-rows. Target rename/delete prunes its ledger keys. Older name-only keys no
+rows. Target rename/delete prunes the ledger keys of the retired target its
+`TargetChange` names. Older name-only keys no
 longer match and show unknown until verification or deployment seeds a current
 row. This accepted reset avoids reusing a misleading green indicator.
 
