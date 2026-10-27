@@ -38,7 +38,7 @@ describe("ModelerSession", () => {
     });
 
     // A release on a zero counter must not drive it negative, or a later single
-    // acquire would fail to guard (the `> 0` check at session.ts:23).
+    // acquire would fail to guard.
     it("ignores underflow so a later acquire still guards", () => {
         const session = new ModelerSession("s");
 
@@ -49,11 +49,14 @@ describe("ModelerSession", () => {
         expect(session.isGuarded("<write/>")).toBe(true);
     });
 
-    it("matches echoes after line-ending normalization", () => {
+    it.each([
+        { lineEnding: "CRLF", written: "<xml>\r\n<a/>\r\n</xml>" },
+        { lineEnding: "lone CR", written: "<xml>\r<a/>\r</xml>" },
+    ])("matches the LF echo of a write with $lineEnding line endings", ({ written }) => {
         const session = new ModelerSession("s");
 
-        session.acquireGuard("<xml/>\r\n");
+        session.acquireGuard(written);
 
-        expect(session.isGuarded("<xml/>\n")).toBe(true);
+        expect(session.isGuarded("<xml>\n<a/>\n</xml>")).toBe(true);
     });
 });
