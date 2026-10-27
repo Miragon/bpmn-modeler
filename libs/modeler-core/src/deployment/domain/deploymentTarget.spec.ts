@@ -4,6 +4,7 @@ import {
     DisallowedEnvReferenceError,
     InvalidDeploymentConfigError,
     DuplicateDeploymentTargetError,
+    InvalidDeploymentTargetError,
     InvalidDeploymentTargetsFileError,
     UnresolvedEnvVariableError,
 } from "./errors";
@@ -12,6 +13,7 @@ import { CredentialRefs } from "./credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "./deployment";
 import {
     DeploymentTarget,
+    DeploymentTargetFields,
     DeploymentTargets,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
@@ -138,29 +140,49 @@ describe("parseDeploymentTargetsFile", () => {
         expect(parsed.map((t) => t.name)).toEqual(["dev"]);
     });
 
-    it.each([
-        ["a non-object", 42],
-        ["a missing targets array", { targets: "nope" }],
-        ["an empty name", { targets: [{ name: "  ", engine: "c7", endpoint: "http://h" }] }],
-        ["an unknown engine", { targets: [{ name: "d", engine: "c9", endpoint: "http://h" }] }],
-        ["a missing endpoint", { targets: [{ name: "d", engine: "c7" }] }],
+    it.each<[string, unknown, string]>([
+        ["a non-object", 42, "expected a JSON object"],
+        ["null", null, "expected a JSON object"],
+        ["a missing targets array", { targets: "nope" }, "`targets` must be an array"],
+        ["a non-object entry", { targets: [42] }, "targets[0] must be an object"],
+        ["a null entry", { targets: [null] }, "targets[0] must be an object"],
         [
-            "an unknown auth type",
-            { targets: [{ name: "d", engine: "c7", endpoint: "http://h", auth: { type: "x" } }] },
-        ],
-    ])("throws on %s", (_desc, json) => {
-        expect(() => parseDeploymentTargetsFile(json)).toThrow(InvalidDeploymentTargetsFileError);
-    });
-
-    it("rejects duplicate names", () => {
-        expect(() =>
-            parseDeploymentTargetsFile({
+            "duplicate names",
+            {
                 targets: [
                     { name: "dev", engine: "c7", endpoint: "http://h" },
-                    { name: "dev", engine: "c8", endpoint: "http://h2" },
+                    { name: " dev ", engine: "c8", endpoint: "http://h2" },
                 ],
-            }),
-        ).toThrow(InvalidDeploymentTargetsFileError);
+            },
+            'duplicate target name "dev"',
+        ],
+    ])("rejects %s", (_desc, json, reason) => {
+        expect(() => parseDeploymentTargetsFile(json)).toThrow(
+            new InvalidDeploymentTargetsFileError(reason),
+        );
+    });
+
+    it.each<[Record<string, unknown>, string]>([
+        [{ name: 42 }, '"name" must be a non-empty string'],
+        [{ name: "  " }, '"name" must be a non-empty string'],
+        [{ engine: "c9" }, '"engine" must be "c7" or "c8"'],
+        [{ engine: 7 }, '"engine" must be "c7" or "c8"'],
+        [{ endpoint: undefined }, '"endpoint" must be a non-empty string'],
+        [{ endpoint: " " }, '"endpoint" must be a non-empty string'],
+        [{ tenantId: 42 }, '"tenantId" must be a string'],
+        [{ auth: "basic" }, '"auth" must be an object'],
+        [{ auth: null }, '"auth" must be an object'],
+        [{ auth: { type: "x" } }, '"auth.type" must be "none", "basic", or "oauth2"'],
+        [{ auth: {} }, '"auth.type" must be "none", "basic", or "oauth2"'],
+        [{ auth: { type: "oauth2", audience: 42 } }, '"auth.audience" must be a string'],
+        [{ endpoints: "x" }, '"endpoints" must be an object'],
+        [{ endpoints: null }, '"endpoints" must be an object'],
+        [{ endpoints: { deploy: 42 } }, '"endpoints.deploy" must be a string'],
+        [{ endpoints: { startInstance: 42 } }, '"endpoints.startInstance" must be a string'],
+    ])("names targets[1] in the message for %j", (entry, problem) => {
+        expect(parseErrorMessage(entry)).toBe(
+            `Invalid deployment targets file: targets[1] ${problem}`,
+        );
     });
 
     it("parses whole-value env references in the active auth type's credential fields", () => {
@@ -323,6 +345,208 @@ describe("parseDeploymentTargetsFile", () => {
 });
 
 describe("DeploymentTarget", () => {
+    describe("create", () => {
+        const FIELDS: DeploymentTargetFields = {
+            name: "dev",
+            engine: "c7",
+            endpoint: "http://localhost:8080/engine-rest",
+            authType: "none",
+        };
+        const OAUTH2: Partial<DeploymentTargetFields> = {
+            authType: "oauth2",
+            tokenEndpoint: "https://login/token",
+            audience: "aud",
+        };
+
+        interface CreateCase {
+            readonly behaviour: string;
+            readonly fields: Partial<DeploymentTargetFields>;
+            readonly created: Partial<Record<keyof DeploymentTarget, unknown>>;
+        }
+
+        const createCases: CreateCase[] = [
+            {
+                behaviour: "trims the name, which identifies the target",
+                fields: { name: "  dev  " },
+                created: { name: "dev" },
+            },
+            {
+                behaviour: "keeps the endpoint verbatim, since named ledger keys are built from it",
+                fields: { endpoint: " http://localhost:8080/engine-rest " },
+                created: { endpoint: " http://localhost:8080/engine-rest " },
+            },
+            {
+                behaviour: "keeps the tenant verbatim",
+                fields: { tenantId: " acme " },
+                created: { tenantId: " acme " },
+            },
+            {
+                behaviour: "defaults a missing tenant to empty",
+                fields: {},
+                created: { engine: "c7", tenantId: "", authType: "none" },
+            },
+            {
+                behaviour: "trims the URL overrides",
+                fields: {
+                    deployUrl: "  https://gw/deploy  ",
+                    startInstanceUrl: " https://gw/{processDefinitionKey}/start ",
+                },
+                created: {
+                    deployUrl: "https://gw/deploy",
+                    startInstanceUrl: "https://gw/{processDefinitionKey}/start",
+                },
+            },
+            {
+                behaviour: "drops blank URL overrides",
+                fields: { deployUrl: "   ", startInstanceUrl: "" },
+                created: { deployUrl: undefined, startInstanceUrl: undefined },
+            },
+            {
+                behaviour: "keeps the token endpoint, audience and client refs of an OAuth2 target",
+                fields: {
+                    ...OAUTH2,
+                    credentialRefs: CredentialRefs.oauth2(
+                        "${env:MIRAGON_CLIENT_ID}",
+                        "${env:MIRAGON_CLIENT_SECRET}",
+                    ),
+                },
+                created: {
+                    authType: "oauth2",
+                    tokenEndpoint: "https://login/token",
+                    audience: "aud",
+                    credentialRefs: CredentialRefs.oauth2(
+                        "${env:MIRAGON_CLIENT_ID}",
+                        "${env:MIRAGON_CLIENT_SECRET}",
+                    ),
+                },
+            },
+            {
+                behaviour: "defaults a missing OAuth2 token endpoint and audience to empty",
+                fields: { authType: "oauth2" },
+                created: { authType: "oauth2", tokenEndpoint: "", audience: "" },
+            },
+            {
+                behaviour: "keeps the user refs of a basic target",
+                fields: {
+                    authType: "basic",
+                    credentialRefs: CredentialRefs.basic("${env:MIRAGON_USER}", undefined),
+                },
+                created: {
+                    authType: "basic",
+                    credentialRefs: CredentialRefs.basic("${env:MIRAGON_USER}", undefined),
+                },
+            },
+            ...(["basic", "none"] as const).map((authType): CreateCase => ({
+                behaviour: `drops the token endpoint and audience of a ${authType} target`,
+                fields: { ...OAUTH2, authType },
+                created: { authType, tokenEndpoint: "", audience: "" },
+            })),
+            {
+                behaviour: "drops the refs of another auth type",
+                fields: {
+                    ...OAUTH2,
+                    credentialRefs: CredentialRefs.basic("${env:MIRAGON_USER}", undefined),
+                },
+                created: { credentialRefs: CredentialRefs.none() },
+            },
+            {
+                behaviour: "drops the client refs of a basic target",
+                fields: {
+                    authType: "basic",
+                    credentialRefs: CredentialRefs.oauth2("${env:MIRAGON_CLIENT_ID}", undefined),
+                },
+                created: { credentialRefs: CredentialRefs.none() },
+            },
+            {
+                behaviour: "drops every credential ref of a target without auth",
+                fields: {
+                    credentialRefs: CredentialRefs.basic(
+                        "${env:MIRAGON_USER}",
+                        "${env:MIRAGON_PW}",
+                    ),
+                },
+                created: { credentialRefs: CredentialRefs.none() },
+            },
+            {
+                behaviour: "ignores an invalid ref in a field its auth type drops",
+                fields: {
+                    authType: "basic",
+                    tokenEndpoint: "https://${env:AWS_REGION}/token",
+                    audience: "${env:}",
+                },
+                created: { tokenEndpoint: "", audience: "" },
+            },
+            {
+                behaviour: "accepts prefixed env references in every template field",
+                fields: {
+                    endpoint: "${env:MIRAGON_URL}",
+                    tenantId: "${env:MIRAGON_TENANT}",
+                    authType: "oauth2",
+                    tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
+                    audience: "${env:MIRAGON_AUD}",
+                    deployUrl: "${env:MIRAGON_URL}/deploy",
+                    startInstanceUrl: "${env:MIRAGON_URL}/{processDefinitionKey}/start",
+                },
+                created: {
+                    endpoint: "${env:MIRAGON_URL}",
+                    tenantId: "${env:MIRAGON_TENANT}",
+                    tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
+                    audience: "${env:MIRAGON_AUD}",
+                    deployUrl: "${env:MIRAGON_URL}/deploy",
+                    startInstanceUrl: "${env:MIRAGON_URL}/{processDefinitionKey}/start",
+                },
+            },
+        ];
+
+        it.each(createCases)("$behaviour", ({ fields, created }) => {
+            expect(DeploymentTarget.create({ ...FIELDS, ...fields })).toMatchObject(created);
+        });
+
+        it.each(createCases)(
+            "reads back from the file what it writes: $behaviour",
+            ({ fields }) => {
+                const created = DeploymentTarget.create({ ...FIELDS, ...fields });
+
+                expect(parseDeploymentTargetsFile({ targets: [created.toJson()] })[0]).toEqual(
+                    created,
+                );
+            },
+        );
+
+        it.each<[string, Partial<DeploymentTargetFields>, string, string]>([
+            ["an empty name", { name: "" }, "name", "must be a non-empty string"],
+            ["a blank name", { name: "   " }, "name", "must be a non-empty string"],
+            ["a blank endpoint", { endpoint: " " }, "endpoint", "must be a non-empty string"],
+            ["an unknown engine", { engine: "c9" }, "engine", 'must be "c7" or "c8"'],
+            ["a missing engine", { engine: undefined }, "engine", 'must be "c7" or "c8"'],
+            [
+                "an unknown auth type",
+                { authType: "x" },
+                "auth.type",
+                'must be "none", "basic", or "oauth2"',
+            ],
+        ])("rejects %s", (_desc, fields, field, reason) => {
+            const error = errorFrom(() => DeploymentTarget.create({ ...FIELDS, ...fields }));
+
+            expect(error).toBeInstanceOf(InvalidDeploymentTargetError);
+            expect(error).toMatchObject({ field, message: `"${field}" ${reason}` });
+        });
+
+        it.each<[string, Partial<DeploymentTargetFields>]>([
+            ["endpoint", { endpoint: "${env:GITHUB_TOKEN}" }],
+            ["tenantId", { tenantId: "${env:TENANT}" }],
+            ["auth.tokenEndpoint", { ...OAUTH2, tokenEndpoint: "${env:MIRAGON_IDP" }],
+            ["auth.audience", { ...OAUTH2, audience: "${env:}" }],
+            ["endpoints.deploy", { deployUrl: "${env:HOME}/deploy" }],
+            ["endpoints.startInstance", { startInstanceUrl: "${env:MIRAGON_}" }],
+        ])("names the JSON field %s of a disallowed ref", (field, fields) => {
+            const error = errorFrom(() => DeploymentTarget.create({ ...FIELDS, ...fields }));
+
+            expect(error).toBeInstanceOf(DisallowedEnvReferenceError);
+            expect(error).toMatchObject({ field });
+        });
+    });
+
     describe("authWith", () => {
         const basicTarget = (credentialRefs?: CredentialRefs) =>
             target("dev", { authType: "basic", credentialRefs });
@@ -374,6 +598,20 @@ describe("DeploymentTarget", () => {
         it("uses stored credentials when the file has no refs, blanking a missing field", () => {
             expect(basicTarget().authWith({ password: "stored-secret" })).toEqual(
                 new BasicAuth("", "stored-secret"),
+            );
+        });
+
+        it("keeps a username ref without a password, blanking the password", () => {
+            expect(
+                basicTarget(CredentialRefs.basic("${env:MIRAGON_USER}", undefined)).authWith(
+                    undefined,
+                ),
+            ).toEqual(new BasicAuth("${env:MIRAGON_USER}", ""));
+        });
+
+        it("keeps a stored client secret without a client id, blanking the id", () => {
+            expect(oauth2Target().authWith({ clientSecret: "stored-secret" })).toEqual(
+                new OAuth2Auth("", "stored-secret", "https://login/token", "aud"),
             );
         });
 
@@ -618,32 +856,6 @@ describe("DeploymentTarget", () => {
             ).toEqual(["https://camunda.example"]);
         });
     });
-
-    describe("assertEnvRefsValid", () => {
-        it("passes literals and prefixed refs", () => {
-            expect(() =>
-                target("dev", {
-                    endpoint: "${env:MIRAGON_URL}",
-                    tenantId: "acme",
-                    deployUrl: "${env:MIRAGON_URL}/deploy",
-                }).assertEnvRefsValid(),
-            ).not.toThrow();
-        });
-
-        it.each<[string, Partial<DeploymentTarget>]>([
-            ["endpoint", { endpoint: "${env:GITHUB_TOKEN}" }],
-            ["tenantId", { tenantId: "${env:TENANT}" }],
-            ["auth.tokenEndpoint", { tokenEndpoint: "${env:MIRAGON_IDP" }],
-            ["auth.audience", { audience: "${env:}" }],
-            ["endpoints.deploy", { deployUrl: "${env:HOME}/deploy" }],
-            ["endpoints.startInstance", { startInstanceUrl: "${env:MIRAGON_}" }],
-        ])("names the JSON field %s of a disallowed ref", (field, overrides) => {
-            const error = errorFrom(() => target("dev", overrides).assertEnvRefsValid());
-
-            expect(error).toBeInstanceOf(DisallowedEnvReferenceError);
-            expect(error).toMatchObject({ field });
-        });
-    });
 });
 
 describe("serializeDeploymentTargets", () => {
@@ -661,6 +873,12 @@ describe("serializeDeploymentTargets", () => {
         const parsed = parseDeploymentTargetsFile(JSON.parse(serializeDeploymentTargets(targets)));
 
         expect(parsed).toEqual(targets);
+    });
+
+    it("writes the auth type of a target without auth", () => {
+        expect(JSON.parse(serializeDeploymentTargets([target("dev")])).targets[0].auth).toEqual({
+            type: "none",
+        });
     });
 
     it("omits the endpoints block when there are no overrides", () => {

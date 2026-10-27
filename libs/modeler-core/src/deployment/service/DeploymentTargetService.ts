@@ -171,10 +171,10 @@ export class DeploymentTargetService {
 
         const credentials = toAuthConfig(auth);
         credentials.assertCredentialEnvRefsValid();
-        const draft = toDomainTarget(payload, CredentialRefs.of(credentials));
-        draft.assertEnvRefsValid();
-        // Round-tripping through the parser applies every remaining file rule.
-        const [target] = parseDeploymentTargetsFile({ targets: [draft.toJson()] });
+        const target = DeploymentTarget.create({
+            ...payload,
+            credentialRefs: CredentialRefs.of(credentials),
+        });
         const current = new DeploymentTargets(await this.readTargets(location));
         const saved = savedName === undefined ? undefined : current.find(savedName);
         const next = apply(current, target);
@@ -351,24 +351,6 @@ export class DeploymentTargetService {
             await this.secretStore.saveOAuth2(auth.clientId, auth.clientSecret, slot);
         }
     }
-}
-
-function toDomainTarget(
-    payload: DeploymentTargetPayload,
-    credentialRefs: CredentialRefs,
-): DeploymentTarget {
-    return new DeploymentTarget(
-        payload.name.trim(),
-        payload.engine,
-        payload.endpoint,
-        payload.tenantId,
-        payload.authType,
-        payload.tokenEndpoint ?? "",
-        payload.audience ?? "",
-        payload.deployUrl?.trim() ? payload.deployUrl.trim() : undefined,
-        payload.startInstanceUrl?.trim() ? payload.startInstanceUrl.trim() : undefined,
-        credentialRefs,
-    );
 }
 
 export function toAuthConfig(payload: AuthConfigPayload): AuthConfig {

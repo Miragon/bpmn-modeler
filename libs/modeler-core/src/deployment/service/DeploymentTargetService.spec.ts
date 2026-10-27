@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
 
-import { DisallowedEnvReferenceError } from "../domain/errors";
+import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
 import { createTestHost, TestHostOptions } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
@@ -327,6 +327,34 @@ describe("DeploymentTargetService.saveTarget", () => {
         await expect(c.host.secrets.getBasicAuth(slot(fields.name))).resolves.toBeUndefined();
         expect(c.host.deploymentState.activeTargetName).toBe("old");
     });
+
+    it.each([
+        { overrides: { engine: "c9" }, field: "engine" },
+        { overrides: { authType: "x" }, field: "auth.type" },
+    ])(
+        "rejects an unknown $field from the unchecked protocol payload and writes nothing",
+        async ({ overrides, field }) => {
+            const c = serviceWithTargetsFile();
+
+            const saving = c.service.saveTarget(
+                {
+                    name: "dev",
+                    engine: "c7",
+                    endpoint: "http://h",
+                    tenantId: "",
+                    authType: "none",
+                    ...overrides,
+                } as DeploymentTargetPayload,
+                { authType: "none" },
+                undefined,
+                DOC_DIR,
+            );
+
+            await expect(saving).rejects.toBeInstanceOf(InvalidDeploymentTargetError);
+            await expect(saving).rejects.toMatchObject({ field });
+            await expectNothingPersisted(c);
+        },
+    );
 
     it("writes the upserted file, stores secrets under the slot, and activates", async () => {
         const c = createService({ files: { [FILE_PATH]: fileWith(target("prod")) } });

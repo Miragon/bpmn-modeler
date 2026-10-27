@@ -26,8 +26,20 @@ other tools require an explicit reconciliation path.
 Store named targets in `<configFolder>/deployment-targets.json`, defaulting to
 `.camunda/deployment-targets.json`. Discover the nearest file by walking from
 the focused document toward its workspace root using the shared config-file
-discovery helper. Target names are trimmed, non-empty and unique. Parse the
-team-editable file defensively and register its
+discovery helper. Target names are unique.
+`DeploymentTarget.create` owns the target value rules, and both the file parser
+and a form save build targets through it: a trimmed, non-blank name; an engine
+of `c7` or `c8`; a non-blank endpoint and the tenant kept verbatim, since named
+ledger keys are built from the endpoint and trimming would orphan the rows of a
+hand-edited file; URL overrides trimmed, or dropped when blank; an auth type of
+`none`, `basic` or `oauth2`, keeping only its own fields and credential refs
+(`TargetAuth`); and valid environment references
+([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+`create` checks the engine and auth type at runtime, because the protocol
+payload of a form save is not checked on arrival: a malformed save is rejected
+before it writes a file that would no longer load. Parse the team-editable file
+defensively: the parser checks the JSON shape and reports a broken value rule
+as `targets[i]` plus the field. Register the file's
 [JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json)
 for editor validation. A malformed file reports an error and yields no targets
 rather than crashing the sidebar.
@@ -147,12 +159,11 @@ Saving a target through the form approves only the origins the user typed:
 literal ones that no target in the shared file names yet. A host the form merely
 carried over still asks — from the saved target, or from the selected one that
 **New** starts from.
-`${env:…}` URLs are never approved on save, and the parser drops
-`tokenEndpoint`/`audience` from a target that isn't OAuth2, so a hidden token
-endpoint can't be prefilled and pass as typed when the form switches the target
-to OAuth2. Approvals live in the secret store
-beside the credentials under the same slot (`getApprovedDestinations` /
-`saveApprovedDestinations`), so a resolved host is never persisted in
+`${env:…}` URLs are never approved on save, and a target that isn't OAuth2
+keeps no `tokenEndpoint`/`audience`, so a hidden token endpoint can't be
+prefilled and pass as typed when the form switches the target to OAuth2.
+Approvals live in the secret store beside the credentials under the same slot
+(`getApprovedDestinations` / `saveApprovedDestinations`), so a resolved host is never persisted in
 cleartext, `delete` removes them with the credentials, and a rename carries them
 over. Ad-hoc requests are gated only once a `.env` value is substituted into
 them, under one shared `ad-hoc` slot like their credentials: a typed endpoint is
@@ -317,7 +328,9 @@ states and timestamps.
   the file named a host and saved after that host was removed counts it as
   typed: the save sees only the file's current state.
 - A non-OAuth2 target loses a hand-written `auth.tokenEndpoint`/`audience` on
-  load; the file never round-tripped them anyway.
+  load and on save, before its references are checked, so a hidden field never
+  blocks a save. Padded URL overrides of a hand-edited file load trimmed and are
+  rewritten trimmed.
 - Environment references trade convenience for containment: no process-env or
   Codespaces variables, a mandatory `MIRAGON_` prefix (existing `CAMUNDA_*`
   entries must be duplicated), literal values may not contain `${env:`, and a
