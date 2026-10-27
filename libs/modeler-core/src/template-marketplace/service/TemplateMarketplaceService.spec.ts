@@ -353,8 +353,33 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         await service.addMarketplace("/Users/me/templates");
 
         expect(notifier.logged("warning")).toContainEqual(
-            expect.stringContaining("has no template files (local folder /Users/me/templates)"),
+            expect.stringContaining(
+                'has no template files (local folder /Users/me/templates path "element-templates")',
+            ),
         );
+    });
+
+    it("tells two failing relative sources of a local marketplace apart in the report", async () => {
+        const manifest = JSON.stringify({ sources: [{ path: "one" }, { path: "two" }] });
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockRejectedValue(new Error("unreadable")),
+                      fetchFile: vi.fn(),
+                  },
+        );
+        const { service } = serviceOver(factory);
+
+        const report = await service.addMarketplace("/Users/me/templates");
+
+        expect(report.reasons()).toEqual([
+            'local folder /Users/me/templates path "one": unreadable',
+            'local folder /Users/me/templates path "two": unreadable',
+        ]);
     });
 });
 

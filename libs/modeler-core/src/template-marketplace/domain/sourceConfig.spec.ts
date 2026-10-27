@@ -330,6 +330,11 @@ describe("describeSourceConfig", () => {
             config: { kind: "local", rootDir: "/srv/templates", path: "" },
             description: "local folder /srv/templates",
         },
+        {
+            behaviour: "names the path of a relative source in a local marketplace",
+            config: { kind: "local", rootDir: "/srv/templates", path: "element-templates" },
+            description: 'local folder /srv/templates path "element-templates"',
+        },
     ])("$behaviour", ({ config, description }) => {
         expect(describeSourceConfig(config)).toBe(description);
     });
