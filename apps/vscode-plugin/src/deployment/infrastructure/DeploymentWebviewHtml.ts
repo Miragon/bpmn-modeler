@@ -1,5 +1,6 @@
 import { Uri, Webview } from "vscode";
 
+import { webviewContentSecurityPolicy } from "../../shared/infrastructure/webviewContentSecurityPolicy";
 import { createWebviewNonce } from "../../shared/infrastructure/webviewNonce";
 
 const DEPLOYMENT_WEBVIEW_PATH = "deployment-webview";
@@ -19,6 +20,10 @@ export function deploymentWebviewHtml(webview: Webview, extensionUri: Uri): stri
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
     const nonce = createWebviewNonce();
+    const policy = webviewContentSecurityPolicy("deployment", {
+        cspSource: webview.cspSource,
+        nonce,
+    });
 
     return `
         <!DOCTYPE html>
@@ -26,8 +31,7 @@ export function deploymentWebviewHtml(webview: Webview, extensionUri: Uri): stri
             <head>
                 <meta charset="UTF-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                <meta http-equiv="Content-Security-Policy"
-                      content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none';"/>
+                <meta http-equiv="Content-Security-Policy" content="${policy}"/>
                 <link href="${styleUri}" rel="stylesheet"/>
                 <title>Deploy Diagram</title>
             </head>

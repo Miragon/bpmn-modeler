@@ -38,17 +38,25 @@ Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag and
 limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
 for the editors (DMN also gets `assets/` for `reset.css`), and
 `DeploymentController.resolveWebviewView` for the deployment sidebar.
-`WebviewHtml.spec.ts` and `DeploymentWebviewHtml.spec.ts` pin each policy;
-widen it there and in the shell together. The BPMN policy:
+`webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
+`apps/vscode-plugin/src/shared/infrastructure/webviewContentSecurityPolicy.ts`
+builds all four policies: the directives every shell shares are written once,
+and its `BUNDLE_SOURCES` table lists what each bundle adds. A table entry may
+only widen `script-src` and the load directives (`img-src`, `font-src`,
+`connect-src`, `frame-src`, `object-src`); another key fails the typecheck and
+never reaches the policy. Its spec pins each policy, so widen a shell in the
+table and in that spec. Every shell spec runs `describeShellPolicy` from
+`src/__fixtures__/webviewShell.ts`, which checks only that the shell carries the
+builder's policy for its script's nonce and draws a fresh nonce per render. The
+BPMN policy:
 
-```html
-<meta http-equiv="Content-Security-Policy"
-  content="default-src 'none';
-    script-src 'nonce-${nonce}' ${webview.cspSource};
-    style-src ${webview.cspSource} 'unsafe-inline';
-    img-src ${webview.cspSource} data: https:;
-    font-src ${webview.cspSource} data:;
-    base-uri 'none'; form-action 'none';">
+```text
+default-src 'none';
+script-src 'nonce-${nonce}' ${webview.cspSource};
+style-src ${webview.cspSource} 'unsafe-inline';
+img-src ${webview.cspSource} data: https:;
+font-src ${webview.cspSource} data:;
+base-uri 'none'; form-action 'none'
 ```
 
 - In BPMN and DMN, `script-src` must include `${webview.cspSource}`: the bundle
@@ -306,6 +314,7 @@ See `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`.
 
 - **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
+- **Shell CSP builder**: `apps/vscode-plugin/src/shared/infrastructure/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`)
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`

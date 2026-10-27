@@ -1,3 +1,5 @@
+import { normalizeLineEndings } from "../../kernel/domain/lineEndings";
+
 /**
  * Per-editor echo-prevention guard. It suppresses only a document change whose
  * content matches an in-flight core write; a different host edit must still
@@ -13,20 +15,18 @@ export class ModelerSession {
     }
 
     acquireGuard(content: string): void {
-        const key = normalizeContent(content);
+        const key = normalizeLineEndings(content);
         this.guardedContent.set(key, (this.guardedContent.get(key) ?? 0) + 1);
     }
 
     releaseGuard(content: string): void {
-        const key = normalizeContent(content);
+        const key = normalizeLineEndings(content);
         const count = this.guardedContent.get(key) ?? 0;
         if (count <= 1) this.guardedContent.delete(key);
         else this.guardedContent.set(key, count - 1);
     }
 
     isGuarded(content: string): boolean {
-        return this.guardedContent.has(normalizeContent(content));
+        return this.guardedContent.has(normalizeLineEndings(content));
     }
 }
-
-const normalizeContent = (content: string): string => content.replace(/\r\n?/g, "\n");

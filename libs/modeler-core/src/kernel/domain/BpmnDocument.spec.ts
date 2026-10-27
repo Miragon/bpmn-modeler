@@ -610,9 +610,30 @@ describe("BpmnDocument.extractProcessId", () => {
         expect(new BpmnDocument(xml).extractProcessId()).toBe(processId);
     });
 
-    it("throws when the diagram has no process", () => {
-        expect(() => new BpmnDocument(unknownXml).extractProcessId()).toThrow(
-            "No <bpmn:process> element with an id attribute found in the BPMN file.",
+    it.each([
+        { given: "a diagram without a process", xml: unknownXml, element: "bpmn:process" },
+        {
+            given: "a bpmn2 diagram without a process",
+            xml: `<bpmn2:definitions xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:collaboration id="Collaboration_1" />
+</bpmn2:definitions>`,
+            element: "bpmn2:process",
+        },
+        {
+            given: "a bpmn2 diagram whose process has no id",
+            xml: `<bpmn2:definitions xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:process isExecutable="true" />
+</bpmn2:definitions>`,
+            element: "bpmn2:process",
+        },
+        {
+            given: "a default-namespace diagram without a process",
+            xml: `<definitions xmlns="${BPMN_NAMESPACE_URI}" id="Definitions_1" />`,
+            element: "process",
+        },
+    ])("names the missing <$element> for $given", ({ xml, element }) => {
+        expect(() => new BpmnDocument(xml).extractProcessId()).toThrow(
+            `No <${element}> element with an id attribute found in the BPMN file.`,
         );
     });
 });
