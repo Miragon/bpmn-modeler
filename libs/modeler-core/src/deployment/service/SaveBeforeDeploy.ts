@@ -15,16 +15,17 @@ export class SaveBeforeDeploy {
         // still holds every edit the webview synced before.
         await this.pendingEdits.flushIntoDocument(editorId);
 
-        // save() returns false for an unmodified document (nothing to persist);
-        // only a throw is a real save failure worth aborting for.
+        let saved: boolean;
         try {
-            await this.documentPort.save(editorId);
-            return { saved: true };
+            saved = await this.documentPort.save(editorId);
         } catch (error) {
             return {
                 saved: false,
                 message: `Could not save the diagram before deploying: ${(error as Error).message}`,
             };
         }
+        return saved
+            ? { saved: true }
+            : { saved: false, message: "The diagram could not be saved, so it was not deployed." };
     }
 }

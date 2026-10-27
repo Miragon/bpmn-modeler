@@ -235,7 +235,8 @@ through one `SaveBeforeDeploy` step. The sidebar saves only once the config is
 valid and the target admitted, so a request rejected at either step writes
 nothing. A declined credential approval, a failed `.env` lookup and an engine
 error all come after the save, on both deploys, and leave the diagram saved. A
-failed save aborts the deploy. Freshness compares against the current editor
+failed save aborts the deploy, whether the save throws or the host reports that
+it could not save. Freshness compares against the current editor
 buffer, not just disk, so an edit made after the deploy reads `changed` before
 it is saved. Additional sidebar files and Deploy Files… are deployed as saved.
 

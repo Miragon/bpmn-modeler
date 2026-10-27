@@ -31,6 +31,10 @@ export interface EditorHandle {
     getContent(): string;
     /** @returns `true` if applied, `false` if content was unchanged or the host refused the edit. */
     writeContent(content: string, expectedDocumentRevision?: number): Promise<boolean>;
+    /**
+     * @returns `true` when the document is saved or had nothing to save; `false`
+     * when the host could not save it.
+     */
     save(): Promise<boolean>;
 
     postMessage(message: Command | Query): Promise<boolean>;
