@@ -522,12 +522,95 @@ describe("BpmnDocument.migratedTo", () => {
     });
 });
 
+const BPMN_NAMESPACE_URI = "http://www.omg.org/spec/BPMN/20100524/MODEL";
+
+const diagramWith = (...rootElements: string[]) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  ${rootElements.join("\n  ")}
+</bpmn:definitions>`;
+
+const bpmn2Diagram = (rootAttributeBeforeBinding: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions ${rootAttributeBeforeBinding} xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:process id="P2" isExecutable="true" />
+</bpmn2:definitions>`;
+
+const POOLS = `<bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_External" processRef="External" />
+    <bpmn:participant id="Participant_Main" processRef="Main" />
+  </bpmn:collaboration>`;
+
 describe("BpmnDocument.extractProcessId", () => {
-    it("should extract the process id", () => {
-        expect(new BpmnDocument(c7Xml).extractProcessId()).toBe("Process_1aiafvx");
+    it.each([
+        { given: "a C7 diagram", xml: c7Xml, processId: "Process_1aiafvx" },
+        {
+            given: "a process whose id follows another attribute",
+            xml: diagramWith('<bpmn:process isExecutable="true" id="P1" />'),
+            processId: "P1",
+        },
+        {
+            given: "a diagram that binds the BPMN namespace to bpmn2",
+            xml: bpmn2Diagram('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'),
+            processId: "P2",
+        },
+        {
+            given: "a diagram whose targetNamespace names the BPMN namespace",
+            xml: bpmn2Diagram(`targetNamespace="${BPMN_NAMESPACE_URI}"`),
+            processId: "P2",
+        },
+        {
+            given: "a process outside a definitions root",
+            xml: '<bpmn:process id="P1" isExecutable="true" />',
+            processId: "P1",
+        },
+        {
+            given: "a diagram in the default BPMN namespace",
+            xml: defaultNamespaceDiagram(),
+            processId: "Process_1",
+        },
+        {
+            given: "a collaboration whose first process is not executable",
+            xml: diagramWith(
+                POOLS,
+                '<bpmn:process id="External" isExecutable="false" />',
+                '<bpmn:process id="Main" isExecutable="true" />',
+            ),
+            processId: "Main",
+        },
+        {
+            given: "a collaboration without an executable process",
+            xml: diagramWith(
+                POOLS,
+                '<bpmn:process id="External" isExecutable="false" />',
+                '<bpmn:process id="Main" isExecutable="false" />',
+            ),
+            processId: "External",
+        },
+        {
+            given: "a diagram whose first process has no id",
+            xml: diagramWith('<bpmn:process isExecutable="false" />', '<bpmn:process id="P1" />'),
+            processId: "P1",
+        },
+        {
+            given: "a longer element name that begins with the process name",
+            xml: diagramWith(
+                '<bpmn:processing id="Other" isExecutable="true" />',
+                '<bpmn:process id="P1" isExecutable="true" />',
+            ),
+            processId: "P1",
+        },
+        {
+            given: "a diagram whose first process tag is malformed",
+            xml: diagramWith(
+                '<bpmn:process id=Broken isExecutable="true" />',
+                '<bpmn:process id="P1" isExecutable="true" />',
+            ),
+            processId: "P1",
+        },
+    ])("reads $processId from $given", ({ xml, processId }) => {
+        expect(new BpmnDocument(xml).extractProcessId()).toBe(processId);
     });
 
-    it("should throw when no bpmn:process element is found", () => {
+    it("throws when the diagram has no process", () => {
         expect(() => new BpmnDocument(unknownXml).extractProcessId()).toThrow(
             "No <bpmn:process> element with an id attribute found in the BPMN file.",
         );

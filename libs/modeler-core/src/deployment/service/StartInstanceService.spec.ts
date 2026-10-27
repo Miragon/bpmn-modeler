@@ -27,7 +27,7 @@ import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, TestHostOptions } from "../../testing";
 
 // A real C7 document so `getProcessDefinitionKey` exercises the production
-// `BpmnDocument.extractProcessId` regex against valid XML rather than a stub.
+// `BpmnDocument.extractProcessId` against valid XML rather than a stub.
 const C7_DOC = BpmnDocument.empty("c7", "7.24.0");
 
 const PROJECT_DIR = "/work";
