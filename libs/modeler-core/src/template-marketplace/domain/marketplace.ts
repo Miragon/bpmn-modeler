@@ -306,6 +306,15 @@ function isAbsolutePath(path: string): boolean {
     return path.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith("\\\\");
 }
 
+/**
+ * Whether a listed path stays inside the cache slot it is written under. Real
+ * git trees only use `/`, but a compromised server can send `\` or drive-letter
+ * forms, so both separators split and every absolute shape is refused.
+ */
+export function isSafeRepoPath(repoPath: string): boolean {
+    return !isAbsolutePath(repoPath) && !repoPath.split(/[/\\]/).includes("..");
+}
+
 function isHomePath(path: string): boolean {
     return path === "~" || path.startsWith("~/") || path.startsWith("~\\");
 }
