@@ -8,7 +8,7 @@ import { LocalSourceConfig, RepositorySource } from "../domain/ports";
  * a plain `marketplace.json` folder with no repository, network, or rate limit
  * — useful for manual testing and for air-gapped / shared-drive setups.
  *
- * It speaks the same root-relative path vocabulary as {@link GitHubSource}, so
+ * It speaks the same root-relative path vocabulary as `GitHubSource`, so
  * the service and cache treat a local source exactly like a remote one.
  */
 export class LocalFileSource implements RepositorySource {

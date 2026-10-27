@@ -188,7 +188,7 @@ export class TemplateMarketplaceService {
         }
     }
 
-    /** The merge input handed to {@link BpmnElementTemplatesService}. */
+    /** The merge input handed to `BpmnElementTemplatesService`. */
     getCachedTemplatePaths(): Promise<string[]> {
         return this.cache.getCachedTemplatePaths();
     }

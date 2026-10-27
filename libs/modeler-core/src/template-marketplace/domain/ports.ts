@@ -122,9 +122,9 @@ export class RepositoryAccessError extends Error {
  * Encrypted-at-rest storage for per-host personal access tokens reaching
  * private template-marketplace repositories.
  *
- * A sibling of {@link SecretStorePort} rather than a member: that port is
- * deployment-shaped (basic-auth / OAuth2 pairs) and reshaping it would touch
- * every host. Keyed by `host` for a distinct token per origin; setting an
+ * A sibling of the deployment `SecretStorePort` rather than a member: that
+ * port is deployment-shaped (basic-auth / OAuth2 pairs) and reshaping it would
+ * touch every host. Keyed by `host` for a distinct token per origin; setting an
  * existing host overwrites, which is how token rotation is expressed.
  *
  * `getToken` may be user-visible — IntelliJ's PasswordSafe adapter raises a
@@ -140,8 +140,8 @@ export interface TokenStorePort {
 /**
  * Returns a trimmed token, or `undefined` on decline (empty/whitespace counts as
  * decline). Never throws: a decline is per-run data, not control flow — a
- * background `updateAll` must keep going after one, unlike {@link PickerPort}'s
- * throw-on-cancel prompts.
+ * background `updateAll` must keep going after one, unlike the engine prompts
+ * of `PickerPort`, which throw on dismissal.
  */
 export interface TokenPromptPort {
     promptForToken(host: string, reason: string): Promise<string | undefined>;
