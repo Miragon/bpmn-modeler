@@ -1,7 +1,7 @@
 import type { ClipboardBridge, ClipboardOptions } from "@miragon/bpmn-modeler";
 import {
+    type BpmnEditorCommand,
     type ClipboardQuery,
-    type Command,
     GetClipboardCommand,
     GetTextClipboardCommand,
     HOST_REPLY_TIMEOUT_MS,
@@ -77,7 +77,7 @@ function createProtocolClipboard(host: HostChannel): ResolvedClipboard {
 
 function createHostClipboardChannel<Reply extends { text: string | undefined }>(
     host: HostChannel,
-    commands: { request(): Command; write(text: string): Command },
+    commands: { request(): BpmnEditorCommand; write(text: string): BpmnEditorCommand },
 ): { bridge: ClipboardBridge; receive(reply: Reply): void } {
     let pendingReply = createResolver<Reply>();
 
