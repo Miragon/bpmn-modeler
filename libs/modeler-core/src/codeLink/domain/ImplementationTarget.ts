@@ -21,7 +21,55 @@ import {
     ImplementationKind,
     JVM_EXTENSIONS,
 } from "./ImplementationReference";
+import { SourceFileFacts } from "./SourceFileFacts";
 import { BEAN_ANNOTATION_PREFIX, commentAndCdataRanges, isInsideRanges } from "./sourceText";
+
+export interface ContentSearch {
+    readonly extensions: readonly string[];
+    readonly pattern: RegExp;
+}
+
+export class ImplementationTarget {
+    static of(_kind: ImplementationKind, _reference: string): ImplementationTarget {
+        return new ImplementationTarget();
+    }
+
+    static isKnownKind(_kind: unknown): _kind is ImplementationKind {
+        return false;
+    }
+
+    get label(): string {
+        return "";
+    }
+
+    get fileNameGlob(): string | undefined {
+        return undefined;
+    }
+
+    get isSearchable(): boolean {
+        return false;
+    }
+
+    get isDecidedByFacts(): boolean {
+        return false;
+    }
+
+    matchesFileName(_absolutePath: string): boolean {
+        return false;
+    }
+
+    contentSearchAfter(_fileNameMatches: readonly string[]): ContentSearch | undefined {
+        return undefined;
+    }
+
+    isImplementedBy(_absolutePath: string, _content?: string): boolean {
+        return false;
+    }
+
+    isDeclaredIn(_facts: SourceFileFacts, _content: string | undefined): boolean {
+        return false;
+    }
+}
 
 /**
  * `camunda:class` is a fully-qualified name, so the file path *is* the proof —
