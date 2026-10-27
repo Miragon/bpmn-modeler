@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 class AutoHidingStatusSlotsTest {
     private class RecordingStatusSlots : StatusSlots {
         val views = linkedMapOf<StatusSlot, StatusView>()
+        val hidden = mutableListOf<StatusSlot>()
 
         override fun show(slot: StatusSlot, view: StatusView) {
             views[slot] = view
@@ -15,6 +16,7 @@ class AutoHidingStatusSlotsTest {
 
         override fun hide(slot: StatusSlot) {
             views.remove(slot)
+            hidden += slot
         }
     }
 
@@ -57,14 +59,13 @@ class AutoHidingStatusSlotsTest {
     }
 
     @Test
-    fun `cancels the pending auto-hide when the slot is hidden`() {
+    fun `leaves no auto-hide pending once the slot is hidden`() {
         slots.show(StatusSlot.ELEMENT_TEMPLATES, templateCount)
         slots.hide(StatusSlot.ELEMENT_TEMPLATES)
-        slots.show(StatusSlot.ELEMENT_TEMPLATES, templatesLoading)
 
         scheduler.runPending()
 
-        assertEquals(mapOf(StatusSlot.ELEMENT_TEMPLATES to templatesLoading), shown.views)
+        assertEquals(listOf(StatusSlot.ELEMENT_TEMPLATES), shown.hidden)
     }
 
     @Test
