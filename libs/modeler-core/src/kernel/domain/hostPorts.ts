@@ -147,6 +147,9 @@ export type MarketplaceSettingsEntry =
           readonly ref?: string;
       };
 
+/** Follow the host's theme, or keep the modeler light. */
+export type ColorThemeSetting = "automatic" | "light";
+
 /**
  * Read-only access to the modeler's user/workspace configuration.
  */
@@ -161,7 +164,7 @@ export interface SettingsPort {
      * shown automation rules they do not care about. Defaults to `true`.
      */
     getLintingEnabled(): boolean;
-    getColorTheme(): "automatic" | "light";
+    getColorTheme(): ColorThemeSetting;
     /**
      * The default landing mode (View/Design/Implement) for an editor with no
      * persisted mode. A seed only — `implement` on an untagged model resolves to

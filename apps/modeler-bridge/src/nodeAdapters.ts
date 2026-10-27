@@ -35,6 +35,7 @@ import { join, posix, relative, sep } from "node:path";
 import {
     changedSettingKeys,
     coalesceWatcherEvents,
+    ColorThemeSetting,
     DEFAULT_LINTING_ENABLED,
     DirectoryNotFound,
     EditorSubscription,
@@ -541,7 +542,7 @@ export class BridgeSettings implements SettingsPort {
     getC8ApiVersion(): string {
         return this.snapshot.c8ApiVersion;
     }
-    getColorTheme(): "automatic" | "light" {
+    getColorTheme(): ColorThemeSetting {
         return this.snapshot.colorTheme;
     }
     getDefaultMode(): SurfaceMode {

@@ -1,6 +1,7 @@
 import { ConfigurationTarget, workspace } from "vscode";
 
 import {
+    ColorThemeSetting,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
     parseSetting,
@@ -37,7 +38,7 @@ export class VsCodeSettings implements SettingsPort {
         return readSetting("c8ApiVersion");
     }
 
-    getColorTheme(): "automatic" | "light" {
+    getColorTheme(): ColorThemeSetting {
         return readSetting("colorTheme");
     }
 

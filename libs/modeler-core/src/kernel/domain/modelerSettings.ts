@@ -1,6 +1,6 @@
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { MarketplaceSettingsEntry } from "./hostPorts";
+import { ColorThemeSetting, MarketplaceSettingsEntry } from "./hostPorts";
 
 /**
  * The `miragon.bpmnModeler.*` values the core reads through `SettingsPort`, as
@@ -14,7 +14,7 @@ export interface ModelerSettingsSnapshot {
     configFolder: string;
     persistCodeLinkMap: boolean;
     c8ApiVersion: string;
-    colorTheme: "automatic" | "light";
+    colorTheme: ColorThemeSetting;
     defaultMode: SurfaceMode;
     favouriteBpmnElements: string[];
     language: string;
@@ -82,7 +82,7 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
 /** Outside the snapshot: IntelliJ has no lint setting, the bridge keeps the webview's toggle. */
 export const DEFAULT_LINTING_ENABLED = true;
 
-const COLOR_THEMES: readonly ModelerSettingsSnapshot["colorTheme"][] = ["automatic", "light"];
+const COLOR_THEMES: readonly ColorThemeSetting[] = ["automatic", "light"];
 const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
 
 const SETTING_PARSERS: {
