@@ -240,18 +240,19 @@ export class BpmnDocument {
      * @throws {Error} When the diagram has no process with an id.
      */
     extractProcessId(): string {
-        const processes = startTagsNamed(this.xml, bpmnElementName(this.xml, "process")).flatMap(
-            ({ attributes }) => {
-                const id = attributeNamed(attributes, "id")?.value;
-                const isExecutable = attributeNamed(attributes, "isExecutable")?.value === "true";
-                return id ? [{ id, isExecutable }] : [];
-            },
-        );
+        const processElementName = bpmnElementName(this.xml, "process");
+        const processes = startTagsNamed(this.xml, processElementName).flatMap(({ attributes }) => {
+            const id = attributeNamed(attributes, "id")?.value;
+            const isExecutable = attributeNamed(attributes, "isExecutable")?.value === "true";
+            return id ? [{ id, isExecutable }] : [];
+        });
         const process = processes.find(({ isExecutable }) => isExecutable) ?? processes[0];
         if (process) {
             return process.id;
         }
-        throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
+        throw new Error(
+            `No <${processElementName}> element with an id attribute found in the BPMN file.`,
+        );
     }
 }
 
