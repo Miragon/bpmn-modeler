@@ -322,8 +322,12 @@ export class TemplateMarketplaceService {
                 this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
             );
         } catch (error) {
-            throw new InvalidMarketplaceError(
-                `could not read ${MARKETPLACE_MANIFEST} from "${registration.url}": ${(error as Error).message}`,
+            // `ErrorOptions` is not in this lib target, so the cause is attached directly.
+            throw Object.assign(
+                new InvalidMarketplaceError(
+                    `could not read ${MARKETPLACE_MANIFEST} from "${registration.url}": ${(error as Error).message}`,
+                ),
+                { cause: error },
             );
         }
     }

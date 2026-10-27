@@ -54,8 +54,8 @@ export class HostTokenSession {
      * A non-auth error or an unauthenticated host (a local folder) propagates
      * unchanged. A rate-limited anonymous 403 escalates to the stored token
      * (higher limits) and, failing that, to the prompt. On decline or a final
-     * denial the failure is rewritten via {@link accessFailure}; the raw text
-     * would say "HTTP 404" for a private repo.
+     * denial the failure is rewritten via {@link accessFailure}, keeping the
+     * denial as its `cause`; the raw text would say "HTTP 404" for a private repo.
      */
     async run<T>(
         baseConfig: RepositorySourceConfig,
@@ -217,8 +217,11 @@ export class HostTokenSession {
         return token;
     }
 
+    /** `ErrorOptions` is not in this lib target, so the cause is attached directly. */
     private accessFailure(error: RepositoryAccessError, tokenTried: boolean): Error {
-        return new Error(AccessDenial.of(error, { tokenTried }).failureMessage());
+        return Object.assign(new Error(AccessDenial.of(error, { tokenTried }).failureMessage()), {
+            cause: error,
+        });
     }
 }
 
