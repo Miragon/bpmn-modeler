@@ -19,21 +19,10 @@ import {
     TargetRemoved,
 } from "../domain/deploymentTarget";
 import { CredentialRefs } from "../domain/credentialRefs";
+import { TargetsLocation } from "../domain/deploymentDestination";
 import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
-
-/**
- * Where the targets file lives for the current context. `filePath` is the read
- * location (nearest existing file) and the write location (the same file, or a
- * fresh one under the workspace config folder when none exists yet).
- */
-export interface TargetsLocation {
-    readonly filePath: string;
-    readonly exists: boolean;
-    /** The directory holding the config folder; its `.env` is the only one the targets may read. */
-    readonly projectDir: string;
-}
 
 /**
  * Manages named deployment targets: the `deployment-targets.json` file (locate,

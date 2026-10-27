@@ -11,6 +11,7 @@ import {
     ledgerKeyFor,
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
+import { EnvScope } from "../domain/deploymentDestination";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { EnvLookup, EnvReferencing, NO_ENV_VARIABLES } from "../domain/envRef";
 import {
@@ -19,7 +20,7 @@ import {
     DeploymentStatusBarPort,
 } from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
-import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 /**
  * Owns the deployment status-bar item and the "what was last deployed where"
