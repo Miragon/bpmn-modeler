@@ -1,9 +1,6 @@
 import { NotifierPort, PickerPort } from "../domain/hostPorts";
 import { classifyLocateResult, LocateResult } from "../domain/locateResult";
-import { truncateForDisplay } from "../domain/truncateForDisplay";
-
-// Maximum length of a reference echoed back into a user-facing notification.
-const REFERENCE_DISPLAY_LIMIT = 100;
+import { referenceForDisplay, truncateForDisplay } from "../domain/truncateForDisplay";
 
 // Tighter cap for the busy-list placeholder — it's space-constrained.
 const PROGRESS_LABEL_LIMIT = 40;
@@ -34,7 +31,7 @@ export async function openLocatedFile(
     host: { notifier: NotifierPort; picker: PickerPort },
 ): Promise<void> {
     const { notifier, picker } = host;
-    const displayReference = truncateForDisplay(request.reference, REFERENCE_DISPLAY_LIMIT);
+    const displayReference = referenceForDisplay(request.reference);
     const progressReference = truncateForDisplay(request.reference, PROGRESS_LABEL_LIMIT);
     const { outcome, chosen } = await picker.searchAndPickLocatedFile(
         {

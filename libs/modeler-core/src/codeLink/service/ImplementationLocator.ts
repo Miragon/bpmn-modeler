@@ -2,14 +2,11 @@ import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
-import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
+import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
 import { findFilesExcluding, searchFilesContent } from "../../kernel/service/workspaceFileSearch";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ContentSearch, ImplementationTarget } from "../domain/ImplementationTarget";
 import { DirectSourceCatalog, SourceCatalog } from "./SourceIndex";
-
-// Max length of a reference echoed back into a user-facing log line.
-const REFERENCE_DISPLAY_LIMIT = 120;
 
 /** A reference only file content can settle. */
 interface ContentTarget {
@@ -38,7 +35,7 @@ export class ImplementationLocator {
         kind: ImplementationKind,
         sourceDocumentPath?: string,
     ): Promise<LocateResult> {
-        const displayReference = truncateForDisplay(reference, REFERENCE_DISPLAY_LIMIT);
+        const displayReference = referenceForDisplay(reference);
         this.notifier.logInfo(
             `[code-link] resolving ${kind} reference="${displayReference}" ` +
                 `sourceUri=${sourceDocumentPath ?? "<none>"}`,
