@@ -72,7 +72,12 @@
     "yauzl": "3.4.0"
   },
   "theiaPluginsDir": "plugins",
+  "theiaPluginsExcludeIds": [
+    "vscode.prompt",
+    "vscode.terminal-suggest"
+  ],
   "theiaPlugins": {
+    "eclipse-theia.builtin-extension-pack": "https://open-vsx.org/api/eclipse-theia/builtin-extension-pack/1.104.0/file/eclipse-theia.builtin-extension-pack-1.104.0.vsix",
     "vscode.git": "https://open-vsx.org/api/vscode/git/1.95.3/file/vscode.git-1.95.3.vsix"
   },
   "devDependencies": {
