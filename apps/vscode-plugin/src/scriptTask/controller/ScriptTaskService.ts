@@ -35,6 +35,7 @@ import {
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
     ScriptLanguage,
+    ScriptMaterialization,
     ScriptUri,
     ScriptXmlService,
     SettingsPort,
@@ -52,16 +53,6 @@ interface OpenDocument {
     readonly kind: ScriptKind;
     readonly listenerIndex: number | undefined;
     readonly uri: Uri;
-}
-
-/**
- * Outcome of {@link ScriptTaskService.materializeScript}. `written` is false
- * when an open tab already owned the script and its buffer was left untouched —
- * the completion notification uses it to report the skipped-already-open count.
- */
-export interface MaterializeScriptResult {
-    readonly path: string;
-    readonly written: boolean;
 }
 
 /** A `WorkspaceEdit` replacing the whole of `doc` with `content`. */
@@ -275,11 +266,10 @@ export class ScriptTaskService {
     /**
      * Writes an inline script to disk *without* opening a tab, tracking it, or
      * locking the panel — the "Generate Script Files" command's whole job.
-     * Returns the file path and whether it was written; `undefined` when the
-     * language picker was cancelled. Live sync starts only once the user opens
-     * the file (adoption), so a generated-but-unopened file stays a plain file.
+     * Live sync starts only once the user opens the file (adoption), so a
+     * generated-but-unopened file stays a plain file. A failed write rejects.
      *
-     * A script already owned by an open tab is left untouched (`written:false`):
+     * A script already owned by an open tab is left untouched (`alreadyOpen`):
      * that tab's buffer is the authoritative copy, so overwriting it from the
      * model would clobber unsaved edits.
      */
@@ -291,7 +281,7 @@ export class ScriptTaskService {
         eventName: string | undefined,
         scriptFormat: string,
         content: string,
-    ): Promise<MaterializeScriptResult | undefined> {
+    ): Promise<ScriptMaterialization> {
         const target = await this.resolveScriptTarget(
             editorId,
             elementId,
@@ -301,15 +291,15 @@ export class ScriptTaskService {
             scriptFormat,
         );
         if (!target) {
-            return undefined; // language picker cancelled
+            return { kind: "cancelled" };
         }
 
         if (this.openDocuments.has(target.scriptUri.path)) {
-            return { path: target.scriptUri.path, written: false };
+            return { kind: "alreadyOpen" };
         }
 
         await this.writeScriptToDisk(target.scriptUri, target.baseDir, content, target.lang, kind);
-        return { path: target.scriptUri.path, written: true };
+        return { kind: "written" };
     }
 
     /**
@@ -358,12 +348,9 @@ export class ScriptTaskService {
 
     /**
      * Resolves (and caches) the editor's `<…>/tmp/scripting` base directory.
-     * Public so the message handler can name the folder in its completion
-     * notification and the adoption listener can containment-check opened files
-     * against it. Caching keeps teardown deterministic — see
-     * {@link baseDirByEditor}.
+     * Caching keeps teardown deterministic — see {@link baseDirByEditor}.
      */
-    async scriptsBaseDir(editorId: string): Promise<string> {
+    private async scriptsBaseDir(editorId: string): Promise<string> {
         let baseDir = this.baseDirByEditor.get(editorId);
         if (baseDir === undefined) {
             baseDir = await this.scriptFiles.resolveBaseDir(editorId);

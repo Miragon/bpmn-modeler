@@ -76,7 +76,7 @@ vi.mock("vscode", () => ({
 }));
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { getLatestVersion } from "@miragon/bpmn-modeler-core";
+import { FOCUS_BPMN_DIAGRAM_MESSAGE, getLatestVersion } from "@miragon/bpmn-modeler-core";
 import { createTestHost, PickerAnswers } from "@miragon/bpmn-modeler-core/testing";
 
 import { CommandController } from "./CommandController";
@@ -209,6 +209,23 @@ describe("CommandController.showLogging", () => {
 
         expect(notifier.loggingConsoleOpened).toBe(true);
     });
+});
+
+describe("CommandController layout commands", () => {
+    it.each(["formatDiagram", "cleanupDiagram"] as const)(
+        "%s logs and hints to focus a diagram when none is open",
+        async (command) => {
+            const { controller, host, editor, notifier } = createController();
+            host.store.unregister(editor.id, editor);
+
+            await expect(controller[command]()).resolves.toBeUndefined();
+
+            expect(notifier.logged("error")).toEqual([
+                expect.stringContaining("Error: No active editor.\n"),
+            ]);
+            expect(notifier.infos).toEqual([FOCUS_BPMN_DIAGRAM_MESSAGE]);
+        },
+    );
 });
 
 describe("CommandController.changeEngineVersion", () => {

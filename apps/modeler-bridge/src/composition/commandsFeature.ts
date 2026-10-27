@@ -4,6 +4,7 @@ import {
     BpmnModelerService,
     cleanupReportHandler,
     diagramFormattedHandler,
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
 } from "@miragon/bpmn-modeler-core";
 import { METHODS } from "../protocol/descriptor";
 import { EditorRefParams, MigrateAllParams } from "../protocol/types";
@@ -54,7 +55,7 @@ export function register(
             await action(deps.store.getActiveEditorId());
         } catch (error) {
             deps.notifier.logError(error as Error);
-            deps.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+            deps.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
         }
     };
 

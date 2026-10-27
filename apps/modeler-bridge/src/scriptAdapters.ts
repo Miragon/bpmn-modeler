@@ -36,6 +36,7 @@ import {
     NotifierPort,
     PickerPort,
     ScriptLanguage,
+    ScriptMaterialization,
     ScriptUri,
     ScriptVariableStore,
     SettingsPort,
@@ -238,42 +239,35 @@ export class BridgeScriptEditor {
      * Writes a script file to disk *without* opening a host tab, tracking it, or
      * locking the panel — the "Generate Script Files" command's whole job. Live
      * sync starts only when the user opens the file (see {@link adoptExternalOpen}).
-     * Returns whether a file was written; `undefined` when the language picker was
-     * cancelled or the write failed (nothing was generated either way).
+     * A failed write rejects.
      *
      * Deliberately does **not** record `filePathByScript`: a later panel-button
      * open then sees no path and rewrites the file from the current model, keeping
      * the panel button's rewrite-from-model semantics. A script already owned by
-     * an open tab is left untouched (`written:false`) — its buffer is authoritative.
+     * an open tab is left untouched (`alreadyOpen`) — its buffer is authoritative.
      */
     async materialize(
         cmd: OpenScriptEditorCommand,
         editorId: string,
-    ): Promise<{ written: boolean } | undefined> {
+    ): Promise<ScriptMaterialization> {
         const target = await this.resolveScriptTarget(cmd, editorId);
         if (!target) {
-            return undefined; // language picker cancelled
+            return { kind: "cancelled" };
         }
 
-        // An open tab owns the authoritative buffer — leave it untouched.
         if (this.scripts.has(target.scriptId)) {
-            return { written: false };
+            return { kind: "alreadyOpen" };
         }
 
         const baseDir = await this.prepareBaseDir(editorId);
         const filePath = joinWorkspacePath(baseDir, target.uri.relativePath());
-        try {
-            await this.workspace.writeFile(filePath, cmd.content);
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            return undefined;
-        }
+        await this.workspace.writeFile(filePath, cmd.content);
 
         // Seed the editor's extracted model so a later open/adoption has variables
         // before the first live `UpdateScriptVariablesCommand`.
         this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
-        return { written: true };
+        return { kind: "written" };
     }
 
     /**

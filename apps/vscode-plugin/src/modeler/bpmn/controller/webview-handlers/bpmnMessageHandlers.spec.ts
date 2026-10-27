@@ -13,6 +13,7 @@ import {
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
+import type { ScriptMaterialization } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import {
@@ -109,16 +110,13 @@ describe("openScriptEditorsHandler", () => {
         // A deferred first materialize lets us prove the second never starts
         // until the first resolves — the ordering guarantee the bulk handler
         // exists for (a parallel loop would stack the per-script format pickers).
-        let resolveFirst!: (result: { path: string; written: boolean }) => void;
+        let resolveFirst!: (result: ScriptMaterialization) => void;
         const materializeScript = vi
             .fn()
             .mockImplementationOnce(
-                () =>
-                    new Promise<{ path: string; written: boolean }>(
-                        (resolve) => (resolveFirst = resolve),
-                    ),
+                () => new Promise<ScriptMaterialization>((resolve) => (resolveFirst = resolve)),
             )
-            .mockResolvedValue({ path: "B", written: true });
+            .mockResolvedValue({ kind: "written" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
         const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
@@ -153,7 +151,7 @@ describe("openScriptEditorsHandler", () => {
             "a=1",
         );
 
-        resolveFirst({ path: "A", written: true });
+        resolveFirst({ kind: "written" });
         await done;
 
         expect(materializeScript).toHaveBeenCalledTimes(2);
@@ -194,13 +192,13 @@ describe("openScriptEditorsHandler", () => {
     });
 
     it("reports the already-open count when a script was left untouched", async () => {
-        // One fresh write + one already-open tab (written:false): the completion
-        // notification must name the skipped count so the user knows one file
-        // wasn't overwritten.
+        // One fresh write + one already-open tab: the completion notification
+        // must name the skipped count so the user knows one file wasn't
+        // overwritten.
         const materializeScript = vi
             .fn()
-            .mockResolvedValueOnce({ path: "A", written: true })
-            .mockResolvedValueOnce({ path: "B", written: false });
+            .mockResolvedValueOnce({ kind: "written" })
+            .mockResolvedValueOnce({ kind: "alreadyOpen" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
         const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
@@ -225,12 +223,10 @@ describe("openScriptEditorsHandler", () => {
     });
 
     it("counts a cancelled picker as neither written nor already open", async () => {
-        // materializeScript returns undefined when the language picker is
-        // cancelled: it must not inflate either counter.
         const materializeScript = vi
             .fn()
-            .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce({ path: "B", written: true });
+            .mockResolvedValueOnce({ kind: "cancelled" })
+            .mockResolvedValueOnce({ kind: "written" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
         const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
@@ -251,6 +247,47 @@ describe("openScriptEditorsHandler", () => {
 
         expect(notifier.infos).toEqual([
             `Generated 1 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram.`,
+        ]);
+    });
+
+    it("counts a failed script write in the summary and still writes the rest", async () => {
+        const materializeScript = vi
+            .fn()
+            .mockResolvedValueOnce({ kind: "written" })
+            .mockRejectedValueOnce(new Error("EACCES: permission denied"))
+            .mockResolvedValueOnce({ kind: "written" });
+        const scriptTaskSvc = { materializeScript };
+        const variableStore = { setExtracted: vi.fn() };
+        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const notifier = new RecordingNotifier();
+
+        await expect(
+            openScriptEditorsHandler(
+                scriptTaskSvc as never,
+                variableStore as never,
+                settings,
+                notifier,
+            )(
+                new OpenScriptEditorsCommand(
+                    [
+                        script("A", "groovy", "a=1"),
+                        script("B", "groovy", "b=2"),
+                        script("C", "groovy", "c=3"),
+                    ],
+                    [],
+                ),
+                EDITOR,
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(materializeScript).toHaveBeenCalledTimes(3);
+        expect(notifier.infos).toEqual([
+            `Generated 2 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram. Could not write 1 script file(s); see the log for details.`,
+        ]);
+        expect(notifier.logged("error")).toEqual([
+            expect.stringMatching(
+                /^Could not write the script file of B: Error: EACCES: permission denied/,
+            ),
         ]);
     });
 });

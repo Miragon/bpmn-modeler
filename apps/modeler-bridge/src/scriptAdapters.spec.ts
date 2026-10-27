@@ -261,7 +261,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 FULL_EDITOR,
             );
 
-            expect(result).toEqual({ written: true });
+            expect(result).toEqual({ kind: "written" });
             expect(host.workspace.files.get(scriptFilePath("Task_1", "groovy"))).toBe("x = 1");
             expect(scriptVariables.variablesFor(FULL_EDITOR)).toEqual(variables);
             // No tab semantics: no script/open, no lock broadcast, no path recorded
@@ -291,16 +291,16 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             const result = await editor.materialize(openCommand("groovy", "fresh"), FULL_EDITOR);
 
-            expect(result).toEqual({ written: false });
+            expect(result).toEqual({ kind: "alreadyOpen" });
             expect(host.workspace.files.size).toBe(0);
         });
 
-        it("returns undefined when the language picker is cancelled", async () => {
+        it("reports a cancelled language pick and writes nothing", async () => {
             const { editor, host } = createFullEditor();
 
             const result = await editor.materialize(openCommand("", ""), FULL_EDITOR);
 
-            expect(result).toBeUndefined();
+            expect(result).toEqual({ kind: "cancelled" });
             expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: [""] }]);
             expect(host.workspace.files.size).toBe(0);
         });

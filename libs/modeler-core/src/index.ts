@@ -29,6 +29,7 @@ export * from "./kernel/infrastructure/FetchHttpClient";
 export * from "./kernel/infrastructure/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
+export { FOCUS_BPMN_DIAGRAM_MESSAGE } from "./editorSession/domain/CommandTarget";
 export * from "./editorSession/domain/EditorSession";
 export * from "./editorSession/domain/EditorSessionParticipant";
 export * from "./editorSession/domain/session";
@@ -153,6 +154,7 @@ export * from "./scriptTask/domain/camundaDts";
 export * from "./scriptTask/domain/groovyImports";
 export * from "./scriptTask/domain/localDeclarations";
 export * from "./scriptTask/domain/scriptApi";
+export * from "./scriptTask/domain/scriptBatchSummary";
 export * from "./scriptTask/domain/scriptCompletion";
 export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
