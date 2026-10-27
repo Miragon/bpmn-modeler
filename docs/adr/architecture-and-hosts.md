@@ -52,12 +52,16 @@ core apply. Portable mode types, disposable primitives, engine versions, canvas
 utilities and `isTextEditingSurface` qualify as surface. Script-surface
 addressing (`scriptSurface.ts`) is such a shared rule, and so is the XML comment
 and CDATA scan (`xmlMarkup.ts`) behind the published `extractModelDefinitions`,
-the core's workspace content search and code-link. Browser code cannot import
-the core, whose barrel exports Node-only modules, so a rule both apply has no
-other common home. The package is private and inlined: its npm surface is only
-what a package entry re-exports by name, which `check-dts` and
-`publicApi.spec.ts` gate, so a shared rule adds nothing to it. A rule only the
-core applies stays in the core's `domain/`. DOM-id-coupled panel resizers,
+the core's workspace content search and code-link. Process-variable extraction
+(`processVariables.ts`) belongs here too: the BPMN webview runs it on the live
+model, and the core's script domain keeps the `VariableDef`s it yields, which
+the protocol only carries. Browser code cannot import the core, whose barrel
+exports Node-only modules, so a rule both apply has no other common home. The
+package is private and inlined: its npm surface is only what a package entry
+re-exports by name, which `check-dts` and `publicApi.spec.ts` gate, so a shared
+rule adds nothing to it. A rule there keeps its module free of top-level side
+effects, so a bundle that does not use it leaves it out. A rule only the core
+applies stays in the core's `domain/`. DOM-id-coupled panel resizers,
 focus/shortcut bindings and the VS Code body-class theme adapter belong in
 `shared`. This deliberately mixes private browser chrome with the protocol to
 avoid another workspace for a few helpers.
@@ -105,10 +109,9 @@ or error one feature owns lives in that feature's `domain/` (`ports.ts`,
 `errors.ts`), so `kernel/` names no feature.
 A store that holds application state and reaches the host, if at all, only
 through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
-feature's `service/` with no port of its own. Today's only listed exception is
-the protocol import of `ScriptVariableStore` in `scriptTask/domain/`, which
-#1834 removes. An exception names the issue that removes it, and the test
-fails when one is no longer needed, so the list only shrinks.
+feature's `service/` with no port of its own. The test lists no exception
+today. A new one names the issue that removes it, and the test fails when one
+is no longer needed, so the lists only shrink.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
@@ -559,9 +562,9 @@ a cached result must equal an uncached run.
 
 - Leaving the core or its registries inside the VS Code plugin would couple
   other hosts to plugin internals or force them to duplicate session logic.
-- Enforcing the core's layer rules only after the refactors that remove the
-  current violations would let new ones in meanwhile. Known exceptions start
-  the gate now, at the cost of a list that review has to keep from growing.
+- Enforcing a layer rule only once no violation remains would let new ones in
+  meanwhile. A known exception lets the gate start first, at the cost of a list
+  that review has to keep from growing.
 - A separate library for the pure rules browser code shares with the core
   would need a manifest, path aliases, a Vitest target and entries in the
   inlined-library lists, about ten config edits for a few hundred lines. The
