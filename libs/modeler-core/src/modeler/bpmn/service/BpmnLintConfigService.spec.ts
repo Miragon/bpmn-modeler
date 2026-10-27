@@ -67,7 +67,7 @@ function createService(content = XML) {
 
 /** Forgets what the status bar and Problems panel show, so a later step's effect stands alone. */
 function resetSurfaces(host: TestHost): void {
-    host.statusBar.hideBpmnlintStatus();
+    host.statusBar.showBpmnlint({ state: "hidden" });
     host.diagnostics.published.clear();
 }
 

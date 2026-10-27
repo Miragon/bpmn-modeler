@@ -3,19 +3,13 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 import { DeploymentFreshness } from "../deployment/domain/deploymentLedger";
 import { DeploymentStatusBarPort } from "../deployment/domain/ports";
 import { StatusBarPort } from "../kernel/domain/hostPorts";
+import { BpmnlintIndicator } from "../modeler/bpmn/domain/bpmnlintIndicator";
+import { BpmnlintStatusBarPort } from "../modeler/bpmn/domain/ports";
 
 export type ElementTemplatesStatus =
     | { readonly state: "hidden" }
     | { readonly state: "loading" }
     | { readonly state: "ready"; readonly count: number };
-
-export type BpmnlintStatus =
-    | { readonly state: "hidden" }
-    | { readonly state: "active"; readonly configPath: string }
-    | { readonly state: "unresolved"; readonly configPath: string; readonly unresolved: string[] }
-    | { readonly state: "default"; readonly platform: Engine | undefined }
-    | { readonly state: "disabled" }
-    | { readonly state: "noConfig" };
 
 export interface DeploymentTargetStatus {
     readonly name: string | undefined;
@@ -25,10 +19,12 @@ export interface DeploymentTargetStatus {
 }
 
 /** Holds what each status-bar item currently shows, as the real adapters do. */
-export class RecordingStatusBar implements StatusBarPort, DeploymentStatusBarPort {
+export class RecordingStatusBar
+    implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+{
     elementTemplates: ElementTemplatesStatus = { state: "hidden" };
     engineVersion: { platform: Engine; version: string } | undefined;
-    bpmnlint: BpmnlintStatus = { state: "hidden" };
+    bpmnlint: BpmnlintIndicator = { state: "hidden" };
     deploymentTarget: DeploymentTargetStatus | undefined;
 
     showElementTemplatesLoading(): void {
@@ -51,28 +47,8 @@ export class RecordingStatusBar implements StatusBarPort, DeploymentStatusBarPor
         this.engineVersion = undefined;
     }
 
-    showBpmnlintActive(configPath: string): void {
-        this.bpmnlint = { state: "active", configPath };
-    }
-
-    showBpmnlintUnresolved(configPath: string, unresolved: string[]): void {
-        this.bpmnlint = { state: "unresolved", configPath, unresolved };
-    }
-
-    showBpmnlintDefault(platform: Engine | undefined): void {
-        this.bpmnlint = { state: "default", platform };
-    }
-
-    showBpmnlintDisabled(): void {
-        this.bpmnlint = { state: "disabled" };
-    }
-
-    showBpmnlintNoConfig(): void {
-        this.bpmnlint = { state: "noConfig" };
-    }
-
-    hideBpmnlintStatus(): void {
-        this.bpmnlint = { state: "hidden" };
+    showBpmnlint(indicator: BpmnlintIndicator): void {
+        this.bpmnlint = indicator;
     }
 
     showDeploymentTarget(

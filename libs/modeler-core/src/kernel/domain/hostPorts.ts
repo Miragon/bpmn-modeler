@@ -261,9 +261,8 @@ export interface DocumentPort {
 }
 
 /**
- * Status-bar indicators for element-template loading, the active engine
- * version, and bpmnlint config discovery. State (which items exist) is owned by
- * the adapter.
+ * Status-bar indicators for element-template loading and the active engine
+ * version. State (which items exist) is owned by the adapter.
  */
 export interface StatusBarPort {
     showElementTemplatesLoading(): void;
@@ -271,10 +270,4 @@ export interface StatusBarPort {
     hideElementTemplatesStatus(): void;
     showEngineVersion(platform: Engine, version: string): void;
     hideEngineVersion(): void;
-    showBpmnlintActive(configPath: string): void;
-    showBpmnlintUnresolved(configPath: string, unresolved: string[]): void;
-    showBpmnlintDefault(platform: Engine | undefined): void;
-    showBpmnlintDisabled(): void;
-    showBpmnlintNoConfig(): void;
-    hideBpmnlintStatus(): void;
 }
