@@ -28,9 +28,15 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { registerParams, waitForFrame } from "./__fixtures__/bridgeHarness";
+import {
+    isStatusSlotUpdate,
+    registerParams,
+    StatusSlotFrame,
+    waitForFrame,
+} from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { NodeWorkspace } from "./nodeAdapters";
+import { StatusBarUpdateParams } from "./protocol/types";
 import { Rpc } from "./rpc";
 
 // A process with a task but no start/end event, so bpmnlint:recommended reports
@@ -85,6 +91,15 @@ const isInPageResultsLog = (frame: any): boolean =>
     frame.method === "notifier/log" &&
     typeof frame.params?.message === "string" &&
     frame.params.message.includes("in-page results");
+
+/** The host shows one BPMNlint widget, so the last update of its slot is what it shows now. */
+function shownLintStatus(
+    frames: readonly StatusSlotFrame[],
+    fromIndex = 0,
+): StatusBarUpdateParams["view"] | undefined {
+    const updates = frames.slice(fromIndex).filter(isStatusSlotUpdate("bpmnlint"));
+    return updates[updates.length - 1]?.params?.view;
+}
 
 describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];
@@ -217,13 +232,39 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         expect(frames.find(isLintResultsFrame)).toBeUndefined();
     });
 
+    it("shows the bundled default in the host's BPMNlint slot when no .bpmnlintrc exists", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await requestConfig(rpc, editorId);
+        await waitForFrame(frames, isInPageInstructionFrame);
+
+        expect(shownLintStatus(frames)).toEqual({
+            text: "BPMNlint (default)",
+            icon: "shield",
+            tooltip:
+                "Linting against the bundled default (no execution platform).\nAdd a .bpmnlintrc to your workspace to override it.",
+            tone: "neutral",
+        });
+    });
+
+    it("hides the host's BPMNlint slot when the diagram closes", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await requestConfig(rpc, editorId);
+        await waitForFrame(frames, isInPageInstructionFrame);
+        const beforeClose = frames.length;
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+
+        expect(shownLintStatus(frames, beforeClose)).toBeNull();
+    });
+
     it("accepts the webview's in-page findings back over UpdateLintResultsCommand", async () => {
         // Rule coverage for the bundled default lives in `lintParity.spec.ts`;
         // here we prove the webview→host results command is wired: after the
         // no-config in-page handback, a pushed UpdateLintResultsCommand is
         // accepted and applied (the debug log confirms the round-trip). The
-        // bridge has no Problems panel / status bar, so the log is the only
-        // observable effect.
+        // bridge has no Problems panel, and the status slot already shows the
+        // default before the push, so the log is the only observable effect.
         const { rpc, frames, editorId } = await setup(BPMN_XML_OVERSIZED);
 
         await requestConfig(rpc, editorId);
@@ -416,6 +457,21 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
         ).resolves.toMatchObject({ params: { editorId } });
+    });
+
+    it("shows linting off in the host's BPMNlint slot, with a click that turns it back on", async () => {
+        ignoreFileChanges();
+        const { rpc, frames } = await setupHostLinted();
+        const beforeOff = frames.length;
+
+        await rpc.handleLine(JSON.stringify({ method: "linting/toggle", params: {} }));
+        await waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeOff });
+
+        expect(shownLintStatus(frames, beforeOff)).toMatchObject({
+            text: "BPMNlint: off",
+            icon: "off",
+            action: "toggleLinting",
+        });
     });
 
     it("re-lints when the webview asks for the linting state the bridge already has", async () => {
