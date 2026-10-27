@@ -303,6 +303,23 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         );
     });
 
+    it("reports an unknown content type among what it could not fetch", async () => {
+        const manifest = JSON.stringify({
+            sources: [
+                { path: "element-templates" },
+                { type: "palette-entries", provider: "github", repo: "acme/palette", path: "p" },
+            ],
+        });
+        const { service } = createService({ manifest });
+
+        const report = await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(report.verdict()).toBe("partial");
+        expect(report.reasons()).toEqual([
+            'sources[1]: content type "palette-entries" is not supported by this version',
+        ]);
+    });
+
     it("warns naming the resolved local folder when a source lists no template files", async () => {
         // A typo'd local folder returns [] and used to look identical to an empty
         // one; the warning must name the resolved folder so the mistake is visible.

@@ -1,4 +1,5 @@
 import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
+import { FetchReport, SourceFailure } from "../domain/fetchReport";
 import {
     InvalidMarketplaceError,
     MarketplaceRegistration,
@@ -38,8 +39,9 @@ const MARKETPLACE_MANIFEST = "marketplace.json";
  * Resilience is split by intent. An explicit *add* throws on a missing/malformed
  * `marketplace.json` so the controller skips persisting the registration; a
  * background *update* swallows and logs every error so one bad marketplace never
- * blocks the others. Per-source failures are always swallowed — a failing source
- * keeps the last-good cache and warns, leaving siblings intact.
+ * blocks the others. Per-source failures never throw: a failing source keeps
+ * the last-good cache, warns and lands in the {@link FetchReport}, leaving
+ * siblings intact.
  *
  * Private repos are reached with per-host personal access tokens through one
  * {@link HostTokenSession} per user-initiated command. The token never reaches
@@ -76,16 +78,18 @@ export class TemplateMarketplaceService {
      * @throws {InvalidMarketplaceError} if the URL is unsupported or its
      *   `marketplace.json` is missing/malformed — the caller must not persist a
      *   registration that cannot be fetched.
+     * @returns what the fetch of its sources brought in, even when nothing.
      */
-    async addMarketplace(url: string): Promise<void> {
+    async addMarketplace(url: string): Promise<FetchReport> {
         // Parse up front so the log names the resolved registration, not the raw
         // paste, and a bad URL fails before any log line implies work started.
         const registration = parseMarketplaceUrl(url);
         this.notifier.logInfo(`Adding marketplace: ${registration.url}`);
-        const cached = await this.fetchAndCache(registration, this.newTokenSession());
+        const report = await this.fetchAndCache(registration, this.newTokenSession());
         this.notifier.logInfo(
-            `Marketplace added: ${registration.url} (${cached} template file(s) cached)`,
+            `Marketplace added: ${registration.url} (${report.cached} template file(s) cached)`,
         );
+        return report;
     }
 
     /**
@@ -95,10 +99,10 @@ export class TemplateMarketplaceService {
      * appears at most once per host across the whole update.
      *
      * The {@link MarketplaceUpdateOutcome} lets the host report a single summary;
-     * the `logWarning` above stays the detailed per-marketplace record. Only
-     * manifest-level failures count as a failure — a per-*source* failure inside
-     * {@link fetchAndCache} keeps last-good data, so its marketplace still counts
-     * as succeeded here.
+     * the `logWarning` above stays the detailed per-marketplace record. A
+     * marketplace fails when its manifest cannot be read or none of its sources
+     * could be fetched; a partial fetch keeps the failed sources' last-good data
+     * and counts as succeeded.
      *
      * After the fetch loop the cache is pruned as
      * {@link MarketplaceRegistry.cachePrune} decides, so removing an entry from
@@ -118,10 +122,19 @@ export class TemplateMarketplaceService {
                 continue;
             }
             try {
-                const cached = await this.fetchAndCache(entry.registration, tokenSession);
+                const report = await this.fetchAndCache(entry.registration, tokenSession);
+                if (report.verdict() === "nothingFetched") {
+                    failures.push(
+                        this.recordSkip(
+                            entry.label,
+                            `none of its sources could be fetched (${report.reasons().join("; ")})`,
+                        ),
+                    );
+                    continue;
+                }
                 succeeded++;
                 this.notifier.logDebug(
-                    `Marketplace updated: ${entry.label} (${cached} template file(s) cached)`,
+                    `Marketplace updated: ${entry.label} (${report.cached} template file(s) cached)`,
                 );
             } catch (error) {
                 failures.push(this.recordSkip(entry.label, (error as Error).message));
@@ -183,15 +196,15 @@ export class TemplateMarketplaceService {
 
     /**
      * Manifest-level failures propagate (the marketplace is unusable) and leave
-     * the cache untouched; source-level failures are logged and keep that
-     * source's last-good slot. Every source is fetched before any slot changes.
-     * Declared-private sources are batch-prompted up front so their tokens are
-     * stored before the per-source fetches begin.
+     * the cache untouched; source-level failures are logged, keep that source's
+     * last-good slot and are reported. Every source is fetched before any slot
+     * changes. Declared-private sources are batch-prompted up front so their
+     * tokens are stored before the per-source fetches begin.
      */
     private async fetchAndCache(
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
-    ): Promise<number> {
+    ): Promise<FetchReport> {
         const { sources, skipped } = parseMarketplace(
             JSON.parse(await this.readManifest(registration, tokenSession)),
         );
@@ -208,6 +221,7 @@ export class TemplateMarketplaceService {
         await tokenSession.ensureTokensForPrivateHosts(declaredPrivateHosts(sources));
 
         const outcomes: SourceFetchOutcome[] = [];
+        const sourceFailures: SourceFailure[] = [];
         for (let index = 0; index < sources.length; index++) {
             try {
                 const files = await this.fetchSourceFiles(
@@ -220,6 +234,7 @@ export class TemplateMarketplaceService {
             } catch (error) {
                 this.warnSkippedSource(registration, error);
                 outcomes.push({ kind: "failed", sourceIndex: index });
+                sourceFailures.push(this.sourceFailure(registration, sources[index], error));
             }
         }
         const actions = planSourceCacheRefresh(
@@ -232,9 +247,21 @@ export class TemplateMarketplaceService {
                 cached += await this.applySlotAction(registration, action);
             } catch (error) {
                 this.warnSkippedSource(registration, error);
+                // A rejected replace keeps the source's last-good files, so it
+                // brought nothing in; a failed removal concerns no listed source.
+                if (action.kind === "replace") {
+                    sourceFailures.push(
+                        this.sourceFailure(registration, sources[action.sourceIndex], error),
+                    );
+                }
             }
         }
-        return cached;
+        return FetchReport.of({
+            usableSources: sources.length,
+            cached,
+            sourceFailures,
+            skippedTypes: skipped,
+        });
     }
 
     /** @returns the number of template files the action cached. */
@@ -257,6 +284,17 @@ export class TemplateMarketplaceService {
             case "keep":
                 return 0;
         }
+    }
+
+    private sourceFailure(
+        registration: MarketplaceRegistration,
+        source: TemplateSource,
+        error: unknown,
+    ): SourceFailure {
+        return {
+            source: this.describeConfig(sourceConfig(source, registration.location, this.homeDir)),
+            reason: (error as Error).message,
+        };
     }
 
     private warnSkippedSource(registration: MarketplaceRegistration, error: unknown): void {
