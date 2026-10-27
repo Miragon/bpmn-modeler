@@ -83,7 +83,7 @@ describe("CommandTarget", () => {
             announced: ["a"],
         },
         {
-            scenario: "stays when the target's own id opens again in the background",
+            scenario: "stays when a session replaces the target in the background",
             steps: [
                 ["open", "a", "focused"],
                 ["open", "a", "background"],

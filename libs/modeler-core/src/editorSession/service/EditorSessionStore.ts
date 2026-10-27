@@ -41,15 +41,15 @@ export class EditorSessionStore {
     constructor(private readonly onOpenCountChanged: (count: number) => void) {}
 
     /**
-     * Registers an already-constructed session. It becomes the command target
-     * if it is focused, if no session holds the target, or if it replaces the
-     * session that does. Webview bootstrap happens separately in
-     * {@link VsCodeEditorHandle.create}.
+     * Registers an already-constructed session; {@link CommandTarget.open}
+     * decides whether it takes the command target. Webview bootstrap happens
+     * separately in {@link VsCodeEditorHandle.create}.
      */
     register(handle: EditorHandle): void {
         const replaced = this.editors.get(handle.id);
-        // Retiring the replaced session hands the target to another editor first.
-        const replacesTarget = replaced !== undefined && this.commandTarget.editorId === handle.id;
+        // Registered first, so retiring the replaced session finds it no longer
+        // current and leaves the open count and the command target alone.
+        this.editors.set(handle.id, handle);
         if (replaced && replaced !== handle) {
             this.editorQueues.delete(replaced);
             this.latestDocumentSync.delete(replaced);
@@ -58,11 +58,8 @@ export class EditorSessionStore {
             // register URI-keyed services and subscriptions.
             replaced.dispose();
         }
-        this.editors.set(handle.id, handle);
         if (!this.hostDocumentRevisions.has(handle)) this.hostDocumentRevisions.set(handle, 0);
-        this.announceActiveEditor(
-            this.commandTarget.open(handle.id, handle.isActive() || replacesTarget),
-        );
+        this.announceActiveEditor(this.commandTarget.open(handle.id, handle.isActive()));
         this.onOpenCountChanged(this.editors.size);
     }
 
