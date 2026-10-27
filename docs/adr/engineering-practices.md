@@ -131,6 +131,14 @@ start a feature or fix. CI cannot prove that a spec came first; the
 [mutation score](#mutation-testing) of `domain/` is the measurable proxy, and
 the PR description carries the failing output.
 
+A rule the Kotlin host must apply too keeps its rows in a JSON file beside its
+TypeScript home, and the TypeScript specs and the Kotlin test run the same
+file. Gradle hands the Kotlin test its path as a system property and declares
+it a test input, so a changed row reruns the test, and the `intellij-plugin`
+CI filter lists the file. A mirrored Kotlin table would drift like the rule it
+copies. The settings rows in `settingsNormalization.cases.json` are the first
+such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
+
 ### Coverage gates
 
 Each Vitest workspace owns its coverage target as literal `coverage.thresholds`
