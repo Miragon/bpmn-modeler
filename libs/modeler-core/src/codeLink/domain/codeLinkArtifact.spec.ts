@@ -101,4 +101,31 @@ describe("codeLinkArtifact — parseMapJson", () => {
             ),
         ).toBeUndefined();
     });
+
+    it("returns undefined for a JSON null rather than throwing", () => {
+        expect(parseMapJson("null")).toBeUndefined();
+    });
+
+    it.each<{ field: "activityId" | "kind" | "reference"; value: unknown }>([
+        { field: "activityId", value: 1 },
+        { field: "kind", value: null },
+        { field: "reference", value: ["pay"] },
+    ])("returns undefined when an entry's $field is not a string", ({ field, value }) => {
+        const valid = {
+            activityId: "A",
+            kind: "jobType",
+            reference: "pay",
+            resolved: true,
+            paths: [],
+        };
+
+        expect(
+            parseMapJson(
+                JSON.stringify({
+                    schemaVersion: CODE_LINK_SCHEMA_VERSION,
+                    entries: [{ ...valid, [field]: value }],
+                }),
+            ),
+        ).toBeUndefined();
+    });
 });

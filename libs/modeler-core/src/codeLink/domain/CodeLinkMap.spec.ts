@@ -64,7 +64,7 @@ describe("CodeLinkMap.admits", () => {
         { name: "an unknown kind", entry: { ...pay, kind: "bogus" as never }, admitted: false },
         {
             name: "a non-string activity id",
-            entry: { ...pay, activityId: 42 as never },
+            entry: { ...pay, activityId: [pay.activityId] as never },
             admitted: false,
         },
         {
@@ -334,6 +334,13 @@ describe("CodeLinkMap.applyFileChange", () => {
             changed: true,
         },
         {
+            name: "links a written file only to the activities it implements",
+            held: [linked(pay), linked(refund)],
+            change: written(WORKER, PAY_WORKER),
+            links: [linked(pay, WORKER), linked(refund)],
+            changed: true,
+        },
+        {
             name: "keeps a written file that still implements its activity",
             held: [linked(pay, WORKER)],
             change: written(WORKER, PAY_WORKER),
@@ -387,6 +394,13 @@ describe("CodeLinkMap.applyFileChange", () => {
             held: [linked(pay, WORKER), linked(refund, WORKER, OTHER_WORKER)],
             change: deleted(WORKER),
             links: [linked(pay), linked(refund, OTHER_WORKER)],
+            changed: true,
+        },
+        {
+            name: "unlinks a deleted class whose path still names it",
+            held: [linked(charge, CHARGE_CLASS)],
+            change: deleted(CHARGE_CLASS),
+            links: [linked(charge)],
             changed: true,
         },
         {
