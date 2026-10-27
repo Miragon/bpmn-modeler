@@ -135,6 +135,47 @@ describe("CodeLinkMapService — sync diff", () => {
         expect(readFile.mock.calls).toEqual([[abs]]); // verified by a single read
     });
 
+    describe("a bean declared in a class named differently", () => {
+        const beanClass = "/work/proj/src/PaymentService.java";
+        const entries = [entry("Act", "delegateExpression", "${paymentBean}")];
+        const status = implementationStatusKey("Act", "${paymentBean}");
+
+        function createLinkedService() {
+            const resolveMap: Record<string, string[]> = { "${paymentBean}": [beanClass] };
+            const created = createService({
+                resolveMap,
+                fileContents: { [beanClass]: '@Service("paymentBean")\nclass PaymentService {}' },
+            });
+            return { ...created, resolveMap };
+        }
+
+        it("stays linked while the file still declares the bean", async () => {
+            const { service, editor, locator } = createLinkedService();
+
+            await service.syncActivities(editor.id, entries);
+            await service.syncActivities(editor.id, entries);
+
+            expect(locator.resolveMany).toHaveBeenCalledTimes(1);
+            expect(lastStatus(editor)).toEqual({ [status]: true });
+        });
+
+        it("is unlinked and resolved again once the file no longer declares it", async () => {
+            const { service, host, editor, locator, resolveMap } = createLinkedService();
+            await service.syncActivities(editor.id, entries);
+
+            // Edited without a watcher event, so only the verification read sees it.
+            host.workspace.files.set(beanClass, "class PaymentService {}");
+            delete resolveMap["${paymentBean}"];
+            await service.syncActivities(editor.id, entries);
+
+            expect(locator.resolveMany.mock.calls.map(([resolved]) => resolved)).toEqual([
+                entries,
+                entries,
+            ]);
+            expect(lastStatus(editor)).toEqual({ [status]: false });
+        });
+    });
+
     it("re-resolves when a reference changes", async () => {
         const { service, editor, locator } = createService({
             resolveMap: { "com.example.A": ["/p/A.java"], "com.example.B": ["/p/B.java"] },
