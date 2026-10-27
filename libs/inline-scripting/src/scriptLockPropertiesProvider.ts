@@ -3,7 +3,11 @@ import { findListenerAt } from "@miragon/bpmn-modeler-types";
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ScriptModdle } from "./bpmnTypes";
-import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
+import {
+    LISTENER_ENTRY_ID_PATTERN,
+    listenerScriptKind,
+    type PanelListenerType,
+} from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
 import { readScriptTaskFormat } from "./scriptModel";
@@ -238,14 +242,12 @@ export class ScriptLockPropertiesProvider {
                     if (!match || !Array.isArray(item.entries)) {
                         continue;
                     }
-                    const kind: ScriptKind =
-                        match[2] === "executionListener" ? "execution-listener" : "task-listener";
                     this.lockEntry(
                         item.entries,
                         `${item.id}${SCRIPT_VALUE_SUFFIX}`,
                         element,
                         match[1],
-                        kind,
+                        listenerScriptKind(match[2] as PanelListenerType),
                         parseInt(match[3], 10),
                     );
                 }

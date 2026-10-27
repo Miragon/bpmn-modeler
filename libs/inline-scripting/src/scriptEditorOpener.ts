@@ -1,7 +1,7 @@
 import { findListenerAt } from "@miragon/bpmn-modeler-types";
-import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
+import { listenerScriptKind, type PanelListenerType } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { readScriptTaskFormat } from "./scriptModel";
 
@@ -14,12 +14,6 @@ import { readScriptTaskFormat } from "./scriptModel";
  * identically — including the undoable conversion of non-inline listeners —
  * so that logic lives here once instead of being duplicated per surface.
  */
-
-type ListenerType = "executionListener" | "taskListener";
-
-function listenerKind(listenerType: ListenerType): Exclude<ScriptKind, "script-task"> {
-    return listenerType === "executionListener" ? "execution-listener" : "task-listener";
-}
 
 interface EventBus {
     fire(event: string, payload?: unknown): void;
@@ -64,8 +58,8 @@ export class ScriptEditorOpener {
         if (this.openScriptTask(element)) {
             return true;
         }
-        for (const listenerType of ["executionListener", "taskListener"] as ListenerType[]) {
-            if (findListenerAt(element?.businessObject, listenerKind(listenerType), 0)) {
+        for (const listenerType of ["executionListener", "taskListener"] as PanelListenerType[]) {
+            if (findListenerAt(element?.businessObject, listenerScriptKind(listenerType), 0)) {
                 return this.openListener(element.id, listenerType, 0);
             }
         }
@@ -105,9 +99,13 @@ export class ScriptEditorOpener {
      *
      * @returns `true` if the listener exists and the event fired.
      */
-    openListener(elementId: string, listenerType: ListenerType, listenerIndex: number): boolean {
+    openListener(
+        elementId: string,
+        listenerType: PanelListenerType,
+        listenerIndex: number,
+    ): boolean {
         const element = this.elementRegistry.get(elementId);
-        const kind = listenerKind(listenerType);
+        const kind = listenerScriptKind(listenerType);
         const listener = findListenerAt(element?.businessObject, kind, listenerIndex);
         if (!element || !listener) {
             return false;
