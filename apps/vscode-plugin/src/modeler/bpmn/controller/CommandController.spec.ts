@@ -378,6 +378,20 @@ describe("CommandController.writeToFile", () => {
         expect(notifier.logged("info")).toEqual(["Diagram SVG exported to /work/diagram.svg"]);
     });
 
+    it("writes the svg next to the diagram it was requested from when focus moves before the reply", async () => {
+        const { controller, host, editor, notifier } = createController();
+        controller.writeToFile();
+
+        host.openEditor("/work/other.bpmn", "", { focused: true });
+        editor.receive(svgReply("<svg/>"));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const [uriArg] = fsWriteFileMock.mock.calls[0];
+        expect((uriArg as { path: string }).path).toBe("/work/diagram.svg");
+        expect(notifier.logged("info")).toEqual(["Diagram SVG exported to /work/diagram.svg"]);
+    });
+
     it("logs an error when the file write rejects", async () => {
         const { controller, editor, notifier } = createController();
         const failure = new Error("EACCES");
