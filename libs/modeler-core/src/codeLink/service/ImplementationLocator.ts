@@ -11,7 +11,7 @@ import {
     contentImplementsLiteral,
     matchesBeanClassName,
     matchesClassPath,
-} from "../domain/CodeLinkMap";
+} from "../domain/ImplementationTarget";
 import {
     beanToClassName,
     extractBeanName,

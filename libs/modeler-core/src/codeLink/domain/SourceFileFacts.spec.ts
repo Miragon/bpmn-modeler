@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contentDeclaresBean, contentImplementsLiteral } from "./CodeLinkMap";
+import { contentDeclaresBean, contentImplementsLiteral } from "./ImplementationTarget";
 import { SourceFileFacts } from "./SourceFileFacts";
 
 describe("SourceFileFacts", () => {

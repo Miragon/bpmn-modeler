@@ -4,16 +4,18 @@ import {
     buildMapJson,
     CODE_LINK_SCHEMA_VERSION,
     CodeLinkMapEntry,
-    contentDeclaresBean,
-    contentImplementsLiteral,
-    fileMatchesEntry,
-    matchesBeanClassName,
-    matchesClassPath,
     parseMapJson,
     toAbsolute,
     toAbsoluteEntries,
     toRelative,
 } from "./CodeLinkMap";
+import {
+    contentDeclaresBean,
+    contentImplementsLiteral,
+    fileMatchesEntry,
+    matchesBeanClassName,
+    matchesClassPath,
+} from "./ImplementationTarget";
 
 describe("CodeLinkMap — path conversion", () => {
     it("relativises and re-absolutises a workspace path round-trip", () => {

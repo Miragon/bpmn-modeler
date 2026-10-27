@@ -17,11 +17,11 @@ import { ArtifactService } from "../../kernel/service/ArtifactService";
 import {
     buildMapJson,
     CodeLinkMapEntry,
-    fileMatchesEntry,
     parseMapJson,
     toAbsoluteEntries,
     toRelative,
 } from "../domain/CodeLinkMap";
+import { fileMatchesEntry } from "../domain/ImplementationTarget";
 import { JVM_EXTENSIONS, SCRIPT_WORKER_EXTENSIONS } from "../domain/ImplementationReference";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
