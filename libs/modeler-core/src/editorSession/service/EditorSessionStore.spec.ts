@@ -246,24 +246,25 @@ describe("EditorSessionStore", () => {
 
     // ─── dispose (via the dispose-event path) ────────────────────────────────
 
-    it("disposing the active editor reassigns to the most recently registered remaining one", () => {
+    it("disposing the active editor hands the target back to the editor focused before it", () => {
         const onOpenCountChanged = vi.fn();
         const store = new EditorSessionStore(onOpenCountChanged);
-        const first = new FakeEditorHandle("/repo/1.bpmn");
-        const second = new FakeEditorHandle("/repo/2.bpmn");
-        const third = new FakeEditorHandle("/repo/3.bpmn");
-        const thirdDisposeListener = vi.spyOn(third, "onDidDispose");
-        [first, second, third].forEach((handle) => {
-            handle.active = true;
+        const focusedBefore = new FakeEditorHandle("/repo/1.bpmn");
+        const background = new FakeEditorHandle("/repo/2.bpmn");
+        const active = new FakeEditorHandle("/repo/3.bpmn");
+        const activeDisposeListener = vi.spyOn(active, "onDidDispose");
+        focusedBefore.active = true;
+        active.active = true;
+        [focusedBefore, background, active].forEach((handle) => {
             store.register(handle);
             store.subscribeToDisposeEvent(handle.id);
         });
 
         // Fires only the dispose event, so the store itself must dispose the handle.
-        thirdDisposeListener.mock.calls[0][0]();
+        activeDisposeListener.mock.calls[0][0]();
 
-        expect(third.disposed).toBe(true);
-        expect(store.getActiveEditorId()).toBe(second.id);
+        expect(active.disposed).toBe(true);
+        expect(store.getActiveEditorId()).toBe(focusedBefore.id);
         expect(onOpenCountChanged).toHaveBeenLastCalledWith(2);
     });
 

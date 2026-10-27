@@ -92,15 +92,39 @@ describe("CommandTarget", () => {
             announced: ["a"],
         },
         {
-            scenario: "hands a closed target to the newest remaining editor",
+            scenario: "hands a closed target back to the editor focused before it",
             steps: [
                 ["open", "a", "focused"],
                 ["open", "b", "background"],
                 ["open", "c", "focused"],
                 ["close", "c", ["a", "b"]],
             ],
-            target: "b",
-            announced: ["a", "c", "b"],
+            target: "a",
+            announced: ["a", "c", "a"],
+        },
+        {
+            scenario: "skips an editor that closed after it held the target",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "focused"],
+                ["open", "c", "focused"],
+                ["close", "b", ["a", "c"]],
+                ["close", "c", ["a"]],
+            ],
+            target: "a",
+            announced: ["a", "b", "c", "a"],
+        },
+        {
+            scenario:
+                "hands a closed target to the newest remaining editor when none of them held it",
+            steps: [
+                ["open", "a", "focused"],
+                ["open", "b", "background"],
+                ["open", "c", "background"],
+                ["close", "a", ["b", "c"]],
+            ],
+            target: "c",
+            announced: ["a", "c"],
         },
         {
             scenario: "stays when another editor closes",
@@ -130,6 +154,18 @@ describe("CommandTarget", () => {
             ],
             target: "b",
             announced: ["a", "b"],
+        },
+        {
+            scenario: "hands a closed target on again once every editor closed",
+            steps: [
+                ["open", "a", "focused"],
+                ["close", "a", []],
+                ["open", "b", "background"],
+                ["open", "c", "background"],
+                ["close", "b", ["c"]],
+            ],
+            target: "c",
+            announced: ["a", "b", "c"],
         },
     ])("$scenario", ({ steps, target, announced }) => {
         expect(play(steps)).toEqual({ target, announced });
