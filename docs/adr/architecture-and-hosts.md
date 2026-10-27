@@ -320,8 +320,13 @@ injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
 each webview's bundle directory. IntelliJ sends it as a response header from
 `WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
 hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
-it relies on `'unsafe-inline'`. A loader for user-supplied bpmn-io plugins must
-widen these policies on purpose rather than depend on a gap in them.
+it relies on `'unsafe-inline'`. Each host builds its policies in one place,
+VS Code in `webviewContentSecurityPolicy.ts` and IntelliJ in
+`WebviewContentSecurityPolicy.kt`: the directives every shell shares are written
+once, and a shell lists only what its bundle adds, so a shell cannot drop
+`base-uri` or `form-action` on its own. A loader for user-supplied bpmn-io
+plugins must widen these policies on purpose rather than depend on a gap in
+them.
 
 Camunda Forms use a dedicated form-js webview and `.form` custom editor inside
 the existing VS Code extension. Forms share the modeling workflow, host

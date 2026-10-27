@@ -44,7 +44,7 @@ export function webviewContentSecurityPolicy(
         ["default-src", "'none'"],
         ["script-src", `'nonce-${nonce}'`, ...scriptSources],
         // diagram-js, the properties panel and CodeMirror set style attributes and
-        // inject <style> elements without a nonce.
+        // inject <style> elements without a nonce; the deployment form has a style attribute.
         ["style-src", cspSource, "'unsafe-inline'"],
         ...Object.entries(loads).map(([directive, sources]) => [directive, ...sources]),
         // default-src does not cover these two.
