@@ -1,7 +1,19 @@
 import { resolveScriptWriteTarget, scriptPropertyName } from "@miragon/bpmn-modeler-types";
-import type { ScriptKind, ScriptPropertyName, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
+import type {
+    ScriptField,
+    ScriptKind,
+    ScriptPropertyName,
+    ScriptTaskScript,
+} from "@miragon/bpmn-modeler-types";
 
-import type { ElementCollection, ElementLookup, ScriptTaskBusinessObject } from "./bpmnTypes";
+import type {
+    ElementCollection,
+    ElementLookup,
+    ListenerModdle,
+    ModdleElement,
+    ScriptTaskBusinessObject,
+} from "./bpmnTypes";
+import type { OpenScriptEditorEvent } from "./scriptEditorEvents";
 
 /**
  * Model-side script reads. They address scripts through the script-surface
@@ -14,6 +26,20 @@ const LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE = "camunda:scriptFormat";
 
 // A script task and a nested `camunda:Script` each declare only the properties they store.
 type ScriptPropertyHolder = Partial<Record<ScriptPropertyName, string>>;
+
+/**
+ * Reads `field` of a `kind` script off the moddle element that stores it: the
+ * script task itself, or a listener's nested `camunda:Script`. `get` is guarded
+ * because a plain moddle object may expose the property only directly.
+ */
+export function readScriptField(
+    holder: (ModdleElement & ScriptPropertyHolder) | undefined,
+    kind: ScriptKind,
+    field: ScriptField,
+): string | undefined {
+    const propertyName = scriptPropertyName(kind, field);
+    return holder?.get?.(propertyName) ?? holder?.[propertyName];
+}
 
 /**
  * Reads a script's current content from the model.
@@ -52,17 +78,49 @@ export function readScriptContent(
  *
  * The single-open paths (context pad, panel header button) and the bulk
  * collector all resolve the format through this one function so they can never
- * disagree about which value the host receives. `bo.get` is guarded because a
- * plain moddle object may expose the attribute only as a direct property.
+ * disagree about which value the host receives.
  */
 export function readScriptTaskFormat(bo: ScriptTaskBusinessObject | undefined): string {
-    const formatProperty = scriptPropertyName("script-task", "format");
     return (
-        bo?.get?.(formatProperty) ||
-        bo?.[formatProperty] ||
+        readScriptField(bo, "script-task", "format") ||
         bo?.get?.(LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE) ||
         ""
     );
+}
+
+// `scriptFormat` and `eventName` feed the script URI, so every open must build the same payload.
+
+/** The payload that opens a script task's inline script in the host editor. */
+export function scriptTaskOpenEvent(
+    elementId: string,
+    bo: ScriptTaskBusinessObject,
+): OpenScriptEditorEvent {
+    return {
+        elementId,
+        kind: "script-task",
+        listenerIndex: undefined,
+        eventName: undefined,
+        scriptFormat: readScriptTaskFormat(bo),
+        content: readScriptField(bo, "script-task", "content") ?? "",
+    };
+}
+
+/** The payload that opens a listener's nested `camunda:Script` in the host editor. */
+export function listenerScriptOpenEvent(
+    elementId: string,
+    kind: Exclude<ScriptKind, "script-task">,
+    listenerIndex: number | undefined,
+    listener: ListenerModdle,
+): OpenScriptEditorEvent {
+    const script = listener.script;
+    return {
+        elementId,
+        kind,
+        listenerIndex,
+        eventName: listener.get?.("event") ?? listener.event ?? undefined,
+        scriptFormat: readScriptField(script, kind, "format") ?? "",
+        content: readScriptField(script, kind, "content") ?? "",
+    };
 }
 
 /**
@@ -93,7 +151,7 @@ export function collectInlineScriptTasks(elementRegistry: ElementCollection): Sc
             elementId: element.id,
             scriptFormat: readScriptTaskFormat(bo),
             // An unset moddle property still has to satisfy the string contract.
-            content: bo.script ?? "",
+            content: readScriptField(bo, "script-task", "content") ?? "",
         });
     }
     return scripts;

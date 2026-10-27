@@ -1,7 +1,8 @@
 /**
  * Stdio entrypoint for the out-of-process modeler core, shipped as a Node-free
- * Bun binary (`bun build --compile`). All wiring lives in {@link createBridge};
- * this file is only the stdio binding so the wiring stays unit-testable.
+ * Bun binary (`bun build --compile`). All wiring lives in {@link createBridge}
+ * and {@link createStdinHandler}; this file only binds the process streams, so
+ * the rest stays unit-testable.
  *
  * stdout is the RPC channel and must carry nothing else; all diagnostics go to
  * stderr (the host pipes that into the IDE log).
@@ -11,7 +12,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { createBridge } from "./bridge";
-import { createLineSplitter } from "./lineFraming";
+import { coreLogText, createStdinHandler } from "./stdioBinding";
 
 // The host (IntelliJ) sets this to a `PathManager`-derived location segmented by
 // the project's location hash (per-project, shared only among windows on that
@@ -23,20 +24,15 @@ const marketplaceCacheRoot =
 
 const { rpc } = createBridge(
     (line) => process.stdout.write(line + "\n"),
-    (message) => process.stderr.write(`[core] ${message}\n`),
+    (message) => process.stderr.write(coreLogText(message)),
     { marketplaceCacheRoot, homeDir: homedir() },
 );
 
-// Read stdin as newline-delimited JSON frames.
-const splitLines = createLineSplitter((line) => {
-    void rpc.handleLine(line).catch((error: unknown) => {
-        process.stderr.write(
-            `[core] handler error: ${error instanceof Error ? error.message : String(error)}\n`,
-        );
-    });
-});
 process.stdin.setEncoding("utf8");
-process.stdin.on("data", splitLines);
+process.stdin.on(
+    "data",
+    createStdinHandler(rpc, (text) => process.stderr.write(text)),
+);
 process.stdin.on("end", () => process.exit(0));
 
 // stdin EOF is the normal teardown, but the host also sends SIGTERM (its
@@ -45,4 +41,4 @@ process.stdin.on("end", () => process.exit(0));
 // grace window.
 process.on("SIGTERM", () => process.exit(0));
 
-process.stderr.write("[core] modeler-core bridge ready\n");
+process.stderr.write(coreLogText("modeler-core bridge ready"));

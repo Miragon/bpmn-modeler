@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveScriptWriteTarget } from "@miragon/bpmn-modeler-types";
+import type { ScriptField, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type {
     Element,
@@ -8,7 +9,12 @@ import type {
     ElementLookup,
     ScriptTaskBusinessObject,
 } from "./bpmnTypes";
-import { collectInlineScriptTasks, readScriptContent, readScriptTaskFormat } from "./scriptModel";
+import {
+    collectInlineScriptTasks,
+    readScriptContent,
+    readScriptField,
+    readScriptTaskFormat,
+} from "./scriptModel";
 
 /**
  * Builds a moddle-like business object whose `get(name)` reads back the same
@@ -23,6 +29,27 @@ function businessObject(attrs: Record<string, unknown>): ScriptTaskBusinessObjec
 function elementRegistry(elements: Element[]): ElementCollection {
     return { getAll: () => elements };
 }
+
+describe("readScriptField", () => {
+    it.each<[ScriptKind, ScriptField, string]>([
+        ["script-task", "content", "task()"],
+        ["execution-listener", "content", "listener()"],
+        ["task-listener", "format", "groovy"],
+    ])("reads the %s %s from the property the script-surface table names", (kind, field, value) => {
+        const holder = businessObject({
+            script: "task()",
+            value: "listener()",
+            scriptFormat: "groovy",
+        });
+        expect(readScriptField(holder, kind, field)).toBe(value);
+    });
+
+    it("reads a property the holder exposes only directly", () => {
+        expect(readScriptField({ value: "listener()" }, "execution-listener", "content")).toBe(
+            "listener()",
+        );
+    });
+});
 
 describe("readScriptTaskFormat", () => {
     it("reads the format from the attribute a format write targets", () => {

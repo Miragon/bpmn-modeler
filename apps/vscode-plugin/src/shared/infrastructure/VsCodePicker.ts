@@ -144,7 +144,7 @@ export class VsCodePicker implements PickerPort, DeploymentPickerPort, Migration
     /**
      * Returns the picked Camunda `scriptFormat` (e.g. `"javascript"`) or
      * `undefined` on cancel — the open-script flow uses this to recover
-     * when the BPMN model's `camunda:scriptFormat` is missing or set to a
+     * when the BPMN model's `scriptFormat` is missing or set to a
      * language we don't ship IntelliSense for. The currently-set format
      * (if any) is pinned to the top so it remains the default highlighted
      * option even when unrecognised.

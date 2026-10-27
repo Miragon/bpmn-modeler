@@ -39,6 +39,7 @@ import {
     NEW_MODEL_ENGINE_CHOICES,
     NewModelEngine,
     notifiedErrorLogText,
+    notifiedErrorToastText,
     NotifierPort,
     PickerPort,
     ScriptLanguage,
@@ -351,8 +352,8 @@ export class RpcDocumentPort implements DocumentPort {
 /**
  * Forwards every {@link NotifierPort} call to the host so it can surface real
  * IntelliJ UI — `Notifications.Bus` balloons for the user-facing methods and an
- * IDE log/console for the diagnostic ones. (Replaces the spike's log-only stub:
- * the host, not the core, decides balloon vs. log.)
+ * IDE log/console for the diagnostic ones. The core picks the method and writes
+ * its text; the host only renders it.
  */
 export class RpcNotifier implements NotifierPort {
     constructor(private readonly rpc: Rpc) {}
@@ -370,13 +371,11 @@ export class RpcNotifier implements NotifierPort {
     }
 
     notifyError(context: string, error: Error): void {
-        // Preserve the log-then-toast convention: the host logs the detail and
-        // shows a balloon pairing the caller's context with the error message.
         this.rpc.notify(METHODS.notifierLog, {
             level: "error",
             message: notifiedErrorLogText(context, error),
         });
-        this.rpc.notify(METHODS.notifierNotifyError, { context, message: error.message });
+        this.showError(notifiedErrorToastText(context, error));
     }
 
     openLoggingConsole(): void {

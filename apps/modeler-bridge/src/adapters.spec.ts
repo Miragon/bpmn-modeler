@@ -674,7 +674,7 @@ describe("RpcNotifier", () => {
         });
     });
 
-    it("pairs the caller context with the stack when notifying an error", () => {
+    it("logs the context with the stack and shows the context above the message", () => {
         const { frames, rpc } = harness();
         const error = errorThrownInDeploy("kaput");
 
@@ -686,8 +686,26 @@ describe("RpcNotifier", () => {
                 params: { level: "error", message: `While loading: ${error.stack}` },
             },
             {
-                method: "notifier/notifyError",
-                params: { context: "While loading", message: "kaput" },
+                method: "notifier/showError",
+                params: { message: "While loading\nkaput" },
+            },
+        ]);
+    });
+
+    it("shows a thrown string in the error balloon below the context", () => {
+        const { frames, rpc } = harness();
+        const thrownString = "EACCES" as unknown as Error;
+
+        new RpcNotifier(rpc).notifyError("Reading the element templates failed", thrownString);
+
+        expect(frames).toEqual([
+            {
+                method: "notifier/log",
+                params: { level: "error", message: "Reading the element templates failed: EACCES" },
+            },
+            {
+                method: "notifier/showError",
+                params: { message: "Reading the element templates failed\nEACCES" },
             },
         ]);
     });
