@@ -321,6 +321,24 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             expect(formatQueries.map((f) => f.params.editorId)).toEqual([editorId]);
         });
 
+        it("formats the tab the host registered last, as it opened that tab", async () => {
+            const { rpc, frames, workspaceRoot } = await setupWithOpenEditor();
+            const openedPath = join(workspaceRoot, "opened.bpmn");
+            await fs.writeFile(openedPath, BPMN_C7_XML, "utf8");
+            const openedId = `file://${openedPath}`;
+            await rpc.handleLine(
+                hostNotification(
+                    "session/register",
+                    registerParams(openedId, workspaceRoot, openedPath, BPMN_C7_XML),
+                ),
+            );
+
+            await rpc.handleLine(hostNotification("layout/format", {}));
+
+            const formatQueries = postedQueries(frames, "FormatDiagramQuery");
+            expect(formatQueries.map((f) => f.params.editorId)).toEqual([openedId]);
+        });
+
         it("reports the webview's format outcome to the user", async () => {
             const { rpc, frames, editorId } = await setupWithOpenEditor();
 
