@@ -6,9 +6,10 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * Pure-parse coverage for the page-flush reply that a close and a respawn act
- * on: turning the webview's raw JSON into a token+content pair, and rejecting
- * everything else. `EditorSessionRouterTest` covers the round trip around it.
+ * Pure-parse coverage for the page-flush reply that a save, a close and a
+ * respawn act on: turning the webview's raw JSON into a token+content pair,
+ * and rejecting everything else. `EditorSessionRouterTest` covers the round
+ * trip around it.
  */
 class DocumentFlushedReplyParseTest {
     private val gson = Gson()
@@ -92,28 +93,35 @@ class DocumentFlushedReplyParseTest {
     fun `unavailable reply preserves captured sync fallback`() {
         val reply = DocumentFlushedReply(4L, null, "unavailable")
 
-        assertEquals("<latest/>", pageFlushContent("<latest/>", reply))
+        assertEquals("<latest/>", pageFlushContent("<latest/>", reply, cleanReplyKeepsCapturedSync = false))
     }
 
     @Test
     fun `flushed reply replaces captured sync fallback`() {
         val reply = DocumentFlushedReply(4L, "<exported/>", "flushed")
 
-        assertEquals("<exported/>", pageFlushContent("<latest/>", reply))
+        assertEquals("<exported/>", pageFlushContent("<latest/>", reply, cleanReplyKeepsCapturedSync = true))
     }
 
     @Test
-    fun `clean reply discards an older captured sync`() {
+    fun `a destructive flush's clean reply discards an older captured sync`() {
         val reply = DocumentFlushedReply(4L, null, "clean")
 
-        assertNull(pageFlushContent("<stale/>", reply))
+        assertNull(pageFlushContent("<stale/>", reply, cleanReplyKeepsCapturedSync = false))
+    }
+
+    @Test
+    fun `a save flush's clean reply keeps the sync the page sent during the wait`() {
+        val reply = DocumentFlushedReply(4L, null, "clean")
+
+        assertEquals("<latest/>", pageFlushContent("<latest/>", reply, cleanReplyKeepsCapturedSync = true))
     }
 
     @Test
     fun `host update reply discards an older captured sync`() {
         val reply = DocumentFlushedReply(4L, null, "host-updated")
 
-        assertNull(pageFlushContent("<stale/>", reply))
+        assertNull(pageFlushContent("<stale/>", reply, cleanReplyKeepsCapturedSync = true))
     }
 
     @Test

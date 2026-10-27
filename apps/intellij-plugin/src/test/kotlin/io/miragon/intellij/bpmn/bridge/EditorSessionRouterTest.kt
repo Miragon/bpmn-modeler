@@ -4,11 +4,10 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.impl.LaterInvocator
-import com.intellij.openapi.command.CommandEvent
-import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.PlatformTestUtil
@@ -138,24 +137,6 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
-    /**
-     * Throws [failure] from the next command's `commandFinished`, i.e. after the
-     * write's `setText` already changed the Document.
-     */
-    private fun Fixture.failNextCommandAfterItRuns(failure: RuntimeException) {
-        var thrown = false
-        ApplicationManager.getApplication().messageBus.connect(session.project).subscribe(
-            CommandListener.TOPIC,
-            object : CommandListener {
-                override fun commandFinished(event: CommandEvent) {
-                    if (thrown) return
-                    thrown = true
-                    throw failure
-                }
-            },
-        )
-    }
-
     private fun Fixture.dispatchCoreSave() {
         val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId)
         wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, 2)
@@ -197,7 +178,7 @@ class EditorSessionRouterTest {
     @Test
     fun `a core write that throws after the Document took the content still answers that it changed`() {
         val f = setUpRouter(INITIAL_XML)
-        f.failNextCommandAfterItRuns(IllegalStateException("listener failed"))
+        failNextCommandAfterItRuns(f.session.project, IllegalStateException("listener failed"))
 
         f.dispatchCoreWrite(EDITED_XML)
 
@@ -602,6 +583,26 @@ class EditorSessionRouterTest {
 
         f.deliverRenderedFile(page, EDITED_XML)
         assertFalse(page.isLocked, "the page holds the token of the last flush it received")
+    }
+
+    @Test
+    fun `a save while a crash recovery waits still lets the replayed render unlock the page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val crashFlushAnswered = CountDownLatch(1)
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                reply()
+                crashFlushAnswered.countDown()
+            }
+
+        // Switching away from the IDE saves on the EDT while the crash path waits for the EDT to write its reply.
+        val crashRecovery = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        assertTrue(crashFlushAnswered.await(10, TimeUnit.SECONDS))
+        FileDocumentManager.getInstance().saveAllDocuments()
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        f.deliverRenderedFile(page, EDITED_XML)
+        assertFalse(page.isLocked, "a save's flush takes no lock, so the recovery still holds the page's")
     }
 
     @Test

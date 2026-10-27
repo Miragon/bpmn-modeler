@@ -51,9 +51,9 @@ export class SyncDocumentCommand extends Command<"SyncDocumentCommand"> {
 /**
  * Host → webview: asks the webview to flush any debounced-but-unsynced document
  * changes *now* and reply with a {@link DocumentFlushedCommand} carrying the
- * same `token`. Sent on a save (VS Code), or a tab close and a bridge restart
- * (IntelliJ), so the persist path never races the outbound sync debounce and
- * writes stale content.
+ * same `token`. Sent before a save, and on IntelliJ also before a tab closes
+ * or a bridge restart re-renders, so the persist path never races the outbound
+ * sync debounce and writes stale content.
  */
 export class FlushDocumentQuery extends Query<"FlushDocumentQuery"> {
     public readonly token: number;

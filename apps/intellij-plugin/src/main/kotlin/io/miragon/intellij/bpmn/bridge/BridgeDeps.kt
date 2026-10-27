@@ -15,8 +15,8 @@ import io.miragon.intellij.bpmn.HostNotifications
  * @param gson The channel's single Gson instance, reused for (de)serialisation.
  * @param isProcessAlive Liveness gate for no-op-when-down sends.
  * @param ensureStartedAsync Off-EDT spawn trigger for first-frame senders.
- * @param parentDisposable The `CoreProcess` service — parent for the script
- *   editor manager's listeners.
+ * @param parentDisposable The `CoreProcess` service — parent for the routers'
+ *   message-bus subscriptions (the save flush, the script editor manager's listeners).
  * @param notifications Lazy host UI surface; constructed on first error/notifier.
  */
 internal class BridgeDeps(
