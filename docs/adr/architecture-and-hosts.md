@@ -271,8 +271,10 @@ a stable run resets that budget. Recovery re-registers live sessions from the
 authoritative IntelliJ Documents, replays render requests, and re-seeds
 deployment state. A tab that closes while recovery builds its register frame
 gets a second `session/dispose` after that frame, so the new bridge keeps no
-session for it. Stdin EOF terminates the bridge; project disposal and shutdown
-cleanup prevent orphan processes.
+session for it. Accepted gap: if the same file registers again inside that
+window, the new bridge can end with no session for the new tab until it
+reopens or the next recovery runs. Stdin EOF terminates the bridge; project
+disposal and shutdown cleanup prevent orphan processes.
 
 The replayed render re-imports the Document, and a sync the restart window
 dropped never reached it. Recovery therefore first flushes each page with the
