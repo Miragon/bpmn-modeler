@@ -307,11 +307,10 @@ export class EditorSessionStore {
         const handle = this.requireHandle(editorId);
         handle.onDidChangeActive((active) => {
             if (this.editors.get(editorId) !== handle) return;
-            if (active) this.setActiveEditor(editorId);
-            else
-                this.announceActiveEditor(
-                    this.commandTarget.blur(editorId, this.getFocusedEditorId()),
-                );
+            const newTarget = active
+                ? this.commandTarget.focus(editorId)
+                : this.commandTarget.blur(editorId, this.getFocusedEditorId());
+            this.announceActiveEditor(newTarget);
         });
     }
 
