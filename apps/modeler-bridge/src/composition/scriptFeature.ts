@@ -8,6 +8,7 @@ import {
 import {
     EditorSessionContext,
     EditorSessionParticipant,
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
     scriptBatchSummary,
@@ -145,7 +146,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
             await deps.store.postMessage(editorId, new OpenAllScriptTasksQuery());
         } catch (error) {
             deps.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            deps.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+            deps.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
         }
     });
 

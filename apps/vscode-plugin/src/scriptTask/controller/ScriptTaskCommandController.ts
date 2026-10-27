@@ -1,8 +1,11 @@
 import { commands, ExtensionContext } from "vscode";
 
 import { OpenAllScriptTasksQuery } from "@miragon/bpmn-modeler-shared";
-import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
-import { NotifierPort } from "@miragon/bpmn-modeler-core";
+import {
+    EditorSessionStore,
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
+    NotifierPort,
+} from "@miragon/bpmn-modeler-core";
 
 /** VS Code command ID for opening every inline script task of the active diagram. */
 export const OPEN_ALL_SCRIPT_TASKS_CMD = "bpmn-modeler.openAllScriptTasks";
@@ -54,7 +57,7 @@ export class ScriptTaskCommandController {
             await this.editorStore.postMessage(activeId, new OpenAllScriptTasksQuery());
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+            this.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
         }
     }
 }

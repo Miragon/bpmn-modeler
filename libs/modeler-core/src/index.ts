@@ -28,6 +28,7 @@ export * from "./kernel/infrastructure/FetchHttpClient";
 export * from "./kernel/infrastructure/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
+export { FOCUS_BPMN_DIAGRAM_MESSAGE } from "./editorSession/domain/CommandTarget";
 export * from "./editorSession/domain/EditorSession";
 export * from "./editorSession/domain/EditorSessionParticipant";
 export * from "./editorSession/domain/session";

@@ -16,7 +16,7 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import { FOCUS_BPMN_DIAGRAM_MESSAGE, ScriptUri } from "@miragon/bpmn-modeler-core";
 
 import { registerParams, settle, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
@@ -861,12 +861,8 @@ describe("bridge script editor (real core over a fake transport)", () => {
 
         await rpc.handleLine(JSON.stringify({ method: "script/openAll", params: {} }));
 
-        const info = await waitForFrame(
-            frames,
-            (f) =>
-                f.method === "notifier/showInfo" && /Focus a BPMN diagram/.test(f.params.message),
-        );
-        expect(info).toBeDefined();
+        const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        expect(info.params.message).toBe(FOCUS_BPMN_DIAGRAM_MESSAGE);
         expect(
             frames.find((f) => f.method === "notifier/log" && f.params?.level === "error"),
         ).toBeDefined();

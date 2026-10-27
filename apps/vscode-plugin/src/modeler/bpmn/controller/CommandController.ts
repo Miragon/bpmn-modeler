@@ -20,6 +20,7 @@ import {
     createEmptyForm,
     DMN_VIEW_TYPE,
     EMPTY_DMN_DIAGRAM,
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
     FORM_VIEW_TYPE,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
@@ -101,7 +102,7 @@ export class CommandController {
             await this.layoutSvc.format(this.editorStore.getActiveEditorId());
         } catch (error) {
             this.notifier.logError(error as Error);
-            this.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+            this.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
         }
     }
 
@@ -111,7 +112,7 @@ export class CommandController {
             await this.layoutSvc.inspectCleanup(this.editorStore.getActiveEditorId());
         } catch (error) {
             this.notifier.logError(error as Error);
-            this.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+            this.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
         }
     }
 
