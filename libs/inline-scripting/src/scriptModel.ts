@@ -1,27 +1,30 @@
-import { findListenerAt, scriptPropertyName } from "@miragon/bpmn-modeler-types";
-import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
+import { resolveScriptWriteTarget, scriptPropertyName } from "@miragon/bpmn-modeler-types";
+import type { ScriptKind, ScriptPropertyName, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
 import type { ElementCollection, ElementLookup, ScriptTaskBusinessObject } from "./bpmnTypes";
 
 /**
- * Model-side script reads. Listener lookups go through `findListenerAt`, as
- * writes do, so a read and a write agree on which listener a
- * `(kind, listenerIndex)` pair means.
+ * Model-side script reads. They address scripts through the script-surface
+ * table, as writes do, so a read and a write agree on which element and
+ * property a `(kind, listenerIndex)` pair means.
  */
 
 /** Earlier releases of this extension wrote it, so older diagrams may carry only this one. */
 const LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE = "camunda:scriptFormat";
 
+// A script task and a nested `camunda:Script` each declare only the properties they store.
+type ScriptPropertyHolder = Partial<Record<ScriptPropertyName, string>>;
+
 /**
  * Reads a script's current content from the model.
  *
  * `undefined` means the script *surface* no longer exists — the element is
- * gone, or a listener (or its nested `camunda:Script`) was removed — which
- * callers treat as "close the editor tab". A script task whose `script`
- * property is merely unset maps to `""` instead: the property is always
- * writable on the element, so the tab can stay open on empty content. The
- * surfaces reported absent are the ones `resolveScriptWriteTarget` has no
- * target for.
+ * gone, it morphed away from a script task (a replace-menu morph keeps the
+ * id), or a listener (or its nested `camunda:Script`) was removed — which
+ * callers treat as "close the editor tab" rather than strand a detached
+ * buffer. A script task whose `script` property is merely unset maps to `""`
+ * instead: the property is always writable on the element, so the tab can
+ * stay open on empty content.
  */
 export function readScriptContent(
     elementRegistry: ElementLookup,
@@ -29,26 +32,16 @@ export function readScriptContent(
     kind: ScriptKind,
     listenerIndex: number | undefined,
 ): string | undefined {
-    const element = elementRegistry.get(elementId);
-    if (!element) {
+    const businessObject = elementRegistry.get(elementId)?.businessObject;
+    if (!businessObject) {
         return undefined;
     }
-    if (kind === "script-task") {
-        // A replace-menu morph keeps the element id but drops the ScriptTask
-        // surface, so `script` is gone. Report the surface as absent (→ close
-        // the tab) rather than `""`, which would strand an editable-looking but
-        // detached buffer. Mirrors `collectInlineScriptTasks`, which likewise
-        // filters on `$type === "bpmn:ScriptTask"`.
-        if (element.businessObject?.$type !== "bpmn:ScriptTask") {
-            return undefined;
-        }
-        return element.businessObject?.script ?? "";
-    }
-    const listener = findListenerAt(element.businessObject, kind, listenerIndex);
-    if (!listener?.script) {
+    const contentTarget = resolveScriptWriteTarget(businessObject, kind, listenerIndex, "content");
+    if (!contentTarget) {
         return undefined;
     }
-    return listener.script.value ?? "";
+    const contentHolder: ScriptPropertyHolder = contentTarget.moddleElement;
+    return contentHolder[contentTarget.propertyName] ?? "";
 }
 
 /**

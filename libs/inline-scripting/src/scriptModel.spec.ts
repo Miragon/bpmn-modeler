@@ -98,6 +98,30 @@ describe("readScriptContent", () => {
             readScriptContent(registryWith(element), "Task_1", "script-task", undefined),
         ).toBeUndefined();
     });
+
+    it.each([
+        ["an inline script", { value: "execution()" }, "execution()"],
+        ["an empty inline script", {}, ""],
+    ])(
+        "reads a listener with %s by its index among listeners of that type",
+        (_case, script, content) => {
+            const element = {
+                id: "Task_1",
+                businessObject: {
+                    $type: "bpmn:UserTask",
+                    extensionElements: {
+                        values: [
+                            { $type: "camunda:TaskListener", script: { value: "task()" } },
+                            { $type: "camunda:ExecutionListener", script },
+                        ],
+                    },
+                },
+            };
+            expect(
+                readScriptContent(registryWith(element), "Task_1", "execution-listener", 0),
+            ).toBe(content);
+        },
+    );
 });
 
 describe("collectInlineScriptTasks", () => {
