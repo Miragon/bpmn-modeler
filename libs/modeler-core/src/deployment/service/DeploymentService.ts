@@ -9,8 +9,11 @@ import {
     DeploymentConfigBuilder,
     DeploymentResult,
 } from "../domain/deployment";
-import { DeploymentTarget } from "../domain/deploymentTarget";
-import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
+import {
+    DeploymentDestination,
+    LegacyConnection,
+    NamedDestination,
+} from "../domain/deploymentDestination";
 import {
     DeploymentOutcome,
     RememberedPart,
@@ -163,32 +166,28 @@ export class DeploymentService {
      * {@link DeploymentResult} with `success: false`.
      *
      * @param config Validated deployment configuration.
-     * @param secretSlot When set, the deploy runs against a named target: only
-     *   credentials are persisted, under that slot, and the legacy connection
-     *   state is left untouched (it lives in the targets file). When absent, the
-     *   ad-hoc path persists connection + credentials to the legacy keys.
-     * @param target The named target the ledger row is keyed by; ad-hoc when absent.
+     * @param destination Decides what an accepted deploy persists: a named
+     *   target keeps only its credentials, under its slot, as its connection
+     *   lives in the targets file; the ad-hoc connection keeps both under the
+     *   legacy keys.
      * @returns The outcome of the deployment attempt.
      */
     async deploy(
         config: DeploymentConfig,
-        secretSlot?: string,
-        target?: DeploymentTarget,
+        destination: DeploymentDestination,
     ): Promise<DeploymentResult> {
         try {
             const fileContents = await this.readFileContents(config);
             const documentDir = path.dirname(config.mainFilePath);
             const lookup = await this.envResolver.createLookup(
-                target === undefined ? "workspaceFolder" : "targetsFile",
+                destination.envScope,
                 documentDir,
                 config,
             );
             const requestConfig = config.expandEnvRefs(lookup);
-            // A typed ad-hoc request is the user's own choice; one carrying `.env` values is not.
-            if (target !== undefined || requestConfig.carriesEnvValues()) {
+            if (destination.requiresApproval(requestConfig)) {
                 await this.credentialApproval.ensureApproved(
-                    target,
-                    documentDir,
+                    destination,
                     requestConfig.sensitiveDestinations(),
                 );
             }
@@ -202,21 +201,21 @@ export class DeploymentService {
             let outcome = DeploymentOutcome.fromEngine(engineResult);
             if (!outcome.succeeded) return outcome.toResult();
 
-            if (secretSlot === undefined) {
+            const persistence = destination.credentialPersistence(config.auth);
+            if (persistence.legacyConnection !== undefined) {
+                const { legacyConnection } = persistence;
                 outcome = await this.remember(outcome, "connection", () =>
-                    this.saveConnection(config),
+                    this.saveConnection(legacyConnection, persistence.auth),
                 );
             }
             outcome = await this.remember(outcome, "credentials", () =>
-                this.saveSecrets(config.auth, secretSlot),
+                this.saveSecrets(persistence.auth, persistence.secretSlot),
             );
             outcome = await this.remember(outcome, "ledgerRow", () =>
                 this.deploymentStatus.recordDeployment(
                     config.mainFilePath,
                     fileContents.get(path.basename(config.mainFilePath)) ?? "",
-                    target === undefined
-                        ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId, lookup)
-                        : DeploymentTargetIdentity.fromTarget(target, lookup),
+                    destination.ledgerIdentity(lookup),
                     engineResult.deploymentId,
                 ),
             );
@@ -229,22 +228,23 @@ export class DeploymentService {
     }
 
     /**
-     * Deploys each path as its own single-file deployment against `target`,
+     * Deploys each path as its own single-file deployment against the target,
      * naming the deployment after the file's basename. Never throws — a failed
      * file yields a failed {@link DeploymentResult} so the batch always completes
      * and the caller sees a per-file outcome. Credentials are assumed already
      * stored on the target, so nothing is persisted here.
      *
-     * @param documentDir The directory `target` was resolved from. Its `.env`
+     * @param documentDir The directory `destination` was resolved from. Its `.env`
      *   serves the whole batch, even for files from other workspace folders, so
      *   a target's endpoint and its variables always come from the same project.
      */
     async deployFiles(
         paths: string[],
-        target: DeploymentTarget,
+        destination: NamedDestination,
         auth: AuthConfig,
         documentDir: string | undefined,
     ): Promise<DeploymentResult[]> {
+        const { target } = destination;
         const results: DeploymentResult[] = [];
         let pendingLookup: Promise<EnvLookup> | undefined;
         let pendingApproval: Promise<void> | undefined;
@@ -261,13 +261,16 @@ export class DeploymentService {
                     .withAuth(auth)
                     .withDeployUrl(target.deployUrl)
                     .build();
-                pendingLookup ??= this.envResolver.createLookup("targetsFile", documentDir, config);
+                pendingLookup ??= this.envResolver.createLookup(
+                    destination.envScope,
+                    documentDir,
+                    config,
+                );
                 const envLookup = await pendingLookup;
                 const requestConfig = config.expandEnvRefs(envLookup);
                 // One answer covers the batch: every file goes to the same target.
                 pendingApproval ??= this.credentialApproval.ensureApproved(
-                    target,
-                    documentDir,
+                    destination,
                     requestConfig.sensitiveDestinations(),
                 );
                 await pendingApproval;
@@ -279,7 +282,7 @@ export class DeploymentService {
                         this.deploymentStatus.recordDeployment(
                             filePath,
                             fileContents.get(name + path.extname(filePath)) ?? "",
-                            DeploymentTargetIdentity.fromTarget(target, envLookup),
+                            destination.ledgerIdentity(envLookup),
                             engineResult.deploymentId,
                         ),
                     );
@@ -322,14 +325,14 @@ export class DeploymentService {
         }
     }
 
-    private async saveConnection(config: DeploymentConfig): Promise<void> {
-        await this.deploymentState.save(config.endpoint, config.tenantId);
-        await this.deploymentState.saveAuthType(config.auth.type);
-        if (config.auth.type === "oauth2") {
-            await this.deploymentState.saveOAuth2Config(
-                config.auth.tokenEndpoint,
-                config.auth.audience,
-            );
+    private async saveConnection(
+        { endpoint, tenantId }: LegacyConnection,
+        auth: AuthConfig,
+    ): Promise<void> {
+        await this.deploymentState.save(endpoint, tenantId);
+        await this.deploymentState.saveAuthType(auth.type);
+        if (auth.type === "oauth2") {
+            await this.deploymentState.saveOAuth2Config(auth.tokenEndpoint, auth.audience);
         }
     }
 

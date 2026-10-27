@@ -1,4 +1,4 @@
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { NamedDestination } from "../domain/deploymentDestination";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 
@@ -11,13 +11,14 @@ export async function resolveOrPickActiveTarget(
     deploymentStatusService: DeploymentStatusService,
     documentDir: string | undefined,
     afterTargetPicker: () => Promise<void> = async () => undefined,
-): Promise<DeploymentTarget | undefined> {
-    const activeTarget = await deploymentTargetService.getActiveTarget(documentDir);
-    if (activeTarget !== undefined) {
-        return activeTarget;
+): Promise<NamedDestination | undefined> {
+    const active = await deploymentTargetService.getActiveDestination(documentDir);
+    if (active.kind === "named") {
+        return active;
     }
     await deploymentTargetService.switchActiveTarget(documentDir);
     await deploymentStatusService.refreshFocused();
     await afterTargetPicker();
-    return deploymentTargetService.getActiveTarget(documentDir);
+    const picked = await deploymentTargetService.getActiveDestination(documentDir);
+    return picked.kind === "named" ? picked : undefined;
 }

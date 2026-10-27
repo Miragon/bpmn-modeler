@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BasicAuth, NoAuth } from "../domain/deployment";
+import {
+    AdHocDestination,
+    DeploymentDestination,
+    NamedDestination,
+} from "../domain/deploymentDestination";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
@@ -29,6 +34,16 @@ const PROJECT_DIR = "/work";
 const DEV_SLOT = "/work/.camunda/deployment-targets.json::dev";
 
 const NAMED_TARGET = new DeploymentTarget("dev", "c7", "${env:MIRAGON_URL}", "", "none", "", "");
+/** A start records no ledger row, so the ad-hoc connection's endpoint is never read. */
+const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
+
+function named(target: DeploymentTarget): NamedDestination {
+    return new NamedDestination(target, {
+        filePath: "/work/.camunda/deployment-targets.json",
+        exists: true,
+        projectDir: PROJECT_DIR,
+    });
+}
 
 function dotEnvContent(variables: Record<string, string>): string {
     return Object.entries(variables)
@@ -65,12 +80,7 @@ function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}
         exists: true,
         projectDir: PROJECT_DIR,
     });
-    const resolveSlot = vi.fn().mockResolvedValue(DEV_SLOT);
-    const credentialApproval = new CredentialApprovalService(
-        { resolveSlot },
-        host.secrets,
-        host.picker,
-    );
+    const credentialApproval = new CredentialApprovalService(host.secrets, host.picker);
     const readFile = vi.spyOn(host.workspace, "readFile");
 
     const service = new StartInstanceService(
@@ -91,7 +101,6 @@ function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}
         artifactService,
         readFile,
         locateTargetsFile,
-        resolveSlot,
     };
 }
 
@@ -206,7 +215,7 @@ describe("StartInstanceService.startInstance", () => {
             "/work/payloads/a.json",
             undefined,
             undefined,
-            undefined,
+            AD_HOC,
         );
 
         expect(result).toBe(success);
@@ -228,7 +237,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             undefined,
-            undefined,
+            AD_HOC,
         );
 
         const config = restClient.startInstance.mock.calls[0][0] as StartInstanceConfig;
@@ -249,7 +258,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             undefined,
-            undefined,
+            AD_HOC,
         );
 
         expect(result).toBe(failure);
@@ -269,7 +278,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             undefined,
-            undefined,
+            AD_HOC,
         );
 
         expect(result.success).toBe(false);
@@ -290,7 +299,7 @@ describe("StartInstanceService.startInstance", () => {
             "/work/payloads/bad.json",
             undefined,
             undefined,
-            undefined,
+            AD_HOC,
         );
 
         expect(result.success).toBe(false);
@@ -313,7 +322,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             "https://gw.${env:MIRAGON_STAGE}.example/{processDefinitionKey}/start",
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         const config = restClient.startInstance.mock.calls[0][0] as StartInstanceConfig;
@@ -341,7 +350,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             "${env:MIRAGON_GATEWAY}/gateway-path/{processDefinitionKey}/start",
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(host.notifier.logged("info")).toContain(
@@ -363,7 +372,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             undefined,
-            undefined,
+            AD_HOC,
         );
 
         expect(host.notifier.logged("info")).toContain(
@@ -383,7 +392,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(result.success).toBe(false);
@@ -408,7 +417,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(result.success).toBe(false);
@@ -432,7 +441,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         const config = restClient.startInstance.mock.calls[0][0] as StartInstanceConfig;
@@ -450,7 +459,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(result.success).toBe(false);
@@ -475,7 +484,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             "${env:MIRAGON_START}",
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(result).toMatchObject({ success: true, processInstanceId: "pi-1" });
@@ -508,7 +517,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             undefined,
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         // The rejection really quoted the secret, so its absence below is the redaction.
@@ -549,7 +558,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             "https://gw.example/hooks/${env:MIRAGON_TOKEN}/{processDefinitionKey}/start",
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(fetchStub).toHaveBeenCalledExactlyOnceWith(
@@ -585,7 +594,7 @@ describe("StartInstanceService.startInstance", () => {
             "",
             "https://gw.example/{processDefinitionKey}/start",
             "/work",
-            undefined,
+            AD_HOC,
         );
 
         expect(result).toBe(success);
@@ -624,7 +633,7 @@ describe("StartInstanceService.startInstance .env scope", () => {
 
     const startWithEndpointRef = (
         service: StartInstanceService,
-        target: DeploymentTarget | undefined,
+        destination: DeploymentDestination,
     ) =>
         service.startInstance(
             "Process_1",
@@ -634,13 +643,13 @@ describe("StartInstanceService.startInstance .env scope", () => {
             "",
             undefined,
             NESTED_PROJECT_DIR,
-            target,
+            destination,
         );
 
     it("reads the workspace folder's .env for the workspaceFolder scope, never a nested targets file's", async () => {
         const { service, restClient, locateTargetsFile, readFile } = createNestedProjectService();
 
-        await startWithEndpointRef(service, undefined);
+        await startWithEndpointRef(service, AD_HOC);
 
         expect(locateTargetsFile).not.toHaveBeenCalled();
         expect(readFile).toHaveBeenCalledExactlyOnceWith("/work/.env");
@@ -651,7 +660,7 @@ describe("StartInstanceService.startInstance .env scope", () => {
     it("reads the .env beside the targets file for the targetsFile scope", async () => {
         const { service, restClient, locateTargetsFile, readFile } = createNestedProjectService();
 
-        await startWithEndpointRef(service, NAMED_TARGET);
+        await startWithEndpointRef(service, named(NAMED_TARGET));
 
         expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith(NESTED_PROJECT_DIR);
         expect(readFile).toHaveBeenCalledExactlyOnceWith("/work/team/.env");
@@ -664,7 +673,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
     const DECLINED = new CredentialDestinationNotApprovedError("dev");
 
     it("asks to approve the origin a named target's start URL resolves to before starting", async () => {
-        const { service, host, restClient, resolveSlot } = createService({
+        const { service, host, restClient } = createService({
             dotEnv: {
                 MIRAGON_URL: "https://camunda.example/engine-rest",
                 MIRAGON_GATEWAY: "https://gw.example:8443",
@@ -684,10 +693,9 @@ describe("StartInstanceService.startInstance credential approval", () => {
             "",
             "${env:MIRAGON_GATEWAY}/{processDefinitionKey}/start",
             PROJECT_DIR,
-            NAMED_TARGET,
+            named(NAMED_TARGET),
         );
 
-        expect(resolveSlot).toHaveBeenCalledExactlyOnceWith("dev", PROJECT_DIR);
         expect(host.picker.prompts).toEqual([
             {
                 method: "confirmDestructive",
@@ -716,7 +724,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
             "",
             undefined,
             PROJECT_DIR,
-            NAMED_TARGET,
+            named(NAMED_TARGET),
         );
 
         expect(result).toMatchObject({ success: false, message: DECLINED.message });
@@ -737,7 +745,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
             "",
             undefined,
             PROJECT_DIR,
-            undefined,
+            AD_HOC,
         );
 
         expect(result.success).toBe(true);
@@ -762,7 +770,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
     ])(
         "asks under the ad-hoc approvals before an ad-hoc start takes %s from .env",
         async (_field, dotEnv, endpoint, auth, origin) => {
-            const { service, host, restClient, resolveSlot } = createService({ dotEnv });
+            const { service, host, restClient } = createService({ dotEnv });
             let approvedAtStart: string[] | undefined;
             restClient.startInstance.mockImplementation(async () => {
                 approvedAtStart = await host.secrets.getApprovedDestinations("ad-hoc");
@@ -777,10 +785,9 @@ describe("StartInstanceService.startInstance credential approval", () => {
                 "",
                 undefined,
                 PROJECT_DIR,
-                undefined,
+                AD_HOC,
             );
 
-            expect(resolveSlot).not.toHaveBeenCalled();
             expect(host.picker.prompts).toEqual([
                 {
                     method: "confirmDestructive",
@@ -811,7 +818,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
             "",
             undefined,
             PROJECT_DIR,
-            undefined,
+            AD_HOC,
         );
 
         expect(result).toMatchObject({ success: false, message: declinedAdHoc.message });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost, PickerAnswers } from "../../testing";
 import { BasicAuth } from "../domain/deployment";
+import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployFilesService } from "./DeployFilesService";
 
@@ -17,13 +18,20 @@ const devTarget = new DeploymentTarget(
     "",
     "",
 );
+const devDestination = new NamedDestination(devTarget, {
+    filePath: "/work/.camunda/deployment-targets.json",
+    exists: true,
+    projectDir: "/work",
+});
+/** No target is active. */
+const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
 
 function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }) {
     const host = createTestHost({ answers });
     const calls: string[] = [];
     const credentials = new BasicAuth("demo", "demo");
     const deploymentTargetService = {
-        getActiveTarget: vi.fn().mockResolvedValue(devTarget),
+        getActiveDestination: vi.fn().mockResolvedValue(devDestination),
         switchActiveTarget: vi.fn(async () => void calls.push("switchTarget")),
         getCredentials: vi.fn().mockResolvedValue(credentials),
     };
@@ -69,7 +77,7 @@ describe("DeployFilesService.deployFiles", () => {
 
         await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
 
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith(DOCUMENT_DIR);
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith(DOCUMENT_DIR);
         expect(c.host.picker.prompts).toEqual([
             {
                 method: "pickWorkspaceFiles",
@@ -82,14 +90,11 @@ describe("DeployFilesService.deployFiles", () => {
                 ],
             },
         ]);
-        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(
-            devTarget,
-            DOCUMENT_DIR,
-        );
+        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(devDestination);
         expect(c.host.notifier.progressTitles).toEqual(['Deploying 2 file(s) to "dev"']);
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             PICKED_FILES,
-            devTarget,
+            devDestination,
             c.credentials,
             DOCUMENT_DIR,
         );
@@ -98,14 +103,17 @@ describe("DeployFilesService.deployFiles", () => {
 
     it("runs the target picker first when no target is active and deploys to the picked one", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget
-            .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce(devTarget);
+        c.deploymentTargetService.getActiveDestination
+            .mockResolvedValueOnce(AD_HOC)
+            .mockResolvedValueOnce(devDestination);
 
         await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
 
         expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith(DOCUMENT_DIR);
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenNthCalledWith(2, DOCUMENT_DIR);
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenNthCalledWith(
+            2,
+            DOCUMENT_DIR,
+        );
         expect(c.calls).toEqual([
             "switchTarget",
             "refreshStatus",
@@ -115,7 +123,7 @@ describe("DeployFilesService.deployFiles", () => {
         ]);
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             PICKED_FILES,
-            devTarget,
+            devDestination,
             c.credentials,
             DOCUMENT_DIR,
         );
@@ -123,7 +131,7 @@ describe("DeployFilesService.deployFiles", () => {
 
     it("stops after the target picker when it leaves no active target", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(undefined);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(AD_HOC);
 
         await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
 
@@ -166,18 +174,21 @@ describe("DeployFilesService.deployFiles", () => {
 
     it("works without a host hook or a focused document", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget
-            .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce(devTarget);
+        c.deploymentTargetService.getActiveDestination
+            .mockResolvedValueOnce(AD_HOC)
+            .mockResolvedValueOnce(devDestination);
 
         await c.service.deployFiles(undefined);
 
         expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith(undefined);
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenNthCalledWith(2, undefined);
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenNthCalledWith(
+            2,
+            undefined,
+        );
         expect(c.deploymentService.deployFiles).toHaveBeenCalledOnce();
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             PICKED_FILES,
-            devTarget,
+            devDestination,
             c.credentials,
             undefined,
         );
@@ -188,11 +199,11 @@ describe("DeployFilesService.deployFiles", () => {
 
         await c.service.deployFiles(undefined);
 
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith(undefined);
-        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(devTarget, undefined);
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith(undefined);
+        expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(devDestination);
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             PICKED_FILES,
-            devTarget,
+            devDestination,
             c.credentials,
             undefined,
         );

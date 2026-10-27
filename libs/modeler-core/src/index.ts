@@ -107,6 +107,7 @@ export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────
 export * from "./deployment/domain/deployment";
+export * from "./deployment/domain/deploymentDestination";
 export * from "./deployment/domain/deploymentLedger";
 export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";

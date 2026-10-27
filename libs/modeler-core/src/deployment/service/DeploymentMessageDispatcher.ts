@@ -21,7 +21,14 @@ import {
 import { posix } from "path";
 
 import { DeploymentConfigBuilder } from "../domain/deployment";
-import { DeploymentTarget, TargetChange, TargetRequest } from "../domain/deploymentTarget";
+import {
+    AdHocDestination,
+    DeploymentDestination,
+    namesTarget,
+    requestDestination,
+    TargetEdit,
+} from "../domain/deploymentDestination";
+import { TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
@@ -225,13 +232,12 @@ export class DeploymentMessageDispatcher {
         requestId: number,
     ): Promise<void> {
         try {
-            const auth =
-                targetName.trim() === ""
-                    ? await this.deploymentService.getStoredCredentials()
-                    : await this.deploymentTargetService.getStoredCredentials(
-                          targetName,
-                          this.activeDocumentDir(),
-                      );
+            const auth = namesTarget(targetName)
+                ? await this.deploymentTargetService.getStoredCredentials(
+                      targetName,
+                      this.activeDocumentDir(),
+                  )
+                : await this.deploymentService.getStoredCredentials();
             this.post(new StoredCredentialsQuery(auth, targetName, requestId));
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
@@ -257,12 +263,12 @@ export class DeploymentMessageDispatcher {
     private async handleCreateTarget(message: CreateTargetCommand): Promise<void> {
         try {
             const documentDir = this.activeDocumentDir();
-            const change = await this.deploymentTargetService.createTarget(
+            const edit = await this.deploymentTargetService.createTarget(
                 message.target,
                 message.auth,
                 documentDir,
             );
-            await this.pruneRetiredTarget(change, documentDir);
+            await this.pruneRetiredTarget(edit, documentDir);
             this.post(
                 new TargetSavedQuery(true, `Created deployment target "${message.target.name}".`),
             );
@@ -278,13 +284,13 @@ export class DeploymentMessageDispatcher {
     private async handleSaveTarget(message: SaveTargetCommand): Promise<void> {
         try {
             const documentDir = this.activeDocumentDir();
-            const change = await this.deploymentTargetService.saveTarget(
+            const edit = await this.deploymentTargetService.saveTarget(
                 message.target,
                 message.auth,
                 message.previousName,
                 documentDir,
             );
-            await this.pruneRetiredTarget(change, documentDir);
+            await this.pruneRetiredTarget(edit, documentDir);
             this.post(
                 new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
             );
@@ -300,9 +306,9 @@ export class DeploymentMessageDispatcher {
     private async handleDeleteTarget(name: string): Promise<void> {
         try {
             const documentDir = this.activeDocumentDir();
-            const change = await this.deploymentTargetService.deleteTarget(name, documentDir);
-            if (change !== undefined) {
-                await this.pruneRetiredTarget(change, documentDir);
+            const edit = await this.deploymentTargetService.deleteTarget(name, documentDir);
+            if (edit !== undefined) {
+                await this.pruneRetiredTarget(edit, documentDir);
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
                 await this.sendTargets();
                 await this.deploymentStatusService.refreshFocused();
@@ -314,14 +320,13 @@ export class DeploymentMessageDispatcher {
         }
     }
 
-    /** Ledger rows are keyed by name and host, so a retired target's rows would never match again. */
     private async pruneRetiredTarget(
-        change: TargetChange,
+        { retiredDestination }: TargetEdit,
         documentDir: string | undefined,
     ): Promise<void> {
-        if (change.retiredTarget === undefined) return;
+        if (retiredDestination === undefined) return;
         await this.deploymentStatusService.pruneTarget(
-            await this.deploymentStatusService.targetIdentity(change.retiredTarget, documentDir),
+            await this.deploymentStatusService.ledgerIdentity(retiredDestination, documentDir),
         );
     }
 
@@ -336,20 +341,17 @@ export class DeploymentMessageDispatcher {
         }
     }
 
-    private async resolveRequestTarget(
+    private async resolveRequestDestination(
         targetName: string | undefined,
+        adHoc: AdHocDestination,
         request: TargetRequest,
         documentDir: string | undefined,
-    ): Promise<DeploymentTarget | undefined> {
-        if (!targetName?.trim()) return undefined;
-        const target = await this.deploymentTargetService.getTarget(targetName, documentDir);
-        if (target === undefined) {
-            throw new DeploymentTargetChangedError(
-                "The deployment target no longer exists. Select a target again.",
-            );
-        }
-        target.assertAdmits(request);
-        return target;
+    ): Promise<DeploymentDestination> {
+        const destination = requestDestination(
+            await this.deploymentTargetService.resolveDestination(targetName, adHoc, documentDir),
+        );
+        destination.assertAdmits(request);
+        return destination;
     }
 
     /** Directory of the active editor's document, or `undefined` if no editor is open. */
@@ -422,8 +424,9 @@ export class DeploymentMessageDispatcher {
         try {
             const documentDir = this.activeDocumentDir();
             const auth = toAuthConfig(configPayload.auth);
-            const target = await this.resolveRequestTarget(
+            const destination = await this.resolveRequestDestination(
                 configPayload.targetName,
+                new AdHocDestination(configPayload.endpoint, ""),
                 {
                     kind: "startInstance",
                     endpoint: configPayload.endpoint,
@@ -442,7 +445,7 @@ export class DeploymentMessageDispatcher {
                 configPayload.payloadFilePath,
                 configPayload.startInstanceUrl,
                 documentDir,
-                target,
+                destination,
             );
 
             if (result.success) {
@@ -498,8 +501,9 @@ export class DeploymentMessageDispatcher {
                 .build();
 
             const documentDir = posix.dirname(mainFilePath);
-            const target = await this.resolveRequestTarget(
+            const destination = await this.resolveRequestDestination(
                 configPayload.targetName,
+                new AdHocDestination(config.endpoint, config.tenantId),
                 {
                     kind: "deploy",
                     endpoint: configPayload.endpoint,
@@ -510,10 +514,6 @@ export class DeploymentMessageDispatcher {
                 },
                 documentDir,
             );
-            const secretSlot =
-                target === undefined
-                    ? undefined
-                    : await this.deploymentTargetService.resolveSlot(target.name, documentDir);
 
             const saveResult = await this.saveBeforeDeploy.save(activeEditorId);
             if (!saveResult.saved) {
@@ -522,7 +522,7 @@ export class DeploymentMessageDispatcher {
                 return;
             }
 
-            const result = await this.deploymentService.deploy(config, secretSlot, target);
+            const result = await this.deploymentService.deploy(config, destination);
 
             if (result.success) {
                 this.notifier.logInfo(`Deployment succeeded: ${result.message}`);

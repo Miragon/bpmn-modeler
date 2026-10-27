@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost, PickerAnswers } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
+import {
+    AdHocDestination,
+    DeploymentDestination,
+    NamedDestination,
+} from "../domain/deploymentDestination";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import {
     contentFingerprint,
@@ -66,6 +71,14 @@ const urlRefTarget = (): DeploymentTarget =>
     );
 const NESTED_PROJECT_DIR = "/work/team";
 
+function named(target: DeploymentTarget): NamedDestination {
+    return new NamedDestination(target, {
+        filePath: "/work/.camunda/deployment-targets.json",
+        exists: true,
+        projectDir: "/work",
+    });
+}
+
 function dotEnvContent(dotEnv: Record<string, string>): string {
     return Object.entries(dotEnv)
         .map(([key, value]) => `${key}=${value}`)
@@ -106,6 +119,13 @@ function createService({
     editor.active = true;
     const deploymentTargetService = {
         getActiveTarget: vi.fn().mockResolvedValue(undefined),
+        getActiveDestination: vi.fn(
+            async (): Promise<DeploymentDestination> =>
+                new AdHocDestination(
+                    host.deploymentState.getEndpoint(),
+                    host.deploymentState.getTenantId(),
+                ),
+        ),
         locateTargetsFile: vi.fn().mockResolvedValue({
             filePath: `${projectDir}/.camunda/deployment-targets.json`,
             exists: true,
@@ -294,7 +314,9 @@ describe("DeploymentStatusService ledger writes", () => {
             });
         }
 
-        await c.service.pruneTarget(await c.service.targetIdentity(endpointRefTarget(), "/work"));
+        await c.service.pruneTarget(
+            await c.service.ledgerIdentity(named(endpointRefTarget()), "/work"),
+        );
 
         expect(c.host.deploymentState.listLedgerKeys()).toEqual([otherHostRow]);
     });
@@ -315,7 +337,7 @@ describe("DeploymentStatusService ledger writes", () => {
             });
 
             const pruning = c.service
-                .targetIdentity(endpointRefTarget(), "/work")
+                .ledgerIdentity(named(endpointRefTarget()), "/work")
                 .then((identity) => c.service.pruneTarget(identity));
 
             await expect(pruning).resolves.toBeUndefined();
@@ -368,7 +390,7 @@ describe("DeploymentStatusService status after a ledger write", () => {
         },
     ])("refreshes the status bar after $write", async ({ recordedBefore, writeLedger, shown }) => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         if (recordedBefore) await recordRevisionUnder(c, DEV_KEY);
         await c.service.refresh(c.editor.id);
 
@@ -406,11 +428,11 @@ describe("DeploymentStatusService status after a ledger write", () => {
     });
 });
 
-describe("DeploymentStatusService.targetIdentity", () => {
+describe("DeploymentStatusService.ledgerIdentity", () => {
     it("keys a literal target endpoint without any .env IO", async () => {
         const c = createService();
 
-        const identity = await c.service.targetIdentity(target("dev"), "/work");
+        const identity = await c.service.ledgerIdentity(named(target("dev")), "/work");
 
         expect(identity.key()).toBe("target:dev@localhost:8080");
         expectNoDotEnvIo(c);
@@ -425,7 +447,10 @@ describe("DeploymentStatusService.targetIdentity", () => {
         async (_location, refOutsideEndpointTarget) => {
             const c = createService(workspaceDotEnv(PROD_DOT_ENV));
 
-            const identity = await c.service.targetIdentity(refOutsideEndpointTarget, "/work");
+            const identity = await c.service.ledgerIdentity(
+                named(refOutsideEndpointTarget),
+                "/work",
+            );
 
             expect(identity.key()).toBe("target:dev@localhost:8080");
             expectNoDotEnvIo(c);
@@ -440,7 +465,10 @@ describe("DeploymentStatusService.targetIdentity", () => {
             }),
         );
 
-        const identity = await c.service.targetIdentity(endpointRefTarget(), NESTED_PROJECT_DIR);
+        const identity = await c.service.ledgerIdentity(
+            named(endpointRefTarget()),
+            NESTED_PROJECT_DIR,
+        );
 
         expect(identity.key()).toBe(
             DeploymentTargetIdentity.fromTarget(endpointRefTarget(), lookupOf(PROD_DOT_ENV)).key(),
@@ -454,7 +482,7 @@ describe("DeploymentStatusService.targetIdentity", () => {
     it("keys an endpoint ref by a fingerprint of the host it resolves to, never the host itself", async () => {
         const c = createService(workspaceDotEnv(PROD_DOT_ENV));
 
-        const identity = await c.service.targetIdentity(endpointRefTarget(), "/work");
+        const identity = await c.service.ledgerIdentity(named(endpointRefTarget()), "/work");
 
         expect(c.deploymentTargetService.locateTargetsFile).toHaveBeenCalledWith("/work");
         expect(identity.key()).toContain("env:");
@@ -473,9 +501,11 @@ describe("DeploymentStatusService.targetIdentity", () => {
             workspaceDotEnv({ MIRAGON_URL: "https://staging.example.com/engine-rest" }),
         );
 
-        const prodKey = (await prod.service.targetIdentity(endpointRefTarget(), "/work")).key();
+        const prodKey = (
+            await prod.service.ledgerIdentity(named(endpointRefTarget()), "/work")
+        ).key();
         const stagingKey = (
-            await staging.service.targetIdentity(endpointRefTarget(), "/work")
+            await staging.service.ledgerIdentity(named(endpointRefTarget()), "/work")
         ).key();
 
         expect(stagingKey).not.toBe(prodKey);
@@ -487,7 +517,7 @@ describe("DeploymentStatusService.targetIdentity", () => {
             const c = createService(workspaceDotEnv(PROD_DOT_ENV));
             breakDotEnv(c);
 
-            const identity = await c.service.targetIdentity(endpointRefTarget(), "/work");
+            const identity = await c.service.ledgerIdentity(named(endpointRefTarget()), "/work");
 
             expect(identity.key()).toBe(
                 DeploymentTargetIdentity.fromTarget(endpointRefTarget(), NO_ENV_VARIABLES).key(),
@@ -503,7 +533,7 @@ describe("DeploymentStatusService.targetIdentity", () => {
             new Error("targets lookup failed"),
         );
 
-        await expect(c.service.targetIdentity(endpointRefTarget(), "/work")).rejects.toThrow(
+        await expect(c.service.ledgerIdentity(named(endpointRefTarget()), "/work")).rejects.toThrow(
             "targets lookup failed",
         );
         expect(c.host.notifier.logged("debug")).toEqual([]);
@@ -572,11 +602,11 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("refreshes the focused diagram, not one resolved behind it", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("old"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("old")));
         await c.service.refresh(c.editor.id);
         // Registering moves the store's pointer to the background diagram.
         c.host.openEditor("/work/background.bpmn", "<a/>");
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("new"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("new")));
 
         await c.service.refreshFocused();
 
@@ -608,13 +638,13 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("finishes the focused diagram's refresh when a background diagram asks for one meanwhile", async () => {
         const c = createService();
-        const pending = deferred<DeploymentTarget | undefined>();
-        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const pending = deferred<DeploymentDestination>();
+        c.deploymentTargetService.getActiveDestination.mockReturnValueOnce(pending.promise);
         const focusedRefresh = c.service.refresh(c.editor.id);
         const background = c.host.openEditor("/work/background.bpmn", "<a/>");
 
         await c.service.refresh(background.id);
-        pending.resolve(target("dev"));
+        pending.resolve(named(target("dev")));
         await focusedRefresh;
 
         expect(c.host.statusBar.deploymentTarget?.name).toBe("dev");
@@ -630,13 +660,13 @@ describe("DeploymentStatusService.refresh", () => {
 
     it.each(["resolve", "reject"])("ignores a stale lookup that later %s", async (outcome) => {
         const c = createService();
-        const pending = deferred<DeploymentTarget | undefined>();
-        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const pending = deferred<DeploymentDestination>();
+        c.deploymentTargetService.getActiveDestination.mockReturnValueOnce(pending.promise);
         const oldRefresh = c.service.refresh(c.editor.id);
         const other = focusOtherDiagram(c);
         await c.service.refresh(other.id);
         const shown = c.host.statusBar.deploymentTarget;
-        if (outcome === "resolve") pending.resolve(target("old"));
+        if (outcome === "resolve") pending.resolve(named(target("old")));
         else pending.reject(new Error("stale error"));
         await oldRefresh;
         expect(c.host.statusBar.deploymentTarget).toBe(shown);
@@ -644,11 +674,11 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("invalidates pending refreshes when hidden, even if the active pointer is unchanged", async () => {
         const c = createService();
-        const pending = deferred<DeploymentTarget | undefined>();
-        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const pending = deferred<DeploymentDestination>();
+        c.deploymentTargetService.getActiveDestination.mockReturnValueOnce(pending.promise);
         const refresh = c.service.refresh(c.editor.id);
         c.service.hide();
-        pending.resolve(target("old"));
+        pending.resolve(named(target("old")));
         await refresh;
         expect(c.host.statusBar.deploymentTarget).toBeUndefined();
     });
@@ -673,7 +703,9 @@ describe("DeploymentStatusService.refresh", () => {
             const ledgerReads = vi.spyOn(c.host.deploymentState, "getDeployedRevision");
             const dotEnvRead = deferred<string>();
             c.dotEnvIo.readFile.mockReturnValueOnce(dotEnvRead.promise);
-            c.deploymentTargetService.getActiveTarget.mockResolvedValue(endpointRefTarget());
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+                named(endpointRefTarget()),
+            );
 
             const staleRefresh = c.service.refresh(c.editor.id);
             await vi.waitFor(() =>
@@ -693,13 +725,13 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("only publishes the newest lookup for the same editor", async () => {
         const c = createService();
-        const pending = deferred<DeploymentTarget | undefined>();
-        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const pending = deferred<DeploymentDestination>();
+        c.deploymentTargetService.getActiveDestination.mockReturnValueOnce(pending.promise);
         const old = c.service.refresh(c.editor.id);
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("new"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("new")));
         await c.service.refresh(c.editor.id);
         const shown = c.host.statusBar.deploymentTarget;
-        pending.resolve(target("old"));
+        pending.resolve(named(target("old")));
         await old;
         expect(shown).toEqual({
             name: "new",
@@ -725,7 +757,7 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("renders deployed (green) when content matches the recorded fingerprint", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         await c.host.deploymentState.saveDeployedRevision(
             ledgerKeyFor(
                 DeploymentTargetIdentity.fromTarget(target("dev"), NO_ENV_VARIABLES),
@@ -749,7 +781,9 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("reads the ledger under the fingerprinted host the endpoint ref resolves to", async () => {
         const c = createService(workspaceDotEnv(PROD_DOT_ENV));
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(endpointRefTarget());
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            named(endpointRefTarget()),
+        );
         const ledgerKey = ledgerKeyFor(
             DeploymentTargetIdentity.fromTarget(endpointRefTarget(), lookupOf(PROD_DOT_ENV)),
             FILE_PATH,
@@ -769,7 +803,9 @@ describe("DeploymentStatusService.refresh", () => {
         async (_desc, breakDotEnv) => {
             const c = createService(workspaceDotEnv(PROD_DOT_ENV));
             breakDotEnv(c);
-            c.deploymentTargetService.getActiveTarget.mockResolvedValue(endpointRefTarget());
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+                named(endpointRefTarget()),
+            );
             await recordRevisionUnder(
                 c,
                 ledgerKeyFor(
@@ -787,7 +823,7 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("reads the ledger of a literal endpoint without touching .env", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         await recordRevisionUnder(c, `target:dev@localhost:8080::${FILE_PATH}`);
 
         await c.service.refresh(c.editor.id);
@@ -802,7 +838,9 @@ describe("DeploymentStatusService.refresh", () => {
         async (_desc, breakDotEnv) => {
             const c = createService();
             breakDotEnv(c);
-            c.deploymentTargetService.getActiveTarget.mockResolvedValue(credentialRefTarget());
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+                named(credentialRefTarget()),
+            );
             await recordRevisionUnder(c, `target:dev@localhost:8080::${FILE_PATH}`);
 
             await c.service.refresh(c.editor.id);
@@ -815,7 +853,7 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("renders changed (yellow) when content differs from the recorded fingerprint", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         c.editor.content = "<b/>";
         await c.host.deploymentState.saveDeployedRevision(DEV_KEY, {
             fingerprint: contentFingerprint("<a/>"),
@@ -834,7 +872,7 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("renders superseded (blue) and passes verifiedAt for an engine-origin mismatch", async () => {
         const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         c.editor.content = "<b/>";
         await c.host.deploymentState.saveDeployedRevision(DEV_KEY, {
             fingerprint: contentFingerprint("<a/>"),
