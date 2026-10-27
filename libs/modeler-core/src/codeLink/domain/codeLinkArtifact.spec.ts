@@ -15,6 +15,13 @@ describe("codeLinkArtifact — path conversion", () => {
         const root = "//server/share/proj";
         expect(toAbsolute(toRelative(abs, root), root)).toBe(abs);
     });
+
+    it("climbs out of the root for a file in another workspace folder", () => {
+        const abs = "/work/lib/src/Charge.java";
+        const root = "/work/proj";
+        expect(toRelative(abs, root)).toBe("../lib/src/Charge.java");
+        expect(toAbsolute(toRelative(abs, root), root)).toBe(abs);
+    });
 });
 
 describe("codeLinkArtifact — parseMapJson", () => {

@@ -119,6 +119,18 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
     });
 });
 
+describe("ImplementationLocator — logging", () => {
+    it("shortens a long reference in its log line like every echoed reference", async () => {
+        const { locator, notifier } = createLocator();
+
+        await locator.resolve("t".repeat(110), "jobType");
+
+        expect(notifier.logged("info")[0]).toBe(
+            `[code-link] resolving jobType reference="${"t".repeat(99)}…" sourceUri=<none>`,
+        );
+    });
+});
+
 describe("ImplementationLocator — externalTopic / jobType", () => {
     it("finds a job worker by the quoted job type literal", async () => {
         const { locator, workspace } = createLocator({
@@ -190,11 +202,10 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
 
         const result = await locator.resolve("t", "jobType");
 
-        expect(result.kind).toBe("all-unreadable");
-        if (result.kind === "all-unreadable") {
-            expect(result.attempted).toBe(1);
-            expect(result.failures[0]).toContain("EACCES");
-        }
+        expect(result).toEqual({
+            kind: "all-unreadable",
+            failures: [expect.stringContaining("EACCES")],
+        });
     });
 
     it("includes partial read failures alongside a successful match", async () => {

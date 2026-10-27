@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { truncateForDisplay } from "./truncateForDisplay";
+import { referenceForDisplay, truncateForDisplay } from "./truncateForDisplay";
+
+describe("referenceForDisplay", () => {
+    it.each([
+        { behaviour: "keeps a short reference", reference: "pay", shown: "pay" },
+        {
+            behaviour: "keeps a reference of 100 characters",
+            reference: "x".repeat(100),
+            shown: "x".repeat(100),
+        },
+        {
+            behaviour: "cuts a reference of 101 characters to 100",
+            reference: "x".repeat(101),
+            shown: `${"x".repeat(99)}…`,
+        },
+    ])("$behaviour", ({ reference, shown }) => {
+        expect(referenceForDisplay(reference)).toBe(shown);
+    });
+});
 
 describe("truncateForDisplay", () => {
     it.each([

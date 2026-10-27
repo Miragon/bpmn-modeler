@@ -26,6 +26,8 @@ export class ImplementationNavigationService {
         sourceDocumentPath?: string,
     ): Promise<void> {
         const label = ImplementationTarget.of(kind, reference).label;
+        const nothingImplements = (displayReference: string) =>
+            `No implementation for ${label} "${displayReference}" was found`;
         await openLocatedFile(
             {
                 reference,
@@ -33,9 +35,9 @@ export class ImplementationNavigationService {
                 searchSubject: label,
                 pickPlaceholder: "Select the implementation to open",
                 noSearchScopeMessage: (displayReference) =>
-                    `No implementation for "${displayReference}" was found. Open a folder to enable code navigation.`,
+                    `${nothingImplements(displayReference)}. Open a folder to enable code navigation.`,
                 notFoundMessage: (displayReference) =>
-                    `No implementation for ${label} "${displayReference}" was found in the workspace.`,
+                    `${nothingImplements(displayReference)} in the workspace.`,
             },
             { notifier: this.notifier, picker: this.picker },
         );

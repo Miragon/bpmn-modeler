@@ -2,18 +2,11 @@ import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
-import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
-import {
-    ContentSearchResult,
-    findFilesExcluding,
-    searchFilesContent,
-} from "../../kernel/service/workspaceFileSearch";
+import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
+import { findFilesExcluding, searchFilesContent } from "../../kernel/service/workspaceFileSearch";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ContentSearch, ImplementationTarget } from "../domain/ImplementationTarget";
 import { DirectSourceCatalog, SourceCatalog } from "./SourceIndex";
-
-// Max length of a reference echoed back into a user-facing log line.
-const REFERENCE_DISPLAY_LIMIT = 120;
 
 /** A reference only file content can settle. */
 interface ContentTarget {
@@ -42,7 +35,7 @@ export class ImplementationLocator {
         kind: ImplementationKind,
         sourceDocumentPath?: string,
     ): Promise<LocateResult> {
-        const displayReference = truncateForDisplay(reference, REFERENCE_DISPLAY_LIMIT);
+        const displayReference = referenceForDisplay(reference);
         this.notifier.logInfo(
             `[code-link] resolving ${kind} reference="${displayReference}" ` +
                 `sourceUri=${sourceDocumentPath ?? "<none>"}`,
@@ -146,7 +139,8 @@ export class ImplementationLocator {
         if (target.fileNameGlob === undefined) {
             return [];
         }
-        return findFilesExcluding(this.vsWorkspace, target.fileNameGlob, {
+        return findFilesExcluding(this.vsWorkspace, {
+            glob: target.fileNameGlob,
             sourceDocumentPath,
             logger: this.notifier,
             matchesWalkedFile: (path) => target.matchesFileName(path),
@@ -157,32 +151,19 @@ export class ImplementationLocator {
      * Searches the content of the files `search` covers, listed with the same
      * findFiles → fs-walk fallback as the file-name search.
      */
-    private async searchContent(
+    private searchContent(
         search: ContentSearch,
         sourceDocumentPath: string | undefined,
     ): Promise<LocateResult> {
-        const sources = await findFilesExcluding(this.vsWorkspace, search.files.glob(), {
-            sourceDocumentPath,
-            logger: this.notifier,
-            matchesWalkedFile: search.files.includes,
-        });
-        if (sources === undefined) {
-            return { kind: "no-search-scope" };
-        }
-        return toResult(
-            sources,
-            await searchFilesContent(this.vsWorkspace, sources, search.pattern, this.notifier),
+        return searchFilesContent(
+            this.vsWorkspace,
+            {
+                glob: search.files.glob(),
+                sourceDocumentPath,
+                logger: this.notifier,
+                matchesWalkedFile: search.files.includes,
+            },
+            search.pattern,
         );
     }
-}
-
-function toResult(candidates: string[], search: ContentSearchResult): LocateResult {
-    if (search.allUnreadable) {
-        return {
-            kind: "all-unreadable",
-            attempted: candidates.length,
-            failures: search.readFailures,
-        };
-    }
-    return { kind: "matches", paths: search.matches, readFailures: search.readFailures };
 }

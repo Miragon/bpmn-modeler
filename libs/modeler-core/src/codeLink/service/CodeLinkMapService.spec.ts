@@ -391,6 +391,42 @@ describe("CodeLinkMapService — persistence", () => {
         expect(written.entries[0].paths).toEqual(["src/main/java/com/example/A.java"]);
     });
 
+    it("names a nested diagram by its path below the root", async () => {
+        const { service, host } = createService({ persist: true });
+        const nested = host.openEditor("/work/proj/processes/order.bpmn");
+
+        await service.syncActivities(nested.id, [entry("Act", "jobType", "pay")]);
+        await service.writeArtifact(nested.id);
+
+        const written = host.workspace.files.get(
+            "/work/proj/.camunda/code-link/processes/order.bpmn.json",
+        );
+        expect(JSON.parse(written!).bpmnFile).toBe("processes/order.bpmn");
+    });
+
+    it("keeps a link to a file outside the diagram's root across a reopen", async () => {
+        const abs = "/work/lib/src/main/java/com/example/A.java";
+        const { service, host, editor, locator } = createService({
+            persist: true,
+            resolveMap: { "com.example.A": [abs] },
+            fileContents: { [abs]: "class A {}" },
+        });
+        const entries = [entry("Act", "javaClass", "com.example.A")];
+
+        await service.syncActivities(editor.id, entries);
+        await service.writeArtifact(editor.id);
+        service.disposeEditor(editor.id);
+        await service.syncActivities(editor.id, entries);
+
+        expect(JSON.parse(host.workspace.files.get(ARTIFACT)!).entries[0].paths).toEqual([
+            "../lib/src/main/java/com/example/A.java",
+        ]);
+        expect(locator.resolveMany).toHaveBeenCalledTimes(1);
+        expect(lastStatus(editor)).toEqual({
+            [implementationStatusKey("Act", "com.example.A")]: true,
+        });
+    });
+
     it("writes the artifact under the UNC root of a workspace on a share", async () => {
         const root = "//server/share/proj";
         const { service, host, editor } = createService({
