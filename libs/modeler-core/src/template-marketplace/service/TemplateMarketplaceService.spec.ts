@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
 import { FetchReport } from "../domain/fetchReport";
+import { InvalidMarketplaceError } from "../domain/marketplace";
 import {
     RepositoryAccessError,
     RepositorySource,
@@ -209,6 +210,18 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow();
         expect(cachedPaths()).toEqual([]);
+    });
+
+    it("keeps the manifest fetch failure as the cause of the invalid-marketplace error", async () => {
+        const offline = new Error("offline");
+        const { service } = createService({ manifest: offline });
+
+        const failure = await service
+            .addMarketplace("https://github.com/acme/templates")
+            .catch((error: Error) => error);
+
+        expect(failure).toBeInstanceOf(InvalidMarketplaceError);
+        expect((failure as Error).cause).toBe(offline);
     });
 
     it("throws when the manifest is malformed", async () => {
