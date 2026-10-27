@@ -120,7 +120,8 @@ export interface XmlAttribute {
     readonly end: number;
 }
 
-export interface DefinitionsStartTag {
+export interface XmlStartTag {
+    readonly name: string;
     readonly attributes: readonly XmlAttribute[];
     /** Offset just past the last attribute, or past the element name when there is none. */
     readonly attributesEnd: number;
@@ -132,22 +133,24 @@ export interface DefinitionsStartTag {
  * scanning — no DOM or XML parser, so it stays usable in the design entry
  * consumed by the Node host and the Bun bridge.
  */
-export function readDefinitionsStartTag(xml: string): DefinitionsStartTag | undefined {
+export function readDefinitionsStartTag(xml: string): XmlStartTag | undefined {
     const tagStart = findRootTagStart(xml);
     if (tagStart === undefined) {
         return undefined;
     }
+    const startTag = readStartTag(xml, tagStart);
+    return startTag && localName(startTag.name) === "definitions" ? startTag : undefined;
+}
 
+/** Reads the start tag whose `<` is at `tagStart`, or `undefined` when it is malformed. */
+function readStartTag(xml: string, tagStart: number): XmlStartTag | undefined {
     let cursor = tagStart + 1;
     const nameMatch = /^[^\s/>]+/.exec(xml.slice(cursor));
     if (!nameMatch) {
         return undefined;
     }
-    const tagName = nameMatch[0];
-    if (localName(tagName) !== "definitions") {
-        return undefined;
-    }
-    cursor += tagName.length;
+    const name = nameMatch[0];
+    cursor += name.length;
 
     const attributes: XmlAttribute[] = [];
     let attributesEnd = cursor;
@@ -161,10 +164,10 @@ export function readDefinitionsStartTag(xml: string): DefinitionsStartTag | unde
 
         const char = xml[cursor];
         if (char === ">") {
-            return { attributes, attributesEnd };
+            return { name, attributes, attributesEnd };
         }
         if (char === "/") {
-            return xml[cursor + 1] === ">" ? { attributes, attributesEnd } : undefined;
+            return xml[cursor + 1] === ">" ? { name, attributes, attributesEnd } : undefined;
         }
 
         const attributeStart = cursor;
