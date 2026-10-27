@@ -17,7 +17,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Embeddable BPMN behavior and public API | `packages/bpmn-modeler/src/`; start with `index.ts` and `publicApi.ts`. Viewer, designer, mode-session, diff, and lint have separate subpaths. |
 | Embeddable DMN behavior and public API | `packages/dmn-modeler/src/`; start with `index.ts` and `publicApi.ts`. |
 | Reusable browser features | Feature libraries under `libs/`, composed by the modeler packages. |
-| Public-facing types and browser utilities | `libs/modeler-types`; keep the surface suitable for publication. |
+| Public-facing types, browser utilities and pure rules the webview and the core share | `libs/modeler-types`; keep the surface suitable for publication. |
 | Private messages and webview chrome | `libs/shared/src/lib/`; base/sync messages in `messages.ts`, feature payloads in their corresponding files, host channel in `host.ts`. |
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/bootstrap.ts`. |
@@ -25,7 +25,8 @@ verify details against source because older guides and ADRs may be outdated.
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/bridge.ts` and `src/composition/`; Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's
-`domain/` as pure code, written test-first with the [tdd](../tdd/SKILL.md) skill.
+`domain/` as pure code, or into `libs/modeler-types` when the webview applies
+the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 
 ## Preserve the boundaries
 
@@ -34,8 +35,10 @@ Decisions (rules, state transitions, validations) go into the owning feature's
   Private browser libraries are inlined into published packages; upstream stacks
   remain npm dependencies.
 - Keep `modeler-core` and `shared` out of published browser code. Put protocol
-  adaptation in webview bootstraps. `modeler-types` holds publishable concepts;
-  DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
+  adaptation in webview bootstraps. `modeler-types` holds publishable concepts
+  and the pure rules the webview and the core share, such as script-surface
+  addressing; DOM-id-coupled panel chrome and host-theme adaptation belong in
+  `shared`.
 - Add host-independent logic to the core's feature-oriented domain/service
   layers. Reach host facilities through ports and editor handles. Cross-cutting
   host ports live in the core's `kernel/domain/hostPorts.ts`; a port or prompt

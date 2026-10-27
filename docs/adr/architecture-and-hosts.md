@@ -46,12 +46,19 @@ Externalization does not remove upstream watermark and license-notice
 obligations; document them in the package README. Do not publish each private
 feature library as an independently versioned API.
 
-Placement in `modeler-types` requires both freedom from the private protocol
-and a surface worth publishing. Portable mode types, disposable primitives,
-engine versions, canvas utilities and `isTextEditingSurface` qualify.
-DOM-id-coupled panel resizers, focus/shortcut bindings and the VS Code body-class
-theme adapter belong in `shared`. This deliberately mixes private browser
-chrome with the protocol to avoid another workspace for a few helpers.
+Placement in `modeler-types` requires freedom from the private protocol and
+either a surface worth publishing or a pure BPMN rule that both the webview and
+the core apply. Portable mode types, disposable primitives, engine versions,
+canvas utilities and `isTextEditingSurface` qualify as surface; script-surface
+addressing (`scriptSurface.ts`) is such a shared rule. The webview cannot import
+the core, whose barrel exports Node-only modules, so a rule both apply has no
+other common home. The package is private and inlined: its npm surface is only
+what a package entry re-exports by name, which `check-dts` and
+`publicApi.spec.ts` gate, so a shared rule adds nothing to it. A rule only the
+core applies stays in the core's `domain/`. DOM-id-coupled panel resizers,
+focus/shortcut bindings and the VS Code body-class theme adapter belong in
+`shared`. This deliberately mixes private browser chrome with the protocol to
+avoid another workspace for a few helpers.
 
 `modeler-core` owns domain/services, the editor-session core
 (`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) and
@@ -517,6 +524,14 @@ a cached result must equal an uncached run.
 - Enforcing the core's layer rules only after the refactors that remove the
   current violations would let new ones in meanwhile. Known exceptions start
   the gate now, at the cost of a list that review has to keep from growing.
+- A separate library for the pure BPMN rules the webview and the core share
+  would need a manifest, path aliases, a Vitest target and entries in the
+  inlined-library lists, about ten config edits for a few hundred lines. The
+  rules live in `modeler-types` instead, at two costs: a `feat` or `fix` there
+  triggers both npm release lines (see
+  [Release and publishing](release-and-publishing.md)), and the core's
+  [mutation run](engineering-practices.md#mutation-testing) does not cover
+  them.
 - `kernel/` and `editorSession/` could be workspaces of their own, which would
   turn their direction into package dependencies. That adds manifests, path
   aliases and Vitest targets for code no consumer imports apart from the core,
