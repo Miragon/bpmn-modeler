@@ -249,7 +249,7 @@ bundle.
 yarn test
 
 # Run a single test file
-yarn test libs/modeler-core/src/shared/domain/BpmnDocument.spec.ts
+yarn test libs/modeler-core/src/kernel/domain/BpmnDocument.spec.ts
 
 # Run every workspace with its coverage thresholds, as CI does
 yarn test:coverage
@@ -508,19 +508,22 @@ pipeline flow diagram.
 ## Architecture Overview
 
 The extension is organised **by feature** with plain constructor wiring — no DI
-framework. Each feature folder owns the four classic layers as subfolders, and
-cross-feature use goes through the feature's `index.ts` barrel.
+framework. Domain logic, services and the editor-session core
+(`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) live in
+`@miragon/bpmn-modeler-core`; a feature folder here keeps only its VS Code
+`controller/` and `infrastructure/`, and cross-feature use goes through the
+feature's `index.ts` barrel.
 
 ```
 apps/vscode-plugin/src/
   main.ts          # Activation: build shared deps, then call each feature's register()
   composition/     # One register(context, deps) per feature — the wiring root
-  shared/          # Cross-feature substrate: domain/ service/ infrastructure/
-                   #   (EditorSessionStore, VsCode* adapters, WebviewMessageRouter, …)
+  shared/          # Cross-feature infrastructure/: VsCode* port adapters, webview HTML, …
   modeler/
     editor-session/  # Generic ModelerEditorController (runs the core EditorSessionLifecycle)
-    bpmn/ dmn/       # domain/ service/ controller/ infrastructure/  index.ts
-  diff/ deployment/ scriptTask/ navigation/ migration/   # same per-feature layout
+    bpmn/ form/      # controller/ infrastructure/
+  deployment/ diff/ scriptTask/ templateMarketplace/        # controller/ infrastructure/
+  codeLink/ definitionSearch/ migration/ navigation/        # index.ts barrel only
 ```
 
 The layer + feature-isolation boundaries are enforced in CI by

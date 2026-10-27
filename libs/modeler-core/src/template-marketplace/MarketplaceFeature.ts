@@ -1,20 +1,19 @@
 import { join } from "path";
 
-import { HttpClient } from "../deployment/domain/ports";
-import { FetchHttpClient } from "../deployment/infrastructure/FetchHttpClient";
+import { HttpClient } from "../kernel/domain/http";
+import { FetchHttpClient } from "../kernel/infrastructure/FetchHttpClient";
+import { NotifierPort, SettingsPort, WorkspacePort } from "../kernel/domain/hostPorts";
+import { expandHomePath } from "./domain/marketplace";
 import {
-    NotifierPort,
-    SettingsPort,
+    RepositorySource,
+    RepositorySourceConfig,
     TokenPromptPort,
     TokenStorePort,
-    WorkspacePort,
-} from "../shared/domain/hostPorts";
-import { expandHomePath } from "./domain/marketplace";
-import { RepositorySource, RepositorySourceConfig } from "./domain/ports";
+} from "./domain/ports";
 import { GitHubSource } from "./infrastructure/GitHubSource";
 import { GitLabSource } from "./infrastructure/GitLabSource";
 import { LocalFileSource } from "./infrastructure/LocalFileSource";
-import { MarketplaceCache } from "./infrastructure/MarketplaceCache";
+import { MarketplaceCache } from "./service/MarketplaceCache";
 import { TemplateMarketplaceService } from "./service/TemplateMarketplaceService";
 
 export interface MarketplaceHostPorts {

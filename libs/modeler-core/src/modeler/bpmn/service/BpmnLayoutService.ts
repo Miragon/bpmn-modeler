@@ -6,8 +6,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { LayoutErrorCode } from "@miragon/bpmn-modeler-types";
 
-import { NotifierPort, PickerPort } from "../../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { NotifierPort, PickerPort } from "../../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /** What each refusal means, in words a user can act on. */
 const REFUSAL_MESSAGES: Record<LayoutErrorCode, string> = {

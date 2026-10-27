@@ -2,8 +2,8 @@ import {
     errorLogText,
     notifiedErrorLogText,
     notifiedErrorToastText,
-} from "../shared/domain/errorLogText";
-import { NotifierPort } from "../shared/domain/hostPorts";
+} from "../kernel/domain/errorLogText";
+import { NotifierPort } from "../kernel/domain/hostPorts";
 
 export type LogLevel = "debug" | "info" | "warning" | "error";
 

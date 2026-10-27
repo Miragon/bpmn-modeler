@@ -22,12 +22,15 @@ import {
     ClipboardPort,
     DeployedRevision,
     DeploymentFreshness,
+    DeploymentPickerPort,
     DeploymentStatePort,
+    DeploymentStatusBarPort,
     DocumentChangeEvent,
     DocumentPort,
     EditorHandle,
     EditorSubscription,
     errorLogText,
+    MigrationPickerPort,
     MigrationScope,
     NEW_MODEL_ENGINE_CHOICES,
     NewModelEngine,
@@ -408,11 +411,12 @@ export class RpcNotifier implements NotifierPort {
 }
 
 /**
- * Forwards every {@link StatusBarPort} call to the host, which owns the actual
- * `StatusBarWidget` (element-template count + engine version). The core stays
- * the single source of truth for *what* to show; the host decides *how*.
+ * Forwards every {@link StatusBarPort} and {@link DeploymentStatusBarPort} call
+ * to the host, which owns the actual `StatusBarWidget`s (element-template count
+ * + engine version; deployment target). The core stays the single source of
+ * truth for *what* to show; the host decides *how*.
  */
-export class RpcStatusBar implements StatusBarPort {
+export class RpcStatusBar implements StatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
     showElementTemplatesLoading(): void {
@@ -734,7 +738,8 @@ export interface FileFinder {
 }
 
 /**
- * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list and
+ * Real {@link PickerPort}, {@link DeploymentPickerPort} and
+ * {@link MigrationPickerPort} over RPC: the host shows a native `JBPopup` list and
  * replies with the chosen indices (or `null` on dismissal); this class keeps
  * each prompt's item array and re-applies the cancel-vs-throw convention.
  *
@@ -742,7 +747,7 @@ export interface FileFinder {
  * to `VsCodePicker` (the contract's reference) and the host carries no
  * per-picker logic — it only renders a generic chooser.
  */
-export class RpcPicker implements PickerPort {
+export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     constructor(
         private readonly rpc: Rpc,
         private readonly fileFinder: FileFinder,

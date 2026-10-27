@@ -4,11 +4,11 @@ import {
     DirectoryNotFound,
     FileNotFound,
     NoWorkspaceFolderFoundError,
-} from "../shared/domain/errors";
-import { globToRegExp } from "../shared/domain/globToRegExp";
-import { WorkspacePort } from "../shared/domain/hostPorts";
-import { isWithinRoot, relativeToRoot } from "../shared/domain/rootContainment";
-import { withoutFileScheme } from "../shared/domain/workspacePath";
+} from "../kernel/domain/errors";
+import { globToRegExp } from "../kernel/domain/globToRegExp";
+import { WorkspacePort } from "../kernel/domain/hostPorts";
+import { isWithinRoot, relativeToRoot } from "../kernel/domain/rootContainment";
+import { withoutFileScheme } from "../kernel/domain/workspacePath";
 
 export interface WatcherHandlers {
     onChange?: (path: string) => void;

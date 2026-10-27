@@ -7,7 +7,7 @@ import {
     RepositorySourceConfig,
     RepositorySourceFactory,
 } from "../domain/ports";
-import { MarketplaceCache } from "../infrastructure/MarketplaceCache";
+import { MarketplaceCache } from "./MarketplaceCache";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 const MANIFEST = JSON.stringify({

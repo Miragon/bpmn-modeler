@@ -123,10 +123,11 @@ in the webview from echoing back as fresh edits, while revisions distinguish
 stale updates from current content. Flush coordination drains pending browser
 changes before persistence: the core's `PendingEditsFlush` runs before every
 VS Code save and before Deploy Diagram or the deployment sidebar's Deploy saves
-on either host. IntelliJ also flushes before an editor closes, before a
-respawned bridge re-renders the open editors, and on Tools ▸ Reload Modeler. A
-save that IntelliJ starts itself (Ctrl+S, autosave) does not flush yet. Document
-contents and webview UI state have separate lifecycles.
+on either host. The IntelliJ host flushes by itself before every save-all
+IntelliJ starts (Ctrl+S, autosave, switching to another application), before
+an editor closes, before a respawned bridge re-renders the open editors, and
+on Tools ▸ Reload Modeler. Document contents and webview UI state have
+separate lifecycles.
 
 ## Build and development
 

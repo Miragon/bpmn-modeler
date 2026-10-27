@@ -8,12 +8,12 @@ import {
     implementationStatusKey,
 } from "@miragon/bpmn-modeler-types";
 
-import { EditorHandle } from "../../shared/domain/EditorSession";
-import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";
-import { NotifierPort, SettingsPort, WorkspacePort } from "../../shared/domain/hostPorts";
-import { joinWorkspacePath } from "../../shared/domain/workspacePath";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
-import { ArtifactService } from "../../shared/service/ArtifactService";
+import { EditorHandle } from "../../editorSession/service/EditorHandle";
+import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
+import { ArtifactService } from "../../kernel/service/ArtifactService";
 import {
     buildMapJson,
     CodeLinkMapEntry,

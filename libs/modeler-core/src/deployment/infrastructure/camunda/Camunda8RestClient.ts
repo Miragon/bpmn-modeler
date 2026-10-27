@@ -1,6 +1,7 @@
 import { DeploymentConfig, DeploymentResult } from "../../domain/deployment";
-import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
-import { CamundaEnginePort, HttpClient } from "../../domain/ports";
+import { DeploymentFailedError, StartInstanceFailedError } from "../../domain/errors";
+import { CamundaEnginePort } from "../../domain/ports";
+import { HttpClient } from "../../../kernel/domain/http";
 import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
 import { expandUrlTemplate, stripTrailingSlash } from "../../domain/urlTemplate";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";

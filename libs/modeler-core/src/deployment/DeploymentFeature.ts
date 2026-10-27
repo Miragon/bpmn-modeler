@@ -3,24 +3,27 @@ import { posix } from "path";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import {
-    DeploymentStatePort,
     DocumentPort,
     NotifierPort,
     PickerPort,
-    SecretStorePort,
     SettingsPort,
-    StatusBarPort,
     WorkspacePort,
-} from "../shared/domain/hostPorts";
-import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
-import { ArtifactService } from "../shared/service/ArtifactService";
-import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
-import { HttpClient } from "./domain/ports";
+} from "../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
+import { ArtifactService } from "../kernel/service/ArtifactService";
+import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
+import {
+    DeploymentPickerPort,
+    DeploymentStatePort,
+    DeploymentStatusBarPort,
+    SecretStorePort,
+} from "./domain/ports";
+import { HttpClient } from "../kernel/domain/http";
 import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
 import { Camunda8RestClient } from "./infrastructure/camunda/Camunda8RestClient";
 import { CamundaEngineRouter } from "./infrastructure/camunda/CamundaEngineRouter";
-import { FetchHttpClient } from "./infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../kernel/infrastructure/FetchHttpClient";
 import { CredentialApprovalService } from "./service/CredentialApprovalService";
 import { DeployActiveDiagramService } from "./service/DeployActiveDiagramService";
 import { DeployFilesService } from "./service/DeployFilesService";
@@ -40,8 +43,8 @@ export interface DeploymentHostPorts {
     workspace: WorkspacePort;
     settings: SettingsPort;
     notifier: NotifierPort;
-    picker: PickerPort;
-    statusBar: StatusBarPort;
+    picker: PickerPort & DeploymentPickerPort;
+    statusBar: DeploymentStatusBarPort;
     artifacts: ArtifactService;
     secrets: SecretStorePort;
     state: DeploymentStatePort;

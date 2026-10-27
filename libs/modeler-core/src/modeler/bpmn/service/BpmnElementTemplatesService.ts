@@ -2,9 +2,9 @@ import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, StatusBarPort } from "../../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
-import { ArtifactChangeTarget, ArtifactService } from "../../../shared/service/ArtifactService";
+import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
+import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
 import {
     ElementTemplateSource,
     EMPTY_TEMPLATE_SOURCE,

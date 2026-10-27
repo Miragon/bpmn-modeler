@@ -3,12 +3,12 @@ import { AddressInfo } from "net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { FetchHttpClient } from "../FetchHttpClient";
+import { FetchHttpClient } from "../../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";
 import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
 import { StartInstanceConfig } from "../../domain/startInstance";
-import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
+import { DeploymentFailedError, StartInstanceFailedError } from "../../domain/errors";
 
 function escapeHtml(value: string | undefined): string {
     return (value ?? "")

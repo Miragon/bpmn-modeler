@@ -1,7 +1,7 @@
 import {
     EditorSessionContext,
     EditorSessionParticipant,
-} from "../../../shared/domain/EditorSessionParticipant";
+} from "../../../editorSession/domain/EditorSessionParticipant";
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
 
 /**

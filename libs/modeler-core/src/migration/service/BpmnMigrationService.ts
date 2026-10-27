@@ -1,25 +1,26 @@
-import { Engine } from "@miragon/bpmn-modeler-types";
-
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
-import { FileNotFound, UserCancelledError } from "../../shared/domain/errors";
-import { getVersions } from "../../shared/domain/engineVersions";
-import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { FileNotFound, UserCancelledError } from "../../kernel/domain/errors";
+import { getVersions } from "../../kernel/domain/engineVersions";
+import {
+    enginesIn,
+    MigrationCandidate,
+    MigrationPlan,
+    MigrationVersions,
+    PlannedWrite,
+} from "../domain/MigrationPlan";
+import { migrationSummary, WriteResult } from "../domain/migrationSummary";
+import { MigrationPickerPort } from "../domain/ports";
 import {
     DocumentPort,
     NotifierPort,
     PickerPort,
     WorkspacePort,
-} from "../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+} from "../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 
 interface CurrentDiagram {
     readonly document: BpmnDocument;
     readonly editorId: string | undefined;
-}
-
-interface VersionUpdateCounts {
-    readonly updated: number;
-    readonly skipped: number;
 }
 
 /**
@@ -35,7 +36,7 @@ export class BpmnMigrationService {
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: DocumentPort,
         private readonly vsWorkspace: WorkspacePort,
-        private readonly picker: PickerPort,
+        private readonly picker: PickerPort & MigrationPickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 
@@ -47,8 +48,9 @@ export class BpmnMigrationService {
                 return false;
             }
 
-            const plan = await this.buildMigrationPlan(paths);
-            if (plan.isEmpty()) {
+            const plan = MigrationPlan.classify(await this.readCandidates(paths));
+            const scopeDecision = plan.scopeDecision();
+            if (scopeDecision.kind === "nothingToMigrate") {
                 this.notifier.showInfo(
                     "Could not detect the engine for any BPMN file in the workspace.",
                 );
@@ -61,51 +63,28 @@ export class BpmnMigrationService {
                 );
             }
 
-            let scope: MigrationScope;
-            if (plan.hasBothPlatforms()) {
-                scope = await this.picker.pickMigrationScope(
-                    plan.c7Files.length,
-                    plan.c8Files.length,
-                );
-            } else if (plan.hasC7()) {
-                scope = "c7";
-            } else {
-                scope = "c8";
-            }
+            const scope =
+                scopeDecision.kind === "ask"
+                    ? await this.picker.pickMigrationScope(
+                          scopeDecision.c7Count,
+                          scopeDecision.c8Count,
+                      )
+                    : scopeDecision.scope;
 
             // Collect all input before any writes: document-change listeners
             // triggered by a write would steal focus and dismiss a subsequent
             // QuickPick.
-            let c7Version: string | undefined;
-            let c8Version: string | undefined;
-
-            if (scope === "c7" || scope === "both") {
-                c7Version = await this.picker.pickEngineVersion("c7", getVersions("c7"));
-            }
-            if (scope === "c8" || scope === "both") {
-                c8Version = await this.picker.pickEngineVersion("c8", getVersions("c8"));
+            const versions: MigrationVersions = {};
+            for (const engine of enginesIn(scope)) {
+                versions[engine] = await this.picker.pickEngineVersion(engine, getVersions(engine));
             }
 
-            const summaryParts: string[] = [];
-            let skippedCount = 0;
-
-            if (c7Version) {
-                const c7 = await this.applyVersionUpdate(plan.c7Files, c7Version, "c7");
-                skippedCount += c7.skipped;
-                if (c7.updated > 0) {
-                    summaryParts.push(`${c7.updated} diagram(s) to Camunda 7 (${c7Version})`);
-                }
+            const results: WriteResult[] = [];
+            for (const plannedWrite of plan.writesFor(versions)) {
+                results.push(await this.write(plannedWrite));
             }
 
-            if (c8Version) {
-                const c8 = await this.applyVersionUpdate(plan.c8Files, c8Version, "c8");
-                skippedCount += c8.skipped;
-                if (c8.updated > 0) {
-                    summaryParts.push(`${c8.updated} diagram(s) to Camunda 8 (${c8Version})`);
-                }
-            }
-
-            this.notifier.showInfo(this.summarize(summaryParts, skippedCount));
+            this.notifier.showInfo(migrationSummary(results));
 
             return true;
         } catch (error) {
@@ -116,96 +95,55 @@ export class BpmnMigrationService {
         }
     }
 
-    private async buildMigrationPlan(paths: string[]): Promise<MigrationPlan> {
-        const c7Files: BpmnFileEntry[] = [];
-        const c8Files: BpmnFileEntry[] = [];
-        const undetected: string[] = [];
-
-        for (const filePath of paths) {
-            const { document } = await this.readCurrentDiagram(filePath);
-            try {
-                const platform = document.detectPlatform();
-                const entry: BpmnFileEntry = { path: filePath, platform };
-                if (platform === "c7") {
-                    c7Files.push(entry);
-                } else {
-                    c8Files.push(entry);
-                }
-            } catch {
-                undetected.push(filePath);
-            }
+    private async readCandidates(paths: readonly string[]): Promise<MigrationCandidate[]> {
+        const candidates: MigrationCandidate[] = [];
+        for (const path of paths) {
+            const { document } = await this.readCurrentDiagram(path);
+            candidates.push({ path, document });
         }
-
-        return new MigrationPlan(c7Files, c8Files, undetected);
+        return candidates;
     }
 
     /**
      * Files open in an editor are updated via {@link DocumentPort.write};
-     * files only on disk are written via {@link VsCodeWorkspace.writeFile}.
+     * files only on disk are written via {@link WorkspacePort.writeFile}.
      */
-    private async applyVersionUpdate(
-        files: readonly BpmnFileEntry[],
-        targetVersion: string,
-        platform: Engine,
-    ): Promise<VersionUpdateCounts> {
-        let updated = 0;
-        let skipped = 0;
-
-        for (const file of files) {
-            const current = await this.readCurrentDiagramIfPresent(file.path);
-            if (current === undefined) {
-                this.notifier.logWarning(
-                    `Skipped a diagram deleted during migration: ${file.path}`,
-                );
-                skipped++;
-                continue;
-            }
-            const { document, editorId } = current;
-            if (document.detectEngine() !== platform) {
-                this.notifier.logWarning(
-                    `Skipped a diagram whose engine changed during migration: ${file.path}`,
-                );
-                skipped++;
-                continue;
-            }
-
-            const migration = document.migratedTo(platform, targetVersion);
-            if (migration.kind === "unchanged") {
-                continue;
-            }
-
-            if (editorId !== undefined) {
-                // No revision: with one, IntelliJ skips its guard against external
-                // edits not yet sent to the webview.
-                if (!(await this.vsDocument.write(editorId, migration.document.xml))) {
-                    this.notifier.logWarning(
-                        `Skipped a diagram whose editor rejected the update: ${file.path}`,
-                    );
-                    skipped++;
-                    continue;
-                }
-            } else {
-                await this.vsWorkspace.writeFile(file.path, migration.document.xml);
-            }
-
-            if (migration.kind === "platformStamped") {
-                this.notifier.logWarning(
-                    `Added missing executionPlatform attribute to: ${file.path}`,
-                );
-            }
-            updated++;
+    private async write(plannedWrite: PlannedWrite): Promise<WriteResult> {
+        const { path } = plannedWrite;
+        const current = await this.readCurrentDiagramIfPresent(path);
+        if (current === undefined) {
+            this.notifier.logWarning(`Skipped a diagram deleted during migration: ${path}`);
+            return { kind: "skipped" };
         }
 
-        return { updated, skipped };
-    }
-
-    private summarize(updatedParts: readonly string[], skippedCount: number): string {
-        const updated =
-            updatedParts.length > 0 ? `Updated ${updatedParts.join(" and ")}.` : undefined;
-        if (skippedCount === 0) {
-            return updated ?? "All diagrams are already at the selected version.";
+        const diagramWrite = plannedWrite.writeFrom(current.document);
+        if (diagramWrite.kind === "unchanged") {
+            return diagramWrite;
         }
-        return `${updated ?? "No diagrams were updated."} Skipped ${skippedCount} diagram(s); see the log for details.`;
+        if (diagramWrite.kind === "engineChanged") {
+            this.notifier.logWarning(
+                `Skipped a diagram whose engine changed during migration: ${path}`,
+            );
+            return { kind: "skipped" };
+        }
+
+        if (current.editorId !== undefined) {
+            // No revision: with one, IntelliJ skips its guard against external
+            // edits not yet sent to the webview.
+            if (!(await this.vsDocument.write(current.editorId, diagramWrite.xml))) {
+                this.notifier.logWarning(
+                    `Skipped a diagram whose editor rejected the update: ${path}`,
+                );
+                return { kind: "skipped" };
+            }
+        } else {
+            await this.vsWorkspace.writeFile(path, diagramWrite.xml);
+        }
+
+        if (diagramWrite.stampedPlatform) {
+            this.notifier.logWarning(`Added missing executionPlatform attribute to: ${path}`);
+        }
+        return { kind: "updated", write: plannedWrite };
     }
 
     /** An open editor's buffer is the diagram; its file on disk may be stale. */

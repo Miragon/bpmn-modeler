@@ -1,7 +1,10 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.command.CommandEvent
+import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
@@ -58,14 +61,14 @@ internal fun wireChannel(): WiredBridge {
 /**
  * Constructs [BridgeDeps] for a router under test. `isProcessAlive` returns true so
  * `notify`/`seed` sends are not no-oped, and `notifications` is wired to fail loudly
- * if a tested path ever forces it (none should). Pass a [parentDisposable] that dies
- * with the project when the router subscribes to the project's message bus.
+ * if a tested path ever forces it (none should). The default [parentDisposable]
+ * dies with the project: a router's message-bus subscriptions would leak it otherwise.
  */
 internal fun bridgeDeps(
     project: Project,
     channel: RpcChannel,
     handlers: RpcHandlerRegistry,
-    parentDisposable: Disposable = Disposer.newDisposable(),
+    parentDisposable: Disposable = Disposer.newDisposable(project, "router-under-test"),
 ): BridgeDeps =
     BridgeDeps(
         project = project,
@@ -77,6 +80,24 @@ internal fun bridgeDeps(
         parentDisposable = parentDisposable,
         notifications = lazy { error("HostNotifications must not be forced in router tests") },
     )
+
+/**
+ * Throws [failure] from the next command's `commandFinished`, i.e. after the
+ * write's `setText` already changed the Document.
+ */
+internal fun failNextCommandAfterItRuns(project: Project, failure: RuntimeException) {
+    var thrown = false
+    ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+        CommandListener.TOPIC,
+        object : CommandListener {
+            override fun commandFinished(event: CommandEvent) {
+                if (thrown) return
+                thrown = true
+                throw failure
+            }
+        },
+    )
+}
 
 /**
  * A real `.bpmn` [VirtualFile] plus its in-memory [Document], the pair the routers

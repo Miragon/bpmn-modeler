@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { ArtifactService } from "../../../shared/service/ArtifactService";
+import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { createTestHost } from "../../../testing";
 import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
 import { ElementTemplatesParticipant } from "./ElementTemplatesParticipant";

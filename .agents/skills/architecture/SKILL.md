@@ -19,7 +19,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Reusable browser features | Feature libraries under `libs/`, composed by the modeler packages. |
 | Public-facing types and browser utilities | `libs/modeler-types`; keep the surface suitable for publication. |
 | Private messages and webview chrome | `libs/shared/src/lib/`; base/sync messages in `messages.ts`, feature payloads in their corresponding files, host channel in `host.ts`. |
-| Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`; consumers use its `index.ts`. |
+| Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/app/formTemplate.ts`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/bridge.ts` and `src/composition/`; Kotlin host in `apps/intellij-plugin`. |
@@ -37,9 +37,10 @@ Decisions (rules, state transitions, validations) go into the owning feature's
   adaptation in webview bootstraps. `modeler-types` holds publishable concepts;
   DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
 - Add host-independent logic to the core's feature-oriented domain/service
-  layers. Reach host facilities through the core's `shared/domain/hostPorts.ts` and editor
-  handles; deployment engine ports are separate. Wire concrete adapters in the
-  applications using constructor composition.
+  layers. Reach host facilities through ports and editor handles. Cross-cutting
+  host ports live in the core's `kernel/domain/hostPorts.ts`; a port or prompt
+  one feature owns lives in that feature's `domain/ports.ts`. Wire concrete
+  adapters in the applications using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.
@@ -48,9 +49,10 @@ Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 and `apps/vscode-plugin/src`, plus root `eslint.config.cjs`. Package gates protect
 import direction and theme isolation. Core checks reject VS Code and transitive
 host-module imports (the core is still not browser-safe), and enforce layer
-direction, feature isolation through `shared/` and no cycles against known
-exceptions that may only shrink. VS Code checks cover host isolation, cycles,
-and selected feature-barrel boundaries.
+direction, feature isolation through `kernel/` (which imports nothing outside
+itself) and `editorSession/` (which imports only `kernel/`) and no cycles
+against known exceptions that may only shrink. VS Code checks cover host
+isolation, cycles, and selected feature-barrel boundaries.
 
 ## Trace host and session behavior
 
@@ -73,7 +75,8 @@ revision checks, own-write echo suppression, and save/close flushing.
 commands. The core `EditorSessionLifecycle` runs every editor session on both
 hosts (VS Code's generic `ModelerEditorController` serves all three editor
 formats through it); add lifecycle concerns through participants and release
-their resources on disposal. Diff panes have separate coordination.
+their resources on disposal. The store, router and lifecycle live in the core's
+`editorSession/service/`. Diff panes have separate coordination.
 
 ## Go deeper and validate
 

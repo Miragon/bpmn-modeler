@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { CredentialDestinationNotApprovedError } from "../../shared/domain/errors";
+import { CredentialDestinationNotApprovedError } from "../domain/errors";
 import { createTestHost } from "../../testing";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { DeploymentTarget } from "../domain/deploymentTarget";

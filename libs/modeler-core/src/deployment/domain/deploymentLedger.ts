@@ -6,7 +6,7 @@ import {
     envRefsIn,
     expandEnvRefsLeniently,
 } from "./envRef";
-import { hostOf } from "./urlTemplate";
+import { hostOf } from "../../kernel/domain/http";
 
 /**
  * Freshness of the active editor content relative to what was last deployed to

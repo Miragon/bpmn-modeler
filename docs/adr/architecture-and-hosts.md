@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-26
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -53,28 +53,53 @@ DOM-id-coupled panel resizers, focus/shortcut bindings and the VS Code body-clas
 theme adapter belong in `shared`. This deliberately mixes private browser
 chrome with the protocol to avoid another workspace for a few helpers.
 
-`modeler-core` owns domain/services plus `EditorSessionStore`,
-`WebviewMessageRouter` and `DiffPaneStore`. Host applications import its public
-entrypoint and supply capability ports and editor/diff handles. The core is
-VS Code-free, and no core file reaches a host module (`node:*`, `fs`, `http`),
-directly or transitively. This does not make the whole core browser-safe:
-portable Node utilities such as `path` remain valid there.
+`modeler-core` owns domain/services, the editor-session core
+(`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) and
+`DiffPaneStore`. Host applications import its public entrypoint and supply
+capability ports and editor/diff handles. The core is VS Code-free, and no core
+file reaches a host module (`node:*`, `fs`, `http`), directly or transitively.
+This does not make the whole core browser-safe: portable Node utilities such as
+`path` remain valid there.
 
 Inside the core, each feature folder (`modeler/<editor>` for the editors)
 splits into `domain/`, an application layer of `service/` and `session/` (the
 editor-session participants), `infrastructure/` and root files that compose the
 feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
-and Node `path`. Features reach each other only through `shared/`. Services and
-participants import no infrastructure; in infrastructure only the inbound
-`*MessageHandlers` adapters import services. A relative import resolves to a
-feature module, never to the package entry or the test kit, and the core has no
-import cycles. The core architecture test enforces these rules. Today's listed
-exceptions are the protocol imports of three domain files, the template
-marketplace's use of the deployment `HttpClient`, `hostPorts.ts` naming
-deployment and migration types, and services using the editor-session core in
-`shared/infrastructure/`, `MarketplaceCache` and `DiffPaneStore`. Each names the
-issue that removes it, and the test fails when one is no longer needed, so the
-list only shrinks.
+and Node `path`. Two folders are shared, and features reach each other only
+through them. A feature's `domain/` may import only its own `domain/` and the
+`domain/` of `kernel/` and `editorSession/`.
+
+- `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
+  engine versions, the workspace path, glob, containment and watcher rules, the
+  cross-cutting errors and host ports, and the HTTP contract (`HttpClient`,
+  `HttpTransportError`, `loggableHost`) with its fetch adapter. A service joins
+  `kernel/service/` only when at least two features use it, as
+  `ArtifactService` and the workspace file search do. `kernel/` imports no
+  other folder, so it stays the bottom layer.
+- `editorSession/` is the application core every editor runs on. Its
+  `service/` holds the store, lifecycle, router, document sync, ordered
+  dispatch, flush services and webview log routing, `session/` the render
+  participant, and `infrastructure/` only the inbound document, focus, log and
+  notification handlers. Its `domain/` keeps the session events, the
+  participant contract, the echo guard and status-item ownership.
+  `EditorHandle` sits in `service/` because its `postMessage` speaks the
+  private protocol; `EditorSessionDocuments` implements `DocumentPort` on top
+  of the store, so it is a service, not an adapter. `editorSession/` imports
+  only `kernel/`, which the cross-feature rule already implies.
+
+Services and participants import no infrastructure; in infrastructure only the
+inbound `*MessageHandlers` adapters import services. A relative import resolves
+to a feature module, never to the package entry or the test kit, and the core
+has no import cycles. The core architecture test enforces these rules.
+Cross-cutting host ports live in `kernel/domain/hostPorts.ts`; a port, prompt
+or error one feature owns lives in that feature's `domain/` (`ports.ts`,
+`errors.ts`), so `kernel/` names no feature.
+A store that holds application state and reaches the host, if at all, only
+through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
+feature's `service/` with no port of its own. Today's only listed exception is
+the protocol import of `ScriptVariableStore` in `scriptTask/domain/`, which
+#1834 removes. An exception names the issue that removes it, and the test
+fails when one is no longer needed, so the list only shrinks.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
@@ -148,9 +173,9 @@ import a class that implements a port.
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine
 version, bpmnlint, deployment) show an editor's state only if it is focused
-when the item is written. A command that refreshes the deployment item
-afterwards refreshes the focused editor (`refreshFocused`), not the editor it
-acted on. Each item's participant hides it on blur and close, and
+when the item is written. A ledger write or a command that refreshes the
+deployment item afterwards refreshes the focused editor (`refreshFocused`), not
+the editor it acted on. Each item's participant hides it on blur and close, and
 `StatusItemOwnership` decides only that hide. Only BPMN sessions run these
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
@@ -177,6 +202,30 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
+A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
+another application) flushes in the Kotlin host instead. IntelliJ announces it
+with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents
+are unsaved, and the core's flush would end in a `document/write` that waits
+for that EDT. The host asks every open page with a non-destructive flush,
+waits at most 250 ms for all replies of a project together, and writes each
+export whose revision still matches into its Document, which the same save
+then persists. A page that answers `clean` because its sync went out while
+the host waited gets that sync written the same way, since its core write
+would land after the save. The page stays editable and its sync stays armed,
+so the core still gets the edit; the host reports that late write as a
+change, see [document causation](#document-causation-and-session-identity). A
+page that does not answer in time is saved as it is. The host numbers its
+flushes down from -1 and the core up from 1: the page answers both on one
+channel, and every reply also reaches the core, so neither may take the
+other's reply or release the other's lock. On 2026.1 (checked on 2026.1.3),
+switching away saves from a background thread, but the platform still
+delivers the event on the EDT through `invokeAndWait` while the saving thread
+holds no lock, so the host's write cannot deadlock it.
+Accepted residual: a sync the page posted before the host asked, whose core
+write has not reached the EDT yet, lands after the save; a properties-panel
+value the panel has not passed to the modeler yet is not flushed on either
+host; and a save of one Document (`saveDocument`), which neither Ctrl+S nor
+autosave makes, does not flush.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and
@@ -269,8 +318,12 @@ creation also remains off the UI thread when an editor needs it directly.
 On exit, the supervisor retries with backoff and limits repeated rapid crashes;
 a stable run resets that budget. Recovery re-registers live sessions from the
 authoritative IntelliJ Documents, replays render requests, and re-seeds
-deployment state. Stdin EOF terminates the bridge; project disposal and shutdown
-cleanup prevent orphan processes.
+deployment state. A tab that closes while recovery builds its register frame
+gets a second `session/dispose` after that frame, so the new bridge keeps no
+session for it. Accepted gap: if the same file registers again inside that
+window, the new bridge can end with no session for the new tab until it
+reopens or the next recovery runs. Stdin EOF terminates the bridge; project
+disposal and shutdown cleanup prevent orphan processes.
 
 The replayed render re-imports the Document, and a sync the restart window
 dropped never reached it. Recovery therefore first flushes each page with the
@@ -357,6 +410,13 @@ classify a change. This relies on the host replying on the same ordered
 channel after the Document mutation, so a later external change always
 arrives after the reply.
 
+A page flush the IntelliJ host writes itself (before a save, a close or a
+re-render) bypasses the core, so the bridge mirror misses that content. The
+host remembers it per session, and the next accepted write of the same content
+reports `changed` although the Document already holds it, so the mirror takes
+it. Every accepted write and every external change forget it, and a register
+forgets it before it re-seeds the mirror from the Document.
+
 Separately, the host advances `documentRevision` on external changes. Renders
 carry it to the webview; writes return it as `expectedDocumentRevision`.
 Reject stale writes with `accepted: false` and retain host content. Registration
@@ -416,6 +476,15 @@ a cached result must equal an uncached run.
 - Enforcing the core's layer rules only after the refactors that remove the
   current violations would let new ones in meanwhile. Known exceptions start
   the gate now, at the cost of a list that review has to keep from growing.
+- `kernel/` and `editorSession/` could be workspaces of their own, which would
+  turn their direction into package dependencies. That adds manifests, path
+  aliases and Vitest targets for code no consumer imports apart from the core,
+  so they stay folders whose import direction the core architecture test
+  enforces.
+- A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
+  one implementation that no host or spec substitutes; the specs already run
+  the real stores over the in-memory host kit. A second implementation is the
+  point to extract one.
 - Wiring each feature per host kept the hosts simple to read but let the copies
   drift: the bridge stopped re-linting on edits and setting changes, and did not
   isolate failing session hooks. Feature modules in the core cost a little

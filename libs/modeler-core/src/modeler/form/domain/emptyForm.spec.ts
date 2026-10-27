@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getLatestVersion } from "../../../shared/domain/engineVersions";
+import { getLatestVersion } from "../../../kernel/domain/engineVersions";
 import { createEmptyForm } from "./emptyForm";
 
 afterEach(() => vi.restoreAllMocks());

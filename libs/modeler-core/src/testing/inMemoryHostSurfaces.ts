@@ -1,10 +1,7 @@
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
-import {
-    ClipboardPort,
-    DiagnosticsPort,
-    PropertiesPanelStatePort,
-} from "../shared/domain/hostPorts";
+import { DiagnosticsPort, PropertiesPanelStatePort } from "../modeler/bpmn/domain/ports";
+import { ClipboardPort } from "../kernel/domain/hostPorts";
 
 export class InMemoryClipboard implements ClipboardPort {
     text = "";

@@ -7,46 +7,51 @@
  * router, ports, domain handles) and what the VS Code composition root wires.
  */
 
-// ── shared: domain ──────────────────────────────────────────────────────────
-export * from "./shared/domain/affectedItems";
-export * from "./shared/domain/BpmnDocument";
-export * from "./shared/domain/EditorSession";
-export * from "./shared/domain/EditorSessionParticipant";
-export * from "./shared/domain/engineVersions";
-export * from "./shared/domain/errorLogText";
-export * from "./shared/domain/errors";
-export * from "./shared/domain/globToRegExp";
-export * from "./shared/domain/hostPorts";
-export * from "./shared/domain/newModelEngine";
-export * from "./shared/domain/rootContainment";
-export * from "./shared/domain/session";
-export * from "./shared/domain/viewTypes";
-export * from "./shared/domain/watcherEvents";
-export * from "./shared/domain/workspacePath";
+// ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/affectedItems";
+export * from "./kernel/domain/BpmnDocument";
+export * from "./kernel/domain/engineVersions";
+export * from "./kernel/domain/errorLogText";
+export * from "./kernel/domain/errors";
+export * from "./kernel/domain/globToRegExp";
+export * from "./kernel/domain/hostPorts";
+export * from "./kernel/domain/http";
+export * from "./kernel/domain/newModelEngine";
+export * from "./kernel/domain/rootContainment";
+export * from "./kernel/domain/viewTypes";
+export * from "./kernel/domain/watcherEvents";
+export * from "./kernel/domain/workspacePath";
+export * from "./kernel/service/ArtifactService";
+export * from "./kernel/infrastructure/FetchHttpClient";
+export * from "./kernel/infrastructure/nonce";
 
-// ── shared: service + vscode-free infrastructure ────────────────────────────
-export * from "./shared/service/ArtifactService";
-export * from "./shared/service/BpmnLintConfigLocator";
-export * from "./shared/service/DocumentFlushService";
-export * from "./shared/service/PendingEditsFlush";
-export * from "./shared/infrastructure/EditorSessionDocuments";
-export * from "./shared/infrastructure/EditorSessionLifecycle";
-export * from "./shared/infrastructure/EditorDocumentSync";
-export * from "./shared/infrastructure/documentMessageHandlers";
-export * from "./shared/session/DocumentRenderParticipant";
-export * from "./shared/infrastructure/EditorSessionStore";
-export * from "./shared/infrastructure/WebviewMessageRouter";
-export * from "./shared/infrastructure/webviewLogHandlers";
-export * from "./shared/infrastructure/webviewNotificationHandlers";
-export * from "./shared/infrastructure/orderedDocumentDispatch";
-export * from "./shared/infrastructure/webviewFocusHandlers";
-export * from "./shared/infrastructure/helpers";
+// ── editorSession ────────────────────────────────────────────────────────────
+export * from "./editorSession/domain/EditorSession";
+export * from "./editorSession/domain/EditorSessionParticipant";
+export * from "./editorSession/domain/session";
+export * from "./editorSession/service/DocumentFlushService";
+export * from "./editorSession/service/EditorDocumentSync";
+export * from "./editorSession/service/EditorHandle";
+export * from "./editorSession/service/EditorSessionDocuments";
+export * from "./editorSession/service/EditorSessionLifecycle";
+export * from "./editorSession/service/EditorSessionStore";
+export * from "./editorSession/service/orderedDocumentDispatch";
+export * from "./editorSession/service/PendingEditsFlush";
+export * from "./editorSession/service/WebviewMessageRouter";
+export * from "./editorSession/service/webviewLog";
+export * from "./editorSession/session/DocumentRenderParticipant";
+export * from "./editorSession/infrastructure/documentMessageHandlers";
+export * from "./editorSession/infrastructure/webviewFocusMessageHandlers";
+export * from "./editorSession/infrastructure/webviewLogMessageHandlers";
+export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
 export * from "./modeler/bpmn/domain/model";
+export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/infrastructure/bpmnMessageHandlers";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";
+export * from "./modeler/bpmn/service/BpmnLintConfigLocator";
 export * from "./modeler/bpmn/service/BpmnLintConfigService";
 export * from "./modeler/bpmn/service/DefaultBpmnlintConfigService";
 export * from "./modeler/bpmn/infrastructure/bpmnlint/NodeBpmnLinter";
@@ -70,7 +75,7 @@ export * from "./modeler/form/service/FormModelerService";
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/DiffSession";
 export * from "./diff/service/BpmnDiffService";
-export * from "./diff/infrastructure/DiffPaneStore";
+export * from "./diff/service/DiffPaneStore";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";
@@ -96,6 +101,7 @@ export * from "./codeLink/infrastructure/codeLinkMessageHandlers";
 
 // ── migration ────────────────────────────────────────────────────────────────
 export * from "./migration/domain/MigrationPlan";
+export * from "./migration/domain/ports";
 export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────
@@ -104,6 +110,7 @@ export * from "./deployment/domain/deploymentLedger";
 export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";
 export * from "./deployment/domain/envRef";
+export * from "./deployment/domain/errors";
 export * from "./deployment/domain/ports";
 export * from "./deployment/domain/startInstance";
 export * from "./deployment/domain/urlTemplate";
@@ -118,7 +125,6 @@ export * from "./deployment/service/DeploymentVerificationService";
 export * from "./deployment/service/DeploymentMessageDispatcher";
 export * from "./deployment/session/DeploymentStatusParticipant";
 export * from "./deployment/DeploymentFeature";
-export * from "./deployment/infrastructure/FetchHttpClient";
 export * from "./deployment/infrastructure/camunda/AuthHeaderResolver";
 export * from "./deployment/infrastructure/camunda/Camunda7RestClient";
 export * from "./deployment/infrastructure/camunda/Camunda8RestClient";
@@ -131,7 +137,7 @@ export * from "./template-marketplace/domain/ports";
 export * from "./template-marketplace/infrastructure/GitHubSource";
 export * from "./template-marketplace/infrastructure/GitLabSource";
 export * from "./template-marketplace/infrastructure/LocalFileSource";
-export * from "./template-marketplace/infrastructure/MarketplaceCache";
+export * from "./template-marketplace/service/MarketplaceCache";
 export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/MarketplaceFeature";
 

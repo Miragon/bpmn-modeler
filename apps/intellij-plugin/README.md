@@ -75,12 +75,22 @@ flowchart TD
   recovery against the running bridge. Like a tab close, recovery writes only
   diagrams edited since their last render: one you never edited keeps its text,
   even where the modeler would serialize it differently. A read-only file keeps
-  its text, and its diagram re-renders from it.
+  its text, and its diagram re-renders from it. A tab closed while recovery
+  re-registers it is disposed in the new bridge too.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
   coalesces superseded document-sync frames per editor, so the EDT/JS threads
   never block on bridge stdin.
+
+### Saving
+
+Ctrl+S, autosave and the save on switching to another application first ask
+every open diagram for the edit its 300 ms sync debounce still holds, and write
+it into the `Document`, so the save persists what the diagram shows. The host
+waits at most 250 ms for all diagrams of a project together; a diagram that
+does not answer is saved as it is. See
+[host integrations](../../docs/adr/architecture-and-hosts.md#host-integrations).
 
 ### Display ports
 

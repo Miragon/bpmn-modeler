@@ -1,9 +1,11 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
+import { DeploymentPickerPort } from "../deployment/domain/ports";
 import { MigrationScope } from "../migration/domain/MigrationPlan";
-import { UserCancelledError } from "../shared/domain/errors";
-import { PickerPort } from "../shared/domain/hostPorts";
-import { NewModelEngine } from "../shared/domain/newModelEngine";
+import { MigrationPickerPort } from "../migration/domain/ports";
+import { UserCancelledError } from "../kernel/domain/errors";
+import { PickerPort } from "../kernel/domain/hostPorts";
+import { NewModelEngine } from "../kernel/domain/newModelEngine";
 
 export interface PickerAnswers {
     newModelEngine?: NewModelEngine;
@@ -19,7 +21,7 @@ export interface PickerAnswers {
 }
 
 export interface Prompt {
-    readonly method: keyof PickerPort;
+    readonly method: keyof (PickerPort & DeploymentPickerPort & MigrationPickerPort);
     readonly args: readonly unknown[];
 }
 
@@ -28,7 +30,7 @@ export interface Prompt {
  * the port's own convention for that prompt (throw, `[]`, `null`, `undefined`
  * or `false`), so a test exercises the caller's cancel path by leaving it out.
  */
-export class ScriptedPicker implements PickerPort {
+export class ScriptedPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     readonly prompts: Prompt[] = [];
 
     constructor(readonly answers: PickerAnswers = {}) {}

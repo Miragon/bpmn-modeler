@@ -1,7 +1,7 @@
 import { posix } from "path";
 
-import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
@@ -69,6 +69,5 @@ export class DeployActiveDiagramService {
         await this.notifier.withProgress(`Deploying ${name} to "${target.name}"`, () =>
             this.deploymentService.deployFiles([filePath], target, auth, dir),
         );
-        await this.deploymentStatusService.refreshFocused();
     }
 }

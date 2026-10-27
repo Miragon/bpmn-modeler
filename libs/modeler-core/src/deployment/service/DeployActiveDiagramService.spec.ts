@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DocumentFlushedCommand, FlushDocumentQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentFlushService } from "../../shared/service/DocumentFlushService";
-import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
+import { DocumentFlushService } from "../../editorSession/service/DocumentFlushService";
+import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { NoAuth } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
@@ -183,7 +183,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
         );
     });
 
-    it("saves before deploying and refreshes the status bar", async () => {
+    it("saves before deploying", async () => {
         const c = createService();
         let savesBeforeDeploy: number | undefined;
         c.deploymentService.deployFiles.mockImplementation(async () => {
@@ -195,7 +195,6 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         expect(savesBeforeDeploy).toBe(1);
         expect(c.host.notifier.progressTitles).toEqual(['Deploying order-process.bpmn to "dev"']);
-        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
     });
 
     it("hands deployFiles the directory the target was resolved from, so its .env matches", async () => {

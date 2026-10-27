@@ -12,21 +12,17 @@ import {
     staticUnresolvedModdleExtensions,
 } from "@miragon/bpmn-modeler-types";
 
-import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
-import { ExecutionPlatformNotDetectedError } from "../../../shared/domain/errors";
+import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
+import { ExecutionPlatformNotDetectedError } from "../../../kernel/domain/errors";
 import {
-    DiagnosticsPort,
     DocumentPort,
-    LintRunnerPort,
     NotifierPort,
     SettingsPort,
     StatusBarPort,
-} from "../../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
-import {
-    BpmnLintConfigLocator,
-    BpmnlintChangeTarget,
-} from "../../../shared/service/BpmnLintConfigLocator";
+} from "../../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
+import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
+import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 
 /**
  * Where a set of findings came from, so {@link BpmnLintConfigService.applyFindings}

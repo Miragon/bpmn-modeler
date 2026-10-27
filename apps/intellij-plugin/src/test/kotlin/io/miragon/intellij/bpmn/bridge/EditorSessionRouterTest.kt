@@ -4,12 +4,12 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.impl.LaterInvocator
-import com.intellij.openapi.command.CommandEvent
-import com.intellij.openapi.command.CommandListener
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.junit5.RunInEdt
 import com.intellij.testFramework.junit5.TestApplication
@@ -68,12 +68,16 @@ class EditorSessionRouterTest {
      * Wires a router over a real `.bpmn` Document and an open session, draining the
      * `session/register` frame so the test starts from a quiet channel.
      */
-    private fun setUpRouter(initialXml: String): Fixture {
+    private fun setUpRouter(
+        initialXml: String,
+        readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
+    ): Fixture {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
         val wired = wireChannel()
         val scheduler = DeterministicScheduler()
-        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler)
+        val router =
+            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler, readDocumentText)
         router.register()
 
         val posted = mutableListOf<String>()
@@ -133,24 +137,6 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
-    /**
-     * Throws [failure] from the next command's `commandFinished`, i.e. after the
-     * write's `setText` already changed the Document.
-     */
-    private fun Fixture.failNextCommandAfterItRuns(failure: RuntimeException) {
-        var thrown = false
-        ApplicationManager.getApplication().messageBus.connect(session.project).subscribe(
-            CommandListener.TOPIC,
-            object : CommandListener {
-                override fun commandFinished(event: CommandEvent) {
-                    if (thrown) return
-                    thrown = true
-                    throw failure
-                }
-            },
-        )
-    }
-
     private fun Fixture.dispatchCoreSave() {
         val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId)
         wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, 2)
@@ -192,7 +178,7 @@ class EditorSessionRouterTest {
     @Test
     fun `a core write that throws after the Document took the content still answers that it changed`() {
         val f = setUpRouter(INITIAL_XML)
-        f.failNextCommandAfterItRuns(IllegalStateException("listener failed"))
+        failNextCommandAfterItRuns(f.session.project, IllegalStateException("listener failed"))
 
         f.dispatchCoreWrite(EDITED_XML)
 
@@ -600,6 +586,26 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a save while a crash recovery waits still lets the replayed render unlock the page`() {
+        val f = setUpRouter(INITIAL_XML)
+        val crashFlushAnswered = CountDownLatch(1)
+        val page =
+            f.openPageShowing(EDITED_XML) { reply ->
+                reply()
+                crashFlushAnswered.countDown()
+            }
+
+        // Switching away from the IDE saves on the EDT while the crash path waits for the EDT to write its reply.
+        val crashRecovery = ApplicationManager.getApplication().executeOnPooledThread(Runnable { f.router.reregisterLiveSessions() })
+        assertTrue(crashFlushAnswered.await(10, TimeUnit.SECONDS))
+        FileDocumentManager.getInstance().saveAllDocuments()
+        PlatformTestUtil.waitForFuture(crashRecovery, 10_000)
+
+        f.deliverRenderedFile(page, EDITED_XML)
+        assertFalse(page.isLocked, "a save's flush takes no lock, so the recovery still holds the page's")
+    }
+
+    @Test
     fun `a crash recovery that flushes while a tab close waits still lets the close write the page edit`() {
         val f = setUpRouter(INITIAL_XML)
         val closingThread = Thread.currentThread()
@@ -812,6 +818,65 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a session closed while its re-register frame is built ends up disposed in the bridge`() {
+        var closeWhileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                closeWhileRegisterFrameIsBuilt?.invoke()
+                closeWhileRegisterFrameIsBuilt = null
+                readDocumentTextInReadAction(file)
+            }
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        closeWhileRegisterFrameIsBuilt = { f.router.disposeSession(page.session) }
+
+        f.router.reregisterLiveSessions()
+
+        val framesForClosedSession = f.wired.fake.framesUntilQuiet().map(::parse).labelsFor(page)
+        assertEquals(
+            "session/dispose",
+            framesForClosedSession.lastOrNull(),
+            "the new bridge must not keep a session for a closed tab: $framesForClosedSession",
+        )
+    }
+
+    @Test
+    fun `a session closed while its re-register frame is built leaves the other sessions recovering`() {
+        var closeWhileRegisterFrameIsBuilt: ((VirtualFile) -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                closeWhileRegisterFrameIsBuilt?.invoke(file)
+                closeWhileRegisterFrameIsBuilt = null
+                readDocumentTextInReadAction(file)
+            }
+        val pages =
+            listOf(
+                f.openPageShowing(INITIAL_XML, editedSinceRender = false),
+                f.openPageShowing(INITIAL_XML, createSecondBpmnFile(), editedSinceRender = false),
+            )
+        lateinit var closedPage: FakePage
+        // The sessions map has no fixed iteration order: close whichever page re-registers first.
+        closeWhileRegisterFrameIsBuilt = { file ->
+            closedPage = pages.single { it.session.file == file }
+            f.router.disposeSession(closedPage.session)
+        }
+
+        f.router.reregisterLiveSessions()
+
+        val frames = f.wired.fake.framesUntilQuiet().map(::parse)
+        val framesForClosedSession = frames.labelsFor(closedPage)
+        assertEquals(
+            "session/dispose",
+            framesForClosedSession.lastOrNull(),
+            "the new bridge must not keep a session for a closed tab: $framesForClosedSession",
+        )
+        assertEquals(
+            listOf("DocumentFlushedCommand") + REREGISTRATION_FRAMES,
+            frames.labelsFor(pages.single { it !== closedPage }),
+            "a tab closed mid-recovery does not stop the open tab's re-register and replays",
+        )
+    }
+
+    @Test
     fun `a page closed before its replayed render gets no release`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -977,9 +1042,20 @@ class EditorSessionRouterTest {
 
     /** The register and replay frames each session got, in the order it got them. */
     private fun List<JsonObject>.bySession(): Map<Long, List<String>> =
-        map { it.getAsJsonObject("params").get("sessionId").asLong to (it.webviewMessageType() ?: it.get("method").asString) }
+        map { it.getAsJsonObject("params").get("sessionId").asLong to it.frameLabel() }
             .filter { (_, label) -> label in REREGISTRATION_FRAMES }
             .groupBy({ it.first }, { it.second })
+
+    /**
+     * The label of every frame addressed to [page]'s session: the bridge finds
+     * a session by its editorId, then checks the sessionId.
+     */
+    private fun List<JsonObject>.labelsFor(page: FakePage): List<String> =
+        filter { frame ->
+            val params = frame.getAsJsonObject("params")
+            params.get("editorId")?.asString == page.session.editorId &&
+                params.get("sessionId")?.asLong == page.sessionId
+        }.map { it.frameLabel() }
 
     @Test
     fun `late traffic and disposal from a replaced same-uri session are ignored`() {
@@ -1168,6 +1244,9 @@ class EditorSessionRouterTest {
 
     private fun JsonObject.webviewMessageType(): String? =
         getAsJsonObject("params").getAsJsonObject("message")?.get("type")?.asString
+
+    /** The forwarded webview message's type, or the frame's method. */
+    private fun JsonObject.frameLabel(): String = webviewMessageType() ?: get("method").asString
 
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
     private fun syncCommand(content: String, documentRevision: Long? = null): String {

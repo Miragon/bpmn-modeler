@@ -14,22 +14,22 @@ import { contentFingerprint } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { CamundaEnginePort } from "../domain/ports";
-import { FetchHttpClient } from "../infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import {
     CredentialDestinationNotApprovedError,
     DisallowedEnvReferenceError,
-    HttpTransportError,
     InvalidDeploymentConfigError,
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
+import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, Prompt, TestHostOptions } from "../../testing";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
@@ -114,7 +114,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
     const deploymentStatus = new DeploymentStatusService(
         host.store,
         host.documents,
-        // Recording a deployment never reads the active target.
+        // No editor is tracked, so the refresh after recording never reads the active target.
         targetsLocator as never,
         host.deploymentState,
         host.statusBar,

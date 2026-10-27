@@ -1,6 +1,6 @@
 import { SearchWorkspaceDefinitionsCommand } from "@miragon/bpmn-modeler-shared";
 
-import { MessageHandler } from "../../shared/infrastructure/WebviewMessageRouter";
+import { MessageHandler } from "../../editorSession/service/WebviewMessageRouter";
 import { DefinitionSearchService } from "../service/DefinitionSearchService";
 
 /** `SearchWorkspaceDefinitionsCommand` → answer with matching definitions of other models. */

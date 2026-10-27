@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-26
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -247,9 +247,13 @@ it is saved. Additional sidebar files and Deploy Files… are deployed as saved.
 | `superseded` (blue) | Editor differs from a revision adopted from the engine |
 
 `DeploymentStatusService` owns ledger recording and the freshness indicator;
-`DeploymentTargetService` owns target files and credentials. Refresh on deploy,
-editor focus and debounced document edits. The bridge listens to its document
-mirror for edit-time refresh. Active target and ledger getters follow the
+`DeploymentTargetService` owns target files and credentials. Each ledger write
+(record, adopt, forget, prune) ends by refreshing the indicator, so no caller
+refreshes after a deploy or a verification. It refreshes after a failed write
+too, because an ad-hoc deploy saves the connection the indicator reads just
+before its row. Target changes, editor focus and debounced document edits
+refresh it as well. The bridge listens to its document mirror for edit-time
+refresh. Active target and ledger getters follow the
 [synchronous mirror contract](architecture-and-hosts.md#host-replicated-state)
 and are included in startup/restart seeds.
 

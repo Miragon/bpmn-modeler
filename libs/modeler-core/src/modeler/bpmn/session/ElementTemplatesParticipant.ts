@@ -1,9 +1,9 @@
 import {
     EditorSessionContext,
     EditorSessionParticipant,
-} from "../../../shared/domain/EditorSessionParticipant";
-import { NotifierPort } from "../../../shared/domain/hostPorts";
-import { ArtifactService } from "../../../shared/service/ArtifactService";
+} from "../../../editorSession/domain/EditorSessionParticipant";
+import { NotifierPort } from "../../../kernel/domain/hostPorts";
+import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
 
 /**

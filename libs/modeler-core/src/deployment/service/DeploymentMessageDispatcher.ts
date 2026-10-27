@@ -22,13 +22,10 @@ import { posix } from "path";
 
 import { AuthConfig, DeploymentConfigBuilder } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
-import {
-    DeploymentTargetChangedError,
-    InvalidDeploymentConfigError,
-} from "../../shared/domain/errors";
-import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
-import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";
+import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
+import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
+import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService, toAuthConfig, toTargetPayload } from "./DeploymentTargetService";
@@ -543,8 +540,6 @@ export class DeploymentMessageDispatcher {
                 this.notifier.logWarning(`Deployment failed: ${result.message}`);
                 this.notifier.showError(result.message);
             }
-
-            await this.deploymentStatusService.refreshFocused();
 
             this.post(
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),

@@ -1,9 +1,4 @@
-import {
-    NotifierPort,
-    SettingsPort,
-    TokenPromptPort,
-    TokenStorePort,
-} from "../../shared/domain/hostPorts";
+import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
 import {
     expandHomePath,
     InvalidMarketplaceError,
@@ -23,6 +18,8 @@ import {
     RepositoryAccessError,
     RepositorySourceConfig,
     RepositorySourceFactory,
+    TokenPromptPort,
+    TokenStorePort,
 } from "../domain/ports";
 import {
     FetchedTemplateFile,
@@ -30,7 +27,7 @@ import {
     SourceFetchOutcome,
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
-import { MarketplaceCache } from "../infrastructure/MarketplaceCache";
+import { MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";

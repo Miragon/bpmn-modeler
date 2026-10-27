@@ -50,7 +50,7 @@ corepack yarn workspace vs-code-bpmn-modeler build
 corepack yarn workspace @miragon/bpmn-modeler-webview build
 
 # Run a single test file
-corepack yarn test libs/modeler-core/src/shared/domain/BpmnDocument.spec.ts
+corepack yarn test libs/modeler-core/src/kernel/domain/BpmnDocument.spec.ts
 
 # One workspace with its coverage gate (what its CI test leg runs)
 corepack yarn workspace @miragon/bpmn-modeler-core test

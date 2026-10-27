@@ -17,17 +17,15 @@ import {
     rememberedPartLabel,
 } from "../domain/deploymentOutcome";
 import { EnvLookup } from "../domain/envRef";
-import { loggableHost } from "../domain/urlTemplate";
+import { loggableHost } from "../../kernel/domain/http";
 import {
-    DeploymentStatePort,
     DocumentPort,
     NotifierPort,
     PickerPort,
-    SecretStorePort,
     WorkspacePort,
-} from "../../shared/domain/hostPorts";
-import { CamundaEnginePort } from "../domain/ports";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+} from "../../kernel/domain/hostPorts";
+import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";

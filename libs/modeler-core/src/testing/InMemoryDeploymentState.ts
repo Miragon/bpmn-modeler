@@ -1,12 +1,11 @@
-import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
-
 import { DeployedRevision } from "../deployment/domain/deploymentLedger";
-import { DeploymentStatePort } from "../shared/domain/hostPorts";
+import { TargetAuthType } from "../deployment/domain/deploymentTarget";
+import { DeploymentStatePort } from "../deployment/domain/ports";
 
 export class InMemoryDeploymentState implements DeploymentStatePort {
     endpoint = "";
     tenantId = "";
-    authType: AuthTypePayload = "none";
+    authType: TargetAuthType = "none";
     tokenEndpoint = "";
     audience = "";
     activeTargetName = "";
@@ -20,11 +19,11 @@ export class InMemoryDeploymentState implements DeploymentStatePort {
         return this.tenantId;
     }
 
-    getAuthType(): AuthTypePayload {
+    getAuthType(): TargetAuthType {
         return this.authType;
     }
 
-    async saveAuthType(authType: AuthTypePayload): Promise<void> {
+    async saveAuthType(authType: TargetAuthType): Promise<void> {
         this.authType = authType;
     }
 

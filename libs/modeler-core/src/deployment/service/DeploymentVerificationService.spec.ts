@@ -5,11 +5,11 @@ import {
     DisallowedEnvReferenceError,
     EngineInspectionFailedError,
     EnvReferenceError,
-    HttpTransportError,
     InvalidCredentialDestinationError,
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
+import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost } from "../../testing";
 import { AuthConfig, BasicAuth, NoAuth } from "../domain/deployment";
 import { contentFingerprint, DeploymentTargetIdentity } from "../domain/deploymentLedger";
@@ -17,7 +17,7 @@ import { DeploymentTarget, parseDeploymentTargetsFile } from "../domain/deployme
 import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import { EngineInspectionPort } from "../domain/ports";
-import { FetchHttpClient } from "../infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";
@@ -130,7 +130,6 @@ function createService({
         getRevision: vi.fn().mockReturnValue(undefined),
         adoptRevision: vi.fn().mockResolvedValue(undefined),
         forgetRevision: vi.fn().mockResolvedValue(undefined),
-        refreshFocused: vi.fn().mockResolvedValue(undefined),
     };
     const inspection = {
         fetchLatestDefinition: vi.fn().mockResolvedValue(snapshot()),
@@ -246,7 +245,6 @@ describe("DeploymentVerificationService.verifyActive", () => {
             identity,
             expect.objectContaining({ ...recorded, verifiedAt: expect.any(String) }),
         );
-        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
         expect(c.host.notifier.infos).toEqual([
             expect.stringContaining("dev runs your last deployment"),
         ]);
@@ -690,7 +688,6 @@ describe("DeploymentVerificationService.verifyActive credential approval", () =>
         expect(c.inspection.fetchLatestDefinition).not.toHaveBeenCalled();
         expect(c.deploymentStatusService.adoptRevision).not.toHaveBeenCalled();
         expect(c.deploymentStatusService.forgetRevision).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
     it("refuses to send credentials to an endpoint without a host, before asking", async () => {

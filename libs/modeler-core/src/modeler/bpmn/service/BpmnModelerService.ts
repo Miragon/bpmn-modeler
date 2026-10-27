@@ -1,17 +1,17 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
-import { getVersions } from "../../../shared/domain/engineVersions";
-import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
+import { isHiddenEditorError, UserCancelledError } from "../../../kernel/domain/errors";
+import { getVersions } from "../../../kernel/domain/engineVersions";
+import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
     DocumentPort,
     NotifierPort,
     PickerPort,
     SettingsPort,
     StatusBarPort,
-} from "../../../shared/domain/hostPorts";
-import { EditorDocumentSync } from "../../../shared/infrastructure/EditorDocumentSync";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+} from "../../../kernel/domain/hostPorts";
+import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";

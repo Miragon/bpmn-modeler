@@ -36,7 +36,7 @@ import {
     OAuth2Auth,
 } from "../domain/deployment";
 import { StartInstanceResult } from "../domain/startInstance";
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { InvalidDeploymentConfigError } from "../domain/errors";
 import { createTestHost } from "../../testing";
 import { DeploymentMessageDispatcher } from "./DeploymentMessageDispatcher";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";

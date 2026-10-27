@@ -1,13 +1,13 @@
 import { posix } from "path";
 
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import {
     CredentialDestinationError,
     EngineInspectionFailedError,
     EnvReferenceError,
-} from "../../shared/domain/errors";
-import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+} from "../domain/errors";
+import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { reconcile } from "../domain/deploymentVerification";
 import { EngineInspectionPort } from "../domain/ports";
@@ -110,7 +110,6 @@ export class DeploymentVerificationService {
             } else {
                 await this.deploymentStatusService.forgetRevision(filePath, identity);
             }
-            await this.deploymentStatusService.refreshFocused();
 
             const deployedTime = timeOf(revision?.deployedAt);
             const reportedDeploymentTime = timeOf(snapshot?.deploymentTime);

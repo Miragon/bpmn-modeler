@@ -5,7 +5,7 @@ import {
     InvalidCredentialDestinationError,
     InvalidDeploymentConfigError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "./errors";
 
 import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "./deployment";
 import { referenceableVariables } from "./envRef";

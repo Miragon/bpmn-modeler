@@ -1,15 +1,13 @@
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
 
 import {
-    DeploymentStatePort,
     NotifierPort,
     PickerPort,
-    SecretStorePort,
     SettingsPort,
     WorkspacePort,
-} from "../../shared/domain/hostPorts";
-import { joinWorkspacePath } from "../../shared/domain/workspacePath";
-import { ArtifactService } from "../../shared/service/ArtifactService";
+} from "../../kernel/domain/hostPorts";
+import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
 import {
@@ -19,6 +17,7 @@ import {
     serializeDeploymentTargets,
 } from "../domain/deploymentTarget";
 import { CredentialRefs } from "../domain/credentialRefs";
+import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
 
@@ -48,7 +47,7 @@ export class DeploymentTargetService {
         private readonly workspace: WorkspacePort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly picker: PickerPort,
+        private readonly picker: PickerPort & DeploymentPickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 

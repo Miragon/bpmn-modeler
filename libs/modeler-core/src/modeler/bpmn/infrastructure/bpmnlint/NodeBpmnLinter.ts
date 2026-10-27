@@ -4,7 +4,7 @@ import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
-import { LintRunnerPort } from "../../../../shared/domain/hostPorts";
+import { LintRunnerPort } from "../../domain/ports";
 import { CompositeResolver, Resolver } from "./CompositeResolver";
 
 // bpmnlint ships no type declarations; its entry points are typed by the ambient

@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../../shared/domain/hostPorts";
+import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
 
 import { ReferencedModelLocator } from "./ReferencedModelLocator";

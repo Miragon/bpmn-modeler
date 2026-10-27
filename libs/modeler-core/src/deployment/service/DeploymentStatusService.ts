@@ -1,14 +1,8 @@
 import { posix } from "path";
 
-import {
-    DeploymentStatePort,
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    StatusBarPort,
-} from "../../shared/domain/hostPorts";
-import { UnreadableDotEnvError } from "../../shared/domain/errors";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { UnreadableDotEnvError } from "../domain/errors";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
     contentFingerprint,
     DeployedRevision,
@@ -19,6 +13,11 @@ import {
 } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { EnvLookup, EnvReferencing, NO_ENV_VARIABLES } from "../domain/envRef";
+import {
+    DeploymentPickerPort,
+    DeploymentStatePort,
+    DeploymentStatusBarPort,
+} from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvScope, EnvValueResolver } from "./EnvValueResolver";
 
@@ -43,8 +42,8 @@ export class DeploymentStatusService {
         private readonly documentPort: DocumentPort,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly statusBar: StatusBarPort,
-        private readonly picker: PickerPort,
+        private readonly statusBar: DeploymentStatusBarPort,
+        private readonly picker: DeploymentPickerPort,
         private readonly notifier: NotifierPort,
         private readonly envResolver: EnvValueResolver,
     ) {}
@@ -111,7 +110,9 @@ export class DeploymentStatusService {
             deploymentId,
             origin: "local",
         };
-        await this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision);
+        await this.writeThenRefresh(() =>
+            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
+        );
     }
 
     getRevision(
@@ -126,19 +127,36 @@ export class DeploymentStatusService {
         identity: DeploymentTargetIdentity,
         revision: DeployedRevision,
     ): Promise<void> {
-        await this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision);
+        await this.writeThenRefresh(() =>
+            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
+        );
     }
 
     async forgetRevision(filePath: string, identity: DeploymentTargetIdentity): Promise<void> {
-        await this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]);
+        await this.writeThenRefresh(() =>
+            this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]),
+        );
     }
 
     /** Drops every ledger row of `identity` — target deleted or renamed. */
     async pruneTarget(identity: DeploymentTargetIdentity): Promise<void> {
         const prefix = ledgerKeyPrefixFor(identity);
-        const keys = this.deploymentState.listLedgerKeys().filter((key) => key.startsWith(prefix));
-        if (keys.length > 0) {
-            await this.deploymentState.deleteDeployedRevisions(keys);
+        await this.writeThenRefresh(async () => {
+            const keys = this.deploymentState
+                .listLedgerKeys()
+                .filter((key) => key.startsWith(prefix));
+            if (keys.length > 0) {
+                await this.deploymentState.deleteDeployedRevisions(keys);
+            }
+        });
+    }
+
+    private async writeThenRefresh(writeLedger: () => Promise<void>): Promise<void> {
+        try {
+            await writeLedger();
+        } finally {
+            // Even after a failed write: an ad-hoc deploy first saves the connection the item reads.
+            await this.refreshFocused();
         }
     }
 

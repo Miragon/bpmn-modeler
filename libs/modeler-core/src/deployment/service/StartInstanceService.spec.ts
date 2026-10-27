@@ -5,20 +5,20 @@ import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { CamundaEnginePort } from "../domain/ports";
-import { FetchHttpClient } from "../infrastructure/FetchHttpClient";
+import { FetchHttpClient } from "../../kernel/infrastructure/FetchHttpClient";
 import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { EnvValueResolver } from "./EnvValueResolver";
 import { StartInstanceService } from "./StartInstanceService";
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import {
     CredentialDestinationNotApprovedError,
     DisallowedEnvReferenceError,
-    HttpTransportError,
     InvalidDeploymentConfigError,
     UnresolvedEnvVariableError,
-} from "../../shared/domain/errors";
+} from "../domain/errors";
+import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, TestHostOptions } from "../../testing";
 
 // A real C7 document so `getProcessDefinitionKey` exercises the production

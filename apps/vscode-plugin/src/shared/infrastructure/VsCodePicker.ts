@@ -3,7 +3,7 @@ import { posix } from "path";
 import { QuickPickItem, Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "@miragon/bpmn-modeler-core";
-import { PickerPort } from "@miragon/bpmn-modeler-core";
+import { DeploymentPickerPort, MigrationPickerPort, PickerPort } from "@miragon/bpmn-modeler-core";
 import { MigrationScope } from "@miragon/bpmn-modeler-core";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
 import { summarizeAffectedItems } from "@miragon/bpmn-modeler-core";
@@ -20,7 +20,7 @@ import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
  * imports and the cancel-vs-throw convention is enforced in one place
  * instead of duplicated at every callsite.
  */
-export class VsCodePicker implements PickerPort {
+export class VsCodePicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     constructor(private readonly vsWorkspace: VsCodeWorkspace) {}
 
     /**

@@ -1,6 +1,6 @@
 import { AuthConfig, OAuth2Auth } from "../../domain/deployment";
-import { TokenFetchError } from "../../../shared/domain/errors";
-import { HttpClient } from "../../domain/ports";
+import { TokenFetchError } from "../../domain/errors";
+import { HttpClient } from "../../../kernel/domain/http";
 import { SecretRedactor } from "../../domain/secretRedactor";
 import { engineErrorDetail, requestRedactor } from "./engineError";
 

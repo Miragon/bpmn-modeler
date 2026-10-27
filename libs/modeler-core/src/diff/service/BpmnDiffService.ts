@@ -8,10 +8,10 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 
-import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
-import { NotifierPort, SettingsPort } from "../../shared/domain/hostPorts";
-import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
+import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
+import { DiffPaneStore } from "./DiffPaneStore";
 
 /**
  * Drives the diff *content* for already-resolved BPMN diff panes: it answers

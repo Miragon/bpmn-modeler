@@ -1,5 +1,5 @@
-import { DocumentPort } from "../../shared/domain/hostPorts";
-import { PendingEditsFlush } from "../../shared/service/PendingEditsFlush";
+import { DocumentPort } from "../../kernel/domain/hostPorts";
+import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 
 export type SaveBeforeDeployResult = { saved: true } | { saved: false; message: string };
 

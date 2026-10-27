@@ -1,4 +1,4 @@
-import type { PickerPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import type { PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import type { ReferencedModelLocator } from "./ReferencedModelLocator";
 
 export type FormPreviewResult =
