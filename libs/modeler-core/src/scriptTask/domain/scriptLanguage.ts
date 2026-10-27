@@ -41,7 +41,7 @@ export class ScriptLanguage {
     /**
      * Returns true when `scriptFormat` matches one of the languages this
      * extension provides IntelliSense for. Used by the open flow to decide
-     * whether to honour the BPMN model's `camunda:scriptFormat` directly or
+     * whether to honour the BPMN model's `scriptFormat` directly or
      * prompt the user to pick a supported language.
      */
     static isSupported(scriptFormat: string): boolean {
