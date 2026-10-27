@@ -216,10 +216,9 @@ Note: BPMN/DMN editors do **not** set `retainContextWhenHidden`: their
 webviews are torn down when hidden and recreated when shown, so `getState`/
 `setState` is the *only* thing that survives a hide, not just a restart.
 (`VsCodeEditorHandle.postMessage` throws for a hidden panel precisely because
-the webview is gone; see `VsCodeEditorHandle.ts:105`.) Only the deployment
-sidebar view sets `retainContextWhenHidden: true`
-(`DeploymentController.ts:63`), because it uses `registerWebviewViewProvider`,
-not a custom editor.
+the webview is gone.) Only the deployment sidebar view sets
+`retainContextWhenHidden: true` (`DeploymentController.ts`), because it uses
+`registerWebviewViewProvider`, not a custom editor.
 
 ## VS Code API in Webviews
 
