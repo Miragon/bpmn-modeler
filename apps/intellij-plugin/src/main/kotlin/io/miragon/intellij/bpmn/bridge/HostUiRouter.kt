@@ -11,9 +11,15 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.AutoHidingStatusSlots
 import io.miragon.intellij.bpmn.HostPicker
+import io.miragon.intellij.bpmn.StatusAction
 import io.miragon.intellij.bpmn.StatusBarSlots
+import io.miragon.intellij.bpmn.StatusIcon
 import io.miragon.intellij.bpmn.StatusSlot
 import io.miragon.intellij.bpmn.StatusSlots
+import io.miragon.intellij.bpmn.StatusTone
+import io.miragon.intellij.bpmn.StatusView
+import io.miragon.intellij.bpmn.WireValue
+import io.miragon.intellij.bpmn.wireValueOf
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.util.concurrent.CompletableFuture
@@ -47,6 +53,7 @@ internal class HostUiRouter(
             .on("confirm/show") { params, id -> handleConfirm(params, id) }
             .on("clipboard/read") { _, id -> handleClipboardRead(id) }
             .on("clipboard/write") { params, _ -> handleClipboardWrite(params) }
+            .on("statusBar/update") { params, _ -> handleStatusUpdate(params) }
             .on("statusBar/showEngineVersion") { params, _ ->
                 statusSlots.show(
                     StatusSlot.ENGINE_VERSION,
@@ -62,10 +69,10 @@ internal class HostUiRouter(
                 statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesLoading)
             }
             .on("statusBar/showDeploymentTarget") { params, _ ->
-                val name = params.get("name")?.takeIf { !it.isJsonNull }?.asString
-                val freshness = params.get("freshness")?.takeIf { !it.isJsonNull }?.asString ?: "unknown"
-                val deployedAt = params.get("deployedAt")?.takeIf { !it.isJsonNull }?.asString
-                val verifiedAt = params.get("verifiedAt")?.takeIf { !it.isJsonNull }?.asString
+                val name = params.optionalString("name")
+                val freshness = params.optionalString("freshness") ?: "unknown"
+                val deployedAt = params.optionalString("deployedAt")
+                val verifiedAt = params.optionalString("verifiedAt")
                 statusSlots.show(
                     StatusSlot.DEPLOYMENT_TARGET,
                     LegacyStatusViews.deploymentTarget(name, freshness, deployedAt, verifiedAt),
@@ -135,6 +142,43 @@ internal class HostUiRouter(
     }
 
     /**
+     * Shows or hides one slot. Only `statusBar/update`'s top-level keys are in
+     * `protocol.json`, so the view's fields are read here once; a value this host
+     * does not know is logged and left out rather than failing the frame.
+     */
+    private fun handleStatusUpdate(params: JsonObject) {
+        val slotName = params.optionalString("slot")
+        val slot = slotName?.let { wireValueOf<StatusSlot>(it) }
+        if (slot == null) {
+            log.warn("statusBar/update: no placement for status slot '$slotName'")
+            return
+        }
+        val view = params.get("view")?.takeIf { it.isJsonObject }?.asJsonObject
+        if (view == null) {
+            statusSlots.hide(slot)
+        } else {
+            statusSlots.show(slot, readStatusView(view))
+        }
+    }
+
+    private fun readStatusView(view: JsonObject): StatusView =
+        StatusView(
+            text = view.optionalString("text").orEmpty(),
+            icon = view.optionalWireValue<StatusIcon>("icon"),
+            tooltip = view.optionalString("tooltip"),
+            tone = view.optionalWireValue<StatusTone>("tone") ?: StatusTone.NEUTRAL,
+            action = view.optionalWireValue<StatusAction>("action"),
+            transient = view.optionalBoolean("transient") ?: false,
+        )
+
+    private inline fun <reified E> JsonObject.optionalWireValue(key: String): E? where E : Enum<E>, E : WireValue {
+        val name = optionalString(key) ?: return null
+        val value = wireValueOf<E>(name)
+        if (value == null) log.warn("statusBar/update: unknown $key '$name', left out")
+        return value
+    }
+
+    /**
      * Modal yes/no listing what is about to be removed.
      *
      * Every path that cannot ask replies `false`: a disposed project or a
@@ -142,9 +186,8 @@ internal class HostUiRouter(
      */
     private fun handleConfirm(params: JsonObject, id: Int?) {
         if (id == null) return
-        val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
-        val confirmLabel =
-            params.get("confirmLabel")?.takeIf { !it.isJsonNull }?.asString ?: "Continue"
+        val title = params.optionalString("title").orEmpty()
+        val confirmLabel = params.optionalString("confirmLabel") ?: "Continue"
         val details = params.getAsJsonArray("details")?.map { it.asString }.orEmpty()
 
         deps.channel.replyFromEdt(id, "confirm/show") {
@@ -172,16 +215,16 @@ internal class HostUiRouter(
         // A picker prompt is always a request expecting a reply; a missing id
         // would mean nothing to answer, so there is nothing to do.
         if (id == null) return
-        val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString
-        val placeholder = params.get("placeholder")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
-        val canPickMany = params.get("canPickMany")?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+        val title = params.optionalString("title")
+        val placeholder = params.optionalString("placeholder").orEmpty()
+        val canPickMany = params.optionalBoolean("canPickMany") ?: false
         val items =
             params.getAsJsonArray("items").mapIndexed { index, element ->
                 val obj = element.asJsonObject
                 HostPicker.PickItem(
                     index,
                     obj.get("label").asString,
-                    obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
+                    obj.optionalString("description"),
                 )
             }
         deps.channel.replyLaterFromEdt(id, "picker/show") { reply ->
@@ -214,9 +257,13 @@ internal class HostUiRouter(
 
     /** Writes the webview's copied text onto the system clipboard (fire-and-forget). */
     private fun handleClipboardWrite(params: JsonObject) {
-        val text = params.get("text")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        val text = params.optionalString("text").orEmpty()
         ApplicationManager.getApplication().invokeLater {
             CopyPasteManager.getInstance().setContents(StringSelection(text))
         }
     }
+
+    private fun JsonObject.optionalString(key: String): String? = get(key)?.takeIf { !it.isJsonNull }?.asString
+
+    private fun JsonObject.optionalBoolean(key: String): Boolean? = get(key)?.takeIf { !it.isJsonNull }?.asBoolean
 }

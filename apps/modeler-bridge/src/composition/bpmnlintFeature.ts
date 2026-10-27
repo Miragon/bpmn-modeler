@@ -9,6 +9,7 @@ import {
     updateLintResultsHandler,
 } from "@miragon/bpmn-modeler-core";
 
+import { METHODS } from "../protocol/descriptor";
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
@@ -27,7 +28,7 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * There is no Problems-panel equivalent here, so {@link NoopDiagnostics} stands in.
  *
  * Webview messages: GetBpmnlintConfigCommand, UpdateLintResultsCommand,
- * SetLintingEnabledCommand.
+ * SetLintingEnabledCommand. Host: `linting/toggle`, the status widget's click.
  * Session: the core {@link BpmnlintParticipant}, the same one VS Code runs.
  */
 export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
@@ -55,6 +56,9 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
                 await lintSvc.setBpmnlintConfig(editorId);
             }
         });
+    deps.rpc.on(METHODS.lintingToggle, () => {
+        deps.settings.setLintingEnabled(!deps.settings.getLintingEnabled());
+    });
 
     return {
         participants: [new BpmnlintParticipant(lintSvc, locator, deps.statusBar, deps.notifier)],
