@@ -17,6 +17,7 @@ import {
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
     HostApiImpl,
+    LanguageQuery,
     LogErrorCommand,
     LogWarningCommand,
     MockHostApi,
@@ -34,12 +35,14 @@ import {
     SwapCompareSidesCommand,
     SyncActivitiesCommand,
     SyncDocumentCommand,
+    TakeFocusQuery,
     UpdateLintResultsCommand,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
     ViewportChangedCommand,
     WorkspaceDefinitionsQuery,
     type Command,
+    type Query,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
@@ -285,4 +288,13 @@ describe("development preview host", () => {
 
         expect(() => host.postMessage(command)).not.toThrow();
     });
+
+    it.each<Query>([new LanguageQuery("de"), new TakeFocusQuery()])(
+        "rejects a $type, which only the host sends",
+        (query) => {
+            const host = previewHost();
+
+            expect(() => host.postMessage(query)).toThrow(`Unknown message type: ${query.type}`);
+        },
+    );
 });
