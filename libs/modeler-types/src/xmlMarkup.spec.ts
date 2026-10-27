@@ -49,6 +49,11 @@ describe("commentAndCdataRanges", () => {
             content: `<!-- a --> "<!--" <x id="B"/>`,
             hidden: [`<!-- a -->`],
         },
+        {
+            section: "comment that only its own opener's dashes would close",
+            content: `<!--> <x id="B"/>`,
+            hidden: [],
+        },
     ])("an unterminated $section hides nothing", ({ content, hidden }) => {
         expect(hiddenSections(content)).toEqual(hidden);
     });
