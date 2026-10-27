@@ -555,6 +555,23 @@ describe("migrateAllDiagrams", () => {
         expect(writtenPaths).toEqual([]);
     });
 
+    it("shows an error and migrates nothing when the workspace cannot be searched", async () => {
+        const { service, notifier, picker, workspace } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+        });
+        vi.spyOn(workspace, "findFiles").mockRejectedValue(new Error("Search failed"));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([]);
+        expect(workspace.files.get("/work/a.bpmn")).toBe(c8Bpmn("8.5.0"));
+        expect(notifier.errors).toEqual([
+            "A problem occurred while migrating BPMN diagrams.\nSearch failed",
+        ]);
+        expect(notifier.infos).toEqual([]);
+        expect(result).toBe(false);
+    });
+
     it("should log undetected files as warnings", async () => {
         const { service, notifier } = createHost(
             { "/work/ok.bpmn": c8Bpmn("8.5.0"), "/work/unknown.bpmn": unknownBpmn },
