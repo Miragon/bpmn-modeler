@@ -10,6 +10,7 @@ import {
     NoAuth,
     OAuth2Auth,
 } from "../domain/deployment";
+import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { contentFingerprint } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
@@ -96,16 +97,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         })),
     };
     const envResolver = new EnvValueResolver(targetsLocator, host.workspace);
-    // Keyed like the real slot, so an approval lands under its target's project.
-    const targetSlots = {
-        resolveSlot: async (name: string, documentDir = "/work") =>
-            `${targetsFileOf(documentDir)}::${name}`,
-    };
-    const credentialApproval = new CredentialApprovalService(
-        targetSlots,
-        host.secrets,
-        host.picker,
-    );
+    const credentialApproval = new CredentialApprovalService(host.secrets, host.picker);
 
     const restClient = {
         deploy: vi.fn(),
@@ -193,6 +185,20 @@ function buildConfig(
 
 function targetAt(endpoint: string, tenantId = ""): DeploymentTarget {
     return new DeploymentTarget("dev", "c7", endpoint, tenantId, "none", "", "");
+}
+
+/** `target` in the project holding its own targets file, keyed like the real slot. */
+function named(target: DeploymentTarget, projectDir = "/work"): NamedDestination {
+    return new NamedDestination(target, {
+        filePath: targetsFileOf(projectDir),
+        exists: true,
+        projectDir,
+    });
+}
+
+/** Deploys over the ad-hoc connection the config names, as the dispatcher does. */
+function deployAdHoc(service: DeploymentService, config: DeploymentConfig) {
+    return service.deploy(config, new AdHocDestination(config.endpoint, config.tenantId));
 }
 
 /** The production REST stack down to `fetch`, so a failure's message is the shipped one. */
@@ -389,7 +395,8 @@ describe("DeploymentService.deploy", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
-        await service.deploy(
+        await deployAdHoc(
+            service,
             buildConfig({
                 mainFilePath: "/work/main.bpmn",
                 additionalFilePaths: ["/work/a.form", "/work/b.dmn"],
@@ -406,7 +413,7 @@ describe("DeploymentService.deploy", () => {
         host.deploymentState.authType = "basic";
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
-        await service.deploy(buildConfig({ endpoint: "https://c/api", tenantId: "acme" }));
+        await deployAdHoc(service, buildConfig({ endpoint: "https://c/api", tenantId: "acme" }));
 
         expect(host.deploymentState.endpoint).toBe("https://c/api");
         expect(host.deploymentState.tenantId).toBe("acme");
@@ -417,7 +424,7 @@ describe("DeploymentService.deploy", () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deploy(buildConfig({ auth: new BasicAuth("admin", "secret") }));
+        await deployAdHoc(service, buildConfig({ auth: new BasicAuth("admin", "secret") }));
 
         expect(host.deploymentState.authType).toBe("basic");
         await expect(host.secrets.getBasicAuth()).resolves.toEqual({
@@ -430,7 +437,8 @@ describe("DeploymentService.deploy", () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deploy(
+        await deployAdHoc(
+            service,
             buildConfig({
                 auth: new OAuth2Auth("cid", "csecret", "https://idp/token", "zeebe-api"),
             }),
@@ -450,8 +458,7 @@ describe("DeploymentService.deploy", () => {
 
         await service.deploy(
             buildConfig({ auth: new BasicAuth("admin", "secret") }),
-            TARGET_SLOT,
-            targetAt("http://localhost:8080/engine-rest"),
+            named(targetAt("http://localhost:8080/engine-rest")),
         );
 
         await expect(host.secrets.getBasicAuth(TARGET_SLOT)).resolves.toEqual({
@@ -473,8 +480,7 @@ describe("DeploymentService.deploy", () => {
 
         await service.deploy(
             buildConfig({ auth: new BasicAuth("${env:MIRAGON_USER}", "s3cret") }),
-            TARGET_SLOT,
-            targetAt("http://localhost:8080/engine-rest"),
+            named(targetAt("http://localhost:8080/engine-rest")),
         );
 
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
@@ -493,7 +499,10 @@ describe("DeploymentService.deploy", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deploy(buildConfig({ auth: new BasicAuth("admin", "  ${env:MIRAGON_PW} ") }));
+        await deployAdHoc(
+            service,
+            buildConfig({ auth: new BasicAuth("admin", "  ${env:MIRAGON_PW} ") }),
+        );
 
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
         expect((sentConfig.auth as BasicAuth).password).toBe("s3cret");
@@ -503,7 +512,10 @@ describe("DeploymentService.deploy", () => {
         const { service, restClient, deploymentStatus } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
-        await service.deploy(buildConfig({ endpoint: "https://c.example/api", tenantId: "acme" }));
+        await deployAdHoc(
+            service,
+            buildConfig({ endpoint: "https://c.example/api", tenantId: "acme" }),
+        );
 
         expect(deploymentStatus.recordDeployment).toHaveBeenCalledOnce();
         const [filePath, content, identity, deploymentId] =
@@ -520,8 +532,7 @@ describe("DeploymentService.deploy", () => {
 
         await service.deploy(
             buildConfig({ endpoint: "https://c.example/api" }),
-            TARGET_SLOT,
-            targetAt("https://c.example/api"),
+            named(targetAt("https://c.example/api")),
         );
 
         expect(deploymentStatus.recordDeployment.mock.calls[0][2].key()).toBe(
@@ -546,7 +557,7 @@ describe("DeploymentService.deploy", () => {
             tenantId: "${env:MIRAGON_TENANT}",
         });
 
-        await service.deploy(config);
+        await deployAdHoc(service, config);
 
         expect(dotEnvReads()).toEqual(["/work/.env"]);
         expect(locateTargetsFile).not.toHaveBeenCalled();
@@ -567,7 +578,7 @@ describe("DeploymentService.deploy", () => {
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         const config = buildConfig({ endpoint: "${env:MIRAGON_URL}" });
 
-        await service.deploy(config, TARGET_SLOT, targetAt("${env:MIRAGON_URL}"));
+        await service.deploy(config, named(targetAt("${env:MIRAGON_URL}")));
 
         expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/work");
         expect(dotEnvReads()).toEqual(["/work/.env"]);
@@ -586,8 +597,7 @@ describe("DeploymentService.deploy", () => {
 
         const result = await service.deploy(
             buildConfig(),
-            TARGET_SLOT,
-            targetAt("http://localhost:8080/engine-rest"),
+            named(targetAt("http://localhost:8080/engine-rest")),
         );
 
         expect(result.success).toBe(false);
@@ -602,7 +612,7 @@ describe("DeploymentService.deploy", () => {
         const networkDown = new Error("network down");
         restClient.deploy.mockRejectedValue(networkDown);
 
-        const result = await service.deploy(buildConfig());
+        const result = await deployAdHoc(service, buildConfig());
 
         expect(result.success).toBe(false);
         expect(result.message).toBe("network down");
@@ -614,7 +624,7 @@ describe("DeploymentService.deploy", () => {
         const { service, host, restClient } = createService();
         vi.spyOn(host.workspace, "readFile").mockRejectedValue(new Error("ENOENT"));
 
-        const result = await service.deploy(buildConfig());
+        const result = await deployAdHoc(service, buildConfig());
 
         expect(result.success).toBe(false);
         expect(result.message).toBe("ENOENT");
@@ -626,7 +636,8 @@ describe("DeploymentService.deploy", () => {
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
         vi.spyOn(host.deploymentState, "save").mockRejectedValue(new Error("state locked"));
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "https://c.example/api",
                 tenantId: "acme",
@@ -658,7 +669,8 @@ describe("DeploymentService.deploy", () => {
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
         vi.spyOn(host.secrets, "saveBasicAuth").mockRejectedValue(new Error("no OS keyring"));
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "https://c.example/api",
                 tenantId: "acme",
@@ -687,8 +699,7 @@ describe("DeploymentService.deploy", () => {
 
         const result = await service.deploy(
             buildConfig({ auth: new BasicAuth("admin", "secret") }),
-            TARGET_SLOT,
-            targetAt("http://localhost:8080/engine-rest"),
+            named(targetAt("http://localhost:8080/engine-rest")),
         );
 
         expect(result).toEqual(
@@ -718,7 +729,7 @@ describe("DeploymentService.deploy", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deploy(buildConfig({ endpoint: "${env:MIRAGON_URL}", engine: "c8" }));
+        await deployAdHoc(service, buildConfig({ endpoint: "${env:MIRAGON_URL}", engine: "c8" }));
 
         expect(host.notifier.logged("info")).toContain(
             "Deployment started: order-process.bpmn -> c8 @ camunda.prod.example:8443",
@@ -732,7 +743,8 @@ describe("DeploymentService.deploy", () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deploy(
+        await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "https://camunda.example/api",
                 deployUrl: "https://gateway.example/deploy",
@@ -751,7 +763,8 @@ describe("DeploymentService.deploy", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deploy(
+        await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "https://camunda.${env:MIRAGON_STAGE}.example/api",
                 auth: new BasicAuth("admin", "${env:MIRAGON_PASSWORD}"),
@@ -778,7 +791,8 @@ describe("DeploymentService.deploy", () => {
             dotEnvFiles: { "/work": { MIRAGON_OTHER: "x" } },
         });
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({ auth: new BasicAuth("admin", "${env:MIRAGON_MISSING}") }),
         );
 
@@ -798,7 +812,8 @@ describe("DeploymentService.deploy", () => {
             dotEnvFiles: { "/work": { GITHUB_TOKEN: "ghp_leak" } },
         });
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({ auth: new BasicAuth("admin", "${env:GITHUB_TOKEN}") }),
         );
 
@@ -817,7 +832,7 @@ describe("DeploymentService.deploy", () => {
             dotEnvFiles: { "/work": { MIRAGON_URL: "" } },
         });
 
-        const result = await service.deploy(buildConfig({ endpoint: "${env:MIRAGON_URL}" }));
+        const result = await deployAdHoc(service, buildConfig({ endpoint: "${env:MIRAGON_URL}" }));
 
         expect(result.success).toBe(false);
         expect(result.message).toBe(new InvalidDeploymentConfigError(["endpoint"]).message);
@@ -835,7 +850,8 @@ describe("DeploymentService.deploy", () => {
             engineClient: createRealRestClient(),
         });
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "https://camunda.example/engine-rest",
                 deployUrl: "${env:MIRAGON_DEPLOY}",
@@ -860,7 +876,7 @@ describe("DeploymentService.deploy", () => {
             engineClient: createRealRestClient(),
         });
 
-        const result = await service.deploy(buildConfig({ endpoint: "${env:MIRAGON_URL}" }));
+        const result = await deployAdHoc(service, buildConfig({ endpoint: "${env:MIRAGON_URL}" }));
 
         // The rejection really quoted the secret, so its absence below is the redaction.
         expect(fetchStub).toHaveBeenCalledExactlyOnceWith(
@@ -897,8 +913,7 @@ describe("DeploymentService.deploy", () => {
                 deployUrl: "https://gw.example/hooks/${env:MIRAGON_TOKEN}/deploy",
                 auth: new BasicAuth("admin", LITERAL_PASSWORD),
             }),
-            TARGET_SLOT,
-            targetAt("http://localhost:8080/engine-rest"),
+            named(targetAt("http://localhost:8080/engine-rest")),
         );
 
         expect(fetchStub).toHaveBeenCalledExactlyOnceWith(
@@ -923,7 +938,7 @@ describe("DeploymentService.deploy", () => {
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         const config = buildConfig({ auth: new BasicAuth("admin", "secret") });
 
-        const result = await service.deploy(config);
+        const result = await deployAdHoc(service, config);
 
         expect(result.success).toBe(true);
         expect(restClient.deploy).toHaveBeenCalledExactlyOnceWith(config, expect.any(Map));
@@ -948,7 +963,7 @@ describe("DeploymentService.deploy", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        const result = await service.deploy(buildConfig(), TARGET_SLOT, startUrlRefTarget);
+        const result = await service.deploy(buildConfig(), named(startUrlRefTarget));
 
         expect(result.success).toBe(true);
         expect(dotEnvReads()).toEqual([]);
@@ -979,7 +994,8 @@ describe("DeploymentService.deploy .env scope", () => {
         const { service, restClient, dotEnvReads, locateTargetsFile } =
             createNestedProjectService();
 
-        await service.deploy(
+        await deployAdHoc(
+            service,
             buildConfig({ endpoint: "${env:MIRAGON_URL}", mainFilePath: NESTED_MAIN_FILE }),
         );
 
@@ -995,8 +1011,7 @@ describe("DeploymentService.deploy .env scope", () => {
 
         await service.deploy(
             buildConfig({ endpoint: "${env:MIRAGON_URL}", mainFilePath: NESTED_MAIN_FILE }),
-            TARGET_SLOT,
-            targetAt("${env:MIRAGON_URL}"),
+            named(targetAt("${env:MIRAGON_URL}")),
         );
 
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
@@ -1023,8 +1038,7 @@ describe("DeploymentService.deploy credential approval", () => {
                 endpoint: "${env:MIRAGON_URL}",
                 auth: new BasicAuth("admin", "s3cret"),
             }),
-            TARGET_SLOT,
-            envTarget,
+            named(envTarget),
         );
 
         expect(host.picker.prompts).toEqual([
@@ -1045,8 +1059,7 @@ describe("DeploymentService.deploy credential approval", () => {
                 endpoint: "https://moved.example/engine-rest",
                 auth: new BasicAuth("admin", "s3cret"),
             }),
-            TARGET_SLOT,
-            targetAt("https://moved.example/engine-rest"),
+            named(targetAt("https://moved.example/engine-rest")),
         );
 
         expect(result).toMatchObject({ success: false, message: DECLINED.message });
@@ -1066,7 +1079,8 @@ describe("DeploymentService.deploy credential approval", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "https://typed.example/engine-rest",
                 auth: new BasicAuth("admin", "s3cret"),
@@ -1103,7 +1117,7 @@ describe("DeploymentService.deploy credential approval", () => {
             });
             const approvedAtDeploy = approvalsAtEachDeploy({ host, restClient }, AD_HOC_SLOT);
 
-            await service.deploy(config);
+            await deployAdHoc(service, config);
 
             expect(host.picker.prompts).toEqual([approvalPrompt(origin, "the ad-hoc connection")]);
             expect(approvedAtDeploy).toEqual([[origin]]);
@@ -1119,7 +1133,8 @@ describe("DeploymentService.deploy credential approval", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
-        const result = await service.deploy(
+        const result = await deployAdHoc(
+            service,
             buildConfig({
                 endpoint: "${env:MIRAGON_URL}",
                 auth: new BasicAuth("admin", "s3cret"),
@@ -1155,7 +1170,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.dmn"],
-            target,
+            named(target),
             new NoAuth(),
             "/work",
         );
@@ -1180,7 +1195,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn", "/work/c.bpmn"],
-            target,
+            named(target),
             new NoAuth(),
             "/work",
         );
@@ -1197,7 +1212,12 @@ describe("DeploymentService.deployFiles", () => {
         const { service, host, restClient } = createService({ files: xmlFiles("/work/a.bpmn") });
         restClient.deploy.mockResolvedValue(new DeploymentResult(false, "rejected by server"));
 
-        const results = await service.deployFiles(["/work/a.bpmn"], target, new NoAuth(), "/work");
+        const results = await service.deployFiles(
+            ["/work/a.bpmn"],
+            named(target),
+            new NoAuth(),
+            "/work",
+        );
 
         expect(results).toEqual([new DeploymentResult(false, "rejected by server")]);
         expect(host.deploymentState.ledger).toEqual(new Map());
@@ -1211,7 +1231,12 @@ describe("DeploymentService.deployFiles", () => {
             new Error("workspace state unavailable"),
         );
 
-        const results = await service.deployFiles(["/work/a.bpmn"], target, new NoAuth(), "/work");
+        const results = await service.deployFiles(
+            ["/work/a.bpmn"],
+            named(target),
+            new NoAuth(),
+            "/work",
+        );
 
         expect(results).toEqual([
             new DeploymentResult(
@@ -1232,7 +1257,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn"],
-            envTarget,
+            named(envTarget),
             new NoAuth(),
             "/work",
         );
@@ -1260,7 +1285,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn"],
-            target,
+            named(target),
             new BasicAuth("admin", "secret"),
             "/work",
         );
@@ -1312,7 +1337,7 @@ describe("DeploymentService.deployFiles", () => {
 
             const results = await service.deployFiles(
                 ["/work/a.bpmn", "/work/b.bpmn"],
-                refOutsideDeployTarget,
+                named(refOutsideDeployTarget),
                 auth,
                 "/work",
             );
@@ -1336,7 +1361,7 @@ describe("DeploymentService.deployFiles", () => {
 
         await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn"],
-            refTarget,
+            named(refTarget),
             new NoAuth(),
             "/work",
         );
@@ -1369,7 +1394,12 @@ describe("DeploymentService.deployFiles", () => {
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
-        await service.deployFiles(["/work/a.bpmn", "/work/b.bpmn"], literalTarget, auth, "/work");
+        await service.deployFiles(
+            ["/work/a.bpmn", "/work/b.bpmn"],
+            named(literalTarget),
+            auth,
+            "/work",
+        );
 
         expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/work");
         expect(dotEnvReads()).toEqual(["/work/.env"]);
@@ -1396,7 +1426,12 @@ describe("DeploymentService.deployFiles", () => {
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         const auth = new NoAuth();
 
-        await service.deployFiles(["/team-a/a.bpmn", "/team-b/b.bpmn"], envTarget, auth, "/team-a");
+        await service.deployFiles(
+            ["/team-a/a.bpmn", "/team-b/b.bpmn"],
+            named(envTarget, "/team-a"),
+            auth,
+            "/team-a",
+        );
 
         expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/team-a");
         expect(dotEnvReads()).toEqual(["/team-a/.env"]);
@@ -1424,7 +1459,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/team-a/a.bpmn", "/team-b/b.bpmn"],
-            envTarget,
+            named(envTarget, "/team-a"),
             new NoAuth(),
             "/team-a",
         );
@@ -1444,7 +1479,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn"],
-            envTarget,
+            named(envTarget),
             new NoAuth(),
             "/work",
         );
@@ -1487,7 +1522,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn"],
-            tokenTarget,
+            named(tokenTarget),
             new BasicAuth("admin", LITERAL_PASSWORD),
             "/work",
         );
@@ -1516,7 +1551,7 @@ describe("DeploymentService.deployFiles", () => {
 
         await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn", "/work/c.bpmn"],
-            envTarget,
+            named(envTarget),
             new BasicAuth("admin", "s3cret"),
             "/work",
         );
@@ -1540,7 +1575,7 @@ describe("DeploymentService.deployFiles", () => {
 
         const results = await service.deployFiles(
             ["/work/a.bpmn", "/work/b.bpmn"],
-            target,
+            named(target),
             new BasicAuth("admin", "s3cret"),
             "/work",
         );

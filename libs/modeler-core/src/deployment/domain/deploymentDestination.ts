@@ -32,13 +32,19 @@ export interface TargetsLocation {
     readonly projectDir: string;
 }
 
+/** The ad-hoc connection under the legacy unnamed state keys. */
+export interface LegacyConnection {
+    readonly endpoint: string;
+    readonly tenantId: string;
+}
+
 /** What an accepted deploy remembers of the connection it ran against. */
 export interface CredentialPersistence {
     readonly auth: AuthConfig;
     /** `undefined` keeps the credentials under the legacy unnamed keys. */
     readonly secretSlot: string | undefined;
     /** A named target's connection lives in the targets file, so only an ad-hoc one is remembered. */
-    readonly legacyConnection: { readonly endpoint: string; readonly tenantId: string } | undefined;
+    readonly legacyConnection: LegacyConnection | undefined;
 }
 
 /**
@@ -79,7 +85,7 @@ export class NamedDestination {
         return this.target.name;
     }
 
-    /** The name comes from the shared file, so it must not be able to push the hosts out of sight. */
+    /** On one shortened line, as the name comes from the shared file. */
     get connectionLabel(): string {
         const singleLine = this.target.name.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}"]+/gu, " ").trim();
         const shortened =
@@ -185,7 +191,9 @@ export function resolveNamedDestination(
  *
  * @throws {DeploymentTargetChangedError} for an unknown target.
  */
-export function requestDestination(resolution: DestinationResolution): DeploymentDestination {
+export function requestDestination<Resolved extends DeploymentDestination>(
+    resolution: Resolved | UnknownTarget,
+): Resolved {
     if (resolution.kind === "unknown") {
         throw new DeploymentTargetChangedError(
             "The deployment target no longer exists. Select a target again.",
@@ -195,17 +203,17 @@ export function requestDestination(resolution: DestinationResolution): Deploymen
 }
 
 /** A hand-edited file may drop the active target; the remembered ad-hoc connection is active then. */
-export function activeDestination(
-    resolution: DestinationResolution,
+export function activeDestination<Resolved extends DeploymentDestination>(
+    resolution: Resolved | UnknownTarget,
     rememberedAdHoc: AdHocDestination,
-): DeploymentDestination {
+): Resolved | AdHocDestination {
     return resolution.kind === "unknown" ? rememberedAdHoc : resolution;
 }
 
 /** The form of an unknown target is prefilled with no credentials, not another connection's. */
-export function prefillDestination(
-    resolution: DestinationResolution,
-): DeploymentDestination | undefined {
+export function prefillDestination<Resolved extends DeploymentDestination>(
+    resolution: Resolved | UnknownTarget,
+): Resolved | undefined {
     return resolution.kind === "unknown" ? undefined : resolution;
 }
 

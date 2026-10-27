@@ -1,12 +1,8 @@
 import { CredentialDestinationNotApprovedError } from "../domain/errors";
 import { PickerPort } from "../../kernel/domain/hostPorts";
 import { CredentialDestinations } from "../domain/credentialDestinations";
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentDestination } from "../domain/deploymentDestination";
 import { SecretStorePort } from "../domain/ports";
-import { DeploymentTargetService } from "./DeploymentTargetService";
-
-const AD_HOC_SLOT = "ad-hoc";
-const MAX_SHOWN_NAME_LENGTH = 60;
 
 /**
  * Keeps a named target's credentials and `.env` values from following its
@@ -16,7 +12,6 @@ const MAX_SHOWN_NAME_LENGTH = 60;
  */
 export class CredentialApprovalService {
     constructor(
-        private readonly targetSlots: Pick<DeploymentTargetService, "resolveSlot">,
         private readonly secretStore: SecretStorePort,
         private readonly picker: PickerPort,
     ) {}
@@ -25,40 +20,33 @@ export class CredentialApprovalService {
      * Asks before secrets reach an origin not yet approved for them, and
      * remembers the answer.
      *
-     * @param target The named target; ad-hoc requests share one approval slot,
-     *   as they share one set of stored credentials.
+     * @param destination Holds the approvals under its slot.
      * @param destinations The resolved origins the request is about to send
      *   credentials or `.env` values to.
      * @throws {CredentialDestinationNotApprovedError} when the user declines.
      */
     async ensureApproved(
-        target: DeploymentTarget | undefined,
-        documentDir: string | undefined,
+        destination: DeploymentDestination,
         destinations: CredentialDestinations,
     ): Promise<void> {
         if (destinations.isEmpty()) {
             return;
         }
-        const slot =
-            target === undefined
-                ? AD_HOC_SLOT
-                : await this.targetSlots.resolveSlot(target.name, documentDir);
         const approved = CredentialDestinations.fromOrigins(
-            slot === undefined ? [] : await this.secretStore.getApprovedDestinations(slot),
+            await this.secretStore.getApprovedDestinations(destination.approvalSlot),
         );
         const unapproved = destinations.without(approved);
         if (unapproved.isEmpty()) {
             return;
         }
 
-        const connection = target === undefined ? "the ad-hoc connection" : shownName(target);
         // The host leads: the target name comes from the shared file and must not
         // be able to push it out of sight.
         const confirmed = await this.picker.confirmDestructive({
             title: `Send credentials and .env values to ${unapproved}?`,
             confirmLabel: "Send Credentials",
             details: [
-                `They belong to ${connection}.`,
+                `They belong to ${destination.connectionLabel}.`,
                 approved.isEmpty()
                     ? "No host is approved for them yet."
                     : `Approved so far: ${approved}.`,
@@ -66,21 +54,10 @@ export class CredentialApprovalService {
             ],
         });
         if (!confirmed) {
-            throw new CredentialDestinationNotApprovedError(target?.name ?? "ad-hoc");
+            throw new CredentialDestinationNotApprovedError(destination.connectionName);
         }
-        if (slot !== undefined) {
-            await this.secretStore.saveApprovedDestinations(slot, [
-                ...approved.union(unapproved).origins,
-            ]);
-        }
+        await this.secretStore.saveApprovedDestinations(destination.approvalSlot, [
+            ...approved.union(unapproved).origins,
+        ]);
     }
-}
-
-function shownName(target: DeploymentTarget): string {
-    const singleLine = target.name.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}"]+/gu, " ").trim();
-    const shortened =
-        singleLine.length > MAX_SHOWN_NAME_LENGTH
-            ? `${singleLine.slice(0, MAX_SHOWN_NAME_LENGTH)}…`
-            : singleLine;
-    return `target "${shortened}"`;
 }

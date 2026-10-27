@@ -3,25 +3,27 @@ import { describe, expect, it, vi } from "vitest";
 import { CredentialDestinationNotApprovedError } from "../domain/errors";
 import { createTestHost } from "../../testing";
 import { CredentialDestinations } from "../domain/credentialDestinations";
+import {
+    AdHocDestination,
+    NamedDestination,
+    TargetsLocation,
+} from "../domain/deploymentDestination";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 
-const SLOT = "/ws/.camunda/deployment-targets.json::prod";
+const TARGETS_FILE = "/ws/.camunda/deployment-targets.json";
+const SLOT = `${TARGETS_FILE}::prod`;
 const AD_HOC_SLOT = "ad-hoc";
-const DOC_DIR = "/ws/src";
+const LOCATION: TargetsLocation = { filePath: TARGETS_FILE, exists: true, projectDir: "/ws" };
 const TRUSTED_ORIGIN = "https://trusted.example.com";
 const IDP_ORIGIN = "https://idp.example.com";
 const EVIL_ORIGIN = "https://evil.example.com";
 
-const prodTarget = new DeploymentTarget(
-    "prod",
-    "c7",
-    `${TRUSTED_ORIGIN}/engine-rest`,
-    "",
-    "basic",
-    "",
-    "",
+const prodTarget = new NamedDestination(
+    new DeploymentTarget("prod", "c7", `${TRUSTED_ORIGIN}/engine-rest`, "", "basic", "", ""),
+    LOCATION,
 );
+const adHoc = new AdHocDestination(`${TRUSTED_ORIGIN}/engine-rest`, "");
 
 interface Confirmation {
     title: string;
@@ -37,12 +39,11 @@ async function createService(
     for (const [slot, origins] of Object.entries(storedApprovals)) {
         await host.secrets.saveApprovedDestinations(slot, origins);
     }
-    const targetSlots = { resolveSlot: vi.fn().mockResolvedValue(SLOT) };
     const approvedOrigins = host.secrets.getApprovedDestinations.bind(host.secrets);
     const getApprovedDestinations = vi.spyOn(host.secrets, "getApprovedDestinations");
     const saveApprovedDestinations = vi.spyOn(host.secrets, "saveApprovedDestinations");
 
-    const service = new CredentialApprovalService(targetSlots, host.secrets, host.picker);
+    const service = new CredentialApprovalService(host.secrets, host.picker);
 
     const confirmations = (): Confirmation[] =>
         host.picker.prompts
@@ -51,7 +52,6 @@ async function createService(
 
     return {
         service,
-        targetSlots,
         getApprovedDestinations,
         saveApprovedDestinations,
         confirmations,
@@ -63,9 +63,8 @@ describe("CredentialApprovalService.ensureApproved", () => {
     it("does nothing for a request that sends no credentials", async () => {
         const c = await createService();
 
-        await c.service.ensureApproved(prodTarget, DOC_DIR, CredentialDestinations.none());
+        await c.service.ensureApproved(prodTarget, CredentialDestinations.none());
 
-        expect(c.targetSlots.resolveSlot).not.toHaveBeenCalled();
         expect(c.getApprovedDestinations).not.toHaveBeenCalled();
         expect(c.confirmations()).toEqual([]);
         expect(c.saveApprovedDestinations).not.toHaveBeenCalled();
@@ -76,14 +75,12 @@ describe("CredentialApprovalService.ensureApproved", () => {
 
         await c.service.ensureApproved(
             prodTarget,
-            DOC_DIR,
             CredentialDestinations.of(
                 `${TRUSTED_ORIGIN}/engine-rest/deployment/create`,
                 `${IDP_ORIGIN}/oauth/token`,
             ),
         );
 
-        expect(c.targetSlots.resolveSlot).toHaveBeenCalledWith("prod", DOC_DIR);
         expect(c.getApprovedDestinations).toHaveBeenCalledWith(SLOT);
         expect(c.confirmations()).toEqual([]);
         expect(c.saveApprovedDestinations).not.toHaveBeenCalled();
@@ -94,7 +91,6 @@ describe("CredentialApprovalService.ensureApproved", () => {
 
         await c.service.ensureApproved(
             prodTarget,
-            DOC_DIR,
             CredentialDestinations.of(`${TRUSTED_ORIGIN}/engine-rest`, `${EVIL_ORIGIN}/token`),
         );
 
@@ -121,19 +117,21 @@ describe("CredentialApprovalService.ensureApproved", () => {
         "shows a target name with %s sanitized in the details and never in the title",
         async (_case, name, shown) => {
             const c = await createService();
-            const target = new DeploymentTarget(
-                name,
-                "c7",
-                `${TRUSTED_ORIGIN}/engine-rest`,
-                "",
-                "basic",
-                "",
-                "",
+            const target = new NamedDestination(
+                new DeploymentTarget(
+                    name,
+                    "c7",
+                    `${TRUSTED_ORIGIN}/engine-rest`,
+                    "",
+                    "basic",
+                    "",
+                    "",
+                ),
+                LOCATION,
             );
 
             await c.service.ensureApproved(
                 target,
-                DOC_DIR,
                 CredentialDestinations.of(`${EVIL_ORIGIN}/engine-rest`),
             );
 
@@ -151,7 +149,6 @@ describe("CredentialApprovalService.ensureApproved", () => {
 
         await c.service.ensureApproved(
             prodTarget,
-            DOC_DIR,
             CredentialDestinations.of("http://trusted.example.com/engine-rest"),
         );
 
@@ -164,7 +161,6 @@ describe("CredentialApprovalService.ensureApproved", () => {
 
         const approving = c.service.ensureApproved(
             prodTarget,
-            DOC_DIR,
             CredentialDestinations.of(`${EVIL_ORIGIN}/engine-rest`),
         );
 
@@ -179,7 +175,6 @@ describe("CredentialApprovalService.ensureApproved", () => {
 
         await c.service.ensureApproved(
             prodTarget,
-            DOC_DIR,
             CredentialDestinations.of(
                 `${EVIL_ORIGIN}/engine-rest`,
                 "http://evil.example.com:8080/start",
@@ -195,32 +190,15 @@ describe("CredentialApprovalService.ensureApproved", () => {
         ]);
     });
 
-    it("still asks but never persists an approval when the target has no slot", async () => {
-        const c = await createService();
-        c.targetSlots.resolveSlot.mockResolvedValue(undefined);
-
-        await c.service.ensureApproved(
-            prodTarget,
-            undefined,
-            CredentialDestinations.of(`${TRUSTED_ORIGIN}/engine-rest`),
-        );
-
-        expect(c.getApprovedDestinations).not.toHaveBeenCalled();
-        expect(c.confirmations()).toHaveLength(1);
-        expect(c.saveApprovedDestinations).not.toHaveBeenCalled();
-    });
-
     describe("for an ad-hoc request", () => {
-        it("reads and remembers approvals under the ad-hoc slot without resolving a target slot", async () => {
+        it("reads and remembers approvals under the ad-hoc slot", async () => {
             const c = await createService({ [AD_HOC_SLOT]: [TRUSTED_ORIGIN] });
 
             await c.service.ensureApproved(
-                undefined,
-                DOC_DIR,
+                adHoc,
                 CredentialDestinations.of(`${EVIL_ORIGIN}/engine-rest`),
             );
 
-            expect(c.targetSlots.resolveSlot).not.toHaveBeenCalled();
             expect(c.getApprovedDestinations).toHaveBeenCalledExactlyOnceWith(AD_HOC_SLOT);
             expect(c.saveApprovedDestinations).toHaveBeenCalledOnce();
             expect(await c.approvedOrigins(AD_HOC_SLOT)).toEqual([EVIL_ORIGIN, TRUSTED_ORIGIN]);
@@ -230,8 +208,7 @@ describe("CredentialApprovalService.ensureApproved", () => {
             const c = await createService({ [AD_HOC_SLOT]: [TRUSTED_ORIGIN] });
 
             await c.service.ensureApproved(
-                undefined,
-                DOC_DIR,
+                adHoc,
                 CredentialDestinations.of(`${TRUSTED_ORIGIN}/engine-rest`),
             );
 
@@ -243,8 +220,7 @@ describe("CredentialApprovalService.ensureApproved", () => {
             const c = await createService();
 
             await c.service.ensureApproved(
-                undefined,
-                DOC_DIR,
+                adHoc,
                 CredentialDestinations.of(`${EVIL_ORIGIN}/engine-rest`),
             );
 
@@ -260,8 +236,7 @@ describe("CredentialApprovalService.ensureApproved", () => {
             const c = await createService({}, { confirm: false });
 
             const approving = c.service.ensureApproved(
-                undefined,
-                DOC_DIR,
+                adHoc,
                 CredentialDestinations.of(`${EVIL_ORIGIN}/engine-rest`),
             );
 

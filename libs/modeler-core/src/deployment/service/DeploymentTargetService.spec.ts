@@ -6,6 +6,12 @@ import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../do
 import { createTestHost, TestHostOptions } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
+import {
+    AdHocDestination,
+    NamedDestination,
+    TargetsLocation,
+    UnknownTarget,
+} from "../domain/deploymentDestination";
 import { serializeDeploymentTargets, DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentTargetService, toTargetPayload } from "./DeploymentTargetService";
 
@@ -14,6 +20,11 @@ const TARGETS_FILE_NAME = "deployment-targets.json";
 const WORKSPACE_ROOT = "/ws";
 const FILE_PATH = `${WORKSPACE_ROOT}/${CONFIG_FOLDER}/${TARGETS_FILE_NAME}`;
 const DOC_DIR = "/ws/src";
+const LOCATION: TargetsLocation = {
+    filePath: FILE_PATH,
+    exists: true,
+    projectDir: WORKSPACE_ROOT,
+};
 
 function fileWith(...targets: DeploymentTarget[]): string {
     return serializeDeploymentTargets(targets);
@@ -72,6 +83,8 @@ function createService(options: TestHostOptions = {}) {
 }
 
 const slot = (name: string) => `${FILE_PATH}::${name}`;
+
+const named = (saved: DeploymentTarget) => new NamedDestination(saved, LOCATION);
 
 function serviceWithTargetsFile(content = fileWith()) {
     const c = createService({ files: { [FILE_PATH]: content } });
@@ -623,17 +636,18 @@ describe("DeploymentTargetService.saveTarget", () => {
         const old = target("old", { tenantId: "saved" });
         const c = serviceWithTargetsFile(fileWith(old));
 
-        const change = await c.service.saveTarget(
+        const edit = await c.service.saveTarget(
             { ...toTargetPayload(old), name: "new" },
             { authType: "none" },
             "old",
             DOC_DIR,
         );
 
-        expect({ kind: change.kind, before: change.before }).toEqual({
+        expect({ kind: edit.change.kind, before: edit.change.before }).toEqual({
             kind: "renamed",
             before: old,
         });
+        expect(edit.retiredDestination).toEqual(named(old));
     });
 
     it("throws when there is no workspace to store the file in", async () => {
@@ -808,12 +822,13 @@ describe("DeploymentTargetService.deleteTarget", () => {
         const dev = target("dev", { tenantId: "saved" });
         const c = serviceWithTargetsFile(fileWith(dev, target("prod")));
 
-        const change = await c.service.deleteTarget("dev", DOC_DIR);
+        const edit = await c.service.deleteTarget("dev", DOC_DIR);
 
-        expect({ kind: change?.kind, before: change?.before }).toEqual({
+        expect({ kind: edit?.change.kind, before: edit?.change.before }).toEqual({
             kind: "removed",
             before: dev,
         });
+        expect(edit?.retiredDestination).toEqual(named(dev));
     });
 
     it("is a no-op when the user cancels the confirm", async () => {
@@ -833,6 +848,49 @@ describe("DeploymentTargetService.getActiveTarget", () => {
         c.host.deploymentState.activeTargetName = "gone";
 
         expect(await c.service.getActiveTarget(DOC_DIR)).toBeUndefined();
+    });
+});
+
+describe("DeploymentTargetService.getActiveDestination", () => {
+    const remembered = new AdHocDestination("https://remembered.example/engine-rest", "acme");
+
+    function serviceRemembering(activeTargetName: string) {
+        const c = serviceWithTargetsFile(fileWith(target("dev")));
+        c.host.deploymentState.endpoint = remembered.endpoint;
+        c.host.deploymentState.tenantId = remembered.tenantId;
+        c.host.deploymentState.activeTargetName = activeTargetName;
+        return c;
+    }
+
+    it("returns the active target at the file it was read from", async () => {
+        const c = serviceRemembering("dev");
+
+        await expect(c.service.getActiveDestination(DOC_DIR)).resolves.toEqual(
+            named(target("dev")),
+        );
+    });
+
+    it("returns the remembered ad-hoc connection in ad-hoc mode without reading the file", async () => {
+        const c = serviceRemembering("");
+
+        await expect(c.service.getActiveDestination(DOC_DIR)).resolves.toEqual(remembered);
+        expect(c.artifactService.findConfigBaseDir).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the remembered ad-hoc connection for a dangling active name", async () => {
+        const c = serviceRemembering("gone");
+
+        await expect(c.service.getActiveDestination(DOC_DIR)).resolves.toEqual(remembered);
+    });
+
+    it("reports an unreadable file and falls back to the remembered ad-hoc connection", async () => {
+        const c = serviceRemembering("dev");
+        c.host.workspace.files.set(FILE_PATH, "{ not valid json");
+
+        await expect(c.service.getActiveDestination(DOC_DIR)).resolves.toEqual(remembered);
+        expect(c.host.notifier.errors).toEqual([
+            expect.stringMatching(/^Could not read deployment targets\n/),
+        ]);
     });
 });
 
@@ -975,7 +1033,7 @@ describe("DeploymentTargetService.getCredentials", () => {
             credentialRefs: CredentialRefs.basic(undefined, "${env:MIRAGON_PW}"),
         });
 
-        await expect(c.service.getCredentials(refTarget, DOC_DIR)).resolves.toEqual(
+        await expect(c.service.getCredentials(named(refTarget))).resolves.toEqual(
             new BasicAuth("admin", "${env:MIRAGON_PW}"),
         );
     });
@@ -990,7 +1048,7 @@ describe("DeploymentTargetService.getCredentials", () => {
             credentialRefs: CredentialRefs.oauth2(undefined, "${env:MIRAGON_SECRET}"),
         });
 
-        await expect(c.service.getCredentials(refTarget, DOC_DIR)).resolves.toEqual(
+        await expect(c.service.getCredentials(named(refTarget))).resolves.toEqual(
             new OAuth2Auth("cid", "${env:MIRAGON_SECRET}", "https://idp/token", "aud"),
         );
     });
@@ -1000,7 +1058,7 @@ describe("DeploymentTargetService.getCredentials", () => {
         await c.host.secrets.saveBasicAuth("u", "p", slot("dev"));
 
         await expect(
-            c.service.getCredentials(target("dev", { authType: "basic" }), DOC_DIR),
+            c.service.getCredentials(named(target("dev", { authType: "basic" }))),
         ).resolves.toEqual(new BasicAuth("u", "p"));
     });
 
@@ -1010,7 +1068,7 @@ describe("DeploymentTargetService.getCredentials", () => {
             const c = serviceWithTargetsFile();
 
             await expect(
-                c.service.getCredentials(target("dev", { authType }), DOC_DIR),
+                c.service.getCredentials(named(target("dev", { authType }))),
             ).resolves.toBeInstanceOf(NoAuth);
         },
     );
@@ -1025,9 +1083,9 @@ describe("DeploymentTargetService.getCredentials", () => {
             const unavailable = new Error("The OS keyring is not available.");
             vi.spyOn(c.host.secrets, read).mockRejectedValue(unavailable);
 
-            await expect(
-                c.service.getCredentials(target("dev", { authType }), DOC_DIR),
-            ).rejects.toBe(unavailable);
+            await expect(c.service.getCredentials(named(target("dev", { authType })))).rejects.toBe(
+                unavailable,
+            );
         },
     );
 
@@ -1036,7 +1094,7 @@ describe("DeploymentTargetService.getCredentials", () => {
         const getBasicAuth = vi.spyOn(c.host.secrets, "getBasicAuth");
         const getOAuth2 = vi.spyOn(c.host.secrets, "getOAuth2");
 
-        await expect(c.service.getCredentials(target("dev"), DOC_DIR)).resolves.toBeInstanceOf(
+        await expect(c.service.getCredentials(named(target("dev")))).resolves.toBeInstanceOf(
             NoAuth,
         );
         expect(getBasicAuth).not.toHaveBeenCalled();
@@ -1044,17 +1102,38 @@ describe("DeploymentTargetService.getCredentials", () => {
     });
 });
 
-describe("DeploymentTargetService.resolveSlot", () => {
-    it("returns undefined for ad-hoc mode", async () => {
-        const c = createService();
-        expect(await c.service.resolveSlot("", DOC_DIR)).toBeUndefined();
+describe("DeploymentTargetService.resolveDestination", () => {
+    const adHoc = new AdHocDestination("https://typed.example/engine-rest", "");
+
+    it("selects the ad-hoc connection for a blank name without reading the file", async () => {
+        const c = serviceWithTargetsFile("{ not valid json");
+
+        await expect(c.service.resolveDestination(" ", adHoc, DOC_DIR)).resolves.toBe(adHoc);
+        expect(c.artifactService.findConfigBaseDir).not.toHaveBeenCalled();
     });
 
-    it("returns the slot for a named target", async () => {
-        const c = createService();
-        c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
+    it("resolves a saved target at the file it was read from, keyed by its slot", async () => {
+        const c = serviceWithTargetsFile(fileWith(target("dev")));
 
-        expect(await c.service.resolveSlot("dev", DOC_DIR)).toBe(`${FILE_PATH}::dev`);
+        const destination = await c.service.resolveDestination("dev", adHoc, DOC_DIR);
+
+        expect(destination).toEqual(named(target("dev")));
+        expect((destination as NamedDestination).secretSlot).toBe(slot("dev"));
+    });
+
+    it("resolves a name the file no longer holds as unknown", async () => {
+        const c = serviceWithTargetsFile(fileWith(target("dev")));
+
+        await expect(c.service.resolveDestination("gone", adHoc, DOC_DIR)).resolves.toEqual(
+            new UnknownTarget("gone"),
+        );
+    });
+
+    it("rejects when the file cannot be read, unlike the sidebar", async () => {
+        const c = serviceWithTargetsFile("{ not valid json");
+
+        await expect(c.service.resolveDestination("dev", adHoc, DOC_DIR)).rejects.toThrow();
+        expect(c.host.notifier.errors).toEqual([]);
     });
 });
 

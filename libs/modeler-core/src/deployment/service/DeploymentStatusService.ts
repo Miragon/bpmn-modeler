@@ -11,9 +11,8 @@ import {
     ledgerKeyFor,
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
-import { EnvScope } from "../domain/deploymentDestination";
-import { DeploymentTarget } from "../domain/deploymentTarget";
-import { EnvLookup, EnvReferencing, NO_ENV_VARIABLES } from "../domain/envRef";
+import { DeploymentDestination } from "../domain/deploymentDestination";
+import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import {
     DeploymentPickerPort,
     DeploymentStatePort,
@@ -49,34 +48,11 @@ export class DeploymentStatusService {
         private readonly envResolver: EnvValueResolver,
     ) {}
 
-    async targetIdentity(
-        target: DeploymentTarget,
+    async ledgerIdentity(
+        destination: DeploymentDestination,
         documentDir?: string,
     ): Promise<DeploymentTargetIdentity> {
-        return DeploymentTargetIdentity.fromTarget(
-            target,
-            await this.identityLookup(
-                "targetsFile",
-                documentDir,
-                DeploymentTargetIdentity.envRefsOfTarget(target),
-            ),
-        );
-    }
-
-    private async adHocIdentity(
-        endpoint: string,
-        tenantId: string,
-        documentDir?: string,
-    ): Promise<DeploymentTargetIdentity> {
-        return DeploymentTargetIdentity.adHoc(
-            endpoint,
-            tenantId,
-            await this.identityLookup(
-                "workspaceFolder",
-                documentDir,
-                DeploymentTargetIdentity.envRefsOfAdHoc(endpoint, tenantId),
-            ),
-        );
+        return destination.ledgerIdentity(await this.identityLookup(destination, documentDir));
     }
 
     /**
@@ -84,12 +60,15 @@ export class DeploymentStatusService {
      * runs after a target was already saved; unresolved refs then stay verbatim.
      */
     private async identityLookup(
-        scope: EnvScope,
+        destination: DeploymentDestination,
         documentDir: string | undefined,
-        subject: EnvReferencing,
     ): Promise<EnvLookup> {
         try {
-            return await this.envResolver.createLookup(scope, documentDir, subject);
+            return await this.envResolver.createLookup(
+                destination.envScope,
+                documentDir,
+                destination.ledgerEnvRefs(),
+            );
         } catch (error) {
             if (error instanceof UnreadableDotEnvError) {
                 this.notifier.logDebug(`Deployment status keyed without .env: ${error.message}`);
@@ -184,15 +163,9 @@ export class DeploymentStatusService {
         try {
             const filePath = this.documentPort.getFilePath(editorId);
             const documentDir = posix.dirname(filePath);
-            const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-            const identity =
-                target !== undefined
-                    ? await this.targetIdentity(target, documentDir)
-                    : await this.adHocIdentity(
-                          this.deploymentState.getEndpoint(),
-                          this.deploymentState.getTenantId(),
-                          documentDir,
-                      );
+            const destination =
+                await this.deploymentTargetService.getActiveDestination(documentDir);
+            const identity = await this.ledgerIdentity(destination, documentDir);
             if (generation !== this.refreshGeneration || !this.editorStore.isFocused(editorId)) {
                 return;
             }
@@ -202,7 +175,7 @@ export class DeploymentStatusService {
             );
             const freshness = freshnessFor(revision, this.documentPort.getContent(editorId));
             this.statusBar.showDeploymentTarget(
-                target?.name,
+                destination.target?.name,
                 freshness,
                 revision?.deployedAt,
                 revision?.verifiedAt,
