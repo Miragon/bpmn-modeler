@@ -526,12 +526,7 @@ export class DeploymentTargets {
             throw new DuplicateDeploymentTargetError(target.name);
         }
         const before = this.find(savedName);
-        const targets = [
-            ...this.targets.filter(
-                (existing) => existing.name !== savedName && existing.name !== target.name,
-            ),
-            target,
-        ];
+        const targets = [...this.targets.filter((existing) => existing.name !== savedName), target];
         if (isRename) {
             return new TargetRenamed(targets, target, savedName, before);
         }
