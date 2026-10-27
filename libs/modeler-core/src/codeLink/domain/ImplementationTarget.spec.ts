@@ -155,6 +155,13 @@ describe("ImplementationTarget", () => {
             kind: "jobType",
             reference: "pay",
             path: "/src/W.java",
+            content: 'xml("<![CDATA[<!--]]>"); @JobWorker(type = "pay") xml("-->")',
+            implemented: true,
+        },
+        {
+            kind: "jobType",
+            reference: "pay",
+            path: "/src/W.java",
             content: 'type = "payment"',
             implemented: false,
         },

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { escapeRegExpLiteral } from "@miragon/bpmn-modeler-core";
+
 import { ElementIdPositions, TextPosition } from "./elementIdPositions";
 
 /** The per-finding scan the index replaces; positions must stay identical to it. */
 function searchPerId(xml: string, id: string): TextPosition | undefined {
-    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const offset = xml.search(new RegExp(`\\sid=["']${escaped}["']`));
+    const offset = xml.search(new RegExp(`\\sid=["']${escapeRegExpLiteral(id)}["']`));
     if (offset < 0) {
         return undefined;
     }

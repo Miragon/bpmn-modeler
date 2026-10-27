@@ -1,12 +1,9 @@
+import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
 import { truncateForDisplay } from "../../kernel/domain/truncateForDisplay";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
-import {
-    escapeRegex,
-    findFilesExcluding,
-    searchFilesContent,
-} from "../../kernel/service/workspaceFileSearch";
+import { findFilesExcluding, searchFilesContent } from "../../kernel/service/workspaceFileSearch";
 
 // Max length of a reference id echoed back into a user-facing log line.
 const ID_DISPLAY_LIMIT = 100;
@@ -133,7 +130,7 @@ export class ReferencedModelLocator {
      */
     private buildIdPattern(referenceId: string, kind: Exclude<ReferenceKind, "form">): RegExp {
         return new RegExp(
-            `<(?:[\\w-]+:)?${kind}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegex(referenceId)}["']`,
+            `<(?:[\\w-]+:)?${kind}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegExpLiteral(referenceId)}["']`,
         );
     }
 }

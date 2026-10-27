@@ -257,6 +257,22 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
     });
 
+    it("finds a process after a CDATA script that holds a comment opener", async () => {
+        const xml = `<?xml version="1.0"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <bpmn:process id="Parent">
+    <bpmn:scriptTask id="Script"><bpmn:script><![CDATA[log("<!--");]]></bpmn:script></bpmn:scriptTask>
+  </bpmn:process>
+  <bpmn:process id="ProcessB"/>
+  <!-- generated -->
+</bpmn:definitions>`;
+        const { locator } = createLocator({ files: { "/a.bpmn": xml } });
+
+        const result = await locator.findDeclaringFiles("ProcessB", "process");
+
+        expect(result).toEqual({ kind: "matches", paths: ["/a.bpmn"], readFailures: [] });
+    });
+
     it("reads candidate files in parallel", async () => {
         const { locator, workspace } = createLocator({
             files: {

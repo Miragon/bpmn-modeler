@@ -1,9 +1,15 @@
 import {
-    BEAN_ANNOTATION_PREFIX,
     commentAndCdataRanges,
+    containsCommentOrCdataClose,
     isInsideRanges,
     TextRange,
-} from "./sourceText";
+} from "@miragon/bpmn-modeler-types";
+
+/**
+ * A Spring/CDI bean-naming annotation up to the opening quote of its id, e.g.
+ * `@Service("` or `@Component(value = '`.
+ */
+export const BEAN_ANNOTATION_PREFIX = String.raw`@(?:Component|Service|Repository|Named|Bean)\s*\(\s*(?:value\s*=\s*)?["']`;
 
 const MAX_DECIDABLE_LITERAL_LENGTH = 128;
 const QUOTE = /["']/g;
@@ -33,16 +39,15 @@ export class SourceFileFacts {
 
     /**
      * A literal with a quote could match across two quoted segments, and one
-     * containing a comment end could hide a match outside the comment behind
-     * one inside it. Whitespace and length are excluded so code between two
-     * string literals is not kept.
+     * containing a comment or CDATA close could hide a match outside the
+     * section behind one inside it. Whitespace and length are excluded so code
+     * between two string literals is not kept.
      */
     static decidesLiteral(literal: string): boolean {
         return (
             literal.length <= MAX_DECIDABLE_LITERAL_LENGTH &&
             !UNDECIDABLE_LITERAL_CHARACTER.test(literal) &&
-            !literal.includes("-->") &&
-            !literal.includes("]]>")
+            !containsCommentOrCdataClose(literal)
         );
     }
 
