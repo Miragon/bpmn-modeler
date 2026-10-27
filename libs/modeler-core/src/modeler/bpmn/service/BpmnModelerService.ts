@@ -5,13 +5,15 @@ import { getVersions } from "../../../kernel/domain/engineVersions";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
     DocumentPort,
-    LegacyStatusBarPort,
     NotifierPort,
     PickerPort,
     SettingsPort,
+    StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
+import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
+import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
@@ -28,7 +30,7 @@ export class BpmnModelerService {
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: DocumentPort,
         private readonly picker: PickerPort,
-        private readonly statusBar: LegacyStatusBarPort,
+        private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {
@@ -165,12 +167,11 @@ export class BpmnModelerService {
     // the editor can also close mid-post.
     private showEngineVersionIfFocused(editorId: string, doc: BpmnDocument): void {
         if (!this.editorStore.isFocused(editorId)) return;
-        const status = doc.engineVersionStatus();
-        if (status) {
-            this.statusBar.showEngineVersion(status.platform, status.version);
-        } else {
-            this.statusBar.hideEngineVersion();
-        }
+        updateStatusSlot(
+            this.statusBar,
+            "engineVersion",
+            engineVersionStatusView(doc.engineVersionStatus()),
+        );
     }
 
     private handleError(error: Error): boolean {
