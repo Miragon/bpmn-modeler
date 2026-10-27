@@ -224,6 +224,37 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         });
     });
 
+    it("returns kind=all-unreadable when every form fails to read", async () => {
+        const { locator, workspace } = createLocator({
+            files: {
+                "/a.form": JSON.stringify({ id: "Form_A" }),
+                "/b.form": JSON.stringify({ id: "Form_B" }),
+            },
+        });
+        vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("EACCES"));
+
+        expect(await locator.findFormDeclarations()).toEqual({
+            kind: "all-unreadable",
+            failures: ["Could not read /a.form: EACCES", "Could not read /b.form: EACCES"],
+        });
+    });
+
+    it("keeps the readable form declarations next to a form that failed to read", async () => {
+        const { locator, workspace } = createLocator({
+            files: {
+                "/a.form": JSON.stringify({ id: "Form_A" }),
+                "/b.form": JSON.stringify({ id: "Form_B" }),
+            },
+        });
+        vi.spyOn(workspace, "readFile").mockRejectedValueOnce(new Error("EACCES"));
+
+        expect(await locator.findFormDeclarations()).toEqual({
+            kind: "matches",
+            declarations: [{ id: "Form_B", path: "/b.form" }],
+            readFailures: ["Could not read /a.form: EACCES"],
+        });
+    });
+
     it("includes partial read failures alongside successful matches", async () => {
         const { locator, workspace } = createLocator({
             files: {
