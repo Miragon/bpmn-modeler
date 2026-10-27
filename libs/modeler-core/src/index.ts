@@ -42,6 +42,7 @@ export * from "./editorSession/service/webviewLog";
 export * from "./editorSession/session/DocumentRenderParticipant";
 export * from "./editorSession/infrastructure/documentMessageHandlers";
 export * from "./editorSession/infrastructure/webviewFocusMessageHandlers";
+export * from "./editorSession/infrastructure/webviewLogMessageHandlers";
 export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
