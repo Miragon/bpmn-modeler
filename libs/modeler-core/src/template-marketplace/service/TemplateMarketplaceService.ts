@@ -1,5 +1,4 @@
 import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
-import { AccessDenial } from "../domain/accessDenial";
 import {
     InvalidMarketplaceError,
     MarketplaceRegistration,
@@ -12,7 +11,6 @@ import {
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import {
     hostForConfig,
-    RepositoryAccessError,
     RepositorySourceConfig,
     RepositorySourceFactory,
     TokenPromptPort,
@@ -26,23 +24,11 @@ import {
     SourceFetchOutcome,
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
+import { HostTokenSession } from "./HostTokenSession";
 import { MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";
-
-/**
- * Bookkeeping for one user-initiated command so a host is prompted for a token
- * at most once per run. A decline is recorded too (the host is added regardless
- * of outcome), so the run remembers it and does not nag.
- */
-interface PromptRun {
-    readonly promptedHosts: Set<string>;
-    /** host → token resolved this run. `has(host)` = the store (or a prompt)
-     *  was already consulted, so the keychain is read at most once per host
-     *  per run; the value may be `undefined` (nothing stored / declined). */
-    readonly hostTokens: Map<string, string | undefined>;
-}
 
 /**
  * Orchestrates the marketplace lifecycle: resolve a registration's
@@ -55,18 +41,9 @@ interface PromptRun {
  * blocks the others. Per-source failures are always swallowed — a failing source
  * keeps the last-good cache and warns, leaving siblings intact.
  *
- * Private repos are reached with per-host personal access tokens. The auth
- * ladder is lazy — anonymous first, and {@link TokenStorePort} is read only
- * *after* an auth-shaped {@link RepositoryAccessError}, at most once per host per
- * run — because a store read is not free: on IntelliJ the port is
- * PasswordSafe-backed and every read raises the macOS confidential-information
- * popup, so a public marketplace must never touch the keychain. On such a
- * failure the host is prompted once per run and retried. The token lives only in
- * {@link TokenStorePort} and never reaches settings, the cache, logs, or error
- * messages; token lifecycle events (prompt, store, decline) are logged by host
- * name only. {@link hostForConfig} is the single place a config maps to the host
- * its token is keyed by, so github.com, gitlab.com, and self-hosted `baseUrl`
- * origins are handled the same way.
+ * Private repos are reached with per-host personal access tokens through one
+ * {@link HostTokenSession} per user-initiated command. The token never reaches
+ * settings or the cache.
  */
 export class TemplateMarketplaceService {
     /**
@@ -86,9 +63,9 @@ export class TemplateMarketplaceService {
         private readonly homeDir: string,
     ) {}
 
-    /** A fresh {@link PromptRun} — one per user-initiated command. */
-    private newRun(): PromptRun {
-        return { promptedHosts: new Set(), hostTokens: new Map() };
+    /** A fresh {@link HostTokenSession} — one per user-initiated command. */
+    private newTokenSession(): HostTokenSession {
+        return new HostTokenSession(this.tokens, this.tokenPrompt, this.notifier);
     }
 
     /**
@@ -105,7 +82,7 @@ export class TemplateMarketplaceService {
         // paste, and a bad URL fails before any log line implies work started.
         const registration = parseMarketplaceUrl(url);
         this.notifier.logInfo(`Adding marketplace: ${registration.url}`);
-        const cached = await this.fetchAndCache(registration, this.newRun());
+        const cached = await this.fetchAndCache(registration, this.newTokenSession());
         this.notifier.logInfo(
             `Marketplace added: ${registration.url} (${cached} template file(s) cached)`,
         );
@@ -114,8 +91,8 @@ export class TemplateMarketplaceService {
     /**
      * Re-fetches every registered marketplace on demand. Never throws — a
      * failing marketplace is logged and skipped so the others still refresh.
-     * One {@link PromptRun} spans all marketplaces so the token prompt appears
-     * at most once per host across the whole update.
+     * One {@link HostTokenSession} spans all marketplaces so the token prompt
+     * appears at most once per host across the whole update.
      *
      * The {@link MarketplaceUpdateOutcome} lets the host report a single summary;
      * the `logWarning` above stays the detailed per-marketplace record. Only
@@ -128,7 +105,7 @@ export class TemplateMarketplaceService {
      * settings also removes its orphaned templates.
      */
     async updateAll(): Promise<MarketplaceUpdateOutcome> {
-        const run = this.newRun();
+        const tokenSession = this.newTokenSession();
         const registry = MarketplaceRegistry.fromEntries(this.settings.getMarketplaces());
         const { entries } = registry;
         this.notifier.logInfo(`Updating ${entries.length} marketplace(s)`);
@@ -141,7 +118,7 @@ export class TemplateMarketplaceService {
                 continue;
             }
             try {
-                const cached = await this.fetchAndCache(entry.registration, run);
+                const cached = await this.fetchAndCache(entry.registration, tokenSession);
                 succeeded++;
                 this.notifier.logDebug(
                     `Marketplace updated: ${entry.label} (${cached} template file(s) cached)`,
@@ -213,10 +190,10 @@ export class TemplateMarketplaceService {
      */
     private async fetchAndCache(
         registration: MarketplaceRegistration,
-        run: PromptRun,
+        tokenSession: HostTokenSession,
     ): Promise<number> {
         const { sources, skipped } = parseMarketplace(
-            JSON.parse(await this.readManifest(registration, run)),
+            JSON.parse(await this.readManifest(registration, tokenSession)),
         );
         const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped` : "";
         this.notifier.logDebug(
@@ -228,12 +205,17 @@ export class TemplateMarketplaceService {
         for (const reason of skipped) {
             this.notifier.logWarning(`Skipped a source of "${registration.url}": ${reason}`);
         }
-        await this.ensureTokensForPrivateSources(sources, run);
+        await tokenSession.ensureTokensForPrivateHosts(declaredPrivateHosts(sources));
 
         const outcomes: SourceFetchOutcome[] = [];
         for (let index = 0; index < sources.length; index++) {
             try {
-                const files = await this.fetchSourceFiles(registration, sources[index], index, run);
+                const files = await this.fetchSourceFiles(
+                    registration,
+                    sources[index],
+                    index,
+                    tokenSession,
+                );
                 outcomes.push({ kind: "fetched", sourceIndex: index, files });
             } catch (error) {
                 this.warnSkippedSource(registration, error);
@@ -285,19 +267,20 @@ export class TemplateMarketplaceService {
 
     /**
      * Maps a fetch failure to {@link InvalidMarketplaceError} so the caller's
-     * error path is uniform. Goes through {@link withAuthRetry} so a private
-     * marketplace prompts here — the token then also covers its relative sources.
+     * error path is uniform. Goes through {@link HostTokenSession.run} so a
+     * private marketplace prompts here — the token then also covers its relative
+     * sources.
      */
     private async readManifest(
         registration: MarketplaceRegistration,
-        run: PromptRun,
+        tokenSession: HostTokenSession,
     ): Promise<string> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
             `Fetching ${MARKETPLACE_MANIFEST} from ${this.describeConfig(baseConfig)}`,
         );
         try {
-            return await this.withAuthRetry(baseConfig, run, (config) =>
+            return await tokenSession.run(baseConfig, (config) =>
                 this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
             );
         } catch (error) {
@@ -308,20 +291,20 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * The whole listing+fetch runs under {@link withAuthRetry}, so a mid-source
-     * auth failure prompts and retries.
+     * The whole listing+fetch runs under {@link HostTokenSession.run}, so a
+     * mid-source auth failure prompts and retries.
      */
     private async fetchSourceFiles(
         registration: MarketplaceRegistration,
         source: TemplateSource,
         index: number,
-        run: PromptRun,
+        tokenSession: HostTokenSession,
     ): Promise<FetchedTemplateFile[]> {
         const baseConfig = sourceConfig(source, registration.location, this.homeDir);
         this.notifier.logDebug(
             `Fetching source ${index} of "${registration.url}": ${this.describeConfig(baseConfig)}`,
         );
-        return this.withAuthRetry(baseConfig, run, async (config) => {
+        return tokenSession.run(baseConfig, async (config) => {
             const repository = this.sourceFactory(config);
             const listed = await repository.listTemplateFiles();
             this.notifier.logDebug(
@@ -377,201 +360,6 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Runs `task` down a lazy auth ladder: anonymous → stored (read on demand) →
-     * prompt-and-retry. The first attempt is always anonymous (or a token already
-     * resolved this run), so a public marketplace never touches {@link tokens} —
-     * on IntelliJ that store is PasswordSafe-backed and a read raises the macOS
-     * confidential-information popup even when nothing private is involved. The
-     * keychain is consulted only *after* an auth-shaped {@link RepositoryAccessError},
-     * at most once per host per run (cached in `run.hostTokens`, including a
-     * `undefined` miss).
-     *
-     * When a *run-cached* token is rejected and the failure isn't rate-limited,
-     * it retries **without** the token first: a fine-grained PAT's grant is
-     * scoped to specific repos and GitHub returns 403 for any repo outside that
-     * grant — even a public one — so the anonymous retry lets such a marketplace
-     * succeed without clobbering the working token stored for another private
-     * repo on the same host.
-     *
-     * A non-auth error or an unauthenticated host (a local folder) propagates
-     * unchanged. A rate-limited anonymous 403 escalates to the stored token
-     * (higher limits) and, failing that, to the prompt. On decline or a final
-     * denial the failure is rewritten via {@link accessFailure}; the raw text
-     * would say "HTTP 404" for a private repo.
-     */
-    private async withAuthRetry<T>(
-        baseConfig: RepositorySourceConfig,
-        run: PromptRun,
-        task: (config: RepositorySourceConfig) => Promise<T>,
-    ): Promise<T> {
-        const host = hostForConfig(baseConfig);
-        // Never a store read: only a token already resolved this run (or none).
-        const runToken = host === undefined ? undefined : run.hostTokens.get(host);
-        try {
-            return await task(this.withToken(baseConfig, runToken));
-        } catch (error) {
-            if (!(error instanceof RepositoryAccessError) || host === undefined) {
-                throw error;
-            }
-            // Log the raw access failure before {@link accessFailure} rewrites it
-            // to a friendly message: the status/resource is what a bug report needs.
-            const rateNote = error.rateLimited ? ", rate limited" : "";
-            this.notifier.logDebug(
-                `${error.host} denied access to ${error.resource} (HTTP ${error.status}${rateNote})`,
-            );
-            let hadToken = runToken !== undefined;
-            let denial = error;
-
-            // (a) A run-cached (likely fine-grained) token was rejected for a repo
-            // outside its grant. Try anonymously before prompting: a public repo
-            // then just works and the stored token survives untouched.
-            if (hadToken && !error.rateLimited) {
-                this.notifier.logDebug(
-                    `Retrying ${error.resource} on ${error.host} without the stored token`,
-                );
-                try {
-                    return await task(this.withToken(baseConfig, undefined));
-                } catch (anonError) {
-                    if (anonError instanceof RepositoryAccessError) {
-                        // Anonymous failed too, so the repo isn't public — fall
-                        // through to the prompt using the *original* error, whose
-                        // "was rejected … enter a new token" wording stays right.
-                        this.notifier.logDebug(
-                            `Anonymous retry failed: HTTP ${anonError.status} for ${anonError.resource}`,
-                        );
-                    } else {
-                        throw anonError;
-                    }
-                }
-            }
-
-            // (b) Lazy store read: the keychain is touched only now, after an auth
-            // failure, and at most once per host per run. Also the rate-limit
-            // escalation path — a stored token raises the anonymous limit.
-            if (!hadToken && !run.hostTokens.has(host)) {
-                const stored = await this.tokens.getToken(host);
-                run.hostTokens.set(host, stored);
-                if (stored !== undefined) {
-                    this.notifier.logDebug(`Using stored token for ${host}`);
-                    hadToken = true;
-                    try {
-                        return await task(this.withToken(baseConfig, stored));
-                    } catch (storedError) {
-                        if (!(storedError instanceof RepositoryAccessError)) {
-                            throw storedError;
-                        }
-                        // Keep the "was rejected" wording pointing at the token attempt.
-                        denial = storedError;
-                        this.notifier.logDebug(
-                            `Stored token rejected: HTTP ${storedError.status} for ${storedError.resource}`,
-                        );
-                    }
-                }
-            }
-
-            // (c) Prompt once per run; a granted token is run-cached so later
-            // same-host fetches pick it up on their first attempt.
-            const fresh = await this.promptOncePerRun(host, run, hadToken, denial);
-            if (fresh === undefined) {
-                throw this.accessFailure(denial, hadToken);
-            }
-            run.hostTokens.set(host, fresh);
-            this.notifier.logDebug(
-                `Retrying ${denial.resource} on ${denial.host} with the new token`,
-            );
-            try {
-                return await task(this.withToken(baseConfig, fresh));
-            } catch (retryError) {
-                if (retryError instanceof RepositoryAccessError) {
-                    this.notifier.logDebug(
-                        `Retry with new token failed: HTTP ${retryError.status} for ${retryError.resource}`,
-                    );
-                    throw this.accessFailure(retryError, true);
-                }
-                throw retryError;
-            }
-        }
-    }
-
-    /**
-     * Prompts unless this run already prompted the host, adding it regardless of
-     * outcome so a decline is remembered. A granted token is stored immediately
-     * so later same-host fetches pick it up on their first attempt.
-     */
-    private async promptOncePerRun(
-        host: string,
-        run: PromptRun,
-        hadToken: boolean,
-        error: RepositoryAccessError,
-    ): Promise<string | undefined> {
-        if (run.promptedHosts.has(host)) {
-            this.notifier.logDebug(
-                `Token prompt for ${host} suppressed (already prompted this run)`,
-            );
-            return undefined;
-        }
-        run.promptedHosts.add(host);
-        return this.promptAndStore(
-            host,
-            AccessDenial.of(error, { tokenTried: hadToken }).promptReason(),
-        );
-    }
-
-    /**
-     * The single prompt→store sequence, so the token lifecycle is logged in
-     * exactly one place. Only the host name reaches the log — never the token
-     * value, which upholds the class-level secret-hygiene invariant.
-     */
-    private async promptAndStore(host: string, reason: string): Promise<string | undefined> {
-        this.notifier.logDebug(`Prompting for a ${host} access token`);
-        const token = await this.tokenPrompt.promptForToken(host, reason);
-        if (token !== undefined) {
-            await this.tokens.setToken(host, token);
-            this.notifier.logDebug(`Token for ${host} stored`);
-        } else {
-            this.notifier.logDebug(`Token prompt for ${host} declined`);
-        }
-        return token;
-    }
-
-    /**
-     * Prompts up front for every distinct host with a *declared*-private remote
-     * source and no stored token, so `withAuthRetry` picks the token up first
-     * try. `visibility` is only a hint: undeclared-private sources still get the
-     * failure-driven prompt instead.
-     *
-     * A declared-private source is the one case that justifies a deliberate
-     * up-front store read — the marketplace author told us the repo needs a
-     * token. The read is still routed through `run.hostTokens` so nothing
-     * double-reads the keychain, and a resolved token seeds the run cache so the
-     * source's very first fetch already carries it.
-     */
-    private async ensureTokensForPrivateSources(
-        sources: TemplateSource[],
-        run: PromptRun,
-    ): Promise<void> {
-        const hosts = declaredPrivateHosts(sources);
-        if (hosts.length > 0) {
-            this.notifier.logDebug(`Declared-private source host(s): ${hosts.join(", ")}`);
-        }
-        for (const host of hosts) {
-            if (run.promptedHosts.has(host)) {
-                continue;
-            }
-            const known = run.hostTokens.has(host)
-                ? run.hostTokens.get(host)
-                : await this.tokens.getToken(host);
-            run.hostTokens.set(host, known);
-            if (known !== undefined) {
-                continue;
-            }
-            run.promptedHosts.add(host);
-            const reason = `${host} hosts a private template source. Enter a personal access token to fetch it.`;
-            run.hostTokens.set(host, await this.promptAndStore(host, reason));
-        }
-    }
-
-    /**
      * A credential-free, log-safe rendering of a source config. Never reads
      * `token`, so logging it can never leak a secret by construction.
      * {@link hostForConfig} supplies the host so self-hosted origins read the
@@ -586,17 +374,5 @@ export class TemplateMarketplaceService {
         const ref = config.ref ? `@${config.ref}` : "";
         const path = config.path ? ` path "${config.path}"` : "";
         return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
-    }
-
-    private accessFailure(error: RepositoryAccessError, tokenTried: boolean): Error {
-        return new Error(AccessDenial.of(error, { tokenTried }).failureMessage());
-    }
-
-    /** Places `token` onto a remote (github/gitlab) config; local configs never carry one. */
-    private withToken(
-        config: RepositorySourceConfig,
-        token: string | undefined,
-    ): RepositorySourceConfig {
-        return config.kind === "local" ? config : { ...config, token };
     }
 }
