@@ -70,9 +70,23 @@ anything is written, so a rejected create or rename leaves the file and secret
 store untouched.
 
 Persist the active target name in non-secret host state. The sidebar and
-status-bar target picker use the same value. An unresolved persisted name falls
-back to ad-hoc mode. With no selected target, preserve the legacy unnamed
-connection behavior and write no target file until the user creates a target.
+status-bar target picker use the same value. With no selected target, preserve
+the legacy unnamed connection behavior and write no target file until the user
+creates a target.
+
+A target name is resolved once per request, command or prefill into a
+`DeploymentDestination`: a blank name is the ad-hoc connection
+(`AdHocDestination`), a name the file holds is that target at the
+`TargetsLocation` it was read from (`NamedDestination`), and any other name is
+unknown. The destination is the one place that answers what differs between
+the two: the `.env` scope, whether a request needs approval and under which
+slot, the secret slot, the ledger identity, what an accepted deploy persists,
+admission, and how the approval prompt names the connection. Each caller states
+what an unknown name means: a deploy or start request fails
+(`requestDestination`), the active target falls back to the remembered ad-hoc
+connection (`activeDestination`), and the credentials prefill shows none
+(`prefillDestination`)
+([destination tests](../../libs/modeler-core/src/deployment/domain/deploymentDestination.spec.ts)).
 
 Targets can override complete operation URLs through `endpoints.deploy` and
 `endpoints.startInstance`. Substitute a percent-encoded process definition key
@@ -81,9 +95,9 @@ engine routes. Request bodies remain engine-specific: overrides are for gateways
 proxying that API, not a different deployment protocol.
 
 Any connection or auth field may embed `${env:MIRAGON_NAME}` references,
-resolved from one `.env` (`EnvScope`): for a named target, the one in the
-directory holding its targets file's config folder (`TargetsLocation.projectDir`);
-for an ad-hoc request, the one at the document's workspace folder, so a nearer,
+resolved from one `.env` (the destination's `EnvScope`): for a named target,
+the one in the directory holding its targets file's config folder
+(`TargetsLocation.projectDir`); for an ad-hoc request, the one at the document's workspace folder, so a nearer,
 possibly vendored targets file can't supply variables for an endpoint the user
 typed. With nested workspace folders the innermost one encloses a document on
 both hosts — the bridge matches the longest registered root, as VS Code does —
@@ -218,8 +232,8 @@ operation uses (tenant and deploy URL for a deploy, the start URL for a start)
 must equal the saved target's, compared trimmed so a hand-edited file's
 padding is no change. A changed connection is reported before differing
 credential refs ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
-The dispatcher only maps the payload into the request and keeps the
-missing-target check.
+The dispatcher only maps the payload into the request; `requestDestination`
+rejects a missing target, and an ad-hoc destination admits any request.
 
 The engine's acceptance is final. Saving the ad-hoc connection, the
 credentials and the ledger row afterwards are separate steps: a failed step is
@@ -308,7 +322,8 @@ removes the row. A subsequent local deploy writes a local-origin row. Missing
 
 Named identity includes endpoint host so changing that host invalidates old
 rows. Target rename/delete prunes the ledger keys of the retired target its
-`TargetChange` names. Older name-only keys no
+`TargetChange` names, at the file the edit was made in
+(`TargetEdit.retiredDestination`). Older name-only keys no
 longer match and show unknown until verification or deployment seeds a current
 row. This accepted reset avoids reusing a misleading green indicator.
 
