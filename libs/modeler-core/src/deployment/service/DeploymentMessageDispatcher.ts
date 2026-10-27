@@ -21,7 +21,7 @@ import {
 import { posix } from "path";
 
 import { DeploymentConfigBuilder } from "../domain/deployment";
-import { DeploymentTarget, TargetRequest } from "../domain/deploymentTarget";
+import { DeploymentTarget, TargetChange, TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
@@ -256,11 +256,13 @@ export class DeploymentMessageDispatcher {
 
     private async handleCreateTarget(message: CreateTargetCommand): Promise<void> {
         try {
-            await this.deploymentTargetService.createTarget(
+            const documentDir = this.activeDocumentDir();
+            const change = await this.deploymentTargetService.createTarget(
                 message.target,
                 message.auth,
-                this.activeDocumentDir(),
+                documentDir,
             );
+            await this.pruneRetiredTarget(change, documentDir);
             this.post(
                 new TargetSavedQuery(true, `Created deployment target "${message.target.name}".`),
             );
@@ -276,27 +278,13 @@ export class DeploymentMessageDispatcher {
     private async handleSaveTarget(message: SaveTargetCommand): Promise<void> {
         try {
             const documentDir = this.activeDocumentDir();
-            // Resolve the pre-rename target before the save rewrites the file,
-            // so its ledger rows (keyed by name@host) can be pruned afterwards.
-            const renamedFrom =
-                message.previousName !== undefined &&
-                message.previousName.trim() !== message.target.name.trim()
-                    ? await this.deploymentTargetService.getTarget(
-                          message.previousName,
-                          documentDir,
-                      )
-                    : undefined;
-            await this.deploymentTargetService.saveTarget(
+            const change = await this.deploymentTargetService.saveTarget(
                 message.target,
                 message.auth,
                 message.previousName,
                 documentDir,
             );
-            if (renamedFrom !== undefined) {
-                await this.deploymentStatusService.pruneTarget(
-                    await this.deploymentStatusService.targetIdentity(renamedFrom, documentDir),
-                );
-            }
+            await this.pruneRetiredTarget(change, documentDir);
             this.post(
                 new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
             );
@@ -312,14 +300,9 @@ export class DeploymentMessageDispatcher {
     private async handleDeleteTarget(name: string): Promise<void> {
         try {
             const documentDir = this.activeDocumentDir();
-            const target = await this.deploymentTargetService.getTarget(name, documentDir);
-            const deleted = await this.deploymentTargetService.deleteTarget(name, documentDir);
-            if (deleted) {
-                if (target !== undefined) {
-                    await this.deploymentStatusService.pruneTarget(
-                        await this.deploymentStatusService.targetIdentity(target, documentDir),
-                    );
-                }
+            const change = await this.deploymentTargetService.deleteTarget(name, documentDir);
+            if (change !== undefined) {
+                await this.pruneRetiredTarget(change, documentDir);
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
                 await this.sendTargets();
                 await this.deploymentStatusService.refreshFocused();
@@ -329,6 +312,17 @@ export class DeploymentMessageDispatcher {
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
             this.post(new TargetSavedQuery(false, errorMessage));
         }
+    }
+
+    /** Ledger rows are keyed by name and host, so a retired target's rows would never match again. */
+    private async pruneRetiredTarget(
+        change: TargetChange,
+        documentDir: string | undefined,
+    ): Promise<void> {
+        if (change.retiredTarget === undefined) return;
+        await this.deploymentStatusService.pruneTarget(
+            await this.deploymentStatusService.targetIdentity(change.retiredTarget, documentDir),
+        );
     }
 
     private async handleOpenTargetsFile(): Promise<void> {

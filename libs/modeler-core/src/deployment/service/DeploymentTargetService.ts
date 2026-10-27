@@ -128,14 +128,9 @@ export class DeploymentTargetService {
         auth: AuthConfigPayload,
         documentDir?: string,
     ): Promise<TargetChange> {
-        const { change } = await this.persistTarget(
-            payload,
-            auth,
-            documentDir,
-            undefined,
-            (targets, target) => targets.add(target),
+        return this.persistTarget(payload, auth, documentDir, (targets, target) =>
+            targets.add(target),
         );
-        return change;
     }
 
     /**
@@ -151,27 +146,17 @@ export class DeploymentTargetService {
         previousName: string | undefined,
         documentDir?: string,
     ): Promise<TargetChange> {
-        const { location, target, change } = await this.persistTarget(
-            payload,
-            auth,
-            documentDir,
-            previousName ?? payload.name,
-            (targets, next) => targets.upsert(next, previousName),
+        return this.persistTarget(payload, auth, documentDir, (targets, target) =>
+            targets.upsert(target, previousName),
         );
-        if (previousName !== undefined && previousName.trim() !== target.name) {
-            await this.secretStore.delete(this.slotFor(location.filePath, previousName.trim()));
-        }
-        return change;
     }
 
-    /** @param savedName The name the target had before this save; `undefined` for a create. */
     private async persistTarget(
         payload: DeploymentTargetPayload,
         auth: AuthConfigPayload,
         documentDir: string | undefined,
-        savedName: string | undefined,
         apply: (targets: DeploymentTargets, target: DeploymentTarget) => TargetChange,
-    ): Promise<{ location: TargetsLocation; target: DeploymentTarget; change: TargetChange }> {
+    ): Promise<TargetChange> {
         const location = await this.locateTargetsFile(documentDir);
         if (location === undefined) {
             throw new Error("Open a workspace folder before saving a deployment target.");
@@ -184,7 +169,6 @@ export class DeploymentTargetService {
             credentialRefs: CredentialRefs.of(credentials),
         });
         const current = new DeploymentTargets(await this.readTargets(location));
-        const saved = savedName === undefined ? undefined : current.find(savedName);
         const change = apply(current, target);
         await this.workspace.writeFile(
             location.filePath,
@@ -195,30 +179,39 @@ export class DeploymentTargetService {
         // reads an empty half back as null would drop the literal next to it.
         const slot = this.slotFor(location.filePath, target.name);
         await this.saveSecrets(slot, credentials);
-        await this.approveTypedDestinations(slot, target, saved, current, location.filePath);
+        await this.approveTypedDestinations(
+            slot,
+            target,
+            change.approvalsInheritedFrom,
+            current,
+            location.filePath,
+        );
         await this.setActiveTarget(target.name);
-        return { location, target, change };
+        if (change.retiredSlotName !== undefined) {
+            await this.secretStore.delete(this.slotFor(location.filePath, change.retiredSlotName));
+        }
+        return change;
     }
 
     /**
      * Saving approves only the hosts the user typed. A host any target in the
      * shared file already names may have reached the form from there — the
      * sidebar's New starts from the selected target — so it still asks at first
-     * use. A create starts from no approvals, so a stale slot can't lend its own.
+     * use.
      */
     private async approveTypedDestinations(
         slot: string,
         target: DeploymentTarget,
-        saved: DeploymentTarget | undefined,
+        approvalsInheritedFrom: string | undefined,
         current: DeploymentTargets,
         filePath: string,
     ): Promise<void> {
         const inherited =
-            saved === undefined
+            approvalsInheritedFrom === undefined
                 ? CredentialDestinations.none()
                 : CredentialDestinations.fromOrigins(
                       await this.secretStore.getApprovedDestinations(
-                          this.slotFor(filePath, saved.name),
+                          this.slotFor(filePath, approvalsInheritedFrom),
                       ),
                   );
         const typed = target.knownCredentialDestinations().without(current.knownDestinations());
@@ -246,9 +239,9 @@ export class DeploymentTargetService {
             location.filePath,
             serializeDeploymentTargets(change.targets),
         );
-        await this.secretStore.delete(this.slotFor(location.filePath, name));
+        await this.secretStore.delete(this.slotFor(location.filePath, change.retiredSlotName));
 
-        if (this.deploymentState.getActiveTargetName() === name.trim()) {
+        if (this.deploymentState.getActiveTargetName() === change.name) {
             await this.setActiveTarget("");
         }
         return change;
