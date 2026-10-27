@@ -40,6 +40,10 @@ const SETTING_KEY_OF_SNAPSHOT_KEY = {
 export type SettingKey =
     (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot] | "linting.enabled";
 
+export function settingKeyOf(key: keyof ModelerSettingsSnapshot): SettingKey {
+    return SETTING_KEY_OF_SNAPSHOT_KEY[key];
+}
+
 /** Settings as a host hands them over: any key may be missing or hold any value. */
 export type RawModelerSettings = Partial<Record<keyof ModelerSettingsSnapshot, unknown>>;
 
@@ -145,7 +149,7 @@ export function changedSettingKeys(
 ): SettingKey[] {
     return SNAPSHOT_KEYS.filter(
         (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
-    ).map((key) => SETTING_KEY_OF_SNAPSHOT_KEY[key]);
+    ).map(settingKeyOf);
 }
 
 function booleanOr(raw: unknown, fallback: boolean): boolean {

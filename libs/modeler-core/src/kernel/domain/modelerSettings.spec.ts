@@ -12,6 +12,7 @@ import {
     normalizeSettings,
     parseLintingEnabled,
     SettingKey,
+    settingKeyOf,
 } from "./modelerSettings";
 
 const SHARED_CASES = settingsNormalizationCases(
@@ -74,6 +75,15 @@ describe("parseLintingEnabled", () => {
         { case: "a text as the default", raw: "false", enabled: DEFAULT_LINTING_ENABLED },
     ])("reads $case", ({ raw, enabled }) => {
         expect(parseLintingEnabled(raw)).toBe(enabled);
+    });
+});
+
+describe("settingKeyOf", () => {
+    it.each<{ key: keyof ModelerSettingsSnapshot; settingKey: SettingKey }>([
+        { key: "language", settingKey: "language" },
+        { key: "scriptingSpin", settingKey: "scripting.spin" },
+    ])("names $key by the key VS Code stores it under", ({ key, settingKey }) => {
+        expect(settingKeyOf(key)).toBe(settingKey);
     });
 });
 
