@@ -33,6 +33,7 @@ import {
     targetSecretSlot,
 } from "../domain/deploymentDestination";
 import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { storeCredentials } from "./storeCredentials";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
 
@@ -201,7 +202,7 @@ export class DeploymentTargetService {
         // Refs are stored too: they overwrite any older literal, and a backend that
         // reads an empty half back as null would drop the literal next to it.
         const slot = targetSecretSlot(location, target.name);
-        await this.saveSecrets(slot, credentials);
+        await storeCredentials(this.secretStore, credentials, slot);
         await this.approveTypedDestinations(
             slot,
             target,
@@ -367,14 +368,6 @@ export class DeploymentTargetService {
             return target.authWith(await this.secretStore.getOAuth2(secretSlot));
         }
         return new NoAuth();
-    }
-
-    private async saveSecrets(slot: string, auth: AuthConfig): Promise<void> {
-        if (auth.type === "basic") {
-            await this.secretStore.saveBasicAuth(auth.username, auth.password, slot);
-        } else if (auth.type === "oauth2") {
-            await this.secretStore.saveOAuth2(auth.clientId, auth.clientSecret, slot);
-        }
     }
 }
 
