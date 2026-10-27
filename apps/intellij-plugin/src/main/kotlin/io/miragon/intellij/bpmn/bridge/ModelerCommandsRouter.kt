@@ -21,6 +21,8 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         deps.ensureStartedAsync()
     }
 
+    fun toggleLinting() = Unit
+
     /**
      * Fires `migration/migrateAll` for the project's base path. Guarded on a
      * non-null basePath: `NodeWorkspace.findFiles` only globs a registered root, and

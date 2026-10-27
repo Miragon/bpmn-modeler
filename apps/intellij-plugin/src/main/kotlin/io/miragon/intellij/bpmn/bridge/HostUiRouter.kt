@@ -8,9 +8,13 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
+import com.intellij.util.concurrency.AppExecutorUtil
+import io.miragon.intellij.bpmn.AutoHidingStatusSlots
 import io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidget
 import io.miragon.intellij.bpmn.EngineStatusBarWidget
 import io.miragon.intellij.bpmn.HostPicker
+import io.miragon.intellij.bpmn.StatusBarSlots
+import io.miragon.intellij.bpmn.StatusSlots
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.util.concurrent.CompletableFuture
@@ -22,7 +26,11 @@ import java.util.concurrent.ConcurrentHashMap
  * Stateless: every handler delegates to a project-scoped widget, the system
  * clipboard, or the lazy [io.miragon.intellij.bpmn.HostNotifications].
  */
-internal class HostUiRouter(private val deps: BridgeDeps) {
+internal class HostUiRouter(
+    private val deps: BridgeDeps,
+    @Suppress("unused") private val statusSlots: StatusSlots =
+        AutoHidingStatusSlots(StatusBarSlots(deps.project), AppExecutorUtil.getAppScheduledExecutorService()),
+) {
     private val log = Logger.getInstance(HostUiRouter::class.java)
 
     private val notifications get() = deps.notifications.value
