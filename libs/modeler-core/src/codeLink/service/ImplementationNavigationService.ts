@@ -1,5 +1,6 @@
 import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import { ImplementationKind } from "../domain/ImplementationReference";
+import { ImplementationTarget } from "../domain/ImplementationTarget";
 
 import { ImplementationLocator } from "./ImplementationLocator";
 
@@ -8,15 +9,6 @@ const REFERENCE_DISPLAY_LIMIT = 100;
 
 // Tighter cap for the busy-list placeholder — it's space-constrained.
 const PROGRESS_LABEL_LIMIT = 40;
-
-// Human-readable labels for the progress / not-found messages, per kind.
-const KIND_LABELS: Record<ImplementationKind, string> = {
-    javaClass: "class",
-    delegateExpression: "delegate",
-    expression: "expression",
-    externalTopic: "external task topic",
-    jobType: "job type",
-};
 
 /**
  * Resolves a Camunda implementation reference to a workspace source file and
@@ -40,7 +32,7 @@ export class ImplementationNavigationService {
         kind: ImplementationKind,
         sourceDocumentPath?: string,
     ): Promise<void> {
-        const label = KIND_LABELS[kind];
+        const label = ImplementationTarget.of(kind, reference).label;
         const display = truncate(reference, REFERENCE_DISPLAY_LIMIT);
         // The picker shows the search spinner on the list itself; this service
         // still owns the 0/1/error messaging. `picked` is set only on a

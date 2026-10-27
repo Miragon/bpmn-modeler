@@ -6,18 +6,9 @@ import {
 import { NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { MessageHandler } from "../../editorSession/service/WebviewMessageRouter";
+import { ImplementationTarget } from "../domain/ImplementationTarget";
 import { CodeLinkMapService } from "../service/CodeLinkMapService";
 import { ImplementationNavigationService } from "../service/ImplementationNavigationService";
-
-// The implementation kinds the host knows how to resolve. Used as a runtime
-// guard so a malformed/hostile message can't reach the locator with a bogus kind.
-const KNOWN_IMPLEMENTATION_KINDS = new Set([
-    "javaClass",
-    "delegateExpression",
-    "expression",
-    "externalTopic",
-    "jobType",
-]);
 
 /**
  * `NavigateToImplementationCommand` → jump to the task's source implementation.
@@ -32,7 +23,7 @@ export function navigateToImplementationHandler(
     notifier: NotifierPort,
 ): MessageHandler<NavigateToImplementationCommand> {
     return async (cmd, editorId) => {
-        if (!KNOWN_IMPLEMENTATION_KINDS.has(cmd.kind)) {
+        if (!ImplementationTarget.isKnownKind(cmd.kind)) {
             notifier.logWarning(
                 `Ignoring NavigateToImplementationCommand with unknown kind: ${String(cmd.kind)}`,
             );

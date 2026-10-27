@@ -4,7 +4,6 @@ import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import {
     asyncDebounce,
     ImplementationEntry,
-    ImplementationKind,
     implementationStatusKey,
 } from "@miragon/bpmn-modeler-types";
 
@@ -17,30 +16,17 @@ import { ArtifactService } from "../../kernel/service/ArtifactService";
 import {
     buildMapJson,
     CodeLinkMapEntry,
-    fileMatchesEntry,
     parseMapJson,
     toAbsoluteEntries,
     toRelative,
 } from "../domain/CodeLinkMap";
-import { JVM_EXTENSIONS, SCRIPT_WORKER_EXTENSIONS } from "../domain/ImplementationReference";
+import { SOURCE_FILES } from "../domain/ImplementationReference";
+import { ImplementationTarget } from "../domain/ImplementationTarget";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
 
 /** How a watched source file changed, as reported by the workspace watcher. */
 type SourceChangeKind = "created" | "changed" | "deleted";
-
-/** The implementation kinds the host knows how to resolve — a guard against a malformed message. */
-const KNOWN_KINDS: ReadonlySet<ImplementationKind> = new Set<ImplementationKind>([
-    "javaClass",
-    "delegateExpression",
-    "expression",
-    "externalTopic",
-    "jobType",
-]);
-
-// One watcher per workspace root covers every source language a worker/delegate
-// can live in — the same extension set the locator scans.
-const SOURCE_GLOB = `**/*.{${[...JVM_EXTENSIONS, ...SCRIPT_WORKER_EXTENSIONS].join(",")}}`;
 
 // Subfolder of `<configFolder>` the artifact is written under.
 const CODE_LINK_DIR = "code-link";
@@ -320,7 +306,10 @@ export class CodeLinkMapService {
             return true;
         }
 
-        const matches = fileMatchesEntry(entry.kind, entry.reference, path, content);
+        const matches = ImplementationTarget.of(entry.kind, entry.reference).isImplementedBy(
+            path,
+            content,
+        );
         const alreadyLinked = entry.paths.includes(path);
 
         if (entry.resolved) {
@@ -350,6 +339,7 @@ export class CodeLinkMapService {
 
     /** Confirms an entry's linked files still implement it; returns the survivors. */
     private async verifyEntry(entry: CodeLinkMapEntry): Promise<string[]> {
+        const target = ImplementationTarget.of(entry.kind, entry.reference);
         const stillMatching: string[] = [];
         for (const path of entry.paths) {
             let content: string;
@@ -363,7 +353,7 @@ export class CodeLinkMapService {
                 );
                 continue;
             }
-            if (fileMatchesEntry(entry.kind, entry.reference, path, content)) {
+            if (target.isImplementedBy(path, content)) {
                 stillMatching.push(path);
             }
         }
@@ -442,7 +432,7 @@ export class CodeLinkMapService {
     private acquireWatcher(root: string): void {
         let watcher = this.watchers.get(root);
         if (!watcher) {
-            const handle = this.vsWorkspace.createWatcher(root, SOURCE_GLOB, {
+            const handle = this.vsWorkspace.createWatcher(root, SOURCE_FILES.glob(), {
                 onCreate: (path) => void this.onSourceFileChanged(path, "created", root),
                 onChange: (path) => void this.onSourceFileChanged(path, "changed", root),
                 onDelete: (path) => void this.onSourceFileChanged(path, "deleted", root),
@@ -598,7 +588,7 @@ export class CodeLinkMapService {
             entry.activityId.length > 0 &&
             typeof entry.reference === "string" &&
             entry.reference.length > 0 &&
-            KNOWN_KINDS.has(entry.kind)
+            ImplementationTarget.isKnownKind(entry.kind)
         );
     }
 }
