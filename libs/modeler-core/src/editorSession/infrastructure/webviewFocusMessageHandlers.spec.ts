@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RequestFocusCommand, TakeFocusQuery } from "@miragon/bpmn-modeler-shared";
 
-import type { EditorHandle } from "../domain/EditorSession";
-import { EditorSessionStore } from "./EditorSessionStore";
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
-import { registerWebviewFocusHandlers } from "./webviewFocusHandlers";
+import type { EditorHandle } from "../service/EditorHandle";
+import { EditorSessionStore } from "../service/EditorSessionStore";
+import { WebviewMessageRouter } from "../service/WebviewMessageRouter";
+import { registerWebviewFocusHandlers } from "./webviewFocusMessageHandlers";
 
 const EDITOR = "file:///w/a.bpmn";
 

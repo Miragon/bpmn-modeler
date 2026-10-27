@@ -1,7 +1,7 @@
 import { DmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /**
  * Pushes the DMN modeler's color-theme and UI-language preferences into the

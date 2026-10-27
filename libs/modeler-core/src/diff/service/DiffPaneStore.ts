@@ -1,4 +1,4 @@
-import { EditorSubscription } from "../../shared/domain/EditorSession";
+import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { DiffPaneHandle, DiffSession } from "../domain/DiffSession";
 
 /**

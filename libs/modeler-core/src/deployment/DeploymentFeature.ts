@@ -9,9 +9,9 @@ import {
     SettingsPort,
     WorkspacePort,
 } from "../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../kernel/service/ArtifactService";
-import { PendingEditsFlush } from "../shared/service/PendingEditsFlush";
+import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
 import {
     DeploymentPickerPort,
     DeploymentStatePort,

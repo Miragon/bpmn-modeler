@@ -1,7 +1,7 @@
 import { ClipboardQuery, TextClipboardQuery } from "@miragon/bpmn-modeler-shared";
 
 import { ClipboardPort, NotifierPort } from "../../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /**
  * Mediates clipboard access between the webview and the system clipboard.

@@ -10,8 +10,8 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
-import { EditorDocumentSync } from "../../../shared/infrastructure/EditorDocumentSync";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
+import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";

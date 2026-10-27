@@ -1,7 +1,7 @@
 import {
     EditorSessionContext,
     EditorSessionParticipant,
-} from "../../../shared/domain/EditorSessionParticipant";
+} from "../../../editorSession/domain/EditorSessionParticipant";
 import { DmnSettingsBroadcaster } from "../service/DmnSettingsBroadcaster";
 
 /**

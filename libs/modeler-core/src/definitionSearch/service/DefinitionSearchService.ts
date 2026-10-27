@@ -12,7 +12,7 @@ import {
 
 import type { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { toWorkspacePath } from "../../kernel/domain/workspacePath";
-import type { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import type { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import type { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";
 
 const MAX_RESULTS = 50;

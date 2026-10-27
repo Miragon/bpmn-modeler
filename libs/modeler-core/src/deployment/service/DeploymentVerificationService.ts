@@ -7,7 +7,7 @@ import {
     EnvReferenceError,
 } from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { reconcile } from "../domain/deploymentVerification";
 import { EngineInspectionPort } from "../domain/ports";

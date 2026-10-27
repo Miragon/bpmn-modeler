@@ -1,7 +1,6 @@
 import { Command, LogMessageCommand } from "@miragon/bpmn-modeler-shared";
 
 import { LoggerPort } from "../../kernel/domain/hostPorts";
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
 
 /** Command types this module recognises, mapped to the logger method each drives. */
 const LOG_LEVELS = {
@@ -51,28 +50,4 @@ export function routeWebviewLogCommand(
         logger[method](`${tag} ${command.message}`);
     }
     return true;
-}
-
-/**
- * Registers the four webview `Log*Command`s on `router`, routing each onto the
- * host's {@link LoggerPort} via {@link routeWebviewLogCommand}.
- *
- * `resolveSource` turns the handler's `editorId` into a human-readable origin
- * (typically the diagram's basename) so log lines are correlatable when several
- * editors are open; when omitted or when it returns `undefined`, lines fall back
- * to the bare `[webview]` tag.
- */
-export function registerWebviewLogHandlers(
-    router: WebviewMessageRouter,
-    logger: LoggerPort,
-    resolveSource?: (editorId: string) => string | undefined,
-): void {
-    const handle: (message: Command, editorId: string) => void = (message, editorId) => {
-        routeWebviewLogCommand(logger, message, resolveSource?.(editorId));
-    };
-    router
-        .on("LogDebugCommand", handle)
-        .on("LogInfoCommand", handle)
-        .on("LogWarningCommand", handle)
-        .on("LogErrorCommand", handle);
 }

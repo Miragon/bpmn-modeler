@@ -4,8 +4,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort } from "../../kernel/domain/hostPorts";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
-import { MessageHandler } from "../../shared/infrastructure/WebviewMessageRouter";
+import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
+import { MessageHandler } from "../../editorSession/service/WebviewMessageRouter";
 import { CodeLinkMapService } from "../service/CodeLinkMapService";
 import { ImplementationNavigationService } from "../service/ImplementationNavigationService";
 

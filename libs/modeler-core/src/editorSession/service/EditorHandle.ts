@@ -1,6 +1,5 @@
 /**
- * Host-agnostic contract for a single open editor session and the small event
- * shapes its subscriptions emit.
+ * Host-agnostic contract for a single open editor session.
  *
  * `EditorSessionStore` is a pure registry of these handles; everything that
  * actually touches a `WebviewPanel` or `TextDocument` lives behind this port in
@@ -11,32 +10,7 @@
 
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
-/**
- * A cancellable subscription. Structurally compatible with `vscode.Disposable`
- * so a VS Code adapter can return its disposables directly, while the domain
- * never names the `vscode` type.
- */
-export interface EditorSubscription {
-    dispose(): void;
-}
-
-/**
- * Configuration-change event, narrowed to the single capability callers need.
- * `vscode.ConfigurationChangeEvent` satisfies it structurally.
- */
-export interface SettingChange {
-    affectsConfiguration(section: string): boolean;
-}
-
-/**
- * Document-change event, narrowed to what the editor controllers actually read
- * (was `vscode.TextDocumentChangeEvent`). Keeps the callback host-agnostic.
- */
-export interface DocumentChangeEvent {
-    hasContentChanges(): boolean;
-    documentUriString(): string;
-    documentPath(): string;
-}
+import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
 
 /**
  * One open editor session: document access, webview messaging, and the

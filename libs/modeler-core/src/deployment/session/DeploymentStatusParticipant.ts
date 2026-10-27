@@ -1,8 +1,8 @@
 import {
     EditorSessionContext,
     EditorSessionParticipant,
-} from "../../shared/domain/EditorSessionParticipant";
-import { StatusItemOwnership } from "../../shared/domain/StatusItemOwnership";
+} from "../../editorSession/domain/EditorSessionParticipant";
+import { StatusItemOwnership } from "../../editorSession/domain/StatusItemOwnership";
 import { DeploymentStatusService } from "../service/DeploymentStatusService";
 
 /**
