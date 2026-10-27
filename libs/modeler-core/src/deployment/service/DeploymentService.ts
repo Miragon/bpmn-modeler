@@ -179,11 +179,7 @@ export class DeploymentService {
         try {
             const fileContents = await this.readFileContents(config);
             const documentDir = path.dirname(config.mainFilePath);
-            const lookup = await this.envResolver.createLookup(
-                destination.envScope,
-                documentDir,
-                config,
-            );
+            const lookup = await this.envResolver.createLookup(destination, documentDir, config);
             const requestConfig = config.expandEnvRefs(lookup);
             if (destination.requiresApproval(requestConfig)) {
                 await this.credentialApproval.ensureApproved(
@@ -261,11 +257,7 @@ export class DeploymentService {
                     .withAuth(auth)
                     .withDeployUrl(target.deployUrl)
                     .build();
-                pendingLookup ??= this.envResolver.createLookup(
-                    destination.envScope,
-                    documentDir,
-                    config,
-                );
+                pendingLookup ??= this.envResolver.createLookup(destination, documentDir, config);
                 const envLookup = await pendingLookup;
                 const requestConfig = config.expandEnvRefs(envLookup);
                 // One answer covers the batch: every file goes to the same target.

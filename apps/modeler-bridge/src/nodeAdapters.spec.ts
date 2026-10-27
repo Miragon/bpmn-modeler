@@ -16,13 +16,16 @@ import {
 } from "vitest";
 
 import {
+    AdHocDestination,
     ArtifactService,
+    DeploymentDestination,
+    DeploymentTarget,
     DeploymentTargetService,
-    EnvScope,
     EnvValueResolver,
     envRefsIn,
     expandEnvRefs,
     NO_ENV_VARIABLES,
+    NamedDestination,
     NoWorkspaceFolderFoundError,
     SettingChange,
     TargetsLocation,
@@ -524,28 +527,42 @@ describe("NodeWorkspace.isSymbolicLink", () => {
     });
 });
 
+const DEV_TARGET = DeploymentTarget.create({
+    name: "dev",
+    engine: "c7",
+    endpoint: "https://engine.example/rest",
+    authType: "none",
+});
+
 /**
  * A workspace-root `.env` directory (e.g. a Python virtualenv) once failed
  * every deploy with EISDIR, even for targets that reference no variables.
  */
 describe("EnvValueResolver over a real NodeWorkspace", () => {
     const REFERENCES_ENV = envRefsIn("${env:MIRAGON_TOKEN}");
-    const SCOPES: EnvScope[] = ["targetsFile", "workspaceFolder"];
+    const AD_HOC = new AdHocDestination("https://engine.example/rest", "");
+    const DESTINATIONS: [string, () => DeploymentDestination][] = [
+        ["a named target", () => named],
+        ["an ad-hoc request", () => AD_HOC],
+    ];
 
     let root: string;
     let workspace: NodeWorkspace;
     let locateTargetsFile: Mock<() => Promise<TargetsLocation>>;
+    let named: NamedDestination;
     let resolver: EnvValueResolver;
 
     beforeEach(async () => {
         root = await fs.mkdtemp(join(tmpdir(), "modeler-dotenv-"));
         workspace = new NodeWorkspace();
         workspace.registerRoot(root);
-        locateTargetsFile = vi.fn(async () => ({
+        const location: TargetsLocation = {
             filePath: join(root, ".camunda", "deployment-targets.json"),
             exists: true,
             projectDir: root,
-        }));
+        };
+        locateTargetsFile = vi.fn(async () => location);
+        named = new NamedDestination(DEV_TARGET, location);
         resolver = new EnvValueResolver({ locateTargetsFile }, workspace);
     });
 
@@ -553,14 +570,14 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
         await fs.rm(root, { recursive: true, force: true });
     });
 
-    it.each(SCOPES)(
-        "ignores a .env directory when nothing references env in the %s scope",
-        async (scope) => {
+    it.each(DESTINATIONS)(
+        "ignores a .env directory when nothing references env for %s",
+        async (_kind, destination) => {
             await fs.mkdir(join(root, ".env"));
             const readFile = vi.spyOn(workspace, "readFile");
 
             const lookup = await resolver.createLookup(
-                scope,
+                destination(),
                 join(root, "processes"),
                 envRefsIn("https://engine.example/rest"),
             );
@@ -570,12 +587,16 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
         },
     );
 
-    it.each(SCOPES)(
-        "rejects a .env directory with UnreadableDotEnvError when a reference needs it in the %s scope",
-        async (scope) => {
+    it.each(DESTINATIONS)(
+        "rejects a .env directory with UnreadableDotEnvError when a reference needs it for %s",
+        async (_kind, destination) => {
             await fs.mkdir(join(root, ".env"));
 
-            const result = resolver.createLookup(scope, join(root, "processes"), REFERENCES_ENV);
+            const result = resolver.createLookup(
+                destination(),
+                join(root, "processes"),
+                REFERENCES_ENV,
+            );
 
             await expect(result).rejects.toBeInstanceOf(UnreadableDotEnvError);
             await expect(result).rejects.toMatchObject({
@@ -585,15 +606,19 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
         },
     );
 
-    it.each(SCOPES)(
-        "refuses a symlinked .env without reading its target in the %s scope",
-        async (scope) => {
+    it.each(DESTINATIONS)(
+        "refuses a symlinked .env without reading its target for %s",
+        async (_kind, destination) => {
             const foreignSecrets = join(root, "other-project.env");
             await fs.writeFile(foreignSecrets, "MIRAGON_TOKEN=foreign");
             await fs.symlink(foreignSecrets, join(root, ".env"));
             const readFile = vi.spyOn(workspace, "readFile");
 
-            const result = resolver.createLookup(scope, join(root, "processes"), REFERENCES_ENV);
+            const result = resolver.createLookup(
+                destination(),
+                join(root, "processes"),
+                REFERENCES_ENV,
+            );
 
             await expect(result).rejects.toBeInstanceOf(UnreadableDotEnvError);
             await expect(result).rejects.toMatchObject({
@@ -610,34 +635,26 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
             "MIRAGON_TOKEN=secret\nAWS_SECRET_ACCESS_KEY=foreign\n",
         );
 
-        const lookup = await resolver.createLookup(
-            "targetsFile",
-            join(root, "processes"),
-            REFERENCES_ENV,
-        );
+        const lookup = await resolver.createLookup(named, join(root, "processes"), REFERENCES_ENV);
 
         expect(lookup("MIRAGON_TOKEN")).toBe("secret");
         expect(lookup("AWS_SECRET_ACCESS_KEY")).toBeUndefined();
         expect(lookup.source).toBe(join(root, ".env"));
     });
 
-    it.each(SCOPES)(
-        "reads the .env for a diagram directly in the workspace root in the %s scope",
-        async (scope) => {
+    it.each(DESTINATIONS)(
+        "reads the .env for a diagram directly in the workspace root for %s",
+        async (_kind, destination) => {
             await fs.writeFile(join(root, ".env"), "MIRAGON_TOKEN=secret");
 
-            const lookup = await resolver.createLookup(scope, root, REFERENCES_ENV);
+            const lookup = await resolver.createLookup(destination(), root, REFERENCES_ENV);
 
             expect(lookup("MIRAGON_TOKEN")).toBe("secret");
         },
     );
 
     it("returns a lookup naming the .env path when the file is missing", async () => {
-        const lookup = await resolver.createLookup(
-            "targetsFile",
-            join(root, "processes"),
-            REFERENCES_ENV,
-        );
+        const lookup = await resolver.createLookup(named, join(root, "processes"), REFERENCES_ENV);
 
         expect(lookup("MIRAGON_TOKEN")).toBeUndefined();
         expect(lookup.source).toBe(join(root, ".env"));
@@ -651,7 +668,7 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
         workspace.registerRoot(nestedRoot);
 
         const lookup = await resolver.createLookup(
-            "workspaceFolder",
+            AD_HOC,
             join(nestedRoot, "processes"),
             REFERENCES_ENV,
         );
@@ -660,14 +677,14 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
         expect(lookup.source).toBe(join(nestedRoot, ".env"));
     });
 
-    it.each(SCOPES)(
-        "reads no .env for a document outside every registered root in the %s scope",
-        async (scope) => {
+    it.each(DESTINATIONS)(
+        "reads no .env for a document outside every registered root for %s",
+        async (_kind, destination) => {
             await fs.writeFile(join(root, ".env"), "MIRAGON_TOKEN=secret");
             const readFile = vi.spyOn(workspace, "readFile");
 
             const lookup = await resolver.createLookup(
-                scope,
+                destination(),
                 join(tmpdir(), "outside-every-root"),
                 REFERENCES_ENV,
             );
@@ -686,6 +703,7 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
  */
 describe("EnvValueResolver beside a nested targets file", () => {
     const ENDPOINT_TEMPLATE = "https://${env:MIRAGON_HOST}/engine-rest";
+    const AD_HOC = new AdHocDestination(ENDPOINT_TEMPLATE, "");
 
     let root: string;
     let nestedProject: string;
@@ -729,7 +747,7 @@ describe("EnvValueResolver beside a nested targets file", () => {
         const locateTargetsFile = vi.spyOn(targetsLocator, "locateTargetsFile");
 
         const lookup = await resolver.createLookup(
-            "workspaceFolder",
+            AD_HOC,
             nestedProject,
             envRefsIn(ENDPOINT_TEMPLATE),
         );
@@ -742,8 +760,9 @@ describe("EnvValueResolver beside a nested targets file", () => {
     });
 
     it("resolves a named target's reference from the nested project's .env", async () => {
+        const location = await targetsLocator.locateTargetsFile(nestedProject);
         const lookup = await resolver.createLookup(
-            "targetsFile",
+            new NamedDestination(DEV_TARGET, location!),
             nestedProject,
             envRefsIn(ENDPOINT_TEMPLATE),
         );

@@ -117,11 +117,7 @@ export class StartInstanceService {
                 payload,
                 startInstanceUrl,
             );
-            const lookup = await this.envResolver.createLookup(
-                destination.envScope,
-                documentDir,
-                config,
-            );
+            const lookup = await this.envResolver.createLookup(destination, documentDir, config);
             const requestConfig = config.expandEnvRefs(lookup);
             if (destination.requiresApproval(requestConfig)) {
                 await this.credentialApproval.ensureApproved(

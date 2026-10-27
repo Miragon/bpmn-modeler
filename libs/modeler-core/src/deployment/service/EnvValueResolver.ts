@@ -4,7 +4,7 @@ import { FileNotFound } from "../../kernel/domain/errors";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
-import { EnvScope } from "../domain/deploymentDestination";
+import { DeploymentDestination } from "../domain/deploymentDestination";
 import { parseDotEnv } from "../domain/dotEnv";
 import {
     emptyEnvLookup,
@@ -39,7 +39,7 @@ export class EnvValueResolver {
      *   another project's secrets.
      */
     async createLookup(
-        scope: EnvScope,
+        destination: DeploymentDestination,
         documentDir: string | undefined,
         ...subjects: EnvReferencing[]
     ): Promise<EnvLookup> {
@@ -47,7 +47,7 @@ export class EnvValueResolver {
             return NO_ENV_VARIABLES;
         }
         const projectDir =
-            scope === "targetsFile"
+            destination.envScope === "targetsFile"
                 ? await this.locateTargetsProjectDir(documentDir)
                 : this.locateWorkspaceFolder(documentDir);
         if (projectDir === undefined) {
