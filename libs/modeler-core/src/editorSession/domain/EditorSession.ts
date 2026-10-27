@@ -19,6 +19,10 @@ export interface SettingChange {
     affects(key: SettingKey): boolean;
 }
 
+export function settingChangeNaming(_named: readonly SettingKey[]): SettingChange {
+    return { affects: () => false };
+}
+
 /**
  * Document-change event, narrowed to what the editor controllers actually read
  * (was `vscode.TextDocumentChangeEvent`). Keeps the callback host-agnostic.
