@@ -37,8 +37,9 @@ export interface CodeLinkMapJson {
 }
 
 /**
- * Workspace-relative POSIX path of `absolutePath` under `workspaceRoot`. Both
- * inputs are `uri.path`-style POSIX strings, so `posix.relative` is exact.
+ * Workspace-relative POSIX path of a linked file. Unlike `relativeToRoot` it
+ * climbs out with `../`: the search covers every workspace folder, so a link
+ * can sit outside the diagram's root.
  */
 export function toRelative(absolutePath: string, workspaceRoot: string): string {
     return posix.relative(workspaceRoot, absolutePath);

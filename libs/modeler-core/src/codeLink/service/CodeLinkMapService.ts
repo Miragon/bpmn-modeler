@@ -7,9 +7,10 @@ import { EditorHandle } from "../../editorSession/service/EditorHandle";
 import { configArtifactPath } from "../../kernel/domain/configArtifacts";
 import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
-import { parseMapJson, toRelative } from "../domain/codeLinkArtifact";
+import { parseMapJson } from "../domain/codeLinkArtifact";
 import { CodeLink, CodeLinkMap, SourceFileChange } from "../domain/CodeLinkMap";
 import { SOURCE_FILES } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
@@ -428,11 +429,12 @@ export class CodeLinkMapService {
                 return; // Editor disposed before the debounced write fired.
             }
             const artifactPath = this.artifactPath(state);
-            if (!artifactPath) {
+            const bpmnFile = relativeToRoot(state.documentPath, state.workspaceRoot);
+            if (!artifactPath || bpmnFile === undefined) {
                 return;
             }
             const json = state.map.toArtifact({
-                bpmnFile: toRelative(state.documentPath, state.workspaceRoot),
+                bpmnFile,
                 generatedAt: "",
                 workspaceRoot: state.workspaceRoot,
             });
