@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ArtifactService, ScriptUri } from "@miragon/bpmn-modeler-core";
+import { ArtifactService, ScriptUri, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { createTestHost, FakeEditorHandle } from "@miragon/bpmn-modeler-core/testing";
 import {
     OpenScriptEditorCommand,
@@ -52,6 +52,7 @@ function createEditor() {
         host.settings,
         host.workspace,
         artifactSvc as never,
+        new ScriptVariableStore(),
     );
 
     // Seed a tracked script so didChange/applyModelChange/dispose resolve it.
@@ -212,13 +213,13 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         baseDirByEditor: Map<string, string>;
         scripts: Map<string, unknown>;
         filePathByScript: Map<string, string>;
-        extractedByEditor: Map<string, unknown[]>;
     }
 
     function createFullEditor(files: Record<string, string> = {}) {
         const host = createTestHost({ files, settings: { scriptingSpin: false } });
         const modelerEditor = host.openEditor(FULL_EDITOR_PATH);
         const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
+        const scriptVariables = new ScriptVariableStore();
 
         const editor = new BridgeScriptEditor(
             host.store,
@@ -228,11 +229,12 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             host.settings,
             host.workspace,
             {} as never,
+            scriptVariables,
         );
         const internals = editor as unknown as FullInternals;
         // Skip the workspace-root resolution; the sweep still exercises deleteDirectory.
         internals.baseDirByEditor.set(FULL_EDITOR, BASE_DIR);
-        return { editor, host, modelerEditor, rpc, internals };
+        return { editor, host, modelerEditor, rpc, internals, scriptVariables };
     }
 
     /** The on-disk path a script-task materialises to under the seeded base dir. */
@@ -250,7 +252,8 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
     describe("materialize", () => {
         it("writes the file and seeds variables without a script/open or lock", async () => {
-            const { editor, host, rpc, modelerEditor, internals } = createFullEditor();
+            const { editor, host, rpc, modelerEditor, internals, scriptVariables } =
+                createFullEditor();
             const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
             const result = await editor.materialize(
@@ -260,7 +263,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             expect(result).toEqual({ written: true });
             expect(host.workspace.files.get(scriptFilePath("Task_1", "groovy"))).toBe("x = 1");
-            expect(internals.extractedByEditor.get(FULL_EDITOR)).toEqual(variables);
+            expect(scriptVariables.variablesFor(FULL_EDITOR)).toEqual(variables);
             // No tab semantics: no script/open, no lock broadcast, no path recorded
             // (an untracked panel-button open then rewrites from the model).
             expect(scriptOpenCall(rpc)).toBeUndefined();
@@ -506,6 +509,7 @@ describe("BridgeScriptEditor keeps the UNC root of script files in a workspace o
             host.settings,
             host.workspace,
             new ArtifactService(host.workspace, host.settings),
+            new ScriptVariableStore(),
         );
         return { editor, host, rpc };
     }

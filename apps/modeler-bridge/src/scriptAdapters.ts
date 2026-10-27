@@ -37,6 +37,7 @@ import {
     PickerPort,
     ScriptLanguage,
     ScriptUri,
+    ScriptVariableStore,
     SettingsPort,
     TMP_SCRIPTING_SEGMENT,
     toWorkspacePath,
@@ -130,11 +131,6 @@ export class BridgeScriptEditor {
         AsyncDebounced<(content: string) => Promise<void>>
     >();
 
-    // The webview-extracted process-variable model per editor: seeded on open,
-    // replaced on every `UpdateScriptVariablesCommand`, and shipped with both the
-    // `script/open` payload and the `script/updateVariables` push.
-    private readonly extractedByEditor = new Map<string, VariableDef[]>();
-
     constructor(
         private readonly store: EditorSessionStore,
         private readonly picker: PickerPort,
@@ -143,6 +139,7 @@ export class BridgeScriptEditor {
         private readonly settings: SettingsPort,
         private readonly workspace: WorkspacePort,
         private readonly artifactSvc: ArtifactService,
+        private readonly scriptVariables: ScriptVariableStore,
     ) {}
 
     /**
@@ -188,7 +185,7 @@ export class BridgeScriptEditor {
 
         // Seed the editor's extracted model from the open command so the host has
         // variable completion before the first live update arrives.
-        this.extractedByEditor.set(editorId, cmd.variables ?? []);
+        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
@@ -229,7 +226,7 @@ export class BridgeScriptEditor {
                 // they have no member completion.
                 methods: methodsForBean(bean),
             })),
-            variables: this.variablesFor(editorId),
+            variables: this.scriptVariables.variablesFor(editorId),
             globals: spinOn ? globalFunctionsFor(kind) : [],
             types: spinOn
                 ? Object.fromEntries(COMPLEX_TYPES.map((type) => [type.name, type.methods]))
@@ -274,7 +271,7 @@ export class BridgeScriptEditor {
 
         // Seed the editor's extracted model so a later open/adoption has variables
         // before the first live `UpdateScriptVariablesCommand`.
-        this.extractedByEditor.set(editorId, cmd.variables ?? []);
+        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
         return { written: true };
     }
@@ -558,17 +555,13 @@ export class BridgeScriptEditor {
      * only.
      */
     updateVariables(editorId: string, variables: VariableDef[]): void {
-        this.extractedByEditor.set(editorId, variables);
+        this.scriptVariables.setExtracted(editorId, variables);
         this.pushVariables(editorId);
-    }
-
-    private variablesFor(editorId: string): VariableDef[] {
-        return this.extractedByEditor.get(editorId) ?? [];
     }
 
     /** Pushes the editor's model to every open script tab of `editorId`. */
     private pushVariables(editorId: string): void {
-        const variables = this.variablesFor(editorId);
+        const variables = this.scriptVariables.variablesFor(editorId);
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
                 this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
@@ -717,7 +710,7 @@ export class BridgeScriptEditor {
             }
         }
 
-        this.extractedByEditor.delete(editorId);
+        this.scriptVariables.clear(editorId);
     }
 
     /**
