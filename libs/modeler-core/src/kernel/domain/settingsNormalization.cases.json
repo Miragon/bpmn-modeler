@@ -1,0 +1,117 @@
+{
+    "$comment": "Run by modelerSettings.spec.ts, the VS Code and bridge settings specs and the IntelliJ ModelerSettingsStoreTest. A host handed `raw` reads `normalized`; every key left out reads its default.",
+    "cases": [
+        {
+            "name": "reads no settings as the defaults",
+            "raw": {},
+            "normalized": {}
+        },
+        {
+            "name": "keeps every valid value",
+            "raw": {
+                "alignToOrigin": true,
+                "showTransactionBoundaries": false,
+                "configFolder": "config",
+                "persistCodeLinkMap": true,
+                "c8ApiVersion": "v1",
+                "colorTheme": "light",
+                "defaultMode": "view",
+                "favouriteBpmnElements": ["bpmn:UserTask"],
+                "language": "de",
+                "scriptingSpin": false,
+                "marketplaces": ["https://github.com/acme/templates"]
+            },
+            "normalized": {
+                "alignToOrigin": true,
+                "showTransactionBoundaries": false,
+                "configFolder": "config",
+                "persistCodeLinkMap": true,
+                "c8ApiVersion": "v1",
+                "colorTheme": "light",
+                "defaultMode": "view",
+                "favouriteBpmnElements": ["bpmn:UserTask"],
+                "language": "de",
+                "scriptingSpin": false,
+                "marketplaces": ["https://github.com/acme/templates"]
+            }
+        },
+        {
+            "name": "reads an empty config folder as the default",
+            "raw": { "configFolder": "" },
+            "normalized": { "configFolder": ".camunda" }
+        },
+        {
+            "name": "reads a blank config folder as the default",
+            "raw": { "configFolder": "  " },
+            "normalized": { "configFolder": ".camunda" }
+        },
+        {
+            "name": "reads an unknown color theme as automatic",
+            "raw": { "colorTheme": "dark" },
+            "normalized": { "colorTheme": "automatic" }
+        },
+        {
+            "name": "reads an unknown default mode as implement",
+            "raw": { "defaultMode": "edit" },
+            "normalized": { "defaultMode": "implement" }
+        },
+        {
+            "name": "keeps the design default mode",
+            "raw": { "defaultMode": "design" },
+            "normalized": { "defaultMode": "design" }
+        },
+        {
+            "name": "keeps six favourite elements",
+            "raw": {
+                "favouriteBpmnElements": [
+                    "bpmn:ServiceTask",
+                    "bpmn:UserTask",
+                    "bpmn:CallActivity",
+                    "bpmn:ExclusiveGateway",
+                    "bpmn:ScriptTask",
+                    "bpmn:SendTask"
+                ]
+            },
+            "normalized": {
+                "favouriteBpmnElements": [
+                    "bpmn:ServiceTask",
+                    "bpmn:UserTask",
+                    "bpmn:CallActivity",
+                    "bpmn:ExclusiveGateway",
+                    "bpmn:ScriptTask",
+                    "bpmn:SendTask"
+                ]
+            }
+        },
+        {
+            "name": "pins only the first six favourite elements",
+            "raw": {
+                "favouriteBpmnElements": [
+                    "bpmn:ServiceTask",
+                    "bpmn:UserTask",
+                    "bpmn:CallActivity",
+                    "bpmn:ExclusiveGateway",
+                    "bpmn:ScriptTask",
+                    "bpmn:SendTask",
+                    "bpmn:ReceiveTask",
+                    "bpmn:ParallelGateway"
+                ]
+            },
+            "normalized": {
+                "favouriteBpmnElements": [
+                    "bpmn:ServiceTask",
+                    "bpmn:UserTask",
+                    "bpmn:CallActivity",
+                    "bpmn:ExclusiveGateway",
+                    "bpmn:ScriptTask",
+                    "bpmn:SendTask"
+                ]
+            }
+        },
+        {
+            "name": "keeps an empty favourites list",
+            "raw": { "favouriteBpmnElements": [] },
+            "normalized": { "favouriteBpmnElements": [] }
+        }
+    ]
+}

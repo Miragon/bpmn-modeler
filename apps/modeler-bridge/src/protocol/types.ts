@@ -15,12 +15,12 @@ import {
     DeploymentFreshness,
     GlobalFunctionDef,
     MethodDef,
+    RawModelerSettings,
 } from "@miragon/bpmn-modeler-core";
 import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentStateSnapshot, SessionMeta } from "../adapters";
-import { SettingsSnapshot } from "../nodeAdapters";
 
 /**
  * `session/register` — the editor identity/meta plus the initial document
@@ -32,7 +32,7 @@ export interface RegisterParams extends SessionMeta {
     /** Host-owned revision preserved across bridge restarts. */
     documentRevision?: number;
     /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
-    settings?: Partial<SettingsSnapshot>;
+    settings?: RawModelerSettings;
 }
 
 /** Empty-body notification/request (e.g. `clipboard/read`, `statusBar/templatesHide`). */
@@ -68,7 +68,7 @@ export interface EditorRefParams {
 
 /** `settings/didChange` — a fresh `miragon.bpmnModeler.*` snapshot from the host. */
 export interface SettingsDidChangeParams {
-    settings: Partial<SettingsSnapshot>;
+    settings: RawModelerSettings;
 }
 
 /** One side of a diff: a diff-scoped pane uri plus its cached XML. */
@@ -150,7 +150,7 @@ export interface ScriptDidOpenExternalParams {
  */
 export interface MarketplaceAddParams {
     location: string;
-    settings: Partial<SettingsSnapshot>;
+    settings: RawModelerSettings;
     scope?: "project" | "application";
 }
 
@@ -159,7 +159,7 @@ export interface MarketplaceAddParams {
  * piggybacks the snapshot for the same reason as {@link MarketplaceAddParams}.
  */
 export interface MarketplaceUpdateParams {
-    settings: Partial<SettingsSnapshot>;
+    settings: RawModelerSettings;
 }
 
 /**
@@ -172,7 +172,7 @@ export interface MarketplaceUpdateParams {
  * may have had no cache slot).
  */
 export interface MarketplaceRemoveParams {
-    settings: Partial<SettingsSnapshot>;
+    settings: RawModelerSettings;
     removedCount: number;
 }
 

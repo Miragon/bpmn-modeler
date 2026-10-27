@@ -21,7 +21,11 @@ const showSaveDialogMock = vi.fn();
 const executeCommandMock = vi.fn();
 const clipboardWriteTextMock = vi.fn();
 const configUpdateMock = vi.fn();
-const getConfigurationMock = vi.fn((_section: string) => ({ update: configUpdateMock }));
+const configGetMock = vi.fn();
+const getConfigurationMock = vi.fn((_section: string) => ({
+    update: configUpdateMock,
+    get: configGetMock,
+}));
 const fsWriteFileMock = vi.fn();
 const uriFileMock = vi.fn((path: string) => ({ scheme: "file", path, fsPath: path }));
 // Mutable so tests can toggle "no folder open" vs. a folder-backed default URI.
@@ -265,6 +269,23 @@ describe("CommandController.changeLanguage", () => {
         // ConfigurationTarget.Global === 1 in the mock; language is a personal
         // preference and must not be pinned to a shared workspace file.
         expect(configUpdateMock).toHaveBeenCalledWith("language", "en", 1);
+    });
+});
+
+describe("CommandController.toggleLinting", () => {
+    it.each([
+        { stored: true, reads: "on", written: false },
+        { stored: false, reads: "off", written: true },
+        { stored: undefined, reads: "on", written: false },
+        { stored: 0, reads: "on", written: false },
+    ])("flips a stored $stored, which reads $reads, to $written", async ({ stored, written }) => {
+        const { controller } = createController();
+        configGetMock.mockReturnValue(stored);
+
+        await controller.toggleLinting();
+
+        expect(configGetMock).toHaveBeenCalledWith("linting.enabled");
+        expect(configUpdateMock).toHaveBeenCalledWith("linting.enabled", written, 1);
     });
 });
 

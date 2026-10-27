@@ -393,6 +393,20 @@ Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
 
+Every host reads a setting the same way, as `normalizeSettings` in the core's
+[`kernel/domain/modelerSettings.ts`](../../libs/modeler-core/src/kernel/domain/modelerSettings.ts)
+decides: a blank config folder, an unknown theme or mode, or a value of the
+wrong type reads as the default, and at most six favourites are pinned. Its
+`DEFAULT_MODELER_SETTINGS` are the defaults the VS Code manifest declares.
+VS Code parses each value as it reads it. The bridge normalises the host's
+snapshot before it compares it with the current one, so a value that reads as
+the current one fires no change. IntelliJ's `ModelerSettingsStore` keeps a
+Kotlin copy, because the IDE's Settings page stores and shows the values
+without the bridge.
+`settingsNormalization.cases.json` beside the rule holds the rows all three
+hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
+the Kotlin test also compares its defaults with the manifest's.
+
 Deployment writes update the optimistic snapshot and await acknowledged host
 persistence. Failures reject, as they do on VS Code, but are not rolled back:
 rolling back would show stale values mid-session, and the next seed reconciles

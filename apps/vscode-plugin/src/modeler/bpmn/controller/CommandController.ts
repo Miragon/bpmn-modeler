@@ -25,7 +25,12 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
 import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
+import {
+    NotifierPort,
+    parseLintingEnabled,
+    PendingEditsFlush,
+    PickerPort,
+} from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 
 export const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
@@ -194,7 +199,7 @@ export class CommandController {
     toggleLinting(): Promise<void> {
         return this.logAndRethrow(async () => {
             const config = workspace.getConfiguration("miragon.bpmnModeler");
-            const enabled = config.get<boolean>("linting.enabled") ?? true;
+            const enabled = parseLintingEnabled(config.get("linting.enabled"));
             await config.update("linting.enabled", !enabled, ConfigurationTarget.Global);
             this.notifier.logInfo(`BPMN linting ${!enabled ? "enabled" : "disabled"}`);
         });

@@ -140,6 +140,14 @@ handler serves a method the core no longer sends. Adding or removing a
 core → host method therefore changes the descriptor, `protocol.json` and the
 Kotlin router in one PR. The test compares method names, not parameter keys.
 
+**Settings rules.** The bridge reads every host snapshot through the core's
+`normalizeSettings`; `ModelerSettingsStore` keeps the Kotlin copy.
+`ModelerSettingsStoreTest` runs the rows of
+`libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json` against
+the store and compares its defaults with `apps/vscode-plugin/package.json`, both
+passed in as Gradle system properties. A rule change edits the rows, the
+TypeScript rule and the Kotlin copy in one PR.
+
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` *synchronously* — impossible over async RPC. The host
 seeds a local `DocumentMirror` on `session/register` and keeps it current via
