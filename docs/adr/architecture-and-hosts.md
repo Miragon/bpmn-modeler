@@ -323,8 +323,8 @@ hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
 it relies on `'unsafe-inline'`. Each host builds its policies in one place,
 VS Code in `webviewContentSecurityPolicy.ts` and IntelliJ in
 `WebviewContentSecurityPolicy.kt`: the directives every shell shares are written
-once, and a shell lists only what its bundle adds, so a shell cannot drop
-`base-uri` or `form-action` on its own. A loader for user-supplied bpmn-io
+once, and a shell lists only what its bundle adds, so a shell can neither drop
+nor reopen `base-uri` or `form-action` on its own. A loader for user-supplied bpmn-io
 plugins must widen these policies on purpose rather than depend on a gap in
 them.
 

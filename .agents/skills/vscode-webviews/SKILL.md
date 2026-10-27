@@ -41,10 +41,14 @@ for the editors (DMN also gets `assets/` for `reset.css`), and
 `webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
 `apps/vscode-plugin/src/shared/infrastructure/webviewContentSecurityPolicy.ts`
 builds all four policies: the directives every shell shares are written once,
-and its `BUNDLE_SOURCES` table lists what each bundle adds. Its spec pins each
-policy, so widen a shell in the table and in that spec; the shell specs only
-check that each shell carries its policy with the nonce of its script. The BPMN
-policy:
+and its `BUNDLE_SOURCES` table lists what each bundle adds. A table entry may
+only widen `script-src` and the load directives (`img-src`, `font-src`,
+`connect-src`, `frame-src`, `object-src`); another key fails the typecheck and
+never reaches the policy. Its spec pins each policy, so widen a shell in the
+table and in that spec. Every shell spec runs `describeShellPolicy` from
+`src/__fixtures__/webviewShell.ts`, which checks only that the shell carries the
+builder's policy for its script's nonce and draws a fresh nonce per render. The
+BPMN policy:
 
 ```text
 default-src 'none';
