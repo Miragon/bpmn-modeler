@@ -45,7 +45,8 @@ export type LintSession =
           readonly negotiation: Negotiation;
           readonly lastFindings?: LintFindings;
       }
-    // The host's first lint is in flight; until it lands, the webview still lints.
+    // The host's first lint is in flight. The webview keeps its in-page tier until
+    // the results land, so no debounced host relint starts meanwhile.
     | { readonly tier: "escalating"; readonly negotiation: Negotiation }
     | { readonly tier: "escalated"; readonly negotiation: Negotiation };
 
@@ -185,6 +186,7 @@ function readConfig(
     }
     const negotiation: Negotiation = { ...version, token: freshToken };
     if (staticUnresolvedModdleExtensions(version.config).length > 0) {
+        // Only a webview that already lints in-page has a tier to hand over.
         return {
             next: { tier: lintsInPage(session) ? "escalating" : "escalated", negotiation },
             action: { kind: "lintOnHost", negotiation },
