@@ -253,6 +253,47 @@ describe("openScriptEditorsHandler", () => {
             `Generated 1 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram.`,
         ]);
     });
+
+    it("counts a failed script write in the summary and still writes the rest", async () => {
+        const materializeScript = vi
+            .fn()
+            .mockResolvedValueOnce({ kind: "written" })
+            .mockRejectedValueOnce(new Error("EACCES: permission denied"))
+            .mockResolvedValueOnce({ kind: "written" });
+        const scriptTaskSvc = { materializeScript };
+        const variableStore = { setExtracted: vi.fn() };
+        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const notifier = new RecordingNotifier();
+
+        await expect(
+            openScriptEditorsHandler(
+                scriptTaskSvc as never,
+                variableStore as never,
+                settings,
+                notifier,
+            )(
+                new OpenScriptEditorsCommand(
+                    [
+                        script("A", "groovy", "a=1"),
+                        script("B", "groovy", "b=2"),
+                        script("C", "groovy", "c=3"),
+                    ],
+                    [],
+                ),
+                EDITOR,
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(materializeScript).toHaveBeenCalledTimes(3);
+        expect(notifier.infos).toEqual([
+            `Generated 2 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram. Could not write 1 script file(s); see the log for details.`,
+        ]);
+        expect(notifier.logged("error")).toEqual([
+            expect.stringMatching(
+                /^Could not write the script file of B: Error: EACCES: permission denied/,
+            ),
+        ]);
+    });
 });
 
 describe("Pattern B: a rejecting service promise propagates through the handler", () => {

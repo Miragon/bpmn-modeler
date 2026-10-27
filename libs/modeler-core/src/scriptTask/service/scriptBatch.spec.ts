@@ -2,7 +2,12 @@ import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
-import { materializeScriptBatch, scriptBatchSummary } from "./scriptBatch";
+import { RecordingNotifier } from "../../testing";
+import {
+    materializeScriptBatch,
+    type ScriptMaterialization,
+    scriptBatchSummary,
+} from "./scriptBatch";
 
 type MaterializeResult = { written: boolean } | undefined;
 type Materialize = (script: ScriptTaskScript) => Promise<MaterializeResult>;
@@ -11,7 +16,7 @@ function script(elementId: string): ScriptTaskScript {
     return { elementId, scriptFormat: "javascript", content: `// ${elementId}` };
 }
 
-function materializedIds(materialize: Mock<Materialize>): string[] {
+function materializedIds(materialize: Pick<Mock<Materialize>, "mock">): string[] {
     return materialize.mock.calls.map(([materialized]) => materialized.elementId);
 }
 
@@ -73,6 +78,41 @@ describe("materializeScriptBatch", () => {
         ).rejects.toThrow("disk full");
         expect(materializedIds(materialize)).toEqual(["A", "B"]);
     });
+
+    it("counts a failed script and keeps materialising the rest", async () => {
+        const materialize = vi
+            .fn<(script: ScriptTaskScript) => Promise<ScriptMaterialization>>()
+            .mockResolvedValueOnce({ kind: "written" })
+            .mockRejectedValueOnce(new Error("disk full"))
+            .mockResolvedValueOnce({ kind: "failed", error: new Error("read-only") })
+            .mockResolvedValueOnce({ kind: "written" });
+
+        await expect(
+            materializeScriptBatch(
+                [script("A"), script("B"), script("C"), script("D")],
+                materialize,
+                new RecordingNotifier(),
+            ),
+        ).resolves.toEqual({ generated: 2, alreadyOpen: 0, failed: 2 });
+        expect(materializedIds(materialize)).toEqual(["A", "B", "C", "D"]);
+    });
+
+    it("logs which script failed and why", async () => {
+        const logger = new RecordingNotifier();
+        const materialize = vi
+            .fn<(script: ScriptTaskScript) => Promise<ScriptMaterialization>>()
+            .mockRejectedValueOnce(new Error("disk full"))
+            .mockResolvedValueOnce({ kind: "failed", error: new Error("read-only") });
+
+        await materializeScriptBatch([script("A"), script("B")], materialize, logger).catch(
+            () => undefined,
+        );
+
+        expect(logger.logged("error")).toEqual([
+            expect.stringMatching(/^Could not write the script file of A: Error: disk full/),
+            expect.stringMatching(/^Could not write the script file of B: Error: read-only/),
+        ]);
+    });
 });
 
 describe("scriptBatchSummary", () => {
@@ -85,6 +125,12 @@ describe("scriptBatchSummary", () => {
     it("mentions scripts left untouched because they were already open", () => {
         expect(scriptBatchSummary({ generated: 1, alreadyOpen: 3 }, "scripts")).toBe(
             "Generated 1 script file(s) in scripts (3 already open, left untouched) — open a file to edit it with live sync into the diagram.",
+        );
+    });
+
+    it("summary names failed scripts", () => {
+        expect(scriptBatchSummary({ generated: 1, alreadyOpen: 0, failed: 2 }, "scripts")).toBe(
+            "Generated 1 script file(s) in scripts — open a file to edit it with live sync into the diagram. Could not write 2 script file(s); see the log for details.",
         );
     });
 });
