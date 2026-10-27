@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-26
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -184,17 +184,19 @@ are unsaved, and the core's flush would end in a `document/write` that waits
 for that EDT. The host asks every open page with a non-destructive flush,
 waits at most 250 ms for all replies of a project together, and writes each
 export whose revision still matches into its Document, which the same save
-then persists. The page stays editable and its sync stays armed, so the core
-still gets the edit; the host reports that late write as a change, see
-[document causation](#document-causation-and-session-identity). A page that
-does not answer in time is saved as it is. The host numbers its flushes down
-from -1 and the core up from 1: the page answers both on one channel, and
-every reply also reaches the core, so neither may take the other's reply or
-release the other's lock. Since 2026.1, switching away saves from a background
-thread, but the platform still delivers the event on the EDT through
-`invokeAndWait` while the saving thread holds no lock, so the host's write
-cannot deadlock it.
-Accepted residual: a sync the page posted just before the save, whose core
+then persists. A page that answers `clean` because its sync went out while
+the host waited gets that sync written the same way, since its core write
+would land after the save. The page stays editable and its sync stays armed,
+so the core still gets the edit; the host reports that late write as a
+change, see [document causation](#document-causation-and-session-identity). A
+page that does not answer in time is saved as it is. The host numbers its
+flushes down from -1 and the core up from 1: the page answers both on one
+channel, and every reply also reaches the core, so neither may take the
+other's reply or release the other's lock. On 2026.1 (checked on 2026.1.3),
+switching away saves from a background thread, but the platform still
+delivers the event on the EDT through `invokeAndWait` while the saving thread
+holds no lock, so the host's write cannot deadlock it.
+Accepted residual: a sync the page posted before the host asked, whose core
 write has not reached the EDT yet, lands after the save; a properties-panel
 value the panel has not passed to the modeler yet is not flushed on either
 host; and a save of one Document (`saveDocument`), which neither Ctrl+S nor

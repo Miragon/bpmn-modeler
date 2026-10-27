@@ -608,8 +608,9 @@ internal class EditorSessionRouter(
      * The reply goes straight into the Document: the bridge's `document/write`
      * would need the EDT a save or a close blocks. All replies share one
      * ≤[PAGE_FLUSH_TIMEOUT_MS] wait and land on the JCEF handler thread
-     * ([resolvePageFlush]), so an EDT caller cannot self-deadlock. XML from the
-     * forced normal-sync fallback is written like a reply.
+     * ([resolvePageFlush]), so an EDT caller cannot self-deadlock. A sync the
+     * page sends during the wait is written like a reply when the page could not
+     * export, and on a save also when it had nothing left to export.
      */
     private fun recoverPageEdits(entries: List<SessionEntry>, purpose: PageFlushPurpose): List<PageFlush> {
         val flushes = entries.mapNotNull { requestPageFlush(it, purpose) }
@@ -625,7 +626,7 @@ internal class EditorSessionRouter(
     private fun requestPageFlush(entry: SessionEntry, purpose: PageFlushPurpose): PageFlush? {
         val editorId = entry.session.editorId
         if (hasPendingExternalUpdate(editorId)) return null
-        val flush = PageFlush(entry, pageFlushToken.decrementAndGet(), entry.documentRevision.get())
+        val flush = PageFlush(entry, pageFlushToken.decrementAndGet(), entry.documentRevision.get(), purpose)
         pageFlushes.compute(editorId) { _, inFlight ->
             (inFlight ?: ConcurrentHashMap()).apply { put(flush.token, flush) }
         }
@@ -768,6 +769,13 @@ internal class EditorSessionRouter(
 
         // The page stays editable and its sync stays armed, so the core still gets the edit.
         SAVE(destructive = false, exportWhenEdited = false),
+        ;
+
+        // A non-destructive flush answers `clean` once the page's sync went out,
+        // so a sync caught during the wait is the page's newest edit. A
+        // destructive one drains its own sync and answers `clean` only for a page
+        // unedited since its last host import, which a caught sync predates.
+        val cleanReplyKeepsCapturedSync: Boolean get() = !destructive
     }
 
     /** One in-flight page-flush round-trip: its session, token, latch, and the reply. */
@@ -775,6 +783,7 @@ internal class EditorSessionRouter(
         val entry: SessionEntry,
         val token: Long,
         val expectedDocumentRevision: Long,
+        private val purpose: PageFlushPurpose,
     ) {
         val latch = CountDownLatch(1)
 
@@ -788,20 +797,15 @@ internal class EditorSessionRouter(
         var contentRevision: Long? = null
             private set
 
-        /** Keeps the page's forced normal sync, which an `unavailable` reply falls back to. */
+        /** Keeps a sync the page sent during the wait, which [pageFlushContent] may fall back to. */
         fun captureSync(sync: SyncDocumentReply) {
             content = sync.content
             contentRevision = sync.documentRevision
         }
 
         fun resolve(reply: DocumentFlushedReply) {
-            content = pageFlushContent(content, reply)
-            contentRevision =
-                when (reply.status) {
-                    "flushed" -> reply.documentRevision
-                    "unavailable" -> contentRevision
-                    else -> null
-                }
+            content = pageFlushContent(content, reply, purpose.cleanReplyKeepsCapturedSync)
+            if (reply.status == "flushed") contentRevision = reply.documentRevision
             latch.countDown()
         }
     }
@@ -939,10 +943,15 @@ private fun JsonElement.asStringOrNull(): String? = takeIf { !it.isJsonNull }?.a
 internal fun parseSyncDocumentContent(raw: String, gson: Gson): String? =
     parseSyncDocumentReply(raw, gson)?.content
 
-internal fun pageFlushContent(capturedSync: String?, reply: DocumentFlushedReply): String? =
+internal fun pageFlushContent(
+    capturedSync: String?,
+    reply: DocumentFlushedReply,
+    cleanReplyKeepsCapturedSync: Boolean,
+): String? =
     when (reply.status) {
         "flushed" -> reply.content
         "unavailable" -> capturedSync
+        "clean" -> capturedSync.takeIf { cleanReplyKeepsCapturedSync }
         else -> null
     }
 
