@@ -7,6 +7,7 @@ import {
     expandEnvRefsLeniently,
 } from "./envRef";
 import { hostOf } from "../../kernel/domain/http";
+import { normalizeLineEndings } from "../../kernel/domain/lineEndings";
 
 /**
  * Freshness of the active editor content relative to what was last deployed to
@@ -39,11 +40,10 @@ export interface DeployedRevision {
  * different seeds and concatenated. No `node:crypto`, so the core stays
  * host-agnostic — matching the `hashSlug` precedent in the template marketplace.
  *
- * EOL is normalised first so a file saved LF vs CRLF fingerprints identically,
- * mirroring `sameDocumentContent` in `EditorSessionStore`.
+ * EOL is normalised first so a file saved LF vs CRLF fingerprints identically.
  */
 export function contentFingerprint(content: string): string {
-    const normalised = content.replace(/\r\n?/g, "\n");
+    const normalised = normalizeLineEndings(content);
     return fnv1a(normalised, 0x811c9dc5) + fnv1a(normalised, 0x01000193);
 }
 
