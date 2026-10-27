@@ -101,6 +101,33 @@ describe("isInsideRanges", () => {
     ])("counts offset $offset as inside [2, 5): $inside", ({ offset, inside }) => {
         expect(isInsideRanges([[2, 5]], offset)).toBe(inside);
     });
+
+    it.each([
+        { offset: 0, inside: false },
+        { offset: 2, inside: true },
+        { offset: 6, inside: false },
+        { offset: 7, inside: true },
+        { offset: 8, inside: true },
+        { offset: 9, inside: false },
+        { offset: 12, inside: true },
+        { offset: 19, inside: true },
+        { offset: 20, inside: false },
+    ])(
+        "counts offset $offset as inside [2, 5), [7, 9), [12, 20): $inside",
+        ({ offset, inside }) => {
+            const ranges = [
+                [2, 5],
+                [7, 9],
+                [12, 20],
+            ] as const;
+
+            expect(isInsideRanges(ranges, offset)).toBe(inside);
+        },
+    );
+
+    it("counts nothing as inside no ranges", () => {
+        expect(isInsideRanges([], 0)).toBe(false);
+    });
 });
 
 describe("matchesOutsideCommentsAndCdata", () => {
@@ -133,5 +160,14 @@ describe("matchesOutsideCommentsAndCdata", () => {
 
     it("keeps the pattern's flags", () => {
         expect(matchesOutsideCommentsAndCdata(`ID="b"`, /id="B"/i)).toBe(true);
+    });
+
+    it("stays fast on many sections that hide many matches", () => {
+        const content = "<!---->".repeat(80_000) + `<!-- id="B" -->`.repeat(40_000);
+        const startedAt = Date.now();
+
+        expect(matchesOutsideCommentsAndCdata(content, /id="B"/)).toBe(false);
+
+        expect(Date.now() - startedAt).toBeLessThan(1000);
     });
 });

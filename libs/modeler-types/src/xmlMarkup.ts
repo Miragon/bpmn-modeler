@@ -47,8 +47,22 @@ export function containsCommentOrCdataClose(text: string): boolean {
     return SECTIONS.some(({ close }) => text.includes(close));
 }
 
+/** `ranges` must be sorted and disjoint, as {@link commentAndCdataRanges} returns them. */
 export function isInsideRanges(ranges: readonly TextRange[], offset: number): boolean {
-    return ranges.some(([start, end]) => offset >= start && offset < end);
+    let low = 0;
+    let high = ranges.length;
+    while (low < high) {
+        const middle = (low + high) >>> 1;
+        const [start, end] = ranges[middle];
+        if (offset < start) {
+            high = middle;
+        } else if (offset >= end) {
+            low = middle + 1;
+        } else {
+            return true;
+        }
+    }
+    return false;
 }
 
 /** Whether `pattern` matches at least once outside every comment and CDATA section. */
