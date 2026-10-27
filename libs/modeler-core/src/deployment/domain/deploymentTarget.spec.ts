@@ -18,6 +18,7 @@ import {
     DeploymentTargets,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TargetChange,
     TargetRequest,
 } from "./deploymentTarget";
 import { emptyEnvLookup } from "./envRef";
@@ -1239,9 +1240,145 @@ describe("serializeDeploymentTargets", () => {
 });
 
 describe("DeploymentTargets", () => {
-    it("appends a new target on add", () => {
-        const result = new DeploymentTargets([target("dev")]).add(target("prod"));
-        expect(result.map((t) => t.name)).toEqual(["dev", "prod"]);
+    describe("the change an edit makes", () => {
+        const dev = target("dev", { tenantId: "saved" });
+        const editedDev = target("dev", { tenantId: "edited" });
+        const prod = target("prod");
+        const staging = target("staging");
+        const saved = new DeploymentTargets([dev, prod]);
+
+        interface TargetChangeCase {
+            readonly behaviour: string;
+            readonly edit: () => TargetChange;
+            readonly change: {
+                readonly kind: TargetChange["kind"];
+                readonly before: DeploymentTarget | undefined;
+                readonly targets: readonly DeploymentTarget[];
+                readonly retiredTarget: DeploymentTarget | undefined;
+                readonly retiredSlotName: string | undefined;
+                readonly approvalsInheritedFrom: string | undefined;
+            };
+        }
+
+        const created = {
+            kind: "created",
+            before: undefined,
+            targets: [dev, prod, staging],
+            retiredTarget: undefined,
+            retiredSlotName: undefined,
+            approvalsInheritedFrom: undefined,
+        } as const;
+        const savedOverDev = {
+            kind: "saved",
+            before: dev,
+            targets: [prod, editedDev],
+            retiredTarget: undefined,
+            retiredSlotName: undefined,
+            approvalsInheritedFrom: "dev",
+        } as const;
+        const renamedFromDev = {
+            kind: "renamed",
+            before: dev,
+            targets: [prod, staging],
+            retiredTarget: dev,
+            retiredSlotName: "dev",
+            approvalsInheritedFrom: "dev",
+        } as const;
+        const removedDev = {
+            kind: "removed",
+            before: dev,
+            targets: [prod],
+            retiredTarget: dev,
+            retiredSlotName: "dev",
+            approvalsInheritedFrom: undefined,
+        } as const;
+
+        it.each<TargetChangeCase>([
+            {
+                behaviour: "an add creates the target with no approvals to inherit",
+                edit: () => saved.add(staging),
+                change: created,
+            },
+            {
+                behaviour: "an upsert of a name the file does not hold creates the target",
+                edit: () => saved.upsert(staging),
+                change: created,
+            },
+            {
+                behaviour: "an upsert of a saved name saves over it and keeps its approvals",
+                edit: () => saved.upsert(editedDev),
+                change: savedOverDev,
+            },
+            {
+                behaviour: "an upsert under its own padded previous name is no rename",
+                edit: () => saved.upsert(editedDev, " dev "),
+                change: savedOverDev,
+            },
+            {
+                behaviour:
+                    "a rename retires the old target and slot and carries its approvals over",
+                edit: () => saved.upsert(staging, "dev"),
+                change: renamedFromDev,
+            },
+            {
+                behaviour: "a rename matches the padded previous name",
+                edit: () => saved.upsert(staging, "  dev "),
+                change: renamedFromDev,
+            },
+            {
+                behaviour:
+                    "a rename from a name the file no longer holds still retires that name's slot",
+                edit: () => saved.upsert(staging, "gone"),
+                change: {
+                    kind: "renamed",
+                    before: undefined,
+                    targets: [dev, prod, staging],
+                    retiredTarget: undefined,
+                    retiredSlotName: "gone",
+                    approvalsInheritedFrom: undefined,
+                },
+            },
+            {
+                behaviour: "a remove retires the target and its slot",
+                edit: () => saved.remove("dev"),
+                change: removedDev,
+            },
+            {
+                behaviour: "a remove matches the padded name",
+                edit: () => saved.remove(" dev "),
+                change: removedDev,
+            },
+            {
+                behaviour: "a remove of a name the file no longer holds still retires its slot",
+                edit: () => saved.remove("gone"),
+                change: {
+                    kind: "removed",
+                    before: undefined,
+                    targets: [dev, prod],
+                    retiredTarget: undefined,
+                    retiredSlotName: "gone",
+                    approvalsInheritedFrom: undefined,
+                },
+            },
+        ])("$behaviour", ({ edit, change }) => {
+            const {
+                kind,
+                before,
+                targets,
+                retiredTarget,
+                retiredSlotName,
+                approvalsInheritedFrom,
+            } = edit();
+
+            expect({
+                kind,
+                before,
+                targets,
+                retiredTarget,
+                retiredSlotName,
+                approvalsInheritedFrom,
+            }).toStrictEqual(change);
+        });
     });
 
     it("throws on add of a duplicate name", () => {
@@ -1250,36 +1387,10 @@ describe("DeploymentTargets", () => {
         );
     });
 
-    it("appends a new target on upsert", () => {
-        const result = new DeploymentTargets([target("dev")]).upsert(target("prod"));
-        expect(result.map((t) => t.name)).toEqual(["dev", "prod"]);
-    });
-
-    it("replaces an existing target by name", () => {
-        const result = new DeploymentTargets([target("dev", { tenantId: "old" })]).upsert(
-            target("dev", { tenantId: "new" }),
-        );
-        expect(result).toHaveLength(1);
-        expect(result[0].tenantId).toBe("new");
-    });
-
-    it("drops the previous name on rename", () => {
-        const result = new DeploymentTargets([target("dev"), target("prod")]).upsert(
-            target("staging"),
-            "dev",
-        );
-        expect(result.map((t) => t.name)).toEqual(["prod", "staging"]);
-    });
-
     it("throws when a rename collides with another target's name", () => {
         expect(() =>
             new DeploymentTargets([target("dev"), target("prod")]).upsert(target("prod"), "dev"),
         ).toThrow(DuplicateDeploymentTargetError);
-    });
-
-    it("removes by name", () => {
-        const result = new DeploymentTargets([target("dev"), target("prod")]).remove("dev");
-        expect(result.map((t) => t.name)).toEqual(["prod"]);
     });
 
     it("finds by trimmed name", () => {

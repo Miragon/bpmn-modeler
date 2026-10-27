@@ -15,6 +15,8 @@ import {
     DeploymentTargets,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TargetChange,
+    TargetRemoved,
 } from "../domain/deploymentTarget";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
@@ -125,10 +127,15 @@ export class DeploymentTargetService {
         payload: DeploymentTargetPayload,
         auth: AuthConfigPayload,
         documentDir?: string,
-    ): Promise<void> {
-        await this.persistTarget(payload, auth, documentDir, undefined, (targets, target) =>
-            targets.add(target),
+    ): Promise<TargetChange> {
+        const { change } = await this.persistTarget(
+            payload,
+            auth,
+            documentDir,
+            undefined,
+            (targets, target) => targets.add(target),
         );
+        return change;
     }
 
     /**
@@ -143,8 +150,8 @@ export class DeploymentTargetService {
         auth: AuthConfigPayload,
         previousName: string | undefined,
         documentDir?: string,
-    ): Promise<void> {
-        const { location, target } = await this.persistTarget(
+    ): Promise<TargetChange> {
+        const { location, target, change } = await this.persistTarget(
             payload,
             auth,
             documentDir,
@@ -154,6 +161,7 @@ export class DeploymentTargetService {
         if (previousName !== undefined && previousName.trim() !== target.name) {
             await this.secretStore.delete(this.slotFor(location.filePath, previousName.trim()));
         }
+        return change;
     }
 
     /** @param savedName The name the target had before this save; `undefined` for a create. */
@@ -162,8 +170,8 @@ export class DeploymentTargetService {
         auth: AuthConfigPayload,
         documentDir: string | undefined,
         savedName: string | undefined,
-        apply: (targets: DeploymentTargets, target: DeploymentTarget) => DeploymentTarget[],
-    ): Promise<{ location: TargetsLocation; target: DeploymentTarget }> {
+        apply: (targets: DeploymentTargets, target: DeploymentTarget) => TargetChange,
+    ): Promise<{ location: TargetsLocation; target: DeploymentTarget; change: TargetChange }> {
         const location = await this.locateTargetsFile(documentDir);
         if (location === undefined) {
             throw new Error("Open a workspace folder before saving a deployment target.");
@@ -177,8 +185,11 @@ export class DeploymentTargetService {
         });
         const current = new DeploymentTargets(await this.readTargets(location));
         const saved = savedName === undefined ? undefined : current.find(savedName);
-        const next = apply(current, target);
-        await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
+        const change = apply(current, target);
+        await this.workspace.writeFile(
+            location.filePath,
+            serializeDeploymentTargets(change.targets),
+        );
 
         // Refs are stored too: they overwrite any older literal, and a backend that
         // reads an empty half back as null would drop the literal next to it.
@@ -186,7 +197,7 @@ export class DeploymentTargetService {
         await this.saveSecrets(slot, credentials);
         await this.approveTypedDestinations(slot, target, saved, current, location.filePath);
         await this.setActiveTarget(target.name);
-        return { location, target };
+        return { location, target, change };
     }
 
     /**
@@ -214,29 +225,33 @@ export class DeploymentTargetService {
         await this.secretStore.saveApprovedDestinations(slot, [...inherited.union(typed).origins]);
     }
 
-    async deleteTarget(name: string, documentDir?: string): Promise<boolean> {
+    /** @returns `undefined` when the user cancels or there is no targets file. */
+    async deleteTarget(name: string, documentDir?: string): Promise<TargetRemoved | undefined> {
         const confirmed = await this.picker.confirmDestructive({
             title: `Delete deployment target "${name}"?`,
             confirmLabel: "Delete",
             details: [`Target "${name}" and its stored credentials will be removed.`],
         });
         if (!confirmed) {
-            return false;
+            return undefined;
         }
 
         const location = await this.locateTargetsFile(documentDir);
         if (location === undefined || !location.exists) {
-            return false;
+            return undefined;
         }
         const current = await this.readTargets(location);
-        const next = new DeploymentTargets(current).remove(name);
-        await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
+        const change = new DeploymentTargets(current).remove(name);
+        await this.workspace.writeFile(
+            location.filePath,
+            serializeDeploymentTargets(change.targets),
+        );
         await this.secretStore.delete(this.slotFor(location.filePath, name));
 
         if (this.deploymentState.getActiveTargetName() === name.trim()) {
             await this.setActiveTarget("");
         }
-        return true;
+        return change;
     }
 
     /**

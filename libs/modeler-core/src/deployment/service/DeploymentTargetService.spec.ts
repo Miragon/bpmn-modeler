@@ -619,6 +619,23 @@ describe("DeploymentTargetService.saveTarget", () => {
         await expect(c.host.secrets.getBasicAuth(slot("old"))).resolves.toBeUndefined();
     });
 
+    it("returns a renamed change carrying the old target", async () => {
+        const old = target("old", { tenantId: "saved" });
+        const c = serviceWithTargetsFile(fileWith(old));
+
+        const change = await c.service.saveTarget(
+            { ...toTargetPayload(old), name: "new" },
+            { authType: "none" },
+            "old",
+            DOC_DIR,
+        );
+
+        expect({ kind: change.kind, before: change.before }).toEqual({
+            kind: "renamed",
+            before: old,
+        });
+    });
+
     it("throws when there is no workspace to store the file in", async () => {
         const c = createService({ folders: [] });
 
@@ -779,13 +796,24 @@ describe("DeploymentTargetService.deleteTarget", () => {
         c.host.deploymentState.activeTargetName = "dev";
         await c.host.secrets.saveBasicAuth("u", "p", slot("dev"));
 
-        const deleted = await c.service.deleteTarget("dev", DOC_DIR);
+        await c.service.deleteTarget("dev", DOC_DIR);
 
-        expect(deleted).toBe(true);
         const written = c.host.workspace.files.get(FILE_PATH);
         expect(written).not.toContain('"dev"');
         await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
         expect(c.host.deploymentState.activeTargetName).toBe("");
+    });
+
+    it("returns a removed change carrying the deleted target", async () => {
+        const dev = target("dev", { tenantId: "saved" });
+        const c = serviceWithTargetsFile(fileWith(dev, target("prod")));
+
+        const change = await c.service.deleteTarget("dev", DOC_DIR);
+
+        expect({ kind: change?.kind, before: change?.before }).toEqual({
+            kind: "removed",
+            before: dev,
+        });
     });
 
     it("is a no-op when the user cancels the confirm", async () => {
@@ -793,7 +821,7 @@ describe("DeploymentTargetService.deleteTarget", () => {
         const c = createService({ files: { [FILE_PATH]: existing }, answers: {} });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
 
-        expect(await c.service.deleteTarget("dev", DOC_DIR)).toBe(false);
+        expect(await c.service.deleteTarget("dev", DOC_DIR)).toBeUndefined();
         expect(c.host.workspace.files.get(FILE_PATH)).toBe(existing);
     });
 });

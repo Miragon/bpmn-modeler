@@ -397,6 +397,84 @@ export class DeploymentTarget {
 }
 
 /**
+ * What one edit of the targets file does, with the targets to write: the
+ * services retire the slot and ledger rows it names and carry over the
+ * approvals it names.
+ */
+export type TargetChange = TargetCreated | TargetSaved | TargetRenamed | TargetRemoved;
+
+export class TargetCreated {
+    readonly kind = "created" as const;
+    readonly before = undefined;
+    readonly retiredTarget = undefined;
+    readonly retiredSlotName = undefined;
+    readonly approvalsInheritedFrom = undefined;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly target: DeploymentTarget,
+    ) {}
+}
+
+export class TargetSaved {
+    readonly kind = "saved" as const;
+    readonly retiredTarget = undefined;
+    readonly retiredSlotName = undefined;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly target: DeploymentTarget,
+        readonly before: DeploymentTarget,
+    ) {}
+
+    get approvalsInheritedFrom(): string | undefined {
+        return undefined;
+    }
+}
+
+export class TargetRenamed {
+    readonly kind = "renamed" as const;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly target: DeploymentTarget,
+        readonly previousName: string,
+        readonly before: DeploymentTarget | undefined,
+    ) {}
+
+    get retiredTarget(): DeploymentTarget | undefined {
+        return undefined;
+    }
+
+    get retiredSlotName(): string | undefined {
+        return undefined;
+    }
+
+    get approvalsInheritedFrom(): string | undefined {
+        return undefined;
+    }
+}
+
+export class TargetRemoved {
+    readonly kind = "removed" as const;
+    readonly approvalsInheritedFrom = undefined;
+
+    constructor(
+        readonly targets: readonly DeploymentTarget[],
+        readonly name: string,
+        readonly before: DeploymentTarget | undefined,
+    ) {}
+
+    get retiredTarget(): DeploymentTarget | undefined {
+        return undefined;
+    }
+
+    get retiredSlotName(): string | undefined {
+        return undefined;
+    }
+}
+
+/**
  * Immutable collection of targets. Mutating operations return a fresh array so
  * callers can persist the new state without in-place aliasing.
  */
@@ -419,11 +497,11 @@ export class DeploymentTargets {
      * Appends a new target. Throws {@link DuplicateDeploymentTargetError} when
      * its name already exists so a create never silently overwrites.
      */
-    add(target: DeploymentTarget): DeploymentTarget[] {
+    add(target: DeploymentTarget): TargetCreated {
         if (this.find(target.name) !== undefined) {
             throw new DuplicateDeploymentTargetError(target.name);
         }
-        return [...this.targets, target];
+        return new TargetCreated([...this.targets, target], target);
     }
 
     /**
@@ -432,7 +510,7 @@ export class DeploymentTargets {
      * onto another existing target's name throws
      * {@link DuplicateDeploymentTargetError}.
      */
-    upsert(target: DeploymentTarget, previousName?: string): DeploymentTarget[] {
+    upsert(target: DeploymentTarget, previousName?: string): TargetChange {
         const isRename = previousName !== undefined && previousName.trim() !== target.name;
         if (isRename && this.find(target.name) !== undefined) {
             throw new DuplicateDeploymentTargetError(target.name);
@@ -442,12 +520,16 @@ export class DeploymentTargets {
             removeNames.add(previousName.trim());
         }
         const kept = this.targets.filter((existing) => !removeNames.has(existing.name));
-        return [...kept, target];
+        return new TargetCreated([...kept, target], target);
     }
 
-    remove(name: string): DeploymentTarget[] {
+    remove(name: string): TargetRemoved {
         const normalized = name.trim();
-        return this.targets.filter((existing) => existing.name !== normalized);
+        return new TargetRemoved(
+            this.targets.filter((existing) => existing.name !== normalized),
+            normalized,
+            undefined,
+        );
     }
 }
 
