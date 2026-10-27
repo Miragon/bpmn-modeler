@@ -80,8 +80,9 @@ class ModelerSettingsStore {
 
     /**
      * The snapshot shaped exactly as the bridge's `settings` RPC param (see the
-     * TS `SettingsSnapshot`). Gson serialises the list as a JSON array; the core
-     * computes the per-key change diff, so the host only ever sends the full set.
+     * core's `ModelerSettingsSnapshot` in `kernel/domain/modelerSettings.ts`).
+     * Gson serialises the list as a JSON array; the core computes the per-key
+     * change diff, so the host only ever sends the full set.
      *
      * `project` is required so the `marketplaces` key is the app ∪ project union
      * from [ProjectMarketplacesStore] rather than the app-only list — the core
@@ -100,8 +101,8 @@ class ModelerSettingsStore {
             "defaultMode" to current.defaultMode,
             "favouriteBpmnElements" to current.favouriteBpmnElements,
             "language" to current.language,
-            // The RPC key is the camelCase field name matching the bridge's
-            // `SettingsSnapshot`, NOT the dotted persisted key — a mismatch here
+            // The RPC key is the camelCase field name matching the core's
+            // `ModelerSettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
             "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
@@ -157,8 +158,9 @@ class ModelerSettingsStore {
         /** The append-menu palette pins no more. */
         const val MAX_FAVOURITES = 6
 
-        private val COLOR_THEMES = setOf("automatic", "light")
-        private val DEFAULT_MODES = setOf("view", "design", "implement")
+        /** In the order the Settings page offers them. */
+        internal val COLOR_THEMES = listOf("automatic", "light")
+        internal val DEFAULT_MODES = listOf("implement", "design", "view")
 
         // Keys mirror the VS Code `miragon.bpmnModeler.*` namespace.
         private const val ALIGN_TO_ORIGIN = "miragon.bpmnModeler.alignToOrigin"
@@ -179,8 +181,8 @@ class ModelerSettingsStore {
         private const val DEFAULT_CONFIG_FOLDER = ".camunda"
         private const val DEFAULT_PERSIST_CODE_LINK_MAP = false
         private const val DEFAULT_C8_API_VERSION = "v2"
-        private const val DEFAULT_COLOR_THEME = "automatic"
-        private const val DEFAULT_DEFAULT_MODE = "implement"
+        internal const val DEFAULT_COLOR_THEME = "automatic"
+        internal const val DEFAULT_DEFAULT_MODE = "implement"
         private const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
         private val DEFAULT_FAVOURITE_ELEMENTS =

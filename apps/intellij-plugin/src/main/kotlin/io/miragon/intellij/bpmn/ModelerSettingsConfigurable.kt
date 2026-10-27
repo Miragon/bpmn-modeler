@@ -85,14 +85,19 @@ class ModelerSettingsConfigurable : Configurable {
                     textField().bindText({ state.c8ApiVersion }, { state.c8ApiVersion = it })
                 }
                 row("Color theme:") {
-                    comboBox(COLOR_THEMES)
-                        .bindItem({ state.colorTheme }, { state.colorTheme = it ?: DEFAULT_THEME })
+                    comboBox(ModelerSettingsStore.COLOR_THEMES).bindItem(
+                        { state.colorTheme },
+                        { state.colorTheme = it ?: ModelerSettingsStore.DEFAULT_COLOR_THEME },
+                    )
                 }
                 row("Default mode:") {
                     comboBox(
-                        DEFAULT_MODES,
+                        ModelerSettingsStore.DEFAULT_MODES,
                         textListCellRenderer<String?> { mode -> mode?.let { MODE_LABELS[it] ?: it } ?: "" },
-                    ).bindItem({ state.defaultMode }, { state.defaultMode = it ?: DEFAULT_MODE })
+                    ).bindItem(
+                        { state.defaultMode },
+                        { state.defaultMode = it ?: ModelerSettingsStore.DEFAULT_DEFAULT_MODE },
+                    )
                         .comment(
                             "The mode a BPMN editor opens in when it has no remembered mode. On an " +
                                 "untagged (engine-neutral) model, <b>Implement</b> is unavailable and " +
@@ -224,11 +229,7 @@ class ModelerSettingsConfigurable : Configurable {
     private companion object {
         const val FAVOURITES_ROWS = 5
         const val MARKETPLACES_ROWS = 4
-        const val DEFAULT_THEME = "automatic"
-        const val DEFAULT_MODE = "implement"
 
-        val COLOR_THEMES = listOf("automatic", "light")
-        val DEFAULT_MODES = listOf("implement", "design", "view")
         val MODE_LABELS = mapOf("implement" to "Implement", "design" to "Design", "view" to "View")
     }
 }
