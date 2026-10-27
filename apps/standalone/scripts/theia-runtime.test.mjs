@@ -32,7 +32,13 @@ test("plugin downloads exclude only unavailable pack members and keep other fail
     assert.equal(app.scripts["download:plugins"], "theia download:plugins");
 });
 
-for (const id of ["vscode.java", "vscode.javascript", "vscode.json", "vscode.markdown", "vscode.yaml"]) {
+for (const id of [
+    "vscode.java",
+    "vscode.javascript",
+    "vscode.json",
+    "vscode.markdown",
+    "vscode.yaml",
+]) {
     test(`the built-in language pack retains ${id}`, () => {
         assert.ok(!app.theiaPluginsExcludeIds?.includes(id));
     });

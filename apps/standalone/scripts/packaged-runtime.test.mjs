@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+    existsSync,
+    mkdtempSync,
+    readFileSync,
+    readdirSync,
+    rmSync,
+    statSync,
+    writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -32,7 +40,8 @@ for (const language of ["java", "javascript", "json", "markdown", "yaml"]) {
         const extensions = extensionManifests(plugins);
         assert.ok(
             extensions.some(({ manifest }) =>
-                manifest.contributes?.languages?.some(({ id }) => id === language)),
+                manifest.contributes?.languages?.some(({ id }) => id === language),
+            ),
             `${language} must be registered by a bundled extension`,
         );
         const grammars = extensions.flatMap(({ directory, manifest }) =>
