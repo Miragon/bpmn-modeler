@@ -276,11 +276,22 @@ background diagrams), the focused diagram's state on the right (engine
 version, BPMNlint, deployment target). A transient view hides itself after
 3 s, and a later show or hide of its slot cancels that
 ([`VsCodeStatusBar.spec.ts`](../../apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.spec.ts)).
-Until each slot's callers move to the port
+The bridge sends a slot as one `statusBar/update {slot, view}` frame, with
+`view: null` to hide it. IntelliJ follows VS Code as far as its status bar
+allows: one widget per slot, the same text and tooltip, the same 3 s rule, and
+the same click actions (Change Engine Version, the lint toggle over
+`linting/toggle`, the deployment menu). Its status bar has no left side, so all
+four widgets sit on the right in VS Code's left-to-right order. A tone colours
+only the `dot` icon; the other icons are IntelliJ's own. The protocol snapshot holds
+only top-level keys, so `HostUiRouterTest` pins the view fields and
+`StatusSlotPlacementTest` reads `statusView.ts` and fails when a slot, icon,
+tone or action has no Kotlin counterpart; at runtime the router logs and drops
+what it does not know. Until each slot's callers move to the port
 ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
 widget-shaped `LegacyStatusBarPort`, `BpmnlintStatusBarPort` and
 `DeploymentStatusBarPort` remain: VS Code builds their views in its adapter,
-and the bridge forwards them as one RPC per widget method.
+the bridge forwards them as one RPC per widget method, and IntelliJ builds the
+same slot's view from them with its old labels.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked

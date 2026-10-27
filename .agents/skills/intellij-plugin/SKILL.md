@@ -129,7 +129,8 @@ in the bridge README):
 | host → core | `webview/message` | inbound `Command` → `WebviewMessageRouter` |
 | core → host | `document/write`, `document/save` | `DocumentPort` |
 | core → host | `editor/postMessage` | Query/Command → webview |
-| core → host | `notifier/*`, `statusBar/*` | `Notifications.Bus`, `EngineStatusBarWidget` |
+| core → host | `notifier/*`, `statusBar/update` | `Notifications.Bus`, one `StatusSlotWidget` per status slot |
+| host → core | `linting/toggle` | the BPMNlint widget's click flips the bridge's lint choice |
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
 
@@ -139,6 +140,9 @@ in the bridge README):
 handler serves a method the core no longer sends. Adding or removing a
 core → host method therefore changes the descriptor, `protocol.json` and the
 Kotlin router in one PR. The test compares method names, not parameter keys.
+The nested fields of `statusBar/update` are pinned by `HostUiRouterTest`, and
+`StatusSlotPlacementTest` reads the core's `statusView.ts` (passed in by Gradle)
+so a new slot, icon, tone or action fails until Kotlin knows it.
 
 **Settings rules.** The bridge reads every host snapshot through the core's
 `normalizeSettings`; `ModelerSettingsStore` keeps the Kotlin copy.
@@ -170,7 +174,7 @@ synchronous port, follow the checklist in `host-replicated-state.md`.
 | `fileEditorProvider` | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF) |
 | `postStartupActivity` | `BridgeWarmupActivity` (pre-warm the bridge off-EDT) |
 | `diff.DiffTool` | `BpmnDiffTool` (two-pane JCEF diagram diff) |
-| `statusBarWidgetFactory` | `EngineStatusBarWidgetFactory` |
+| `statusBarWidgetFactory` | one `StatusSlotWidgetFactory` subclass per slot (element templates, engine, BPMNlint, deployment target) |
 | `notificationGroup` | `Miragon BPMN Modeler` (BALLOON) |
 | `applicationConfigurable` | `ModelerSettingsConfigurable` (Settings ▸ Tools) |
 | `documentationProvider`, `daemon.highlightInfoFilter` | script-tab support |
@@ -196,7 +200,9 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
   inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`
-- **Display/secret ports**: `HostNotifications.kt`, `EngineStatusBarWidget(Factory).kt`, `IntellijSecretStore.kt`
+- **Display/secret ports**: `HostNotifications.kt`, `IntellijSecretStore.kt`; status slots in
+  `StatusView.kt` (the core's unions), `StatusBarSlots.kt` (placement), `AutoHidingStatusSlots.kt`
+  (the 3 s transient rule) and `StatusSlotWidget(Factory).kt`
 - **Deployment**: `DeploymentToolWindowFactory.kt`, `IntellijDeploymentState.kt`
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
