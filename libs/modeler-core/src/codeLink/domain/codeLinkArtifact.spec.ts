@@ -8,7 +8,7 @@ import {
     toAbsolute,
     toAbsoluteEntries,
     toRelative,
-} from "./CodeLinkMap";
+} from "./codeLinkArtifact";
 
 describe("CodeLinkMap — path conversion", () => {
     it("relativises and re-absolutises a workspace path round-trip", () => {

@@ -19,7 +19,7 @@ import {
     parseMapJson,
     toAbsoluteEntries,
     toRelative,
-} from "../domain/CodeLinkMap";
+} from "../domain/codeLinkArtifact";
 import { SOURCE_FILES } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
 import { ImplementationLocator } from "./ImplementationLocator";

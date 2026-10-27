@@ -4,7 +4,7 @@ import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { createTestHost, FakeEditorHandle } from "../../testing";
-import { buildMapJson } from "../domain/CodeLinkMap";
+import { buildMapJson } from "../domain/codeLinkArtifact";
 import { CodeLinkMapService } from "./CodeLinkMapService";
 
 const ROOT = "/work/proj";
