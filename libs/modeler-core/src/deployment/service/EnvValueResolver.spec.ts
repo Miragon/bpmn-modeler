@@ -55,15 +55,9 @@ function setup(
     options: {
         dotEnvFiles?: Record<string, Record<string, string>>;
         symbolicLinks?: string[];
-        targetsLocation?: TargetsLocation;
         workspaceFolders?: string[];
     } = {},
 ) {
-    const targetsLocator = {
-        locateTargetsFile: vi
-            .fn<(documentDir?: string) => Promise<TargetsLocation | undefined>>()
-            .mockResolvedValue(options.targetsLocation ?? targetsLocationIn(WORKSPACE_ROOT)),
-    };
     const { workspace: inMemoryWorkspace } = createTestHost({
         folders: options.workspaceFolders ?? [WORKSPACE_ROOT],
         files: Object.fromEntries(
@@ -85,8 +79,8 @@ function setup(
         isSymbolicLink: vi.spyOn(inMemoryWorkspace, "isSymbolicLink"),
         readFile: vi.spyOn(inMemoryWorkspace, "readFile"),
     };
-    const resolver = new EnvValueResolver(targetsLocator, inMemoryWorkspace);
-    return { resolver, targetsLocator, workspace };
+    const resolver = new EnvValueResolver(inMemoryWorkspace);
+    return { resolver, workspace };
 }
 
 function expectNoDotEnvRead(workspace: ReturnType<typeof setup>["workspace"]): void {
@@ -124,7 +118,7 @@ describe("EnvValueResolver", () => {
         )(
             "returns the empty lookup without any IO for %s with %s",
             async (_kind, destination, _case, subjects) => {
-                const { resolver, targetsLocator, workspace } = setup({
+                const { resolver, workspace } = setup({
                     dotEnvFiles: { "/ws/.env": { MIRAGON_TOKEN: "secret" } },
                 });
 
@@ -135,7 +129,6 @@ describe("EnvValueResolver", () => {
                 );
 
                 expect(lookup).toBe(NO_ENV_VARIABLES);
-                expect(targetsLocator.locateTargetsFile).not.toHaveBeenCalled();
                 expect(workspace.findWorkspaceFolderForDocument).not.toHaveBeenCalled();
                 expect(workspace.getWorkspaceFolderPaths).not.toHaveBeenCalled();
                 expectNoDotEnvRead(workspace);
@@ -145,18 +138,14 @@ describe("EnvValueResolver", () => {
 
     describe("for a named target", () => {
         it("reads the .env beside a root targets file", async () => {
-            const { resolver, targetsLocator, workspace } = setup({
+            const { resolver, workspace } = setup({
                 dotEnvFiles: { "/ws/.env": { MIRAGON_TOKEN: "root-secret" } },
-                targetsLocation: targetsLocationIn("/ws"),
             });
 
             const lookup = await resolver.createLookup(named(), "/ws/processes", REFERENCES_ENV);
 
             expect(lookup("MIRAGON_TOKEN")).toBe("root-secret");
             expect(lookup.source).toBe("/ws/.env");
-            expect(targetsLocator.locateTargetsFile).toHaveBeenCalledExactlyOnceWith(
-                "/ws/processes",
-            );
             expect(workspace.isSymbolicLink).toHaveBeenCalledWith("/ws/.env");
             expect(workspace.readFile).toHaveBeenCalledWith("/ws/.env");
         });
@@ -167,7 +156,6 @@ describe("EnvValueResolver", () => {
                     "/ws/.env": { MIRAGON_TOKEN: "root-secret" },
                     "/ws/sub/.env": { MIRAGON_TOKEN: "nested-secret" },
                 },
-                targetsLocation: targetsLocationIn("/ws/sub"),
             });
 
             const lookup = await resolver.createLookup(
@@ -181,13 +169,12 @@ describe("EnvValueResolver", () => {
             expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/ws/sub/.env");
         });
 
-        it("reads the .env beside the targets file the target came from, though a nearer one appeared since", async () => {
+        it("reads the .env beside the targets file the target came from, not one nearer the document", async () => {
             const { resolver, workspace } = setup({
                 dotEnvFiles: {
                     "/ws/.env": { MIRAGON_TOKEN: "root-secret" },
                     "/ws/sub/.env": { MIRAGON_TOKEN: "nested-secret" },
                 },
-                targetsLocation: targetsLocationIn("/ws/sub"),
             });
 
             const lookup = await resolver.createLookup(
@@ -207,7 +194,6 @@ describe("EnvValueResolver", () => {
                     "/ws/.env": { MIRAGON_TOKEN: "root-secret" },
                     "/ws/sub/.env": { MIRAGON_OTHER: "unrelated" },
                 },
-                targetsLocation: targetsLocationIn("/ws/sub"),
             });
 
             const lookup = await resolver.createLookup(
@@ -243,10 +229,9 @@ describe("EnvValueResolver", () => {
             expect(workspace.readFile).toHaveBeenCalledWith("/ws/.env");
         });
 
-        it("uses the targets file of the first workspace folder when no documentDir is given", async () => {
-            const { resolver, targetsLocator, workspace } = setup({
+        it("reads the .env of a targets file in the first workspace folder when no documentDir is given", async () => {
+            const { resolver, workspace } = setup({
                 dotEnvFiles: { "/first/.env": { MIRAGON_TOKEN: "first-folder" } },
-                targetsLocation: targetsLocationIn("/first"),
                 workspaceFolders: ["/first", "/second"],
             });
 
@@ -257,31 +242,17 @@ describe("EnvValueResolver", () => {
             );
 
             expect(lookup("MIRAGON_TOKEN")).toBe("first-folder");
-            expect(targetsLocator.locateTargetsFile).toHaveBeenCalledExactlyOnceWith(undefined);
             expect(workspace.findWorkspaceFolderForDocument).not.toHaveBeenCalled();
             expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/first/.env");
         });
 
-        it("returns the empty lookup without locating a targets file when no workspace folder is open", async () => {
-            const { resolver, targetsLocator, workspace } = setup({
+        it("returns the empty lookup when no workspace folder is open", async () => {
+            const { resolver, workspace } = setup({
                 dotEnvFiles: { "/ws/.env": { MIRAGON_TOKEN: "secret" } },
                 workspaceFolders: [],
             });
 
             const lookup = await resolver.createLookup(named(), undefined, REFERENCES_ENV);
-
-            expect(lookup).toBe(NO_ENV_VARIABLES);
-            expect(targetsLocator.locateTargetsFile).not.toHaveBeenCalled();
-            expectNoDotEnvRead(workspace);
-        });
-
-        it("returns the empty lookup when no targets file can be located", async () => {
-            const { resolver, targetsLocator, workspace } = setup({
-                dotEnvFiles: { "/ws/.env": { MIRAGON_TOKEN: "secret" } },
-            });
-            targetsLocator.locateTargetsFile.mockResolvedValueOnce(undefined);
-
-            const lookup = await resolver.createLookup(named(), "/ws/processes", REFERENCES_ENV);
 
             expect(lookup).toBe(NO_ENV_VARIABLES);
             expectNoDotEnvRead(workspace);
@@ -298,7 +269,6 @@ describe("EnvValueResolver", () => {
                         "/ws/.env": { MIRAGON_TOKEN: "root-secret" },
                         "/ws/sub/.env": { MIRAGON_TOKEN: "nested-secret" },
                     },
-                    targetsLocation: { filePath, exists: true, projectDir: "/ws/sub" },
                 });
 
                 const lookup = await resolver.createLookup(
@@ -315,7 +285,6 @@ describe("EnvValueResolver", () => {
         it("reads the project's .env for a config folder whose name merely starts with dots", async () => {
             const { resolver, workspace } = setup({
                 dotEnvFiles: { "/ws/sub/.env": { MIRAGON_TOKEN: "nested-secret" } },
-                targetsLocation: targetsLocationIn("/ws/sub", "..cfg"),
             });
 
             const lookup = await resolver.createLookup(
@@ -329,10 +298,9 @@ describe("EnvValueResolver", () => {
         });
 
         describe("for a document outside every workspace folder", () => {
-            it("returns the empty lookup without locating or reading any .env", async () => {
-                const { resolver, targetsLocator, workspace } = setup({
+            it("returns the empty lookup without reading any .env", async () => {
+                const { resolver, workspace } = setup({
                     dotEnvFiles: { "/loose/.env": { MIRAGON_TOKEN: "untrusted" } },
-                    targetsLocation: targetsLocationIn("/loose"),
                 });
 
                 const lookup = await resolver.createLookup(
@@ -343,7 +311,6 @@ describe("EnvValueResolver", () => {
 
                 expect(lookup).toBe(NO_ENV_VARIABLES);
                 expect(workspace.findWorkspaceFolderForDocument).toHaveBeenCalledWith("/loose");
-                expect(targetsLocator.locateTargetsFile).not.toHaveBeenCalled();
                 expectNoDotEnvRead(workspace);
             });
 
@@ -364,20 +331,18 @@ describe("EnvValueResolver", () => {
     });
 
     describe("for an ad-hoc request", () => {
-        it("reads the workspace folder's .env even when a nested targets file is nearer", async () => {
-            const { resolver, targetsLocator, workspace } = setup({
+        it("reads the workspace folder's .env, not one nearer the document", async () => {
+            const { resolver, workspace } = setup({
                 dotEnvFiles: {
                     "/ws/.env": { MIRAGON_TOKEN: "root-secret" },
                     "/ws/vendor/lib/.env": { MIRAGON_TOKEN: "nested-secret" },
                 },
-                targetsLocation: targetsLocationIn("/ws/vendor/lib"),
             });
 
             const lookup = await resolver.createLookup(AD_HOC, "/ws/vendor/lib", REFERENCES_ENV);
 
             expect(lookup("MIRAGON_TOKEN")).toBe("root-secret");
             expect(lookup.source).toBe("/ws/.env");
-            expect(targetsLocator.locateTargetsFile).not.toHaveBeenCalled();
             expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/ws/.env");
         });
 
@@ -416,7 +381,7 @@ describe("EnvValueResolver", () => {
         });
 
         it("uses the first workspace folder when no documentDir is given", async () => {
-            const { resolver, targetsLocator, workspace } = setup({
+            const { resolver, workspace } = setup({
                 dotEnvFiles: {
                     "/first/.env": { MIRAGON_TOKEN: "first-folder" },
                     "/second/.env": { MIRAGON_TOKEN: "second-folder" },
@@ -428,7 +393,6 @@ describe("EnvValueResolver", () => {
 
             expect(lookup("MIRAGON_TOKEN")).toBe("first-folder");
             expect(workspace.findWorkspaceFolderForDocument).not.toHaveBeenCalled();
-            expect(targetsLocator.locateTargetsFile).not.toHaveBeenCalled();
             expect(workspace.readFile).toHaveBeenCalledExactlyOnceWith("/first/.env");
         });
 
@@ -438,7 +402,7 @@ describe("EnvValueResolver", () => {
         ])(
             "returns the empty lookup without any IO for %s",
             async (_case, documentDir, workspaceFolders) => {
-                const { resolver, targetsLocator, workspace } = setup({
+                const { resolver, workspace } = setup({
                     dotEnvFiles: {
                         "/ws/.env": { MIRAGON_TOKEN: "secret" },
                         "/loose/.env": { MIRAGON_TOKEN: "untrusted" },
@@ -449,13 +413,12 @@ describe("EnvValueResolver", () => {
                 const lookup = await resolver.createLookup(AD_HOC, documentDir, REFERENCES_ENV);
 
                 expect(lookup).toBe(NO_ENV_VARIABLES);
-                expect(targetsLocator.locateTargetsFile).not.toHaveBeenCalled();
                 expectNoDotEnvRead(workspace);
             },
         );
 
         it("returns a lookup naming the workspace folder's .env when it is missing", async () => {
-            const { resolver } = setup({ targetsLocation: targetsLocationIn("/ws/sub") });
+            const { resolver } = setup();
 
             const lookup = await resolver.createLookup(AD_HOC, "/ws/sub/processes", REFERENCES_ENV);
 
@@ -466,7 +429,7 @@ describe("EnvValueResolver", () => {
 
     describe("when the project has no .env", () => {
         it("returns a lookup that resolves nothing and names the searched path", async () => {
-            const { resolver } = setup({ targetsLocation: targetsLocationIn("/ws") });
+            const { resolver } = setup();
 
             const lookup = await resolver.createLookup(named(), "/ws/processes", REFERENCES_ENV);
 
@@ -475,7 +438,7 @@ describe("EnvValueResolver", () => {
         });
 
         it("points an unresolved reference at the missing .env", async () => {
-            const { resolver } = setup({ targetsLocation: targetsLocationIn("/ws") });
+            const { resolver } = setup();
 
             const lookup = await resolver.createLookup(named(), "/ws/processes", REFERENCES_ENV);
 

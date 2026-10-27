@@ -10,7 +10,6 @@ import {
     describe,
     expect,
     it,
-    Mock,
     onTestFinished,
     vi,
 } from "vitest";
@@ -27,6 +26,8 @@ import {
     NO_ENV_VARIABLES,
     NamedDestination,
     NoWorkspaceFolderFoundError,
+    requestDestination,
+    serializeDeploymentTargets,
     SettingChange,
     TargetsLocation,
     UnreadableDotEnvError,
@@ -548,7 +549,6 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
 
     let root: string;
     let workspace: NodeWorkspace;
-    let locateTargetsFile: Mock<() => Promise<TargetsLocation>>;
     let named: NamedDestination;
     let resolver: EnvValueResolver;
 
@@ -561,9 +561,8 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
             exists: true,
             projectDir: root,
         };
-        locateTargetsFile = vi.fn(async () => location);
         named = new NamedDestination(DEV_TARGET, location);
-        resolver = new EnvValueResolver({ locateTargetsFile }, workspace);
+        resolver = new EnvValueResolver(workspace);
     });
 
     afterEach(async () => {
@@ -690,7 +689,6 @@ describe("EnvValueResolver over a real NodeWorkspace", () => {
             );
 
             expect(lookup).toBe(NO_ENV_VARIABLES);
-            expect(locateTargetsFile).not.toHaveBeenCalled();
             expect(readFile).not.toHaveBeenCalled();
         },
     );
@@ -718,7 +716,7 @@ describe("EnvValueResolver beside a nested targets file", () => {
         await fs.writeFile(join(nestedProject, ".env"), "MIRAGON_HOST=attacker\n");
         await fs.writeFile(
             join(nestedProject, ".camunda", "deployment-targets.json"),
-            JSON.stringify({ targets: [] }),
+            serializeDeploymentTargets([DEV_TARGET]),
         );
         const workspace = new NodeWorkspace();
         workspace.registerRoot(root);
@@ -732,7 +730,7 @@ describe("EnvValueResolver beside a nested targets file", () => {
             {} as never,
             {} as never,
         );
-        resolver = new EnvValueResolver(targetsLocator, workspace);
+        resolver = new EnvValueResolver(workspace);
     });
 
     afterEach(async () => {
@@ -744,7 +742,6 @@ describe("EnvValueResolver beside a nested targets file", () => {
             projectDir: nestedProject,
             exists: true,
         });
-        const locateTargetsFile = vi.spyOn(targetsLocator, "locateTargetsFile");
 
         const lookup = await resolver.createLookup(
             AD_HOC,
@@ -756,13 +753,14 @@ describe("EnvValueResolver beside a nested targets file", () => {
             "https://engine.corp/engine-rest",
         );
         expect(lookup.source).toBe(join(root, ".env"));
-        expect(locateTargetsFile).not.toHaveBeenCalled();
     });
 
     it("resolves a named target's reference from the nested project's .env", async () => {
-        const location = await targetsLocator.locateTargetsFile(nestedProject);
+        const destination = requestDestination(
+            await targetsLocator.resolveDestination("dev", AD_HOC, nestedProject),
+        );
         const lookup = await resolver.createLookup(
-            new NamedDestination(DEV_TARGET, location!),
+            destination,
             nestedProject,
             envRefsIn(ENDPOINT_TEMPLATE),
         );

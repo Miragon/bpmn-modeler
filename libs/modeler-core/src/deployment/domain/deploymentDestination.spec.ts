@@ -64,12 +64,6 @@ describe("DeploymentDestination", () => {
         { property: "kind", of: (d) => d.kind, named: "named", adHoc: "adHoc" },
         { property: "target", of: (d) => d.target, named: prod, adHoc: undefined },
         {
-            property: ".env scope",
-            of: (d) => d.envScope,
-            named: "targetsFile",
-            adHoc: "workspaceFolder",
-        },
-        {
             property: ".env directory of a document in a workspace folder",
             of: (d) => d.dotEnvDirectory("/workspace-folder"),
             named: "/ws",

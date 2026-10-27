@@ -1,5 +1,3 @@
-import { posix } from "path";
-
 import { FileNotFound } from "../../kernel/domain/errors";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
@@ -13,7 +11,6 @@ import {
     NO_ENV_VARIABLES,
     referenceableVariables,
 } from "../domain/envRef";
-import { DeploymentTargetService } from "./DeploymentTargetService";
 
 const DOT_ENV_FILE_NAME = ".env";
 
@@ -24,15 +21,12 @@ const DOT_ENV_FILE_NAME = ".env";
  * belong to a different, less trusted tree than whatever names the endpoint.
  */
 export class EnvValueResolver {
-    constructor(
-        private readonly targetsLocator: Pick<DeploymentTargetService, "locateTargetsFile">,
-        private readonly workspace: WorkspacePort,
-    ) {}
+    constructor(private readonly workspace: WorkspacePort) {}
 
     /**
      * `.env` is read only when a subject references it, so a broken or
      * unrelated `.env` (e.g. a Python virtualenv directory) can't fail requests
-     * that use no references.
+     * that use no references. The destination chooses which `.env` it reads.
      *
      * @throws {UnreadableDotEnvError} when `.env` exists but is not a readable
      *   regular file — a symlink is refused, as a repository could point it at
@@ -46,33 +40,13 @@ export class EnvValueResolver {
         if (!subjects.some((subject) => subject.referencesEnv())) {
             return NO_ENV_VARIABLES;
         }
-        const projectDir =
-            destination.envScope === "targetsFile"
-                ? await this.locateTargetsProjectDir(documentDir)
-                : this.locateWorkspaceFolder(documentDir);
-        if (projectDir === undefined) {
+        const dotEnvDirectory = destination.dotEnvDirectory(
+            this.locateWorkspaceFolder(documentDir),
+        );
+        if (dotEnvDirectory === undefined) {
             return NO_ENV_VARIABLES;
         }
-        return this.readDotEnv(joinWorkspacePath(projectDir, DOT_ENV_FILE_NAME));
-    }
-
-    /**
-     * A document outside every workspace folder gets no `.env`, and neither does
-     * a targets file that a config folder like `../x` places outside its project.
-     */
-    private async locateTargetsProjectDir(
-        documentDir: string | undefined,
-    ): Promise<string | undefined> {
-        if (this.locateWorkspaceFolder(documentDir) === undefined) {
-            return undefined;
-        }
-        const location = await this.targetsLocator.locateTargetsFile(documentDir);
-        if (location === undefined) {
-            return undefined;
-        }
-        const relativeFilePath = posix.relative(location.projectDir, location.filePath);
-        const escapesProject = relativeFilePath === ".." || relativeFilePath.startsWith("../");
-        return escapesProject ? undefined : location.projectDir;
+        return this.readDotEnv(joinWorkspacePath(dotEnvDirectory, DOT_ENV_FILE_NAME));
     }
 
     private locateWorkspaceFolder(documentDir: string | undefined): string | undefined {

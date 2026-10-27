@@ -132,11 +132,6 @@ function createService({
     const deploymentTargetService = {
         getActiveDestination: vi.fn().mockResolvedValue(named(c7Target)),
         getCredentials: vi.fn().mockResolvedValue(new NoAuth()),
-        locateTargetsFile: vi.fn().mockResolvedValue({
-            filePath: "/work/.camunda/deployment-targets.json",
-            exists: true,
-            projectDir: "/work",
-        }),
     };
     const dotEnvIo = {
         isSymbolicLink: vi.spyOn(host.workspace, "isSymbolicLink"),
@@ -158,7 +153,7 @@ function createService({
         deploymentStatusService as never,
         inspectionClient ?? (inspection as never),
         host.notifier,
-        new EnvValueResolver(deploymentTargetService as never, host.workspace),
+        new EnvValueResolver(host.workspace),
         new CredentialApprovalService(host.secrets, host.picker),
     );
 
@@ -184,7 +179,6 @@ function credentialApprovalPrompts(c: ServiceContext) {
 }
 
 function expectNoDotEnvIo(c: ServiceContext): void {
-    expect(c.deploymentTargetService.locateTargetsFile).not.toHaveBeenCalled();
     expect(c.dotEnvIo.isSymbolicLink).not.toHaveBeenCalled();
     expect(c.dotEnvIo.readFile).not.toHaveBeenCalled();
 }
@@ -586,7 +580,7 @@ describe("DeploymentVerificationService.verifyActive", () => {
 
         await c.service.verifyActive("/work");
 
-        expect(c.deploymentTargetService.locateTargetsFile).toHaveBeenCalledWith("/work");
+        expect(c.dotEnvIo.readFile).toHaveBeenCalledExactlyOnceWith(DOT_ENV_PATH);
         expect(c.inspection.fetchLatestDefinition).toHaveBeenCalledWith(
             expect.objectContaining({
                 endpoint: c7Target.endpoint,
