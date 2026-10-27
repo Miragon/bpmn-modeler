@@ -3,11 +3,8 @@ import { describe, expect, it, type Mock, vi } from "vitest";
 import type { ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
 import { RecordingNotifier } from "../../testing";
-import {
-    materializeScriptBatch,
-    type ScriptMaterialization,
-    scriptBatchSummary,
-} from "./scriptBatch";
+import type { ScriptMaterialization } from "../domain/scriptBatchSummary";
+import { materializeScriptBatch } from "./scriptBatch";
 
 type Materialize = (script: ScriptTaskScript) => Promise<ScriptMaterialization>;
 
@@ -75,7 +72,7 @@ describe("materializeScriptBatch", () => {
             .fn<Materialize>()
             .mockResolvedValueOnce({ kind: "written" })
             .mockRejectedValueOnce(new Error("disk full"))
-            .mockResolvedValueOnce({ kind: "failed", error: new Error("read-only") })
+            .mockRejectedValueOnce(new Error("read-only"))
             .mockResolvedValueOnce({ kind: "written" });
 
         await expect(
@@ -93,7 +90,7 @@ describe("materializeScriptBatch", () => {
         const materialize = vi
             .fn<Materialize>()
             .mockRejectedValueOnce(new Error("disk full"))
-            .mockResolvedValueOnce({ kind: "failed", error: new Error("read-only") });
+            .mockRejectedValueOnce(new Error("read-only"));
 
         await materializeScriptBatch([script("A"), script("B")], materialize, logger);
 
@@ -101,30 +98,5 @@ describe("materializeScriptBatch", () => {
             expect.stringMatching(/^Could not write the script file of A: Error: disk full/),
             expect.stringMatching(/^Could not write the script file of B: Error: read-only/),
         ]);
-    });
-});
-
-describe("scriptBatchSummary", () => {
-    it("names the output folder", () => {
-        expect(
-            scriptBatchSummary(
-                { generated: 2, alreadyOpen: 0, failed: 0 },
-                ".camunda/tmp/scripting",
-            ),
-        ).toBe(
-            "Generated 2 script file(s) in .camunda/tmp/scripting — open a file to edit it with live sync into the diagram.",
-        );
-    });
-
-    it("mentions scripts left untouched because they were already open", () => {
-        expect(scriptBatchSummary({ generated: 1, alreadyOpen: 3, failed: 0 }, "scripts")).toBe(
-            "Generated 1 script file(s) in scripts (3 already open, left untouched) — open a file to edit it with live sync into the diagram.",
-        );
-    });
-
-    it("summary names failed scripts", () => {
-        expect(scriptBatchSummary({ generated: 1, alreadyOpen: 0, failed: 2 }, "scripts")).toBe(
-            "Generated 1 script file(s) in scripts — open a file to edit it with live sync into the diagram. Could not write 2 script file(s); see the log for details.",
-        );
     });
 });

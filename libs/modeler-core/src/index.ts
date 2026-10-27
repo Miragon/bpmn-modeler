@@ -152,6 +152,7 @@ export * from "./scriptTask/domain/camundaDts";
 export * from "./scriptTask/domain/groovyImports";
 export * from "./scriptTask/domain/localDeclarations";
 export * from "./scriptTask/domain/scriptApi";
+export * from "./scriptTask/domain/scriptBatchSummary";
 export * from "./scriptTask/domain/scriptCompletion";
 export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
