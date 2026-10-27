@@ -2,62 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../__fixtures__/vscodeFileSystemFake"));
 
-import { Uri, type Webview } from "vscode";
-
+import {
+    directivesOf,
+    scriptNonceOf,
+    shellExtensionUri,
+    shellWebview,
+    stylesheetsOf,
+    tagsOf,
+} from "../../__fixtures__/webviewShell";
 import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
-
-const webview: Webview = {
-    options: {},
-    html: "",
-    cspSource: "webview-csp:",
-    asWebviewUri: (resource) =>
-        Uri.from({ scheme: "https", authority: "webview.test", path: resource.path }),
-    onDidReceiveMessage: () => ({ dispose: () => undefined }),
-    postMessage: async () => true,
-};
-const extensionUri = Uri.file("/extension");
 
 type ShellBuilder = (initialPanelVisible?: boolean) => string;
 
 const renderBpmn: ShellBuilder = (initialPanelVisible) =>
-    bpmnEditorUi(webview, extensionUri, initialPanelVisible);
+    bpmnEditorUi(shellWebview, shellExtensionUri, initialPanelVisible);
 const renderDmn: ShellBuilder = (initialPanelVisible) =>
-    dmnModelerHtml(webview, extensionUri, initialPanelVisible);
-const renderForm: ShellBuilder = () => formEditorHtml(webview, extensionUri);
-
-function contentSecurityPolicyOf(html: string): Map<string, string> {
-    const policy = /<meta http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1];
-    if (policy === undefined) {
-        throw new Error("The shell carries no Content-Security-Policy.");
-    }
-    const directives = policy
-        .split(";")
-        .map((directive) => directive.trim())
-        .filter((directive) => directive.length > 0)
-        .map((directive): [string, string] => {
-            const [name, ...sources] = directive.split(/\s+/);
-            return [name, sources.join(" ")];
-        });
-    return new Map(directives);
-}
-
-function attributesOf(tag: string): Record<string, string> {
-    return Object.fromEntries(
-        [...tag.matchAll(/([a-z-]+)="([^"]*)"/g)].map(([, name, value]) => [name, value]),
-    );
-}
-
-function tagsOf(html: string, element: string): Record<string, string>[] {
-    return [...html.matchAll(new RegExp(`<${element}\\b[^>]*>`, "g"))].map(([tag]) =>
-        attributesOf(tag),
-    );
-}
-
-function stylesheetsOf(html: string): string[] {
-    return tagsOf(html, "link")
-        .filter((link) => link.rel === "stylesheet")
-        .map((link) => link.href);
-}
+    dmnModelerHtml(shellWebview, shellExtensionUri, initialPanelVisible);
+const renderForm: ShellBuilder = () => formEditorHtml(shellWebview, shellExtensionUri);
 
 function elementById(html: string, id: string): Record<string, string> {
     const element = tagsOf(html, "div").find((attributes) => attributes.id === id);
@@ -67,21 +28,11 @@ function elementById(html: string, id: string): Record<string, string> {
     return element;
 }
 
-function scriptNonceOf(html: string): string {
-    const nonce = /'nonce-([^']+)'/.exec(
-        contentSecurityPolicyOf(html).get("script-src") ?? "",
-    )?.[1];
-    if (nonce === undefined) {
-        throw new Error("The policy allows no nonced script.");
-    }
-    return nonce;
-}
-
 describe("bpmnEditorUi", () => {
     it("pins the policy the BPMN bundle needs and nothing more", () => {
         const html = renderBpmn();
 
-        expect(Object.fromEntries(contentSecurityPolicyOf(html))).toEqual({
+        expect(directivesOf(html)).toEqual({
             "default-src": "'none'",
             "script-src": `'nonce-${scriptNonceOf(html)}' webview-csp:`,
             "style-src": "webview-csp: 'unsafe-inline'",
@@ -113,7 +64,7 @@ describe("dmnModelerHtml", () => {
     it("pins the policy the DMN bundle needs and nothing more", () => {
         const html = renderDmn();
 
-        expect(Object.fromEntries(contentSecurityPolicyOf(html))).toEqual({
+        expect(directivesOf(html)).toEqual({
             "default-src": "'none'",
             "script-src": `'nonce-${scriptNonceOf(html)}' webview-csp:`,
             "style-src": "webview-csp: 'unsafe-inline'",
@@ -186,7 +137,7 @@ describe("formEditorHtml", () => {
     it("pins the policy the form editor and its HTTPS form components need", () => {
         const html = renderForm();
 
-        expect(Object.fromEntries(contentSecurityPolicyOf(html))).toEqual({
+        expect(directivesOf(html)).toEqual({
             "default-src": "'none'",
             "img-src": "webview-csp: data: blob: https:",
             "font-src": "webview-csp: data:",
