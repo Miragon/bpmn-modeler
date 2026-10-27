@@ -114,6 +114,11 @@ describe("VsCodeSettings reads", () => {
             enabled: false,
         },
         { case: "the default linting flag", userValues: {}, enabled: DEFAULT_LINTING_ENABLED },
+        {
+            case: "a linting flag that is no boolean as the default",
+            userValues: { "linting.enabled": 0 },
+            enabled: DEFAULT_LINTING_ENABLED,
+        },
     ])("$case", ({ userValues, enabled }) => {
         stubConfiguration(userValues);
 
