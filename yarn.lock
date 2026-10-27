@@ -3139,7 +3139,7 @@ __metadata:
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.13.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.15.0"
     "@stryker-mutator/core": "npm:10.1.1"
     "@stryker-mutator/vitest-runner": "npm:10.1.1"
     "@types/node": "npm:26.6.5"
@@ -3465,7 +3465,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.13.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.15.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.0.5"
@@ -3509,7 +3509,7 @@ __metadata:
     "@miragon/bpmn-modeler-layout": "workspace:*"
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.13.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.15.0"
     "@miragon/create-append-c7": "npm:1.0.1"
     "@types/node": "npm:26.6.5"
     "@typescript/native": "npm:typescript@7.0.2"
@@ -3558,9 +3558,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmnlint-plugin-rules@npm:0.13.0":
-  version: 0.13.0
-  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.13.0"
+"@miragon/bpmnlint-plugin-rules@npm:0.15.0":
+  version: 0.15.0
+  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.15.0"
   dependencies:
     bpmnlint-plugin-camunda-compat: "npm:2.61.1"
     bpmnlint-utils: "npm:1.1.1"
@@ -3568,7 +3568,7 @@ __metadata:
     zeebe-bpmn-moddle: "npm:2.0.0"
   peerDependencies:
     bpmnlint: ">=11.14.0"
-  checksum: 10c0/a2c2e9bfa8e9881f8e429cce33593bf7cef0d267cb59d5c0f00da28743ccc3ce2f2c11b4e214897a83e8ebb11f7811c1506fee1e609848da2f155af4aa35d991
+  checksum: 10c0/6f8243a884d5b14e64adf63fef9c502e07496ac2817c5333a045950ad4ca96459173e12235818c7f2d253cb0ff15c791837cbe8e9e4e80948ed5e16e954e8acc
   languageName: node
   linkType: hard
 
