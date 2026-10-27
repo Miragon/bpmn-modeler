@@ -11,6 +11,7 @@ import {
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
     scriptBatchSummary,
+    ScriptVariableStore,
     TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 
@@ -46,6 +47,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         deps.settings,
         deps.nodeWorkspace,
         deps.artifactSvc,
+        new ScriptVariableStore(),
     );
 
     deps.router
