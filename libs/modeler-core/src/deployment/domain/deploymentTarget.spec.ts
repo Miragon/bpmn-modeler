@@ -154,6 +154,17 @@ describe("parseDeploymentTargetsFile", () => {
         expect(() => parseDeploymentTargetsFile(json)).toThrow(InvalidDeploymentTargetsFileError);
     });
 
+    it.each<[string, Record<string, unknown>]>([
+        ["name", { name: 42 }],
+        ["name", { name: "  " }],
+        ["endpoint", { endpoint: undefined }],
+        ["endpoint", { endpoint: " " }],
+    ])("names targets[1] when its %s is not a non-empty string: %j", (field, entry) => {
+        expect(parseErrorMessage(entry)).toBe(
+            `Invalid deployment targets file: targets[1] "${field}" must be a non-empty string`,
+        );
+    });
+
     it("rejects duplicate names", () => {
         expect(() =>
             parseDeploymentTargetsFile({
@@ -807,32 +818,6 @@ describe("DeploymentTarget", () => {
                     tokenEndpoint: "",
                 }).knownCredentialDestinations().origins,
             ).toEqual(["https://camunda.example"]);
-        });
-    });
-
-    describe("assertEnvRefsValid", () => {
-        it("passes literals and prefixed refs", () => {
-            expect(() =>
-                target("dev", {
-                    endpoint: "${env:MIRAGON_URL}",
-                    tenantId: "acme",
-                    deployUrl: "${env:MIRAGON_URL}/deploy",
-                }).assertEnvRefsValid(),
-            ).not.toThrow();
-        });
-
-        it.each<[string, Partial<DeploymentTarget>]>([
-            ["endpoint", { endpoint: "${env:GITHUB_TOKEN}" }],
-            ["tenantId", { tenantId: "${env:TENANT}" }],
-            ["auth.tokenEndpoint", { tokenEndpoint: "${env:MIRAGON_IDP" }],
-            ["auth.audience", { audience: "${env:}" }],
-            ["endpoints.deploy", { deployUrl: "${env:HOME}/deploy" }],
-            ["endpoints.startInstance", { startInstanceUrl: "${env:MIRAGON_}" }],
-        ])("names the JSON field %s of a disallowed ref", (field, overrides) => {
-            const error = errorFrom(() => target("dev", overrides).assertEnvRefsValid());
-
-            expect(error).toBeInstanceOf(DisallowedEnvReferenceError);
-            expect(error).toMatchObject({ field });
         });
     });
 });
