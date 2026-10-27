@@ -1,3 +1,4 @@
+import { Engine } from "@miragon/bpmn-modeler-types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,11 +14,15 @@ import {
 import { CredentialRefs } from "./credentialRefs";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "./deployment";
 import {
+    BasicTargetAuth,
     DeploymentTarget,
     DeploymentTargetFields,
     DeploymentTargets,
+    NoTargetAuth,
+    OAuth2TargetAuth,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TargetAuthType,
     TargetChange,
     TargetRequest,
 } from "./deploymentTarget";
@@ -34,7 +39,20 @@ function errorFrom(action: () => unknown): unknown {
     throw new Error("expected the action to throw");
 }
 
-function target(name: string, overrides: Partial<DeploymentTarget> = {}): DeploymentTarget {
+/** The positional constructor's arguments after the name. */
+interface TargetOverrides {
+    readonly engine?: Engine;
+    readonly endpoint?: string;
+    readonly tenantId?: string;
+    readonly authType?: TargetAuthType;
+    readonly tokenEndpoint?: string;
+    readonly audience?: string;
+    readonly deployUrl?: string;
+    readonly startInstanceUrl?: string;
+    readonly credentialRefs?: CredentialRefs;
+}
+
+function target(name: string, overrides: TargetOverrides = {}): DeploymentTarget {
     return new DeploymentTarget(
         name,
         overrides.engine ?? "c7",
@@ -128,7 +146,7 @@ describe("parseDeploymentTargetsFile", () => {
             targets: [{ name: "dev", engine: "c8", endpoint: "http://host" }],
         });
 
-        expect(parsed.authType).toBe("none");
+        expect(parsed.auth).toEqual(new NoTargetAuth());
         expect(parsed.tenantId).toBe("");
         expect(parsed.deployUrl).toBeUndefined();
         expect(parsed.startInstanceUrl).toBeUndefined();
@@ -233,21 +251,20 @@ describe("parseDeploymentTargetsFile", () => {
         expect(none.credentialRefs).toEqual(CredentialRefs.none());
     });
 
-    it.each(["basic", "none"])(
-        "drops the token endpoint and audience a %s target's file carries",
-        (type) => {
-            const parsed = parseSecondTarget({
-                auth: {
-                    type,
-                    tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
-                    audience: "aud",
-                },
-            });
+    it.each([
+        ["basic", new BasicTargetAuth(CredentialRefs.none())],
+        ["none", new NoTargetAuth()],
+    ])("drops the token endpoint and audience a %s target's file carries", (type, auth) => {
+        const parsed = parseSecondTarget({
+            auth: {
+                type,
+                tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
+                audience: "aud",
+            },
+        });
 
-            expect(parsed.tokenEndpoint).toBe("");
-            expect(parsed.audience).toBe("");
-        },
-    );
+        expect(parsed.auth).toEqual(auth);
+    });
 
     it("still rejects a non-string token endpoint on a target that drops it", () => {
         expect(() => parseSecondTarget({ auth: { type: "basic", tokenEndpoint: 42 } })).toThrow(
@@ -300,8 +317,10 @@ describe("parseDeploymentTargetsFile", () => {
 
         expect(parsed.endpoint).toBe("${env:MIRAGON_URL}");
         expect(parsed.tenantId).toBe("${env:MIRAGON_TENANT}");
-        expect(parsed.tokenEndpoint).toBe("https://${env:MIRAGON_IDP}/token");
-        expect(parsed.audience).toBe("${env:MIRAGON_AUD}");
+        expect(parsed.auth).toMatchObject({
+            tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
+            audience: "${env:MIRAGON_AUD}",
+        });
         expect(parsed.deployUrl).toBe("${env:MIRAGON_URL}/deploy");
         expect(parsed.startInstanceUrl).toBe("${env:MIRAGON_URL}/{processDefinitionKey}/start");
     });
@@ -386,7 +405,7 @@ describe("DeploymentTarget", () => {
             {
                 behaviour: "defaults a missing tenant to empty",
                 fields: {},
-                created: { engine: "c7", tenantId: "", authType: "none" },
+                created: { engine: "c7", tenantId: "", auth: new NoTargetAuth() },
             },
             {
                 behaviour: "trims the URL overrides",
@@ -414,19 +433,20 @@ describe("DeploymentTarget", () => {
                     ),
                 },
                 created: {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login/token",
-                    audience: "aud",
-                    credentialRefs: CredentialRefs.oauth2(
-                        "${env:MIRAGON_CLIENT_ID}",
-                        "${env:MIRAGON_CLIENT_SECRET}",
+                    auth: new OAuth2TargetAuth(
+                        "https://login/token",
+                        "aud",
+                        CredentialRefs.oauth2(
+                            "${env:MIRAGON_CLIENT_ID}",
+                            "${env:MIRAGON_CLIENT_SECRET}",
+                        ),
                     ),
                 },
             },
             {
                 behaviour: "defaults a missing OAuth2 token endpoint and audience to empty",
                 fields: { authType: "oauth2" },
-                created: { authType: "oauth2", tokenEndpoint: "", audience: "" },
+                created: { auth: new OAuth2TargetAuth("", "", CredentialRefs.none()) },
             },
             {
                 behaviour: "keeps the user refs of a basic target",
@@ -435,14 +455,20 @@ describe("DeploymentTarget", () => {
                     credentialRefs: CredentialRefs.basic("${env:MIRAGON_USER}", undefined),
                 },
                 created: {
-                    authType: "basic",
-                    credentialRefs: CredentialRefs.basic("${env:MIRAGON_USER}", undefined),
+                    auth: new BasicTargetAuth(
+                        CredentialRefs.basic("${env:MIRAGON_USER}", undefined),
+                    ),
                 },
             },
-            ...(["basic", "none"] as const).map((authType): CreateCase => ({
+            ...(
+                [
+                    ["basic", new BasicTargetAuth(CredentialRefs.none())],
+                    ["none", new NoTargetAuth()],
+                ] as const
+            ).map(([authType, auth]): CreateCase => ({
                 behaviour: `drops the token endpoint and audience of a ${authType} target`,
                 fields: { ...OAUTH2, authType },
-                created: { authType, tokenEndpoint: "", audience: "" },
+                created: { auth },
             })),
             {
                 behaviour: "drops the refs of another auth type",
@@ -477,7 +503,7 @@ describe("DeploymentTarget", () => {
                     tokenEndpoint: "https://${env:AWS_REGION}/token",
                     audience: "${env:}",
                 },
-                created: { tokenEndpoint: "", audience: "" },
+                created: { auth: new BasicTargetAuth(CredentialRefs.none()) },
             },
             {
                 behaviour: "accepts prefixed env references in every template field",
@@ -493,8 +519,10 @@ describe("DeploymentTarget", () => {
                 created: {
                     endpoint: "${env:MIRAGON_URL}",
                     tenantId: "${env:MIRAGON_TENANT}",
-                    tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
-                    audience: "${env:MIRAGON_AUD}",
+                    auth: {
+                        tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
+                        audience: "${env:MIRAGON_AUD}",
+                    },
                     deployUrl: "${env:MIRAGON_URL}/deploy",
                     startInstanceUrl: "${env:MIRAGON_URL}/{processDefinitionKey}/start",
                 },
@@ -703,7 +731,7 @@ describe("DeploymentTarget", () => {
             return undefined;
         }
 
-        const OAUTH2_TARGET: Partial<DeploymentTarget> = {
+        const OAUTH2_TARGET: TargetOverrides = {
             authType: "oauth2",
             tokenEndpoint: "https://idp/token",
             audience: "zeebe-api",
@@ -984,7 +1012,7 @@ describe("DeploymentTarget", () => {
             ).toBe(false);
         });
 
-        it.each<[string, Partial<DeploymentTarget>]>([
+        it.each<[string, TargetOverrides]>([
             ["endpoint", { endpoint: "${env:MIRAGON_URL}/engine-rest" }],
             ["tenantId", { tenantId: "${env:MIRAGON_TENANT}" }],
         ])("is true when %s holds a ref", (_field, overrides) => {
@@ -997,7 +1025,7 @@ describe("DeploymentTarget", () => {
             );
         });
 
-        it.each<[string, Partial<DeploymentTarget>]>([
+        it.each<[string, TargetOverrides]>([
             ["endpoints.deploy", { deployUrl: "${env:MIRAGON_URL}/deploy" }],
             ["endpoints.startInstance", { startInstanceUrl: "${env:MIRAGON_URL}/start" }],
             [
@@ -1098,7 +1126,7 @@ describe("DeploymentTarget", () => {
             });
         });
 
-        it.each<[string, Partial<DeploymentTarget>, string]>([
+        it.each<[string, TargetOverrides, string]>([
             ["endpoint", { endpoint: "${env:MIRAGON_URL}" }, "MIRAGON_URL"],
             ["tenantId", { tenantId: "${env:MIRAGON_TENANT}" }, "MIRAGON_TENANT"],
         ])("names the JSON field %s of an unset variable", (field, overrides, variable) => {
@@ -1111,7 +1139,7 @@ describe("DeploymentTarget", () => {
             expect((error as Error).message).toContain("/ws/.env");
         });
 
-        it.each<[string, Partial<DeploymentTarget>]>([
+        it.each<[string, TargetOverrides]>([
             ["endpoint", { endpoint: "${env:HOME}/engine-rest" }],
             ["tenantId", { tenantId: "${env:TENANT}" }],
         ])(

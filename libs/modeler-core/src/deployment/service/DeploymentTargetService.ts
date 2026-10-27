@@ -15,6 +15,7 @@ import {
     DeploymentTargets,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TargetAuth,
     TargetChange,
 } from "../domain/deploymentTarget";
 import { CredentialRefs } from "../domain/credentialRefs";
@@ -37,8 +38,8 @@ const TARGETS_FILE_NAME = "deployment-targets.json";
 
 /**
  * Manages named deployment targets: the `deployment-targets.json` file (locate,
- * read, CRUD), the active target (persistence + status bar), and per-target
- * credential slots. Kept separate from {@link DeploymentService} (which owns the
+ * read, CRUD), the active target's persistence, and per-target credential
+ * slots. Kept separate from {@link DeploymentService} (which owns the
  * REST call and the ad-hoc legacy path) so target lifecycle is its own concern.
  * The status bar is owned by `DeploymentStatusService`, not here.
  */
@@ -354,20 +355,15 @@ export class DeploymentTargetService {
                 audience: auth.audience,
             };
         }
-        return {
-            authType: target.authType,
-            ...(target.authType === "oauth2"
-                ? { tokenEndpoint: target.tokenEndpoint, audience: target.audience }
-                : {}),
-        };
+        return authSettingsPayload(target.auth);
     }
 
     /** Resolves a named target's credentials into a domain auth object. */
     async getCredentials({ target, secretSlot }: NamedDestination): Promise<AuthConfig> {
-        if (target.authType === "basic") {
+        if (target.auth.type === "basic") {
             return target.authWith(await this.secretStore.getBasicAuth(secretSlot));
         }
-        if (target.authType === "oauth2") {
+        if (target.auth.type === "oauth2") {
             return target.authWith(await this.secretStore.getOAuth2(secretSlot));
         }
         return new NoAuth();
@@ -403,10 +399,17 @@ export function toTargetPayload(target: DeploymentTarget): DeploymentTargetPaylo
         engine: target.engine,
         endpoint: target.endpoint,
         tenantId: target.tenantId,
-        authType: target.authType,
-        tokenEndpoint: target.tokenEndpoint,
-        audience: target.audience,
+        ...authSettingsPayload(target.auth),
         deployUrl: target.deployUrl,
         startInstanceUrl: target.startInstanceUrl,
     };
+}
+
+/** What the form shows of a target's auth before any credential is filled in. */
+function authSettingsPayload(
+    auth: TargetAuth,
+): Pick<AuthConfigPayload, "authType" | "tokenEndpoint" | "audience"> {
+    return auth.type === "oauth2"
+        ? { authType: auth.type, tokenEndpoint: auth.tokenEndpoint, audience: auth.audience }
+        : { authType: auth.type };
 }

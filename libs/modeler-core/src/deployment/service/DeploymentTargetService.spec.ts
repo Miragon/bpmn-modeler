@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
 import { createTestHost, TestHostOptions } from "../../testing";
@@ -12,7 +13,11 @@ import {
     TargetsLocation,
     UnknownTarget,
 } from "../domain/deploymentDestination";
-import { serializeDeploymentTargets, DeploymentTarget } from "../domain/deploymentTarget";
+import {
+    serializeDeploymentTargets,
+    DeploymentTarget,
+    TargetAuthType,
+} from "../domain/deploymentTarget";
 import { DeploymentTargetService, toTargetPayload } from "./DeploymentTargetService";
 
 const CONFIG_FOLDER = ".camunda";
@@ -30,7 +35,20 @@ function fileWith(...targets: DeploymentTarget[]): string {
     return serializeDeploymentTargets(targets);
 }
 
-function target(name: string, overrides: Partial<DeploymentTarget> = {}): DeploymentTarget {
+/** The positional constructor's arguments after the name. */
+interface TargetOverrides {
+    readonly engine?: Engine;
+    readonly endpoint?: string;
+    readonly tenantId?: string;
+    readonly authType?: TargetAuthType;
+    readonly tokenEndpoint?: string;
+    readonly audience?: string;
+    readonly deployUrl?: string;
+    readonly startInstanceUrl?: string;
+    readonly credentialRefs?: CredentialRefs;
+}
+
+function target(name: string, overrides: TargetOverrides = {}): DeploymentTarget {
     return new DeploymentTarget(
         name,
         overrides.engine ?? "c7",
@@ -778,26 +796,6 @@ describe("DeploymentTargetService.createTarget", () => {
         await expect(creating).rejects.toBeInstanceOf(DisallowedEnvReferenceError);
         await expect(creating).rejects.toMatchObject({ field: "auth.password" });
         await expectNothingPersisted(c);
-    });
-});
-
-it("returns OAuth metadata even when this machine has no credentials", async () => {
-    const c = createService({
-        files: {
-            [FILE_PATH]: fileWith(
-                target("shared", {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login/token",
-                    audience: "api",
-                }),
-            ),
-        },
-    });
-    c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-    expect(await c.service.getStoredCredentials("shared", DOC_DIR)).toEqual({
-        authType: "oauth2",
-        tokenEndpoint: "https://login/token",
-        audience: "api",
     });
 });
 

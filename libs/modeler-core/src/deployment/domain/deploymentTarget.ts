@@ -57,6 +57,10 @@ export class NoTargetAuth {
         return [];
     }
 
+    assertEnvRefsValid(): void {
+        // No connection field that could carry a reference.
+    }
+
     toJson(): Record<string, unknown> {
         return { type: this.type };
     }
@@ -88,6 +92,10 @@ export class BasicTargetAuth {
 
     knownUrls(): string[] {
         return [];
+    }
+
+    assertEnvRefsValid(): void {
+        // No connection field that could carry a reference.
     }
 
     toJson(): Record<string, unknown> {
@@ -137,6 +145,11 @@ export class OAuth2TargetAuth {
 
     knownUrls(): string[] {
         return [this.tokenEndpoint];
+    }
+
+    assertEnvRefsValid(): void {
+        assertEnvRefsValid(this.tokenEndpoint, "auth.tokenEndpoint");
+        assertEnvRefsValid(this.audience, "auth.audience");
     }
 
     toJson(): Record<string, unknown> {
@@ -270,18 +283,6 @@ export class DeploymentTarget {
         return target;
     }
 
-    get authType(): TargetAuthType {
-        return this.auth.type;
-    }
-
-    get tokenEndpoint(): string {
-        return this.auth.type === "oauth2" ? this.auth.tokenEndpoint : "";
-    }
-
-    get audience(): string {
-        return this.auth.type === "oauth2" ? this.auth.audience : "";
-    }
-
     get credentialRefs(): CredentialRefs {
         return this.auth.credentialRefs;
     }
@@ -366,8 +367,7 @@ export class DeploymentTarget {
     private assertEnvRefsValid(): void {
         assertEnvRefsValid(this.endpoint, "endpoint");
         assertEnvRefsValid(this.tenantId, "tenantId");
-        assertEnvRefsValid(this.tokenEndpoint, "auth.tokenEndpoint");
-        assertEnvRefsValid(this.audience, "auth.audience");
+        this.auth.assertEnvRefsValid();
         assertEnvRefsValid(this.deployUrl, "endpoints.deploy");
         assertEnvRefsValid(this.startInstanceUrl, "endpoints.startInstance");
     }
