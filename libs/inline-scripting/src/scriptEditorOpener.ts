@@ -2,8 +2,8 @@ import { findListenerAt } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
 import { listenerScriptKind, type PanelListenerType } from "./scriptEditorButtons";
-import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
-import { readScriptTaskFormat } from "./scriptModel";
+import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
+import { listenerScriptOpenEvent, scriptTaskOpenEvent } from "./scriptModel";
 
 /**
  * Model-side entry point for opening a script in the host editor, shared by
@@ -79,14 +79,7 @@ export class ScriptEditorOpener {
             return false;
         }
 
-        this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
-            elementId: element.id,
-            kind: "script-task",
-            listenerIndex: undefined,
-            eventName: undefined,
-            scriptFormat: readScriptTaskFormat(bo),
-            content: bo.script || "",
-        } as OpenScriptEditorEvent);
+        this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, scriptTaskOpenEvent(element.id, bo));
         return true;
     }
 
@@ -113,15 +106,10 @@ export class ScriptEditorOpener {
 
         this.ensureInlineScript(element, listener);
 
-        this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
-            elementId,
-            kind,
-            listenerIndex,
-            eventName: listener.get?.("event") ?? listener.event ?? undefined,
-            scriptFormat:
-                listener.script?.get?.("scriptFormat") ?? listener.script?.scriptFormat ?? "",
-            content: listener.script?.get?.("value") ?? listener.script?.value ?? "",
-        } as OpenScriptEditorEvent);
+        this.eventBus.fire(
+            OPEN_SCRIPT_EDITOR_EVENT,
+            listenerScriptOpenEvent(elementId, kind, listenerIndex, listener),
+        );
         return true;
     }
 

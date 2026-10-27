@@ -1,7 +1,13 @@
 import { resolveScriptWriteTarget, scriptPropertyName } from "@miragon/bpmn-modeler-types";
 import type { ScriptKind, ScriptPropertyName, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
-import type { ElementCollection, ElementLookup, ScriptTaskBusinessObject } from "./bpmnTypes";
+import type {
+    ElementCollection,
+    ElementLookup,
+    ListenerModdle,
+    ScriptTaskBusinessObject,
+} from "./bpmnTypes";
+import type { OpenScriptEditorEvent } from "./scriptEditorEvents";
 
 /**
  * Model-side script reads. They address scripts through the script-surface
@@ -63,6 +69,43 @@ export function readScriptTaskFormat(bo: ScriptTaskBusinessObject | undefined): 
         bo?.get?.(LEGACY_SCRIPT_TASK_FORMAT_ATTRIBUTE) ||
         ""
     );
+}
+
+// Opening a script and revealing its locked field both build the open payload
+// here: `scriptFormat` and `eventName` feed the script URI, so two builders that
+// disagreed would open a second tab instead of revealing the first.
+
+/** The payload that opens a script task's inline script in the host editor. */
+export function scriptTaskOpenEvent(
+    elementId: string,
+    bo: ScriptTaskBusinessObject,
+): OpenScriptEditorEvent {
+    return {
+        elementId,
+        kind: "script-task",
+        listenerIndex: undefined,
+        eventName: undefined,
+        scriptFormat: readScriptTaskFormat(bo),
+        content: bo.script || "",
+    };
+}
+
+/** The payload that opens a listener's nested `camunda:Script` in the host editor. */
+export function listenerScriptOpenEvent(
+    elementId: string,
+    kind: Exclude<ScriptKind, "script-task">,
+    listenerIndex: number | undefined,
+    listener: ListenerModdle,
+): OpenScriptEditorEvent {
+    const script = listener.script;
+    return {
+        elementId,
+        kind,
+        listenerIndex,
+        eventName: listener.get?.("event") ?? listener.event ?? undefined,
+        scriptFormat: script?.get?.("scriptFormat") ?? script?.scriptFormat ?? "",
+        content: script?.get?.("value") ?? script?.value ?? "",
+    };
 }
 
 /**

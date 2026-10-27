@@ -10,7 +10,7 @@ import {
 } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
-import { readScriptTaskFormat } from "./scriptModel";
+import { listenerScriptOpenEvent, scriptTaskOpenEvent } from "./scriptModel";
 
 /**
  * Runs *below* the stock Camunda provider (which registers at priority 500).
@@ -325,29 +325,14 @@ export class ScriptLockPropertiesProvider {
         }
 
         if (kind === "script-task") {
-            return {
-                elementId: element.id,
-                kind,
-                listenerIndex: undefined,
-                eventName: undefined,
-                scriptFormat: readScriptTaskFormat(bo),
-                content: bo.script || "",
-            };
+            return scriptTaskOpenEvent(element.id, bo);
         }
 
         const listener = findListenerAt(bo, kind, listenerIndex ?? 0);
         if (!listener?.script) {
             return undefined;
         }
-        return {
-            elementId: element.id,
-            kind,
-            listenerIndex,
-            eventName: listener.get?.("event") ?? listener.event ?? undefined,
-            scriptFormat:
-                listener.script.get?.("scriptFormat") ?? listener.script.scriptFormat ?? "",
-            content: listener.script.get?.("value") ?? listener.script.value ?? "",
-        };
+        return listenerScriptOpenEvent(element.id, kind, listenerIndex, listener);
     }
 }
 
