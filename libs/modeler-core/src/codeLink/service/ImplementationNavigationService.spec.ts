@@ -32,7 +32,7 @@ describe("ImplementationNavigationService.navigate", () => {
         expect(host.notifier.openedDocuments).toEqual(["/work/b/com/example/MyDelegate.kt"]);
     });
 
-    it("names the kind and reference nothing implements, and asks for a folder when there is none", async () => {
+    it("names the kind and reference nothing implements, also when it asks for a folder", async () => {
         const inFolder = createService({
             folders: ["/work"],
             files: { "/work/src/Other.java": 'class Other { String topic = "other"; }' },
@@ -47,7 +47,8 @@ describe("ImplementationNavigationService.navigate", () => {
                 "(See Output → bpmn.modeler for what was searched.)",
         ]);
         expect(withoutFolder.host.notifier.infos).toEqual([
-            'No implementation for "payment-topic" was found. Open a folder to enable code navigation.',
+            'No implementation for external task topic "payment-topic" was found. ' +
+                "Open a folder to enable code navigation.",
         ]);
     });
 });
