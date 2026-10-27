@@ -8,7 +8,7 @@ Tune the modeler with settings under the `miragon.bpmnModeler` namespace. Edit t
 | Setting | Default | What it does |
 |---|---|---|
 | `miragon.bpmnModeler.defaultMode` | `implement` | Mode a BPMN editor opens in when it has no remembered mode: `implement`, `design` or `view`. On an engine-neutral model, `implement` falls back to `design`. See [Editor modes](/vscode/features/modes). |
-| `miragon.bpmnModeler.language` | `en` | UI language: `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `nl-nl`, `pt-br`, `ru`, `zh-Hans`, `zh-Hant`. See [Language support](/vscode/features/language-support). |
+| `miragon.bpmnModeler.language` | `en` | UI language as a locale code, for example `de`. [Language support](/vscode/features/language-support) lists every language. |
 | `miragon.bpmnModeler.colorTheme` | `automatic` | `automatic` follows the VS Code theme, `light` always uses the light canvas. |
 | `miragon.bpmnModeler.configFolder` | `.camunda` | Folder searched from each BPMN file up to the workspace root. Element templates live in `<configFolder>/element-templates/`. A blank value uses `.camunda`. |
 | `miragon.bpmnModeler.favouriteBpmnElements` | Service task, user task, call activity, exclusive gateway | BPMN types pinned at the top of the [append menu](/vscode/features/append-menu), max 6 (for example `bpmn:ServiceTask`). |

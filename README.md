@@ -56,9 +56,9 @@ Different surfaces, one modeling engine, one repo.
 - **Visual BPMN diff** — open two `.bpmn` files side by side, see what
   changed at the element level (added · removed · changed · moved) with
   synchronized pan/zoom. Great in code review.
-- **Speaks your language** — UI translated into 9 locales: English,
-  Deutsch, Español, Français, Nederlands, Português (Brasil), Русский,
-  简体中文, 繁體中文.
+- **Speaks your language** — UI translated into 12 languages, from English
+  and Deutsch to 日本語 and 한국어
+  ([all languages](https://miragon.github.io/bpmn-modeler/vscode/features/language-support)).
 - **Built on [bpmn.io](https://bpmn.io/)** — the toolkit the official
   Camunda Modeler is based on. You get the same modeling foundation, just
   embedded where you already work.
