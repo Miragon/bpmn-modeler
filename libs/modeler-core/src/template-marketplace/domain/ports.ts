@@ -82,6 +82,8 @@ export type RepositorySourceFactory = (config: RepositorySourceConfig) => Reposi
  * `baseUrl` is validated with `new URL` at parse time, so re-parsing it here
  * cannot throw. `URL` is a standard global — no host import, arch-test safe.
  */
+export function hostForConfig(config: GitHubSourceConfig | GitLabSourceConfig): string;
+export function hostForConfig(config: RepositorySourceConfig): string | undefined;
 export function hostForConfig(config: RepositorySourceConfig): string | undefined {
     if (config.kind === "local") {
         return undefined;
