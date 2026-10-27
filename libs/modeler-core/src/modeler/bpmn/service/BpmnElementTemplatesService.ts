@@ -5,6 +5,7 @@ import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
+import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import {
     ElementTemplateSource,
     EMPTY_TEMPLATE_SOURCE,
@@ -228,12 +229,11 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
 
     private recordTemplateLoad(status: TemplateLoadStatus): void {
         this.templateLoadStatus = status;
-        const view = elementTemplatesStatusView(status.display);
-        if (view) {
-            this.statusBar.show("elementTemplates", view);
-        } else {
-            this.statusBar.hide("elementTemplates");
-        }
+        updateStatusSlot(
+            this.statusBar,
+            "elementTemplates",
+            elementTemplatesStatusView(status.display),
+        );
     }
 
     private handleError(error: Error): boolean {
