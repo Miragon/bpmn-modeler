@@ -147,3 +147,73 @@ describe("DiffSession", () => {
         expect(session.isArmed()).toBe(true); // both ready
     });
 });
+
+describe("DiffSession pane slots", () => {
+    it.each<{ side: "before" | "after"; uri: string; otherUri: string }>([
+        { side: "before", uri: BEFORE, otherUri: AFTER },
+        { side: "after", uri: AFTER, otherUri: BEFORE },
+    ])("a lone $side pane fills only its own slot until it detaches", ({ uri, otherUri }) => {
+        const session = DiffSession.forCompareFiles(BEFORE, AFTER);
+        const pane = fakeHandle(uri);
+        session.attachPane(pane);
+
+        expect([session.hasPaneFor(uri), session.hasPaneFor(otherUri)]).toEqual([true, false]);
+        expect(session.isEmpty()).toBe(false);
+        expect(session.partnerOf(pane)).toBeUndefined();
+
+        session.detachPane(pane);
+
+        expect(session.hasPaneFor(uri)).toBe(false);
+        expect(session.isEmpty()).toBe(true);
+    });
+
+    it.each<{ side: "before" | "after"; uri: string; otherUri: string }>([
+        { side: "before", uri: BEFORE, otherUri: AFTER },
+        { side: "after", uri: AFTER, otherUri: BEFORE },
+    ])("detaching the $side pane keeps its partner attached", ({ uri, otherUri }) => {
+        const session = DiffSession.forCompareFiles(BEFORE, AFTER);
+        const pane = fakeHandle(uri);
+        const partner = fakeHandle(otherUri);
+        session.attachPane(pane);
+        session.attachPane(partner);
+
+        session.detachPane(pane);
+
+        expect(session.attachedPanes()).toEqual([partner]);
+        expect(session.isEmpty()).toBe(false);
+    });
+
+    it("answers no pane and no partner for a URI outside the session", () => {
+        const session = DiffSession.forCompareFiles(BEFORE, AFTER);
+        session.attachPane(fakeHandle(BEFORE));
+        session.attachPane(fakeHandle(AFTER));
+
+        expect(session.hasPaneFor("file:///foreign.bpmn")).toBe(false);
+        expect(session.partnerOf(fakeHandle("file:///foreign.bpmn"))).toBeUndefined();
+    });
+
+    it.each<{ panes: string; before?: boolean; after?: boolean; armed: boolean }>([
+        { panes: "no pane", armed: false },
+        { panes: "a ready before pane alone", before: true, armed: false },
+        { panes: "a ready after pane alone", after: true, armed: false },
+        {
+            panes: "a ready before pane and a loading after pane",
+            before: true,
+            after: false,
+            armed: false,
+        },
+        {
+            panes: "a loading before pane and a ready after pane",
+            before: false,
+            after: true,
+            armed: false,
+        },
+        { panes: "two ready panes", before: true, after: true, armed: true },
+    ])("is armed with $panes: $armed", ({ before, after, armed }) => {
+        const session = DiffSession.forCompareFiles(BEFORE, AFTER);
+        if (before !== undefined) session.attachPane(fakeHandle(BEFORE, before));
+        if (after !== undefined) session.attachPane(fakeHandle(AFTER, after));
+
+        expect(session.isArmed()).toBe(armed);
+    });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contentDeclaresBean, contentImplementsLiteral } from "./CodeLinkMap";
+import { contentDeclaresBean, contentImplementsLiteral } from "./ImplementationTarget";
 import { SourceFileFacts } from "./SourceFileFacts";
 
 describe("SourceFileFacts", () => {
@@ -52,7 +52,7 @@ describe("SourceFileFacts", () => {
         );
     });
 
-    it("decides only short literals without quotes, whitespace or comment ends", () => {
+    it("decides only short literals without quotes, whitespace or section closes", () => {
         expect(SourceFileFacts.decidesLiteral("payment-service")).toBe(true);
         expect(SourceFileFacts.decidesLiteral("io.camunda:http-json:1")).toBe(true);
         expect(SourceFileFacts.decidesLiteral("")).toBe(true);
@@ -60,6 +60,7 @@ describe("SourceFileFacts", () => {
         expect(SourceFileFacts.decidesLiteral(`say"hi`)).toBe(false);
         expect(SourceFileFacts.decidesLiteral("a-->b")).toBe(false);
         expect(SourceFileFacts.decidesLiteral("a]]>b")).toBe(false);
+        expect(SourceFileFacts.decidesLiteral("x".repeat(128))).toBe(true);
         expect(SourceFileFacts.decidesLiteral("x".repeat(129))).toBe(false);
     });
 

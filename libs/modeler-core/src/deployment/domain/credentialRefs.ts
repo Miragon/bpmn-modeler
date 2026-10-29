@@ -1,6 +1,14 @@
 import { AuthConfig } from "./deployment";
 import { wholeEnvRefOf } from "./envRef";
 
+/** The credential keys a targets-file `auth` block may hold, whatever its type. */
+export interface CredentialRefFields {
+    readonly username?: string;
+    readonly password?: string;
+    readonly clientId?: string;
+    readonly clientSecret?: string;
+}
+
 /**
  * A target's whole-value `${env:…}` credentials. A reference is not a secret,
  * so it is shared through the targets file, which is its only authority — a
@@ -24,6 +32,16 @@ export class CredentialRefs {
 
     static oauth2(clientId: string | undefined, clientSecret: string | undefined): CredentialRefs {
         return new CredentialRefs(undefined, undefined, clientId, clientSecret);
+    }
+
+    /** Every key it is given: a target's `TargetAuth` keeps only those of its own type. */
+    static ofFields(fields: CredentialRefFields): CredentialRefs {
+        return new CredentialRefs(
+            fields.username,
+            fields.password,
+            fields.clientId,
+            fields.clientSecret,
+        );
     }
 
     static of(auth: AuthConfig): CredentialRefs {

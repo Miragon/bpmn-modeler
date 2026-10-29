@@ -33,7 +33,7 @@ libraries; libraries import neither applications nor modeler packages.
 | --- | --- |
 | `packages/bpmn-modeler`, `packages/dmn-modeler` | Published, host-free browser composition and deliberately designed factory/handle APIs |
 | Private feature libraries in `libs/` | Reusable behavior, inlined into published packages where needed |
-| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication |
+| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication, and pure rules browser code shares with the core |
 | `libs/shared` | Private Query/Command protocol, host channel, document-flush plumbing and webview chrome |
 | `libs/modeler-core` | Host-independent domain/service layers and shared editor, routing and diff registries |
 | Host applications and webview bootstraps | Concrete adapters, composition, transport, editor lifecycle and page integration |
@@ -46,12 +46,21 @@ Externalization does not remove upstream watermark and license-notice
 obligations; document them in the package README. Do not publish each private
 feature library as an independently versioned API.
 
-Placement in `modeler-types` requires both freedom from the private protocol
-and a surface worth publishing. Portable mode types, disposable primitives,
-engine versions, canvas utilities and `isTextEditingSurface` qualify.
-DOM-id-coupled panel resizers, focus/shortcut bindings and the VS Code body-class
-theme adapter belong in `shared`. This deliberately mixes private browser
-chrome with the protocol to avoid another workspace for a few helpers.
+Placement in `modeler-types` requires freedom from the private protocol and
+either a surface worth publishing or a pure rule that both browser code and the
+core apply. Portable mode types, disposable primitives, engine versions, canvas
+utilities and `isTextEditingSurface` qualify as surface. Script-surface
+addressing (`scriptSurface.ts`) is such a shared rule, and so is the XML comment
+and CDATA scan (`xmlMarkup.ts`) behind the published `extractModelDefinitions`,
+the core's workspace content search and code-link. Browser code cannot import
+the core, whose barrel exports Node-only modules, so a rule both apply has no
+other common home. The package is private and inlined: its npm surface is only
+what a package entry re-exports by name, which `check-dts` and
+`publicApi.spec.ts` gate, so a shared rule adds nothing to it. A rule only the
+core applies stays in the core's `domain/`. DOM-id-coupled panel resizers,
+focus/shortcut bindings and the VS Code body-class theme adapter belong in
+`shared`. This deliberately mixes private browser chrome with the protocol to
+avoid another workspace for a few helpers.
 
 `modeler-core` owns domain/services, the editor-session core
 (`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) and
@@ -70,12 +79,12 @@ through them. A feature's `domain/` may import only its own `domain/` and the
 `domain/` of `kernel/` and `editorSession/`.
 
 - `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
-  engine versions, the workspace path, glob, containment and watcher rules, the
-  cross-cutting errors and host ports, and the HTTP contract (`HttpClient`,
-  `HttpTransportError`, `loggableHost`) with its fetch adapter. A service joins
-  `kernel/service/` only when at least two features use it, as
-  `ArtifactService` and the workspace file search do. `kernel/` imports no
-  other folder, so it stays the bottom layer.
+  engine versions, the workspace path, config-folder, glob, containment and
+  watcher rules, the cross-cutting errors and host ports, and the HTTP
+  contract (`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch
+  adapter. A service joins `kernel/service/` only when at least two features
+  use it, as `ArtifactService` and the workspace file search do. `kernel/`
+  imports no other folder, so it stays the bottom layer.
 - `editorSession/` is the application core every editor runs on. Its
   `service/` holds the store, lifecycle, router, document sync, ordered
   dispatch, flush services and webview log routing, `session/` the render
@@ -124,6 +133,25 @@ the keys a table gets through spreads, so a spec checks that no two spread
 handler groups name the same type. The classes remain the constructors and the
 wire format is unchanged: the same `type` strings and fields, which the
 IntelliJ host matches.
+
+The commands the BPMN editor webview may post are a closed set, kept as a value
+so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
+`libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
+only those, and the bootstrap narrows its host to it once, so neither the
+bootstrap nor a session module can post another surface's command or a query.
+`HostApi` declares its members as properties, not methods, because TypeScript
+compares a method's parameters bivariantly: the narrowed channel could
+otherwise be handed to a helper typed for every message. The shared
+`WebviewDocumentSync` takes a channel for exactly the three messages it posts,
+so handing it the BPMN channel proves they are on the list. Only the diff pane,
+which the bootstrap starts instead of the editor, still posts through the full
+`HostApi`. The diff pane, the DMN and Form editors and the deployment sidebar
+post their own commands, and a spec fails when a protocol command belongs to
+neither side. A host's router still dispatches an unrouted type as a no-op, but
+records a type it drops on purpose with `ignore(type, reason)`, once and with a
+non-blank reason. `routeOf(type)` reports a type as handled, ignored with that
+reason, or unrouted, and a type is never both handled and ignored, so a
+coverage spec can tell a deliberate drop from a missing route.
 
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while
@@ -298,8 +326,13 @@ injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
 each webview's bundle directory. IntelliJ sends it as a response header from
 `WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
 hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
-it relies on `'unsafe-inline'`. A loader for user-supplied bpmn-io plugins must
-widen these policies on purpose rather than depend on a gap in them.
+it relies on `'unsafe-inline'`. Each host builds its policies in one place,
+VS Code in `webviewContentSecurityPolicy.ts` and IntelliJ in
+`WebviewContentSecurityPolicy.kt`: the directives every shell shares are written
+once, and a shell lists only what its bundle adds, so a shell can neither drop
+nor reopen `base-uri` or `form-action` on its own. A loader for user-supplied bpmn-io
+plugins must widen these policies on purpose rather than depend on a gap in
+them.
 
 Camunda Forms use a dedicated form-js webview and `.form` custom editor inside
 the existing VS Code extension. Forms share the modeling workflow, host
@@ -392,9 +425,12 @@ the mirror. An unanswered request would therefore hold the core's per-editor
 queue until the editor reopens.
 
 Notifications and status indicators are native host UI backed by RPC ports.
-Secrets use IntelliJ PasswordSafe, an application-scoped store, corresponding
-to VS Code SecretStorage. Target-specific credential namespacing belongs to
-the [deployment record](deployment.md#targets-and-credentials).
+The core writes the text of every notification, including the error balloon
+that puts a `notifyError` context above the error's message
+(`notifiedErrorToastText`), so the host shows that text and composes none of
+its own. Secrets use IntelliJ PasswordSafe, an application-scoped store,
+corresponding to VS Code SecretStorage. Target-specific credential namespacing
+belongs to the [deployment record](deployment.md#targets-and-credentials).
 
 ### Host-replicated state
 
@@ -418,9 +454,18 @@ wrong type reads as the default, and at most six favourites are pinned. Its
 `DEFAULT_MODELER_SETTINGS` are the defaults the VS Code manifest declares.
 VS Code parses each value as it reads it. The bridge normalises the host's
 snapshot before it compares it with the current one, so a value that reads as
-the current one fires no change. IntelliJ's `ModelerSettingsStore` keeps a
-Kotlin copy, because the IDE's Settings page stores and shows the values
-without the bridge.
+the current one fires no change. A setting change names its settings by the
+closed `SettingKey` union, the keys VS Code stores below `miragon.bpmnModeler`
+(`scripting.spin`, `linting.enabled`). One table in the same file maps each
+snapshot key to its `SettingKey` (`settingKeyOf`), and the union is derived
+from it. Core subscribers ask `affects(key)` the same way on every host:
+VS Code adds the prefix to ask its own event, and the bridge names the keys
+`changedSettingKeys` reports with `settingChangeNaming`. The VS Code adapter
+reads, writes and watches settings only through `modelerConfiguration.ts`,
+whose keys are typed `SettingKey`; its manifest contract spec fails on a
+configuration call in any other file. IntelliJ's `ModelerSettingsStore` keeps a
+Kotlin copy of the normalisation, because the IDE's Settings page stores and
+shows the values without the bridge.
 `settingsNormalization.cases.json` beside the rule holds the rows all three
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
 the Kotlin test also compares its defaults with the manifest's.
@@ -517,6 +562,14 @@ a cached result must equal an uncached run.
 - Enforcing the core's layer rules only after the refactors that remove the
   current violations would let new ones in meanwhile. Known exceptions start
   the gate now, at the cost of a list that review has to keep from growing.
+- A separate library for the pure rules browser code shares with the core
+  would need a manifest, path aliases, a Vitest target and entries in the
+  inlined-library lists, about ten config edits for a few hundred lines. The
+  rules live in `modeler-types` instead, at two costs: a `feat` or `fix` there
+  triggers both npm release lines (see
+  [Release and publishing](release-and-publishing.md)), and the core's
+  [mutation run](engineering-practices.md#mutation-testing) does not cover
+  them.
 - `kernel/` and `editorSession/` could be workspaces of their own, which would
   turn their direction into package dependencies. That adds manifests, path
   aliases and Vitest targets for code no consumer imports apart from the core,

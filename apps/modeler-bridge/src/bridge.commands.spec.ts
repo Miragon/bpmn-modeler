@@ -16,6 +16,8 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { FOCUS_BPMN_DIAGRAM_MESSAGE } from "@miragon/bpmn-modeler-core";
+
 import {
     hostNotification,
     hostReply,
@@ -433,9 +435,7 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                     message: expect.stringMatching(/^Error: No active editor\.\n\s+at /),
                 },
             });
-            expect(
-                frames.some(isShowInfo("Focus a BPMN diagram tab, then run the command again.")),
-            ).toBe(true);
+            expect(frames.some(isShowInfo(FOCUS_BPMN_DIAGRAM_MESSAGE))).toBe(true);
             expect(frames.some((f) => f.method === "editor/postMessage")).toBe(false);
         });
     });

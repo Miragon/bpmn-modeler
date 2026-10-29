@@ -1,4 +1,4 @@
-import type { ReferenceKind } from "./extractReference";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * A resolvable model reference the context-pad entry navigates to: the

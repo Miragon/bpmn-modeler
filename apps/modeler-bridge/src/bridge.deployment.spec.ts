@@ -473,7 +473,10 @@ describe("deployment commands over the bridge", () => {
             new Error("discovery failed"),
         );
         await c.command(METHODS.deploymentDeployFiles);
-        expect(c.frames.some((frame) => frame.method === METHODS.notifierNotifyError)).toBe(true);
+        const errorBalloon = c.frames.find((frame) => frame.method === METHODS.notifierShowError);
+        expect(errorBalloon?.params).toEqual({
+            message: expect.stringMatching(/\ndiscovery failed$/),
+        });
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
     });
 });

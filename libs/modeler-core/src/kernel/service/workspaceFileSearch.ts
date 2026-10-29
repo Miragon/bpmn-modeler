@@ -1,5 +1,8 @@
-import { EXCLUDED_DIRS, pathIsInsideExcludedDir } from "../domain/excludedDirs";
+import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
+
+import { EXCLUDED_DIRS, isInsideExcludedDirBelowEveryFolder } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
+import { LocateResult, outcomeAfterReading, SearchOutcome } from "../domain/locateResult";
 import { SearchScope } from "../domain/searchScope";
 import { joinWorkspacePath } from "../domain/workspacePath";
 
@@ -18,25 +21,9 @@ export interface SearchLogger {
     logInfo(message: string): void;
 }
 
-/**
- * Outcome of reading and matching a set of candidate files.
- *
- * `allUnreadable` is `true` only when at least one file was attempted and every
- * read failed, letting callers distinguish "searched, found nothing" from
- * "could not search because nothing was readable".
- */
-export interface ContentSearchResult {
-    matches: string[];
+interface FileScan<Found> {
+    found: Found[];
     readFailures: string[];
-    allUnreadable: boolean;
-}
-
-/**
- * Escapes regex metacharacters so a user-supplied id / literal is matched
- * verbatim rather than interpreted as a pattern.
- */
-export function escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
@@ -67,6 +54,12 @@ interface FindFilesOptions {
     matchesWalkedFile: (absolutePath: string) => boolean;
 }
 
+/** The files a search lists: `glob` for `findFiles`, `matchesWalkedFile` for the walks. */
+export interface WorkspaceFileQuery extends FindFilesOptions {
+    glob: string;
+    sourceDocumentPath?: string;
+}
+
 /**
  * Finds workspace files matching `glob`, excluding build/output dirs, with an
  * fs-walk fallback for hosts where the bundled ripgrep is missing.
@@ -84,11 +77,10 @@ interface FindFilesOptions {
  */
 export async function findFilesExcluding(
     ws: WorkspacePort,
-    glob: string,
-    options: FindFilesOptions & { sourceDocumentPath?: string },
+    query: WorkspaceFileQuery,
 ): Promise<string[] | undefined> {
-    const scope = resolveSearchScope(ws, options.sourceDocumentPath);
-    return scope && findFilesInScope(ws, scope, glob, options);
+    const scope = resolveSearchScope(ws, query.sourceDocumentPath);
+    return scope && findFilesInScope(ws, scope, query.glob, query);
 }
 
 export async function findFilesInScope(
@@ -106,7 +98,9 @@ export async function findFilesInScope(
     // VS Code defaults do not cover all of them (dist, build, out, target, …).
     const startedAt = Date.now();
     const found = await ws.findFiles(glob);
-    const filtered = found.filter((path) => !pathIsInsideExcludedDir(path));
+    const filtered = found.filter(
+        (path) => !isInsideExcludedDirBelowEveryFolder(path, scope.folders),
+    );
     logger?.logInfo(
         `[search] findFiles("${glob}") returned ${found.length} path(s) ` +
             `(${filtered.length} after exclude filter) in ${Date.now() - startedAt}ms`,
@@ -175,72 +169,66 @@ async function walkWorkspaceTree(
     return out;
 }
 
-/**
- * Reads each candidate file in parallel and tests `pattern` against its content
- * (ignoring XML comments and CDATA sections). Read failures are collected
- * rather than thrown so a single unreadable file does not abort the search.
- */
-export async function searchFilesContent(
+/** The files `query` lists whose content matches `pattern` outside XML comments and CDATA sections. */
+export function searchFilesContent(
     ws: WorkspacePort,
-    paths: string[],
+    query: WorkspaceFileQuery,
     pattern: RegExp,
-    logger?: SearchLogger,
-): Promise<ContentSearchResult> {
+): Promise<LocateResult> {
+    return scanWorkspaceFiles(
+        ws,
+        query,
+        (content, path) => (matchesOutsideCommentsAndCdata(content, pattern) ? path : undefined),
+        (paths) => ({ paths }),
+    );
+}
+
+/** Lists the files `query` names and keeps what `inspect` finds in each, gathered by `toMatches`. */
+export async function scanWorkspaceFiles<Found, Matches extends object>(
+    ws: WorkspacePort,
+    query: WorkspaceFileQuery,
+    inspect: (content: string, path: string) => Found | undefined,
+    toMatches: (found: Found[]) => Matches,
+): Promise<SearchOutcome<Matches>> {
+    const paths = await findFilesExcluding(ws, query);
+    if (paths === undefined) {
+        query.logger?.logInfo("[search] no search scope (no folder, no source uri)");
+        return { kind: "no-search-scope" };
+    }
+
     const startedAt = Date.now();
-    const failures: string[] = [];
-    const results = await Promise.all(
-        paths.map(async (path) => {
-            try {
-                const content = await ws.readFile(path);
-                return matchesOutsideCommentsAndCdata(content, pattern) ? path : undefined;
-            } catch (error) {
-                failures.push(`Could not read ${path}: ${(error as Error).message}`);
-                return undefined;
-            }
-        }),
-    );
-    const matches = results.filter((path): path is string => path !== undefined);
-
-    logger?.logInfo(
-        `[search] content: candidates=${paths.length} matches=${matches.length} ` +
-            `readFailures=${failures.length} reads-took=${Date.now() - startedAt}ms`,
+    const { found, readFailures } = await scanFiles(ws, paths, inspect);
+    query.logger?.logInfo(
+        `[search] read: candidates=${paths.length} found=${found.length} ` +
+            `readFailures=${readFailures.length} reads-took=${Date.now() - startedAt}ms`,
     );
 
-    return {
-        matches,
-        readFailures: failures,
-        allUnreadable: paths.length > 0 && failures.length === paths.length,
-    };
+    return outcomeAfterReading(paths.length, readFailures, toMatches(found));
 }
 
 /**
- * Returns true if `pattern` matches at least one position in `content` that is
- * not inside an XML comment or CDATA section — a commented-out declaration is
- * not a real one. For non-XML source files the comment/CDATA ranges are simply
- * empty, so matching behaves normally.
- *
- * Comment/CDATA ranges are enumerated via regex rather than stripped with
- * `.replace()` to avoid CodeQL's `js/incomplete-multi-character-sanitization`
- * rule (this is filtering, not sanitisation, so the lint is a false positive
- * but easier to dodge than appease).
+ * Reads each candidate in parallel and keeps what `inspect` finds in it. A
+ * failed read is collected, not thrown, so one unreadable file does not abort
+ * the search.
  */
-function matchesOutsideCommentsAndCdata(content: string, pattern: RegExp): boolean {
-    const excluded: Array<[number, number]> = [];
-    for (const re of [/<!--[\s\S]*?-->/g, /<!\[CDATA\[[\s\S]*?\]\]>/g]) {
-        let m;
-        while ((m = re.exec(content)) !== null) {
-            excluded.push([m.index, m.index + m[0].length]);
-        }
-    }
-    const global = new RegExp(
-        pattern.source,
-        pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
+async function scanFiles<Found>(
+    ws: WorkspacePort,
+    paths: readonly string[],
+    inspect: (content: string, path: string) => Found | undefined,
+): Promise<FileScan<Found>> {
+    const readFailures: string[] = [];
+    const inspected = await Promise.all(
+        paths.map(async (path): Promise<[Found] | []> => {
+            let content: string;
+            try {
+                content = await ws.readFile(path);
+            } catch (error) {
+                readFailures.push(`Could not read ${path}: ${(error as Error).message}`);
+                return [];
+            }
+            const found = inspect(content, path);
+            return found === undefined ? [] : [found];
+        }),
     );
-    let match;
-    while ((match = global.exec(content)) !== null) {
-        if (!excluded.some(([s, e]) => match!.index >= s && match!.index < e)) {
-            return true;
-        }
-    }
-    return false;
+    return { found: inspected.flat(), readFailures };
 }

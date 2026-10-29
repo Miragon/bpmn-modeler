@@ -36,7 +36,9 @@ import {
     NotifierPort,
     PickerPort,
     ScriptLanguage,
+    ScriptMaterialization,
     ScriptUri,
+    ScriptVariableStore,
     SettingsPort,
     TMP_SCRIPTING_SEGMENT,
     toWorkspacePath,
@@ -130,11 +132,6 @@ export class BridgeScriptEditor {
         AsyncDebounced<(content: string) => Promise<void>>
     >();
 
-    // The webview-extracted process-variable model per editor: seeded on open,
-    // replaced on every `UpdateScriptVariablesCommand`, and shipped with both the
-    // `script/open` payload and the `script/updateVariables` push.
-    private readonly extractedByEditor = new Map<string, VariableDef[]>();
-
     constructor(
         private readonly store: EditorSessionStore,
         private readonly picker: PickerPort,
@@ -143,6 +140,7 @@ export class BridgeScriptEditor {
         private readonly settings: SettingsPort,
         private readonly workspace: WorkspacePort,
         private readonly artifactSvc: ArtifactService,
+        private readonly scriptVariables: ScriptVariableStore,
     ) {}
 
     /**
@@ -188,7 +186,7 @@ export class BridgeScriptEditor {
 
         // Seed the editor's extracted model from the open command so the host has
         // variable completion before the first live update arrives.
-        this.extractedByEditor.set(editorId, cmd.variables ?? []);
+        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
@@ -229,7 +227,7 @@ export class BridgeScriptEditor {
                 // they have no member completion.
                 methods: methodsForBean(bean),
             })),
-            variables: this.variablesFor(editorId),
+            variables: this.scriptVariables.variablesFor(editorId),
             globals: spinOn ? globalFunctionsFor(kind) : [],
             types: spinOn
                 ? Object.fromEntries(COMPLEX_TYPES.map((type) => [type.name, type.methods]))
@@ -241,42 +239,35 @@ export class BridgeScriptEditor {
      * Writes a script file to disk *without* opening a host tab, tracking it, or
      * locking the panel — the "Generate Script Files" command's whole job. Live
      * sync starts only when the user opens the file (see {@link adoptExternalOpen}).
-     * Returns whether a file was written; `undefined` when the language picker was
-     * cancelled or the write failed (nothing was generated either way).
+     * A failed write rejects.
      *
      * Deliberately does **not** record `filePathByScript`: a later panel-button
      * open then sees no path and rewrites the file from the current model, keeping
      * the panel button's rewrite-from-model semantics. A script already owned by
-     * an open tab is left untouched (`written:false`) — its buffer is authoritative.
+     * an open tab is left untouched (`alreadyOpen`) — its buffer is authoritative.
      */
     async materialize(
         cmd: OpenScriptEditorCommand,
         editorId: string,
-    ): Promise<{ written: boolean } | undefined> {
+    ): Promise<ScriptMaterialization> {
         const target = await this.resolveScriptTarget(cmd, editorId);
         if (!target) {
-            return undefined; // language picker cancelled
+            return { kind: "cancelled" };
         }
 
-        // An open tab owns the authoritative buffer — leave it untouched.
         if (this.scripts.has(target.scriptId)) {
-            return { written: false };
+            return { kind: "alreadyOpen" };
         }
 
         const baseDir = await this.prepareBaseDir(editorId);
         const filePath = joinWorkspacePath(baseDir, target.uri.relativePath());
-        try {
-            await this.workspace.writeFile(filePath, cmd.content);
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            return undefined;
-        }
+        await this.workspace.writeFile(filePath, cmd.content);
 
         // Seed the editor's extracted model so a later open/adoption has variables
         // before the first live `UpdateScriptVariablesCommand`.
-        this.extractedByEditor.set(editorId, cmd.variables ?? []);
+        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
-        return { written: true };
+        return { kind: "written" };
     }
 
     /**
@@ -558,17 +549,13 @@ export class BridgeScriptEditor {
      * only.
      */
     updateVariables(editorId: string, variables: VariableDef[]): void {
-        this.extractedByEditor.set(editorId, variables);
+        this.scriptVariables.setExtracted(editorId, variables);
         this.pushVariables(editorId);
-    }
-
-    private variablesFor(editorId: string): VariableDef[] {
-        return this.extractedByEditor.get(editorId) ?? [];
     }
 
     /** Pushes the editor's model to every open script tab of `editorId`. */
     private pushVariables(editorId: string): void {
-        const variables = this.variablesFor(editorId);
+        const variables = this.scriptVariables.variablesFor(editorId);
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
                 this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
@@ -717,7 +704,7 @@ export class BridgeScriptEditor {
             }
         }
 
-        this.extractedByEditor.delete(editorId);
+        this.scriptVariables.clear(editorId);
     }
 
     /**

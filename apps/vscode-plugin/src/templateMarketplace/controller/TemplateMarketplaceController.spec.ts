@@ -46,7 +46,7 @@ function createController() {
     const marketplaceSvc = {
         addMarketplace: vi.fn().mockResolvedValue(completeFetch),
         updateAll: vi.fn().mockResolvedValue({ succeeded: 1, failures: [] }),
-        pruneOrphanedCaches: vi.fn().mockResolvedValue([]),
+        pruneOrphanedCaches: vi.fn().mockResolvedValue(undefined),
     };
     const templatesSvc = { reloadMarketplaceTemplates: vi.fn().mockResolvedValue(undefined) };
     const settings = {

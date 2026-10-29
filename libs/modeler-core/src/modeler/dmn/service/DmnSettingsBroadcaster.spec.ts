@@ -82,7 +82,7 @@ describe("DmnSettingsBroadcaster.subscribe", () => {
         const { broadcaster, editor } = createBroadcaster();
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.colorTheme");
+        editor.changeSetting("colorTheme");
 
         expect(editor.postedOfType("DmnModelerSettingQuery")).toHaveLength(1);
         expect(editor.postedOfType("LanguageQuery")).toHaveLength(0);
@@ -92,7 +92,7 @@ describe("DmnSettingsBroadcaster.subscribe", () => {
         const { broadcaster, editor } = createBroadcaster();
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.language");
+        editor.changeSetting("language");
 
         expect(editor.postedOfType("LanguageQuery")).toHaveLength(1);
         expect(editor.postedOfType("DmnModelerSettingQuery")).toHaveLength(0);
@@ -102,7 +102,7 @@ describe("DmnSettingsBroadcaster.subscribe", () => {
         const { broadcaster, editor } = createBroadcaster();
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.alignToOrigin", "editor.fontSize");
+        editor.changeSetting("alignToOrigin");
 
         expect(editor.posted).toEqual([]);
     });
@@ -113,7 +113,7 @@ describe("DmnSettingsBroadcaster.subscribe", () => {
         vi.spyOn(broadcaster, "setSettings").mockRejectedValue(postFailed);
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.colorTheme");
+        editor.changeSetting("colorTheme");
         await Promise.resolve();
         await Promise.resolve();
 

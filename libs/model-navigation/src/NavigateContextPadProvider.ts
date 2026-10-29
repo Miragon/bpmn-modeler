@@ -24,8 +24,10 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+
 import { extractReference } from "./extractReference";
-import type { BusinessObjectLike, ReferenceKind } from "./extractReference";
+import type { BusinessObjectLike } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
 import type { FormPreviewController } from "./FormPreviewController";

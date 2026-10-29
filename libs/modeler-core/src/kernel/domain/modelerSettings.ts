@@ -1,6 +1,6 @@
-import { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { SURFACE_MODES, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { MarketplaceSettingsEntry } from "./hostPorts";
+import { ColorThemeSetting, MarketplaceSettingsEntry } from "./hostPorts";
 
 /**
  * The `miragon.bpmnModeler.*` values the core reads through `SettingsPort`, as
@@ -14,12 +14,34 @@ export interface ModelerSettingsSnapshot {
     configFolder: string;
     persistCodeLinkMap: boolean;
     c8ApiVersion: string;
-    colorTheme: "automatic" | "light";
+    colorTheme: ColorThemeSetting;
     defaultMode: SurfaceMode;
     favouriteBpmnElements: string[];
     language: string;
     scriptingSpin: boolean;
     marketplaces: MarketplaceSettingsEntry[];
+}
+
+const SETTING_KEY_OF_SNAPSHOT_KEY = {
+    alignToOrigin: "alignToOrigin",
+    showTransactionBoundaries: "showTransactionBoundaries",
+    configFolder: "configFolder",
+    persistCodeLinkMap: "persistCodeLinkMap",
+    c8ApiVersion: "c8ApiVersion",
+    colorTheme: "colorTheme",
+    defaultMode: "defaultMode",
+    favouriteBpmnElements: "favouriteBpmnElements",
+    language: "language",
+    scriptingSpin: "scripting.spin",
+    marketplaces: "marketplaces",
+} as const satisfies Record<keyof ModelerSettingsSnapshot, string>;
+
+/** A modeler setting as VS Code names it below `miragon.bpmnModeler`, on every host. */
+export type SettingKey =
+    (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot] | "linting.enabled";
+
+export function settingKeyOf(key: keyof ModelerSettingsSnapshot): SettingKey {
+    return SETTING_KEY_OF_SNAPSHOT_KEY[key];
 }
 
 /** Settings as a host hands them over: any key may be missing or hold any value. */
@@ -60,8 +82,7 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
 /** Outside the snapshot: IntelliJ has no lint setting, the bridge keeps the webview's toggle. */
 export const DEFAULT_LINTING_ENABLED = true;
 
-const COLOR_THEMES: readonly ModelerSettingsSnapshot["colorTheme"][] = ["automatic", "light"];
-const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
+const COLOR_THEMES: readonly ColorThemeSetting[] = ["automatic", "light"];
 
 const SETTING_PARSERS: {
     readonly [K in keyof ModelerSettingsSnapshot]: (raw: unknown) => ModelerSettingsSnapshot[K];
@@ -86,7 +107,7 @@ const SETTING_PARSERS: {
     marketplaces: (raw) => (Array.isArray(raw) ? raw : []),
 };
 
-const SETTING_KEYS = Object.keys(SETTING_PARSERS) as (keyof ModelerSettingsSnapshot)[];
+const SNAPSHOT_KEYS = Object.keys(SETTING_PARSERS) as (keyof ModelerSettingsSnapshot)[];
 
 /** One setting as a host must read it, whatever it was handed. */
 export function parseSetting<K extends keyof ModelerSettingsSnapshot>(
@@ -120,14 +141,14 @@ export function normalizeSettings(raw: RawModelerSettings): ModelerSettingsSnaps
     };
 }
 
-/** The keys whose values differ, in snapshot order; lists and entries compare by content. */
+/** The settings whose values differ, in snapshot order; lists and entries compare by content. */
 export function changedSettingKeys(
     previous: ModelerSettingsSnapshot,
     next: ModelerSettingsSnapshot,
-): (keyof ModelerSettingsSnapshot)[] {
-    return SETTING_KEYS.filter(
+): SettingKey[] {
+    return SNAPSHOT_KEYS.filter(
         (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
-    );
+    ).map(settingKeyOf);
 }
 
 function booleanOr(raw: unknown, fallback: boolean): boolean {

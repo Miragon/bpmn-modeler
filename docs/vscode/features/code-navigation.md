@@ -4,7 +4,7 @@ Go from a task to the source file that implements it, from a reference to the mo
 signals, errors and escalations from other models.
 
 All three work in VS Code, the desktop app and IntelliJ. They search the open workspace (in IntelliJ, the project) and
-skip `node_modules`, `dist`, `build`, `out`, `target`, `bin`, `coverage` and version-control folders.
+skip `node_modules`, `dist`, `build`, `out`, `target`, `bin`, `coverage` and version-control folders inside it.
 
 ## Go to implementation
 
@@ -28,8 +28,10 @@ Class and bean lookups search `.java`, `.kt`, `.groovy` and `.scala` files. Topi
   engine-neutral models.
 
 To keep the map on disk (faster reopening, and a file other tools can read), turn on
-`miragon.bpmnModeler.persistCodeLinkMap`. The map is then written to `<configFolder>/code-link/<file>.json`, for
-example `.camunda/code-link/order-process.bpmn.json`.
+`miragon.bpmnModeler.persistCodeLinkMap`. The map is then written to `<configFolder>/code-link/` in the workspace
+folder that holds the diagram, under the diagram's path below that folder plus `.json`. For example,
+`processes/order-process.bpmn` gets `.camunda/code-link/processes/order-process.bpmn.json`. A diagram outside every
+workspace folder uses its Git repository root instead, or else its own folder.
 
 ## Navigate to referenced model
 

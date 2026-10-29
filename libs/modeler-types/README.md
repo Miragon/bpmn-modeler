@@ -1,9 +1,12 @@
 # `@miragon/bpmn-modeler-types`
 
 The **public**, host-agnostic half of the modeler's shared code: domain/model
-types (engine, lint, settings, scripting, implementation, diff) and browser
-utilities (canvas resize, text-editing-surface predicate) that carry no
-dependency on the webview ↔ host message protocol.
+types (engine, lint, settings, scripting, implementation, diff), browser
+utilities (canvas resize, text-editing-surface predicate) and the pure rules
+browser code and `@miragon/bpmn-modeler-core` both apply (script-surface
+addressing in `scriptSurface.ts`, workspace definitions, the XML comment and
+CDATA scan in `xmlMarkup.ts`). None of it depends on the webview ↔ host message
+protocol.
 
 This package draws a hard line so the modeler can ship as a publishable
 `@miragon/bpmn-modeler` npm package without dragging the host protocol along:
@@ -15,15 +18,21 @@ here is safe to publish; everything protocol-shaped stays in
 ## The boundary
 
 - **Public (here):** anything a consumer of the modeler package may import.
+  The npm surface is only what a package entry re-exports by name, so a shared
+  rule here adds nothing to it; `check-dts` and `publicApi.spec.ts` gate it.
 - **Protocol (in `@miragon/bpmn-modeler-shared`):** `Query`/`Command` bases,
   the concrete message classes, `HostApi`, document-flush plumbing.
 
 The publishable libraries (`append-menu`, `bpmn-clipboard`, `code-link`,
-`element-template-chooser`, `inline-scripting`, `model-navigation`,
-`flow-navigation`) and the webview `app/` layers may depend on **this** package
-only. An eslint `no-restricted-imports` rule (`BND-PROTOCOL-PRIVATE`) fails the
-build if any of them reach for `@miragon/bpmn-modeler-shared`, and the reverse
-guard forbids this package from importing the protocol package.
+`definition-search`, `element-template-chooser`, `flow-navigation`,
+`inline-scripting`, `model-navigation`, `properties-panel`) and the
+`packages/bpmn-modeler` and `packages/dmn-modeler` npm packages may import
+**this** package but never `@miragon/bpmn-modeler-shared`. An eslint
+`no-restricted-imports` rule (`BND-PROTOCOL-PRIVATE` in `eslint.config.cjs`)
+fails the build if any of them, or this package itself, imports the protocol
+package. The webview apps (`apps/*-webview`) are left out on purpose: they are
+the host adapters that speak the protocol. Each npm package's
+`architecture.spec.ts` also forbids its sources from naming the protocol.
 
 ## Usage
 
@@ -41,4 +50,5 @@ import { Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-m
 
 Path resolution is handled by `tsconfig.base.json` (`paths`) plus
 `vite-tsconfig-paths` (webviews) and `tsconfig-paths-webpack-plugin` (extension
-host). Vitest projects hard-code the alias in their own `vitest.config.ts`.
+host). Vitest projects take the `workspaceAliases` that the root
+`vitest.shared.ts` generates from the same `paths`.

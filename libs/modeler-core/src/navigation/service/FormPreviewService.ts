@@ -18,8 +18,12 @@ export class FormPreviewService {
                       outcome: await this.locator.findDeclaringFiles(id, "form", sourcePath),
                       chosen: undefined,
                   }
-                : await this.picker.searchAndPickReferencedModel("Select a form to preview…", () =>
-                      this.locator.findDeclaringFiles(id, "form", sourcePath),
+                : await this.picker.searchAndPickLocatedFile(
+                      {
+                          searchingPlaceholder: "Searching for a form to preview…",
+                          pickPlaceholder: "Select a form to preview…",
+                      },
+                      () => this.locator.findDeclaringFiles(id, "form", sourcePath),
                   );
             if (outcome.kind !== "matches" || outcome.paths.length === 0) {
                 return {

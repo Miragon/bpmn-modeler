@@ -124,15 +124,23 @@ describe("extractModelDefinitions", () => {
         ]);
     });
 
-    it("ignores markup inside comments and CDATA, including unclosed ones", () => {
+    it("ignores markup inside comments and CDATA", () => {
         const xml = `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
             <!-- <bpmn:message id="C" name="commented" /> -->
             <bpmn:message id="M" name="kept" />
             <bpmn:documentation><![CDATA[ <bpmn:signal id="S" name="cdata" /> ]]></bpmn:documentation>
-            <!-- <bpmn:message id="U" name="unclosed" />
         </bpmn:definitions>`;
 
         expect(extractModelDefinitions(xml).map(({ name }) => name)).toEqual(["kept"]);
+    });
+
+    it("lists markup after an unterminated comment, which hides nothing", () => {
+        const xml = `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
+            <bpmn:message id="M" name="kept" />
+            <!-- <bpmn:message id="U" name="unclosed" />
+        </bpmn:definitions>`;
+
+        expect(extractModelDefinitions(xml).map(({ name }) => name)).toEqual(["kept", "unclosed"]);
     });
 
     it("stays fast on pathological input", () => {

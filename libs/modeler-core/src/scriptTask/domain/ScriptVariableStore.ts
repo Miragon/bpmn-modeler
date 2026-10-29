@@ -12,7 +12,7 @@ import { ScriptUri } from "./ScriptUri";
  * editor id because that hash is the only addressing a script file path
  * carries — the provider recovers it from the document path, never the original
  * editor URI. Keeping the store pure (no `vscode` import) lets both the VS Code
- * plugin and the bridge tests drive it directly.
+ * plugin and the bridge drive it directly.
  */
 export class ScriptVariableStore {
     private readonly extractedByEditorHash = new Map<string, VariableDef[]>();
@@ -25,6 +25,11 @@ export class ScriptVariableStore {
     /** Variables for a script URI's editor hash; empty when the editor is unknown. */
     getByEditorHash(editorHash: string): VariableDef[] {
         return this.extractedByEditorHash.get(editorHash) ?? [];
+    }
+
+    /** Variables for an editor; empty when the editor is unknown. */
+    variablesFor(editorId: string): VariableDef[] {
+        return this.getByEditorHash(ScriptUri.hashEditorId(editorId));
     }
 
     /** Drops the editor's model on teardown so closed editors leave no stale completions. */

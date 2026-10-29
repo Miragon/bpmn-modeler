@@ -27,6 +27,15 @@ import { EnvValueResolver } from "./EnvValueResolver";
 
 const FILE_PATH = "/work/order-process.bpmn";
 const XML = '<bpmn:process id="order"/>';
+const TWO_POOL_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_External" processRef="External" />
+    <bpmn:participant id="Participant_Main" processRef="Main" />
+  </bpmn:collaboration>
+  <bpmn:process id="External" isExecutable="false" />
+  <bpmn:process id="Main" isExecutable="true" />
+</bpmn:definitions>`;
 const DOT_ENV_PATH = "/work/.env";
 const TARGET_SLOT = "/work/.camunda/deployment-targets.json::dev";
 
@@ -123,11 +132,6 @@ function createService({
     const deploymentTargetService = {
         getActiveDestination: vi.fn().mockResolvedValue(named(c7Target)),
         getCredentials: vi.fn().mockResolvedValue(new NoAuth()),
-        locateTargetsFile: vi.fn().mockResolvedValue({
-            filePath: "/work/.camunda/deployment-targets.json",
-            exists: true,
-            projectDir: "/work",
-        }),
     };
     const dotEnvIo = {
         isSymbolicLink: vi.spyOn(host.workspace, "isSymbolicLink"),
@@ -149,7 +153,7 @@ function createService({
         deploymentStatusService as never,
         inspectionClient ?? (inspection as never),
         host.notifier,
-        new EnvValueResolver(deploymentTargetService as never, host.workspace),
+        new EnvValueResolver(host.workspace),
         new CredentialApprovalService(host.secrets, host.picker),
     );
 
@@ -175,7 +179,6 @@ function credentialApprovalPrompts(c: ServiceContext) {
 }
 
 function expectNoDotEnvIo(c: ServiceContext): void {
-    expect(c.deploymentTargetService.locateTargetsFile).not.toHaveBeenCalled();
     expect(c.dotEnvIo.isSymbolicLink).not.toHaveBeenCalled();
     expect(c.dotEnvIo.readFile).not.toHaveBeenCalled();
 }
@@ -269,6 +272,25 @@ describe("DeploymentVerificationService.verifyActive", () => {
             identity,
             expect.objectContaining({ origin: "engine", deploymentId: "dep-9" }),
         );
+        expect(c.host.notifier.infos).toEqual([
+            expect.stringContaining("dev runs exactly this diagram"),
+        ]);
+    });
+
+    it("verifies the executable process of a collaboration", async () => {
+        const c = createService({ content: TWO_POOL_XML });
+        c.inspection.fetchLatestDefinition.mockImplementation(async ({ processKey }) =>
+            processKey === "Main" ? snapshot({ xml: TWO_POOL_XML }) : undefined,
+        );
+
+        await c.service.verifyActive("/work");
+
+        expect(c.deploymentStatusService.adoptRevision).toHaveBeenCalledWith(
+            FILE_PATH,
+            identity,
+            expect.objectContaining({ origin: "engine", deploymentId: "dep-9" }),
+        );
+        expect(c.deploymentStatusService.forgetRevision).not.toHaveBeenCalled();
         expect(c.host.notifier.infos).toEqual([
             expect.stringContaining("dev runs exactly this diagram"),
         ]);
@@ -558,7 +580,7 @@ describe("DeploymentVerificationService.verifyActive", () => {
 
         await c.service.verifyActive("/work");
 
-        expect(c.deploymentTargetService.locateTargetsFile).toHaveBeenCalledWith("/work");
+        expect(c.dotEnvIo.readFile).toHaveBeenCalledExactlyOnceWith(DOT_ENV_PATH);
         expect(c.inspection.fetchLatestDefinition).toHaveBeenCalledWith(
             expect.objectContaining({
                 endpoint: c7Target.endpoint,

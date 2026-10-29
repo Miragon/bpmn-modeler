@@ -13,12 +13,7 @@ const banner = () => document.getElementById("start-status-banner") as HTMLDivEl
 
 function setup(connection = { endpoint: "https://engine.test", startInstanceUrl: "https://s" }) {
     document.body.innerHTML = FORM_TEMPLATE;
-    const host = {
-        postMessage: vi.fn(),
-        getState: vi.fn(),
-        setState: vi.fn(),
-        updateState: vi.fn(),
-    };
+    const host = { postMessage: vi.fn() };
     const form = new StartInstanceForm(
         host,
         () => ({ authType: "none" }),
@@ -151,12 +146,7 @@ describe("StartInstanceForm", () => {
         expect(
             () =>
                 new StartInstanceForm(
-                    {
-                        postMessage: vi.fn(),
-                        getState: vi.fn(),
-                        setState: vi.fn(),
-                        updateState: vi.fn(),
-                    },
+                    { postMessage: vi.fn() },
                     () => ({ authType: "none" }),
                     () => ({ endpoint: "", engine: "c7", targetName: "" }),
                 ),

@@ -512,15 +512,6 @@
         ]
     },
     {
-        "method": "notifier/notifyError",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "context",
-            "message"
-        ]
-    },
-    {
         "method": "notifier/openConsole",
         "direction": "coreToHost",
         "kind": "notification",

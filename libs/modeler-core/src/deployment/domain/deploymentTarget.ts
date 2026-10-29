@@ -57,6 +57,10 @@ export class NoTargetAuth {
         return [];
     }
 
+    assertEnvRefsValid(): void {
+        // No connection field that could carry a reference.
+    }
+
     toJson(): Record<string, unknown> {
         return { type: this.type };
     }
@@ -88,6 +92,10 @@ export class BasicTargetAuth {
 
     knownUrls(): string[] {
         return [];
+    }
+
+    assertEnvRefsValid(): void {
+        // No connection field that could carry a reference.
     }
 
     toJson(): Record<string, unknown> {
@@ -137,6 +145,11 @@ export class OAuth2TargetAuth {
 
     knownUrls(): string[] {
         return [this.tokenEndpoint];
+    }
+
+    assertEnvRefsValid(): void {
+        assertEnvRefsValid(this.tokenEndpoint, "auth.tokenEndpoint");
+        assertEnvRefsValid(this.audience, "auth.audience");
     }
 
     toJson(): Record<string, unknown> {
@@ -270,18 +283,6 @@ export class DeploymentTarget {
         return target;
     }
 
-    get authType(): TargetAuthType {
-        return this.auth.type;
-    }
-
-    get tokenEndpoint(): string {
-        return this.auth.type === "oauth2" ? this.auth.tokenEndpoint : "";
-    }
-
-    get audience(): string {
-        return this.auth.type === "oauth2" ? this.auth.audience : "";
-    }
-
     get credentialRefs(): CredentialRefs {
         return this.auth.credentialRefs;
     }
@@ -366,8 +367,7 @@ export class DeploymentTarget {
     private assertEnvRefsValid(): void {
         assertEnvRefsValid(this.endpoint, "endpoint");
         assertEnvRefsValid(this.tenantId, "tenantId");
-        assertEnvRefsValid(this.tokenEndpoint, "auth.tokenEndpoint");
-        assertEnvRefsValid(this.audience, "auth.audience");
+        this.auth.assertEnvRefsValid();
         assertEnvRefsValid(this.deployUrl, "endpoints.deploy");
         assertEnvRefsValid(this.startInstanceUrl, "endpoints.startInstance");
     }
@@ -631,18 +631,14 @@ function parseAuth(raw: unknown, index: number): ParsedAuth {
     };
 }
 
-/**
- * Every field is validated so a literal secret under another auth type's key
- * still fails loudly; the target's {@link TargetAuth} keeps only its own refs.
- */
+/** Every key is validated, so a literal secret under another auth type's key still fails loudly. */
 function parseCredentialRefs(auth: Record<string, unknown>, index: number): CredentialRefs {
-    const username = parseCredentialRef(auth.username, index, "auth.username");
-    const password = parseCredentialRef(auth.password, index, "auth.password");
-    const clientId = parseCredentialRef(auth.clientId, index, "auth.clientId");
-    const clientSecret = parseCredentialRef(auth.clientSecret, index, "auth.clientSecret");
-    return auth.type === "oauth2"
-        ? CredentialRefs.oauth2(clientId, clientSecret)
-        : CredentialRefs.basic(username, password);
+    return CredentialRefs.ofFields({
+        username: parseCredentialRef(auth.username, index, "auth.username"),
+        password: parseCredentialRef(auth.password, index, "auth.password"),
+        clientId: parseCredentialRef(auth.clientId, index, "auth.clientId"),
+        clientSecret: parseCredentialRef(auth.clientSecret, index, "auth.clientSecret"),
+    });
 }
 
 function parseCredentialRef(raw: unknown, index: number, field: string): string | undefined {

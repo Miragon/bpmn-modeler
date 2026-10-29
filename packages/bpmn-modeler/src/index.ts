@@ -38,8 +38,8 @@ export type {
     FormPreviewRequest,
     FormPreviewHandle,
     FormPreviewPort,
-    ReferenceKind,
 } from "@miragon/bpmn-model-navigation";
+export type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 export type {
     Engine,

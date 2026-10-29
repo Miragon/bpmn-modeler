@@ -10,19 +10,22 @@ import type { WebviewApi } from "vscode-webview";
  * view state across reloads.
  */
 export interface HostApi<T, M> {
+    // Properties, not methods: a method's parameters compare bivariantly, so a host
+    // narrowed to fewer messages or a narrower state could stand in for a wider one.
+
     /**
      * Get the persisted state of the webview.
      * @returns `undefined` until the first write, e.g. on a webview's first-ever open
      */
-    getState(): T | undefined;
+    getState: () => T | undefined;
 
     /** Replace the persisted state. */
-    setState(state: T): void;
+    setState: (state: T) => void;
 
     /** Merge `state` into the persisted state, or seed it when nothing is saved yet. */
-    updateState(state: Partial<T>): void;
+    updateState: (state: Partial<T>) => void;
 
-    postMessage(message: M): void;
+    postMessage: (message: M) => void;
 }
 
 /**

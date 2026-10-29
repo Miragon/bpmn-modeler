@@ -96,7 +96,7 @@ describe("BpmnSettingsBroadcaster.subscribe", () => {
         const { broadcaster, editor } = createBroadcaster();
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.colorTheme");
+        editor.changeSetting("colorTheme");
 
         expect(editor.postedOfType("BpmnModelerSettingQuery")).toHaveLength(1);
         expect(editor.postedOfType("LanguageQuery")).toHaveLength(0);
@@ -106,17 +106,17 @@ describe("BpmnSettingsBroadcaster.subscribe", () => {
         const { broadcaster, editor } = createBroadcaster();
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.language");
+        editor.changeSetting("language");
 
         expect(editor.postedOfType("LanguageQuery")).toHaveLength(1);
         expect(editor.postedOfType("BpmnModelerSettingQuery")).toHaveLength(0);
     });
 
-    it("ignores config changes outside the modeler namespace", () => {
+    it("ignores changes of settings it does not push", () => {
         const { broadcaster, editor } = createBroadcaster();
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("editor.fontSize");
+        editor.changeSetting("configFolder", "scripting.spin");
 
         expect(editor.posted).toEqual([]);
     });
@@ -127,7 +127,7 @@ describe("BpmnSettingsBroadcaster.subscribe", () => {
         vi.spyOn(broadcaster, "setSettings").mockRejectedValue(postFailed);
 
         broadcaster.subscribe(editor.id);
-        editor.changeSetting("miragon.bpmnModeler.colorTheme");
+        editor.changeSetting("colorTheme");
         // The `.catch` guard runs on a later microtask; flush before asserting.
         await Promise.resolve();
         await Promise.resolve();

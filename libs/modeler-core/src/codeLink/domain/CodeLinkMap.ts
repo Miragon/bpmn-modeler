@@ -1,277 +1,207 @@
-/**
- * Pure domain core of the activity→code map: the in-memory entry shape, the
- * on-disk JSON artifact shape, the relative↔absolute path conversions, and the
- * single-file matchers that decide whether one source file implements a given
- * `(kind, reference)`.
- *
- * The matchers are the load-bearing piece. They are shared verbatim by the
- * always-on map's two cheap operations — *verifying* an already-linked file
- * still implements its activity, and *live-linking* a just-saved file to an
- * unresolved activity — and by the locator's batched scan, so all three agree on
- * what "implements" means without re-walking the workspace per reference.
- *
- * No `vscode` / Node host modules — only `path` (string math). The matchers
- * operate on content the caller already read, so this stays unit-testable
- * against plain strings.
- */
-import { posix } from "path";
+import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
-import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import {
-    beanToClassName,
-    extractBeanName,
-    fqcnToGlobPath,
-    ImplementationKind,
-    JVM_EXTENSIONS,
-} from "./ImplementationReference";
-import { BEAN_ANNOTATION_PREFIX, commentAndCdataRanges, isInsideRanges } from "./sourceText";
-
-export type { ImplementationKind };
-
-/** Bumped only on a breaking change to {@link CodeLinkMapJson}'s shape. */
-export const CODE_LINK_SCHEMA_VERSION = 1;
+    CODE_LINK_SCHEMA_VERSION,
+    CodeLinkMapJson,
+    toAbsolute,
+    toRelative,
+} from "./codeLinkArtifact";
+import { ImplementationTarget } from "./ImplementationTarget";
 
 /**
- * One activity's resolution state held in memory while the editor is open.
- * `paths` are absolute (the `uri.path` form the workspace search speaks) so they
- * can be read back for verification and compared against watcher events; they
- * are relativised only when written to the artifact.
+ * One activity and the files that implement it. `paths` are absolute (the
+ * `uri.path` form the workspace speaks), so they can be read back and compared
+ * against watcher events; the artifact relativises them.
  */
-export interface CodeLinkMapEntry {
-    activityId: string;
-    kind: ImplementationKind;
-    reference: string;
-    resolved: boolean;
-    paths: string[];
+export interface CodeLink extends ImplementationEntry {
+    readonly paths: readonly string[];
 }
 
-/** One entry as persisted: identical to {@link CodeLinkMapEntry} but with workspace-relative paths. */
-interface CodeLinkMapJsonEntry {
-    activityId: string;
-    kind: ImplementationKind;
-    reference: string;
-    resolved: boolean;
-    paths: string[];
+export interface SyncPlan {
+    /** The held links whose activity the diagram still binds the same way. */
+    readonly retained: CodeLinkMap;
+    /** The retained links with files, whose files are read again. */
+    readonly toVerify: readonly CodeLink[];
+    /** The new and changed activities. */
+    readonly toResolve: readonly ImplementationEntry[];
 }
+
+export type SourceFileChange =
+    | { readonly kind: "written"; readonly path: string; readonly content: string | undefined }
+    | { readonly kind: "deleted"; readonly path: string };
 
 /**
- * The persisted artifact. A full inventory (unresolved entries included) so
- * external/AI tooling sees every task, and a warm cache the host reloads on the
- * next open to skip the cold batched scan.
+ * The activity→code map of one open diagram. An activity is resolved exactly
+ * when a file is linked to it; that is derived, never stored. Every operation
+ * returns a new map.
  */
-export interface CodeLinkMapJson {
-    schemaVersion: number;
-    bpmnFile: string;
-    generatedAt: string;
-    entries: CodeLinkMapJsonEntry[];
-}
+export class CodeLinkMap {
+    static readonly empty = new CodeLinkMap(new Map());
 
-/**
- * Workspace-relative POSIX path of `absolutePath` under `workspaceRoot`. Both
- * inputs are `uri.path`-style POSIX strings, so `posix.relative` is exact.
- */
-export function toRelative(absolutePath: string, workspaceRoot: string): string {
-    return posix.relative(workspaceRoot, absolutePath);
-}
+    private constructor(private readonly linksById: ReadonlyMap<string, CodeLink>) {}
 
-/** Absolute path of a workspace-relative POSIX path — the inverse of {@link toRelative}. */
-export function toAbsolute(relativePath: string, workspaceRoot: string): string {
-    return joinWorkspacePath(workspaceRoot, relativePath);
-}
-
-/**
- * Assembles the artifact from the in-memory entries, relativising every path so
- * the file is workspace-portable. Pure and deterministic given its inputs —
- * `generatedAt` is passed in rather than read from the clock here so the result
- * can be asserted in tests.
- */
-export function buildMapJson(params: {
-    bpmnFile: string;
-    generatedAt: string;
-    workspaceRoot: string;
-    entries: readonly CodeLinkMapEntry[];
-}): CodeLinkMapJson {
-    return {
-        schemaVersion: CODE_LINK_SCHEMA_VERSION,
-        bpmnFile: params.bpmnFile,
-        generatedAt: params.generatedAt,
-        entries: params.entries.map((entry) => ({
-            activityId: entry.activityId,
-            kind: entry.kind,
-            reference: entry.reference,
-            resolved: entry.resolved,
-            paths: entry.paths.map((path) => toRelative(path, params.workspaceRoot)),
-        })),
-    };
-}
-
-/**
- * Parses the artifact, returning `undefined` (not throwing) on anything that is
- * not a current-schema map — a hand-edited, truncated, or older file must
- * degrade to "no warm cache", never crash the open.
- */
-export function parseMapJson(raw: string): CodeLinkMapJson | undefined {
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(raw);
-    } catch {
-        return undefined;
+    /** The persisted `resolved` flag is ignored: the paths decide. */
+    static fromArtifact(json: CodeLinkMapJson, workspaceRoot: string): CodeLinkMap {
+        return CodeLinkMap.of(
+            json.entries
+                .filter((entry) => CodeLinkMap.admits(entry))
+                .map((entry) =>
+                    linkOf(
+                        entry,
+                        entry.paths.map((path) => toAbsolute(path, workspaceRoot)),
+                    ),
+                ),
+        );
     }
-    if (
-        typeof parsed !== "object" ||
-        parsed === null ||
-        (parsed as CodeLinkMapJson).schemaVersion !== CODE_LINK_SCHEMA_VERSION ||
-        !Array.isArray((parsed as CodeLinkMapJson).entries)
-    ) {
-        return undefined;
+
+    /** An entry that crossed a message boundary is typed, but not checked. */
+    static admits(entry: ImplementationEntry): boolean {
+        return (
+            typeof entry.activityId === "string" &&
+            entry.activityId.length > 0 &&
+            typeof entry.reference === "string" &&
+            entry.reference.length > 0 &&
+            ImplementationTarget.isKnownKind(entry.kind)
+        );
     }
-    // Validate each entry's shape too: an `entries` array alone is not enough.
-    // A hand-edited/truncated file can carry a malformed element (e.g. `[null]`,
-    // a missing field, or a non-string `paths`) that would NPE in
-    // toAbsoluteEntries and crash the open. One bad entry drops the whole file.
-    if (!(parsed as CodeLinkMapJson).entries.every(isValidJsonEntry)) {
-        return undefined;
+
+    private static of(links: readonly CodeLink[]): CodeLinkMap {
+        return new CodeLinkMap(new Map(links.map((link) => [link.activityId, link])));
     }
-    return parsed as CodeLinkMapJson;
-}
 
-/** Structural guard for one persisted entry — every field present and correctly typed. */
-function isValidJsonEntry(entry: unknown): entry is CodeLinkMapJsonEntry {
-    if (typeof entry !== "object" || entry === null) {
-        return false;
+    get links(): readonly CodeLink[] {
+        return [...this.linksById.values()];
     }
-    const candidate = entry as Record<string, unknown>;
-    return (
-        typeof candidate.activityId === "string" &&
-        typeof candidate.kind === "string" &&
-        typeof candidate.reference === "string" &&
-        typeof candidate.resolved === "boolean" &&
-        Array.isArray(candidate.paths) &&
-        candidate.paths.every((path) => typeof path === "string")
-    );
-}
 
-/** Re-hydrates persisted entries to the in-memory shape (relative paths → absolute). */
-export function toAbsoluteEntries(
-    json: CodeLinkMapJson,
-    workspaceRoot: string,
-): CodeLinkMapEntry[] {
-    return json.entries.map((entry) => ({
-        activityId: entry.activityId,
-        kind: entry.kind,
-        reference: entry.reference,
-        resolved: entry.resolved,
-        paths: entry.paths.map((path) => toAbsolute(path, workspaceRoot)),
-    }));
-}
+    isResolved(activityId: string): boolean {
+        return (this.linksById.get(activityId)?.paths.length ?? 0) > 0;
+    }
 
-/**
- * `camunda:class` is a fully-qualified name, so the file path *is* the proof —
- * no content read needed. The package path must sit on a segment boundary
- * (start of path or after `/`) so a no-package `Foo` does not falsely match
- * `MyFoo.java`.
- */
-export function matchesClassPath(fqcn: string, absolutePath: string): boolean {
-    const packagePath = fqcnToGlobPath(fqcn);
-    return JVM_EXTENSIONS.some((ext) => {
-        const suffix = `${packagePath}.${ext}`;
-        return absolutePath === suffix || absolutePath.endsWith(`/${suffix}`);
-    });
-}
+    /**
+     * An unchanged unresolved activity is neither verified nor resolved again:
+     * the source watcher links it once a file implements it.
+     */
+    planSync(incoming: readonly ImplementationEntry[]): SyncPlan {
+        const admitted = new Map(
+            incoming
+                .filter((entry) => CodeLinkMap.admits(entry))
+                .map((entry) => [entry.activityId, entry]),
+        );
+        const retained = this.links.filter((link) => {
+            const entry = admitted.get(link.activityId);
+            return entry?.kind === link.kind && entry.reference === link.reference;
+        });
+        const retainedIds = new Set(retained.map((link) => link.activityId));
+        return {
+            retained: CodeLinkMap.of(retained),
+            toVerify: retained.filter((link) => link.paths.length > 0),
+            toResolve: [...admitted.values()].filter((entry) => !retainedIds.has(entry.activityId)),
+        };
+    }
 
-/**
- * Whether the file is the conventional implementing class for a bean id —
- * `myBean` → `MyBean.java`. The first guess the locator makes for a
- * delegate/expression binding, matched on the file's basename alone.
- */
-export function matchesBeanClassName(bean: string, absolutePath: string): boolean {
-    const className = beanToClassName(bean);
-    const base = posix.basename(absolutePath);
-    return JVM_EXTENSIONS.some((ext) => base === `${className}.${ext}`);
-}
-
-/**
- * Whether `content` declares a worker for a free-form literal (external-task
- * topic or Zeebe job type) — the literal appears quoted, e.g.
- * `@JobWorker(type = "payment")` or `taskType: "payment"`.
- */
-export function contentImplementsLiteral(content: string, literal: string): boolean {
-    return matchesOutsideComments(content, new RegExp(`["']${escapeRegex(literal)}["']`));
-}
-
-/**
- * Whether `content` declares a Spring/CDI bean carrying the exact bean id, e.g.
- * `@Service("myBean")` — the fallback when the class file name differs from the
- * bean (an explicitly named `@Component(value = "myBean")`).
- */
-export function contentDeclaresBean(content: string, bean: string): boolean {
-    return matchesOutsideComments(
-        content,
-        new RegExp(`${BEAN_ANNOTATION_PREFIX}${escapeRegex(bean)}["']`),
-    );
-}
-
-/**
- * The one decision both verification and live-linking ask: does the file at
- * `absolutePath` (with already-read `content`) implement `(kind, reference)`?
- * `content` is optional only for `javaClass`, which is decided by the path
- * alone; the content-based kinds report `false` when content is unavailable.
- */
-export function fileMatchesEntry(
-    kind: ImplementationKind,
-    reference: string,
-    absolutePath: string,
-    content?: string,
-): boolean {
-    switch (kind) {
-        case "javaClass":
-            return matchesClassPath(reference, absolutePath);
-        case "delegateExpression":
-        case "expression": {
-            const bean = extractBeanName(reference);
-            if (!bean) {
-                return false;
+    /**
+     * `survivors` holds, per verified activity, the linked files that still
+     * implement it. Verification only narrows a link; an activity that loses
+     * its last file is resolved again.
+     */
+    applyVerification(survivors: ReadonlyMap<string, readonly string[]>): {
+        map: CodeLinkMap;
+        toResolve: readonly ImplementationEntry[];
+    } {
+        const toResolve: ImplementationEntry[] = [];
+        const links = this.links.map((link) => {
+            const surviving = survivors.get(link.activityId);
+            if (surviving === undefined || link.paths.length === 0) {
+                return link;
             }
-            return (
-                matchesBeanClassName(bean, absolutePath) ||
-                (content !== undefined && contentDeclaresBean(content, bean))
+            const verified = linkOf(
+                link,
+                link.paths.filter((path) => surviving.includes(path)),
             );
+            if (verified.paths.length === 0) {
+                toResolve.push(bindingOf(link));
+            }
+            return verified;
+        });
+        return { map: CodeLinkMap.of(links), toResolve };
+    }
+
+    applyResolution(
+        entries: readonly ImplementationEntry[],
+        resolved: ReadonlyMap<string, readonly string[]>,
+    ): CodeLinkMap {
+        const links = new Map(this.linksById);
+        for (const entry of entries) {
+            links.set(entry.activityId, linkOf(entry, resolved.get(entry.activityId) ?? []));
         }
-        case "externalTopic":
-        case "jobType":
-            return content !== undefined && contentImplementsLiteral(content, reference);
+        return new CodeLinkMap(links);
+    }
+
+    /**
+     * A written file is linked exactly when it implements the activity and
+     * unlinked when it stops doing so, whether or not the activity was
+     * resolved; a deleted file leaves every link.
+     */
+    applyFileChange(change: SourceFileChange): { map: CodeLinkMap; changed: boolean } {
+        const held = this.links;
+        const links = held.map((link) => linkAfter(change, link));
+        const changed = links.some((link, index) => link !== held[index]);
+        return { map: changed ? CodeLinkMap.of(links) : this, changed };
+    }
+
+    /** Keyed by {@link implementationStatusKey}, the lookup the webview reads. */
+    statusSnapshot(): Record<string, boolean> {
+        return Object.fromEntries(
+            this.links.map((link) => [
+                implementationStatusKey(link.activityId, link.reference),
+                link.paths.length > 0,
+            ]),
+        );
+    }
+
+    /** Lists unresolved activities too, so tooling reading the file sees every task. */
+    toArtifact(params: {
+        bpmnFile: string;
+        workspaceRoot: string;
+        generatedAt: string;
+    }): CodeLinkMapJson {
+        return {
+            schemaVersion: CODE_LINK_SCHEMA_VERSION,
+            bpmnFile: params.bpmnFile,
+            generatedAt: params.generatedAt,
+            entries: this.links.map((link) => ({
+                ...bindingOf(link),
+                resolved: link.paths.length > 0,
+                paths: link.paths.map((path) => toRelative(path, params.workspaceRoot)),
+            })),
+        };
     }
 }
 
-/** Escapes regex metacharacters so a user id/literal is matched verbatim. */
-function escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function bindingOf(entry: ImplementationEntry): ImplementationEntry {
+    return { activityId: entry.activityId, kind: entry.kind, reference: entry.reference };
 }
 
-/**
- * True if `pattern` matches at least one position outside an XML comment or
- * CDATA section — a commented-out declaration is not a real one. Mirrors the
- * workspace content search so the batched scan and these matchers never
- * disagree about the same file. For non-XML source the excluded ranges are
- * empty and matching behaves normally.
- *
- * Limitation: only XML comments/CDATA are excluded, not Java/JS line (`//`) or
- * block comments, so a commented-out annotation in a `.java` file can still
- * false-match. This is deliberate — a naive comment stripper would truncate on a
- * `//` inside a string literal and wrongly *hide* a real match (a worse failure
- * than an extra heuristic link). Revisit only with a real tokenizer if it bites.
- */
-function matchesOutsideComments(content: string, pattern: RegExp): boolean {
-    const excluded = commentAndCdataRanges(content);
-    const global = new RegExp(
-        pattern.source,
-        pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
-    );
-    let match: RegExpExecArray | null;
-    while ((match = global.exec(content)) !== null) {
-        if (!isInsideRanges(excluded, match.index)) {
-            return true;
-        }
+function linkOf(entry: ImplementationEntry, paths: readonly string[]): CodeLink {
+    return { ...bindingOf(entry), paths: [...new Set(paths)] };
+}
+
+function linkAfter(change: SourceFileChange, link: CodeLink): CodeLink {
+    const linked = link.paths.includes(change.path);
+    const implemented =
+        change.kind === "written" &&
+        ImplementationTarget.of(link.kind, link.reference).isImplementedBy(
+            change.path,
+            change.content,
+        );
+    if (implemented && !linked) {
+        return linkOf(link, [...link.paths, change.path]);
     }
-    return false;
+    if (!implemented && linked) {
+        return linkOf(
+            link,
+            link.paths.filter((path) => path !== change.path),
+        );
+    }
+    return link;
 }

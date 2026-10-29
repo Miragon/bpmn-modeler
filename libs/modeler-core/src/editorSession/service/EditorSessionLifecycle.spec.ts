@@ -72,7 +72,7 @@ describe("EditorSessionLifecycle", () => {
                 session.onFocusChange((focused) => events.push(`focus ${focused}`));
                 session.onDocumentChange(() => events.push("document"));
                 session.onSettingChange((event) =>
-                    events.push(`setting ${event.affectsConfiguration("miragon.bpmnModeler")}`),
+                    events.push(`setting ${event.affects("configFolder")}`),
                 );
             },
         };
@@ -81,7 +81,7 @@ describe("EditorSessionLifecycle", () => {
         editor.loseFocus();
         editor.becomeActive();
         editor.changeDocument("<edited/>");
-        editor.changeSetting("miragon.bpmnModeler.configFolder");
+        editor.changeSetting("configFolder");
         editor.dispose();
         editor.changeDocument("<after-close/>");
 

@@ -1,10 +1,8 @@
-import type { ScriptKind } from "@miragon/bpmn-modeler-types";
-
-import { resolveScriptBodyTarget, type ScriptHolder } from "../domain/scriptBodyTarget";
+import { resolveScriptWriteTarget, type ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * One script surface's new content, addressed exactly as the webview addresses
- * it (see `libs/inline-scripting/src/scriptModel.ts`): element id + kind, plus
+ * it (see `libs/modeler-types/src/scriptSurface.ts`): element id + kind, plus
  * the filtered listener index for the two listener kinds (`undefined` for a
  * script task).
  */
@@ -13,6 +11,19 @@ export interface ScriptContentUpdate {
     kind: ScriptKind;
     listenerIndex: number | undefined;
     content: string;
+}
+
+// One shape for both holders, so a target's property reads and writes as a string.
+interface ScriptProperties {
+    script?: string;
+    scriptFormat?: string;
+    value?: string;
+}
+
+/** The structural subset of a parsed BPMN element a script body can live on. */
+interface ScriptHolder extends ScriptProperties {
+    $type: string;
+    extensionElements?: { values?: { $type: string; script?: ScriptProperties }[] };
 }
 
 type BpmnModdleFactory = (additionalPackages?: Record<string, unknown>) => ModdleInstance;
@@ -33,8 +44,8 @@ interface ModdleInstance {
  * normally stream into the *webview's* model. When the diagram tab is closed
  * before a buffered edit can be replayed, that path is gone; this service is
  * the host-only fallback that re-parses the `.bpmn`, applies the pending script
- * values through the same addressing the webview uses (inline-scripting's
- * `resolveScriptWriteTarget`), and re-serialises.
+ * values through the same addressing the webview uses
+ * (`resolveScriptWriteTarget`), and re-serialises.
  *
  * It compares *parsed values*, never strings, and returns `undefined` when
  * nothing diverged: a round-trip of already-current XML must be a no-op so an
@@ -85,17 +96,18 @@ export class ScriptXmlService {
     ): boolean {
         const element = elementsById[update.elementId];
         const target =
-            element && resolveScriptBodyTarget(element, update.kind, update.listenerIndex);
+            element &&
+            resolveScriptWriteTarget(element, update.kind, update.listenerIndex, "content");
         if (!target) {
             return false;
         }
         // Unset maps to "" (mirrors `readScriptContent`), so an untouched empty
         // script never counts as a divergence.
-        const current = target.holder[target.propertyName] ?? "";
+        const current = target.moddleElement[target.propertyName] ?? "";
         if (current === update.content) {
             return false;
         }
-        target.holder[target.propertyName] = update.content;
+        target.moddleElement[target.propertyName] = update.content;
         return true;
     }
 

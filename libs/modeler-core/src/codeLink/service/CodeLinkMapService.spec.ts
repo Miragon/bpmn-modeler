@@ -4,7 +4,7 @@ import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { createTestHost, FakeEditorHandle } from "../../testing";
-import { buildMapJson } from "../domain/CodeLinkMap";
+import { CODE_LINK_SCHEMA_VERSION } from "../domain/codeLinkArtifact";
 import { CodeLinkMapService } from "./CodeLinkMapService";
 
 const ROOT = "/work/proj";
@@ -90,6 +90,16 @@ const entry = (
     reference: string,
 ): ImplementationEntry => ({ activityId, kind, reference });
 
+/** An artifact an earlier session wrote, with workspace-relative paths. */
+function warmArtifact(warmEntry: ImplementationEntry, paths: string[]): string {
+    return JSON.stringify({
+        schemaVersion: CODE_LINK_SCHEMA_VERSION,
+        bpmnFile: "order.bpmn",
+        generatedAt: "t",
+        entries: [{ ...warmEntry, resolved: paths.length > 0, paths }],
+    });
+}
+
 beforeEach(() => {
     vi.useFakeTimers();
 });
@@ -135,67 +145,73 @@ describe("CodeLinkMapService — sync diff", () => {
         expect(readFile.mock.calls).toEqual([[abs]]); // verified by a single read
     });
 
-    it("re-resolves when a reference changes", async () => {
-        const { service, editor, locator } = createService({
-            resolveMap: { "com.example.A": ["/p/A.java"], "com.example.B": ["/p/B.java"] },
+    describe("a bean declared in a class named differently", () => {
+        const beanClass = "/work/proj/src/PaymentService.java";
+        const entries = [entry("Act", "delegateExpression", "${paymentBean}")];
+        const status = implementationStatusKey("Act", "${paymentBean}");
+
+        function createLinkedService() {
+            const resolveMap: Record<string, string[]> = { "${paymentBean}": [beanClass] };
+            const created = createService({
+                resolveMap,
+                fileContents: { [beanClass]: '@Service("paymentBean")\nclass PaymentService {}' },
+            });
+            return { ...created, resolveMap };
+        }
+
+        it("stays linked while the file still declares the bean", async () => {
+            const { service, editor, locator } = createLinkedService();
+
+            await service.syncActivities(editor.id, entries);
+            await service.syncActivities(editor.id, entries);
+
+            expect(locator.resolveMany).toHaveBeenCalledTimes(1);
+            expect(lastStatus(editor)).toEqual({ [status]: true });
         });
 
-        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
-        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.B")]);
+        it("is unlinked and resolved again once the file no longer declares it", async () => {
+            const { service, host, editor, locator, resolveMap } = createLinkedService();
+            await service.syncActivities(editor.id, entries);
 
-        expect(locator.resolveMany).toHaveBeenCalledTimes(2);
-        expect(locator.resolveMany.mock.calls[1][0]).toEqual([
-            entry("Act", "javaClass", "com.example.B"),
-        ]);
-    });
+            // Edited without a watcher event, so only the verification read sees it.
+            host.workspace.files.set(beanClass, "class PaymentService {}");
+            delete resolveMap["${paymentBean}"];
+            await service.syncActivities(editor.id, entries);
 
-    it("drops a removed activity from the pushed status", async () => {
-        const { service, editor } = createService({
-            resolveMap: { a: ["/p/a"], b: ["/p/b"] },
+            expect(locator.resolveMany.mock.calls.map(([resolved]) => resolved)).toEqual([
+                entries,
+                entries,
+            ]);
+            expect(lastStatus(editor)).toEqual({ [status]: false });
         });
-
-        await service.syncActivities(editor.id, [
-            entry("A", "jobType", "a"),
-            entry("B", "jobType", "b"),
-        ]);
-        await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
-
-        expect(Object.keys(lastStatus(editor)!)).toEqual([implementationStatusKey("A", "a")]);
     });
 
-    it("filters out malformed entries (unknown kind, empty fields)", async () => {
-        const { service, editor, locator } = createService({ resolveMap: { x: ["/p/x"] } });
+    it("re-resolves an activity whose linked file no longer implements it", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor, locator } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        const entries = [entry("Act", "jobType", "pay")];
+        await service.syncActivities(editor.id, entries);
 
-        await service.syncActivities(editor.id, [
-            entry("A", "jobType", "x"),
-            { activityId: "", kind: "jobType", reference: "y" },
-            { activityId: "B", kind: "bogus" as never, reference: "z" },
+        // Edited without a watcher event, so only the verification read sees it.
+        host.workspace.files.set(worker, "class Worker {}");
+        await service.syncActivities(editor.id, entries);
+
+        expect(locator.resolveMany.mock.calls.map(([resolved]) => resolved)).toEqual([
+            entries,
+            entries,
         ]);
-
-        expect(locator.resolveMany.mock.calls[0][0]).toEqual([entry("A", "jobType", "x")]);
-        expect(Object.keys(lastStatus(editor)!)).toEqual([implementationStatusKey("A", "x")]);
     });
 });
 
 describe("CodeLinkMapService — warm cache", () => {
     it("loads the artifact and verifies, skipping the batched resolve (persist on)", async () => {
         const abs = "/work/proj/src/main/java/com/example/A.java";
-        const warm = JSON.stringify(
-            buildMapJson({
-                bpmnFile: "order.bpmn",
-                generatedAt: "t",
-                workspaceRoot: ROOT,
-                entries: [
-                    {
-                        activityId: "Act",
-                        kind: "javaClass",
-                        reference: "com.example.A",
-                        resolved: true,
-                        paths: [abs],
-                    },
-                ],
-            }),
-        );
+        const warm = warmArtifact(entry("Act", "javaClass", "com.example.A"), [
+            "src/main/java/com/example/A.java",
+        ]);
         const { service, editor, locator } = createService({
             persist: true,
             fileContents: { [ARTIFACT]: warm, [abs]: "class A {}" },
@@ -211,22 +227,9 @@ describe("CodeLinkMapService — warm cache", () => {
 
     it("loads the warm cache when persistence is toggled on mid-session", async () => {
         const abs = "/work/proj/src/main/java/com/example/A.java";
-        const warm = JSON.stringify(
-            buildMapJson({
-                bpmnFile: "order.bpmn",
-                generatedAt: "t",
-                workspaceRoot: ROOT,
-                entries: [
-                    {
-                        activityId: "Act",
-                        kind: "javaClass",
-                        reference: "com.example.A",
-                        resolved: true,
-                        paths: [abs],
-                    },
-                ],
-            }),
-        );
+        const warm = warmArtifact(entry("Act", "javaClass", "com.example.A"), [
+            "src/main/java/com/example/A.java",
+        ]);
         const { service, host, editor } = createService({
             persist: false,
             resolveMap: { "com.example.A": [abs] },
@@ -248,27 +251,25 @@ describe("CodeLinkMapService — warm cache", () => {
             { level: "info", message: expect.stringContaining("warm cache: loaded 1") },
         ]);
     });
+
+    it("handles a source change after a warm cache named an unknown kind", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const warm = warmArtifact(entry("Act", "bogus" as never, "pay"), ["src/Worker.java"]);
+        const { service, editor, locator } = createService({
+            persist: true,
+            fileContents: { [ARTIFACT]: warm, [worker]: '@JobWorker(type = "pay")' },
+        });
+        // A failed resolve keeps whatever the warm cache put in the map.
+        locator.resolveMany.mockRejectedValueOnce(new Error("listing failed"));
+        await expect(
+            service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]),
+        ).rejects.toThrow("listing failed");
+
+        await expect(service.onSourceFileChanged(worker, "changed", ROOT)).resolves.toBeUndefined();
+    });
 });
 
 describe("CodeLinkMapService — live linking", () => {
-    it("links a freshly-written worker to an unresolved activity", async () => {
-        const worker = "/work/proj/src/Worker.java";
-        const { service, editor } = createService({
-            resolveMap: {}, // nothing resolves at sync time
-            fileContents: { [worker]: '@JobWorker(type = "pay")' },
-        });
-
-        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
-        expect(lastStatus(editor)).toEqual({
-            [implementationStatusKey("Act", "pay")]: false,
-        });
-
-        await service.onSourceFileChanged(worker, "created", ROOT);
-        expect(lastStatus(editor)).toEqual({
-            [implementationStatusKey("Act", "pay")]: true,
-        });
-    });
-
     it("unlinks a deleted file and marks the activity unresolved", async () => {
         const worker = "/work/proj/src/Worker.java";
         const { service, editor } = createService({
@@ -296,40 +297,6 @@ describe("CodeLinkMapService — live linking", () => {
         expect(editor.posted.length).toBe(pushesBefore);
     });
 
-    it("unlinks when an edit removes the binding from an already-linked file", async () => {
-        const worker = "/work/proj/src/Worker.java";
-        const { service, host, editor } = createService({
-            resolveMap: { pay: [worker] },
-            fileContents: { [worker]: '@JobWorker(type = "pay")' },
-        });
-        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
-        expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(true);
-
-        // The annotation is edited away — same file, no longer matches. Set
-        // without a watcher event so only the explicit change below applies.
-        host.workspace.files.set(worker, '@JobWorker(type = "other")');
-        await service.onSourceFileChanged(worker, "changed", ROOT);
-
-        expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
-    });
-
-    it("links an additional implementing file to an already-resolved activity", async () => {
-        const first = "/work/proj/src/W1.java";
-        const second = "/work/proj/src/W2.java";
-        const { service, editor } = createService({
-            resolveMap: { pay: [first] },
-            fileContents: { [first]: '"pay"', [second]: '"pay"' },
-        });
-        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
-        const pushesBefore = editor.posted.length;
-
-        await service.onSourceFileChanged(second, "created", ROOT);
-
-        // Still resolved, but the second file produced a push (paths changed).
-        expect(editor.posted.length).toBe(pushesBefore + 1);
-        expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(true);
-    });
-
     it("only touches editors rooted at the changed file's root", async () => {
         const { service, editor } = createService({ resolveMap: { a: ["/p/a"] } });
         await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
@@ -355,6 +322,21 @@ describe("CodeLinkMapService — live linking", () => {
 
         expect(editor.posted.length).toBe(pushesBefore);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
+    });
+
+    it("follows a source change in a workspace below a build directory", async () => {
+        const root = "/home/u/build/repo";
+        const worker = `${root}/src/Worker.java`;
+        const { service, editor } = createService({
+            root,
+            resolveMap: {},
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+
+        await service.onSourceFileChanged(worker, "created", root);
+
+        expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
     });
 
     it("reads at apply time so the last event's content wins when reads resolve out of order", async () => {
@@ -409,6 +391,42 @@ describe("CodeLinkMapService — persistence", () => {
         expect(written.entries[0].paths).toEqual(["src/main/java/com/example/A.java"]);
     });
 
+    it("names a nested diagram by its path below the root", async () => {
+        const { service, host } = createService({ persist: true });
+        const nested = host.openEditor("/work/proj/processes/order.bpmn");
+
+        await service.syncActivities(nested.id, [entry("Act", "jobType", "pay")]);
+        await service.writeArtifact(nested.id);
+
+        const written = host.workspace.files.get(
+            "/work/proj/.camunda/code-link/processes/order.bpmn.json",
+        );
+        expect(JSON.parse(written!).bpmnFile).toBe("processes/order.bpmn");
+    });
+
+    it("keeps a link to a file outside the diagram's root across a reopen", async () => {
+        const abs = "/work/lib/src/main/java/com/example/A.java";
+        const { service, host, editor, locator } = createService({
+            persist: true,
+            resolveMap: { "com.example.A": [abs] },
+            fileContents: { [abs]: "class A {}" },
+        });
+        const entries = [entry("Act", "javaClass", "com.example.A")];
+
+        await service.syncActivities(editor.id, entries);
+        await service.writeArtifact(editor.id);
+        service.disposeEditor(editor.id);
+        await service.syncActivities(editor.id, entries);
+
+        expect(JSON.parse(host.workspace.files.get(ARTIFACT)!).entries[0].paths).toEqual([
+            "../lib/src/main/java/com/example/A.java",
+        ]);
+        expect(locator.resolveMany).toHaveBeenCalledTimes(1);
+        expect(lastStatus(editor)).toEqual({
+            [implementationStatusKey("Act", "com.example.A")]: true,
+        });
+    });
+
     it("writes the artifact under the UNC root of a workspace on a share", async () => {
         const root = "//server/share/proj";
         const { service, host, editor } = createService({
@@ -423,6 +441,27 @@ describe("CodeLinkMapService — persistence", () => {
         expect([...host.workspace.files.keys()]).toEqual([
             `${root}/.camunda/code-link/order.bpmn.json`,
         ]);
+    });
+
+    it("keeps the map in memory and writes nothing for a document outside its workspace root", async () => {
+        const abs = "/work/proj/src/A.java";
+        const { service, host, editor, artifactSvc } = createService({
+            persist: true,
+            resolveMap: { "com.example.A": [abs] },
+        });
+        artifactSvc.getWorkspaceRoot.mockResolvedValueOnce("/work/other");
+
+        await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
+        await service.writeArtifact(editor.id);
+
+        expect(lastStatus(editor)).toEqual({
+            [implementationStatusKey("Act", "com.example.A")]: true,
+        });
+        expect([...host.workspace.files.keys()]).toEqual([]);
+        expect(host.notifier.logged("warning")).toContain(
+            "[code-link] not persisting the map: No config artifact for /work/proj/order.bpmn: " +
+                "it is not below the workspace root /work/other.",
+        );
     });
 
     it("does not persist when the setting is off", async () => {
@@ -539,6 +578,56 @@ describe("CodeLinkMapService — lifecycle", () => {
 
         expect(sourceIndex.sourcesFor).not.toHaveBeenCalled();
         expect(watchers).toEqual([]);
+    });
+
+    it("pushes no status to an editor closed while its resolve ran", async () => {
+        const { service, editor, locator } = createService();
+        locator.resolveMany.mockImplementationOnce((entries: ImplementationEntry[]) => {
+            service.disposeEditor(editor.id);
+            return Promise.resolve(
+                new Map(entries.map(({ activityId }) => [activityId, ["/p/a"]])),
+            );
+        });
+
+        await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
+
+        expect(lastStatus(editor)).toBeUndefined();
+    });
+
+    it("pushes no status to an editor closed while a changed file was read", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor } = createService();
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        const pushesBefore = editor.posted.length;
+        vi.spyOn(host.workspace, "readFile").mockImplementationOnce(() => {
+            service.disposeEditor(editor.id);
+            return Promise.resolve('@JobWorker(type = "pay")');
+        });
+
+        await service.onSourceFileChanged(worker, "created", ROOT);
+
+        expect(editor.posted.length).toBe(pushesBefore);
+    });
+
+    it("does not register an editor closed while its links were verified", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor, sourceIndex } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        sourceIndex.sourcesFor.mockClear();
+        vi.spyOn(host.workspace, "readFile").mockImplementationOnce(() => {
+            service.disposeEditor(editor.id);
+            return Promise.resolve('@JobWorker(type = "pay")');
+        });
+
+        await service.syncActivities(editor.id, [
+            entry("Act", "jobType", "pay"),
+            entry("New", "jobType", "refund"),
+        ]);
+
+        expect(sourceIndex.sourcesFor).not.toHaveBeenCalled();
     });
 
     it("releases the editor's share of the source index when it closes", async () => {

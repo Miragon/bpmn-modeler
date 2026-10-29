@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { InMemoryWorkspace, RecordingNotifier } from "../../testing";
+import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
 
@@ -104,7 +105,7 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
     });
 
     it("returns empty matches when the expression has no leading bean id", async () => {
-        const { locator, workspace } = createLocator();
+        const { locator, workspace, notifier } = createLocator();
         const findFiles = vi.spyOn(workspace, "findFiles");
 
         const result = await locator.resolve("${ 1 + 2 }", "expression");
@@ -112,6 +113,21 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
         expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
         // No bean id → nothing to search for.
         expect(findFiles).not.toHaveBeenCalled();
+        expect(notifier.logged("info")).toContain(
+            '[code-link] nothing to search for in expression reference "${ 1 + 2 }"',
+        );
+    });
+});
+
+describe("ImplementationLocator — logging", () => {
+    it("shortens a long reference in its log line like every echoed reference", async () => {
+        const { locator, notifier } = createLocator();
+
+        await locator.resolve("t".repeat(110), "jobType");
+
+        expect(notifier.logged("info")[0]).toBe(
+            `[code-link] resolving jobType reference="${"t".repeat(99)}…" sourceUri=<none>`,
+        );
     });
 });
 
@@ -186,11 +202,10 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
 
         const result = await locator.resolve("t", "jobType");
 
-        expect(result.kind).toBe("all-unreadable");
-        if (result.kind === "all-unreadable") {
-            expect(result.attempted).toBe(1);
-            expect(result.failures[0]).toContain("EACCES");
-        }
+        expect(result).toEqual({
+            kind: "all-unreadable",
+            failures: [expect.stringContaining("EACCES")],
+        });
     });
 
     it("includes partial read failures alongside a successful match", async () => {
@@ -206,6 +221,38 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
             expect(result.paths).toEqual(["/src/good.java"]);
             expect(result.readFailures).toHaveLength(1);
         }
+    });
+});
+
+describe("ImplementationLocator — content search on the walk fallback", () => {
+    it.each<{ kind: ImplementationKind; reference: string; files: Record<string, string> }>([
+        {
+            kind: "jobType",
+            reference: "pay",
+            files: {
+                "/work/src/Worker.java": '@JobWorker(type = "pay")',
+                "/work/process.bpmn": '<zeebe:taskDefinition type="pay" />',
+            },
+        },
+        {
+            kind: "delegateExpression",
+            reference: "${myBean}",
+            files: {
+                "/work/src/Worker.java": '@Service("myBean")\nclass Worker {}',
+                "/work/src/worker.ts": '@Service("myBean")',
+            },
+        },
+    ])("reads only the files a $kind content search covers", async ({ kind, reference, files }) => {
+        const { locator, workspace } = createLocator({ folders: ["/work"], files });
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+
+        const result = await locator.resolve(reference, kind, "/work/process.bpmn");
+
+        expect(result).toEqual({
+            kind: "matches",
+            paths: ["/work/src/Worker.java"],
+            readFailures: [],
+        });
     });
 });
 
@@ -301,6 +348,20 @@ describe("ImplementationLocator — resolveMany", () => {
         ]);
 
         // MyBean matches by file name, so the content pass is skipped entirely.
+        expect(readFile).not.toHaveBeenCalled();
+    });
+
+    it("reads no files for a missing class or an expression without a bean id", async () => {
+        const { locator, workspace } = createLocator({ files: { "/src/Other.java": "" } });
+        const readFile = vi.spyOn(workspace, "readFile");
+
+        const result = await locator.resolveMany([
+            { activityId: "A", kind: "javaClass", reference: "com.example.Missing" },
+            { activityId: "B", kind: "expression", reference: "${ 1 + 2 }" },
+        ]);
+
+        expect(result.get("A")).toEqual([]);
+        expect(result.get("B")).toEqual([]);
         expect(readFile).not.toHaveBeenCalled();
     });
 

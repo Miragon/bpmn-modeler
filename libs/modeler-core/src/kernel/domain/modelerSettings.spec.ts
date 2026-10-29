@@ -11,6 +11,8 @@ import {
     ModelerSettingsSnapshot,
     normalizeSettings,
     parseLintingEnabled,
+    SettingKey,
+    settingKeyOf,
 } from "./modelerSettings";
 
 const SHARED_CASES = settingsNormalizationCases(
@@ -76,6 +78,15 @@ describe("parseLintingEnabled", () => {
     });
 });
 
+describe("settingKeyOf", () => {
+    it.each<{ key: keyof ModelerSettingsSnapshot; settingKey: SettingKey }>([
+        { key: "language", settingKey: "language" },
+        { key: "scriptingSpin", settingKey: "scripting.spin" },
+    ])("names $key by the key VS Code stores it under", ({ key, settingKey }) => {
+        expect(settingKeyOf(key)).toBe(settingKey);
+    });
+});
+
 describe("changedSettingKeys", () => {
     const marketplaceEntry = { provider: "github", repo: "acme/templates" } as const;
 
@@ -83,7 +94,7 @@ describe("changedSettingKeys", () => {
         case: string;
         previous?: Partial<ModelerSettingsSnapshot>;
         next: Partial<ModelerSettingsSnapshot>;
-        changed: (keyof ModelerSettingsSnapshot)[];
+        changed: SettingKey[];
     }>([
         { case: "nothing for the same values", next: {}, changed: [] },
         { case: "a changed value", next: { language: "de" }, changed: ["language"] },
@@ -123,4 +134,25 @@ describe("changedSettingKeys", () => {
 
         expect(changedSettingKeys(before, { ...before, ...next })).toEqual(changed);
     });
+
+    it.each<{ next: Partial<ModelerSettingsSnapshot>; changed: SettingKey }>([
+        { next: { alignToOrigin: true }, changed: "alignToOrigin" },
+        { next: { showTransactionBoundaries: false }, changed: "showTransactionBoundaries" },
+        { next: { configFolder: ".config" }, changed: "configFolder" },
+        { next: { persistCodeLinkMap: true }, changed: "persistCodeLinkMap" },
+        { next: { c8ApiVersion: "v1" }, changed: "c8ApiVersion" },
+        { next: { colorTheme: "light" }, changed: "colorTheme" },
+        { next: { defaultMode: "design" }, changed: "defaultMode" },
+        { next: { favouriteBpmnElements: ["bpmn:Task"] }, changed: "favouriteBpmnElements" },
+        { next: { language: "de" }, changed: "language" },
+        { next: { scriptingSpin: false }, changed: "scripting.spin" },
+        { next: { marketplaces: ["https://github.com/acme/templates"] }, changed: "marketplaces" },
+    ])(
+        "names a changed value by the key VS Code stores it under: $changed",
+        ({ next, changed }) => {
+            const before = normalizeSettings({});
+
+            expect(changedSettingKeys(before, { ...before, ...next })).toEqual([changed]);
+        },
+    );
 });

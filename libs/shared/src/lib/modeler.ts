@@ -72,6 +72,7 @@ import type {
     LayoutStatus,
     LintResults,
     OpenScriptEditorRef,
+    ReferenceKind,
     ScriptKind,
     ScriptTaskScript,
     Viewport,
@@ -643,8 +644,6 @@ export class GetClipboardCommand extends Command<"GetClipboardCommand"> {
  * match, shows a QuickPick when several files match, or shows an info
  * notification when no match is found.
  */
-export type ReferenceKind = "process" | "decision" | "form";
-
 export class NavigateToReferencedModelCommand extends Command<"NavigateToReferencedModelCommand"> {
     public readonly referenceId: string;
 

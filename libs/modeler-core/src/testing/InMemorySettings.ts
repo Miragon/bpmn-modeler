@@ -1,6 +1,10 @@
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { MarketplaceSettingsEntry, SettingsPort } from "../kernel/domain/hostPorts";
+import {
+    ColorThemeSetting,
+    MarketplaceSettingsEntry,
+    SettingsPort,
+} from "../kernel/domain/hostPorts";
 import {
     DEFAULT_LINTING_ENABLED,
     ModelerSettingsSnapshot,
@@ -46,7 +50,7 @@ export class InMemorySettings implements SettingsPort {
         return this.values.lintingEnabled;
     }
 
-    getColorTheme(): "automatic" | "light" {
+    getColorTheme(): ColorThemeSetting {
         return this.values.colorTheme;
     }
 

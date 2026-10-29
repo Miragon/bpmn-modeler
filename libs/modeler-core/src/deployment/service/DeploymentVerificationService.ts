@@ -75,7 +75,7 @@ export class DeploymentVerificationService {
         try {
             const credentials = await this.deploymentTargetService.getCredentials(destination);
             const lookup = await this.envResolver.createLookup(
-                destination.envScope,
+                destination,
                 dir,
                 target.connectionEnvRefs(),
                 credentials,

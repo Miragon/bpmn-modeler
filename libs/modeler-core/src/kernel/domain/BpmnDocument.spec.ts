@@ -132,13 +132,66 @@ describe("BpmnDocument.forNewModel", () => {
 });
 
 describe("BpmnDocument.detectPlatformVersion", () => {
-    it("should return the version string when present", () => {
-        expect(new BpmnDocument(c7Xml).detectPlatformVersion()).toBe("7.20.0");
-        expect(new BpmnDocument(c8Xml).detectPlatformVersion()).toBe("8.5.0");
+    it.each([
+        { given: "a C7 diagram", xml: c7Xml, version: "7.20.0" },
+        { given: "a C8 diagram", xml: c8Xml, version: "8.5.0" },
+        {
+            given: "a diagram that binds the modeler namespace to another prefix",
+            xml: diagram(
+                CUSTOM_PREFIX_MODELER_NAMESPACE,
+                CUSTOM_PREFIX_C8_PLATFORM,
+                customPrefixPlatformVersion("8.8.0"),
+            ),
+            version: "8.8.0",
+        },
+        {
+            given: "a single-quoted attribute",
+            xml: diagram(
+                MODELER_NAMESPACE,
+                C8_PLATFORM,
+                "modeler:executionPlatformVersion='8.8.0'",
+            ),
+            version: "8.8.0",
+        },
+        {
+            given: "a version with a two-digit minor and patch",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.10.12")),
+            version: "8.10.12",
+        },
+        {
+            given: "a version with a two-digit major",
+            xml: diagram(MODELER_NAMESPACE, platformVersion("10.0.0")),
+            version: "10.0.0",
+        },
+    ])("reads $version from $given", ({ xml, version }) => {
+        expect(new BpmnDocument(xml).detectPlatformVersion()).toBe(version);
     });
 
-    it("should return undefined when the attribute is absent", () => {
-        expect(new BpmnDocument(c7XmlNoVersion).detectPlatformVersion()).toBeUndefined();
+    it.each([
+        { given: "a diagram without a version", xml: c7XmlNoVersion },
+        {
+            given: "a two-part version",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.6")),
+        },
+        {
+            given: "a version with leading text",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("v8.8.0")),
+        },
+        {
+            given: "a version with trailing text",
+            xml: diagram(MODELER_NAMESPACE, C8_PLATFORM, platformVersion("8.8.0-alpha")),
+        },
+        {
+            given: "a diagram whose version text appears only in a documentation body",
+            xml: `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${MODELER_NAMESPACE} ${C8_PLATFORM}>
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:documentation>${platformVersion("9.9.9")}</bpmn:documentation>
+  </bpmn:process>
+</bpmn:definitions>`,
+        },
+    ])("reads no version from $given", ({ xml }) => {
+        expect(new BpmnDocument(xml).detectPlatformVersion()).toBeUndefined();
     });
 });
 
@@ -469,14 +522,118 @@ describe("BpmnDocument.migratedTo", () => {
     });
 });
 
+const BPMN_NAMESPACE_URI = "http://www.omg.org/spec/BPMN/20100524/MODEL";
+
+const diagramWith = (...rootElements: string[]) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  ${rootElements.join("\n  ")}
+</bpmn:definitions>`;
+
+const bpmn2Diagram = (rootAttributeBeforeBinding: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions ${rootAttributeBeforeBinding} xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:process id="P2" isExecutable="true" />
+</bpmn2:definitions>`;
+
+const POOLS = `<bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_External" processRef="External" />
+    <bpmn:participant id="Participant_Main" processRef="Main" />
+  </bpmn:collaboration>`;
+
 describe("BpmnDocument.extractProcessId", () => {
-    it("should extract the process id", () => {
-        expect(new BpmnDocument(c7Xml).extractProcessId()).toBe("Process_1aiafvx");
+    it.each([
+        { given: "a C7 diagram", xml: c7Xml, processId: "Process_1aiafvx" },
+        {
+            given: "a process whose id follows another attribute",
+            xml: diagramWith('<bpmn:process isExecutable="true" id="P1" />'),
+            processId: "P1",
+        },
+        {
+            given: "a diagram that binds the BPMN namespace to bpmn2",
+            xml: bpmn2Diagram('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'),
+            processId: "P2",
+        },
+        {
+            given: "a diagram whose targetNamespace names the BPMN namespace",
+            xml: bpmn2Diagram(`targetNamespace="${BPMN_NAMESPACE_URI}"`),
+            processId: "P2",
+        },
+        {
+            given: "a process outside a definitions root",
+            xml: '<bpmn:process id="P1" isExecutable="true" />',
+            processId: "P1",
+        },
+        {
+            given: "a diagram in the default BPMN namespace",
+            xml: defaultNamespaceDiagram(),
+            processId: "Process_1",
+        },
+        {
+            given: "a collaboration whose first process is not executable",
+            xml: diagramWith(
+                POOLS,
+                '<bpmn:process id="External" isExecutable="false" />',
+                '<bpmn:process id="Main" isExecutable="true" />',
+            ),
+            processId: "Main",
+        },
+        {
+            given: "a collaboration without an executable process",
+            xml: diagramWith(
+                POOLS,
+                '<bpmn:process id="External" isExecutable="false" />',
+                '<bpmn:process id="Main" isExecutable="false" />',
+            ),
+            processId: "External",
+        },
+        {
+            given: "a diagram whose first process has no id",
+            xml: diagramWith('<bpmn:process isExecutable="false" />', '<bpmn:process id="P1" />'),
+            processId: "P1",
+        },
+        {
+            given: "a longer element name that begins with the process name",
+            xml: diagramWith(
+                '<bpmn:processing id="Other" isExecutable="true" />',
+                '<bpmn:process id="P1" isExecutable="true" />',
+            ),
+            processId: "P1",
+        },
+        {
+            given: "a diagram whose first process tag is malformed",
+            xml: diagramWith(
+                '<bpmn:process id=Broken isExecutable="true" />',
+                '<bpmn:process id="P1" isExecutable="true" />',
+            ),
+            processId: "P1",
+        },
+    ])("reads $processId from $given", ({ xml, processId }) => {
+        expect(new BpmnDocument(xml).extractProcessId()).toBe(processId);
     });
 
-    it("should throw when no bpmn:process element is found", () => {
-        expect(() => new BpmnDocument(unknownXml).extractProcessId()).toThrow(
-            "No <bpmn:process> element with an id attribute found in the BPMN file.",
+    it.each([
+        { given: "a diagram without a process", xml: unknownXml, element: "bpmn:process" },
+        {
+            given: "a bpmn2 diagram without a process",
+            xml: `<bpmn2:definitions xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:collaboration id="Collaboration_1" />
+</bpmn2:definitions>`,
+            element: "bpmn2:process",
+        },
+        {
+            given: "a bpmn2 diagram whose process has no id",
+            xml: `<bpmn2:definitions xmlns:bpmn2="${BPMN_NAMESPACE_URI}" id="Definitions_1">
+  <bpmn2:process isExecutable="true" />
+</bpmn2:definitions>`,
+            element: "bpmn2:process",
+        },
+        {
+            given: "a default-namespace diagram without a process",
+            xml: `<definitions xmlns="${BPMN_NAMESPACE_URI}" id="Definitions_1" />`,
+            element: "process",
+        },
+    ])("names the missing <$element> for $given", ({ xml, element }) => {
+        expect(() => new BpmnDocument(xml).extractProcessId()).toThrow(
+            `No <${element}> element with an id attribute found in the BPMN file.`,
         );
     });
 });

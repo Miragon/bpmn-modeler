@@ -178,11 +178,8 @@ export class DiffPaneStore implements EditorSubscription {
      */
     private sweepOrphan(session: DiffSession): void {
         this.ttlTimers.delete(session);
-        if (!session.isEmpty()) {
-            return;
+        if (session.isEmpty()) {
+            this.remove(session);
         }
-        this.sessions.delete(this.sessionIdOf(session));
-        this.sessionByUri.delete(session.beforeUri);
-        this.sessionByUri.delete(session.afterUri);
     }
 }

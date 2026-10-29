@@ -8,7 +8,7 @@ function setup(files: Record<string, string>, selected?: string) {
     const host = createTestHost({
         folders: ["/work"],
         files,
-        answers: { referencedModel: selected },
+        answers: { locatedFile: selected },
     });
     const service = new FormPreviewService(
         new ReferencedModelLocator(host.workspace, host.notifier),

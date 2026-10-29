@@ -1,10 +1,11 @@
+import { ColorThemeSetting } from "../../../kernel/domain/hostPorts";
 import { DEFAULT_MODELER_SETTINGS } from "../../../kernel/domain/modelerSettings";
 
 export class BpmnModelerSetting {
     constructor(
         public readonly alignToOrigin: boolean,
         public readonly showTransactionBoundaries: boolean,
-        public readonly colorTheme: "automatic" | "light",
+        public readonly colorTheme: ColorThemeSetting,
         public readonly favouriteBpmnElements: string[],
     ) {}
 }
@@ -28,7 +29,7 @@ export class SettingBuilder {
         return this;
     }
 
-    colorTheme(value: "automatic" | "light"): SettingBuilder {
+    colorTheme(value: ColorThemeSetting): SettingBuilder {
         this._colorTheme = value;
         return this;
     }

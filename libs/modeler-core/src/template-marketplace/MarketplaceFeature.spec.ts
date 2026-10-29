@@ -23,7 +23,7 @@ function marketplaceDouble() {
     return {
         addMarketplace: vi.fn().mockResolvedValue(fetched(1)),
         updateAll: vi.fn().mockResolvedValue({ succeeded: 0, failures: [] }),
-        pruneOrphanedCaches: vi.fn().mockResolvedValue([]),
+        pruneOrphanedCaches: vi.fn().mockResolvedValue(undefined),
     };
 }
 
@@ -184,7 +184,6 @@ describe("MarketplaceCommands.remove", () => {
         const steps: string[] = [];
         marketplaces.pruneOrphanedCaches.mockImplementation(async () => {
             steps.push("prune");
-            return ["acme"];
         });
 
         await commands.remove(2, async () => void steps.push("unregister"));

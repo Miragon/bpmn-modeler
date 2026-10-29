@@ -596,11 +596,11 @@ describe("EditorSessionStore", () => {
         laterActive.active = true;
         store.register(laterActive);
 
-        subscribed.changeSetting("miragon.bpmnModeler.language");
+        subscribed.changeSetting("language");
 
         expect(received).toHaveBeenCalledOnce();
         const [[event, editorId]] = received.mock.calls;
         expect(editorId).toBe(subscribed.id);
-        expect(event.affectsConfiguration("miragon.bpmnModeler.language")).toBe(true);
+        expect(event.affects("language")).toBe(true);
     });
 });

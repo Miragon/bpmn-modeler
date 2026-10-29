@@ -71,11 +71,11 @@ const urlRefTarget = (): DeploymentTarget =>
     );
 const NESTED_PROJECT_DIR = "/work/team";
 
-function named(target: DeploymentTarget): NamedDestination {
+function named(target: DeploymentTarget, projectDir = "/work"): NamedDestination {
     return new NamedDestination(target, {
-        filePath: "/work/.camunda/deployment-targets.json",
+        filePath: `${projectDir}/.camunda/deployment-targets.json`,
         exists: true,
-        projectDir: "/work",
+        projectDir,
     });
 }
 
@@ -90,27 +90,19 @@ interface ServiceOptions {
     /** Variables of each `.env`, keyed by its path. */
     dotEnvs?: Record<string, Record<string, string>>;
     filePath?: string;
-    /** Project directory of the targets file in use. */
-    projectDir?: string;
 }
 
 const workspaceDotEnv = (dotEnv: Record<string, string>): ServiceOptions => ({
     dotEnvs: { [WORKSPACE_DOT_ENV]: dotEnv },
 });
 
-/** Workspace folder `/work` holding a nested project whose targets file is the one in use. */
+/** Workspace folder `/work` holding a nested project with its own targets file. */
 const nestedProject = (dotEnvs: Record<string, Record<string, string>>): ServiceOptions => ({
     dotEnvs,
     filePath: `${NESTED_PROJECT_DIR}/order-process.bpmn`,
-    projectDir: NESTED_PROJECT_DIR,
 });
 
-function createService({
-    answers = {},
-    dotEnvs = {},
-    filePath = FILE_PATH,
-    projectDir = "/work",
-}: ServiceOptions = {}) {
+function createService({ answers = {}, dotEnvs = {}, filePath = FILE_PATH }: ServiceOptions = {}) {
     const files = Object.fromEntries(
         Object.entries(dotEnvs).map(([path, dotEnv]) => [path, dotEnvContent(dotEnv)]),
     );
@@ -126,11 +118,6 @@ function createService({
                     host.deploymentState.getTenantId(),
                 ),
         ),
-        locateTargetsFile: vi.fn().mockResolvedValue({
-            filePath: `${projectDir}/.camunda/deployment-targets.json`,
-            exists: true,
-            projectDir,
-        }),
     };
     const dotEnvIo = {
         isSymbolicLink: vi.spyOn(host.workspace, "isSymbolicLink"),
@@ -145,7 +132,7 @@ function createService({
         host.statusBar,
         host.picker,
         host.notifier,
-        new EnvValueResolver(deploymentTargetService as never, host.workspace),
+        new EnvValueResolver(host.workspace),
     );
     service.track(editor.id);
 
@@ -195,7 +182,6 @@ function expectRecordedRevisionShown(c: ServiceContext, targetName: string | und
 }
 
 function expectNoDotEnvIo(c: ServiceContext): void {
-    expect(c.deploymentTargetService.locateTargetsFile).not.toHaveBeenCalled();
     expect(c.dotEnvIo.isSymbolicLink).not.toHaveBeenCalled();
     expect(c.dotEnvIo.readFile).not.toHaveBeenCalled();
 }
@@ -466,15 +452,12 @@ describe("DeploymentStatusService.ledgerIdentity", () => {
         );
 
         const identity = await c.service.ledgerIdentity(
-            named(endpointRefTarget()),
+            named(endpointRefTarget(), NESTED_PROJECT_DIR),
             NESTED_PROJECT_DIR,
         );
 
         expect(identity.key()).toBe(
             DeploymentTargetIdentity.fromTarget(endpointRefTarget(), lookupOf(PROD_DOT_ENV)).key(),
-        );
-        expect(c.deploymentTargetService.locateTargetsFile).toHaveBeenCalledExactlyOnceWith(
-            NESTED_PROJECT_DIR,
         );
         expect(c.dotEnvIo.readFile).toHaveBeenCalledExactlyOnceWith(`${NESTED_PROJECT_DIR}/.env`);
     });
@@ -483,8 +466,6 @@ describe("DeploymentStatusService.ledgerIdentity", () => {
         const c = createService(workspaceDotEnv(PROD_DOT_ENV));
 
         const identity = await c.service.ledgerIdentity(named(endpointRefTarget()), "/work");
-
-        expect(c.deploymentTargetService.locateTargetsFile).toHaveBeenCalledWith("/work");
         expect(identity.key()).toContain("env:");
         expect(identity.key()).not.toContain(PROD_HOST);
         expect(identity.key()).toBe(
@@ -529,12 +510,12 @@ describe("DeploymentStatusService.ledgerIdentity", () => {
 
     it("propagates a failure other than an unreadable .env", async () => {
         const c = createService();
-        c.deploymentTargetService.locateTargetsFile.mockRejectedValue(
-            new Error("targets lookup failed"),
-        );
+        vi.spyOn(c.host.workspace, "findWorkspaceFolderForDocument").mockImplementation(() => {
+            throw new Error("workspace folder lookup failed");
+        });
 
         await expect(c.service.ledgerIdentity(named(endpointRefTarget()), "/work")).rejects.toThrow(
-            "targets lookup failed",
+            "workspace folder lookup failed",
         );
         expect(c.host.notifier.logged("debug")).toEqual([]);
     });
@@ -791,8 +772,6 @@ describe("DeploymentStatusService.refresh", () => {
         await recordRevisionUnder(c, ledgerKey);
 
         await c.service.refresh(c.editor.id);
-
-        expect(c.deploymentTargetService.locateTargetsFile).toHaveBeenCalledWith("/work");
         expectRecordedRevisionShown(c, "dev");
         expect(ledgerKey).toContain("env:");
         expect(ledgerKey).not.toContain(PROD_HOST);
@@ -1011,7 +990,6 @@ describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
         await c.service.refresh(c.editor.id);
 
         expectRecordedRevisionShown(c, undefined);
-        expect(c.deploymentTargetService.locateTargetsFile).not.toHaveBeenCalled();
         expect(c.dotEnvIo.readFile).toHaveBeenCalledExactlyOnceWith(WORKSPACE_DOT_ENV);
     });
 

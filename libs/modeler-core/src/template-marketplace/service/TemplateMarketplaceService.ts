@@ -11,13 +11,17 @@ import {
 } from "../domain/marketplace";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import {
-    hostForConfig,
     RepositorySourceConfig,
     RepositorySourceFactory,
     TokenPromptPort,
     TokenStorePort,
 } from "../domain/ports";
-import { declaredPrivateHosts, manifestConfig, sourceConfig } from "../domain/sourceConfig";
+import {
+    declaredPrivateHosts,
+    describeSourceConfig,
+    manifestConfig,
+    sourceConfig,
+} from "../domain/sourceConfig";
 import { includedFiles } from "../domain/sourceInclude";
 import {
     FetchedTemplateFile,
@@ -156,12 +160,9 @@ export class TemplateMarketplaceService {
      *
      * Reads the post-removal settings and prunes as
      * {@link MarketplaceRegistry.cachePrune} decides, like `updateAll`.
-     *
-     * @returns the ids of the slots actually deleted (`[]` when nothing was
-     *   orphaned or pruning was suppressed), for the caller to log.
      */
-    async pruneOrphanedCaches(): Promise<string[]> {
-        return this.pruneCache(
+    async pruneOrphanedCaches(): Promise<void> {
+        await this.pruneCache(
             MarketplaceRegistry.fromEntries(this.settings.getMarketplaces()).cachePrune(),
         );
     }
@@ -172,13 +173,12 @@ export class TemplateMarketplaceService {
         return { label, reason };
     }
 
-    /** Logs what went and returns the pruned ids, so a caller can report them. */
-    private async pruneCache(prune: CachePrune): Promise<string[]> {
+    private async pruneCache(prune: CachePrune): Promise<void> {
         if (prune.kind === "suppressed") {
             this.notifier.logDebug(
-                "Skipped marketplace cache prune: an unparseable entry left its id unknown",
+                `Skipped marketplace cache prune: an unparseable entry left its id unknown (${prune.unparseable.join("; ")})`,
             );
-            return [];
+            return;
         }
         const pruned = await this.cache.prune(prune.ids);
         if (pruned.length > 0) {
@@ -186,10 +186,9 @@ export class TemplateMarketplaceService {
                 `Pruned ${pruned.length} orphaned marketplace cache(s): ${pruned.join(", ")}`,
             );
         }
-        return pruned;
     }
 
-    /** The merge input handed to {@link BpmnElementTemplatesService}. */
+    /** The merge input handed to `BpmnElementTemplatesService`. */
     getCachedTemplatePaths(): Promise<string[]> {
         return this.cache.getCachedTemplatePaths();
     }
@@ -292,7 +291,7 @@ export class TemplateMarketplaceService {
         error: unknown,
     ): SourceFailure {
         return {
-            source: this.describeConfig(sourceConfig(source, registration.location, this.homeDir)),
+            source: describeSourceConfig(sourceConfig(source, registration.location, this.homeDir)),
             reason: (error as Error).message,
         };
     }
@@ -315,15 +314,19 @@ export class TemplateMarketplaceService {
     ): Promise<string> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
-            `Fetching ${MARKETPLACE_MANIFEST} from ${this.describeConfig(baseConfig)}`,
+            `Fetching ${MARKETPLACE_MANIFEST} from ${describeSourceConfig(baseConfig)}`,
         );
         try {
             return await tokenSession.run(baseConfig, (config) =>
                 this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
             );
         } catch (error) {
-            throw new InvalidMarketplaceError(
-                `could not read ${MARKETPLACE_MANIFEST} from "${registration.url}": ${(error as Error).message}`,
+            // `ErrorOptions` is not in this lib target, so the cause is attached directly.
+            throw Object.assign(
+                new InvalidMarketplaceError(
+                    `could not read ${MARKETPLACE_MANIFEST} from "${registration.url}": ${(error as Error).message}`,
+                ),
+                { cause: error },
             );
         }
     }
@@ -340,7 +343,7 @@ export class TemplateMarketplaceService {
     ): Promise<FetchedTemplateFile[]> {
         const baseConfig = sourceConfig(source, registration.location, this.homeDir);
         this.notifier.logDebug(
-            `Fetching source ${index} of "${registration.url}": ${this.describeConfig(baseConfig)}`,
+            `Fetching source ${index} of "${registration.url}": ${describeSourceConfig(baseConfig)}`,
         );
         return tokenSession.run(baseConfig, async (config) => {
             const repository = this.sourceFactory(config);
@@ -383,7 +386,7 @@ export class TemplateMarketplaceService {
         if (include !== undefined && listedCount > 0) {
             this.notifier.logWarning(
                 `Source ${index} of "${registration.url}": "include" patterns matched none of ` +
-                    `${listedCount} listed file(s) (${this.describeConfig(config)}) — check the patterns`,
+                    `${listedCount} listed file(s) (${describeSourceConfig(config)}) — check the patterns`,
             );
             return;
         }
@@ -393,24 +396,7 @@ export class TemplateMarketplaceService {
         const hint =
             config.kind === "local" ? " — the folder may not exist or holds no .json files" : "";
         this.notifier.logWarning(
-            `Source ${index} of "${registration.url}" has no template files (${this.describeConfig(config)})${hint}`,
+            `Source ${index} of "${registration.url}" has no template files (${describeSourceConfig(config)})${hint}`,
         );
-    }
-
-    /**
-     * A credential-free, log-safe rendering of a source config. Never reads
-     * `token`, so logging it can never leak a secret by construction.
-     * {@link hostForConfig} supplies the host so self-hosted origins read the
-     * same as the public ones.
-     */
-    private describeConfig(config: RepositorySourceConfig): string {
-        if (config.kind === "local") {
-            return `local folder ${config.rootDir}`;
-        }
-        const repo =
-            config.kind === "github" ? `${config.owner}/${config.repo}` : config.projectPath;
-        const ref = config.ref ? `@${config.ref}` : "";
-        const path = config.path ? ` path "${config.path}"` : "";
-        return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
     }
 }
