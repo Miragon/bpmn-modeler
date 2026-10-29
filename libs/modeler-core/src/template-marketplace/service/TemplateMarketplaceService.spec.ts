@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
 import { FetchReport } from "../domain/fetchReport";
+import { InvalidMarketplaceError } from "../domain/marketplace";
 import {
     RepositoryAccessError,
     RepositorySource,
@@ -211,6 +212,18 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         expect(cachedPaths()).toEqual([]);
     });
 
+    it("keeps the manifest fetch failure as the cause of the invalid-marketplace error", async () => {
+        const offline = new Error("offline");
+        const { service } = createService({ manifest: offline });
+
+        const failure = await service
+            .addMarketplace("https://github.com/acme/templates")
+            .catch((error: Error) => error);
+
+        expect(failure).toBeInstanceOf(InvalidMarketplaceError);
+        expect((failure as Error).cause).toBe(offline);
+    });
+
     it("throws when the manifest is malformed", async () => {
         const { service } = createService({ manifest: "{ not json" });
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow();
@@ -340,8 +353,33 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         await service.addMarketplace("/Users/me/templates");
 
         expect(notifier.logged("warning")).toContainEqual(
-            expect.stringContaining("has no template files (local folder /Users/me/templates)"),
+            expect.stringContaining(
+                'has no template files (local folder /Users/me/templates path "element-templates")',
+            ),
         );
+    });
+
+    it("tells two failing relative sources of a local marketplace apart in the report", async () => {
+        const manifest = JSON.stringify({ sources: [{ path: "one" }, { path: "two" }] });
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockRejectedValue(new Error("unreadable")),
+                      fetchFile: vi.fn(),
+                  },
+        );
+        const { service } = serviceOver(factory);
+
+        const report = await service.addMarketplace("/Users/me/templates");
+
+        expect(report.reasons()).toEqual([
+            'local folder /Users/me/templates path "one": unreadable',
+            'local folder /Users/me/templates path "two": unreadable',
+        ]);
     });
 });
 
@@ -485,15 +523,15 @@ describe("TemplateMarketplaceService.updateAll", () => {
 
         expect(outcome.failures).toHaveLength(1);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
-        expect(notifier.logged("debug")).toContainEqual(
-            expect.stringContaining("Skipped marketplace cache prune"),
+        expect(notifier.logged("debug")).toContain(
+            'Skipped marketplace cache prune: an unparseable entry left its id unknown ({"provider":"bogus"})',
         );
     });
 });
 
 describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
-    it("prunes using the ids parsed from current settings and returns the pruned ids", async () => {
-        const { service, settings, cachedPaths } = createService({
+    it("prunes using the ids parsed from current settings and logs the pruned ids", async () => {
+        const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: {
                 "/cache/acme__one/0/element-templates/t.json": "{}",
                 "/cache/acme__gone/0/element-templates/t.json": "{}",
@@ -501,14 +539,16 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
         });
         settings.values.marketplaces = ["https://github.com/acme/one"];
 
-        const pruned = await service.pruneOrphanedCaches();
+        await service.pruneOrphanedCaches();
 
-        expect(pruned).toEqual(["acme__gone"]);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
+        expect(notifier.logged("info")).toEqual([
+            "Pruned 1 orphaned marketplace cache(s): acme__gone",
+        ]);
     });
 
     it("removing the last marketplace prunes with an empty set (sweeps every slot)", async () => {
-        const { service, settings, cachedPaths } = createService({
+        const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: {
                 "/cache/acme__one/0/element-templates/t.json": "{}",
                 "/cache/acme__two/0/element-templates/t.json": "{}",
@@ -516,24 +556,40 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
         });
         settings.values.marketplaces = [];
 
-        const pruned = await service.pruneOrphanedCaches();
+        await service.pruneOrphanedCaches();
 
-        expect(pruned).toEqual(["acme__one", "acme__two"]);
         expect(cachedPaths()).toEqual([]);
+        expect(notifier.logged("info")).toEqual([
+            "Pruned 2 orphaned marketplace cache(s): acme__one, acme__two",
+        ]);
     });
 
-    it("suppresses pruning and returns [] when a settings entry cannot be parsed", async () => {
+    it("reports no prune when no slot is orphaned", async () => {
+        const { service, settings, notifier } = createService({
+            cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
+        });
+        settings.values.marketplaces = ["https://github.com/acme/one"];
+
+        await service.pruneOrphanedCaches();
+
+        expect(notifier.logged("info")).toEqual([]);
+    });
+
+    it("suppresses pruning and names every entry that cannot be parsed", async () => {
         const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
         });
-        settings.values.marketplaces = [{ provider: "bogus" } as never];
+        settings.values.marketplaces = [
+            { provider: "bogus" } as never,
+            "https://github.com/acme/one",
+            "~/templates",
+        ];
 
-        const pruned = await service.pruneOrphanedCaches();
+        await service.pruneOrphanedCaches();
 
-        expect(pruned).toEqual([]);
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
-        expect(notifier.logged("debug")).toContainEqual(
-            expect.stringContaining("Skipped marketplace cache prune"),
+        expect(notifier.logged("debug")).toContain(
+            'Skipped marketplace cache prune: an unparseable entry left its id unknown ({"provider":"bogus"}; ~/templates)',
         );
     });
 });

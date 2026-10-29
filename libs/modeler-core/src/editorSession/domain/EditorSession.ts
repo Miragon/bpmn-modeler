@@ -1,3 +1,5 @@
+import { SettingKey } from "../../kernel/domain/modelerSettings";
+
 /**
  * The event shapes an editor session's subscriptions emit. The session itself,
  * `EditorHandle`, sits in `service/` because it speaks the webview protocol.
@@ -12,12 +14,15 @@ export interface EditorSubscription {
     dispose(): void;
 }
 
-/**
- * Configuration-change event, narrowed to the single capability callers need.
- * `vscode.ConfigurationChangeEvent` satisfies it structurally.
- */
+/** A change of one or more modeler settings, named by key the same way on every host. */
 export interface SettingChange {
-    affectsConfiguration(section: string): boolean;
+    affects(key: SettingKey): boolean;
+}
+
+/** A change that affects exactly the keys it names. */
+export function settingChangeNaming(named: readonly SettingKey[]): SettingChange {
+    const namedKeys: ReadonlySet<SettingKey> = new Set(named);
+    return { affects: (key) => namedKeys.has(key) };
 }
 
 /**

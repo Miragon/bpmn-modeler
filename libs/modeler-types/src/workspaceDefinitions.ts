@@ -1,3 +1,5 @@
+import { commentAndCdataRanges } from "./xmlMarkup";
+
 /**
  * Root-level BPMN definitions an engine correlates by name or code — the kinds
  * the workspace definition search offers across model files.
@@ -54,10 +56,6 @@ const CATCHING_ELEMENTS = new Set([
     "receiveTask",
 ]);
 
-const SKIPPED_SECTIONS = [
-    { open: "<!--", close: "-->" },
-    { open: "<![CDATA[", close: "]]>" },
-] as const;
 const TAG = /<(\/?)([\w.:-]+)((?:\s+[^\s=>/]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
 
 interface OpenElement {
@@ -178,36 +176,15 @@ function usageOf(owner: OpenElement, kind: DefinitionKind, ref: string): Pending
     };
 }
 
-// A linear scan: a lazy regex over these sections backtracks polynomially on
-// untrusted workspace files.
 function withoutCommentsAndCdata(xml: string): string {
     const kept: string[] = [];
-    const nextOpenings = SKIPPED_SECTIONS.map(({ open }) => xml.indexOf(open));
-    let index = 0;
-    for (;;) {
-        let section = -1;
-        for (let candidate = 0; candidate < SKIPPED_SECTIONS.length; candidate++) {
-            if (nextOpenings[candidate] < index && nextOpenings[candidate] !== -1) {
-                nextOpenings[candidate] = xml.indexOf(SKIPPED_SECTIONS[candidate].open, index);
-            }
-            const opening = nextOpenings[candidate];
-            if (opening !== -1 && (section === -1 || opening < nextOpenings[section])) {
-                section = candidate;
-            }
-        }
-        if (section === -1) {
-            kept.push(xml.slice(index));
-            return kept.join("");
-        }
-        const { open, close } = SKIPPED_SECTIONS[section];
-        const opening = nextOpenings[section];
-        kept.push(xml.slice(index, opening));
-        const closing = xml.indexOf(close, opening + open.length);
-        if (closing === -1) {
-            return kept.join("");
-        }
-        index = closing + close.length;
+    let cursor = 0;
+    for (const [start, end] of commentAndCdataRanges(xml)) {
+        kept.push(xml.slice(cursor, start));
+        cursor = end;
     }
+    kept.push(xml.slice(cursor));
+    return kept.join("");
 }
 
 function withoutPrefix(qualifiedName: string): string {

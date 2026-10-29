@@ -1,6 +1,5 @@
-import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
-import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import { SearchScope, searchScopeKey } from "../../kernel/domain/searchScope";
 import {
@@ -8,10 +7,8 @@ import {
     resolveSearchScope,
     SearchLogger,
 } from "../../kernel/service/workspaceFileSearch";
-import { isSourceFile, SOURCE_EXTENSIONS } from "../domain/ImplementationReference";
+import { SOURCE_FILES } from "../domain/ImplementationReference";
 import { SourceFileFacts } from "../domain/SourceFileFacts";
-
-const SOURCE_GLOB = `**/*.{${SOURCE_EXTENSIONS.join(",")}}`;
 
 // Larger files are generated or bundled code; keeping their facts would
 // dominate the index, so they are read again on every scan.
@@ -38,9 +35,9 @@ export function listSourceFiles(
     scope: SearchScope,
     logger: SearchLogger,
 ): Promise<string[]> {
-    return findFilesInScope(workspace, scope, SOURCE_GLOB, {
+    return findFilesInScope(workspace, scope, SOURCE_FILES.glob(), {
         logger,
-        matchesWalkedFile: isSourceFile,
+        matchesWalkedFile: SOURCE_FILES.includes,
     });
 }
 
@@ -168,7 +165,7 @@ class IndexedSources implements SourceCatalog {
         try {
             for (const folder of scope.folders) {
                 const watch = (onEvent: (path: string) => void) => (path: string) => {
-                    if (!isInsideExcludedDirWithin(folder, path)) {
+                    if (!isInsideExcludedDirBelow(path, folder)) {
                         onEvent(path);
                     }
                 };
@@ -253,7 +250,7 @@ class IndexedSources implements SourceCatalog {
     }
 
     private onCreated(path: string): void {
-        if (isSourceFile(path)) {
+        if (SOURCE_FILES.includes(path)) {
             this.forgetFacts(path);
             if (this.listedPaths?.has(path)) {
                 return;
@@ -266,13 +263,13 @@ class IndexedSources implements SourceCatalog {
     }
 
     private onChanged(path: string): void {
-        if (isSourceFile(path)) {
+        if (SOURCE_FILES.includes(path)) {
             this.forgetFacts(path);
         }
     }
 
     private onDeleted(path: string): void {
-        if (isSourceFile(path)) {
+        if (SOURCE_FILES.includes(path)) {
             this.forgetFacts(path);
         } else {
             // A deleted folder is reported as one event, without its files.
@@ -320,12 +317,6 @@ class IndexedSources implements SourceCatalog {
         }
         return false;
     }
-}
-
-// Build output above the workspace folder (a checkout under `~/build/`) must
-// not hide every event inside it.
-function isInsideExcludedDirWithin(folder: string, path: string): boolean {
-    return pathIsInsideExcludedDir(relativeToRoot(path, folder) ?? path);
 }
 
 async function readOrUndefined(

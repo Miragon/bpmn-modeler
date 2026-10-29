@@ -8,9 +8,11 @@ import {
 import {
     EditorSessionContext,
     EditorSessionParticipant,
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
     scriptBatchSummary,
+    ScriptVariableStore,
     TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 
@@ -46,6 +48,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         deps.settings,
         deps.nodeWorkspace,
         deps.artifactSvc,
+        new ScriptVariableStore(),
     );
 
     deps.router
@@ -76,12 +79,13 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         });
 
     /**
-     * Materialises each script task to disk, opening no tabs. The batch policy
-     * (sequential picker round-trips, outcome counting, summary toast) lives in
-     * {@link materializeScriptBatch}, shared with the VS Code handler. The
-     * `variables` model is re-seeded per script — idempotent, since every
-     * script in a diagram carries the same process-variable model. Live sync
-     * begins only when the user opens a generated file (adoption).
+     * Materialises each script task to disk, opening no tabs. The batch —
+     * sequential picker round-trips, failure counting and logging — is
+     * {@link materializeScriptBatch}; the toast text is
+     * {@link scriptBatchSummary}, which this function shows. The `variables`
+     * model is re-seeded per script — idempotent, since every script in a
+     * diagram carries the same process-variable model. Live sync begins only
+     * when the user opens a generated file (adoption).
      */
     async function openAllScripts(cmd: OpenScriptEditorsCommand, editorId: string): Promise<void> {
         if (cmd.scripts.length === 0) {
@@ -89,19 +93,22 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
             return;
         }
 
-        const outcome = await materializeScriptBatch(cmd.scripts, (script) =>
-            scriptEditor.materialize(
-                new OpenScriptEditorCommand(
-                    script.elementId,
-                    "script-task",
-                    undefined,
-                    undefined,
-                    script.scriptFormat,
-                    script.content,
-                    cmd.variables ?? [],
+        const outcome = await materializeScriptBatch(
+            cmd.scripts,
+            (script) =>
+                scriptEditor.materialize(
+                    new OpenScriptEditorCommand(
+                        script.elementId,
+                        "script-task",
+                        undefined,
+                        undefined,
+                        script.scriptFormat,
+                        script.content,
+                        cmd.variables ?? [],
+                    ),
+                    editorId,
                 ),
-                editorId,
-            ),
+            deps.notifier,
         );
 
         const folder = posix.join(deps.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
@@ -139,7 +146,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
             await deps.store.postMessage(editorId, new OpenAllScriptTasksQuery());
         } catch (error) {
             deps.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            deps.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+            deps.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
         }
     });
 

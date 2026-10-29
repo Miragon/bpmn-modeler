@@ -7,23 +7,36 @@ import type { ImplementationKind } from "@miragon/bpmn-modeler-types";
 
 export type { ImplementationKind };
 
-/**
- * Source-file extensions a JVM-language Camunda delegate/bean can live in.
- * Used to build globs and the fs-walk fallback predicate.
- */
+/** Source-file extensions a JVM-language Camunda delegate/bean can live in. */
 export const JVM_EXTENSIONS = ["java", "kt", "groovy", "scala"] as const;
 
+// Node job workers, searched on top of the JVM sources for a literal.
+const SCRIPT_WORKER_EXTENSIONS = ["js", "ts"] as const;
+
 /**
- * Extra extensions a Zeebe job worker can live in (Node workers), searched on
- * top of {@link JVM_EXTENSIONS} for `jobType` / `externalTopic` content scans.
+ * The files with one of a set of extensions, as the glob a host lists and as
+ * the test the fs-walk fallback applies, so the two select the same files.
  */
-export const SCRIPT_WORKER_EXTENSIONS = ["js", "ts"] as const;
-
-export const SOURCE_EXTENSIONS = [...JVM_EXTENSIONS, ...SCRIPT_WORKER_EXTENSIONS] as const;
-
-export function isSourceFile(path: string): boolean {
-    return SOURCE_EXTENSIONS.some((extension) => path.endsWith(`.${extension}`));
+export interface SourceFileSet {
+    /**
+     * A `WorkspacePort` glob for the files named `stem`, all of them by
+     * default; the port expands its `{a,b}` group.
+     */
+    readonly glob: (stem?: string) => string;
+    readonly includes: (path: string) => boolean;
 }
+
+function sourceFileSet(extensions: readonly string[]): SourceFileSet {
+    return {
+        glob: (stem = "*") => `**/${stem}.{${extensions.join(",")}}`,
+        includes: (path) => extensions.some((extension) => path.endsWith(`.${extension}`)),
+    };
+}
+
+export const JVM_SOURCE_FILES = sourceFileSet(JVM_EXTENSIONS);
+
+/** Every file a delegate, bean or job worker can live in. */
+export const SOURCE_FILES = sourceFileSet([...JVM_EXTENSIONS, ...SCRIPT_WORKER_EXTENSIONS]);
 
 /**
  * Extracts the leading bean / variable id from a Camunda expression.

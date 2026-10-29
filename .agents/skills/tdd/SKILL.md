@@ -45,7 +45,7 @@ Pull any decision out of such code first; the decision itself is not exempt.
   `{ kind: "alreadyDeclared" } | { kind: "declared"; manifestText: string }`,
   and let the service act on them. The domain decides; it does not call out.
 - Services in `service/` only orchestrate ports around those decisions.
-- Rules that the webview and the core both apply live in `libs/modeler-types`
+- Rules that browser code and the core both apply live in `libs/modeler-types`
   (pure, protocol-free). Webview-only rules go into a pure reducer module next
   to the bootstrap, not into DOM handlers.
 - Write the least code that makes the spec pass.

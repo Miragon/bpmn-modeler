@@ -1,3 +1,4 @@
+import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { AuthConfig } from "./deployment";
 import { DeploymentTargetIdentity } from "./deploymentLedger";
 import {
@@ -11,14 +12,6 @@ import { DeploymentTargetChangedError } from "./errors";
 
 const AD_HOC_NAME = "ad-hoc";
 const MAX_SHOWN_NAME_LENGTH = 60;
-
-/**
- * Where the `.env` comes from: a named target reads the one beside its targets
- * file's config folder; an ad-hoc request — whose endpoint the user typed —
- * reads the one at its workspace folder, so a nested targets file can't supply
- * variables for it.
- */
-export type EnvScope = "targetsFile" | "workspaceFolder";
 
 /**
  * Where the targets file lives for the current context. `filePath` is the read
@@ -65,7 +58,6 @@ export function targetSecretSlot(location: TargetsLocation, targetName: string):
 /** A target of the targets file at `location`. */
 export class NamedDestination {
     readonly kind = "named" as const;
-    readonly envScope: EnvScope = "targetsFile";
 
     constructor(
         readonly target: DeploymentTarget,
@@ -74,6 +66,18 @@ export class NamedDestination {
 
     get secretSlot(): string {
         return targetSecretSlot(this.location, this.target.name);
+    }
+
+    /**
+     * The project whose targets file holds the target. A document outside every
+     * workspace folder gets no `.env`, and neither does a targets file that a
+     * config folder like `../x` places outside its project.
+     */
+    dotEnvDirectory(workspaceFolder: string | undefined): string | undefined {
+        const { filePath, projectDir } = this.location;
+        return workspaceFolder !== undefined && isWithinRoot(filePath, projectDir)
+            ? projectDir
+            : undefined;
     }
 
     /** Approvals live beside the credentials, so they follow the slot. */
@@ -120,7 +124,6 @@ export class NamedDestination {
 /** The connection the user typed into the form, outside the targets file. */
 export class AdHocDestination {
     readonly kind = "adHoc" as const;
-    readonly envScope: EnvScope = "workspaceFolder";
     readonly target = undefined;
     /** Ad-hoc requests share one approval slot, as they share one set of stored credentials. */
     readonly approvalSlot = AD_HOC_NAME;
@@ -131,6 +134,11 @@ export class AdHocDestination {
         readonly endpoint: string,
         readonly tenantId: string,
     ) {}
+
+    /** The endpoint was typed, so a nearer, possibly vendored targets file can't supply its variables. */
+    dotEnvDirectory(workspaceFolder: string | undefined): string | undefined {
+        return workspaceFolder;
+    }
 
     /** A typed ad-hoc request is the user's own choice; one carrying `.env` values is not. */
     requiresApproval(request: { carriesEnvValues(): boolean }): boolean {

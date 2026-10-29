@@ -7,7 +7,7 @@ Deploy BPMN and DMN files to Camunda 7 or Camunda 8 and start process instances 
 Open the **Deploy Diagram** view from the rocket icon in the activity bar. It has two tabs:
 
 - **Deploy** saves the open diagram and uploads it, optionally with additional files. If the diagram cannot be saved, nothing is uploaded. Additional files go out as last saved.
-- **Start Instance** starts a process instance, optionally with a JSON payload.
+- **Start Instance** starts a process instance, optionally with a JSON payload. It fills in the id of the diagram's first executable process, which you can change.
 
 Fill in engine, endpoint, tenant and authentication, then deploy. For a quick deploy of the open diagram use the rocket button in the editor title bar.
 
@@ -101,7 +101,7 @@ The status bar shows the active target with a coloured dot. Click it to switch t
 | Blue | Verification found a different version on the engine. |
 | Gray | This machine has never deployed this file to this target. |
 
-Freshness is recorded locally per target and file, not on the engine and not in `deployment-targets.json`. **Verify Deployment on Engine** (Camunda 7 only) compares with the engine's latest version: green if it matches, blue if not. It uses the plain endpoint, not the `endpoints.deploy` override.
+Freshness is recorded locally per target and file, not on the engine and not in `deployment-targets.json`. **Verify Deployment on Engine** (Camunda 7 only) compares with the engine's latest version of the diagram's first executable process: green if it matches, blue if not. It uses the plain endpoint, not the `endpoints.deploy` override.
 
 ## Commands
 

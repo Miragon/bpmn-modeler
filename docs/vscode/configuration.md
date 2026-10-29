@@ -16,7 +16,7 @@ Tune the modeler with settings under the `miragon.bpmnModeler` namespace. Edit t
 | `miragon.bpmnModeler.showTransactionBoundaries` | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
 | `miragon.bpmnModeler.linting.enabled` | `true` | Run [linting](/vscode/features/linting). Also toggled by **Toggle Linting**. |
 | `miragon.bpmnModeler.scripting.spin` | `true` | Offer Camunda SPIN completion in [inline scripts](/vscode/features/inline-scripting) (Camunda 7). |
-| `miragon.bpmnModeler.persistCodeLinkMap` | `false` | Also write the map behind [Go to implementation](/vscode/features/code-navigation) to `<configFolder>/code-link/<file>.json`. |
+| `miragon.bpmnModeler.persistCodeLinkMap` | `false` | Also write the map behind [Go to implementation](/vscode/features/code-navigation) to `<configFolder>/code-link/<path>.json`, where `<path>` is the diagram's path below its workspace folder. |
 | `miragon.bpmnModeler.c8ApiVersion` | `v2` | REST API version prefix for Camunda 8 endpoints. |
 | `miragon.bpmnModeler.marketplaces` | `[]` | [Template marketplaces](/vscode/features/template-marketplace): GitHub or GitLab URLs, local folders, or objects for self-hosted instances. User and workspace entries are merged. |
 

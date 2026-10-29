@@ -38,6 +38,7 @@ describe("errorLogText", () => {
             error: "TypeError: x is undefined\n    at index.js:1:1",
             logged: "TypeError: x is undefined\n    at index.js:1:1",
         },
+        { case: "another thrown value as its text", error: 404, logged: "404" },
     ])("logs $case", ({ error, logged }) => {
         expect(errorLogText(error)).toBe(logged);
     });

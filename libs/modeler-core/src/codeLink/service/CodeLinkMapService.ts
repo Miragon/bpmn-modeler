@@ -1,49 +1,28 @@
 import { posix } from "path";
 
 import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
-import {
-    asyncDebounce,
-    ImplementationEntry,
-    ImplementationKind,
-    implementationStatusKey,
-} from "@miragon/bpmn-modeler-types";
+import { asyncDebounce, ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { EditorHandle } from "../../editorSession/service/EditorHandle";
-import { pathIsInsideExcludedDir } from "../../kernel/domain/excludedDirs";
+import {
+    configArtifactLocation,
+    ConfigArtifactLocation,
+} from "../../kernel/domain/configArtifacts";
+import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
-import {
-    buildMapJson,
-    CodeLinkMapEntry,
-    fileMatchesEntry,
-    parseMapJson,
-    toAbsoluteEntries,
-    toRelative,
-} from "../domain/CodeLinkMap";
-import { JVM_EXTENSIONS, SCRIPT_WORKER_EXTENSIONS } from "../domain/ImplementationReference";
+import { parseMapJson } from "../domain/codeLinkArtifact";
+import { CodeLink, CodeLinkMap, SourceFileChange } from "../domain/CodeLinkMap";
+import { SOURCE_FILES } from "../domain/ImplementationReference";
+import { ImplementationTarget } from "../domain/ImplementationTarget";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
 
 /** How a watched source file changed, as reported by the workspace watcher. */
 type SourceChangeKind = "created" | "changed" | "deleted";
 
-/** The implementation kinds the host knows how to resolve — a guard against a malformed message. */
-const KNOWN_KINDS: ReadonlySet<ImplementationKind> = new Set<ImplementationKind>([
-    "javaClass",
-    "delegateExpression",
-    "expression",
-    "externalTopic",
-    "jobType",
-]);
-
-// One watcher per workspace root covers every source language a worker/delegate
-// can live in — the same extension set the locator scans.
-const SOURCE_GLOB = `**/*.{${[...JVM_EXTENSIONS, ...SCRIPT_WORKER_EXTENSIONS].join(",")}}`;
-
-// Subfolder of `<configFolder>` the artifact is written under.
-const CODE_LINK_DIR = "code-link";
+const CODE_LINK_AREA = "code-link";
 
 // Long enough that a burst of saves collapses into one write, short enough that
 // the artifact is fresh by the time anyone reads it.
@@ -51,7 +30,7 @@ const PERSIST_DEBOUNCE_MS = 2000;
 
 /** Per-open-editor state: the map plus the bookkeeping that keeps writes and syncs serial. */
 interface EditorState {
-    map: Map<string, CodeLinkMapEntry>;
+    map: CodeLinkMap;
     documentPath: string | undefined;
     documentFsPath: string | undefined;
     workspaceRoot: string | undefined;
@@ -116,9 +95,8 @@ export class CodeLinkMapService {
      * references. Serialised per editor so concurrent posts can't interleave.
      */
     syncActivities(editorId: string, entries: readonly ImplementationEntry[]): Promise<void> {
-        const valid = entries.filter((entry) => this.isValidEntry(entry));
         const state = this.getOrCreateState(editorId);
-        const run = () => this.runSync(editorId, state, valid);
+        const run = () => this.runSync(editorId, state, entries);
         // `.then(run, run)` so a rejected predecessor still lets this one run.
         state.tail = state.tail.then(run, run);
         return state.tail;
@@ -138,7 +116,7 @@ export class CodeLinkMapService {
         // The watcher glob carries no exclude, so a save under build output
         // (`target/`, `build/`, `dist/`, generated sources) still reaches here.
         // Skip it to match the batched scan, which already filters EXCLUDED_DIRS.
-        if (pathIsInsideExcludedDir(path)) {
+        if (isInsideExcludedDirBelow(path, root)) {
             return;
         }
 
@@ -187,7 +165,7 @@ export class CodeLinkMapService {
     private async runSync(
         editorId: string,
         state: EditorState,
-        entries: ImplementationEntry[],
+        entries: readonly ImplementationEntry[],
     ): Promise<void> {
         await this.attachToRoot(editorId, state);
         // Attach is a no-op-and-bail when the editor was disposed before this
@@ -206,59 +184,27 @@ export class CodeLinkMapService {
             state.warmLoaded = true;
         }
 
-        const incoming = new Map(entries.map((entry) => [entry.activityId, entry]));
-        for (const activityId of [...state.map.keys()]) {
-            if (!incoming.has(activityId)) {
-                state.map.delete(activityId);
-            }
-        }
-
-        const toResolve: ImplementationEntry[] = [];
-        for (const entry of entries) {
-            const existing = state.map.get(entry.activityId);
-            const unchanged =
-                existing && existing.kind === entry.kind && existing.reference === entry.reference;
-            if (!unchanged) {
-                toResolve.push(entry);
-                continue;
-            }
-            // Unchanged + previously unresolved → leave it for the watcher to
-            // link rather than re-scanning the workspace on every edit.
-            if (!existing!.resolved) {
-                continue;
-            }
-            const stillMatching = await this.verifyEntry(existing!);
-            if (stillMatching.length > 0) {
-                existing!.paths = stillMatching;
-            } else {
-                existing!.resolved = false;
-                existing!.paths = [];
-                toResolve.push(entry);
-            }
-        }
-
+        const plan = state.map.planSync(entries);
+        const verified = plan.retained.applyVerification(await this.verifyLinks(plan.toVerify));
         // Closed while this sync waited: resolving now would register the
         // editor with the source index again, and nothing would release it.
-        if (this.states.get(editorId) !== state) {
+        if (this.isClosed(editorId, state)) {
             return;
         }
+        let map = verified.map;
+        const toResolve = [...plan.toResolve, ...verified.toResolve];
         if (toResolve.length > 0) {
             const resolved = await this.locator.resolveMany(
                 toResolve,
                 state.documentFsPath,
                 this.sourceIndex.sourcesFor(editorId, state.documentFsPath),
             );
-            for (const entry of toResolve) {
-                const paths = resolved.get(entry.activityId) ?? [];
-                state.map.set(entry.activityId, {
-                    activityId: entry.activityId,
-                    kind: entry.kind,
-                    reference: entry.reference,
-                    resolved: paths.length > 0,
-                    paths,
-                });
+            if (this.isClosed(editorId, state)) {
+                return;
             }
+            map = map.applyResolution(toResolve, resolved);
         }
+        state.map = map;
 
         await this.pushStatus(editorId, state);
         if (this.persistEnabled()) {
@@ -272,27 +218,15 @@ export class CodeLinkMapService {
         path: string,
         changeKind: SourceChangeKind,
     ): Promise<void> {
-        // Read at execution time (within the per-editor tail) so the content
-        // reflects the file as of *this* event's turn — see onSourceFileChanged.
-        // A delete carries no content. The read is OS-cached and cheap.
-        let content: string | undefined;
-        if (changeKind !== "deleted") {
-            try {
-                content = await this.vsWorkspace.readFile(path);
-            } catch {
-                content = undefined;
-            }
-        }
-
-        let dirty = false;
-        for (const entry of state.map.values()) {
-            if (this.updateEntryForFileChange(entry, path, changeKind, content)) {
-                dirty = true;
-            }
-        }
-        if (!dirty) {
+        const change = await this.readChange(path, changeKind);
+        if (this.isClosed(editorId, state)) {
             return;
         }
+        const { map, changed } = state.map.applyFileChange(change);
+        if (!changed) {
+            return;
+        }
+        state.map = map;
         await this.pushStatus(editorId, state);
         if (this.persistEnabled()) {
             void state.persistDebounced();
@@ -300,58 +234,38 @@ export class CodeLinkMapService {
     }
 
     /**
-     * Reconciles a single entry with one changed file. Returns whether the
-     * entry's resolution or paths changed (so the caller knows to push/persist).
+     * Read at execution time (within the per-editor tail) so the content
+     * reflects the file as of *this* event's turn — see onSourceFileChanged.
+     * A delete carries no content. The read is OS-cached and cheap.
      */
-    private updateEntryForFileChange(
-        entry: CodeLinkMapEntry,
+    private async readChange(
         path: string,
         changeKind: SourceChangeKind,
-        content: string | undefined,
-    ): boolean {
+    ): Promise<SourceFileChange> {
         if (changeKind === "deleted") {
-            if (!entry.paths.includes(path)) {
-                return false;
-            }
-            entry.paths = entry.paths.filter((existing) => existing !== path);
-            if (entry.paths.length === 0) {
-                entry.resolved = false;
-            }
-            return true;
+            return { kind: "deleted", path };
         }
-
-        const matches = fileMatchesEntry(entry.kind, entry.reference, path, content);
-        const alreadyLinked = entry.paths.includes(path);
-
-        if (entry.resolved) {
-            if (alreadyLinked && !matches) {
-                // The edit removed the binding (deleted annotation, renamed class).
-                entry.paths = entry.paths.filter((existing) => existing !== path);
-                if (entry.paths.length === 0) {
-                    entry.resolved = false;
-                }
-                return true;
-            }
-            if (!alreadyLinked && matches) {
-                entry.paths.push(path);
-                return true;
-            }
-            return false;
+        try {
+            return { kind: "written", path, content: await this.vsWorkspace.readFile(path) };
+        } catch {
+            return { kind: "written", path, content: undefined };
         }
-
-        // Unresolved activity, freshly-written implementation → link it (Case 2).
-        if (matches) {
-            entry.paths = [path];
-            entry.resolved = true;
-            return true;
-        }
-        return false;
     }
 
-    /** Confirms an entry's linked files still implement it; returns the survivors. */
-    private async verifyEntry(entry: CodeLinkMapEntry): Promise<string[]> {
+    /** The files of each link that still implement it, keyed by activity. */
+    private async verifyLinks(links: readonly CodeLink[]): Promise<Map<string, string[]>> {
+        const survivors = new Map<string, string[]>();
+        for (const link of links) {
+            survivors.set(link.activityId, await this.verifyEntry(link));
+        }
+        return survivors;
+    }
+
+    /** Confirms a link's files still implement it; returns the survivors. */
+    private async verifyEntry(link: CodeLink): Promise<string[]> {
+        const target = ImplementationTarget.of(link.kind, link.reference);
         const stillMatching: string[] = [];
-        for (const path of entry.paths) {
+        for (const path of link.paths) {
             let content: string;
             try {
                 content = await this.vsWorkspace.readFile(path);
@@ -363,7 +277,7 @@ export class CodeLinkMapService {
                 );
                 continue;
             }
-            if (fileMatchesEntry(entry.kind, entry.reference, path, content)) {
+            if (target.isImplementedBy(path, content)) {
                 stillMatching.push(path);
             }
         }
@@ -371,12 +285,11 @@ export class CodeLinkMapService {
     }
 
     private async pushStatus(editorId: string, state: EditorState): Promise<void> {
-        const resolved: Record<string, boolean> = {};
-        for (const entry of state.map.values()) {
-            resolved[implementationStatusKey(entry.activityId, entry.reference)] = entry.resolved;
-        }
         try {
-            await this.editorStore.postMessage(editorId, new ImplementationStatusQuery(resolved));
+            await this.editorStore.postMessage(
+                editorId,
+                new ImplementationStatusQuery(state.map.statusSnapshot()),
+            );
         } catch (error) {
             // Usually the editor being hidden (no retainContextWhenHidden): the
             // webview re-syncs on reload, so the drop is recoverable — but it does
@@ -422,7 +335,7 @@ export class CodeLinkMapService {
         state.documentPath = handle.documentPath();
         state.documentFsPath = handle.documentFsPath();
         const root = await this.artifactSvc.getWorkspaceRoot(posix.dirname(state.documentPath));
-        if (this.states.get(editorId) !== state) {
+        if (this.isClosed(editorId, state)) {
             return;
         }
         state.workspaceRoot = root;
@@ -442,7 +355,7 @@ export class CodeLinkMapService {
     private acquireWatcher(root: string): void {
         let watcher = this.watchers.get(root);
         if (!watcher) {
-            const handle = this.vsWorkspace.createWatcher(root, SOURCE_GLOB, {
+            const handle = this.vsWorkspace.createWatcher(root, SOURCE_FILES.glob(), {
                 onCreate: (path) => void this.onSourceFileChanged(path, "created", root),
                 onChange: (path) => void this.onSourceFileChanged(path, "changed", root),
                 onDelete: (path) => void this.onSourceFileChanged(path, "deleted", root),
@@ -466,7 +379,7 @@ export class CodeLinkMapService {
     }
 
     private async loadWarmCache(state: EditorState): Promise<void> {
-        const artifactPath = this.artifactPath(state);
+        const artifactPath = this.artifactLocation(state)?.path;
         if (!artifactPath) {
             return;
         }
@@ -493,18 +406,16 @@ export class CodeLinkMapService {
         // the build should never throw — but a warm cache must never crash the
         // open, so degrade to "no warm cache" (clean map) if it somehow does.
         try {
-            for (const entry of toAbsoluteEntries(json, state.workspaceRoot!)) {
-                state.map.set(entry.activityId, entry);
-            }
+            state.map = CodeLinkMap.fromArtifact(json, state.workspaceRoot!);
         } catch (error) {
-            state.map.clear();
+            state.map = CodeLinkMap.empty;
             this.notifier.logWarning(
                 `[code-link] discarding malformed warm cache at ${artifactPath}: ${(error as Error).message}`,
             );
             return;
         }
         this.notifier.logInfo(
-            `[code-link] warm cache: loaded ${state.map.size} entr(y/ies) from ${artifactPath}`,
+            `[code-link] warm cache: loaded ${state.map.links.length} entr(y/ies) from ${artifactPath}`,
         );
     }
 
@@ -519,16 +430,14 @@ export class CodeLinkMapService {
             if (!state || !state.workspaceRoot || !state.documentPath) {
                 return; // Editor disposed before the debounced write fired.
             }
-            const artifactPath = this.artifactPath(state);
-            if (!artifactPath) {
+            const artifact = this.artifactLocation(state);
+            if (!artifact) {
                 return;
             }
-            const entries = [...state.map.values()];
-            const json = buildMapJson({
-                bpmnFile: toRelative(state.documentPath, state.workspaceRoot),
+            const json = state.map.toArtifact({
+                bpmnFile: artifact.documentBelowRoot,
                 generatedAt: "",
                 workspaceRoot: state.workspaceRoot,
-                entries,
             });
             // Compare everything but the timestamp so an unchanged map is a no-op.
             const signature = JSON.stringify({ bpmnFile: json.bpmnFile, entries: json.entries });
@@ -537,7 +446,7 @@ export class CodeLinkMapService {
             }
             state.lastWrittenSignature = signature;
             json.generatedAt = new Date().toISOString();
-            await this.vsWorkspace.writeFile(artifactPath, JSON.stringify(json, null, 2));
+            await this.vsWorkspace.writeFile(artifact.path, JSON.stringify(json, null, 2));
         } catch (error) {
             this.notifier.logWarning(
                 `[code-link] failed to persist map: ${(error as Error).message}`,
@@ -545,31 +454,32 @@ export class CodeLinkMapService {
         }
     }
 
-    /**
-     * Artifact path mirrors the diagram's workspace-relative location under
-     * `<configFolder>/code-link/` (e.g. `…/order.bpmn` →
-     * `.camunda/code-link/…/order.bpmn.json`). Mirroring the path — rather than
-     * using the bare basename — keeps two same-named diagrams in different
-     * folders from clobbering one file.
-     */
-    private artifactPath(state: EditorState): string | undefined {
+    /** A document outside its root keeps its map in memory only. */
+    private artifactLocation(state: EditorState): ConfigArtifactLocation | undefined {
         if (!state.workspaceRoot || !state.documentPath) {
             return undefined;
         }
-        const relBpmn = toRelative(state.documentPath, state.workspaceRoot);
-        return joinWorkspacePath(
-            state.workspaceRoot,
-            this.vsSettings.getConfigFolder(),
-            CODE_LINK_DIR,
-            `${relBpmn}.json`,
-        );
+        try {
+            return configArtifactLocation({
+                workspaceRoot: state.workspaceRoot,
+                configFolder: this.vsSettings.getConfigFolder(),
+                area: CODE_LINK_AREA,
+                documentPath: state.documentPath,
+                suffix: ".json",
+            });
+        } catch (error) {
+            this.notifier.logWarning(
+                `[code-link] not persisting the map: ${(error as Error).message}`,
+            );
+            return undefined;
+        }
     }
 
     private getOrCreateState(editorId: string): EditorState {
         let state = this.states.get(editorId);
         if (!state) {
             state = {
-                map: new Map(),
+                map: CodeLinkMap.empty,
                 documentPath: undefined,
                 documentFsPath: undefined,
                 workspaceRoot: undefined,
@@ -592,13 +502,8 @@ export class CodeLinkMapService {
         return this.vsSettings.getPersistCodeLinkMap();
     }
 
-    private isValidEntry(entry: ImplementationEntry): boolean {
-        return (
-            typeof entry.activityId === "string" &&
-            entry.activityId.length > 0 &&
-            typeof entry.reference === "string" &&
-            entry.reference.length > 0 &&
-            KNOWN_KINDS.has(entry.kind)
-        );
+    /** Disposed, or disposed and reopened, while an await was pending. */
+    private isClosed(editorId: string, state: EditorState): boolean {
+        return this.states.get(editorId) !== state;
     }
 }

@@ -34,13 +34,13 @@ describe("ElementTemplatesParticipant", () => {
         const { host, participant, refresh } = createServices();
         const editor = await host.openSession(PATH, [participant]);
 
-        editor.changeSetting("miragon.bpmnModeler.language");
+        editor.changeSetting("language");
         await settle();
         expect(refresh).not.toHaveBeenCalled();
         expect(host.workspace.watchers).toHaveLength(1);
 
         host.settings.values.configFolder = ".config";
-        editor.changeSetting("miragon.bpmnModeler.configFolder");
+        editor.changeSetting("configFolder");
         await settle();
 
         expect(refresh).toHaveBeenCalledWith(editor.id);

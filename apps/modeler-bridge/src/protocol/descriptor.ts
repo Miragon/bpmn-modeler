@@ -52,7 +52,6 @@ import {
     MigrateAllParams,
     NotifierLogParams,
     NotifierMessageParams,
-    NotifierNotifyErrorParams,
     NotifierOpenDocumentParams,
     NotifierProgressParams,
     OAuth2Credentials,
@@ -159,7 +158,6 @@ export const METHODS = {
     notifierShowInfo: "notifier/showInfo",
     notifierShowWarning: "notifier/showWarning",
     notifierShowError: "notifier/showError",
-    notifierNotifyError: "notifier/notifyError",
     notifierOpenConsole: "notifier/openConsole",
     notifierOpenDocument: "notifier/openDocument",
     notifierLog: "notifier/log",
@@ -645,12 +643,6 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: { message: "boom" } satisfies NotifierMessageParams,
-    },
-    {
-        method: METHODS.notifierNotifyError,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { context: "save", message: "boom" } satisfies NotifierNotifyErrorParams,
     },
     {
         method: METHODS.notifierOpenConsole,

@@ -1,14 +1,12 @@
 /**
- * Host-adapter surface — `WebviewStateManager` speaks the private Query/Command
- * protocol and persists panel/canvas UI state. Lives in the app, outside the
- * publishable `@miragon/bpmn-modeler` boundary.
+ * Host-adapter surface — `WebviewStateManager` persists panel/canvas UI state in
+ * the host's webview state. Lives in the app, outside the publishable
+ * `@miragon/bpmn-modeler` boundary.
  */
 import {
-    Command,
     createWebviewStateStore,
-    HostApi,
     PropertiesPanelUiStateAdapter,
-    Query,
+    type WebviewStateHost,
     type WebviewStateStore,
 } from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox, type SurfaceMode } from "@miragon/bpmn-modeler-types";
@@ -32,9 +30,7 @@ type StatefulSurface = Pick<
  * (first-ever open), so the caller falls back to the host default; read before
  * surface construction.
  */
-export function readSavedMode(
-    host: HostApi<WebviewState, Command | Query>,
-): SurfaceMode | undefined {
+export function readSavedMode(host: WebviewStateHost<WebviewState>): SurfaceMode | undefined {
     return host.getState()?.mode;
 }
 
@@ -55,7 +51,7 @@ export class WebviewStateManager {
     private readonly panelUiState: PropertiesPanelUiStateAdapter;
 
     constructor(
-        host: HostApi<WebviewState, Command | Query>,
+        host: WebviewStateHost<WebviewState>,
         // Any of the three surfaces (modeler / designer / viewer) — bound
         // structurally so the manager rebinds on every mode switch.
         private readonly modeler: StatefulSurface,

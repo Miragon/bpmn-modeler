@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CredentialRefs } from "./credentialRefs";
+import { CredentialRefFields, CredentialRefs } from "./credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "./deployment";
 
 const oauth2 = (clientId: string, clientSecret: string) =>
@@ -32,6 +32,36 @@ describe("CredentialRefs", () => {
                 password: undefined,
                 clientId: "${env:MIRAGON_CID}",
                 clientSecret: "${env:MIRAGON_S}",
+            });
+        });
+
+        it.each<[string, CredentialRefFields]>([
+            [
+                "every key",
+                {
+                    username: "${env:MIRAGON_USER}",
+                    password: "${env:MIRAGON_PW}",
+                    clientId: "${env:MIRAGON_CID}",
+                    clientSecret: "${env:MIRAGON_S}",
+                },
+            ],
+            [
+                "only the basic keys",
+                { username: "${env:MIRAGON_USER}", password: "${env:MIRAGON_PW}" },
+            ],
+            [
+                "only the client keys",
+                { clientId: "${env:MIRAGON_CID}", clientSecret: "${env:MIRAGON_S}" },
+            ],
+            ["a lone password", { password: "${env:MIRAGON_PW}" }],
+            ["a lone client secret", { clientSecret: "${env:MIRAGON_S}" }],
+            ["no key", {}],
+        ])("holds %s of an auth block, whatever its type", (_case, fields) => {
+            expect(CredentialRefs.ofFields(fields)).toMatchObject({
+                username: fields.username,
+                password: fields.password,
+                clientId: fields.clientId,
+                clientSecret: fields.clientSecret,
             });
         });
     });

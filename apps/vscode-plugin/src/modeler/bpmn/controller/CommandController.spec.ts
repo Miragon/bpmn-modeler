@@ -76,7 +76,7 @@ vi.mock("vscode", () => ({
 }));
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { getLatestVersion } from "@miragon/bpmn-modeler-core";
+import { FOCUS_BPMN_DIAGRAM_MESSAGE, getLatestVersion } from "@miragon/bpmn-modeler-core";
 import { createTestHost, PickerAnswers } from "@miragon/bpmn-modeler-core/testing";
 
 import { CommandController } from "./CommandController";
@@ -211,6 +211,23 @@ describe("CommandController.showLogging", () => {
     });
 });
 
+describe("CommandController layout commands", () => {
+    it.each(["formatDiagram", "cleanupDiagram"] as const)(
+        "%s logs and hints to focus a diagram when none is open",
+        async (command) => {
+            const { controller, host, editor, notifier } = createController();
+            host.store.unregister(editor.id, editor);
+
+            await expect(controller[command]()).resolves.toBeUndefined();
+
+            expect(notifier.logged("error")).toEqual([
+                expect.stringContaining("Error: No active editor.\n"),
+            ]);
+            expect(notifier.infos).toEqual([FOCUS_BPMN_DIAGRAM_MESSAGE]);
+        },
+    );
+});
+
 describe("CommandController.changeEngineVersion", () => {
     it("delegates to the bpmn service for the active editor", async () => {
         const { controller, editor, bpmnService } = createController();
@@ -259,15 +276,14 @@ describe("CommandController.changeLanguage", () => {
         expect(configUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("persists the picked locale at the Global target", async () => {
+    it("persists the picked locale for the user", async () => {
         const { controller } = createController();
         showQuickPickMock.mockResolvedValue({ label: "English", description: "en" });
 
         await controller.changeLanguage();
 
         expect(getConfigurationMock).toHaveBeenCalledWith("miragon.bpmnModeler");
-        // ConfigurationTarget.Global === 1 in the mock; language is a personal
-        // preference and must not be pinned to a shared workspace file.
+        // ConfigurationTarget.Global === 1 in the mock.
         expect(configUpdateMock).toHaveBeenCalledWith("language", "en", 1);
     });
 });

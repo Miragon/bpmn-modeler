@@ -1,60 +1,57 @@
 import { ConfigurationTarget, workspace } from "vscode";
 
 import {
+    ColorThemeSetting,
     MarketplaceSettingsEntry,
-    parseLintingEnabled,
+    ModelerSettingsSnapshot,
     parseSetting,
+    settingKeyOf,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
+import { lintingEnabled, ModelerConfiguration, modelerConfiguration } from "./modelerConfiguration";
+
 /**
- * Pure VS Code workspace configuration reader for the BPMN modeler. Each value
- * is read as the core's `parseSetting` decides, as on every host.
+ * Reads and writes the modeler configuration in VS Code. Each value is read
+ * under the key `settingKeyOf` names and parsed as the core's `parseSetting`
+ * decides, as on every host; the marketplace commands write their lists here.
  */
 export class VsCodeSettings implements SettingsPort {
     getAlignToOrigin(): boolean {
-        return parseSetting("alignToOrigin", configuration().get("alignToOrigin"));
+        return readSetting("alignToOrigin");
     }
 
     getShowTransactionBoundaries(): boolean {
-        return parseSetting(
-            "showTransactionBoundaries",
-            configuration().get("showTransactionBoundaries"),
-        );
+        return readSetting("showTransactionBoundaries");
     }
 
-    /**
-     * Whether bpmnlint runs. Defaults to `true`, so automation users keep the
-     * zero-config lint experience; design-only users flip it off (globally, from
-     * the webview pill or the settings UI) to silence rules they do not use.
-     */
     getLintingEnabled(): boolean {
-        return parseLintingEnabled(configuration().get("linting.enabled"));
+        return lintingEnabled();
     }
 
     getConfigFolder(): string {
-        return parseSetting("configFolder", configuration().get("configFolder"));
+        return readSetting("configFolder");
     }
 
     getC8ApiVersion(): string {
-        return parseSetting("c8ApiVersion", configuration().get("c8ApiVersion"));
+        return readSetting("c8ApiVersion");
     }
 
-    getColorTheme(): "automatic" | "light" {
-        return parseSetting("colorTheme", configuration().get("colorTheme"));
+    getColorTheme(): ColorThemeSetting {
+        return readSetting("colorTheme");
     }
 
     getDefaultMode(): SurfaceMode {
-        return parseSetting("defaultMode", configuration().get("defaultMode"));
+        return readSetting("defaultMode");
     }
 
     getFavouriteBpmnElements(): string[] {
-        return parseSetting("favouriteBpmnElements", configuration().get("favouriteBpmnElements"));
+        return readSetting("favouriteBpmnElements");
     }
 
     getLanguage(): string {
-        return parseSetting("language", configuration().get("language"));
+        return readSetting("language");
     }
 
     /**
@@ -66,7 +63,7 @@ export class VsCodeSettings implements SettingsPort {
      * external-tooling artifact.
      */
     getPersistCodeLinkMap(): boolean {
-        return parseSetting("persistCodeLinkMap", configuration().get("persistCodeLinkMap"));
+        return readSetting("persistCodeLinkMap");
     }
 
     /**
@@ -78,7 +75,7 @@ export class VsCodeSettings implements SettingsPort {
      * project does not have camunda-spin on the classpath.
      */
     getScriptingSpin(): boolean {
-        return parseSetting("scriptingSpin", configuration().get("scripting.spin"));
+        return readSetting("scriptingSpin");
     }
 
     /**
@@ -110,7 +107,7 @@ export class VsCodeSettings implements SettingsPort {
         entry: MarketplaceSettingsEntry;
         scopes: ("user" | "workspace")[];
     }[] {
-        const { userEntries, workspaceEntries } = marketplacesByScope(configuration());
+        const { userEntries, workspaceEntries } = marketplacesByScope(modelerConfiguration());
         // User first so a shared "all my projects" entry annotated with both
         // scopes still reads "User and Workspace settings", not the reverse.
         const scoped: [MarketplaceSettingsEntry, "user" | "workspace"][] = [
@@ -149,7 +146,7 @@ export class VsCodeSettings implements SettingsPort {
      * VS Code never throws.
      */
     async removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
-        const config = configuration();
+        const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
         const removeKeys = new Set(entries.map((entry) => entryKey(entry)));
 
@@ -169,7 +166,7 @@ export class VsCodeSettings implements SettingsPort {
      * is written as `undefined` to drop the key entirely.
      */
     private async removeFromScope(
-        config: ReturnType<typeof workspace.getConfiguration>,
+        config: ModelerConfiguration,
         current: MarketplaceSettingsEntry[],
         removeKeys: ReadonlySet<string>,
         target: ConfigurationTarget,
@@ -200,7 +197,7 @@ export class VsCodeSettings implements SettingsPort {
      * slips through, costing only a redundant fetch into the same cache slot.
      */
     async addMarketplace(url: string, scope: "workspace" | "user"): Promise<void> {
-        const config = configuration();
+        const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
         const hasWorkspace =
             workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
@@ -244,7 +241,7 @@ function entryKey(entry: MarketplaceSettingsEntry): string {
 }
 
 /** Each scope's own list, read as the core reads `marketplaces`. */
-function marketplacesByScope(config: ReturnType<typeof workspace.getConfiguration>): {
+function marketplacesByScope(config: ModelerConfiguration): {
     userEntries: MarketplaceSettingsEntry[];
     workspaceEntries: MarketplaceSettingsEntry[];
 } {
@@ -255,6 +252,6 @@ function marketplacesByScope(config: ReturnType<typeof workspace.getConfiguratio
     };
 }
 
-function configuration() {
-    return workspace.getConfiguration("miragon.bpmnModeler");
+function readSetting<K extends keyof ModelerSettingsSnapshot>(key: K): ModelerSettingsSnapshot[K] {
+    return parseSetting(key, modelerConfiguration().get(settingKeyOf(key)));
 }

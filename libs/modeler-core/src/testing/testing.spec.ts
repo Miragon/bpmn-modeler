@@ -166,17 +166,20 @@ describe("ScriptedPicker", () => {
         expect(picker.prompts.map((prompt) => prompt.method)).toHaveLength(9);
     });
 
-    it("returns scripted answers and offers the referenced-model choice only on a multi-match", async () => {
-        const picker = new ScriptedPicker({ engineVersion: "8.7.0", referencedModel: "/b.bpmn" });
+    it("returns scripted answers and offers the located-file choice only on a multi-match", async () => {
+        const picker = new ScriptedPicker({ engineVersion: "8.7.0", locatedFile: "/b.bpmn" });
+        const prompts = { searchingPlaceholder: "Searching", pickPlaceholder: "Pick" };
 
         await expect(picker.pickEngineVersion("c8", ["8.7.0"])).resolves.toBe("8.7.0");
-        const single = await picker.searchAndPickReferencedModel("Pick", async () => ({
+        const single = await picker.searchAndPickLocatedFile(prompts, async () => ({
             kind: "matches",
             paths: ["/a.bpmn"],
+            readFailures: [],
         }));
-        const multi = await picker.searchAndPickReferencedModel("Pick", async () => ({
+        const multi = await picker.searchAndPickLocatedFile(prompts, async () => ({
             kind: "matches",
             paths: ["/a.bpmn", "/b.bpmn"],
+            readFailures: [],
         }));
 
         expect(single.chosen).toBeUndefined();

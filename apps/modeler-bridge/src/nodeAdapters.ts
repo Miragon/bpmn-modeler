@@ -35,6 +35,7 @@ import { join, posix, relative, sep } from "node:path";
 import {
     changedSettingKeys,
     coalesceWatcherEvents,
+    ColorThemeSetting,
     DEFAULT_LINTING_ENABLED,
     DirectoryNotFound,
     EditorSubscription,
@@ -49,6 +50,8 @@ import {
     RawModelerSettings,
     relativeToRoot,
     SettingChange,
+    settingChangeNaming,
+    SettingKey,
     SettingsPort,
     toWorkspacePath,
     WatcherEventKind,
@@ -467,9 +470,6 @@ export class NodeWorkspace implements WorkspacePort {
     }
 }
 
-/** Mirrors the VS Code config prefix so `affectsConfiguration` keys line up across hosts. */
-const SETTINGS_PREFIX = "miragon.bpmnModeler";
-
 /**
  * Mutable {@link SettingsPort} fed by the host over RPC and by the webview's lint
  * toggle, plus the change-event hub the core's settings subscriptions ride on.
@@ -485,7 +485,6 @@ const SETTINGS_PREFIX = "miragon.bpmnModeler";
 export class BridgeSettings implements SettingsPort {
     // Render-safe before the host's first snapshot, which a host may leave out of register.
     private snapshot: ModelerSettingsSnapshot = normalizeSettings({});
-    // Outside the snapshot: `apply` would announce it as `lintingEnabled`, not `linting.enabled`.
     private lintingEnabled = DEFAULT_LINTING_ENABLED;
     private readonly listeners = new Set<(event: SettingChange) => void>();
 
@@ -499,7 +498,7 @@ export class BridgeSettings implements SettingsPort {
         const next = normalizeSettings({ ...this.snapshot, ...raw });
         const changed = changedSettingKeys(this.snapshot, next);
         this.snapshot = next;
-        this.notify(new Set(changed.map((key) => `${SETTINGS_PREFIX}.${key}`)));
+        this.notify(changed);
     }
 
     /**
@@ -514,7 +513,7 @@ export class BridgeSettings implements SettingsPort {
             return false;
         }
         this.lintingEnabled = enabled;
-        this.notify(new Set([`${SETTINGS_PREFIX}.linting.enabled`]));
+        this.notify(["linting.enabled"]);
         return true;
     }
 
@@ -543,7 +542,7 @@ export class BridgeSettings implements SettingsPort {
     getC8ApiVersion(): string {
         return this.snapshot.c8ApiVersion;
     }
-    getColorTheme(): "automatic" | "light" {
+    getColorTheme(): ColorThemeSetting {
         return this.snapshot.colorTheme;
     }
     getDefaultMode(): SurfaceMode {
@@ -572,13 +571,11 @@ export class BridgeSettings implements SettingsPort {
         return this.snapshot.marketplaces;
     }
 
-    private notify(changedSections: ReadonlySet<string>): void {
-        if (changedSections.size === 0) {
+    private notify(changed: readonly SettingKey[]): void {
+        if (changed.length === 0) {
             return;
         }
-        const event: SettingChange = {
-            affectsConfiguration: (section) => changedSections.has(section),
-        };
+        const event = settingChangeNaming(changed);
         // Copy before iterating: a listener may dispose itself on fire.
         for (const listener of [...this.listeners]) {
             listener(event);

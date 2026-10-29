@@ -1,5 +1,6 @@
 import { Uri, Webview } from "vscode";
 
+import { webviewContentSecurityPolicy } from "./webviewContentSecurityPolicy";
 import { createWebviewNonce } from "./webviewNonce";
 
 const BPMN_WEBVIEW_PATH = "bpmn-webview";
@@ -31,6 +32,7 @@ export function bpmnEditorUi(
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
     const nonce = createWebviewNonce();
+    const policy = webviewContentSecurityPolicy("bpmn", { cspSource: webview.cspSource, nonce });
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";
@@ -40,15 +42,13 @@ export function bpmnEditorUi(
     // The script must load as a module: the bundle code-splits its surfaces,
     // engine stacks and the lint stack into chunks whose URLs are resolved via
     // import.meta.url — a syntax error in a classic script. Matches the IntelliJ host.
-    // `script-src` lists `cspSource` besides the nonce because the chunk loader's
-    // modulepreload links carry no nonce.
     return `
         <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="UTF-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data: https:; font-src ${webview.cspSource} data:; base-uri 'none'; form-action 'none';"/>
+                <meta http-equiv="Content-Security-Policy" content="${policy}"/>
                 <link href="${styleUri}" rel="stylesheet"/>
                 <title>BPMN Modeler</title>
             </head>
@@ -84,6 +84,7 @@ export function dmnModelerHtml(
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
     const nonce = createWebviewNonce();
+    const policy = webviewContentSecurityPolicy("dmn", { cspSource: webview.cspSource, nonce });
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";
@@ -96,7 +97,7 @@ export function dmnModelerHtml(
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource} data:; base-uri 'none'; form-action 'none';"/>
+                <meta http-equiv="Content-Security-Policy" content="${policy}"/>
 
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleUri}" rel="stylesheet" type="text/css" />
@@ -121,6 +122,7 @@ export function formEditorHtml(webview: Webview, extensionUri: Uri): string {
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "styles.css"));
     const nonce = createWebviewNonce();
+    const policy = webviewContentSecurityPolicy("form", { cspSource: webview.cspSource, nonce });
 
     return `
         <!DOCTYPE html>
@@ -128,7 +130,7 @@ export function formEditorHtml(webview: Webview, extensionUri: Uri): string {
             <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: blob: https:; font-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https:; frame-src https:; object-src blob:; base-uri 'none'; form-action 'none';" />
+                <meta http-equiv="Content-Security-Policy" content="${policy}"/>
                 <link href="${styleUri}" rel="stylesheet" />
                 <title>Form Editor</title>
             </head>

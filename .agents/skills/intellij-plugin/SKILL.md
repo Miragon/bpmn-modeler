@@ -199,7 +199,9 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
 Bridge (`apps/modeler-bridge/src/`):
-- `server.ts` (entrypoint, wires core to adapters), `rpc.ts` (NDJSON peer),
+- `server.ts` (entrypoint, binds the process streams), `stdioBinding.ts`
+  (stdin frames, `[core]`-tagged stderr lines), `bridge.ts` (wires core to
+  adapters), `rpc.ts` (NDJSON peer),
   `adapters.ts` (`DocumentMirror` + `Rpc*` ports), `nodeAdapters.ts` (pure-`fs`
   `WorkspacePort`/`SettingsPort`).
 - `package.json`: `build` = typecheck + `compile`; `compile` = `bun build

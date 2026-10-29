@@ -1,3 +1,6 @@
+/** Shown when a diagram command finds no visible BPMN diagram to act on. */
+export const FOCUS_BPMN_DIAGRAM_MESSAGE = "Focus a BPMN diagram tab, then run the command again.";
+
 /**
  * The editor session a command acts on: the one focused last. Text editors and
  * sidebars are not sessions, so the target stays on a diagram while they have

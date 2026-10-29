@@ -16,7 +16,7 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import { FOCUS_BPMN_DIAGRAM_MESSAGE, ScriptUri } from "@miragon/bpmn-modeler-core";
 
 import { registerParams, settle, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
@@ -682,6 +682,44 @@ describe("bridge script editor (real core over a fake transport)", () => {
         );
     });
 
+    it("counts a failed script write in the summary and still writes the rest", async () => {
+        const { rpc, frames, editorId } = await setup();
+        // A path segment longer than any file system allows makes this one write fail.
+        const unwritableId = `Task_${"x".repeat(300)}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "OpenScriptEditorsCommand",
+                        scripts: [
+                            { elementId: "Task_1", scriptFormat: "groovy", content: "x = 1" },
+                            { elementId: unwritableId, scriptFormat: "groovy", content: "y = 2" },
+                            { elementId: "Task_3", scriptFormat: "groovy", content: "z = 3" },
+                        ],
+                        variables: [],
+                    },
+                },
+            }),
+        );
+
+        const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        expect(info.params.message).toBe(
+            "Generated 2 script file(s) in .camunda/tmp/scripting — open a file to edit it with live sync into the diagram. Could not write 1 script file(s); see the log for details.",
+        );
+        const errorLogs = frames.filter(
+            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        );
+        expect(errorLogs.map((f) => f.params.message)).toEqual([
+            expect.stringContaining(`Could not write the script file of ${unwritableId}`),
+        ]);
+        expect(await fs.readFile(scriptPath(editorId, "Task_3", "Task_3.groovy"), "utf8")).toBe(
+            "z = 3",
+        );
+    });
+
     it("adopts an externally opened generated file into live sync", async () => {
         const { rpc, frames, editorId } = await setup();
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
@@ -783,7 +821,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
     });
 
-    it("logs a batch that fails mid-way instead of leaving the rejection unhandled", async () => {
+    it("counts a script whose language pick fails as failed and still shows the summary", async () => {
         const { rpc, frames, editorId } = await setup();
 
         await rpc.handleLine(
@@ -805,12 +843,14 @@ describe("bridge script editor (real core over a fake transport)", () => {
         );
         await rpc.handleLine(JSON.stringify({ id: picker.id, error: "host went away" }));
 
-        const log = await waitForFrame(
-            frames,
-            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        expect(info.params.message).toBe(
+            "No script files generated in .camunda/tmp/scripting. Could not write 1 script file(s); see the log for details.",
         );
-        expect(log.params.message).toContain("host went away");
-        expect(frames.find((f) => f.method === "notifier/showInfo")).toBeUndefined();
+        const log = frames.find((f) => f.method === "notifier/log" && f.params?.level === "error");
+        expect(log.params.message).toMatch(
+            /^Could not write the script file of Task_1: .*host went away/,
+        );
     });
 
     it("hints to focus a diagram when script/openAll fires with no active editor", async () => {
@@ -821,12 +861,8 @@ describe("bridge script editor (real core over a fake transport)", () => {
 
         await rpc.handleLine(JSON.stringify({ method: "script/openAll", params: {} }));
 
-        const info = await waitForFrame(
-            frames,
-            (f) =>
-                f.method === "notifier/showInfo" && /Focus a BPMN diagram/.test(f.params.message),
-        );
-        expect(info).toBeDefined();
+        const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        expect(info.params.message).toBe(FOCUS_BPMN_DIAGRAM_MESSAGE);
         expect(
             frames.find((f) => f.method === "notifier/log" && f.params?.level === "error"),
         ).toBeDefined();

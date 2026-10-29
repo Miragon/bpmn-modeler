@@ -1,5 +1,6 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
+import { normalizeLineEndings } from "../../kernel/domain/lineEndings";
 import { CommandTarget } from "../domain/CommandTarget";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
 import { EditorHandle } from "./EditorHandle";
@@ -381,5 +382,5 @@ export class EditorSessionStore {
 }
 
 function sameDocumentContent(actual: string, expected: string): boolean {
-    return actual.replace(/\r\n?/g, "\n") === expected.replace(/\r\n?/g, "\n");
+    return normalizeLineEndings(actual) === normalizeLineEndings(expected);
 }

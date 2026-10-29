@@ -44,7 +44,7 @@ export class StartInstanceService {
      * Extracts the process definition key from the BPMN XML of the given editor.
      *
      * @param editorId Document URI path of the target editor.
-     * @returns The process ID from the first `<bpmn:process>` element.
+     * @returns The id of the diagram's executable process, see {@link BpmnDocument.extractProcessId}.
      * @throws {Error} If no process element is found or the editor is not available.
      */
     getProcessDefinitionKey(editorId: string): string {
@@ -117,11 +117,7 @@ export class StartInstanceService {
                 payload,
                 startInstanceUrl,
             );
-            const lookup = await this.envResolver.createLookup(
-                destination.envScope,
-                documentDir,
-                config,
-            );
+            const lookup = await this.envResolver.createLookup(destination, documentDir, config);
             const requestConfig = config.expandEnvRefs(lookup);
             if (destination.requiresApproval(requestConfig)) {
                 await this.credentialApproval.ensureApproved(

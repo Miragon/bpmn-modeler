@@ -357,14 +357,11 @@ export interface ClipboardWriteParams {
     text: string;
 }
 
-/** `notifier/showInfo`, `notifier/showWarning`, `notifier/showError` — a one-line balloon. */
+/**
+ * `notifier/showInfo`, `notifier/showWarning`, `notifier/showError` — a balloon
+ * with the core's text as it is, including the context line `notifyError` adds.
+ */
 export interface NotifierMessageParams {
-    message: string;
-}
-
-/** `notifier/notifyError` — a context-tagged error balloon. */
-export interface NotifierNotifyErrorParams {
-    context: string;
     message: string;
 }
 

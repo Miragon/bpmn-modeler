@@ -6,11 +6,6 @@ module.exports = [
     },
     ...baseConfig,
     {
-        files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
-        // Override or add rules here
-        rules: {},
-    },
-    {
         files: ["**/*.ts", "**/*.tsx"],
         rules: {
             "@typescript-eslint/no-explicit-any": "warn",
@@ -21,27 +16,5 @@ module.exports = [
                 },
             ],
         },
-    },
-    {
-        files: ["src/domain/**/*.ts", "src/service/**/*.ts"],
-        rules: {
-            "no-restricted-imports": [
-                "error",
-                {
-                    paths: [
-                        {
-                            name: "vscode",
-                            message:
-                                "domain/ and service/ must stay host-agnostic. Depend on a port in domain/hostPorts.ts and let an infrastructure adapter import vscode.",
-                        },
-                    ],
-                },
-            ],
-        },
-    },
-    {
-        files: ["**/*.js", "**/*.jsx"],
-        // Override or add rules here
-        rules: {},
     },
 ];

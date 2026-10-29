@@ -76,7 +76,8 @@ class ModelerSettingsConfigurable : Configurable {
                         )
                         .comment(
                             "Writes the activity→code map to " +
-                                "<code>&lt;config&gt;/code-link/&lt;file&gt;.json</code> as an opt-in warm " +
+                                "<code>&lt;config&gt;/code-link/&lt;path&gt;.json</code>, where &lt;path&gt; is " +
+                                "the diagram's path below the project root, as an opt-in warm " +
                                 "cache (faster re-open) and a machine-readable artifact for external/AI " +
                                 "tooling. The <b>Go to implementation</b> entry works in memory either way.",
                         )

@@ -4,6 +4,7 @@ import { QuickPickItem, Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "@miragon/bpmn-modeler-core";
 import { DeploymentPickerPort, MigrationPickerPort, PickerPort } from "@miragon/bpmn-modeler-core";
+import { classifyLocateResult, LocatePrompts, LocateResult } from "@miragon/bpmn-modeler-core";
 import { MigrationScope } from "@miragon/bpmn-modeler-core";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
 import { summarizeAffectedItems } from "@miragon/bpmn-modeler-core";
@@ -143,7 +144,7 @@ export class VsCodePicker implements PickerPort, DeploymentPickerPort, Migration
     /**
      * Returns the picked Camunda `scriptFormat` (e.g. `"javascript"`) or
      * `undefined` on cancel — the open-script flow uses this to recover
-     * when the BPMN model's `camunda:scriptFormat` is missing or set to a
+     * when the BPMN model's `scriptFormat` is missing or set to a
      * language we don't ship IntelliSense for. The currently-set format
      * (if any) is pinned to the top so it remains the default highlighted
      * option even when unrecognised.
@@ -173,18 +174,18 @@ export class VsCodePicker implements PickerPort, DeploymentPickerPort, Migration
 
     /**
      * Puts the search spinner on the selection list itself rather than the
-     * status bar. Only a multi-match result opens the list to pick from; the
-     * service still owns the 0/1/error cases via the returned `outcome`.
+     * status bar. Only an ambiguous result opens the list to pick from; the
+     * service still owns the other cases via the returned `outcome`.
      *
      * Cancel resolves to `undefined` (never throws) — backing out of a
      * navigation prompt is expected. Sorted by workspace-relative path so nearby
      * files surface first.
      */
-    async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
-        placeholder: string,
-        search: () => Promise<R>,
-    ): Promise<{ outcome: R; chosen?: string }> {
-        const qp = window.createQuickPick<ReferencedModelItem>();
+    async searchAndPickLocatedFile(
+        prompts: LocatePrompts,
+        search: () => Promise<LocateResult>,
+    ): Promise<{ outcome: LocateResult; chosen?: string }> {
+        const qp = window.createQuickPick<LocatedFileItem>();
         try {
             // Defer the reveal so a fast search doesn't flash the list open and
             // shut; slow searches still get the spinner.
@@ -192,25 +193,26 @@ export class VsCodePicker implements PickerPort, DeploymentPickerPort, Migration
             const revealTimer = setTimeout(() => {
                 revealed = true;
                 qp.busy = true;
-                qp.placeholder = placeholder;
+                qp.placeholder = prompts.searchingPlaceholder;
                 qp.show();
             }, 150);
 
-            let outcome: R;
+            let outcome: LocateResult;
             try {
                 outcome = await search();
             } finally {
                 clearTimeout(revealTimer);
             }
 
-            if (!outcome.paths || outcome.paths.length < 2) {
+            const located = classifyLocateResult(outcome);
+            if (located.kind !== "ambiguous") {
                 // Nothing to pick — hide (in case the reveal already fired) and
-                // hand the 0/1/error cases back to the service.
+                // hand the other cases back to the service.
                 qp.hide();
                 return { outcome, chosen: undefined };
             }
 
-            const items = outcome.paths
+            const items = located.paths
                 .map((path) => ({
                     label: posix.basename(path),
                     description: workspace.asRelativePath(Uri.file(path)),
@@ -219,7 +221,7 @@ export class VsCodePicker implements PickerPort, DeploymentPickerPort, Migration
                 .sort((a, b) => a.description.localeCompare(b.description));
 
             qp.items = items;
-            qp.placeholder = "Select the referenced model to open";
+            qp.placeholder = prompts.pickPlaceholder;
             qp.busy = false;
             if (!revealed) {
                 qp.show();
@@ -309,6 +311,6 @@ export class VsCodePicker implements PickerPort, DeploymentPickerPort, Migration
     }
 }
 
-interface ReferencedModelItem extends QuickPickItem {
+interface LocatedFileItem extends QuickPickItem {
     readonly path: string;
 }

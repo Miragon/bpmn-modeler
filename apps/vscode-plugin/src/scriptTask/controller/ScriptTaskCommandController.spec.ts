@@ -9,7 +9,11 @@ vi.mock("vscode", () => ({
     Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
 }));
 
-import { EditorSessionStore, NotifierPort } from "@miragon/bpmn-modeler-core";
+import {
+    EditorSessionStore,
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
+    NotifierPort,
+} from "@miragon/bpmn-modeler-core";
 import { createTestHost } from "@miragon/bpmn-modeler-core/testing";
 
 import {
@@ -64,9 +68,7 @@ describe("ScriptTaskCommandController", () => {
         expect(host.notifier.logged("error")).toEqual([
             expect.stringContaining("Error: No active editor.\n"),
         ]);
-        expect(host.notifier.infos).toEqual([
-            "Focus a BPMN diagram tab, then run the command again.",
-        ]);
+        expect(host.notifier.infos).toEqual([FOCUS_BPMN_DIAGRAM_MESSAGE]);
     });
 
     it("logs and hints when the active editor is hidden, without rejecting", async () => {
@@ -80,8 +82,6 @@ describe("ScriptTaskCommandController", () => {
         expect(host.notifier.logged("error")).toEqual([
             expect.stringContaining("Error: The active editor is hidden.\n"),
         ]);
-        expect(host.notifier.infos).toEqual([
-            "Focus a BPMN diagram tab, then run the command again.",
-        ]);
+        expect(host.notifier.infos).toEqual([FOCUS_BPMN_DIAGRAM_MESSAGE]);
     });
 });

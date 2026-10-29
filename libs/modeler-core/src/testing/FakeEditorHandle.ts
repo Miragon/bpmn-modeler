@@ -4,8 +4,10 @@ import {
     DocumentChangeEvent,
     EditorSubscription,
     SettingChange,
+    settingChangeNaming,
 } from "../editorSession/domain/EditorSession";
 import { EditorHandle } from "../editorSession/service/EditorHandle";
+import { SettingKey } from "../kernel/domain/modelerSettings";
 
 class Listeners<T> {
     private readonly callbacks = new Set<(event: T) => void>();
@@ -182,12 +184,8 @@ export class FakeEditorHandle implements EditorHandle {
         });
     }
 
-    changeSetting(...sections: string[]): void {
-        this.settingChanges.emit({
-            affectsConfiguration: (section) =>
-                sections.some(
-                    (changed) => changed === section || changed.startsWith(`${section}.`),
-                ),
-        });
+    /** Plays a host settings change that names exactly the given keys. */
+    changeSetting(...changed: SettingKey[]): void {
+        this.settingChanges.emit(settingChangeNaming(changed));
     }
 }

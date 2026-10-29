@@ -61,8 +61,10 @@ import {
     DMN_VIEW_TYPE,
     FORM_VIEW_TYPE,
     parseSetting,
+    SettingKey,
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
+import { MODELER_SETTINGS_SECTION } from "./shared/infrastructure/modelerConfiguration";
 
 const SRC_DIR = __dirname;
 
@@ -125,7 +127,6 @@ const CODE_COMMAND_IDS = [
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
 ];
 
-const CONFIG_NAMESPACE = "miragon.bpmnModeler";
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
 
 /** Recursively collects production `.ts` files under `src` (excludes specs). */
@@ -206,36 +207,56 @@ describe("package.json ↔ code contract", () => {
         expect(bpmn?.priority).toEqual({ textEditor: "default", diffEditor: "default" });
     });
 
-    it("keeps config keys in sync between manifest and VsCodeSettings", () => {
-        const declaredKeys = Object.keys(manifest.contributes.configuration.properties)
-            .filter((key) => key.startsWith(`${CONFIG_NAMESPACE}.`))
-            .map((key) => key.slice(CONFIG_NAMESPACE.length + 1));
+    const declaredKeys = Object.keys(manifest.contributes.configuration.properties)
+        .filter((key) => key.startsWith(`${MODELER_SETTINGS_SECTION}.`))
+        .map((key) => key.slice(MODELER_SETTINGS_SECTION.length + 1));
 
-        // This check assumes all config access is centralized in
-        // `VsCodeSettings.ts` with string-literal keys — a key read elsewhere, or
-        // built from a computed expression, would silently drift past this regex.
-        // All keys read in the one class that owns config access. The `<T>`
-        // generic is always present on these calls but kept optional for safety.
-        const settingsSource = readFileSync(
-            resolve(SRC_DIR, "shared/infrastructure/VsCodeSettings.ts"),
-            "utf-8",
+    it("reads, writes and watches every VS Code setting only in modelerConfiguration.ts", () => {
+        // Its keys are typed `SettingKey`, so the manifest row below covers every key asked.
+        const modelerConfigurationFile = resolve(
+            SRC_DIR,
+            "shared/infrastructure/modelerConfiguration.ts",
         );
-        const readKeys = [
-            ...settingsSource.matchAll(/\.(?:get|update)(?:<[^>]*>)?\(\s*["']([^"']+)["']/g),
-        ].map((match) => match[1]);
+        const offenders = productionSourceFiles(SRC_DIR).filter(
+            (file) =>
+                file !== modelerConfigurationFile &&
+                /\b(?:getConfiguration|affectsConfiguration|onDidChangeConfiguration)\(/.test(
+                    readFileSync(file, "utf-8"),
+                ),
+        );
 
-        expect(new Set(readKeys)).toEqual(new Set(declaredKeys));
+        expect(offenders).toEqual([]);
+    });
+
+    it("names settings by exactly the keys the manifest declares", () => {
+        // A `Record` literal makes the compiler hold this list to the SettingKey union.
+        const settingKeys: Record<SettingKey, true> = {
+            "alignToOrigin": true,
+            "showTransactionBoundaries": true,
+            "configFolder": true,
+            "persistCodeLinkMap": true,
+            "c8ApiVersion": true,
+            "colorTheme": true,
+            "defaultMode": true,
+            "favouriteBpmnElements": true,
+            "language": true,
+            "scripting.spin": true,
+            "marketplaces": true,
+            "linting.enabled": true,
+        };
+
+        expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));
     });
 
     it("gives the core and its in-memory settings the defaults the manifest declares", () => {
         // `scripting.spin` → `scriptingSpin`
         const settingsValueName = (key: string) =>
             key
-                .slice(CONFIG_NAMESPACE.length + 1)
+                .slice(MODELER_SETTINGS_SECTION.length + 1)
                 .replace(/\.(\w)/g, (_, initial: string) => initial.toUpperCase());
         const manifestDefaults = Object.fromEntries(
             Object.entries(manifest.contributes.configuration.properties)
-                .filter(([key]) => key.startsWith(`${CONFIG_NAMESPACE}.`))
+                .filter(([key]) => key.startsWith(`${MODELER_SETTINGS_SECTION}.`))
                 .map(([key, property]) => [settingsValueName(key), property.default]),
         );
 
@@ -248,8 +269,8 @@ describe("package.json ↔ code contract", () => {
     it.each(
         (["colorTheme", "defaultMode"] as const).flatMap((key) =>
             (
-                manifest.contributes.configuration.properties[`${CONFIG_NAMESPACE}.${key}`].enum ??
-                []
+                manifest.contributes.configuration.properties[`${MODELER_SETTINGS_SECTION}.${key}`]
+                    .enum ?? []
             ).map((value) => ({ key, value })),
         ),
     )("reads the $key $value the manifest offers as itself", ({ key, value }) => {
@@ -259,7 +280,7 @@ describe("package.json ↔ code contract", () => {
     it("pins as many favourite elements as the manifest allows", () => {
         const maxItems =
             manifest.contributes.configuration.properties[
-                `${CONFIG_NAMESPACE}.favouriteBpmnElements`
+                `${MODELER_SETTINGS_SECTION}.favouriteBpmnElements`
             ].maxItems ?? 0;
         const oneTooMany = Array.from({ length: maxItems + 1 }, (_, index) => `bpmn:Task${index}`);
 

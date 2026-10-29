@@ -17,6 +17,9 @@ const NO_PLATFORM_DOC =
 // No `modeler:*` attributes: `detectEngine` falls back to the engine namespace.
 const C7_NAMESPACE_ONLY_DOC =
     '<?xml version="1.0"?><bpmn:definitions xmlns:bpmn="http://x" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="d"><bpmn:process id="P"/></bpmn:definitions>';
+// Camunda Modeler always writes `modeler:`; another tool may bind the namespace to `cm:`.
+const CUSTOM_PREFIX_C8_DOC =
+    '<?xml version="1.0"?><bpmn:definitions xmlns:bpmn="http://x" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:cm="http://camunda.org/schema/modeler/1.0" cm:executionPlatform="Camunda Cloud" cm:executionPlatformVersion="8.8.0" id="d"><bpmn:process id="P"/></bpmn:definitions>';
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
 
@@ -303,6 +306,19 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
         expect(editor.content).toContain('modeler:executionPlatformVersion="7.22.0"');
         expect(host.statusBar.engineVersion).toEqual({ platform: "c7", version: "7.22.0" });
+        expect(host.notifier.infos).toEqual([]);
+    });
+
+    it("shows the picked version of a diagram that binds the modeler namespace to another prefix", async () => {
+        const { service, host, editor } = createService(CUSTOM_PREFIX_C8_DOC, {
+            engineVersion: "8.5.0",
+        });
+        editor.becomeActive();
+
+        await service.changeEngineVersion(editor.id);
+
+        expect(editor.content).toContain('cm:executionPlatformVersion="8.5.0"');
+        expect(host.statusBar.engineVersion).toEqual({ platform: "c8", version: "8.5.0" });
         expect(host.notifier.infos).toEqual([]);
     });
 

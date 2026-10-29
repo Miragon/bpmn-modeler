@@ -202,7 +202,7 @@ function extractHost(input: string): string | undefined {
 /**
  * Validates a self-hosted `baseUrl` to an http(s) URL, returned with any
  * trailing slash stripped so an adapter can append `/api/...` without doubling
- * it. Validating with `new URL` here means {@link hostForConfig} can re-parse it
+ * it. Validating with `new URL` here means `hostForConfig` can re-parse it
  * without a try/catch.
  */
 function parseBaseUrl(raw: unknown, context: string): string {

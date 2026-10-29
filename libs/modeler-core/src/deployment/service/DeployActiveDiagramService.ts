@@ -5,7 +5,7 @@ import { EditorSessionStore } from "../../editorSession/service/EditorSessionSto
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
-import { resolveOrPickActiveTarget } from "./resolveOrPickActiveTarget";
+import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 
 const DEPLOYABLE_EXTENSIONS = [".bpmn", ".dmn"];
@@ -49,7 +49,7 @@ export class DeployActiveDiagramService {
         }
 
         const dir = documentDir ?? posix.dirname(filePath);
-        const destination = await resolveOrPickActiveTarget(
+        const destination = await resolveOrPickNamedDestination(
             this.deploymentTargetService,
             this.deploymentStatusService,
             dir,

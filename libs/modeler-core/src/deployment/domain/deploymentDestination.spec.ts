@@ -64,10 +64,16 @@ describe("DeploymentDestination", () => {
         { property: "kind", of: (d) => d.kind, named: "named", adHoc: "adHoc" },
         { property: "target", of: (d) => d.target, named: prod, adHoc: undefined },
         {
-            property: ".env scope",
-            of: (d) => d.envScope,
-            named: "targetsFile",
-            adHoc: "workspaceFolder",
+            property: ".env directory of a document in a workspace folder",
+            of: (d) => d.dotEnvDirectory("/workspace-folder"),
+            named: "/ws",
+            adHoc: "/workspace-folder",
+        },
+        {
+            property: ".env directory of a document outside every workspace folder",
+            of: (d) => d.dotEnvDirectory(undefined),
+            named: undefined,
+            adHoc: undefined,
         },
         {
             property: "approval slot",
@@ -125,6 +131,46 @@ describe("DeploymentDestination", () => {
     it("keeps a named target's credentials under its approval slot", () => {
         expect(named.secretSlot).toBe(PROD_SLOT);
     });
+
+    const locatedAt = (filePath: string, projectDir: string): TargetsLocation => ({
+        filePath,
+        exists: true,
+        projectDir,
+    });
+
+    it.each<[string, TargetsLocation]>([
+        [
+            "its project's config folder",
+            locatedAt("/ws/sub/.camunda/deployment-targets.json", "/ws/sub"),
+        ],
+        ["the project itself", locatedAt("/ws/sub/deployment-targets.json", "/ws/sub")],
+        [
+            "a config folder whose name merely starts with dots",
+            locatedAt("/ws/sub/..cfg/deployment-targets.json", "/ws/sub"),
+        ],
+        [
+            "a project on a UNC share",
+            locatedAt("//server/share/ws/.camunda/deployment-targets.json", "//server/share/ws"),
+        ],
+    ])("reads the .env of a named target's project for a targets file in %s", (_case, location) => {
+        expect(new NamedDestination(prod, location).dotEnvDirectory("/ws")).toBe(
+            location.projectDir,
+        );
+    });
+
+    it.each<[string, TargetsLocation]>([
+        ["../cfg", locatedAt("/ws/cfg/deployment-targets.json", "/ws/sub")],
+        ["../../elsewhere", locatedAt("/elsewhere/deployment-targets.json", "/ws/sub")],
+        [
+            "../sub2, a sibling sharing its prefix",
+            locatedAt("/ws/sub2/deployment-targets.json", "/ws/sub"),
+        ],
+    ])(
+        "reads no .env for a named target whose config folder %s leaves its project",
+        (_configFolder, location) => {
+            expect(new NamedDestination(prod, location).dotEnvDirectory("/ws")).toBeUndefined();
+        },
+    );
 
     it.each([
         {

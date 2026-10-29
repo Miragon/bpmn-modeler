@@ -52,6 +52,22 @@ export function declaredPrivateHosts(sources: readonly TemplateSource[]): readon
     return [...hosts];
 }
 
+/**
+ * A credential-free, log-safe rendering of a source config. Never reads
+ * `token`, so logging it can never leak a secret by construction.
+ * {@link hostForConfig} supplies the host so self-hosted origins read the
+ * same as the public ones.
+ */
+export function describeSourceConfig(config: RepositorySourceConfig): string {
+    const path = config.path ? ` path "${config.path}"` : "";
+    if (config.kind === "local") {
+        return `local folder ${config.rootDir}${path}`;
+    }
+    const repo = config.kind === "github" ? `${config.owner}/${config.repo}` : config.projectPath;
+    const ref = config.ref ? `@${config.ref}` : "";
+    return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
+}
+
 function configAt(location: MarketplaceLocation, path: string): RepositorySourceConfig {
     return location.kind === "local"
         ? { kind: "local", rootDir: location.rootDir, path }

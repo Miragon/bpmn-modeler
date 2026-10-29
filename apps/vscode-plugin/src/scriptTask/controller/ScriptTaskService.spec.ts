@@ -1230,7 +1230,7 @@ describe("ScriptTaskService.materializeScript", () => {
             "console.log(1)",
         );
 
-        expect(result).toEqual({ path: scriptPath(), written: true });
+        expect(result).toEqual({ kind: "written" });
         expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath(), "console.log(1)");
         const written = scriptFiles.writeFile.mock.calls.map(([path]) => path);
         expect(written).toContain(`${slugDirOf(scriptPath())}/camunda.d.ts`);
@@ -1256,12 +1256,12 @@ describe("ScriptTaskService.materializeScript", () => {
             "a",
         );
 
-        expect(result).toEqual({ path: scriptPath("groovy"), written: true });
+        expect(result).toEqual({ kind: "written" });
         expect(scriptFiles.writeFile).toHaveBeenCalledTimes(1);
         expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath("groovy"), "a");
     });
 
-    it("returns undefined and writes nothing when the language picker is cancelled", async () => {
+    it("reports a cancelled language pick and writes nothing", async () => {
         const { service, scriptFiles } = createService();
 
         const result = await service.materializeScript(
@@ -1274,11 +1274,11 @@ describe("ScriptTaskService.materializeScript", () => {
             "x",
         );
 
-        expect(result).toBeUndefined();
+        expect(result).toEqual({ kind: "cancelled" });
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
     });
 
-    it("skips (written:false) and leaves the buffer untouched when a tab already owns the script", async () => {
+    it("leaves the buffer untouched when a tab already owns the script", async () => {
         const { service, scriptFiles } = createService();
         // An open tab is the authoritative copy; materialise must not overwrite it.
         await openCanonicalScript(service, "groovy", "old");
@@ -1294,8 +1294,25 @@ describe("ScriptTaskService.materializeScript", () => {
             "new",
         );
 
-        expect(result).toEqual({ path: scriptPath("groovy"), written: false });
+        expect(result).toEqual({ kind: "alreadyOpen" });
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("rejects when the script file cannot be written", async () => {
+        const { service, scriptFiles } = createService();
+        scriptFiles.writeFile.mockRejectedValueOnce(new Error("EACCES: permission denied"));
+
+        await expect(
+            service.materializeScript(
+                EDITOR_ID,
+                ELEMENT_ID,
+                KIND,
+                undefined,
+                undefined,
+                "groovy",
+                "x",
+            ),
+        ).rejects.toThrow("EACCES: permission denied");
     });
 
     it("overwrites stale disk content on a fresh (untracked) materialize", async () => {

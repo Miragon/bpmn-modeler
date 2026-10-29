@@ -1,6 +1,7 @@
 import { posix } from "path";
 
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
+import { configFolderPath } from "../domain/configArtifacts";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
 import { joinWorkspacePath } from "../domain/workspacePath";
@@ -21,7 +22,7 @@ export interface WatcherResult {
 
 /**
  * Locates element templates and payloads using a convention-based config
- * folder (default `.camunda/`, overridable via `miragon.bpmnModeler.config`).
+ * folder (default `.camunda/`, overridable via `miragon.bpmnModeler.configFolder`).
  * At every directory level from the BPMN file up to the workspace root,
  * `<configFolder>/element-templates/` and `<configFolder>/payloads/` are
  * collected nearest-first. Also creates filesystem watchers that re-push
@@ -101,7 +102,7 @@ export class ArtifactService {
         const dirs: string[] = [];
 
         for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
-            const targetDir = joinWorkspacePath(directory, configFolder, subFolder);
+            const targetDir = configFolderPath(directory, configFolder, subFolder);
             try {
                 await this.vsWorkspace.readDirectory(targetDir);
                 dirs.push(targetDir);
@@ -128,7 +129,7 @@ export class ArtifactService {
         workspaceRoot: string,
     ): Promise<string | undefined> {
         for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
-            if (await this.fileExists(joinWorkspacePath(directory, configFolder, fileName))) {
+            if (await this.fileExists(configFolderPath(directory, configFolder, fileName))) {
                 return directory;
             }
         }

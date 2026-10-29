@@ -79,7 +79,7 @@ A target name is resolved once per request, command or prefill into a
 (`AdHocDestination`), a name the file holds is that target at the
 `TargetsLocation` it was read from (`NamedDestination`), and any other name is
 unknown. The destination is the one place that answers what differs between
-the two: the `.env` scope, whether a request needs approval and under which
+the two: which `.env` a request reads, whether it needs approval and under which
 slot, the secret slot, the ledger identity, what an accepted deploy persists,
 admission, and how the approval prompt names the connection. Each caller states
 what an unknown name means: a deploy or start request fails
@@ -95,9 +95,10 @@ engine routes. Request bodies remain engine-specific: overrides are for gateways
 proxying that API, not a different deployment protocol.
 
 Any connection or auth field may embed `${env:MIRAGON_NAME}` references,
-resolved from one `.env` (the destination's `EnvScope`): for a named target,
-the one in the directory holding its targets file's config folder
-(`TargetsLocation.projectDir`); for an ad-hoc request, the one at the document's workspace folder, so a nearer,
+resolved from one `.env` (the destination's `dotEnvDirectory`): for a named
+target, the one in the directory holding the config folder of the targets file
+it was read from (`TargetsLocation.projectDir`), never one located again for the
+request; for an ad-hoc request, the one at the document's workspace folder, so a nearer,
 possibly vendored targets file can't supply variables for an endpoint the user
 typed. With nested workspace folders the innermost one encloses a document on
 both hosts — the bridge matches the longest registered root, as VS Code does —

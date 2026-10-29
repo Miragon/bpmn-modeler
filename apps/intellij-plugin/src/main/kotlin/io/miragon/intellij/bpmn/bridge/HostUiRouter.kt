@@ -60,9 +60,6 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showWarning") { params, _ -> notifications.showWarning(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }
-            .on("notifier/notifyError") { params, _ ->
-                notifications.notifyError(params.get("context").asString, params.get("message").asString)
-            }
             .on("notifier/openConsole") { _, _ -> notifications.openLoggingConsole() }
             .on("notifier/openDocument") { params, _ -> notifications.openDocument(params.get("path").asString) }
             .on("notifier/log") { params, _ ->
@@ -123,11 +120,6 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
     }
 
     /**
-     * Shows a native list popup for the core's `PickerPort` and replies with the
-     * chosen item indices, or `null` on dismissal. The host renders only the
-     * chooser; the cancel-vs-throw convention is applied core-side.
-     */
-    /**
      * Modal yes/no listing what is about to be removed.
      *
      * Every path that cannot ask replies `false`: a disposed project or a
@@ -156,6 +148,11 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
         }
     }
 
+    /**
+     * Shows a native list popup for the core's `PickerPort` and replies with the
+     * chosen item indices, or `null` on dismissal. The host renders only the
+     * chooser; the cancel-vs-throw convention is applied core-side.
+     */
     private fun handlePick(params: JsonObject, id: Int?) {
         // A picker prompt is always a request expecting a reply; a missing id
         // would mean nothing to answer, so there is nothing to do.

@@ -39,7 +39,7 @@ export function basenameOfUriString(uri: string): string {
     const noFragment = uri.split("#")[0];
     const noQuery = noFragment.split("?")[0];
     const parts = noQuery.split("/");
-    return decodeURIComponent(parts[parts.length - 1] ?? "");
+    return decodeURIComponent(parts[parts.length - 1]);
 }
 
 /**

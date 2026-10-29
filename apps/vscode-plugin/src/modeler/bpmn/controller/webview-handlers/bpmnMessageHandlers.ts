@@ -7,8 +7,6 @@ import {
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ConfigurationTarget, workspace } from "vscode";
-
 import { posix } from "path";
 
 import {
@@ -22,6 +20,7 @@ import {
     TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskService } from "../../../../scriptTask/index";
+import { setLintingEnabled } from "../../../../shared/infrastructure/modelerConfiguration";
 
 /**
  * The BPMN webview handlers only VS Code has: the inline script-task editor and
@@ -43,19 +42,14 @@ export function resyncScriptTasksHandler(scriptTaskSvc: ScriptTaskService): Mess
 }
 
 /**
- * `SetLintingEnabledCommand` → persist the user's linting on/off choice.
- *
- * Written at Global (User) scope so a design-only user silences linting across
- * every project in one switch — matching the intent of a personal preference,
- * like {@link CommandController.changeLanguage}. The config write re-triggers a
- * lint (via {@link BpmnlintParticipant}'s change listener), which pushes the new
- * state back to the webview; the webview never flips its own overlays.
+ * `SetLintingEnabledCommand` → persist the user's linting on/off choice. The
+ * config write re-triggers a lint (via {@link BpmnlintParticipant}'s change
+ * listener), which pushes the new state back to the webview; the webview never
+ * flips its own overlays.
  */
 export function setLintingEnabledHandler(): MessageHandler<SetLintingEnabledCommand> {
     return async (message) => {
-        await workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .update("linting.enabled", message.enabled, ConfigurationTarget.Global);
+        await setLintingEnabled(message.enabled);
     };
 }
 
@@ -90,10 +84,11 @@ export function openScriptEditorHandler(
  * once the user opens one of the generated files (adoption).
  *
  * The variable store is seeded once before the first write (the model is
- * identical for all scripts in one diagram); the batch policy — sequential
- * materialisation and the summary toast — lives in
- * {@link materializeScriptBatch}, shared with the bridge. An empty batch — a
- * C8 diagram or one with no inline scripts — surfaces a friendly info message.
+ * identical for all scripts in one diagram). The batch — sequential
+ * materialisation, failure counting and logging — is
+ * {@link materializeScriptBatch}; the toast text is {@link scriptBatchSummary},
+ * which this handler shows. An empty batch — a C8 diagram or one with no inline
+ * scripts — surfaces a friendly info message.
  */
 export function openScriptEditorsHandler(
     scriptTaskSvc: ScriptTaskService,
@@ -108,16 +103,19 @@ export function openScriptEditorsHandler(
         }
         variableStore.setExtracted(editorId, cmd.variables ?? []);
 
-        const outcome = await materializeScriptBatch(cmd.scripts, (script) =>
-            scriptTaskSvc.materializeScript(
-                editorId,
-                script.elementId,
-                "script-task",
-                undefined,
-                undefined,
-                script.scriptFormat,
-                script.content,
-            ),
+        const outcome = await materializeScriptBatch(
+            cmd.scripts,
+            (script) =>
+                scriptTaskSvc.materializeScript(
+                    editorId,
+                    script.elementId,
+                    "script-task",
+                    undefined,
+                    undefined,
+                    script.scriptFormat,
+                    script.content,
+                ),
+            notifier,
         );
 
         const folder = posix.join(settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);

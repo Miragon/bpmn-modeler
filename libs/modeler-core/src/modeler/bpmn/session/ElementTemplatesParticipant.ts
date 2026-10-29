@@ -53,7 +53,7 @@ export class ElementTemplatesParticipant implements EditorSessionParticipant {
         // Other modeler settings are owned by the settings broadcaster; only the
         // templates branch lives here because it drives a different service.
         session.onSettingChange((event, editorId) => {
-            if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
+            if (event.affects("configFolder")) {
                 // The watcher glob embeds the config folder.
                 armTemplateWatchers().catch((error) => this.notifier.logError(error as Error));
                 this.templatesSvc.refreshElementTemplates(editorId);

@@ -68,6 +68,39 @@ describe("FormReferenceStatusService", () => {
         expect(statuses(editor)[1]).toEqual(new FormReferenceStatusQuery(["Form_C"]));
     });
 
+    it("refreshes on a form change in a workspace below a build directory", async () => {
+        const { service, host, locator } = setup(["/home/u/build/repo"]);
+        const editor = host.openEditor("/home/u/build/repo/process.bpmn");
+        await service.requestStatus(editor.id);
+
+        locator.findFormDeclarations.mockResolvedValue({
+            kind: "matches",
+            declarations: [{ id: "Form_C", path: "/home/u/build/repo/c.form" }],
+            readFailures: [],
+        });
+        await host.workspace.writeFile("/home/u/build/repo/c.form", "{}");
+        await vi.runAllTimersAsync();
+
+        await vi.waitFor(() => expect(editor.posted).toHaveLength(2));
+        expect(statuses(editor)[1]).toEqual(new FormReferenceStatusQuery(["Form_C"]));
+    });
+
+    it("ignores a form change inside an excluded directory below the workspace", async () => {
+        const { service, host, locator } = setup(["/home/u/build/repo"]);
+        const editor = host.openEditor("/home/u/build/repo/process.bpmn");
+        await service.requestStatus(editor.id);
+
+        locator.findFormDeclarations.mockResolvedValue({
+            kind: "matches",
+            declarations: [{ id: "Form_C", path: "/home/u/build/repo/dist/c.form" }],
+            readFailures: [],
+        });
+        await host.workspace.writeFile("/home/u/build/repo/dist/c.form", "{}");
+        await vi.runAllTimersAsync();
+
+        expect(statuses(editor)).toEqual([new FormReferenceStatusQuery(["Form_A", "Form_B"])]);
+    });
+
     it("shares one root watcher until the last editor closes", async () => {
         const { service, host, watchers } = setup();
         const first = host.openEditor("/work/a.bpmn");

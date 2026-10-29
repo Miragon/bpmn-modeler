@@ -88,15 +88,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         return readWorkspaceFile(filePath);
     });
 
-    // Every document directory is its own project: the one holding its targets file.
-    const targetsLocator = {
-        locateTargetsFile: vi.fn(async (documentDir = "/work") => ({
-            filePath: targetsFileOf(documentDir),
-            exists: true,
-            projectDir: documentDir,
-        })),
-    };
-    const envResolver = new EnvValueResolver(targetsLocator, host.workspace);
+    const envResolver = new EnvValueResolver(host.workspace);
     const credentialApproval = new CredentialApprovalService(host.secrets, host.picker);
 
     const restClient = {
@@ -107,7 +99,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         host.store,
         host.documents,
         // No editor is tracked, so the refresh after recording never reads the active target.
-        targetsLocator as never,
+        {} as never,
         host.deploymentState,
         host.statusBar,
         host.picker,
@@ -133,7 +125,6 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         host,
         restClient,
         deploymentStatus: { recordDeployment: vi.spyOn(deploymentStatus, "recordDeployment") },
-        locateTargetsFile: targetsLocator.locateTargetsFile,
         dotEnvReads: () =>
             readFile.mock.calls
                 .map(([filePath]) => filePath)
@@ -541,16 +532,15 @@ describe("DeploymentService.deploy", () => {
     });
 
     it("keys the request and the ad-hoc ledger identity off a single .env read", async () => {
-        const { service, restClient, deploymentStatus, locateTargetsFile, dotEnvReads } =
-            createService({
-                files: MAIN_FILE,
-                dotEnvFiles: {
-                    "/work": {
-                        MIRAGON_URL: "https://prod.example.com/api",
-                        MIRAGON_TENANT: "acme",
-                    },
+        const { service, restClient, deploymentStatus, dotEnvReads } = createService({
+            files: MAIN_FILE,
+            dotEnvFiles: {
+                "/work": {
+                    MIRAGON_URL: "https://prod.example.com/api",
+                    MIRAGON_TENANT: "acme",
                 },
-            });
+            },
+        });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         const config = buildConfig({
             endpoint: "${env:MIRAGON_URL}",
@@ -560,7 +550,6 @@ describe("DeploymentService.deploy", () => {
         await deployAdHoc(service, config);
 
         expect(dotEnvReads()).toEqual(["/work/.env"]);
-        expect(locateTargetsFile).not.toHaveBeenCalled();
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
         expect(sentConfig.endpoint).toBe("https://prod.example.com/api");
         // Keyed off the resolved values, but only as fingerprints: the ledger is persisted.
@@ -570,17 +559,14 @@ describe("DeploymentService.deploy", () => {
     });
 
     it("keys the request and the target ledger identity off a single .env read", async () => {
-        const { service, restClient, deploymentStatus, locateTargetsFile, dotEnvReads } =
-            createService({
-                files: MAIN_FILE,
-                dotEnvFiles: { "/work": { MIRAGON_URL: "https://prod.example.com/api" } },
-            });
+        const { service, restClient, deploymentStatus, dotEnvReads } = createService({
+            files: MAIN_FILE,
+            dotEnvFiles: { "/work": { MIRAGON_URL: "https://prod.example.com/api" } },
+        });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         const config = buildConfig({ endpoint: "${env:MIRAGON_URL}" });
 
         await service.deploy(config, named(targetAt("${env:MIRAGON_URL}")));
-
-        expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/work");
         expect(dotEnvReads()).toEqual(["/work/.env"]);
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
         expect(sentConfig.endpoint).toBe("https://prod.example.com/api");
@@ -991,8 +977,7 @@ describe("DeploymentService.deploy .env scope", () => {
     }
 
     it("resolves an ad-hoc deploy from the workspace folder's .env, never a nested targets file's", async () => {
-        const { service, restClient, dotEnvReads, locateTargetsFile } =
-            createNestedProjectService();
+        const { service, restClient, dotEnvReads } = createNestedProjectService();
 
         await deployAdHoc(
             service,
@@ -1002,21 +987,18 @@ describe("DeploymentService.deploy .env scope", () => {
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
         expect(sentConfig.endpoint).toBe("https://workspace.example/api");
         expect(dotEnvReads()).toEqual(["/work/.env"]);
-        expect(locateTargetsFile).not.toHaveBeenCalled();
     });
 
     it("resolves a named target's deploy from the .env beside its targets file", async () => {
-        const { service, restClient, deploymentStatus, dotEnvReads, locateTargetsFile } =
-            createNestedProjectService();
+        const { service, restClient, deploymentStatus, dotEnvReads } = createNestedProjectService();
 
         await service.deploy(
             buildConfig({ endpoint: "${env:MIRAGON_URL}", mainFilePath: NESTED_MAIN_FILE }),
-            named(targetAt("${env:MIRAGON_URL}")),
+            named(targetAt("${env:MIRAGON_URL}"), "/work/team"),
         );
 
         const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
         expect(sentConfig.endpoint).toBe("https://team.example/api");
-        expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/work/team");
         expect(dotEnvReads()).toEqual(["/work/team/.env"]);
         expect(deploymentStatus.recordDeployment.mock.calls[0][2].key()).toBe(
             `target:dev@env:${contentFingerprint("team.example")}`,
@@ -1388,7 +1370,7 @@ describe("DeploymentService.deployFiles", () => {
             "",
         );
         const auth = new BasicAuth("admin", "${env:MIRAGON_PW}");
-        const { service, host, restClient, locateTargetsFile, dotEnvReads } = createService({
+        const { service, host, restClient, dotEnvReads } = createService({
             files: xmlFiles("/work/a.bpmn", "/work/b.bpmn"),
             dotEnvFiles: { "/work": { MIRAGON_PW: "s3cret" } },
         });
@@ -1400,8 +1382,6 @@ describe("DeploymentService.deployFiles", () => {
             auth,
             "/work",
         );
-
-        expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/work");
         expect(dotEnvReads()).toEqual(["/work/.env"]);
         const sentAuths = restClient.deploy.mock.calls.map(
             (call) => (call[0] as DeploymentConfig).auth,
@@ -1415,14 +1395,13 @@ describe("DeploymentService.deployFiles", () => {
     });
 
     it("expands every file with the target project's .env, never the .env of the file's own folder", async () => {
-        const { service, restClient, deploymentStatus, locateTargetsFile, dotEnvReads } =
-            createService({
-                files: xmlFiles("/team-a/a.bpmn", "/team-b/b.bpmn"),
-                dotEnvFiles: {
-                    "/team-a": { MIRAGON_URL: "https://a.example/api" },
-                    "/team-b": { MIRAGON_URL: "https://b.example/api" },
-                },
-            });
+        const { service, restClient, deploymentStatus, dotEnvReads } = createService({
+            files: xmlFiles("/team-a/a.bpmn", "/team-b/b.bpmn"),
+            dotEnvFiles: {
+                "/team-a": { MIRAGON_URL: "https://a.example/api" },
+                "/team-b": { MIRAGON_URL: "https://b.example/api" },
+            },
+        });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         const auth = new NoAuth();
 
@@ -1432,8 +1411,6 @@ describe("DeploymentService.deployFiles", () => {
             auth,
             "/team-a",
         );
-
-        expect(locateTargetsFile).toHaveBeenCalledExactlyOnceWith("/team-a");
         expect(dotEnvReads()).toEqual(["/team-a/.env"]);
         const sentConfigs = restClient.deploy.mock.calls.map((call) => call[0] as DeploymentConfig);
         expect(sentConfigs.map((config) => config.endpoint)).toEqual([

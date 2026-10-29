@@ -13,6 +13,7 @@ import {
     type PropertiesPanelStateQuery,
     type Query,
     RequestFocusCommand,
+    type WebviewStateHost,
     applyPageThemeScope,
     createHostThemeAdapter,
     createInertLockGroup,
@@ -28,6 +29,7 @@ import { installHostEditorActions } from "./hostEditorActions";
 import { HostModelerState } from "./hostModelerState";
 import { BpmnDocumentSession, type Translator } from "./session/documentSession";
 import { mountEditorChrome } from "./session/editorChrome";
+import type { HostChannel } from "./session/hostChannel";
 import { createLintBridge } from "./session/lintBridge";
 import {
     createHostMessageRouter,
@@ -90,13 +92,15 @@ export function bootstrap(
     host: HostApi<WebviewState, Command | Query>,
     opts: BootstrapOptions = {},
 ): void {
+    // Only the diff pane posts outside the BPMN editor's command list.
+    const editorHost: HostChannel & WebviewStateHost<WebviewState> = host;
     const translator: Translator = {
         getLocale: () => i18n.getLocale(),
         setLanguage: (locale) => i18n.setLanguage(locale as SupportedLocale),
     };
     const pageInertLocks = createInertLockGroup(document.body);
     const hostModelerState = new HostModelerState();
-    const modeController = createModeController(host, { hostModelerState, pageInertLocks });
+    const modeController = createModeController(editorHost, { hostModelerState, pageInertLocks });
     const { getSurface, focusCanvas } = modeController;
 
     // Theme is host policy: drive the page-level scope (host chrome + the
@@ -106,13 +110,13 @@ export function bootstrap(
         applyPageThemeScope("data-bpmn-theme", kind);
         modeController.setTheme(kind);
     });
-    const protocolCapabilities = createProtocolCapabilities(host, getSurface);
+    const protocolCapabilities = createProtocolCapabilities(editorHost, getSurface);
     const clipboard = resolveClipboard(opts.clipboard, {
         isDevelopment: process.env.NODE_ENV === "development",
-        host,
+        host: editorHost,
     });
     const lintBridge = createLintBridge(
-        host,
+        editorHost,
         { linting: opts.linting, onLintResults: opts.onLintResults },
         getSurface,
     );
@@ -126,14 +130,14 @@ export function bootstrap(
 
     const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
 
-    const surfaceRequests = createSurfaceRequests(host, getSurface, {
+    const surfaceRequests = createSurfaceRequests(editorHost, getSurface, {
         hostModelerState,
         theme: themeAdapter,
         replies: { elementTemplates: elementTemplatesResolver, settings: settingsResolver },
     });
 
-    const session = new BpmnDocumentSession(host, {
-        surface: createSurfaceDocument(host, modeController),
+    const session = new BpmnDocumentSession(editorHost, {
+        surface: createSurfaceDocument(editorHost, modeController),
         page: {
             cancelPendingSurfaceWork: modeController.disposeSurfaceBinding,
             flushViewport: () => modeController.getViewState()?.flushViewport(),
@@ -145,7 +149,7 @@ export function bootstrap(
     });
 
     const sessionMessages = createSessionMessageRouter(
-        host,
+        editorHost,
         {
             // Before the spreads, so tsc rejects a group that also handles one of these.
             PropertiesPanelStateQuery: (query) => panelStateResolver.done(query),
@@ -196,10 +200,10 @@ export function bootstrap(
         // hidden by .viewer-mode CSS once we confirm the mode below. For the
         // modeler path, mountEditorChrome() calls it after the branch check.
 
-        host.postMessage(new GetBpmnFileCommand());
-        host.postMessage(new GetBpmnModelerSettingCommand());
-        host.postMessage(new GetPropertiesPanelStateCommand());
-        const savedMode = readSavedMode(host);
+        editorHost.postMessage(new GetBpmnFileCommand());
+        editorHost.postMessage(new GetBpmnModelerSettingCommand());
+        editorHost.postMessage(new GetPropertiesPanelStateCommand());
+        const savedMode = readSavedMode(editorHost);
         if (savedMode) {
             prefetchSurfaceModules(savedMode, { linting: opts.linting === undefined });
         }
@@ -219,7 +223,7 @@ export function bootstrap(
             // A diff pane has no surface for the held replies or any later session
             // message; it only follows language changes.
             sessionMessages.discardImportBound();
-            routeHostMessage = createHostMessageRouter<DiffPaneHostMessages>(host, {
+            routeHostMessage = createHostMessageRouter<DiffPaneHostMessages>(editorHost, {
                 LanguageQuery: (query) => translator.setLanguage(query.locale),
             });
             document.body.classList.add("viewer-mode");
@@ -235,7 +239,7 @@ export function bootstrap(
             return;
         }
 
-        const chrome = mountEditorChrome(host);
+        const chrome = mountEditorChrome(editorHost);
         if (!chrome) return;
 
         // The engine may be undefined here — an untagged (engine-neutral) model
@@ -248,7 +252,7 @@ export function bootstrap(
 
         const started = await modeController.start({
             session,
-            binder: createSurfaceBinder(host, {
+            binder: createSurfaceBinder(editorHost, {
                 session,
                 panelRoot: chrome.panelMount,
                 engine,
@@ -257,7 +261,7 @@ export function bootstrap(
             }),
             container: chrome.canvas,
             engine,
-            surfaces: createSurfaceFactories(host, {
+            surfaces: createSurfaceFactories(editorHost, {
                 propertiesPanelParent: chrome.panelMount,
                 capabilities,
                 extraModules: opts.extraModules ?? [],
@@ -331,7 +335,7 @@ export function bootstrap(
             { getPanelRoot: () => chrome.panelMount },
         );
         installCanvasAutoFocus({ focusCanvas });
-        host.postMessage(new RequestFocusCommand());
+        editorHost.postMessage(new RequestFocusCommand());
 
         // Selection + panel-side UI state must wait until element-template and
         // settings side-effects have run (they clear selection; group indexes are
@@ -366,7 +370,7 @@ export function bootstrap(
         }
     });
 
-    installGlobalErrorForwarding((command) => host.postMessage(command));
+    installGlobalErrorForwarding((command) => editorHost.postMessage(command));
     if (document.readyState === "complete") {
         void run();
     } else {

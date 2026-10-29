@@ -218,11 +218,41 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
-        expect(result.kind).toBe("all-unreadable");
-        if (result.kind === "all-unreadable") {
-            expect(result.attempted).toBe(1);
-            expect(result.failures[0]).toContain("EACCES");
-        }
+        expect(result).toEqual({
+            kind: "all-unreadable",
+            failures: [expect.stringContaining("EACCES")],
+        });
+    });
+
+    it("returns kind=all-unreadable when every form fails to read", async () => {
+        const { locator, workspace } = createLocator({
+            files: {
+                "/a.form": JSON.stringify({ id: "Form_A" }),
+                "/b.form": JSON.stringify({ id: "Form_B" }),
+            },
+        });
+        vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("EACCES"));
+
+        expect(await locator.findFormDeclarations()).toEqual({
+            kind: "all-unreadable",
+            failures: ["Could not read /a.form: EACCES", "Could not read /b.form: EACCES"],
+        });
+    });
+
+    it("keeps the readable form declarations next to a form that failed to read", async () => {
+        const { locator, workspace } = createLocator({
+            files: {
+                "/a.form": JSON.stringify({ id: "Form_A" }),
+                "/b.form": JSON.stringify({ id: "Form_B" }),
+            },
+        });
+        vi.spyOn(workspace, "readFile").mockRejectedValueOnce(new Error("EACCES"));
+
+        expect(await locator.findFormDeclarations()).toEqual({
+            kind: "matches",
+            declarations: [{ id: "Form_B", path: "/b.form" }],
+            readFailures: ["Could not read /a.form: EACCES"],
+        });
     });
 
     it("includes partial read failures alongside successful matches", async () => {
@@ -255,6 +285,22 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
         expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
+    });
+
+    it("finds a process after a CDATA script that holds a comment opener", async () => {
+        const xml = `<?xml version="1.0"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <bpmn:process id="Parent">
+    <bpmn:scriptTask id="Script"><bpmn:script><![CDATA[log("<!--");]]></bpmn:script></bpmn:scriptTask>
+  </bpmn:process>
+  <bpmn:process id="ProcessB"/>
+  <!-- generated -->
+</bpmn:definitions>`;
+        const { locator } = createLocator({ files: { "/a.bpmn": xml } });
+
+        const result = await locator.findDeclaringFiles("ProcessB", "process");
+
+        expect(result).toEqual({ kind: "matches", paths: ["/a.bpmn"], readFailures: [] });
     });
 
     it("reads candidate files in parallel", async () => {
@@ -428,6 +474,18 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
         expect(result).toEqual({ kind: "no-search-scope" });
         expect(findFiles).not.toHaveBeenCalled();
         expect(readDirectory).not.toHaveBeenCalled();
+    });
+});
+
+describe("findDeclaringFiles — logging", () => {
+    it("shortens a long id in its log line like every echoed reference", async () => {
+        const { locator, notifier } = createLocator({ files: {} });
+
+        await locator.findDeclaringFiles("p".repeat(110), "process");
+
+        expect(notifier.logged("info")[0]).toBe(
+            `[nav] resolving process id="${"p".repeat(99)}…" sourceUri=<none>`,
+        );
     });
 });
 

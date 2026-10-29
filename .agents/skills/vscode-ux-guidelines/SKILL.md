@@ -1,6 +1,6 @@
 ---
 name: vscode-ux-guidelines
-description: Project UX rules for VS Code — choosing notifications, status bar, quick picks or the output channel, webview clipboard, theming, accessibility and when-clause context keys. Use when adding user-facing feedback, shortcuts or clipboard handling.
+description: Project UX rules for VS Code. Covers choosing notifications, status bar, quick picks or the output channel, webview clipboard, theming, accessibility and when-clause context keys. Use when adding user-facing feedback, shortcuts or clipboard handling.
 ---
 
 # VS Code UX Guidelines
@@ -9,11 +9,11 @@ VS Code UX patterns and how this project applies them. The core principle: **use
 
 ## Choosing the Right Feedback Channel
 
-Pick the lightest channel that gets the job done — heavier channels interrupt the user more.
+Pick the lightest channel that gets the job done. Heavier channels interrupt the user more.
 
 | Channel                      | When to use                                                                    | When NOT to use                                         |
 |------------------------------|--------------------------------------------------------------------------------|---------------------------------------------------------|
-| **Output Channel**           | Detailed logs, diagnostics, verbose info the user checks on demand             | Primary user feedback — most users never open it        |
+| **Output Channel**           | Detailed logs, diagnostics, verbose info the user checks on demand             | Primary user feedback: most users never open it         |
 | **Status Bar**               | Transient progress, background task status, quick confirmations that auto-hide | Anything requiring user action or acknowledgment        |
 | **Information notification** | Success confirmations the user should see, non-critical updates                | Routine/repetitive operations (use status bar instead)  |
 | **Warning notification**     | Recoverable issues where the user can take action                              | Logging-level warnings (use output channel instead)     |
@@ -48,7 +48,7 @@ window
     });
 ```
 
-**Keep messages short** — one sentence, no technical jargon for user-facing text.
+**Keep messages short:** one sentence, no technical jargon for user-facing text.
 
 ## Status Bar
 
@@ -67,11 +67,11 @@ latest status: a count stays 3 s after the latest ready, and a spinner stays
 until the next ready or hide. It does not track which loads still run, so when
 loads overlap, one load's count or hide ends another load's spinner.
 
-The status bar item is lazily created. Use the **right side** for transient status and progress. Keep items concise — icon + short text, with tooltips for detail.
+The status bar item is lazily created. Use the **right side** for transient status and progress. Keep items concise: icon + short text, with tooltips for detail.
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) owns every quick pick — e.g. `pickExecutionPlatform()` when the execution platform cannot be auto-detected from the BPMN XML, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `searchAndPickReferencedModel`:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) implements the core's picker ports, so every quick pick a core service asks for goes through it, e.g. `pickNewModelEngine()` for the execution platform of a new BPMN model, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `searchAndPickLocatedFile`. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
 
 ```typescript
 const result = await window.showQuickPick(items, {
@@ -79,7 +79,7 @@ const result = await window.showQuickPick(items, {
 });
 ```
 
-If the user cancels (Escape), a `UserCancelledError` is thrown and handled gracefully. Use quick picks for selection from a list — don't abuse notification buttons for this.
+If the user cancels (Escape), `pickNewModelEngine`, `pickMigrationScope` and `pickEngineVersion` throw a `UserCancelledError`, which callers treat as a quiet dismissal; the other picks return `undefined`, `null` or `[]`. Use quick picks for selection from a list. Don't abuse notification buttons for this.
 
 ## Output Channel
 
@@ -101,7 +101,7 @@ Webviews run in sandboxed iframes without `clipboard-read`/`clipboard-write` per
 
 Defined in `libs/shared/src/lib/modeler.ts`:
 
-Two separate host round-trips — **element** clipboard (BPMN shapes as JSON) and
+Two separate host round-trips: **element** clipboard (BPMN shapes as JSON) and
 **text** clipboard (labels, FEEL editor):
 
 | Message | Direction | Purpose |
@@ -124,7 +124,7 @@ async writeClipboard(text: string): Promise<void>  // vscode.env.clipboard.write
 
 The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
 
-### Webview Side — Two DI Modules
+### Webview Side: Two DI Modules
 
 The webview runs two **bpmn-js DI modules** (from the shared
 `libs/bpmn-clipboard` package, `@miragon/bpmn-modeler-clipboard`) because diagram
@@ -132,7 +132,7 @@ elements and contenteditable labels have different event handling. The webview
 only supplies the `clipboard` option (`apps/bpmn-webview/src/session/protocolClipboard.ts`);
 `@miragon/bpmn-modeler` builds the DI modules from it via
 `createClipboardModules` in `packages/bpmn-modeler/src/modeler.ts`. Each module
-receives its host bridge through didi value injection — a `{ requestClipboard,
+receives its host bridge through didi value injection: a `{ requestClipboard,
 writeClipboard }` pair.
 
 **1. Diagram element copy/paste** (`BridgedClipboardModule`,
@@ -150,7 +150,7 @@ priority 2051 (above `NativeCopyPaste`, which it disables on construction).
 `textClipboardBridge`):
 
 Attaches a **capture-phase** keydown listener on the label element while direct
-editing is active — it fires before diagram-js's `DirectEditing._handleKey`
+editing is active, since it fires before diagram-js's `DirectEditing._handleKey`
 calls `stopPropagation()`.
 
 - **Cmd/Ctrl+C**: Reads `window.getSelection()`, writes via `textClipboardBridge` → `SetTextClipboardCommand`.
@@ -201,8 +201,8 @@ channels because `createClipboardModules` defaults `text` to `element`.
 
 Webviews **must** respect the user's VS Code theme:
 
-- Theme detection via VS Code's body classes — `document.body.classList.contains("vscode-dark")` / `"vscode-high-contrast"`, watched by a `MutationObserver` on the body `class` attribute
-- Both BPMN and DMN theme per-instance via their package's scope attribute (`data-bpmn-theme` / `data-dmn-theme`); theme CSS is in the bundle, no `#theme-link`. The shared host adapter lives in `libs/shared/src/lib/hostTheme.ts` — see [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN)
+- Theme detection via VS Code's body classes: `document.body.classList.contains("vscode-dark")` / `"vscode-high-contrast"`, watched by a `MutationObserver` on the body `class` attribute
+- Both BPMN and DMN theme per-instance via their package's scope attribute (`data-bpmn-theme` / `data-dmn-theme`); theme CSS is in the bundle, no `#theme-link`. The shared host adapter lives in `libs/shared/src/lib/hostTheme.ts`. See [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN)
 - Use VS Code CSS custom properties (`--vscode-*`) for colors when possible
 - Test with light, dark, and high-contrast themes
 - See the vscode-webviews skill for implementation details

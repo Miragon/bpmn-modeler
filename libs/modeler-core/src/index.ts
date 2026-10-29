@@ -13,9 +13,11 @@ export * from "./kernel/domain/BpmnDocument";
 export * from "./kernel/domain/engineVersions";
 export * from "./kernel/domain/errorLogText";
 export * from "./kernel/domain/errors";
+export * from "./kernel/domain/escapeRegExpLiteral";
 export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/domain/hostPorts";
 export * from "./kernel/domain/http";
+export * from "./kernel/domain/locateResult";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
 export * from "./kernel/domain/rootContainment";
@@ -27,6 +29,7 @@ export * from "./kernel/infrastructure/FetchHttpClient";
 export * from "./kernel/infrastructure/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
+export { FOCUS_BPMN_DIAGRAM_MESSAGE } from "./editorSession/domain/CommandTarget";
 export * from "./editorSession/domain/EditorSession";
 export * from "./editorSession/domain/EditorSessionParticipant";
 export * from "./editorSession/domain/session";
@@ -151,6 +154,7 @@ export * from "./scriptTask/domain/camundaDts";
 export * from "./scriptTask/domain/groovyImports";
 export * from "./scriptTask/domain/localDeclarations";
 export * from "./scriptTask/domain/scriptApi";
+export * from "./scriptTask/domain/scriptBatchSummary";
 export * from "./scriptTask/domain/scriptCompletion";
 export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
