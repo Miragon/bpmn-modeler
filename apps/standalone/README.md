@@ -73,9 +73,30 @@ core instances can crash the frontend even when the build succeeds. On Node 24,
 prefix Theia tests/builds with `NODE_OPTIONS=--no-experimental-webstorage` if
 the experimental global `localStorage` interferes; CI uses Node 22.
 
+### Built-in language support
+
+`prepare-plugin` and the packaging workflows download the
+[Eclipse Theia built-in extension pack](https://open-vsx.org/extension/eclipse-theia/builtin-extension-pack)
+from Open VSX. The pack adds common syntax grammars, including Java, JavaScript,
+JSON, Markdown, and YAML; it does not provide a full Java language server.
+`package.json` pins the pack manifest to **1.104.0** and keeps the separate Git
+plugin at **1.95.3**. Theia expands the pack and resolves its members and their
+dependencies to the latest compatible versions at download time, not necessarily
+1.104.0. The pack pin therefore does not lock every bundled plugin version.
+electron-builder copies the downloaded plugins into every installer for offline
+use.
+
+The pack references `vscode.prompt` and `vscode.terminal-suggest`, which Open VSX
+does not publish. `theiaPluginsExcludeIds` excludes only those two members, so
+prompt-file support and terminal suggestions from those extensions do not ship.
+Other download failures remain fatal; do not use `--ignore-errors` to bypass
+missing plugins. Recheck their Open VSX availability when updating the pack.
+
 After packaging on Linux, run `corepack yarn workspace
 @miragon/bpmn-modeler-standalone test:packaged`. It verifies that Theia's
-file-search ripgrep binary can execute from the packaged app. Run
+file-search ripgrep binary can execute from the packaged app and that Java,
+JavaScript, JSON, Markdown, and YAML language registrations and grammar files
+ship in its plugins directory. Run
 `xvfb-run -a corepack yarn workspace @miragon/bpmn-modeler-standalone
 test:packaged-search` to verify that Quick Open actually finds a file through
 the packaged backend. The Linux release job runs both checks before wrapping
@@ -339,7 +360,7 @@ apps/standalone/
 ├── resources/
 │   ├── icon.png            App icon (macOS auto-derives .icns)
 │   └── icon.ico            Windows icon (16/32/48/256, multi-resolution)
-├── plugins/                Gitignored — populated by `yarn bundle`
+├── plugins/                Gitignored — populated by `prepare-plugin`
 ├── src-gen/                Gitignored — Theia generates this
 ├── lib/                    Gitignored — Theia build output
 └── dist/                   Gitignored — electron-builder output
