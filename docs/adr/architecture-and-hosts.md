@@ -331,8 +331,9 @@ and `searchAndChoose` take a prompt the core builds in full, typed in
 `kernel/domain/prompts.ts`: an id, a title, a placeholder and items with a
 label, a description or a file path, an icon from a closed union, and the value
 a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
-caller decides whether it cancels. Confirmation details arrive summarised, and
-both hosts show every line. VS Code shows a path relative to the workspace,
+caller decides whether it cancels. `confirmation()` in
+`kernel/domain/affectedItems.ts` summarises a confirmation's details, and both
+hosts show every line. VS Code shows a path relative to the workspace,
 filters on descriptions too, draws an icon as its codicon and reveals the busy
 list of a search after 150 ms. The bridge sends a choice over the existing
 `picker/show` request with the path as its description and no icon, maps the
@@ -343,6 +344,9 @@ offer. Until each feature's prompts move to the core
 ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
 feature-shaped prompts remain: the other `PickerPort` methods,
 `DeploymentPickerPort` and `MigrationPickerPort`, whose text the adapters build.
+The new-model engine, engine-version and cleanup prompts already come from the
+core, so `pickNewModelEngine` has no caller left; it is removed together with
+the other feature-shaped methods.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
