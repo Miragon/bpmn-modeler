@@ -16,8 +16,8 @@ describe("ScriptLanguage", () => {
             expect(language.extension).toBe(extension);
         });
 
-        // Camunda models carry the format verbatim, so casing/whitespace varies;
-        // normalize() at scriptLanguage.ts:62 must canonicalize before lookup.
+        // Camunda models carry the format verbatim, so casing and whitespace
+        // vary and the lookup must canonicalize them first.
         it("normalizes mixed case and surrounding whitespace", () => {
             const language = new ScriptLanguage("  Groovy ");
 

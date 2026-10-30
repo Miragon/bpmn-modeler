@@ -39,6 +39,7 @@ import {
     ScriptEditorPort,
     ScriptFileStore,
     ScriptLanguage,
+    scriptLanguagePrompt,
     ScriptMaterialization,
     ScriptSourceChange,
     ScriptUri,
@@ -305,7 +306,7 @@ export class ScriptTaskService implements ScriptEditorPort {
     ): Promise<{ scriptUri: Uri; lang: ScriptLanguage } | undefined> {
         let effectiveFormat = scriptFormat;
         if (!ScriptLanguage.isSupported(scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(scriptFormat);
+            const picked = await this.picker.choose(scriptLanguagePrompt(scriptFormat));
             if (!picked) {
                 return undefined;
             }
