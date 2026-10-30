@@ -17,6 +17,10 @@ export function isWithinRoot(path: string, root: string): boolean {
     return relativeToRoot(path, root) !== undefined;
 }
 
+export function relativeToWorkspace(_path: string, _folders: readonly string[]): string {
+    return "";
+}
+
 function withTrailingSlash(path: string): string {
     return path.endsWith("/") ? path : `${path}/`;
 }

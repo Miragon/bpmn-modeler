@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isWithinRoot, relativeToRoot } from "./rootContainment";
+import { isWithinRoot, relativeToRoot, relativeToWorkspace } from "./rootContainment";
 
 describe("relativeToRoot", () => {
     it.each([
@@ -97,5 +97,54 @@ describe("isWithinRoot", () => {
         { path: "/", root: "/work", within: false },
     ])("answers $within for $path in $root", ({ path, root, within }) => {
         expect(isWithinRoot(path, root)).toBe(within);
+    });
+});
+
+describe("relativeToWorkspace", () => {
+    it.each<{ behaviour: string; path: string; folders: string[]; relative: string }>([
+        {
+            behaviour: "is the path below the only folder",
+            path: "/work/src/order.bpmn",
+            folders: ["/work"],
+            relative: "src/order.bpmn",
+        },
+        {
+            behaviour: "leads with the folder's name when several folders are open",
+            path: "/repos/app/src/order.bpmn",
+            folders: ["/libs/shared", "/repos/app"],
+            relative: "app/src/order.bpmn",
+        },
+        {
+            behaviour: "takes the innermost folder holding the path, listed first",
+            path: "/work/nested/order.bpmn",
+            folders: ["/work/nested", "/work"],
+            relative: "nested/order.bpmn",
+        },
+        {
+            behaviour: "takes the innermost folder holding the path, listed last",
+            path: "/work/nested/order.bpmn",
+            folders: ["/work", "/work/nested"],
+            relative: "nested/order.bpmn",
+        },
+        {
+            behaviour: "does not take a folder that only shares the path's name prefix",
+            path: "/work2/order.bpmn",
+            folders: ["/work", "/work2"],
+            relative: "work2/order.bpmn",
+        },
+        {
+            behaviour: "keeps a path outside every folder",
+            path: "/elsewhere/order.bpmn",
+            folders: ["/work"],
+            relative: "/elsewhere/order.bpmn",
+        },
+        {
+            behaviour: "keeps the path when no folder is open",
+            path: "/work/order.bpmn",
+            folders: [],
+            relative: "/work/order.bpmn",
+        },
+    ])("$behaviour", ({ path, folders, relative }) => {
+        expect(relativeToWorkspace(path, folders)).toBe(relative);
     });
 });

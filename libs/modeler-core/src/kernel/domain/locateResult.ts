@@ -1,3 +1,5 @@
+import { ChoicePrompt } from "./prompts";
+
 /**
  * Outcome of searching the workspace's files; `Matches` holds what was found.
  *
@@ -49,4 +51,11 @@ export function classifyLocateResult(result: LocateResult): LocatedFile {
         return { kind: "single", path: paths[0], readFailures };
     }
     return { kind: "ambiguous", paths, readFailures };
+}
+
+export function locatedFileChoices(
+    _outcome: LocateResult,
+    _choice: { placeholder: string; workspaceFolders: readonly string[] },
+): ChoicePrompt<string> | undefined {
+    return undefined;
 }
