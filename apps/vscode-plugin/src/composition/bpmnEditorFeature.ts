@@ -66,7 +66,7 @@ import {
     updateScriptVariablesHandler,
 } from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
-import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
+import { ScriptTaskService } from "../scriptTask/infrastructure/ScriptTaskService";
 import { BPMN_VIEW_TYPE, ScriptFileStore, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { CodeLinkHandles } from "./codeLinkFeature";
 import { SharedDeps } from "./sharedDeps";

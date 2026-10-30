@@ -5,7 +5,7 @@ import { ExtensionContext, Uri } from "vscode";
 import { ScriptFileStore, ScriptVariableStore, ScriptXmlService } from "@miragon/bpmn-modeler-core";
 import { canonicalPath } from "../shared/infrastructure/uriPath";
 import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptCompletionProvider";
-import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
+import { ScriptTaskService } from "../scriptTask/infrastructure/ScriptTaskService";
 import { ScriptTaskCommandController } from "../scriptTask/controller/ScriptTaskCommandController";
 import { SharedDeps } from "./sharedDeps";
 

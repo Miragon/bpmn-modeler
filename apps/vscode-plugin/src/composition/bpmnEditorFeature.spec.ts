@@ -50,7 +50,7 @@ import { BPMN_EDITOR_COMMAND_TYPES, BpmnEditorCommandType } from "@miragon/bpmn-
 
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
-import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
+import { ScriptTaskService } from "../scriptTask/infrastructure/ScriptTaskService";
 import { setContext } from "../shared/infrastructure/extensionContext";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import * as codeLinkFeature from "./codeLinkFeature";

@@ -3,5 +3,5 @@
  * script-editor service only through this barrel; reaching into the feature's
  * internals is rejected by the feature-isolation architecture test.
  */
-export { ScriptTaskService } from "./controller/ScriptTaskService";
+export { ScriptTaskService } from "./infrastructure/ScriptTaskService";
 export { ScriptTaskCommandController } from "./controller/ScriptTaskCommandController";
