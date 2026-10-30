@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", async () => {
     const windowFake = await import("../__fixtures__/vscodeWindowFake");
@@ -38,9 +38,13 @@ import { ExtensionContext } from "vscode";
 
 import {
     BpmnDiffService,
+    BpmnEditorFeature,
+    CodeLinkFeature,
+    DefinitionSearchFeature,
     DiffPaneStore,
     DOCUMENT_SYNC_COMMAND_TYPES,
     EditorSessionParticipant,
+    NavigationFeature,
     ScriptEditorFeature,
     ScriptFileStore,
     ScriptVariableStore,
@@ -99,8 +103,7 @@ function createExtensionContext(): ExtensionContext {
 }
 
 /** The BPMN editor as VS Code's activation builds it. */
-function createVsCodeBpmnEditor() {
-    const context = createExtensionContext();
+function createVsCodeBpmnEditor(context = createExtensionContext()) {
     setContext(context);
     const deps = buildSharedDeps(context);
     const scriptFiles = new ScriptFileStore(
@@ -132,6 +135,10 @@ function createVsCodeBpmnEditor() {
 }
 
 describe("VS Code's BPMN editor", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it("routes match the host's coverage table", () => {
         const { router } = createVsCodeBpmnEditor();
 
@@ -150,5 +157,24 @@ describe("VS Code's BPMN editor", () => {
             { kind: "handled" },
             { kind: "handled" },
         ]);
+    });
+
+    it("stops the editor and its core contributions when the extension deactivates", () => {
+        const stoppedFeatures = [
+            BpmnEditorFeature,
+            NavigationFeature,
+            DefinitionSearchFeature,
+            CodeLinkFeature,
+        ].map((feature) => vi.spyOn(feature.prototype, "dispose"));
+        const context = createExtensionContext();
+        createVsCodeBpmnEditor(context);
+
+        for (const subscription of context.subscriptions) {
+            subscription.dispose();
+        }
+
+        for (const dispose of stoppedFeatures) {
+            expect(dispose).toHaveBeenCalledTimes(1);
+        }
     });
 });
