@@ -31,5 +31,13 @@ export const NEW_MODEL_ENGINE_CHOICES: readonly NewModelEngineChoice[] = [
 ];
 
 export function newModelEnginePrompt(): ChoicePrompt<NewModelEngine> {
-    return { id: "", placeholder: "", items: [] };
+    return {
+        id: "newModelEngine",
+        placeholder: "Select the execution platform.",
+        items: NEW_MODEL_ENGINE_CHOICES.map(({ id, label, description }) => ({
+            label,
+            description,
+            value: id,
+        })),
+    };
 }

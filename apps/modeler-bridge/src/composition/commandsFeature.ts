@@ -26,7 +26,7 @@ export function register(
     deps: BridgeSharedDeps,
     handles: { bpmnService: BpmnModelerService; layout: BpmnLayoutService },
 ): void {
-    // Both services swallow their own errors (UserCancelledError → silent, others →
+    // Both services swallow their own errors (a dismissed prompt → silent, others →
     // a notifier balloon), so these handlers just await and never need a try/catch.
     deps.rpc.on(METHODS.modelerChangeEngineVersion, async (params: EditorRefParams) => {
         await handles.bpmnService.changeEngineVersion(params.editorId);

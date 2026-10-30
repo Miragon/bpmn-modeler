@@ -15,11 +15,16 @@ export function summarizeAffectedItems(
     return remainder > 0 ? [...listed, `…and ${remainder} more`] : listed;
 }
 
-export function confirmation(_request: {
+export function confirmation({
+    id,
+    title,
+    confirmLabel,
+    affected,
+}: {
     id: string;
     title: string;
     confirmLabel: string;
     affected: readonly string[];
 }): ConfirmRequest {
-    return { id: "", title: "", confirmLabel: "", details: [] };
+    return { id, title, confirmLabel, details: summarizeAffectedItems(affected) };
 }
