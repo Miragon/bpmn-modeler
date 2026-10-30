@@ -66,7 +66,8 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
 /**
  * Manages on-disk script documents for BPMN script tasks and listener scripts.
  *
- * Materialises inline scripts as real files under `<configFolder>/tmp/scripting/`.
+ * Materialises inline scripts as real files in the editor's script folder,
+ * which {@link ScriptFileStore} resolves.
  * Real files (rather than a virtual filesystem) are what lets external tooling
  * participate: tsserver and language-server extensions hard-code `scheme: "file"`
  * selectors, and coding agents can only read/write bytes that exist on disk.

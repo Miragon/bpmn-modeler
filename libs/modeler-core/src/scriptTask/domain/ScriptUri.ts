@@ -4,14 +4,15 @@ import { ScriptKind } from "@miragon/bpmn-modeler-types";
  * Directory (relative to the config folder) that holds all on-disk inline
  * scripts. Doubles as the parse anchor: `parseScriptPath` locates this
  * segment pair inside an absolute path to find the four script segments
- * after it, so the base directory can live anywhere (workspace config
- * folder, os tmpdir fallback) without the parsers caring.
+ * after it, so the base directory can live anywhere (the workspace config
+ * folder, or the OS temp folder for a diagram that is not a file) without the
+ * parsers caring.
  */
 export const TMP_SCRIPTING_SEGMENT = "tmp/scripting";
 
 /**
  * Encodes the `<editorHash>/<elementId>/<slug>/<filename>` path shape used
- * for inline-script documents under `<configFolder>/tmp/scripting/`.
+ * for inline-script documents below a `tmp/scripting/` base directory.
  *
  * Centralised because the slug encodes the script's kind and listener index
  * — `parseScriptPath` reads it back, so changing the convention here also
@@ -91,8 +92,8 @@ export class ScriptUri {
     }
 
     /**
-     * Path relative to the `tmp/scripting/` base directory. The host joins
-     * this onto `<configFolder>/tmp/scripting/` to obtain the real file
+     * Path relative to the `tmp/scripting/` base directory. `scriptFilePath`
+     * joins this onto the editor's base directory to obtain the real file
      * location; the bridge additionally uses the string as the stable
      * `scriptId` across the RPC seam.
      */
