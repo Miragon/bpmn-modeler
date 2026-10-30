@@ -378,6 +378,31 @@ describe("migrateAllDiagrams", () => {
         ]);
     });
 
+    it("skips a diagram deleted between the workspace search and its read and migrates the rest", async () => {
+        const { service, notifier, workspace } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.5.0"), "/work/b.bpmn": c8Bpmn("8.5.0") },
+            { engineVersion: "8.8.0" },
+        );
+        const findFiles = workspace.findFiles.bind(workspace);
+        vi.spyOn(workspace, "findFiles").mockImplementation(async (...args) => {
+            const found = await findFiles(...args);
+            workspace.deleteFile("/work/a.bpmn");
+            return found;
+        });
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(Object.fromEntries(workspace.files)).toEqual({ "/work/b.bpmn": c8Bpmn("8.8.0") });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped a diagram deleted during migration: /work/a.bpmn",
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
     it("skips a diagram without a definitions root and migrates the rest", async () => {
         const { service, notifier, workspace } = createHost(
             {

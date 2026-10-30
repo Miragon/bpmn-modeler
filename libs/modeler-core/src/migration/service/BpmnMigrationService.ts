@@ -108,15 +108,28 @@ export class BpmnMigrationService {
         const candidates: MigrationCandidate[] = [];
         const skippedReads: MigrationResult[] = [];
         for (const path of paths) {
-            try {
-                const { document } = await this.readCurrentDiagram(path);
-                candidates.push({ path, document });
-            } catch (error) {
-                this.logSkip(`Skipped a diagram that could not be read: ${path}`, error);
+            const candidate = await this.readCandidateOrSkip(path);
+            if (candidate === undefined) {
                 skippedReads.push({ kind: "skipped" });
+            } else {
+                candidates.push(candidate);
             }
         }
         return { candidates, skippedReads };
+    }
+
+    private async readCandidateOrSkip(path: string): Promise<MigrationCandidate | undefined> {
+        try {
+            const current = await this.readCurrentDiagramIfPresent(path);
+            if (current === undefined) {
+                this.logDeleted(path);
+                return undefined;
+            }
+            return { path, document: current.document };
+        } catch (error) {
+            this.logSkip(`Skipped a diagram that could not be read: ${path}`, error);
+            return undefined;
+        }
     }
 
     private async writeOrSkip(plannedWrite: PlannedWrite): Promise<MigrationResult> {
@@ -139,7 +152,7 @@ export class BpmnMigrationService {
         const { path } = plannedWrite;
         const current = await this.readCurrentDiagramIfPresent(path);
         if (current === undefined) {
-            this.notifier.logWarning(`Skipped a diagram deleted during migration: ${path}`);
+            this.logDeleted(path);
             return { kind: "skipped" };
         }
 
@@ -192,6 +205,10 @@ export class BpmnMigrationService {
             }
             throw error;
         }
+    }
+
+    private logDeleted(path: string): void {
+        this.notifier.logWarning(`Skipped a diagram deleted during migration: ${path}`);
     }
 
     private logSkip(context: string, error: unknown): void {
