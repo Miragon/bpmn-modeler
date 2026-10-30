@@ -19,8 +19,10 @@ import { posix } from "node:path";
 import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
+    ChoicePrompt,
     classifyLocateResult,
     ClipboardPort,
+    ConfirmRequest,
     DeployedRevision,
     DeploymentFreshness,
     DeploymentPickerPort,
@@ -43,6 +45,7 @@ import {
     NotifierPort,
     PickerPort,
     ScriptLanguage,
+    SearchPrompt,
     SecretStorePort,
     SettingChange,
     StatusBarPort,
@@ -757,6 +760,22 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
             opts,
         )) as PickerShowResult | null;
         return result?.selected ?? null;
+    }
+
+    async choose<V>(_prompt: ChoicePrompt<V>): Promise<V | undefined> {
+        return undefined;
+    }
+
+    async chooseMany<V>(_prompt: ChoicePrompt<V>): Promise<readonly V[]> {
+        return [];
+    }
+
+    async confirm(_request: ConfirmRequest): Promise<boolean> {
+        return false;
+    }
+
+    async searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }> {
+        return { outcome: await search.search() };
     }
 
     async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
