@@ -484,45 +484,93 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
     });
 });
 
+/** Runs the real participant and lifecycle, so closing an editor tears it down as the hosts do. */
+function createSessionHost(files: Record<string, string> = {}) {
+    const host = createTestHost({ folders: ["/work", "/other"], files });
+    const locator = new BpmnLintConfigLocator(
+        host.workspace,
+        host.settings,
+        new ArtifactService(host.workspace, host.settings),
+    );
+    const lintRunner = {
+        lint: vi.fn().mockResolvedValue({ results: RESULTS, unresolved: [] }),
+    };
+    const service = new BpmnLintConfigService(
+        host.store,
+        host.documents,
+        locator,
+        lintRunner,
+        host.diagnostics,
+        host.statusBar,
+        host.notifier,
+        host.settings,
+    );
+    const participant = new BpmnlintParticipant(service, locator, host.statusBar, host.notifier);
+    const openDiagram = async (path: string, focused: boolean, content = XML) => {
+        const editor = await host.openSession(path, [participant], { content, focused });
+        // What the loaded webview's GetBpmnlintConfigCommand runs.
+        await service.setBpmnlintConfig(editor.id);
+        return editor;
+    };
+    return { host, service, lintRunner, participant, openDiagram };
+}
+
+describe("BpmnLintConfigService — a diagram that closes while its lint config is discovered", () => {
+    /** Holds the next file read until the test answers it. */
+    function holdNextRead(host: TestHost): () => void {
+        const readFile = host.workspace.readFile.bind(host.workspace);
+        let answerRead: (() => void) | undefined;
+        vi.spyOn(host.workspace, "readFile").mockImplementationOnce(
+            (path) =>
+                new Promise((resolve) => {
+                    answerRead = () => resolve(readFile(path));
+                }),
+        );
+        return () => answerRead?.();
+    }
+
+    it.each([
+        { tier: "covered", config: COVERED_RAW },
+        { tier: "escalated", config: ESCALATING_RAW },
+    ])(
+        "does not start a lint session for an editor that closes while its $tier config is read",
+        async ({ config }) => {
+            const { host, service, lintRunner, participant } = createSessionHost({
+                [CONFIG_PATH]: config,
+            });
+            const editor = await host.openSession(PATH, [participant], { content: XML });
+            const answerRead = holdNextRead(host);
+            const discovery = service.setBpmnlintConfig(editor.id);
+            await flush();
+
+            editor.dispose();
+            answerRead();
+            await discovery;
+
+            expect(service.getLintMode(editor.id)).toBe("external");
+            expect(lintRunner.lint).not.toHaveBeenCalled();
+            expect(host.notifier.logged("error")).toEqual([]);
+            expect(host.notifier.logged("warning")).toEqual([]);
+        },
+    );
+
+    it("does not lint a diagram that closes while a re-seed re-arms its config watcher", async () => {
+        const { host, service, participant } = createSessionHost({ [CONFIG_PATH]: COVERED_RAW });
+        const editor = await host.openSession(PATH, [participant], { content: XML });
+
+        const reseeding = host.reseedSession(editor.id);
+        editor.dispose();
+        await reseeding;
+
+        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(host.notifier.logged("error")).toEqual([]);
+    });
+});
+
 describe("BpmnLintConfigService — the status item follows the focused editor", () => {
     // The real participant and lifecycle play VS Code's focus events: a text
     // editor taking focus blurs the panel, but the store's active-editor pointer
     // stays on the diagram because text editors are not sessions.
-    function createSessionHost(files: Record<string, string> = {}) {
-        const host = createTestHost({ folders: ["/work", "/other"], files });
-        const locator = new BpmnLintConfigLocator(
-            host.workspace,
-            host.settings,
-            new ArtifactService(host.workspace, host.settings),
-        );
-        const lintRunner = {
-            lint: vi.fn().mockResolvedValue({ results: RESULTS, unresolved: [] }),
-        };
-        const service = new BpmnLintConfigService(
-            host.store,
-            host.documents,
-            locator,
-            lintRunner,
-            host.diagnostics,
-            host.statusBar,
-            host.notifier,
-            host.settings,
-        );
-        const participant = new BpmnlintParticipant(
-            service,
-            locator,
-            host.statusBar,
-            host.notifier,
-        );
-        const openDiagram = async (path: string, focused: boolean, content = XML) => {
-            const editor = await host.openSession(path, [participant], { content, focused });
-            // What the loaded webview's GetBpmnlintConfigCommand runs.
-            await service.setBpmnlintConfig(editor.id);
-            return editor;
-        };
-        return { host, service, lintRunner, openDiagram };
-    }
-
     async function blurredDiagramReLintedAfterConfigEdit() {
         const ctx = createSessionHost({ [CONFIG_PATH]: COVERED_RAW });
         const editor = await ctx.openDiagram(PATH, true);
