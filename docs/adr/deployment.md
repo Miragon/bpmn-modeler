@@ -257,7 +257,10 @@ rejects a missing target, and an ad-hoc destination admits any request.
 The engine's acceptance is final. Saving the ad-hoc connection, the
 credentials and the ledger row afterwards are separate steps: a failed step is
 logged and named in the result message ("Not saved: …"), and the ledger row is
-still written when the credentials fail. A live deployment is never reported as
+still written when the credentials fail. The connection is one
+`connectionPatch`: the endpoint, the tenant and the auth type, and for OAuth2
+the token endpoint and audience. It is written in one save, so the bridge sends
+it as one request, not three. A live deployment is never reported as
 failed. `DeploymentOutcome` in the core owns this rule; host adapters report
 write failures and decide nothing.
 
@@ -317,9 +320,10 @@ too, because an ad-hoc deploy saves the connection the indicator reads just
 before its row. Target changes (through the
 [targets event](#targets-and-credentials)), editor focus and debounced
 document edits refresh it as well. The bridge listens to its document mirror
-for edit-time refresh. Active target and ledger getters follow the
-[synchronous mirror contract](architecture-and-hosts.md#host-replicated-state)
-and are included in startup/restart seeds.
+for edit-time refresh. The active target and the ledger are part of the
+deployment state's synchronous `load()`, which follows the
+[synchronous mirror contract](architecture-and-hosts.md#host-replicated-state),
+and of the startup/restart seeds.
 
 The indicator names the connection its freshness refers to. Each destination
 answers it as its `statusConnection`: a named target gives its name, the ad-hoc

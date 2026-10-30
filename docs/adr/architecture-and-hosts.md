@@ -543,7 +543,7 @@ keeps explicit local mirrors with these ownership rules:
 | --- | --- | --- |
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
-| Deployment state | `deploymentState/seed`, including active target and ledger | Bridge snapshot during the process lifetime; host persists it for the next seed |
+| Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Bridge snapshot during the process lifetime; host persists the patches for the next seed |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -572,7 +572,20 @@ shows the values without the bridge.
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
 the Kotlin test also compares its defaults with the manifest's.
 
-Deployment writes update the optimistic snapshot and await acknowledged host
+The deployment state is one `DeploymentState` snapshot in the core's
+[`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):
+the ad-hoc connection, the active target and the freshness ledger.
+`DeploymentStatePort` has two methods, a synchronous `load()` and
+`save(patch)`. A `DeploymentStatePatch` names the fields it writes and the
+ledger rows it puts and removes, so a deploy's connection or a prune's rows
+travel as one write. The core owns the defaults and the shape:
+`deploymentStateFrom` reads a missing value or one of the wrong type as the
+default and drops a ledger row that is not a revision, on both hosts. Hosts
+store only what a patch names: VS Code writes the patched workspace-state
+keys, and IntelliJ seeds the bridge with the keys it has stored, without
+defaults, and applies each patch in the one `deploymentState/save` handler.
+
+The bridge applies a patch to its snapshot and awaits the acknowledged host
 persistence. Failures reject, as they do on VS Code, but are not rolled back:
 rolling back would show stale values mid-session, and the next seed reconciles
 with the persisted host state. Whether a failed write fails the operation is
