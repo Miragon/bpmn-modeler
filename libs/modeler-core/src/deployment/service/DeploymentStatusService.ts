@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
@@ -46,6 +46,7 @@ export class DeploymentStatusService {
         private readonly picker: DeploymentPickerPort,
         private readonly notifier: NotifierPort,
         private readonly envResolver: EnvValueResolver,
+        private readonly settings: SettingsPort,
     ) {}
 
     async ledgerIdentity(

@@ -118,6 +118,7 @@ export class DeploymentFeature {
             ports.picker,
             ports.notifier,
             envResolver,
+            ports.settings,
         );
         this.verification = new DeploymentVerificationService(
             ports.store,

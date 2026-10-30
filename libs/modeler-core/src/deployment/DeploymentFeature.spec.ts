@@ -172,7 +172,7 @@ describe("DeploymentFeature target commands", () => {
         await feature.switchTarget();
 
         expect(host.deploymentState.activeTargetName).toBe("prod");
-        expect(host.statusBar.deploymentTarget?.name).toBe("prod");
+        expect(host.statusBar.views.deploymentTarget?.text).toBe("prod");
         expect(targetListsIn(posted)).toEqual([
             expect.objectContaining({ activeTargetName: "prod", documentDir: "/ws/src" }),
         ]);
@@ -597,8 +597,8 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
 
         await deployFromSidebar(edited);
 
-        expect(edited.host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        expect(edited.host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "success" }),
         );
     });
 });
@@ -650,8 +650,8 @@ describe("DeploymentFeature status after a ledger write", () => {
 
         await feature.deployActive();
 
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "success" }),
         );
     });
 
@@ -660,8 +660,8 @@ describe("DeploymentFeature status after a ledger write", () => {
 
         await feature.deployFiles();
 
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "success" }),
         );
     });
 
@@ -670,13 +670,13 @@ describe("DeploymentFeature status after a ledger write", () => {
             deployedRows: [devRow],
             http: new EngineWithoutDefinitions(),
         });
-        expect(host.statusBar.deploymentTarget?.freshness).toBe("deployed");
+        expect(host.statusBar.views.deploymentTarget?.tone).toBe("success");
 
         await feature.verify();
 
         expect(host.deploymentState.ledger.has(devRow)).toBe(false);
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "unknown" }),
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "neutral" }),
         );
     });
 
@@ -686,7 +686,7 @@ describe("DeploymentFeature status after a ledger write", () => {
             activeTargetName: "",
             deployedRows: [localAdHocRow],
         });
-        expect(host.statusBar.deploymentTarget?.freshness).toBe("deployed");
+        expect(host.statusBar.views.deploymentTarget?.tone).toBe("success");
         vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
             new Error("workspace state is read-only"),
         );
@@ -706,8 +706,19 @@ describe("DeploymentFeature status after a ledger write", () => {
         );
 
         expect(host.deploymentState.endpoint).toBe(stagingEngine);
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: undefined, freshness: "unknown" }),
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "Form values", tone: "neutral" }),
+        );
+    });
+
+    it("labels a target name the targets file no longer holds as the form values it falls back to", async () => {
+        const { host } = await focusOrderProcess({
+            activeTargetName: "renamed-by-a-teammate",
+            deployedRows: [localAdHocRow],
+        });
+
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "Form values", tone: "success" }),
         );
     });
 });

@@ -1,6 +1,7 @@
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { AuthConfig } from "./deployment";
 import { DeploymentTargetIdentity } from "./deploymentLedger";
+import { StatusConnection } from "./deploymentStatusView";
 import {
     DeploymentTarget,
     DeploymentTargets,
@@ -89,6 +90,10 @@ export class NamedDestination {
         return this.target.name;
     }
 
+    get statusConnection(): StatusConnection {
+        return { kind: "none" };
+    }
+
     /** On one shortened line, as the name comes from the shared file. */
     get connectionLabel(): string {
         const singleLine = this.target.name.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}"]+/gu, " ").trim();
@@ -134,6 +139,10 @@ export class AdHocDestination {
         readonly endpoint: string,
         readonly tenantId: string,
     ) {}
+
+    get statusConnection(): StatusConnection {
+        return { kind: "none" };
+    }
 
     /** The endpoint was typed, so a nearer, possibly vendored targets file can't supply its variables. */
     dotEnvDirectory(workspaceFolder: string | undefined): string | undefined {
