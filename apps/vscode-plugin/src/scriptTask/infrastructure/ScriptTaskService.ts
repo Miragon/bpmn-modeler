@@ -113,7 +113,7 @@ export class ScriptTaskService implements ScriptEditorPort {
      * if we just logged that error. Instead we mark the editor here and
      * replay all open script documents the next time the webview comes
      * back (signalled by it sending `GetBpmnModelerSettingCommand` after a
-     * reload, which the controller forwards to {@link resyncOpenDocuments}).
+     * reload, which reaches {@link resync}).
      */
     private readonly pendingResync = new Set<string>();
 
@@ -561,7 +561,7 @@ export class ScriptTaskService implements ScriptEditorPort {
      * Re-sends the current content of every open script document for the
      * given editor as `UpdateScriptContentQuery` messages.
      *
-     * Called by the controller when the webview reloads (which happens
+     * Called through {@link resync} when the webview reloads (which happens
      * implicitly whenever VS Code hides and re-shows it — e.g. tab
      * switching or window restore). Without this, edits made while the
      * webview was hidden would be lost: `postMessage` to a hidden webview
