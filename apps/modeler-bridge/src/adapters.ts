@@ -19,7 +19,6 @@ import { posix } from "node:path";
 import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
-    BpmnlintStatusBarPort,
     classifyLocateResult,
     ClipboardPort,
     DeployedRevision,
@@ -427,9 +426,7 @@ export class RpcNotifier implements NotifierPort {
  * it. The widget-shaped methods keep one RPC each until their callers show
  * their slot through {@link StatusBarPort}.
  */
-export class RpcStatusBar
-    implements StatusBarPort, LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
-{
+export class RpcStatusBar implements StatusBarPort, LegacyStatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
     show(slot: StatusSlot, view: StatusView): void {
@@ -479,10 +476,6 @@ export class RpcStatusBar
 
     hideDeploymentTarget(): void {
         this.rpc.notify(METHODS.statusBarHideDeploymentTarget, {});
-    }
-
-    showBpmnlint(): void {
-        // IntelliJ shows BPMNlint only through its slot.
     }
 }
 

@@ -9,10 +9,16 @@ import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types
 
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../kernel/domain/errors";
-import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
+import {
+    DocumentPort,
+    NotifierPort,
+    SettingsPort,
+    StatusBarPort,
+} from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
+import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
 import {
     LintAction,
     LintDropReason,
@@ -24,7 +30,7 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "../domain/LintSession";
-import { BpmnlintStatusBarPort, DiagnosticsPort, LintRunnerPort } from "../domain/ports";
+import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 
 const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
     supersededVersion: "[bpmnlint] dropping in-page results for a superseded config version",
@@ -66,7 +72,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly locator: BpmnLintConfigLocator,
         private readonly lintRunner: LintRunnerPort,
         private readonly diagnostics: DiagnosticsPort,
-        private readonly statusBar: BpmnlintStatusBarPort,
+        private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {}
@@ -273,7 +279,9 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * is checked when the item is written, not when the run starts.
      */
     private showStatusIfFocused(editorId: string, indicator: BpmnlintIndicator): void {
-        if (this.editorStore.isFocused(editorId)) this.statusBar.showBpmnlint(indicator);
+        if (this.editorStore.isFocused(editorId)) {
+            this.statusBar.show("bpmnlint", bpmnlintStatusView(indicator));
+        }
     }
 
     /**

@@ -9,6 +9,7 @@ import {
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../../testing";
+import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
 import { BpmnlintParticipant } from "../session/BpmnlintParticipant";
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
@@ -70,9 +71,11 @@ function createService({ content = XML, config }: { content?: string; config?: s
     return { service, host, editor, lintRunner };
 }
 
+// bpmnlintStatusView.spec pins each indicator's view; these rows pin which one the slot shows.
+
 /** Forgets what the status bar and Problems panel show, so a later step's effect stands alone. */
 function resetSurfaces(host: TestHost): void {
-    host.statusBar.showBpmnlint({ state: "hidden" });
+    host.statusBar.hide("bpmnlint");
     host.diagnostics.published.clear();
 }
 
@@ -101,7 +104,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(result).toBe(true);
         expect(lintRunner.lint).toHaveBeenCalledWith(XML, CONFIG_PATH, ESCALATING_CONFIG);
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
         expect(host.notifier.logged("info")).toContain(`bpmnlint applied from ${CONFIG_PATH}`);
         expect(service.getLintMode(editor.id)).toBe("external");
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(0);
@@ -115,11 +120,13 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
 
         await service.setBpmnlintConfig(editor.id);
 
-        expect(host.statusBar.bpmnlint).toEqual({
-            state: "unresolved",
-            configPath: CONFIG_PATH,
-            unresolved: ["custom/x"],
-        });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({
+                state: "unresolved",
+                configPath: CONFIG_PATH,
+                unresolved: ["custom/x"],
+            }),
+        );
         expect(host.notifier.logged("warning")).toEqual([expect.stringContaining("custom/x")]);
     });
 
@@ -130,7 +137,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         const result = await service.setBpmnlintConfig(editor.id);
 
         expect(result).toBe(true);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toEqual(RESULTS);
     });
@@ -145,7 +152,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(host.notifier.logged("error")).toEqual([
             expect.stringContaining("Failed to lint against .bpmnlintrc"),
         ]);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "noConfig" });
+        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "noConfig" }));
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
         expect(service.getLintMode(editor.id)).toBe("external");
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
@@ -159,7 +166,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         await service.setBpmnlintConfig(editor.id);
 
         expect(host.notifier.logged("error")).toEqual([expect.stringContaining("plugin crashed")]);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "noConfig" });
+        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "noConfig" }));
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toBeNull();
     });
@@ -194,7 +201,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
         // Provisional Active (not the zero-config default) while the first webview
         // run is in flight.
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
         const [msg] = editor.postedOfType<BpmnlintInPageQuery>("BpmnlintInPageQuery");
         expect(msg.config).toEqual(COVERED_CONFIG);
         expect(typeof msg.configToken).toBe("string");
@@ -208,7 +217,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
         service.applyWebviewLintResults(editor.id, RESULTS, [], token);
 
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
     });
 
     it("replays the cached covered event as Active on a cache-hit re-instruct", async () => {
@@ -219,7 +230,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
         await service.setBpmnlintConfig(editor.id); // same version → cache hit
 
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
         // Re-sends the instruction carrying the same token (webview dedups on it).
         const msg = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery");
         expect(msg?.configToken).toBe(token);
@@ -275,7 +288,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
         // Provisional: clear stale diagnostics + a default status while the
         // webview's first run is in flight (no cached event yet).
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: undefined }),
+        );
         const [msg] = editor.postedOfType<BpmnlintInPageQuery>("BpmnlintInPageQuery");
         // Payload-free: no config and no token travel for the zero-config tier.
         expect(msg.config).toBeUndefined();
@@ -286,13 +301,18 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
     it.each([
         { content: XML_C7, platform: "c7" },
         { content: XML_C8, platform: "c8" },
-    ])("reflects the detected platform $platform in the provisional status", async (row) => {
-        const { service, host, editor } = createService({ content: row.content });
+    ] as const)(
+        "reflects the detected platform $platform in the provisional status",
+        async (row) => {
+            const { service, host, editor } = createService({ content: row.content });
 
-        await service.setBpmnlintConfig(editor.id);
+            await service.setBpmnlintConfig(editor.id);
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: row.platform });
-    });
+            expect(host.statusBar.views.bpmnlint).toEqual(
+                bpmnlintStatusView({ state: "default", platform: row.platform }),
+            );
+        },
+    );
 
     it("leaves the status bar untouched when the editor is not focused", async () => {
         const { service, host, editor } = createService();
@@ -300,7 +320,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
 
         await service.setBpmnlintConfig(editor.id);
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(1);
     });
 
@@ -315,7 +335,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
 
         // Cached findings are restored instead of a blank provisional state.
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: undefined }),
+        );
     });
 });
 
@@ -333,7 +355,9 @@ describe("BpmnLintConfigService.applyWebviewLintResults", () => {
         service.applyWebviewLintResults(editor.id, RESULTS, ["some-plugin/some-rule"]);
 
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: undefined }),
+        );
         expect(host.notifier.logged("warning")).toEqual([
             expect.stringContaining("some-plugin/some-rule"),
         ]);
@@ -348,7 +372,7 @@ describe("BpmnLintConfigService.applyWebviewLintResults", () => {
         // The Problems panel is global, so diagnostics always publish...
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
         // ...but a background editor's push must not steal the visible status.
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
     });
 
     it("ignores a push when linting is disabled", async () => {
@@ -383,7 +407,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
         expect(result).toBe(true);
         expect(lintRunner.lint).not.toHaveBeenCalled();
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "disabled" });
+        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "disabled" }));
         expect(service.getLintMode(editor.id)).toBe("external");
         expect(editor.postedOfType<BpmnLintDisabledQuery>("BpmnLintDisabledQuery")).toHaveLength(1);
     });
@@ -395,7 +419,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
 
         await service.setBpmnlintConfig(editor.id);
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
         expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 });
@@ -450,7 +474,9 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         await linting;
 
         expect(service.getLintMode(editor.id)).toBe("in-page");
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: undefined }),
+        );
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
     });
 
@@ -462,7 +488,7 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         finishLint({ results: RESULTS, unresolved: [] });
         await linting;
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "disabled" });
+        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "disabled" }));
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
     });
 
@@ -477,7 +503,9 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
 
         expect(host.notifier.logged("error")).toEqual([expect.stringContaining("plugin crashed")]);
         expect(service.getLintMode(editor.id)).toBe("in-page");
-        expect(host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
         service.applyWebviewLintResults(editor.id, RESULTS, [], token);
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
@@ -574,11 +602,13 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
     async function blurredDiagramReLintedAfterConfigEdit() {
         const ctx = createSessionHost({ [CONFIG_PATH]: COVERED_RAW });
         const editor = await ctx.openDiagram(PATH, true);
-        expect(ctx.host.statusBar.bpmnlint).toEqual({ state: "active", configPath: CONFIG_PATH });
+        expect(ctx.host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
 
         // The user edits .bpmnlintrc in a text editor beside the diagram.
         editor.loseFocus();
-        expect(ctx.host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(ctx.host.statusBar.views.bpmnlint).toBeUndefined();
         ctx.host.workspace.files.set(CONFIG_PATH, JSON.stringify({ extends: "bpmnlint:all" }));
         ctx.host.workspace.watchers[0].handlers.onChange?.(CONFIG_PATH);
         await flush();
@@ -593,7 +623,7 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
         const { host, editor } = await blurredDiagramReLintedAfterConfigEdit();
 
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
     });
 
     it("leaves no lint status behind when that blurred diagram is closed", async () => {
@@ -601,7 +631,7 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
 
         editor.dispose();
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
     });
 
     it("shows the focused diagram's lint results, not those of a diagram resolved behind it", async () => {
@@ -613,7 +643,9 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
         service.applyWebviewLintResults(focused.id, RESULTS, []);
 
         expect(focused.isActive()).toBe(true);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c7" });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: "c7" }),
+        );
     });
 
     it("keeps the focused diagram's lint status while a diagram behind it loads", async () => {
@@ -622,7 +654,9 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
 
         await openDiagram("/work/other.bpmn", false, XML_C8);
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: "c7" });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: "c7" }),
+        );
     });
 
     it("keeps the newly focused diagram's status when the previous one's host lint finishes late", async () => {
@@ -637,10 +671,14 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
 
         previous.loseFocus();
         await openDiagram("/other/next.bpmn", true);
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: undefined }),
+        );
         finishLint({ results: RESULTS, unresolved: [] });
         await flush();
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "default", platform: undefined });
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: undefined }),
+        );
     });
 });

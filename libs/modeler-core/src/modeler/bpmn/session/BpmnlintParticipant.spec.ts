@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { StatusView } from "../../../kernel/domain/statusView";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnLintConfigLocator } from "../service/BpmnLintConfigLocator";
 import { createTestHost } from "../../../testing";
@@ -7,6 +8,8 @@ import { BpmnLintConfigService } from "../service/BpmnLintConfigService";
 import { BpmnlintParticipant } from "./BpmnlintParticipant";
 
 const PATH = "/work/diagram.bpmn";
+// The service decides what the slot shows; the participant only hides it on blur and close.
+const LINT_STATUS: StatusView = { text: "BPMNlint", icon: "check", tone: "neutral" };
 
 // The lint service needs a lint runner and diagnostics the kit does not fake;
 // casting through a `Pick` keeps the stubbed methods type-checked.
@@ -25,7 +28,7 @@ function createServices(lintMode: "external" | "in-page" = "external") {
         host.settings,
         new ArtifactService(host.workspace, host.settings),
     );
-    host.statusBar.showBpmnlint({ state: "active", configPath: "/work/.bpmnlintrc" });
+    host.statusBar.show("bpmnlint", LINT_STATUS);
     const participant = new BpmnlintParticipant(lintSvc, locator, host.statusBar, host.notifier);
     return { host, lintSvc, locator, participant };
 }
@@ -83,11 +86,11 @@ describe("BpmnlintParticipant", () => {
     it("clears the status item and the diagnostics when the session is disposed", async () => {
         const { host, lintSvc, participant } = createServices();
         const editor = await host.openSession(PATH, [participant]);
-        expect(host.statusBar.bpmnlint.state).toBe("active");
+        expect(host.statusBar.views.bpmnlint).toBe(LINT_STATUS);
 
         editor.dispose();
 
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
         expect(lintSvc.clearDiagnostics).toHaveBeenCalledWith(editor.id);
     });
 
@@ -150,10 +153,10 @@ describe("BpmnlintParticipant", () => {
 
         editor.becomeActive();
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(editor.id);
-        expect(host.statusBar.bpmnlint.state).toBe("active");
+        expect(host.statusBar.views.bpmnlint).toBe(LINT_STATUS);
 
         editor.loseFocus();
-        expect(host.statusBar.bpmnlint).toEqual({ state: "hidden" });
+        expect(host.statusBar.views.bpmnlint).toBeUndefined();
     });
 
     it("keeps the focused editor's lint status when a background editor closes", async () => {
@@ -165,7 +168,7 @@ describe("BpmnlintParticipant", () => {
 
         background.dispose();
 
-        expect(host.statusBar.bpmnlint.state).toBe("active");
+        expect(host.statusBar.views.bpmnlint).toBe(LINT_STATUS);
     });
 
     it("keeps the newly focused editor's lint status when the previous editor blurs after it", async () => {
@@ -178,7 +181,7 @@ describe("BpmnlintParticipant", () => {
         next.becomeActive();
         previous.loseFocus();
 
-        expect(host.statusBar.bpmnlint.state).toBe("active");
+        expect(host.statusBar.views.bpmnlint).toBe(LINT_STATUS);
     });
 
     it("stops tracking focus after the session closes", async () => {
