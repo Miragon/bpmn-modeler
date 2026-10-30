@@ -35,6 +35,7 @@ export * from "./editorSession/domain/EditorSession";
 export * from "./editorSession/domain/EditorSessionParticipant";
 export * from "./editorSession/domain/session";
 export * from "./editorSession/service/DocumentFlushService";
+export * from "./editorSession/service/EditorContribution";
 export * from "./editorSession/service/EditorDocumentSync";
 export * from "./editorSession/service/EditorHandle";
 export * from "./editorSession/service/EditorSessionDocuments";
@@ -51,6 +52,7 @@ export * from "./editorSession/infrastructure/webviewLogMessageHandlers";
 export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
+export * from "./modeler/bpmn/BpmnEditorFeature";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";
@@ -88,12 +90,14 @@ export * from "./navigation/service/ReferencedModelLocator";
 export * from "./navigation/service/FormReferenceStatusService";
 export * from "./navigation/session/FormReferenceStatusParticipant";
 export * from "./navigation/infrastructure/navigationMessageHandlers";
+export * from "./navigation/NavigationFeature";
 
 // ── definition search ────────────────────────────────────────────────────────
 export * from "./definitionSearch/service/WorkspaceDefinitionIndex";
 export * from "./definitionSearch/service/DefinitionSearchService";
 export * from "./definitionSearch/session/DefinitionSearchParticipant";
 export * from "./definitionSearch/infrastructure/definitionSearchMessageHandlers";
+export * from "./definitionSearch/DefinitionSearchFeature";
 
 // ── codeLink ─────────────────────────────────────────────────────────────────
 export * from "./codeLink/service/ImplementationLocator";
@@ -102,6 +106,7 @@ export * from "./codeLink/service/CodeLinkMapService";
 export * from "./codeLink/service/SourceIndex";
 export * from "./codeLink/session/CodeLinkParticipant";
 export * from "./codeLink/infrastructure/codeLinkMessageHandlers";
+export * from "./codeLink/CodeLinkFeature";
 
 // ── migration ────────────────────────────────────────────────────────────────
 export * from "./migration/domain/MigrationPlan";
