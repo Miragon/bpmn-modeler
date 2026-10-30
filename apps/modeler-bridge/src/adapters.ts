@@ -987,7 +987,7 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
     }
 }
 
-// IntelliJ's list popup has no icons for these, so a choice travels without its icon.
+// IntelliJ's list popup shows no icons, so a choice travels without one.
 function pickerShowParams<V>(prompt: ChoicePrompt<V>, canPickMany: boolean): PickerShowParams {
     return {
         title: prompt.title,

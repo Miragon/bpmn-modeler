@@ -35,10 +35,9 @@ export interface Prompt {
  * feature-shaped prompt from `answers`. An unanswered prompt is dismissed with
  * the port's own convention for that prompt (throw, `[]`, `null`, `undefined`
  * or `false`), so a test exercises the caller's cancel path by leaving it out.
- * A search's choice is answered by the id of the choice prompt it reveals.
- *
- * @throws when a scripted answer is not one of the prompt's values, so a test
- *   cannot pass with a choice the user was never offered.
+ * A search's choice is answered by the id of the choice prompt it reveals. A
+ * scripted answer the prompt does not offer throws, so a test cannot pass with
+ * a choice the user was never shown.
  */
 export class ScriptedPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     readonly prompts: Prompt[] = [];
