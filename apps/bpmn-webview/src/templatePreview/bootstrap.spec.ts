@@ -177,6 +177,20 @@ describe("bootstrapTemplatePreview", () => {
         );
     });
 
+    it("applies the language the file arrives with before showing it", async () => {
+        await start();
+
+        window.dispatchEvent(
+            new MessageEvent("message", {
+                data: new ElementTemplateFileQuery(JSON.stringify(STATUS), 1, "de"),
+            }),
+        );
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(mocks.setLocale).toHaveBeenCalledWith("de");
+        expect(mocks.shown).toHaveLength(1);
+    });
+
     it("switches the preview's language", async () => {
         await start();
 

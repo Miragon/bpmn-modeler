@@ -85,6 +85,9 @@ export async function bootstrapTemplatePreview(host: PreviewHost): Promise<() =>
 
     const route = createHostMessageRouter<TemplatePreviewHostMessages>(host, {
         ElementTemplateFileQuery: (query) => {
+            if (query.locale) {
+                preview.setLocale(query.locale);
+            }
             const firstContent = content === undefined;
             content = query.content;
             scheduleUpdate(firstContent);

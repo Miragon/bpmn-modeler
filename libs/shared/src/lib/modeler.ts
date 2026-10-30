@@ -156,11 +156,14 @@ export class FormFileQuery extends Query<"FormFileQuery"> {
 export class ElementTemplateFileQuery extends Query<"ElementTemplateFileQuery"> {
     public readonly content: string;
     public readonly documentRevision: number;
+    /** The configured UI locale, applied before the first render; later changes come as {@link LanguageQuery}. */
+    public readonly locale?: string;
 
-    constructor(content: string, documentRevision = 0) {
+    constructor(content: string, documentRevision = 0, locale?: string) {
         super("ElementTemplateFileQuery");
         this.content = content;
         this.documentRevision = documentRevision;
+        this.locale = locale;
     }
 }
 
