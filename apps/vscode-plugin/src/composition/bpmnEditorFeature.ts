@@ -21,12 +21,6 @@ import { ModelerEditorController } from "../modeler/editor-session/ModelerEditor
 import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
 import { SharedDeps } from "./sharedDeps";
 
-/**
- * What the sibling features hand the BPMN editor: the diff controller takes a
- * pane that resolves as a diff, the marketplace cache joins element-template
- * discovery, and the deployment status and the script editor contribute to
- * the session.
- */
 interface BpmnEditorHandles {
     diffController: BpmnDiffController;
     marketplaceSvc: CachedTemplateProvider;
@@ -34,15 +28,7 @@ interface BpmnEditorHandles {
     scriptEditor: BpmnEditorContributions["scriptEditor"];
 }
 
-/**
- * The BPMN editor is the core {@link BpmnEditorFeature} over VS Code's ports,
- * the same one the IntelliJ bridge builds. Navigation, definition search and
- * code-link contribute from the core. VS Code renders on its own document
- * change, syncs the document through the core, keeps the user's linting switch
- * in its settings and the panel visibility in its global state, and shows lint
- * results as diagnostics. The feature is returned because the command and
- * marketplace features reuse its services.
- */
+/** Returns the feature because the command and marketplace features reuse its services. */
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,

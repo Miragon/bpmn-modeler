@@ -25,12 +25,12 @@ export interface TestApi {
  * adding one file and one line here.
  *
  * The register order is observable (it is the order custom editors, providers,
- * and commands become available) and is preserved exactly: diff → script →
- * marketplace (service) → deployment → BPMN editor → DMN and Form editors →
- * marketplace (commands) → compare → commands. Handles flow forward only: the
- * BPMN editor routes into diff's controller, the script editor's contribution,
- * the marketplace service and the deployment status; later features reuse
- * handles the earlier ones returned.
+ * and commands become available): diff → script → marketplace (service) →
+ * deployment → BPMN editor → DMN and Form editors → marketplace (commands) →
+ * compare → commands. Handles flow forward only: the BPMN editor routes into
+ * diff's controller, the script editor's contribution, the marketplace service
+ * and the deployment status; later features reuse handles the earlier ones
+ * returned.
  */
 export function activate(context: ExtensionContext): TestApi {
     setContext(context);
