@@ -46,6 +46,16 @@ describe("ScriptUri.filename", () => {
         expect(uri.filename).toBe("Task_1.execution-start-1.js");
     });
 
+    it("names a task listener after its event", () => {
+        const uri = new ScriptUri("e", "UserTask_1", "task-listener", 0, "create", "js");
+        expect(uri.filename).toBe("UserTask_1.task-create.js");
+    });
+
+    it("leaves the event out of a listener without one", () => {
+        const uri = new ScriptUri("e", "Task_1", "execution-listener", 0, undefined, "js");
+        expect(uri.filename).toBe("Task_1.execution.js");
+    });
+
     it("sanitises element ids with characters outside the POSIX-clean subset", () => {
         const uri = new ScriptUri("e", "Task#1", "script-task", undefined, undefined, "groovy");
         expect(uri.filename).toBe("Task_1.groovy");
