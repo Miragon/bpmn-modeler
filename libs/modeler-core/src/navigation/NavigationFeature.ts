@@ -27,10 +27,12 @@ export class NavigationFeature {
         "NavigateToReferencedModelCommand" | "GetFormReferenceStatusCommand"
     >;
 
+    private readonly formReferenceStatus: FormReferenceStatusService;
+
     constructor(ports: NavigationHostPorts) {
         const locator = new ReferencedModelLocator(ports.workspace, ports.notifier);
         const navigation = new ModelNavigationService(locator, ports.notifier, ports.picker);
-        const formReferenceStatus = new FormReferenceStatusService(
+        this.formReferenceStatus = new FormReferenceStatusService(
             ports.store,
             ports.documents,
             ports.workspace,
@@ -44,9 +46,15 @@ export class NavigationFeature {
                     navigation,
                     ports.notifier,
                 ),
-                GetFormReferenceStatusCommand: getFormReferenceStatusHandler(formReferenceStatus),
+                GetFormReferenceStatusCommand: getFormReferenceStatusHandler(
+                    this.formReferenceStatus,
+                ),
             },
-            participant: new FormReferenceStatusParticipant(formReferenceStatus),
+            participant: new FormReferenceStatusParticipant(this.formReferenceStatus),
         };
+    }
+
+    dispose(): void {
+        this.formReferenceStatus.dispose();
     }
 }

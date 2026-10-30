@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
     BPMN_EDITOR_COMMAND_TYPES,
@@ -395,5 +395,36 @@ describe("BpmnEditorFeature", () => {
             "[webview:order.bpmn] slow render",
             "[webview] late reply",
         ]);
+    });
+
+    it.each<{ capabilities: HostCapabilities; stored: boolean; visible: boolean }>([
+        { capabilities: "full", stored: false, visible: false },
+        { capabilities: "bare", stored: false, visible: true },
+    ])(
+        "opens a new editor's panel as the host stored it, or visible without a store ($capabilities)",
+        ({ capabilities, stored, visible }) => {
+            const { host, feature } = createFeature(capabilities);
+            host.propertiesPanelState.visible = stored;
+
+            expect(feature.initialPanelVisible()).toBe(visible);
+        },
+    );
+
+    it("drops a pending template refresh once disposed", async () => {
+        vi.useFakeTimers();
+        try {
+            const { host, feature } = createFeature("full");
+            const editor = host.openEditor(DIAGRAM, C7_XML);
+            await feature.templates.setElementTemplates(editor.id);
+            const loaded = editor.postedOfType("ElementTemplatesQuery").length;
+
+            feature.templates.refreshElementTemplates(editor.id);
+            feature.dispose();
+            await vi.advanceTimersByTimeAsync(1_000);
+
+            expect(editor.postedOfType("ElementTemplatesQuery")).toHaveLength(loaded);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

@@ -46,4 +46,31 @@ describe("CodeLinkFeature", () => {
         );
         expect(editorContribution.participant).toBeInstanceOf(CodeLinkParticipant);
     });
+
+    it("stops watching the source files once disposed", async () => {
+        const host = createTestHost({
+            folders: ["/work"],
+            files: {
+                "/work/src/main/java/com/example/OrderService.java":
+                    "package com.example;\npublic class OrderService {}",
+            },
+        });
+        const editor = host.openEditor("/work/order.bpmn");
+        const feature = new CodeLinkFeature({
+            ...host,
+            artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
+        });
+        await feature.editorContribution.commandHandlers.SyncActivitiesCommand(
+            new SyncActivitiesCommand([
+                { activityId: "Task_1", kind: "javaClass", reference: "com.example.OrderService" },
+            ]),
+            editor.id,
+        );
+        const watching = () => host.workspace.watchers.filter(({ disposed }) => !disposed);
+        expect(watching()).not.toEqual([]);
+
+        feature.dispose();
+
+        expect(watching()).toEqual([]);
+    });
 });
