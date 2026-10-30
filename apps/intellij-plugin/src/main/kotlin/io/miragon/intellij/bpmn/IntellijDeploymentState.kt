@@ -8,76 +8,65 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 
 /**
- * Project-scoped persistence for the non-secret deployment-form state (endpoint,
- * tenant, auth type, OAuth2 token endpoint + audience), the IntelliJ counterpart
- * of VS Code's `VsCodeDeploymentState` (which uses `workspaceState`, i.e.
- * per-project — matched here by the *project*-scoped [PropertiesComponent]).
+ * Project-scoped persistence for the non-secret deployment state (the ad-hoc
+ * connection, the active target and the freshness ledger), the IntelliJ
+ * counterpart of VS Code's `VsCodeDeploymentState` (which uses `workspaceState`,
+ * i.e. per-project — matched here by the *project*-scoped [PropertiesComponent]).
  *
  * Keys mirror the VS Code constants 1:1 so the persisted shape stays comparable
- * across hosts. The snapshot crosses the RPC boundary as the bridge's
- * `deploymentState/seed` param; setters back the `deploymentState/save*` handlers.
- * Secrets are out of scope — they live in [IntellijSecretStore] / PasswordSafe.
+ * across hosts. The stored values cross the RPC boundary as the bridge's
+ * `deploymentState/seed` param, and [applyPatch] backs `deploymentState/save`.
+ * The core owns the defaults and the shape, so nothing here fills in a missing
+ * value. Secrets are out of scope — they live in [IntellijSecretStore] / PasswordSafe.
  */
 @Service(Service.Level.PROJECT)
 class IntellijDeploymentState(private val project: Project) {
     private val props get() = PropertiesComponent.getInstance(project)
 
-    /** The snapshot shaped exactly as the bridge's `DeploymentStateSnapshot` seed param. */
+    /** What the project stores, keyed as the core's `DeploymentState`; a key never written is absent. */
     fun snapshotMap(): Map<String, Any> =
-        linkedMapOf(
-            "endpoint" to props.getValue(ENDPOINT, ""),
-            "tenantId" to props.getValue(TENANT_ID, ""),
-            "authType" to props.getValue(AUTH_TYPE, "none"),
-            "tokenEndpoint" to props.getValue(TOKEN_ENDPOINT, ""),
-            "audience" to props.getValue(AUDIENCE, ""),
-            "activeTargetName" to props.getValue(ACTIVE_TARGET, ""),
-            "ledger" to readLedger(),
-        )
+        buildMap {
+            for ((field, key) in FIELD_KEYS) props.getValue(key)?.let { put(field, it) }
+            props.getValue(LEDGER)?.let { put("ledger", parseLedger(it)) }
+        }
 
-    fun saveActiveTargetName(name: String) = props.setValue(ACTIVE_TARGET, name, "")
-
-    /** Upserts one ledger entry (target×file → deployed revision), persisted as JSON. */
-    fun saveDeployedRevision(ledgerKey: String, revision: JsonElement) {
-        val ledger = readLedger()
-        ledger.add(ledgerKey, revision)
-        props.setValue(LEDGER, ledger.toString(), EMPTY_LEDGER)
+    /**
+     * Writes exactly the fields and ledger rows the core's `DeploymentStatePatch`
+     * names. Like the core, a ledger patch removes before it puts.
+     */
+    fun applyPatch(patch: JsonObject) {
+        for ((field, key) in FIELD_KEYS) {
+            val value = patch.get(field) ?: continue
+            if (value.isJsonPrimitive) props.setValue(key, value.asString)
+        }
+        val ledgerPatch = patch.get("ledger")?.takeIf(JsonElement::isJsonObject)?.asJsonObject ?: return
+        val ledger = props.getValue(LEDGER)?.let(::parseLedger) ?: JsonObject()
+        ledgerPatch.get("remove")?.takeIf(JsonElement::isJsonArray)?.asJsonArray?.forEach {
+            ledger.remove(it.asString)
+        }
+        ledgerPatch.get("put")?.takeIf(JsonElement::isJsonObject)?.asJsonObject?.entrySet()?.forEach {
+            (ledgerKey, revision) -> ledger.add(ledgerKey, revision)
+        }
+        props.setValue(LEDGER, ledger.toString())
     }
 
-    /** Drops ledger entries (target prune / engine reports "not deployed"). */
-    fun deleteDeployedRevisions(ledgerKeys: List<String>) {
-        val ledger = readLedger()
-        ledgerKeys.forEach { ledger.remove(it) }
-        props.setValue(LEDGER, ledger.toString(), EMPTY_LEDGER)
-    }
-
-    private fun readLedger(): JsonObject =
-        runCatching { JsonParser.parseString(props.getValue(LEDGER, EMPTY_LEDGER)).asJsonObject }
-            .getOrElse { JsonObject() }
-
-    fun saveAuthType(authType: String) = props.setValue(AUTH_TYPE, authType, "none")
-
-    fun saveOAuth2Config(tokenEndpoint: String, audience: String) {
-        props.setValue(TOKEN_ENDPOINT, tokenEndpoint, "")
-        props.setValue(AUDIENCE, audience, "")
-    }
-
-    fun save(endpoint: String, tenantId: String) {
-        props.setValue(ENDPOINT, endpoint, "")
-        props.setValue(TENANT_ID, tenantId, "")
-    }
+    private fun parseLedger(stored: String): JsonObject =
+        runCatching { JsonParser.parseString(stored).asJsonObject }.getOrElse { JsonObject() }
 
     companion object {
         fun getInstance(project: Project): IntellijDeploymentState =
             project.getService(IntellijDeploymentState::class.java)
 
         // Mirror the VS Code `bpmn-modeler.deployment.*` workspaceState keys.
-        private const val ENDPOINT = "bpmn-modeler.deployment.endpoint"
-        private const val TENANT_ID = "bpmn-modeler.deployment.tenantId"
-        private const val AUTH_TYPE = "bpmn-modeler.deployment.authType"
-        private const val TOKEN_ENDPOINT = "bpmn-modeler.deployment.tokenEndpoint"
-        private const val AUDIENCE = "bpmn-modeler.deployment.audience"
-        private const val ACTIVE_TARGET = "bpmn-modeler.deployment.activeTargetName"
+        private val FIELD_KEYS =
+            linkedMapOf(
+                "endpoint" to "bpmn-modeler.deployment.endpoint",
+                "tenantId" to "bpmn-modeler.deployment.tenantId",
+                "authType" to "bpmn-modeler.deployment.authType",
+                "tokenEndpoint" to "bpmn-modeler.deployment.tokenEndpoint",
+                "audience" to "bpmn-modeler.deployment.audience",
+                "activeTargetName" to "bpmn-modeler.deployment.activeTargetName",
+            )
         private const val LEDGER = "bpmn-modeler.deployment.ledger"
-        private const val EMPTY_LEDGER = "{}"
     }
 }

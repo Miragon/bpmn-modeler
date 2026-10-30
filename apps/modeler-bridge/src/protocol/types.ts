@@ -11,18 +11,19 @@
  */
 
 import {
-    DeployedRevision,
     DeploymentFreshness,
+    DeploymentStatePatch,
     GlobalFunctionDef,
     MethodDef,
+    RawDeploymentState,
     RawModelerSettings,
     StatusSlot,
     StatusView,
 } from "@miragon/bpmn-modeler-core";
-import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, Engine, VariableDef } from "@miragon/bpmn-modeler-types";
 
-import { DeploymentStateSnapshot, SessionMeta } from "../adapters";
+import { SessionMeta } from "../adapters";
 
 /**
  * `session/register` — the editor identity/meta plus the initial document
@@ -99,9 +100,12 @@ export interface DiffDisposeParams {
     diffId: string;
 }
 
-/** `deploymentState/seed` — the host seeds the deployment-form mirror. */
+/**
+ * `deploymentState/seed` — the host seeds the deployment-state mirror with what
+ * it stored; the core fills in the defaults.
+ */
 export interface DeploymentSeedParams {
-    state: Partial<DeploymentStateSnapshot>;
+    state: RawDeploymentState;
 }
 
 /** `deployment/webviewMessage` — a webview {@link Command} from the deployment panel. */
@@ -307,7 +311,7 @@ export interface SecretSaveApprovedDestinationsParams {
 /**
  * `marketplaceState/save` — the host persists the added registration and fans the
  * new snapshot to every open bridge. No result: the host acks an empty reply and
- * the core awaits only the round-trip (like `deploymentState/save*`).
+ * the core awaits only the round-trip (like `deploymentState/save`).
  *
  * `scope` is echoed straight back from {@link MarketplaceAddParams} — the bridge
  * never interprets it; only the host knows what its scopes mean. Absent =
@@ -406,37 +410,12 @@ export interface DiffPostMessageParams {
     message: unknown;
 }
 
-/** `deploymentState/saveAuthType` — persist the chosen auth type. */
-export interface DeploymentSaveAuthTypeParams {
-    authType: AuthTypePayload;
-}
-
-/** `deploymentState/saveOAuth2Config` — persist the OAuth2 endpoint/audience. */
-export interface DeploymentSaveOAuth2ConfigParams {
-    tokenEndpoint: string;
-    audience: string;
-}
-
-/** `deploymentState/save` — persist the endpoint/tenant pair. */
+/**
+ * `deploymentState/save` — persist exactly the fields and ledger rows the patch
+ * names; the host acks an empty reply.
+ */
 export interface DeploymentSaveParams {
-    endpoint: string;
-    tenantId: string;
-}
-
-/** `deploymentState/saveActiveTarget` — persist the active deployment-target name. */
-export interface DeploymentSaveActiveTargetParams {
-    name: string;
-}
-
-/** `deploymentState/saveDeployedRevision` — persist one ledger entry (target×file). */
-export interface DeploymentSaveDeployedRevisionParams {
-    ledgerKey: string;
-    revision: DeployedRevision;
-}
-
-/** `deploymentState/deleteDeployedRevisions` — drop ledger entries (prune / engine says "not deployed"). */
-export interface DeploymentDeleteDeployedRevisionsParams {
-    ledgerKeys: string[];
+    patch: DeploymentStatePatch;
 }
 
 /**

@@ -121,7 +121,7 @@ async function expectNothingPersisted(c: ReturnType<typeof createService>) {
     expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith());
     await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
     await expect(c.host.secrets.getOAuth2(slot("dev"))).resolves.toBeUndefined();
-    expect(c.host.deploymentState.activeTargetName).toBe("");
+    expect(c.host.deploymentState.load().activeTargetName).toBe("");
 }
 
 describe("DeploymentTargetService.locateTargetsFile", () => {
@@ -279,7 +279,7 @@ describe("DeploymentTargetService.openTargetsFile", () => {
 describe("DeploymentTargetService.saveTarget", () => {
     async function seedOldTarget(c: ReturnType<typeof createService>) {
         await c.host.secrets.saveBasicAuth("old-user", "old-pass", slot("old"));
-        c.host.deploymentState.activeTargetName = "old";
+        c.host.deploymentState.seed({ activeTargetName: "old" });
     }
 
     async function expectOldTargetUntouched(c: ReturnType<typeof createService>) {
@@ -287,7 +287,7 @@ describe("DeploymentTargetService.saveTarget", () => {
             username: "old-user",
             password: "old-pass",
         });
-        expect(c.host.deploymentState.activeTargetName).toBe("old");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("old");
     }
 
     it.each(["{ broken", JSON.stringify({ targets: [{ name: "broken" }] })])(
@@ -347,7 +347,7 @@ describe("DeploymentTargetService.saveTarget", () => {
         { name: "new", endpoint: " " },
     ])("rejects invalid input before writing: %j", async (fields) => {
         const c = createService();
-        c.host.deploymentState.activeTargetName = "old";
+        c.host.deploymentState.seed({ activeTargetName: "old" });
         await expect(
             c.service.saveTarget(
                 { ...fields, engine: "c7", tenantId: "", authType: "basic" },
@@ -358,7 +358,7 @@ describe("DeploymentTargetService.saveTarget", () => {
         ).rejects.toThrow();
         expect(c.host.workspace.files.size).toBe(0);
         await expect(c.host.secrets.getBasicAuth(slot(fields.name))).resolves.toBeUndefined();
-        expect(c.host.deploymentState.activeTargetName).toBe("old");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("old");
     });
 
     it.each([
@@ -413,7 +413,7 @@ describe("DeploymentTargetService.saveTarget", () => {
             username: "u",
             password: "p",
         });
-        expect(c.host.deploymentState.activeTargetName).toBe("dev");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
     });
 
     it.each(["${env:MIRAGON_CAMUNDA_PASSWORD}", "  ${env:MIRAGON_CAMUNDA_PASSWORD} "])(
@@ -741,7 +741,7 @@ describe("DeploymentTargetService.createTarget", () => {
             username: "u",
             password: "p",
         });
-        expect(c.host.deploymentState.activeTargetName).toBe("dev");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
     });
 
     it("throws and writes nothing when the name already exists", async () => {
@@ -764,7 +764,7 @@ describe("DeploymentTargetService.createTarget", () => {
         ).rejects.toThrow(/already exists/);
         expect(c.host.workspace.files.get(FILE_PATH)).toBe(existing);
         await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
-        expect(c.host.deploymentState.activeTargetName).toBe("");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("");
     });
 
     it("writes a padded whole-value credential ref to the JSON trimmed and stores it as typed", async () => {
@@ -807,7 +807,7 @@ describe("DeploymentTargetService.deleteTarget", () => {
             files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
         });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-        c.host.deploymentState.activeTargetName = "dev";
+        c.host.deploymentState.seed({ activeTargetName: "dev" });
         await c.host.secrets.saveBasicAuth("u", "p", slot("dev"));
 
         await c.service.deleteTarget("dev", DOC_DIR);
@@ -815,7 +815,7 @@ describe("DeploymentTargetService.deleteTarget", () => {
         const written = c.host.workspace.files.get(FILE_PATH);
         expect(written).not.toContain('"dev"');
         await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
-        expect(c.host.deploymentState.activeTargetName).toBe("");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("");
     });
 
     it("returns a removed change carrying the deleted target", async () => {
@@ -845,7 +845,7 @@ describe("DeploymentTargetService.getActiveTarget", () => {
     it("returns undefined for a dangling active name", async () => {
         const c = createService({ files: { [FILE_PATH]: fileWith(target("dev")) } });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-        c.host.deploymentState.activeTargetName = "gone";
+        c.host.deploymentState.seed({ activeTargetName: "gone" });
 
         expect(await c.service.getActiveTarget(DOC_DIR)).toBeUndefined();
     });
@@ -856,9 +856,8 @@ describe("DeploymentTargetService.getActiveDestination", () => {
 
     function serviceRemembering(activeTargetName: string) {
         const c = serviceWithTargetsFile(fileWith(target("dev")));
-        c.host.deploymentState.endpoint = remembered.endpoint;
-        c.host.deploymentState.tenantId = remembered.tenantId;
-        c.host.deploymentState.activeTargetName = activeTargetName;
+        const { endpoint, tenantId } = remembered;
+        c.host.deploymentState.seed({ endpoint, tenantId, activeTargetName });
         return c;
     }
 
@@ -897,11 +896,11 @@ describe("DeploymentTargetService.getActiveDestination", () => {
 describe("DeploymentTargetService.switchActiveTarget", () => {
     it("is a no-op on dismissal", async () => {
         const c = createService();
-        c.host.deploymentState.activeTargetName = "prod";
+        c.host.deploymentState.seed({ activeTargetName: "prod" });
 
         await c.service.switchActiveTarget(DOC_DIR);
 
-        expect(c.host.deploymentState.activeTargetName).toBe("prod");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("prod");
     });
 
     it("persists the picked target", async () => {
@@ -913,7 +912,7 @@ describe("DeploymentTargetService.switchActiveTarget", () => {
 
         await c.service.switchActiveTarget(DOC_DIR);
 
-        expect(c.host.deploymentState.activeTargetName).toBe("dev");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
     });
 });
 
@@ -930,7 +929,7 @@ describe("DeploymentTargetService.onDidChange", () => {
             answers,
         });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-        c.host.deploymentState.activeTargetName = "dev";
+        c.host.deploymentState.seed({ activeTargetName: "dev" });
         const events: DeploymentTargetsEvent[] = [];
         c.service.onDidChange((event) => void events.push(event));
         return { ...c, events };
