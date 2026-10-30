@@ -90,20 +90,13 @@ components are rejected rather than widening CSP; form actions are blocked.
 The optional availability-known hook distinguishes a pending index from an empty
 one; an unavailable preview request renders status only, without reading a file.
 
-**Consequences.** Confirmed unavailable references and automatic schema/import
-failures show a localized, accessible anchored status indicator, without a broken
-form panel, pickers or focus changes. Unavailable references hide the preview
-action; tasks without references and the pending initial index show nothing.
-The index cannot distinguish missing from malformed JSON, so its indicator names
-both possibilities without another scan or read. Resolution replaces the indicator
-with the automatic preview unless dismissed. Explicit reopen and Refresh show localized,
-nonblocking, retryable errors with no stale successful content—even when the
-panel originally opened automatically. Picker
-cancellation is quiet; cancelling Refresh leaves the existing panel empty and
-retryable, without a stale success message. Explicit requests survive availability
-updates so pending results can supply actionable feedback. The separate
-form-editor action remains available.
-Selection changes and disposal invalidate pending work. Enforcement lives in
+**Consequences.** Automatic adjacency keeps the saved form in context but competes
+with diagram space; obstacle-aware placement can constrain the scrollable preview.
+Saved-byte resolution avoids coupling to open form editors at the cost of not
+reflecting unsaved changes. The index cannot distinguish missing from malformed
+JSON, so lightweight feedback names both without another scan. Explicit attempts
+retain retryable feedback rather than inheriting automatic failure handling.
+The optional port keeps form-js and IDE transport out of embedders. Enforcement lives in
 `FormPreviewService.spec.ts`, preview reducer/webview specs and focused
 packaged-extension smoke scenarios.
 

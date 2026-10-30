@@ -17,6 +17,13 @@ function task(id = "Form_1") {
     };
 }
 function setup(available = true) {
+    const elements: Array<
+        ReturnType<typeof task> & {
+            parent?: object;
+            hidden?: boolean;
+            waypoints?: Array<{ x: number; y: number }>;
+        }
+    > = [];
     const handlers = new Map<string, Array<(event?: unknown) => void>>();
     const fire = (name: string, event?: unknown) => handlers.get(name)?.forEach((fn) => fn(event));
     const selected: ReturnType<typeof task>[] = [];
@@ -46,7 +53,12 @@ function setup(available = true) {
             getBoundingClientRect: () => ({ x: 50, y: 60, width: 800, height: 600 }),
             querySelector: () => null,
         }),
-        getAbsoluteBBox: () => ({ x: 100, y: 200, width: 100, height: 80 }),
+        getAbsoluteBBox: vi.fn(
+            (element?: { x?: number; y?: number; width?: number; height?: number }) =>
+                element?.x !== undefined
+                    ? (element as { x: number; y: number; width: number; height: number })
+                    : { x: 100, y: 200, width: 100, height: 80 },
+        ),
         focus: vi.fn(),
     };
     const controller = new FormPreviewController(
@@ -62,6 +74,7 @@ function setup(available = true) {
         contextPad,
         port,
         { isResolved: () => port.isReferenceAvailable() },
+        { getAll: () => elements },
     );
     const select = (...elements: ReturnType<typeof task>[]) => {
         selected.splice(0, selected.length, ...elements);
@@ -69,6 +82,7 @@ function setup(available = true) {
     };
     return {
         controller,
+        elements,
         select,
         fire,
         open,
@@ -82,6 +96,55 @@ function setup(available = true) {
 }
 
 describe("automatic linked form preview", () => {
+    it("uses narrow boxes for each bent flow segment instead of its enclosing box", () => {
+        const fixture = setup();
+        const root = task();
+        const target = { ...task(), parent: root };
+        fixture.elements.push({
+            ...task(),
+            parent: root,
+            waypoints: [
+                { x: 200, y: 140 },
+                { x: 300, y: 140 },
+                { x: 300, y: 400 },
+            ],
+        });
+        fixture.select(target);
+        expect(fixture.open.mock.calls[0][0].anchor().obstacles).toEqual([
+            { x: 248, y: 198, width: 104, height: 4 },
+            { x: 348, y: 198, width: 4, height: 264 },
+        ]);
+    });
+    it("anchors obstacles in viewport coordinates, excluding ancestors, hidden and inactive shapes", () => {
+        const fixture = setup();
+        const root = task();
+        const lane = {
+            ...task(),
+            type: "bpmn:Lane",
+            parent: root,
+            x: 50,
+            y: 150,
+            width: 600,
+            height: 250,
+        };
+        const target = { ...task(), parent: root };
+        const successor = { ...task(), parent: root };
+        const label = { ...task(), parent: root };
+        fixture.elements.push(
+            root,
+            lane,
+            target,
+            successor,
+            label,
+            { ...task(), parent: root, hidden: true },
+            { ...task(), parent: task() },
+        );
+        fixture.select(target);
+        expect(fixture.open.mock.calls[0][0].anchor().obstacles).toEqual([
+            { x: 150, y: 260, width: 100, height: 80 },
+            { x: 150, y: 260, width: 100, height: 80 },
+        ]);
+    });
     it("keeps explicit refresh errors retryable when the index changes", () => {
         const { select, open, handles, port, availabilityChanged } = setup();
         select(task());
@@ -163,6 +226,14 @@ describe("automatic linked form preview", () => {
     it("observes container resize, accepts optional availability hooks, and exposes canvas focus", () => {
         const handlers = new Map<string, (event?: unknown) => void>();
         let resized = () => {};
+        let frame = () => {};
+        const schedule = vi.fn((callback: () => void) => {
+            frame = callback;
+            return 1;
+        });
+        const cancel = vi.fn();
+        vi.stubGlobal("requestAnimationFrame", schedule);
+        vi.stubGlobal("cancelAnimationFrame", cancel);
         const observe = vi.fn();
         const disconnect = vi.fn();
         vi.stubGlobal(
@@ -195,6 +266,7 @@ describe("automatic linked form preview", () => {
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn(), formPreview: { open } },
             { isResolved: () => true },
+            { getAll: () => [] },
         );
         controller.openManual(task());
         handlers.get("selection.changed")!();
@@ -203,11 +275,18 @@ describe("automatic linked form preview", () => {
         request.focusCanvas();
         expect(focus).toHaveBeenCalledOnce();
         request.onVisibilityChanged(true);
+        handlers.get("canvas.resized")!();
         resized();
+        resized();
+        expect(schedule).toHaveBeenCalledOnce();
+        expect(handle.reposition).not.toHaveBeenCalled();
+        frame();
         expect(handle.reposition).toHaveBeenCalledOnce();
         expect(observe).toHaveBeenCalledWith(container);
+        resized();
         handlers.get("diagram.destroy")!();
         expect(disconnect).toHaveBeenCalledOnce();
+        expect(cancel).toHaveBeenCalledWith(1);
     });
     it("leaves hosts without the anchored capability unchanged", () => {
         const callbacks: Array<() => void> = [];
@@ -226,6 +305,7 @@ describe("automatic linked form preview", () => {
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn() },
             { isResolved: () => true },
+            { getAll: () => [] },
         );
         callbacks.forEach((fn) => fn());
         expect(canvas.focus).not.toHaveBeenCalled();
@@ -297,13 +377,12 @@ describe("automatic linked form preview", () => {
         select(task());
         for (const name of [
             "canvas.viewbox.changed",
-            "canvas.resized",
             "elements.changed",
             "element.changed",
             "contextPad.open",
         ])
             fire(name);
-        expect(handles[0].reposition).toHaveBeenCalledTimes(5);
+        expect(handles[0].reposition).toHaveBeenCalledTimes(4);
         fire("diagram.destroy");
         expect(handles[0].close).toHaveBeenCalled();
         expect(unsubscribe).toHaveBeenCalledOnce();

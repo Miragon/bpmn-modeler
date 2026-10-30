@@ -439,6 +439,18 @@ describe("the packaged extension in a real VS Code", () => {
                 a.y + a.height > b.y;
             expect(overlaps(box!, task!)).toBe(false);
             expect(overlaps(box!, pad!)).toBe(false);
+            expect(
+                await preview()
+                    .locator(".linked-form-preview-content")
+                    .evaluate((node) => node.clientHeight),
+            ).toBeGreaterThan(0);
+            for (const id of ["Task_Missing", "Task_Unlinked", "Flow_1", "Flow_2"]) {
+                const neighbor = await webview
+                    .locator(`.djs-element[data-element-id="${id}"]`)
+                    .boundingBox();
+                expect(neighbor).not.toBeNull();
+                expect(overlaps(box!, neighbor!)).toBe(false);
+            }
             const gapX = Math.min(
                 Math.abs(box!.x - task!.x - task!.width),
                 Math.abs(task!.x - box!.x - box!.width),
@@ -520,6 +532,133 @@ describe("the packaged extension in a real VS Code", () => {
                     .evaluate((node) => node === document.activeElement),
             ).toBe(true);
             expectNoCspViolations();
+        });
+
+        it("leaves neighboring tasks clickable while open and keeps missing indicators stable without resize errors", async () => {
+            await webview.locator("body").evaluate(() => {
+                const errors: string[] = [];
+                Object.assign(window, { previewResizeErrors: errors });
+                window.addEventListener("error", (event) => {
+                    if (event.message.includes("ResizeObserver")) errors.push(event.message);
+                });
+            });
+            for (const theme of COLOR_THEMES) {
+                await vscode().setColorTheme(theme.name);
+                for (const id of ["Task_Missing", "Task_Unlinked", "Task_Missing"]) {
+                    await selectLinked();
+                    await assertAnchored();
+                    // Playwright's real click must reach the SVG, not the preview overlay.
+                    await selectElement(webview, id);
+                    await webview.locator(`.djs-shape.selected[data-element-id="${id}"]`).waitFor();
+                    if (id === "Task_Missing") {
+                        const indicator = webview.locator(".linked-form-preview-indicator");
+                        await indicator.waitFor();
+                        for (const motion of [
+                            { deltaX: 20, deltaY: 0, ctrlKey: false },
+                            { deltaX: 0, deltaY: -100, ctrlKey: true },
+                            { deltaX: 0, deltaY: 100, ctrlKey: true },
+                            { deltaX: -20, deltaY: 0, ctrlKey: false },
+                        ]) {
+                            await webview
+                                .locator(".djs-container > svg")
+                                .evaluate((node, motion) => {
+                                    const box = node.getBoundingClientRect();
+                                    node.dispatchEvent(
+                                        new WheelEvent("wheel", {
+                                            bubbles: true,
+                                            cancelable: true,
+                                            clientX: box.x + box.width / 2,
+                                            clientY: box.y + box.height / 2,
+                                            ...motion,
+                                        }),
+                                    );
+                                }, motion);
+                            await settle(webview);
+                        }
+                        const stable = await indicator.evaluate(async (node) => {
+                            const measurements: string[] = [];
+                            for (let frame = 0; frame < 12; frame++) {
+                                await new Promise(requestAnimationFrame);
+                                measurements.push(
+                                    JSON.stringify(node.getBoundingClientRect().toJSON()),
+                                );
+                            }
+                            return new Set(measurements.slice(4)).size;
+                        });
+                        expect(stable).toBe(1);
+                    }
+                }
+            }
+            expect(
+                await webview
+                    .locator("body")
+                    .evaluate(
+                        () =>
+                            (window as unknown as { previewResizeErrors: string[] })
+                                .previewResizeErrors,
+                    ),
+            ).toEqual([]);
+        });
+
+        it("keeps a usable scrolling form viewport and converges in constrained space", async () => {
+            const schema = JSON.parse(original);
+            schema.components = Array.from({ length: 12 }, (_, index) => ({
+                ...schema.components[0],
+                id: `Field_${index}`,
+                key: `field${index}`,
+                layout: { row: `Row_${index}`, columns: null },
+            }));
+            await writeFile(file, JSON.stringify(schema));
+            await webview.locator("body").evaluate(() => {
+                const errors: string[] = [];
+                Object.assign(window, { previewResizeErrors: errors });
+                window.addEventListener("error", (event) => {
+                    if (event.message.includes("ResizeObserver")) errors.push(event.message);
+                });
+            });
+            await selectLinked();
+            await preview()
+                .locator(".linked-form-preview-content")
+                .evaluate((content) => {
+                    const panel = content.closest<HTMLElement>(".linked-form-preview")!;
+                    const canvas = document.querySelector<HTMLElement>(
+                        "#js-canvas .djs-container",
+                    )!;
+                    const task = document
+                        .querySelector('[data-element-id="Task_Linked"]')!
+                        .getBoundingClientRect();
+                    const pad = document
+                        .querySelector(".djs-context-pad.open")!
+                        .getBoundingClientRect();
+                    const chrome = panel.getBoundingClientRect().height - content.clientHeight;
+                    canvas.style.height = `${Math.max(task.bottom, pad.bottom) - canvas.getBoundingClientRect().top + 12 + chrome + 96 + 8}px`;
+                });
+            await settle(webview);
+            await assertAnchored();
+            const geometry = await preview().evaluate(async (node) => {
+                const content = node.querySelector<HTMLElement>(".linked-form-preview-content")!;
+                const measurements: string[] = [];
+                for (let frame = 0; frame < 16; frame++) {
+                    await new Promise(requestAnimationFrame);
+                    measurements.push(
+                        JSON.stringify({
+                            box: node.getBoundingClientRect().toJSON(),
+                            height: content.clientHeight,
+                        }),
+                    );
+                }
+                return {
+                    usableHeight: content.clientHeight,
+                    scrollHeight: content.scrollHeight,
+                    stable: new Set(measurements.slice(6)).size,
+                    errors: (window as unknown as { previewResizeErrors: string[] })
+                        .previewResizeErrors,
+                };
+            });
+            expect(geometry.usableHeight).toBeGreaterThanOrEqual(64);
+            expect(geometry.scrollHeight).toBeGreaterThan(geometry.usableHeight);
+            expect(geometry.stable).toBe(1);
+            expect(geometry.errors).toEqual([]);
         });
 
         it("follows pan and zoom without covering task actions", async () => {

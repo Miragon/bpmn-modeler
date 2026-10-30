@@ -20,6 +20,8 @@ export interface FormPreviewAnchor {
     task: PreviewRect;
     canvas: PreviewRect;
     contextPad?: PreviewRect;
+    /** Visible diagram shapes, labels and narrow connection segments in viewport coordinates. */
+    obstacles?: PreviewRect[];
 }
 export interface FormPreviewRequest {
     id: string;

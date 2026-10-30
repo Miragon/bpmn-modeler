@@ -35,8 +35,12 @@ export function createFormPreview(
         let visible = false;
         let viewer: PreviewViewer | undefined;
         let indicator = false;
+        let frame: number | undefined;
+        let measuredHeight = 0;
+        let minimumHeight = 0;
         const panel = document.createElement("div");
         panel.className = "linked-form-preview";
+        panel.style.width = "340px";
         panel.setAttribute("role", "region");
         panel.innerHTML =
             '<header><h2></h2><button type="button" data-refresh></button><button type="button" data-close>×</button></header><p data-description></p><p role="status" aria-live="polite"></p><div class="linked-form-preview-content"></div>';
@@ -85,32 +89,64 @@ export function createFormPreview(
         }
         function reposition(): void {
             if (closed || !panel.isConnected) return;
+            const style = getComputedStyle(panel);
+            const number = (value: string) => parseFloat(value) || 0;
+            const chrome = ["header", "[data-description]", '[role="status"]'].map((selector) => {
+                const node = panel.querySelector<HTMLElement>(selector)!;
+                const css = getComputedStyle(node);
+                return node.hidden
+                    ? 0
+                    : Math.max(node.offsetHeight, node.scrollHeight) +
+                          number(css.marginTop) +
+                          number(css.marginBottom);
+            });
+            const chromeHeight =
+                (indicator ? Math.max(...chrome) : chrome.reduce((a, b) => a + b, 0)) +
+                number(style.paddingTop) +
+                number(style.paddingBottom) +
+                number(style.borderTopWidth) +
+                number(style.borderBottomWidth);
+            if (!panel.hidden) {
+                measuredHeight = chromeHeight + (indicator ? 0 : content.scrollHeight);
+                minimumHeight = chromeHeight + (viewer ? 64 : 0);
+            }
             const position = positionFormPreview(
                 request.anchor(),
                 340,
-                Math.max(
-                    indicator ? 48 : 120,
-                    panel.scrollHeight -
-                        content.clientHeight +
-                        content.scrollHeight +
-                        (indicator ? panel.offsetHeight - panel.clientHeight : 0),
-                ),
+                Math.max(indicator ? 48 : 120, measuredHeight, minimumHeight),
+                minimumHeight,
             );
-            panel.hidden = !position;
+            if (panel.hidden !== !position) panel.hidden = !position;
             if (position) {
-                panel.style.left = `${position.left}px`;
-                panel.style.top = `${position.top}px`;
-                panel.style.width = `${position.width}px`;
-                panel.style.maxHeight = `${position.maxHeight}px`;
+                for (const [key, value] of Object.entries({
+                    left: position.left,
+                    top: position.top,
+                    width: position.width,
+                    maxHeight: position.maxHeight,
+                })) {
+                    const property = key as "left" | "top" | "width" | "maxHeight";
+                    if (panel.style[property] !== `${value}px`)
+                        panel.style[property] = `${value}px`;
+                }
             }
             setVisible(Boolean(position));
         }
+        function scheduleReposition(): void {
+            if (closed || frame !== undefined) return;
+            frame = requestAnimationFrame(() => {
+                frame = undefined;
+                reposition();
+            });
+        }
         const observer =
-            typeof ResizeObserver !== "undefined" ? new ResizeObserver(reposition) : undefined;
+            typeof ResizeObserver !== "undefined"
+                ? new ResizeObserver(scheduleReposition)
+                : undefined;
         function close(): void {
             closed = true;
             generation++;
             observer?.disconnect();
+            if (frame !== undefined) cancelAnimationFrame(frame);
             unsubscribe();
             window.removeEventListener("resize", reposition);
             panel.remove();
@@ -179,7 +215,6 @@ export function createFormPreview(
                 viewer = importing;
                 importing = undefined;
                 content.replaceChildren(mount);
-                panel.style.width = "340px";
                 show("Saved form loaded.");
                 if (!automatic && !panel.hidden) closeButton.focus();
             } catch (error) {

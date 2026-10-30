@@ -23,6 +23,7 @@ vi.mock("@bpmn-io/form-js-viewer", () => ({
     },
 }));
 afterEach(() => {
+    vi.unstubAllGlobals();
     i18n.setLanguage("en");
     document.body.replaceChildren();
     vi.clearAllMocks();
@@ -67,6 +68,115 @@ const loaded = () => {
 const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
 
 describe("anchored linked form preview", () => {
+    it("does not display a loaded form when only its chrome would fit", async () => {
+        const { preview } = setup();
+        let height = 300;
+        const options = request({
+            anchor: () => ({
+                canvas: { x: 0, y: 0, width: 500, height },
+                task: { x: 100, y: 60, width: 100, height: 80 },
+                contextPad: { x: 210, y: 50, width: 80, height: 150 },
+                obstacles: [{ x: 320, y: 60, width: 100, height: 80 }],
+            }),
+        });
+        const handle = preview.open(options);
+        await vi.waitFor(loaded);
+        const node = panel()!;
+        Object.defineProperty(node.querySelector("header"), "offsetHeight", { get: () => 100 });
+        Object.defineProperty(node.querySelector(".linked-form-preview-content"), "scrollHeight", {
+            get: () => 500,
+        });
+        handle.reposition();
+        expect(node.hidden).toBe(true);
+        expect(options.onVisibilityChanged).toHaveBeenLastCalledWith(false);
+        height = 600;
+        handle.reposition();
+        expect(node.hidden).toBe(false);
+        expect(parseFloat(node.style.maxHeight)).toBeGreaterThanOrEqual(164);
+        preview.dispose();
+    });
+    it("retains intrinsic height while hidden instead of oscillating with zero-size measurements", () => {
+        const { preview } = setup();
+        const handle = preview.open(
+            request({
+                unavailable: true,
+                anchor: () => ({
+                    canvas: { x: 0, y: 0, width: 600, height: 200 },
+                    task: { x: 1000, y: 100, width: 100, height: 80 },
+                    obstacles: [{ x: 0, y: 70, width: 600, height: 130 }],
+                }),
+            }),
+        );
+        const node = document.querySelector<HTMLElement>(".linked-form-preview")!;
+        const status = node.querySelector<HTMLElement>('[role="status"]')!;
+        Object.defineProperty(status, "offsetHeight", { get: () => (node.hidden ? 0 : 140) });
+        handle.reposition();
+        expect(node.hidden).toBe(true);
+        for (let frame = 0; frame < 5; frame++) {
+            handle.reposition();
+            expect(node.hidden).toBe(true);
+        }
+        preview.dispose();
+    });
+    it("coalesces observer writes into one frame and cancels queued work on close", () => {
+        let resized = () => {};
+        vi.stubGlobal(
+            "ResizeObserver",
+            class {
+                constructor(callback: () => void) {
+                    resized = callback;
+                }
+                observe = vi.fn();
+                disconnect = vi.fn();
+            },
+        );
+        const frames = new Map<number, FrameRequestCallback>();
+        let next = 0;
+        const schedule = vi.fn((callback: FrameRequestCallback) => {
+            frames.set(++next, callback);
+            return next;
+        });
+        const cancel = vi.fn((id: number) => frames.delete(id));
+        vi.stubGlobal("requestAnimationFrame", schedule);
+        vi.stubGlobal("cancelAnimationFrame", cancel);
+        const { preview } = setup();
+        let x = 100;
+        preview.open(
+            request({
+                unavailable: true,
+                anchor: () => ({
+                    canvas: { x: 0, y: 0, width: 1200, height: 800 },
+                    task: { x, y: 100, width: 100, height: 80 },
+                }),
+            }),
+        );
+        const node = document.querySelector<HTMLElement>(".linked-form-preview")!;
+        const before = node.style.left;
+        x = 200;
+        resized();
+        resized();
+        expect(node.style.left).toBe(before);
+        expect(schedule).toHaveBeenCalledOnce();
+        const callback = frames.get(next)!;
+        frames.delete(next);
+        callback(0);
+        expect(node.style.left).not.toBe(before);
+        // Border-box feedback used to add the indicator's border on every resize.
+        Object.defineProperties(node, {
+            offsetHeight: { get: () => parseFloat(node.style.maxHeight) },
+            clientHeight: { get: () => parseFloat(node.style.maxHeight) - 4 },
+            scrollHeight: { get: () => parseFloat(node.style.maxHeight) - 4 },
+        });
+        const mutations = new MutationObserver(() => {});
+        mutations.observe(node, { attributes: true });
+        resized();
+        frames.get(next)!(0);
+        expect(mutations.takeRecords()).toHaveLength(0);
+        mutations.disconnect();
+        resized();
+        preview.dispose();
+        expect(cancel).toHaveBeenCalled();
+    });
     it("dismisses an indicator with Escape without leaking the key to the canvas", () => {
         const { preview } = setup();
         const options = request({ unavailable: true });

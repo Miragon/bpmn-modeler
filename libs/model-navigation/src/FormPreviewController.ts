@@ -11,6 +11,13 @@ import {
 
 interface PreviewElement {
     businessObject?: BusinessObjectLike;
+    parent?: PreviewElement;
+    hidden?: boolean;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    waypoints?: Array<{ x: number; y: number }>;
 }
 interface EventBus {
     on(event: string, callback: (event?: unknown) => void): void;
@@ -39,6 +46,7 @@ export class FormPreviewController {
         "contextPad",
         "modelNavigationPort",
         "formReferenceStatusClient",
+        "elementRegistry",
     ];
     private state: FormPreviewState<PreviewElement> = {
         dismissed: false,
@@ -57,7 +65,16 @@ export class FormPreviewController {
         private readonly contextPad: ContextPad,
         private readonly port: ModelNavigationPort,
         private readonly status: Pick<FormReferenceStatusClient, "isResolved">,
+        private readonly elementRegistry: { getAll(): PreviewElement[] },
     ) {
+        let frame: number | undefined;
+        const scheduleReposition = () => {
+            if (this.disposed || !this.handle || frame !== undefined) return;
+            frame = requestAnimationFrame(() => {
+                frame = undefined;
+                this.handle?.reposition();
+            });
+        };
         eventBus.on("selection.changed", () => this.update());
         for (const name of ["elements.changed", "element.changed"]) {
             eventBus.on(name, () => {
@@ -65,13 +82,15 @@ export class FormPreviewController {
                 this.handle?.reposition();
             });
         }
-        for (const name of ["canvas.viewbox.changed", "canvas.resized", "contextPad.open"]) {
+        for (const name of ["canvas.viewbox.changed", "contextPad.open"]) {
             eventBus.on(name, () => this.handle?.reposition());
         }
+        // Canvas resize events can themselves originate in a ResizeObserver delivery.
+        eventBus.on("canvas.resized", scheduleReposition);
         const unsubscribe = port.onReferenceAvailabilityChanged?.(() => this.update());
         const observer =
             typeof ResizeObserver !== "undefined"
-                ? new ResizeObserver(() => this.handle?.reposition())
+                ? new ResizeObserver(scheduleReposition)
                 : undefined;
         observer?.observe(canvas.getContainer() as HTMLElement);
         eventBus.on("diagram.destroy", () => {
@@ -79,6 +98,7 @@ export class FormPreviewController {
             this.stop();
             unsubscribe?.();
             observer?.disconnect();
+            if (frame !== undefined) cancelAnimationFrame(frame);
         });
     }
 
@@ -137,10 +157,61 @@ export class FormPreviewController {
                 const pad = container
                     .querySelector(".djs-context-pad.open")
                     ?.getBoundingClientRect();
+                const viewport = (element: PreviewElement): PreviewRect => {
+                    const rect = this.canvas.getAbsoluteBBox(element);
+                    return { ...rect, x: canvas.x + rect.x, y: canvas.y + rect.y };
+                };
+                const ancestors = new Set<PreviewElement>();
+                let root = target;
+                while (root.parent) {
+                    ancestors.add(root.parent);
+                    root = root.parent;
+                }
+                const obstacles = this.elementRegistry
+                    .getAll()
+                    .flatMap((element) => {
+                        if (element === target || ancestors.has(element)) return [];
+                        if (is(element, "bpmn:Lane")) {
+                            const lane = this.canvas.getAbsoluteBBox(element);
+                            // Imported flow nodes and lanes are siblings, not diagram ancestors.
+                            if (
+                                lane.x <= box.x &&
+                                lane.y <= box.y &&
+                                lane.x + lane.width >= box.x + box.width &&
+                                lane.y + lane.height >= box.y + box.height
+                            )
+                                return [];
+                        }
+                        let current = element;
+                        while (current.parent) {
+                            if (current.hidden) return [];
+                            current = current.parent;
+                        }
+                        if (current !== root || current.hidden) return [];
+                        if (!element.waypoints) return [viewport(element)];
+                        // Segment boxes preserve empty space inside bent connections.
+                        return element.waypoints.slice(1).map((point, index) => {
+                            const previous = element.waypoints![index];
+                            return viewport({
+                                x: Math.min(point.x, previous.x) - 2,
+                                y: Math.min(point.y, previous.y) - 2,
+                                width: Math.abs(point.x - previous.x) + 4,
+                                height: Math.abs(point.y - previous.y) + 4,
+                            });
+                        });
+                    })
+                    .filter(
+                        (rect) =>
+                            rect.x < canvas.x + canvas.width &&
+                            rect.x + rect.width > canvas.x &&
+                            rect.y < canvas.y + canvas.height &&
+                            rect.y + rect.height > canvas.y,
+                    );
                 return {
                     canvas,
                     task: { ...box, x: canvas.x + box.x, y: canvas.y + box.y },
                     contextPad: pad && pad.width > 0 ? pad : undefined,
+                    obstacles,
                 };
             },
             onVisibilityChanged: (visible) => {
