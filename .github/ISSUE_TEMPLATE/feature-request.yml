@@ -8,10 +8,8 @@ body:
       value: |
         Thanks for taking the time to suggest a feature!
 
-        We review the **problem** before any solution. This issue will be
-        triaged and only becomes a green light to implement once a maintainer
-        marks it `accepted` — please don't open a PR before then. See
-        [The Acceptance Gate](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md#the-acceptance-gate-triage).
+        We review the **problem** before any solution. We're currently not
+        accepting pull requests from outside the team.
 
   - type: textarea
     id: problem
