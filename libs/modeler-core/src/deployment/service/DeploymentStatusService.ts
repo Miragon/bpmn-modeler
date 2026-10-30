@@ -17,6 +17,7 @@ import {
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
 import { DeploymentDestination } from "../domain/deploymentDestination";
+import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
 import { deploymentStatusView, timestampFormatter } from "../domain/deploymentStatusView";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import { DeploymentPickerPort, DeploymentStatePort } from "../domain/ports";
@@ -132,6 +133,10 @@ export class DeploymentStatusService {
                 await this.deploymentState.deleteDeployedRevisions(keys);
             }
         });
+    }
+
+    async targetsChanged(_event: DeploymentTargetsEvent): Promise<void> {
+        return;
     }
 
     private async writeThenRefresh(writeLedger: () => Promise<void>): Promise<void> {

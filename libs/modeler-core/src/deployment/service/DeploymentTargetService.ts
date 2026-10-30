@@ -32,7 +32,9 @@ import {
     TargetsLocation,
     targetSecretSlot,
 } from "../domain/deploymentDestination";
+import { DeploymentTargetsListener } from "../domain/deploymentTargetsEvent";
 import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { storeCredentials } from "./storeCredentials";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
@@ -54,6 +56,10 @@ export class DeploymentTargetService {
         private readonly picker: PickerPort & DeploymentPickerPort,
         private readonly notifier: NotifierPort,
     ) {}
+
+    onDidChange(_listener: DeploymentTargetsListener): EditorSubscription {
+        return { dispose: () => undefined };
+    }
 
     /**
      * Resolves the targets file for `documentDir` (nearest existing one when a

@@ -7,8 +7,10 @@ import {
     AdHocDestination,
     DeploymentDestination,
     NamedDestination,
+    TargetEdit,
 } from "../domain/deploymentDestination";
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentTarget, DeploymentTargets, TargetChange } from "../domain/deploymentTarget";
+import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
 import {
     contentFingerprint,
     DeploymentFreshness,
@@ -438,6 +440,124 @@ describe("DeploymentStatusService status after a ledger write", () => {
         await expect(recording).rejects.toThrow("workspace state is read-only");
         expectStatusShown(c, { connection: FORM_VALUES, freshness: "unknown" });
     });
+});
+
+describe("DeploymentStatusService.targetsChanged", () => {
+    const LOCATION = named(target("dev")).location;
+    const SAVED = new DeploymentTargets([target("dev"), target("prod")]);
+    const rowOf = (name: string) =>
+        ledgerKeyFor(
+            DeploymentTargetIdentity.fromTarget(target(name), NO_ENV_VARIABLES),
+            FILE_PATH,
+        );
+    const edited = (change: TargetChange): DeploymentTargetsEvent => ({
+        kind: "targetsChanged",
+        edit: new TargetEdit(change, LOCATION),
+        documentDir: "/work",
+    });
+
+    /** The item shows `dev` deployed; `dev` and `prod` each have a row for the diagram. */
+    async function serviceShowingDev() {
+        const c = createService();
+        await recordRevisionUnder(c, rowOf("dev"));
+        await recordRevisionUnder(c, rowOf("prod"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
+        await c.service.refresh(c.editor.id);
+        return c;
+    }
+
+    it.each<{
+        change: string;
+        event: DeploymentTargetsEvent;
+        activeAfter: DeploymentDestination;
+        shownAfter: DeploymentStatus;
+        keptRows: string[];
+    }>([
+        {
+            change: "a rename",
+            event: edited(SAVED.upsert(target("staging"), "dev")),
+            activeAfter: named(target("staging")),
+            shownAfter: { connection: namedConnection("staging"), freshness: "unknown" },
+            keptRows: ["prod"],
+        },
+        {
+            change: "a delete",
+            event: edited(SAVED.remove("dev")),
+            activeAfter: new AdHocDestination("", ""),
+            shownAfter: { connection: { kind: "none" }, freshness: "unknown" },
+            keptRows: ["prod"],
+        },
+        {
+            change: "a create",
+            event: edited(SAVED.add(target("staging"))),
+            activeAfter: named(target("staging")),
+            shownAfter: { connection: namedConnection("staging"), freshness: "unknown" },
+            keptRows: ["dev", "prod"],
+        },
+        {
+            change: "a save under the same name",
+            event: edited(SAVED.upsert(target("dev"))),
+            activeAfter: named(target("dev")),
+            shownAfter: {
+                connection: DEV_TARGET,
+                freshness: "deployed",
+                deployedAt: RECORDED_REVISION.deployedAt,
+            },
+            keptRows: ["dev", "prod"],
+        },
+        {
+            change: "a switch",
+            event: { kind: "activeTargetChanged", activeName: "prod" },
+            activeAfter: named(target("prod")),
+            shownAfter: {
+                connection: namedConnection("prod"),
+                freshness: "deployed",
+                deployedAt: RECORDED_REVISION.deployedAt,
+            },
+            keptRows: ["dev", "prod"],
+        },
+    ])(
+        "drops only a retired target's rows after $change and shows the active target",
+        async ({ event, activeAfter, shownAfter, keptRows }) => {
+            const c = await serviceShowingDev();
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(activeAfter);
+
+            await c.service.targetsChanged(event);
+
+            expect(c.host.deploymentState.listLedgerKeys()).toEqual(keptRows.map(rowOf));
+            expectStatusShown(c, shownAfter);
+        },
+    );
+
+    it.each([
+        { document: "inside the workspace folder", documentDir: "/work", prunesResolvedRow: true },
+        {
+            document: "outside every workspace folder",
+            documentDir: "/elsewhere",
+            prunesResolvedRow: false,
+        },
+    ])(
+        "keys a retired endpoint-ref target by the .env a document $document may read",
+        async ({ documentDir, prunesResolvedRow }) => {
+            const c = createService(workspaceDotEnv(PROD_DOT_ENV));
+            const resolvedRow = ledgerKeyFor(
+                DeploymentTargetIdentity.fromTarget(endpointRefTarget(), lookupOf(PROD_DOT_ENV)),
+                FILE_PATH,
+            );
+            await recordRevisionUnder(c, resolvedRow);
+
+            await c.service.targetsChanged({
+                kind: "targetsChanged",
+                edit: new TargetEdit(
+                    new DeploymentTargets([endpointRefTarget()]).remove("dev"),
+                    LOCATION,
+                ),
+                documentDir,
+            });
+
+            expect(c.host.deploymentState.ledger.has(resolvedRow)).toBe(!prunesResolvedRow);
+        },
+    );
 });
 
 describe("DeploymentStatusService.ledgerIdentity", () => {
