@@ -219,9 +219,8 @@ describe("architecture", () => {
     // others are common substrate, so none is subject to isolation. Do NOT relax
     // the rules to make CI green; that defeats the gate.
     describe("feature isolation (regression lock — green)", () => {
-        // `migration`, `codeLink`, `navigation` and `definitionSearch` are
-        // intentionally absent: after the engine extraction their only
-        // plugin-side file is an `index.ts` barrel. The DMN editor has no
+        // `migration` is intentionally absent: after the engine extraction its
+        // only plugin-side file is an `index.ts` barrel. The DMN editor has no
         // plugin-side code left at all.
         const FEATURE_FOLDERS = ["diff", "deployment", "scriptTask", "modeler/bpmn"];
 
