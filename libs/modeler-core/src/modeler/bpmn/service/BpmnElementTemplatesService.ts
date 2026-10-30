@@ -1,6 +1,7 @@
 import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
+import { templatesOfFile } from "@miragon/bpmn-modeler-types";
 
 import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
@@ -10,7 +11,6 @@ import {
     ElementTemplateSource,
     EMPTY_TEMPLATE_SOURCE,
     mergeElementTemplates,
-    templatesOfFile,
 } from "../domain/elementTemplates";
 import { elementTemplatesStatusView } from "../domain/elementTemplatesStatusView";
 import { TemplateLoadStatus } from "../domain/TemplateLoadStatus";
