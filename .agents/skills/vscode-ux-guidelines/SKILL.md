@@ -82,7 +82,7 @@ Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/a
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) implements the core's picker ports, so every quick pick a core service asks for goes through it. A new prompt uses the generic `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core already builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`) and the cleanup confirmation (`confirmation`, which summarises the affected items). The feature-shaped prompts stay until their callers move to the core, e.g. `pickScriptLanguage`, `pickPayloadFile`, `searchAndPickLocatedFile`, and `pickEngineVersion` for the migration command. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) implements the core's picker ports, so every quick pick a core service asks for goes through it. A new prompt uses the generic `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core already builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`), the migration scope (`migrationScopePrompt`) and the cleanup confirmation (`confirmation`, which summarises the affected items). The feature-shaped prompts stay until their callers move to the core, e.g. `pickScriptLanguage`, `pickPayloadFile` and `searchAndPickLocatedFile`. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
 
 ```typescript
 const result = await window.showQuickPick(items, {
@@ -90,7 +90,7 @@ const result = await window.showQuickPick(items, {
 });
 ```
 
-If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine prompt writes nothing and shows no message. `pickMigrationScope` and `pickEngineVersion` throw a `UserCancelledError`, which callers treat as a quiet dismissal; the other feature-shaped picks return `undefined`, `null` or `[]`. Use quick picks for selection from a list. Don't abuse notification buttons for this.
+If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine or migration prompt writes nothing and shows no message. The feature-shaped picks return `undefined`, `null` or `[]`. Use quick picks for selection from a list. Don't abuse notification buttons for this.
 
 ## Output Channel
 
