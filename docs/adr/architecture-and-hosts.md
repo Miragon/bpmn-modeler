@@ -198,6 +198,18 @@ on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
 
+Inline scripts still open and sync their tabs per host (`ScriptTaskService`,
+`BridgeScriptEditor`), but both hosts read, write and delete the script files
+through the core `ScriptFileStore`. It decides where a diagram's scripts live:
+below the config folder of its workspace root, or in the OS temp folder for a
+diagram that is not a file. A failed workspace lookup rejects instead of moving
+the scripts to the temp folder, so no host writes them somewhere the user did
+not configure. The store also owns the orphan sweep, once per folder and
+process, and the `.gitignore`, which it writes only when there is none. Each
+host passes its OS temp folder in the path spelling its workspace port
+answers, because VS Code compares `uri.path` values (`/c:/…`) where the bridge
+compares `C:/…`.
+
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine
 version, bpmnlint, deployment) show an editor's state only if it is focused
