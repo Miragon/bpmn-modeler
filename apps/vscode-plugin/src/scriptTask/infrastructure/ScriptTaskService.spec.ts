@@ -935,6 +935,23 @@ describe("ScriptTaskService lock broadcast", () => {
         expect(lastBroadcastRefs(editor)?.map(({ elementId }) => elementId)).toEqual([ELEMENT_ID]);
     });
 
+    it("locks its open scripts again on a reload with nothing to replay (resync)", async () => {
+        const { service, editor } = createService();
+        await openCanonicalScript(service, "groovy");
+        clearPosted(editor);
+
+        await service.resync(EDITOR_ID);
+
+        expect(contentQueries(editor)).toEqual([]);
+        const lockBroadcasts = editor.postedOfType<UpdateOpenScriptEditorsQuery>(
+            "UpdateOpenScriptEditorsQuery",
+        );
+        expect(lockBroadcasts).toHaveLength(1);
+        expect(lockBroadcasts[0].openScripts.map(({ elementId }) => elementId)).toEqual([
+            ELEMENT_ID,
+        ]);
+    });
+
     it("re-broadcasts the current open set on the reload handshake (syncLockState)", async () => {
         const { service, editor } = createService();
         await openCanonicalScript(service, "groovy");
