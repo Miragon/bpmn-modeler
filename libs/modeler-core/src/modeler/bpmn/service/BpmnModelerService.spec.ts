@@ -290,7 +290,7 @@ describe("BpmnModelerService.sync", () => {
 
 describe("BpmnModelerService.changeEngineVersion", () => {
     it("writes the picked version, updates the status bar, and re-renders", async () => {
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.5.0" });
         editor.active = true;
 
         await service.changeEngineVersion(editor.id);
@@ -302,7 +302,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
     it("stamps the picked version on a diagram tagged only by its namespace", async () => {
         const { service, host, editor } = createService(C7_NAMESPACE_ONLY_DOC, {
-            engineVersion: "7.22.0",
+            c7EngineVersion: "7.22.0",
         });
         editor.becomeActive();
 
@@ -315,7 +315,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
     it("shows the picked version of a diagram that binds the modeler namespace to another prefix", async () => {
         const { service, host, editor } = createService(CUSTOM_PREFIX_C8_DOC, {
-            engineVersion: "8.5.0",
+            c8EngineVersion: "8.5.0",
         });
         editor.becomeActive();
 
@@ -327,7 +327,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
     });
 
     it("tells the user when the host refuses the version write", async () => {
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.5.0" });
         vi.spyOn(host.documents, "write").mockResolvedValueOnce(false);
 
         const result = await service.changeEngineVersion(editor.id);
@@ -354,7 +354,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
     });
 
     it("shows the version when the host skips a write the document already holds", async () => {
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.5.0" });
         editor.active = true;
         vi.spyOn(host.documents, "write").mockImplementationOnce(async (_editorId, content) => {
             editor.content = content;
@@ -369,7 +369,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
     });
 
     it("stays quiet when the diagram changes after the version is written", async () => {
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.5.0" });
         vi.spyOn(host.documents, "write").mockImplementationOnce(async () => {
             host.store.markHostDocumentUpdated(editor.id);
             return true;
@@ -383,7 +383,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
     });
 
     it("stays quiet when the editor closes while the version is written", async () => {
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.5.0" });
         vi.spyOn(host.documents, "write").mockImplementationOnce(async () => {
             host.store.unregister(editor.id, editor);
             return false;
@@ -411,7 +411,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
     });
 
     it("leaves a diagram already at the picked version untouched and quiet", async () => {
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.8.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.8.0" });
 
         const result = await service.changeEngineVersion(editor.id);
 
@@ -423,7 +423,7 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
     it("writes the picked version but leaves the focused diagram's engine item alone", async () => {
         // The command targets the store's pointer, which can sit on a blurred diagram.
-        const { service, host, editor } = createService(C8_DOC, { engineVersion: "8.5.0" });
+        const { service, host, editor } = createService(C8_DOC, { c8EngineVersion: "8.5.0" });
         host.openEditor(
             "/work/focused.bpmn",
             BpmnDocument.empty("c7", "7.22.0").xml,
