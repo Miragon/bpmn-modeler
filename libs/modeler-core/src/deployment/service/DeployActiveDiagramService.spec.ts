@@ -58,16 +58,12 @@ function createService({
     const deploymentService = {
         deployFiles: vi.fn().mockResolvedValue([]),
     };
-    const deploymentStatusService = {
-        refreshFocused: vi.fn().mockResolvedValue(undefined),
-    };
 
     const service = new DeployActiveDiagramService(
         host.store,
         host.documents,
         deploymentTargetService as never,
         deploymentService as never,
-        deploymentStatusService as never,
         host.notifier,
         new SaveBeforeDeploy(host.documents, pendingEdits(host, editor)),
     );
@@ -78,7 +74,6 @@ function createService({
         editor,
         deploymentTargetService,
         deploymentService,
-        deploymentStatusService,
     };
 }
 
@@ -132,7 +127,6 @@ describe("DeployActiveDiagramService.deployActive", () => {
         await c.service.deployActive("/work");
 
         expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith("/work");
-        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
@@ -165,7 +159,7 @@ describe("DeployActiveDiagramService.deployActive", () => {
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
 
-    it("deploys nothing and leaves the status alone when the secret store cannot be read", async () => {
+    it("deploys nothing when the secret store cannot be read", async () => {
         const c = createService();
         const unavailable = new Error("The OS keyring is not available.");
         c.deploymentTargetService.getCredentials.mockRejectedValue(unavailable);
@@ -174,7 +168,6 @@ describe("DeployActiveDiagramService.deployActive", () => {
 
         expect(c.host.notifier.progressTitles).toEqual([]);
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
     it("aborts when the host reports that the save failed", async () => {

@@ -135,8 +135,14 @@ export class DeploymentStatusService {
         });
     }
 
-    async targetsChanged(_event: DeploymentTargetsEvent): Promise<void> {
-        return;
+    async targetsChanged(event: DeploymentTargetsEvent): Promise<void> {
+        const retired = event.kind === "targetsChanged" ? event.edit.retiredDestination : undefined;
+        if (event.kind === "targetsChanged" && retired !== undefined) {
+            // The prune refreshes the item.
+            await this.pruneTarget(await this.ledgerIdentity(retired, event.documentDir));
+        } else {
+            await this.refreshFocused();
+        }
     }
 
     private async writeThenRefresh(writeLedger: () => Promise<void>): Promise<void> {

@@ -923,13 +923,14 @@ describe("DeploymentTargetService.onDidChange", () => {
 
     const DEFAULT_ANSWERS: PickerAnswers = { confirmDestructive: true, deploymentTarget: "prod" };
 
-    /** `dev` and `prod` in the targets file; deletes are confirmed and the picker picks `prod`. */
+    /** `dev`, the active target, and `prod`; deletes are confirmed and the picker picks `prod`. */
     function listeningService(answers: PickerAnswers = DEFAULT_ANSWERS) {
         const c = createService({
             files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
             answers,
         });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
+        c.host.deploymentState.activeTargetName = "dev";
         const events: DeploymentTargetsEvent[] = [];
         c.service.onDidChange((event) => void events.push(event));
         return { ...c, events };

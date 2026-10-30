@@ -28,7 +28,6 @@ import {
 import { CredentialRefs } from "../domain/credentialRefs";
 import {
     AdHocDestination,
-    DeploymentDestination,
     NamedDestination,
     namesTarget,
     resolveNamedDestination,
@@ -52,8 +51,6 @@ import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 // Deliberately distinct from the payload's `mainFilePath` so a regression
 // that trusts the webview payload instead of the document path is caught.
 const TRUSTED_PATH = "/work/trusted/order-process.bpmn";
-
-const noEnv = () => undefined;
 
 const LOCATION: TargetsLocation = { filePath: "/ws/targets.json", exists: true, projectDir: "/ws" };
 const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
@@ -103,15 +100,6 @@ function createDispatcher({ openDiagram = true } = {}) {
         getStoredCredentials: vi.fn().mockResolvedValue({ authType: "none" }),
         openTargetsFile: vi.fn().mockResolvedValue(undefined),
     };
-    const deploymentStatusService = {
-        refreshFocused: vi.fn().mockResolvedValue(undefined),
-        recordDeployment: vi.fn().mockResolvedValue(undefined),
-        pruneTarget: vi.fn().mockResolvedValue(undefined),
-        ledgerIdentity: vi.fn(async (destination: DeploymentDestination) =>
-            destination.ledgerIdentity(noEnv),
-        ),
-    };
-
     const post = vi.fn();
 
     const dispatcher = new DeploymentMessageDispatcher(
@@ -120,7 +108,6 @@ function createDispatcher({ openDiagram = true } = {}) {
         deploymentService as never,
         startInstanceService as never,
         deploymentTargetService as never,
-        deploymentStatusService as never,
         new SaveBeforeDeploy(host.documents, {
             flushIntoDocument: async () => ({ status: "safe", session: {} }),
         }),
@@ -134,7 +121,6 @@ function createDispatcher({ openDiagram = true } = {}) {
         deploymentService,
         startInstanceService,
         deploymentTargetService,
-        deploymentStatusService,
         post,
     };
 }
@@ -802,21 +788,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
         expect(destination).toEqual(named(submittedTarget));
     });
 
-    it("leaves the ledger identity of a named deploy to the deployment service", async () => {
-        const c = createDispatcher();
-        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
-        c.deploymentTargetService.resolveDestination = resolvingAgainst([localTarget("dev")]);
-
-        await c.dispatcher.handle({
-            type: "DeployCommand",
-            config: { ...deployPayload({ authType: "none" }), targetName: "dev" },
-        } as DeployCommand);
-
-        expect(c.deploymentService.deploy).toHaveBeenCalledOnce();
-        expect(c.deploymentStatusService.ledgerIdentity).not.toHaveBeenCalled();
-    });
-
-    it("deploys over the ad-hoc connection the request names, without a dispatcher-computed identity", async () => {
+    it("deploys over the ad-hoc connection the request names", async () => {
         const c = createDispatcher();
         c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
@@ -833,7 +805,6 @@ describe("DeploymentMessageDispatcher target commands", () => {
             expect.anything(),
             new AdHocDestination("https://typed.example/engine-rest", "acme"),
         );
-        expect(c.deploymentStatusService.ledgerIdentity).not.toHaveBeenCalled();
     });
 
     const targetPayload: DeploymentTargetPayload = {
@@ -865,7 +836,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
         expect(postedQuery(c.post, StoredCredentialsQuery).auth.authType).toBe("basic");
     });
 
-    it("persists the active target and re-sends targets on SelectTargetCommand", async () => {
+    it("persists the active target and re-sends the form defaults on SelectTargetCommand", async () => {
         const c = createDispatcher();
         c.deploymentService.getFormDefaults.mockReturnValue({
             deploymentName: "",
@@ -879,8 +850,42 @@ describe("DeploymentMessageDispatcher target commands", () => {
         await c.dispatcher.handle(new SelectTargetCommand("dev"));
 
         expect(c.deploymentTargetService.setActiveTarget).toHaveBeenCalledWith("dev");
-        expect(c.deploymentStatusService.refreshFocused).toHaveBeenCalled();
-        expect(postedQuery(c.post, DeploymentTargetsQuery)).toBeTruthy();
+        expect(postedQuery(c.post, FormDefaultsQuery)).toBeTruthy();
+    });
+
+    it("pushes the target list once, after the reply of the last of two overlapping target commands", async () => {
+        const c = createDispatcher();
+        let finishSelect: () => void = () => undefined;
+        c.deploymentTargetService.setActiveTarget.mockImplementation(async () => {
+            await c.dispatcher.targetsChanged();
+            await new Promise<void>((resolve) => (finishSelect = resolve));
+        });
+        c.deploymentTargetService.saveTarget.mockImplementation(async () => {
+            await c.dispatcher.targetsChanged();
+            return new TargetEdit(
+                new DeploymentTargets([localTarget("dev")]).upsert(localTarget("dev")),
+                LOCATION,
+            );
+        });
+        const targetQueries = () =>
+            c.post.mock.calls
+                .map(([query]) => query)
+                .filter(
+                    (query) =>
+                        query instanceof TargetSavedQuery ||
+                        query instanceof DeploymentTargetsQuery,
+                )
+                .map((query) => query.type);
+
+        const selecting = c.dispatcher.handle(new SelectTargetCommand("dev"));
+        await c.dispatcher.handle(
+            new SaveTargetCommand(targetPayload, { authType: "none" }, undefined),
+        );
+        expect(targetQueries()).toEqual(["TargetSavedQuery"]);
+        finishSelect();
+        await selecting;
+
+        expect(targetQueries()).toEqual(["TargetSavedQuery", "DeploymentTargetsQuery"]);
     });
 
     it("opens the targets file for the active document on OpenTargetsFileCommand", async () => {
@@ -980,60 +985,6 @@ describe("DeploymentMessageDispatcher target commands", () => {
         expect(
             c.post.mock.calls.map((call) => call[0]).some((q) => q instanceof TargetSavedQuery),
         ).toBe(false);
-        expect(c.deploymentStatusService.pruneTarget).not.toHaveBeenCalled();
-    });
-
-    it("prunes the deleted target's ledger rows without reading the target first", async () => {
-        const c = createDispatcher();
-        const target = localTarget("dev");
-        c.deploymentTargetService.deleteTarget.mockResolvedValue(
-            new TargetEdit(new DeploymentTargets([target]).remove("dev"), LOCATION),
-        );
-
-        await c.dispatcher.handle(new DeleteTargetCommand("dev"));
-
-        expect(c.deploymentTargetService.resolveDestination).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.ledgerIdentity).toHaveBeenCalledWith(
-            named(target),
-            "/work/trusted",
-        );
-        expect(c.deploymentStatusService.pruneTarget).toHaveBeenCalledWith(
-            named(target).ledgerIdentity(noEnv),
-        );
-    });
-
-    it("prunes the old identity's ledger rows on a rename without reading the target first", async () => {
-        const c = createDispatcher();
-        const oldTarget = localTarget("staging");
-        c.deploymentTargetService.saveTarget.mockResolvedValue(
-            new TargetEdit(
-                new DeploymentTargets([oldTarget]).upsert(localTarget("dev"), "staging"),
-                LOCATION,
-            ),
-        );
-
-        await c.dispatcher.handle(
-            new SaveTargetCommand(targetPayload, { authType: "none" }, "staging"),
-        );
-
-        expect(c.deploymentTargetService.resolveDestination).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.ledgerIdentity).toHaveBeenCalledWith(
-            named(oldTarget),
-            "/work/trusted",
-        );
-        expect(c.deploymentStatusService.pruneTarget).toHaveBeenCalledWith(
-            named(oldTarget).ledgerIdentity(noEnv),
-        );
-    });
-
-    it("does not prune when a save keeps the target name", async () => {
-        const c = createDispatcher();
-
-        await c.dispatcher.handle(
-            new SaveTargetCommand(targetPayload, { authType: "none" }, targetPayload.name),
-        );
-
-        expect(c.deploymentStatusService.pruneTarget).not.toHaveBeenCalled();
     });
 
     it("deploys against the target at the file it was resolved from", async () => {
