@@ -7,8 +7,8 @@ import {
     OpenScriptEditorsCommand,
 } from "@miragon/bpmn-modeler-shared";
 import {
+    BpmnEditorContributions,
     EditorSessionContext,
-    EditorSessionParticipant,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
@@ -29,15 +29,19 @@ import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
  * The inline-script-editor feature owns the {@link BridgeScriptEditor}
- * orchestrator. Its session participant closes the editor's open script tabs on
- * dispose.
+ * orchestrator. It contributes its webview commands to the BPMN editor, and a
+ * session participant that closes the editor's open script tabs on dispose.
  *
  * Webview messages: OpenScriptEditorCommand, UpdateScriptVariablesCommand,
- * OpenScriptEditorsCommand (bulk "generate script files" reply).
+ * GetBpmnModelerSettingCommand (after the settings broadcast),
+ * UpdateScriptSourceCommand, OpenScriptEditorsCommand (bulk "generate script
+ * files" reply).
  * RPC (Host → Core): script/didChange, script/didClose, script/openAll,
  * script/didOpenExternal.
  */
-export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
+export function register(deps: BridgeSharedDeps): {
+    editorContribution: BpmnEditorContributions["scriptEditor"];
+} {
     // "Edit Script" orchestrator. Its tab handling has no in-core service — the
     // VS Code original was never extracted (its guts are VS Code-specific
     // accidental complexity) — so the portable slice lives here, writing through
@@ -62,10 +66,10 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         new ScriptVariableStore(),
     );
 
-    deps.router
+    const commandHandlers: BpmnEditorContributions["scriptEditor"]["commandHandlers"] = {
         // Not awaited: a language prompt would hold up the editor's later
         // messages until the user picks.
-        .on("OpenScriptEditorCommand", (message, editorId) => {
+        OpenScriptEditorCommand: (message, editorId) => {
             void scriptEditor
                 .open(message, editorId)
                 .catch((error) =>
@@ -76,29 +80,30 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
                         ),
                     ),
                 );
-        })
+        },
         // Live process-variable model update → push to every open script tab of
         // this editor so completion stays current without reopening.
-        .on("UpdateScriptVariablesCommand", (message, editorId) => {
+        UpdateScriptVariablesCommand: (message, editorId) => {
             scriptEditor.updateVariables(editorId, message.variables);
-        })
+        },
         // Reload handshake: the webview re-requests settings on (re)init, which is
         // also when it has dropped its properties-panel lock state — re-broadcast
         // the open-script set so locked fields stay locked across a reload.
-        .on("GetBpmnModelerSettingCommand", (_message, editorId) => {
+        GetBpmnModelerSettingCommand: (_message, editorId) => {
             scriptEditor.syncLockState(editorId);
-        })
+        },
         // A script changed on the *model* side (canvas undo/redo, document
         // reload, element deletion) → overwrite or close the owning tab.
-        .on("UpdateScriptSourceCommand", (message, editorId) => {
+        UpdateScriptSourceCommand: (message, editorId) => {
             scriptEditor.applyModelChange(message, editorId);
-        })
+        },
         // Bulk reply to OpenAllScriptTasksQuery: open every inline script task the
         // webview found, one at a time — a concurrent open would race the
         // per-script format quick-picks (see OpenScriptEditorsCommand).
-        .on("OpenScriptEditorsCommand", (message, editorId) => {
+        OpenScriptEditorsCommand: (message, editorId) => {
             return openAllScripts(message, editorId);
-        });
+        },
+    };
 
     /**
      * Materialises each script task to disk, opening no tabs. The batch —
@@ -171,11 +176,14 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         }
     });
 
-    const scriptSession: EditorSessionParticipant = {
-        onResolve(session: EditorSessionContext) {
-            session.onDispose(() => scriptEditor.disposeEditor(session.editorId));
+    return {
+        editorContribution: {
+            commandHandlers,
+            participant: {
+                onResolve(session: EditorSessionContext) {
+                    session.onDispose(() => scriptEditor.disposeEditor(session.editorId));
+                },
+            },
         },
     };
-
-    return { participants: [scriptSession] };
 }
