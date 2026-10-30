@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../domain/hostPorts";
 import { classifyLocateResult, LocateResult } from "../domain/locateResult";
 import { referenceForDisplay, truncateForDisplay } from "../domain/truncateForDisplay";
 
@@ -28,7 +28,7 @@ export interface LocatedFileRequest {
  */
 export async function openLocatedFile(
     request: LocatedFileRequest,
-    host: { notifier: NotifierPort; picker: PickerPort },
+    host: { notifier: NotifierPort; picker: PickerPort; workspace: WorkspacePort },
 ): Promise<void> {
     const { notifier, picker } = host;
     const displayReference = referenceForDisplay(request.reference);

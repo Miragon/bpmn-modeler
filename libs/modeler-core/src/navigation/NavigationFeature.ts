@@ -31,7 +31,12 @@ export class NavigationFeature {
 
     constructor(ports: NavigationHostPorts) {
         const locator = new ReferencedModelLocator(ports.workspace, ports.notifier);
-        const navigation = new ModelNavigationService(locator, ports.notifier, ports.picker);
+        const navigation = new ModelNavigationService(
+            locator,
+            ports.notifier,
+            ports.picker,
+            ports.workspace,
+        );
         this.formReferenceStatus = new FormReferenceStatusService(
             ports.store,
             ports.documents,

@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { openLocatedFile } from "../../kernel/service/openLocatedFile";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
@@ -18,6 +18,7 @@ export class ModelNavigationService {
         private readonly locator: ReferencedModelLocator,
         private readonly notifier: NotifierPort,
         private readonly picker: PickerPort,
+        private readonly workspace: WorkspacePort,
     ) {}
 
     async navigate(
@@ -37,7 +38,7 @@ export class ModelNavigationService {
                 notFoundMessage: (displayId) =>
                     `No model declaring "${displayId}" was found in the workspace.`,
             },
-            { notifier: this.notifier, picker: this.picker },
+            { notifier: this.notifier, picker: this.picker, workspace: this.workspace },
         );
     }
 }
