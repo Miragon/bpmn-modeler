@@ -6,14 +6,12 @@
  * complexity that doesn't port — JCEF webviews are never "hidden" the way VS
  * Code editor panels are, so no resync machinery is needed here.
  *
- * The bridge writes each script as a real file under
- * `<configFolder>/tmp/scripting/` and hands the host its absolute path; a real
- * `VirtualFile` (rather than an in-memory `LightVirtualFile`) is what
- * re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The bridge
- * also owns the disk hygiene: a one-shot orphan sweep per base directory, a
- * `.gitignore`, and deletion on tab close / editor dispose. Paths are joined
- * with `joinWorkspacePath`, never `posix.join`, which drops the leading `//`
- * of a UNC root.
+ * The bridge writes each script as a real file into the core
+ * {@link ScriptFileStore}'s base directory and hands the host its absolute
+ * path; a real `VirtualFile` (rather than an in-memory `LightVirtualFile`) is
+ * what re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The
+ * store owns where the files go and their hygiene; this class decides when a
+ * script file is deleted.
  *
  * This class owns all BPMN/element knowledge: it addresses scripts by a stable
  * `ScriptUri` and hands the host an opaque `scriptId`; the host is a dumb
@@ -21,28 +19,22 @@
  * right webview here.
  */
 
-import { tmpdir } from "os";
-import { posix } from "path";
-
 import {
-    ArtifactService,
     beansFor,
     COMPLEX_TYPES,
     EditorSessionStore,
     globalFunctionsFor,
-    joinWorkspacePath,
     matchScriptFile,
     methodsForBean,
     NotifierPort,
     PickerPort,
+    ScriptFileStore,
     ScriptLanguage,
     ScriptMaterialization,
     ScriptUri,
     ScriptVariableStore,
     SettingsPort,
-    TMP_SCRIPTING_SEGMENT,
     toWorkspacePath,
-    WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import {
     OpenScriptEditorCommand,
@@ -61,6 +53,7 @@ import {
 
 import { Rpc } from "./rpc";
 import { METHODS } from "./protocol/descriptor";
+import { ScriptOpenParams } from "./protocol/types";
 
 /** The element-addressing fields needed to route a host edit back to the webview. */
 interface TrackedScript {
@@ -81,21 +74,6 @@ export class BridgeScriptEditor {
 
     // Absolute file path per open script, retained for deletion on close.
     private readonly filePathByScript = new Map<string, string>();
-
-    /**
-     * Base `tmp/scripting` directory per editor, cached at first open so
-     * teardown deletes from the directory the files were actually written to
-     * even if the configFolder setting changed mid-session.
-     */
-    private readonly baseDirByEditor = new Map<string, string>();
-
-    /**
-     * Base directories already swept this process. The orphan sweep (files
-     * left behind by a crashed host) must run exactly once per directory and
-     * strictly before the first file is written into it — a later sweep
-     * would delete live scripts of other editors sharing the directory.
-     */
-    private readonly sweptBaseDirs = new Set<string>();
 
     /**
      * Deferred cleanups keyed by scriptId, armed when *we* send `script/close`
@@ -138,8 +116,7 @@ export class BridgeScriptEditor {
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
-        private readonly workspace: WorkspacePort,
-        private readonly artifactSvc: ArtifactService,
+        private readonly scriptFiles: ScriptFileStore,
         private readonly scriptVariables: ScriptVariableStore,
     ) {}
 
@@ -164,14 +141,14 @@ export class BridgeScriptEditor {
         // unsaved) document would trigger its external-change conflict dialog.
         let filePath = this.filePathByScript.get(scriptId);
         if (filePath === undefined) {
-            const baseDir = await this.prepareBaseDir(editorId);
-            filePath = joinWorkspacePath(baseDir, uri.relativePath());
             try {
-                await this.workspace.writeFile(filePath, cmd.content);
-                this.filePathByScript.set(scriptId, filePath);
+                const writtenPath = await this.scriptFiles.prepareScriptFile(editorId, uri);
+                await this.scriptFiles.writeFile(writtenPath, cmd.content);
+                this.filePathByScript.set(scriptId, writtenPath);
+                filePath = writtenPath;
             } catch (error) {
-                // The host falls back to a LightVirtualFile from `content`
-                // when the path doesn't resolve, so an unwritable disk
+                // Without a `filePath` the host opens a LightVirtualFile from
+                // `content`, so an unwritable disk or a failed folder lookup
                 // degrades to the pre-real-file behaviour instead of failing.
                 this.notifier.logError(error as Error);
             }
@@ -197,7 +174,7 @@ export class BridgeScriptEditor {
             filePath,
             content: cmd.content,
             completion: this.completionPayloadFor(cmd.kind, editorId),
-        });
+        } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
         this.broadcastOpenScripts(editorId);
@@ -259,9 +236,8 @@ export class BridgeScriptEditor {
             return { kind: "alreadyOpen" };
         }
 
-        const baseDir = await this.prepareBaseDir(editorId);
-        const filePath = joinWorkspacePath(baseDir, target.uri.relativePath());
-        await this.workspace.writeFile(filePath, cmd.content);
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
+        await this.scriptFiles.writeFile(filePath, cmd.content);
 
         // Seed the editor's extracted model so a later open/adoption has variables
         // before the first live `UpdateScriptVariablesCommand`.
@@ -328,8 +304,6 @@ export class BridgeScriptEditor {
      * model at adopt time: disk becomes truth on the first edit after opening. A
      * file whose editor session isn't live, that sits outside the base directory,
      * or that is an ambient sibling (`camunda.d.ts`/`jsconfig.json`) is ignored.
-     * Crucially uses {@link resolveBaseDir}, never {@link prepareBaseDir}: sweeping
-     * on adopt would delete the very file being opened.
      */
     async adoptExternalOpen(filePath: string): Promise<void> {
         const normalized = toWorkspacePath(filePath);
@@ -338,16 +312,9 @@ export class BridgeScriptEditor {
             return;
         }
 
-        // The tmp/scripting marker alone is a heuristic any same-named user
-        // directory satisfies; the resolved base dir is the exact containment.
-        const baseDir = await this.resolveBaseDir(match.editorId);
-        if (!normalized.startsWith(`${baseDir}/`)) {
+        if (!(await this.scriptFiles.adopt(match.editorId, normalized))) {
             return;
         }
-
-        // Mark the base dir swept: adoption tracks a live file in it, so a later
-        // `prepareBaseDir` for this editor must not wipe it as an orphan.
-        this.sweptBaseDirs.add(baseDir);
 
         // scriptId is the ScriptUri relative path — identical to what open() keys
         // by, so a subsequent didChange/close maps to the same tracked entry.
@@ -358,7 +325,7 @@ export class BridgeScriptEditor {
 
         let content: string;
         try {
-            content = await this.workspace.readFile(normalized);
+            content = await this.scriptFiles.readFile(normalized);
         } catch (error) {
             this.notifier.logError(error as Error);
             return;
@@ -379,70 +346,10 @@ export class BridgeScriptEditor {
             filePath: normalized,
             content,
             completion: this.completionPayloadFor(match.kind, match.editorId),
-        });
+        } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
         this.broadcastOpenScripts(match.editorId);
-    }
-
-    /**
-     * Resolves (and caches) the editor's `tmp/scripting` base directory without
-     * touching disk: workspace root → config folder. A document without a
-     * resolvable directory (non-file session) falls back to the OS temp dir,
-     * keeping the `tmp/scripting` marker segments intact for `parseScriptPath`.
-     *
-     * Kept apart from {@link prepareBaseDir} so adoption can containment-check an
-     * externally opened file *without* running the orphan sweep — a sweep on
-     * adopt would delete the file being opened.
-     */
-    private async resolveBaseDir(editorId: string): Promise<string> {
-        let baseDir = this.baseDirByEditor.get(editorId);
-        if (baseDir === undefined) {
-            try {
-                const handle = this.store.requireHandle(editorId);
-                if (handle.documentScheme() !== "file") {
-                    throw new Error("no document path for editor");
-                }
-                const documentDir = this.workspace.getDocumentDirectory(handle.documentFsPath());
-                const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
-                baseDir = joinWorkspacePath(
-                    workspaceRoot,
-                    this.settings.getConfigFolder(),
-                    TMP_SCRIPTING_SEGMENT,
-                );
-            } catch {
-                baseDir = joinWorkspacePath(
-                    tmpdir(),
-                    "miragon-bpmn-modeler",
-                    TMP_SCRIPTING_SEGMENT,
-                );
-            }
-            this.baseDirByEditor.set(editorId, baseDir);
-        }
-        return baseDir;
-    }
-
-    /**
-     * Resolves the base directory and, the first time a directory is used in this
-     * process, sweeps orphans and drops the `.gitignore`. The sweep runs strictly
-     * before the first file is written into the directory, so it only ever removes
-     * leftovers of a previous (crashed) host process.
-     */
-    private async prepareBaseDir(editorId: string): Promise<string> {
-        const baseDir = await this.resolveBaseDir(editorId);
-        if (!this.sweptBaseDirs.has(baseDir)) {
-            this.sweptBaseDirs.add(baseDir);
-            try {
-                await this.workspace.deleteDirectory(baseDir);
-                await this.workspace.writeFile(
-                    joinWorkspacePath(posix.dirname(baseDir), ".gitignore"),
-                    "*\n",
-                );
-            } catch (error) {
-                this.notifier.logError(error as Error);
-            }
-        }
-        return baseDir;
     }
 
     /**
@@ -513,9 +420,7 @@ export class BridgeScriptEditor {
         if (filePath === undefined) {
             return Promise.resolve();
         }
-        return this.workspace
-            .deleteDirectory(posix.dirname(filePath))
-            .catch((error) => this.notifier.logError(error as Error));
+        return this.scriptFiles.deleteScript(filePath);
     }
 
     /**
@@ -673,13 +578,10 @@ export class BridgeScriptEditor {
             }
         }
 
-        const baseDir = this.baseDirByEditor.get(editorId);
-        this.baseDirByEditor.delete(editorId);
+        const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
         const sweepHashDir = (): void => {
-            if (baseDir !== undefined) {
-                void this.workspace
-                    .deleteDirectory(joinWorkspacePath(baseDir, ScriptUri.hashEditorId(editorId)))
-                    .catch((error) => this.notifier.logError(error as Error));
+            if (editorScriptDir !== undefined) {
+                void this.scriptFiles.deleteFolder(editorScriptDir);
             }
         };
 

@@ -1,4 +1,5 @@
-import { posix } from "path";
+import { tmpdir } from "os";
+import { sep } from "path";
 
 import {
     OpenAllScriptTasksQuery,
@@ -11,9 +12,10 @@ import {
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
+    notifiedErrorLogText,
     scriptBatchSummary,
+    ScriptFileStore,
     ScriptVariableStore,
-    TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
@@ -36,24 +38,44 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * script/didOpenExternal.
  */
 export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
-    // "Edit Script" orchestrator. Unlike the other features this one has no
-    // in-core service — the VS Code original was never extracted (its guts are
-    // VS Code-specific accidental complexity) — so the portable slice lives here
-    // and the Kotlin host is a dumb editor surface keyed by an opaque scriptId.
+    // "Edit Script" orchestrator. Its tab handling has no in-core service — the
+    // VS Code original was never extracted (its guts are VS Code-specific
+    // accidental complexity) — so the portable slice lives here, writing through
+    // the core's file store, and the Kotlin host is a dumb editor surface keyed
+    // by an opaque scriptId.
+    const scriptFiles = new ScriptFileStore(
+        deps.store,
+        deps.nodeWorkspace,
+        deps.settings,
+        deps.artifactSvc,
+        deps.notifier,
+        tmpdir(),
+        (path) => path.replaceAll("/", sep),
+    );
     const scriptEditor = new BridgeScriptEditor(
         deps.store,
         deps.picker,
         deps.rpc,
         deps.notifier,
         deps.settings,
-        deps.nodeWorkspace,
-        deps.artifactSvc,
+        scriptFiles,
         new ScriptVariableStore(),
     );
 
     deps.router
+        // Not awaited: a language prompt would hold up the editor's later
+        // messages until the user picks.
         .on("OpenScriptEditorCommand", (message, editorId) => {
-            void scriptEditor.open(message, editorId);
+            void scriptEditor
+                .open(message, editorId)
+                .catch((error) =>
+                    deps.notifier.logError(
+                        notifiedErrorLogText(
+                            `Could not open the script of ${message.elementId}`,
+                            error,
+                        ),
+                    ),
+                );
         })
         // Live process-variable model update → push to every open script tab of
         // this editor so completion stays current without reopening.
@@ -111,8 +133,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
             deps.notifier,
         );
 
-        const folder = posix.join(deps.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
-        deps.notifier.showInfo(scriptBatchSummary(outcome, folder));
+        deps.notifier.showInfo(scriptBatchSummary(outcome, scriptFiles.displayNameFor(editorId)));
     }
 
     // The host edited an open script tab → push the new content into the owning

@@ -41,9 +41,9 @@ If `scriptFormat` is empty or unknown, the modeler asks for a language the first
 
 ## Files on disk
 
-Open scripts are real files under `<configFolder>/tmp/scripting/` (`.camunda/tmp/scripting/` by default), ignored by git through a generated `.gitignore` and removed when you close the diagram. A diagram that is not a file on disk, such as an untitled one, keeps them in the OS temp folder under `miragon-bpmn-modeler/tmp/scripting/`. Because they are real files, language servers and terminal tools such as Claude Code can read and edit them; an external change streams into the model as long as the tab has no unsaved edits.
+Open scripts are real files under `<configFolder>/tmp/scripting/` (`.camunda/tmp/scripting/` by default) and are removed when you close the diagram. Git ignores them through `<configFolder>/tmp/.gitignore`, which the modeler creates only when it is missing, so your own edits to it stay. A diagram that is not a file on disk, such as an untitled one, keeps them in the OS temp folder under `miragon-bpmn-modeler/tmp/scripting/`. Because they are real files, language servers and terminal tools such as Claude Code can read and edit them; an external change streams into the model as long as the tab has no unsaved edits.
 
-**Miragon BPMN Modeler: Generate Script Files for Script Tasks** writes one file per script task of the open diagram without opening tabs, for example to let a coding agent work on all of them. A file that cannot be written does not stop the others; the summary counts it, and the log says why. Live sync for a file starts when you open it. If the panel was edited in between, open the script through the properties-panel button: it rewrites the file from the model first.
+**Miragon BPMN Modeler: Generate Script Files for Script Tasks** writes one file per script task of the open diagram without opening tabs, for example to let a coding agent work on all of them. The summary names the folder the files went to. A file that cannot be written does not stop the others; the summary counts it, and the log says why. Live sync for a file starts when you open it. If the panel was edited in between, open the script through the properties-panel button: it rewrites the file from the model first.
 
 ## Completions
 
