@@ -36,7 +36,6 @@ import {
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
     ScriptFileStore,
-    scriptFilePath,
     ScriptLanguage,
     ScriptMaterialization,
     ScriptUri,
@@ -298,9 +297,9 @@ export class ScriptTaskService {
     /**
      * Resolves the on-disk target for a script: prompts for a language when the
      * model's `scriptFormat` is missing or unsupported (persisting the pick so
-     * the next open skips the prompt), builds the {@link ScriptUri}, and joins it
-     * onto the editor's base directory, prepared for the write. `undefined` when
-     * the picker is cancelled.
+     * the next open skips the prompt), builds the {@link ScriptUri}, and takes
+     * its file path from the store, prepared for the write. `undefined` when the
+     * picker is cancelled.
      */
     private async resolveScriptTarget(
         editorId: string,
@@ -329,8 +328,8 @@ export class ScriptTaskService {
             eventName,
             lang.extension,
         );
-        const baseDir = await this.scriptFiles.prepareForWrite(editorId);
-        return { scriptUri: toUri(scriptFilePath(baseDir, script)), lang };
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, script);
+        return { scriptUri: toUri(filePath), lang };
     }
 
     /**
@@ -896,7 +895,7 @@ export class ScriptTaskService {
      * reopen ({@link openScriptEditor} rewrites through the rewrite branch once
      * the path is gone from {@link openDocuments}). Deletion happens only on
      * element deletion, editor dispose, and the first-write-per-base-dir orphan
-     * sweep ({@link ScriptFileStore.prepareForWrite}).
+     * sweep ({@link ScriptFileStore.prepareScriptFile}).
      */
     private performCleanup(uri: Uri): void {
         // Capture the owning editor before removing so the lock broadcast below

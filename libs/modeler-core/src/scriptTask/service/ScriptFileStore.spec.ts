@@ -27,16 +27,12 @@ function createStore({
     return { host, store, diagram };
 }
 
+function groovyScript(editorId: string, elementId = "Task_1"): ScriptUri {
+    return new ScriptUri(editorId, elementId, "script-task", undefined, undefined, "groovy");
+}
+
 function scriptPath(editorId: string, elementId = "Task_1", baseDir = BASE_DIR): string {
-    const script = new ScriptUri(
-        editorId,
-        elementId,
-        "script-task",
-        undefined,
-        undefined,
-        "groovy",
-    );
-    return `${baseDir}/${script.relativePath()}`;
+    return `${baseDir}/${groovyScript(editorId, elementId).relativePath()}`;
 }
 
 describe("ScriptFileStore.baseDirFor", () => {
@@ -126,22 +122,24 @@ describe("ScriptFileStore.displayNameFor", () => {
     });
 });
 
-describe("ScriptFileStore.prepareForWrite", () => {
+describe("ScriptFileStore.prepareScriptFile", () => {
     it("sweeps orphans from the base dir on first use, then writes a catch-all .gitignore", async () => {
         const orphan = `${BASE_DIR}/deadbeef/Task_9/script-task/Task_9.groovy`;
         const { host, store, diagram } = createStore({ files: { [orphan]: "left behind" } });
 
-        expect(await store.prepareForWrite(diagram.id)).toBe(BASE_DIR);
+        expect(await store.prepareScriptFile(diagram.id, groovyScript(diagram.id))).toBe(
+            scriptPath(diagram.id),
+        );
 
         expect(Object.fromEntries(host.workspace.files)).toEqual({ [GITIGNORE]: "*\n" });
     });
 
     it("sweeps each base dir only once per process", async () => {
         const { host, store, diagram } = createStore();
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
         await host.workspace.writeFile(scriptPath(diagram.id), "live");
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(scriptPath(diagram.id))).toBe("live");
     });
@@ -149,17 +147,17 @@ describe("ScriptFileStore.prepareForWrite", () => {
     it("keeps a user-edited .gitignore", async () => {
         const { host, store, diagram } = createStore({ files: { [GITIGNORE]: "*\n!keep\n" } });
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(GITIGNORE)).toBe("*\n!keep\n");
     });
 
     it("writes a .gitignore deleted after the first write", async () => {
         const { host, store, diagram } = createStore();
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
         host.workspace.deleteFile(GITIGNORE);
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(GITIGNORE)).toBe("*\n");
     });
@@ -168,7 +166,7 @@ describe("ScriptFileStore.prepareForWrite", () => {
         const { host, store, diagram } = createStore();
         vi.spyOn(host.workspace, "deleteDirectory").mockRejectedValueOnce(new Error("EBUSY"));
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(GITIGNORE)).toBe("*\n");
         expect(host.notifier.logged("error")).toEqual([
@@ -181,10 +179,10 @@ describe("ScriptFileStore.prepareForWrite", () => {
     it("does not retry a failed sweep, which would delete live scripts", async () => {
         const { host, store, diagram } = createStore();
         vi.spyOn(host.workspace, "deleteDirectory").mockRejectedValueOnce(new Error("EBUSY"));
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
         await host.workspace.writeFile(scriptPath(diagram.id), "live");
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(scriptPath(diagram.id))).toBe("live");
     });
@@ -192,6 +190,7 @@ describe("ScriptFileStore.prepareForWrite", () => {
     it("keeps a write that waits for the first sweep out of that sweep", async () => {
         const { host, store, diagram } = createStore();
         const sharingDiagram = host.openEditor("/ws/other.bpmn");
+        const sharedScriptPath = scriptPath(sharingDiagram.id);
         const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
         let finishSweep!: () => void;
         const sweepHangs = new Promise<void>((resolve) => (finishSweep = resolve));
@@ -200,21 +199,23 @@ describe("ScriptFileStore.prepareForWrite", () => {
             await deleteDirectory(path);
         });
 
-        const firstWrite = store.prepareForWrite(diagram.id);
+        const firstWrite = store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
         const sharedWrite = store
-            .prepareForWrite(sharingDiagram.id)
-            .then(() => host.workspace.writeFile(scriptPath(sharingDiagram.id), "live"));
+            .prepareScriptFile(sharingDiagram.id, groovyScript(sharingDiagram.id))
+            .then((path) => host.workspace.writeFile(path, "live"));
         finishSweep();
         await Promise.all([firstWrite, sharedWrite]);
 
-        expect(host.workspace.files.get(scriptPath(sharingDiagram.id))).toBe("live");
+        expect(host.workspace.files.get(sharedScriptPath)).toBe("live");
     });
 
-    it("logs a failed .gitignore write and still returns the base dir", async () => {
+    it("logs a failed .gitignore write and still returns the script's path", async () => {
         const { host, store, diagram } = createStore();
         vi.spyOn(host.workspace, "writeFile").mockRejectedValueOnce(new Error("EACCES"));
 
-        expect(await store.prepareForWrite(diagram.id)).toBe(BASE_DIR);
+        expect(await store.prepareScriptFile(diagram.id, groovyScript(diagram.id))).toBe(
+            scriptPath(diagram.id),
+        );
 
         expect(host.notifier.logged("error")).toEqual([
             expect.stringMatching(new RegExp(`^Could not write ${GITIGNORE}: Error: EACCES`)),
@@ -225,7 +226,7 @@ describe("ScriptFileStore.prepareForWrite", () => {
         const { host, store, diagram } = createStore({ files: { [GITIGNORE]: "*\n!keep\n" } });
         vi.spyOn(host.workspace, "readFile").mockRejectedValueOnce(new Error("EACCES"));
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(GITIGNORE)).toBe("*\n!keep\n");
         expect(host.notifier.logged("error")).toEqual([
@@ -239,7 +240,9 @@ describe("ScriptFileStore.prepareForWrite", () => {
             throw new Error("workspace lookup failed");
         });
 
-        await expect(store.prepareForWrite(diagram.id)).rejects.toThrow("workspace lookup failed");
+        await expect(store.prepareScriptFile(diagram.id, groovyScript(diagram.id))).rejects.toThrow(
+            "workspace lookup failed",
+        );
         expect(host.workspace.files.size).toBe(0);
     });
 });
@@ -272,7 +275,7 @@ describe("ScriptFileStore.adopt", () => {
         const { host, store, diagram } = createStore({ files: { [adoptedPath]: "live" } });
         await store.adopt(diagram.id, adoptedPath);
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.get(adoptedPath)).toBe("live");
     });
@@ -285,7 +288,7 @@ describe("ScriptFileStore.adopt", () => {
             "/elsewhere/tmp/scripting/x/Task_1/script-task/Task_1.groovy",
         );
 
-        await store.prepareForWrite(diagram.id);
+        await store.prepareScriptFile(diagram.id, groovyScript(diagram.id));
 
         expect(host.workspace.files.has(orphan)).toBe(false);
     });

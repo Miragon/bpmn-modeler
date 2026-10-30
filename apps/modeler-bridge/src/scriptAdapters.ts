@@ -29,7 +29,6 @@ import {
     NotifierPort,
     PickerPort,
     ScriptFileStore,
-    scriptFilePath,
     ScriptLanguage,
     ScriptMaterialization,
     ScriptUri,
@@ -142,10 +141,7 @@ export class BridgeScriptEditor {
         let filePath = this.filePathByScript.get(scriptId);
         if (filePath === undefined) {
             try {
-                const writtenPath = scriptFilePath(
-                    await this.scriptFiles.prepareForWrite(editorId),
-                    uri,
-                );
+                const writtenPath = await this.scriptFiles.prepareScriptFile(editorId, uri);
                 await this.scriptFiles.writeFile(writtenPath, cmd.content);
                 this.filePathByScript.set(scriptId, writtenPath);
                 filePath = writtenPath;
@@ -239,8 +235,8 @@ export class BridgeScriptEditor {
             return { kind: "alreadyOpen" };
         }
 
-        const baseDir = await this.scriptFiles.prepareForWrite(editorId);
-        await this.scriptFiles.writeFile(scriptFilePath(baseDir, target.uri), cmd.content);
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
+        await this.scriptFiles.writeFile(filePath, cmd.content);
 
         // Seed the editor's extracted model so a later open/adoption has variables
         // before the first live `UpdateScriptVariablesCommand`.

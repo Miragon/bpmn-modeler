@@ -11,9 +11,11 @@ import {
     keepsScriptsInOsTemp,
     osTempScriptBaseDir,
     ScriptBaseDir,
+    scriptFilePath,
     scriptGitignorePath,
     workspaceScriptBaseDir,
 } from "../domain/scriptBaseDir";
+import { ScriptUri } from "../domain/ScriptUri";
 
 const CATCH_ALL_GITIGNORE = "*\n";
 
@@ -80,16 +82,17 @@ export class ScriptFileStore {
     }
 
     /**
-     * The editor's base directory, ready for a script write: swept of orphans on
-     * its first use in this process, then given a catch-all `.gitignore` when it
-     * has none, so a user's own edits to that file stay. Each step is best-effort
-     * and logged on its own, so neither blocks the write nor skips the other.
+     * The path of the script's file in the editor's base directory, which is then
+     * ready for the write: swept of orphans on its first use in this process, and
+     * given a catch-all `.gitignore` when it has none, so a user's own edits to
+     * that file stay. Each step is best-effort and logged on its own, so neither
+     * blocks the write nor skips the other.
      */
-    async prepareForWrite(editorId: string): Promise<string> {
+    async prepareScriptFile(editorId: string, script: ScriptUri): Promise<string> {
         const baseDir = await this.baseDirFor(editorId);
         await this.sweepOnce(baseDir);
         await this.ensureGitignore(baseDir);
-        return baseDir;
+        return scriptFilePath(baseDir, script);
     }
 
     /**
