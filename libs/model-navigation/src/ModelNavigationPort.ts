@@ -25,9 +25,12 @@ export interface FormPreviewRequest {
     id: string;
     /** Automatic previews must not prompt for target selection. */
     automatic: boolean;
+    /** Show unresolved-reference feedback without requesting saved bytes. */
+    unavailable?: boolean;
     anchor(): FormPreviewAnchor;
     onVisibilityChanged(visible: boolean): void;
     onClose(): void;
+    onExplicitRequest?(): void;
     focusCanvas(): void;
 }
 export interface FormPreviewHandle {
@@ -64,6 +67,9 @@ export interface ModelNavigationPort {
      * pad entries synchronously.
      */
     isReferenceAvailable?(reference: ModelReference): boolean;
+
+    /** False while the initial availability index is pending; omitted means known. */
+    isReferenceAvailabilityKnown?(): boolean;
 
     /**
      * Optionally notifies the modeler that availability changed so an open

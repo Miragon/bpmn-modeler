@@ -82,6 +82,51 @@ function setup(available = true) {
 }
 
 describe("automatic linked form preview", () => {
+    it("keeps explicit refresh errors retryable when the index changes", () => {
+        const { select, open, handles, port, availabilityChanged } = setup();
+        select(task());
+        const request = open.mock.calls[0][0];
+        request.onVisibilityChanged(true);
+        request.onExplicitRequest!();
+        port.isReferenceAvailable.mockReturnValue(false);
+        availabilityChanged();
+        expect(handles[0].close).not.toHaveBeenCalled();
+        expect(open).toHaveBeenCalledOnce();
+    });
+    it.each(["missing form", "malformed JSON excluded from the index"])(
+        "indicates an initial %s, recovers on resolution, and cleans up ref changes",
+        () => {
+            const { select, open, port, handles, availabilityChanged, fire } = setup(false);
+            const element = task();
+            select(element);
+            expect(open.mock.calls[0][0]).toMatchObject({ automatic: true, unavailable: true });
+            open.mock.calls[0][0].onVisibilityChanged(true);
+            fire("elements.changed");
+            availabilityChanged();
+            expect(open).toHaveBeenCalledOnce();
+            port.isReferenceAvailable.mockReturnValue(true);
+            availabilityChanged();
+            expect(handles[0].close).toHaveBeenCalledOnce();
+            expect(open.mock.calls[1][0].unavailable).toBe(false);
+            element.businessObject.extensionElements.values[0].formId = "Other";
+            port.isReferenceAvailable.mockReturnValue(false);
+            fire("elements.changed");
+            expect(handles[1].close).toHaveBeenCalledOnce();
+            expect(open.mock.calls[2][0]).toMatchObject({ id: "Other", unavailable: true });
+            select();
+            expect(handles[2].close).toHaveBeenCalledOnce();
+        },
+    );
+    it("waits for the initial index before indicating an unresolved reference", () => {
+        const fixture = setup(false);
+        const known = vi.fn(() => false);
+        Object.assign(fixture.port, { isReferenceAvailabilityKnown: known });
+        fixture.select(task());
+        expect(fixture.open).not.toHaveBeenCalled();
+        known.mockReturnValue(true);
+        fixture.availabilityChanged();
+        expect(fixture.open.mock.calls[0][0].unavailable).toBe(true);
+    });
     it("does not discard a pending explicit read or its eventual error after availability loss", () => {
         const { select, controller, open, port, availabilityChanged, handles } = setup();
         const element = task();
@@ -101,17 +146,19 @@ describe("automatic linked form preview", () => {
         availabilityChanged();
         expect(open).toHaveBeenCalledTimes(2);
     });
-    it("preserves a visible panel for explicit retry when availability changes", () => {
+    it("replaces an automatic panel with an indicator when availability changes", () => {
         const { select, open, port, availabilityChanged, handles, controller } = setup();
         const element = task();
         select(element);
         open.mock.calls[0][0].onVisibilityChanged(true);
         port.isReferenceAvailable.mockReturnValue(false);
         availabilityChanged();
-        expect(handles[0].close).not.toHaveBeenCalled();
+        expect(handles[0].close).toHaveBeenCalledOnce();
+        expect(open.mock.calls[1][0].unavailable).toBe(true);
+        open.mock.calls[1][0].onVisibilityChanged(true);
         expect(controller.isVisible(element)).toBe(true);
         select();
-        expect(handles[0].close).toHaveBeenCalledOnce();
+        expect(handles[1].close).toHaveBeenCalledOnce();
     });
     it("observes container resize, accepts optional availability hooks, and exposes canvas focus", () => {
         const handlers = new Map<string, (event?: unknown) => void>();
@@ -197,10 +244,10 @@ describe("automatic linked form preview", () => {
             setup(false);
         const element = task();
         select(element);
-        expect(open).not.toHaveBeenCalled();
+        expect(open.mock.calls[0][0].unavailable).toBe(true);
         port.isReferenceAvailable.mockReturnValue(true);
         availabilityChanged();
-        const request = open.mock.calls[0][0];
+        const request = open.mock.calls[1][0];
         request.onVisibilityChanged(true);
         expect(controller.isVisible(element)).toBe(true);
         request.onClose();
@@ -212,10 +259,10 @@ describe("automatic linked form preview", () => {
         fire("contextPad.open");
         fire("elements.changed");
         select(element);
-        expect(open).toHaveBeenCalledOnce();
+        expect(open).toHaveBeenCalledTimes(2);
         expect(contextPad.open).toHaveBeenCalled();
         controller.openManual(element);
-        expect(open.mock.calls[1][0].automatic).toBe(false);
+        expect(open.mock.calls[2][0].automatic).toBe(false);
     });
     it("resets dismissal on reselect or a changed reference and closes on multiselect/deselection", () => {
         const { select, open, handles, fire } = setup();
@@ -242,6 +289,7 @@ describe("automatic linked form preview", () => {
         open.mock.calls[1][0].onVisibilityChanged(true);
         old.onVisibilityChanged(false);
         old.onClose();
+        old.onExplicitRequest!();
         expect(controller.isVisible(current)).toBe(true);
     });
     it("repositions on canvas and element changes and disposes with the diagram", () => {
@@ -270,7 +318,7 @@ describe("automatic linked form preview", () => {
         expect(handles[0].close).toHaveBeenCalled();
         port.isReferenceAvailable.mockReturnValue(true);
         availabilityChanged();
-        expect(open).toHaveBeenCalledTimes(2);
+        expect(open).toHaveBeenCalledTimes(3);
     });
     it("does not preview other element types or tasks without a form", () => {
         const { select, open } = setup();

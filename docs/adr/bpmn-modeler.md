@@ -78,21 +78,27 @@ instance or services object would duplicate this API and expose more internals.
 
 ### Linked form previews
 
-**Context.** Users explicitly requested an adjacent automatic preview on task
-selection, nothing for missing forms, and dismissal followed by an icon to
-reopen. Embedders must not acquire the IDE protocol or form-js dependency.
+**Context.** Task selection needs an adjacent automatic preview, lightweight
+feedback for unresolved references, and dismissal followed by an icon to reopen
+available forms. Embedders must not acquire the IDE protocol or form-js dependency.
 
 **Decision.** Expose only the optional, protocol-free anchored `formPreview`
 capability. The modeler owns selection/dismissal; the webview alone owns form-js
 and accessible nonmodal chrome. Both hosts reuse core saved-file resolution and
 read fresh saved bytes on open/refresh, never unsaved editor state. Unsupported
 components are rejected rather than widening CSP; form actions are blocked.
+The optional availability-known hook distinguishes a pending index from an empty
+one; an unavailable preview request renders status only, without reading a file.
 
-**Consequences.** Automatic attempts remain silent and diagnostic-only, without
-pickers or focus changes. Explicit reopen and Refresh instead show localized,
+**Consequences.** Confirmed unavailable references and automatic schema/import
+failures show a localized, accessible anchored status indicator, without a broken
+form panel, pickers or focus changes. Unavailable references hide the preview
+action; tasks without references and the pending initial index show nothing.
+The index cannot distinguish missing from malformed JSON, so its indicator names
+both possibilities without another scan or read. Resolution replaces the indicator
+with the automatic preview unless dismissed. Explicit reopen and Refresh show localized,
 nonblocking, retryable errors with no stale successful content—even when the
-panel originally opened automatically. This deliberately balances the requested
-quiet automatic UX with actionable feedback for explicit intent. Picker
+panel originally opened automatically. Picker
 cancellation is quiet; cancelling Refresh leaves the existing panel empty and
 retryable, without a stale success message. Explicit requests survive availability
 updates so pending results can supply actionable feedback. The separate

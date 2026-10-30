@@ -40,6 +40,7 @@ export interface ProtocolCapabilities {
 
 /** The form ids the host last reported as resolvable. */
 export class FormReferenceAvailability {
+    known = false;
     private availableFormIds: ReadonlySet<string> = new Set();
     private readonly listeners = new Set<() => void>();
 
@@ -58,9 +59,11 @@ export class FormReferenceAvailability {
     update(formIds: readonly string[]): boolean {
         const nextFormIds = new Set(formIds);
         const changed =
+            !this.known ||
             nextFormIds.size !== this.availableFormIds.size ||
             [...nextFormIds].some((formId) => !this.availableFormIds.has(formId));
         this.availableFormIds = nextFormIds;
+        this.known = true;
         if (changed) {
             this.listeners.forEach((listener) => listener());
         }
@@ -133,6 +136,7 @@ export function createProtocolCapabilities(
                 openReference: ({ id, kind }) =>
                     host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
                 isReferenceAvailable: ({ id, kind }) => kind !== "form" || formReferences.has(id),
+                isReferenceAvailabilityKnown: () => formReferences.known,
                 onReferenceAvailabilityChanged: (listener) => formReferences.onChanged(listener),
             },
             codeLink: {

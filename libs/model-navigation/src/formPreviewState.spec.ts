@@ -2,6 +2,62 @@ import { describe, expect, it } from "vitest";
 import { reduceFormPreview } from "./formPreviewState";
 
 describe("preview selection decisions", () => {
+    it("keeps an automatic panel retryable after explicit refresh despite index loss", () => {
+        const state = {
+            target: "task",
+            reference: "form",
+            available: true,
+            dismissed: false,
+            attempted: true,
+            explicit: false,
+        };
+        const refreshed = reduceFormPreview(state, { kind: "refresh" });
+        expect(refreshed).toMatchObject({ action: "keep", state: { explicit: true } });
+        expect(
+            reduceFormPreview(refreshed.state, {
+                kind: "selection",
+                target: "task",
+                reference: "form",
+                available: false,
+                visible: true,
+            }).action,
+        ).toBe("keep");
+    });
+    it("indicates unavailable references without reading, waits for pending status, and recovers", () => {
+        const state = { dismissed: false, attempted: false, explicit: false };
+        const pending = reduceFormPreview(state, {
+            kind: "selection",
+            target: "task",
+            reference: "form",
+            available: undefined,
+        });
+        expect(pending.action).toBe("close");
+        const missing = reduceFormPreview(pending.state, {
+            kind: "selection",
+            target: "task",
+            reference: "form",
+            available: false,
+        });
+        expect(missing.action).toBe("indicate");
+        expect(
+            reduceFormPreview(missing.state, {
+                kind: "selection",
+                target: "task",
+                reference: "form",
+                available: false,
+                visible: true,
+            }).action,
+        ).toBe("keep");
+        expect(
+            reduceFormPreview(missing.state, {
+                kind: "selection",
+                target: "task",
+                reference: "form",
+                available: true,
+                visible: true,
+            }).action,
+        ).toBe("open");
+    });
     it("keeps a pending explicit request alive when availability disappears", () => {
         const initial = {
             target: "task",
@@ -32,7 +88,7 @@ describe("preview selection decisions", () => {
                 reference: "form",
                 available: false,
             }),
-        ).toMatchObject({ action: "close", state: { explicit: false } });
+        ).toMatchObject({ action: "indicate", state: { explicit: false } });
     });
     it.each([
         { target: "task", available: true, reference: "form", action: "open" },
@@ -79,7 +135,7 @@ describe("preview selection decisions", () => {
             }).action,
         ).toBe("keep");
     });
-    it("keeps an existing panel retryable when its saved form disappears", () => {
+    it("replaces an automatic panel with an indicator when its saved form disappears", () => {
         const state = {
             target: "task",
             reference: "form",
@@ -95,7 +151,7 @@ describe("preview selection decisions", () => {
                 available: false,
                 visible: true,
             }),
-        ).toEqual({ state, action: "keep" });
+        ).toMatchObject({ action: "indicate" });
     });
     it.each([
         {
@@ -128,7 +184,7 @@ describe("preview selection decisions", () => {
             available: false,
             dismissed: false,
             attempted: true,
-            action: "close",
+            action: "indicate",
         },
         {
             target: undefined,
@@ -162,6 +218,7 @@ describe("preview selection decisions", () => {
                 dismissed: row.dismissed,
                 attempted: row.attempted,
                 explicit: false,
+                available: true,
             },
             {
                 kind: "selection",

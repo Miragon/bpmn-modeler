@@ -7,6 +7,8 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "The linked form is missing or invalid. Check the form reference.":
+        "El formulario vinculado no existe o no es válido. Compruebe la referencia al formulario.",
     "Preview linked form": "Previsualizar formulario vinculado",
     "Linked form preview": "Vista previa del formulario vinculado",
     "Refresh": "Actualizar",

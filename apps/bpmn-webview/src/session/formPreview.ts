@@ -34,7 +34,8 @@ export function createFormPreview(
         let closed = false;
         let visible = false;
         let viewer: PreviewViewer | undefined;
-        const panel = document.createElement("section");
+        let indicator = false;
+        const panel = document.createElement("div");
         panel.className = "linked-form-preview";
         panel.setAttribute("role", "region");
         panel.innerHTML =
@@ -44,7 +45,8 @@ export function createFormPreview(
         const status = panel.querySelector<HTMLElement>('[role="status"]')!;
         let statusKey = "";
         function translate(): void {
-            panel.setAttribute("aria-label", i18n.translate("Linked form preview"));
+            if (indicator) panel.removeAttribute("aria-label");
+            else panel.setAttribute("aria-label", i18n.translate("Linked form preview"));
             panel.querySelector("h2")!.textContent = i18n.translate("Linked form preview");
             panel.querySelector("[data-refresh]")!.textContent = i18n.translate("Refresh");
             closeButton.setAttribute("aria-label", i18n.translate("Close form preview"));
@@ -65,6 +67,16 @@ export function createFormPreview(
             observer?.observe(panel);
         }
 
+        function indicate(message: string): void {
+            indicator = true;
+            panel.classList.add("linked-form-preview-indicator");
+            panel.removeAttribute("role");
+            panel.querySelector("h2")!.hidden = true;
+            panel.querySelector<HTMLElement>("[data-refresh]")!.hidden = true;
+            panel.querySelector<HTMLElement>("[data-description]")!.hidden = true;
+            show(message);
+        }
+
         function setVisible(value: boolean): void {
             if (visible !== value) {
                 visible = value;
@@ -76,7 +88,13 @@ export function createFormPreview(
             const position = positionFormPreview(
                 request.anchor(),
                 340,
-                Math.max(120, panel.scrollHeight - content.clientHeight + content.scrollHeight),
+                Math.max(
+                    indicator ? 48 : 120,
+                    panel.scrollHeight -
+                        content.clientHeight +
+                        content.scrollHeight +
+                        (indicator ? panel.offsetHeight - panel.clientHeight : 0),
+                ),
             );
             panel.hidden = !position;
             if (position) {
@@ -107,6 +125,7 @@ export function createFormPreview(
             if (restoreFocus) request.focusCanvas();
         }
         async function load(automatic: boolean): Promise<void> {
+            if (!automatic) request.onExplicitRequest?.();
             const token = ++generation;
             const wasVisible = visible;
             viewer?.destroy();
@@ -166,7 +185,8 @@ export function createFormPreview(
             } catch (error) {
                 if (!closed && token === generation) {
                     log(`Form preview: ${String(error)}`);
-                    if (!automatic) {
+                    if (automatic) indicate(failureKey);
+                    else {
                         show(failureKey);
                         if (!wasVisible && !panel.hidden) closeButton.focus();
                     }
@@ -187,7 +207,9 @@ export function createFormPreview(
         });
         window.addEventListener("resize", reposition);
         active = { close, reposition };
-        void load(request.automatic);
+        if (request.unavailable)
+            indicate("The linked form is missing or invalid. Check the form reference.");
+        else void load(request.automatic);
         return active;
     }
     return {

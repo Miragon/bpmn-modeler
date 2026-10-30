@@ -38,6 +38,7 @@ const SOURCE_ONLY = new Set([
     // Anchored form-preview chrome is outside the harvest driver's modeler interactions.
     "Preview linked form",
     "Linked form preview",
+    "The linked form is missing or invalid. Check the form reference.",
     "Refresh",
     "Close form preview",
     "Read-only preview of the saved local form.",

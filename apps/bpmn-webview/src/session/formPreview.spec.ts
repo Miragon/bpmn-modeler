@@ -67,6 +67,54 @@ const loaded = () => {
 const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
 
 describe("anchored linked form preview", () => {
+    it("dismisses an indicator with Escape without leaking the key to the canvas", () => {
+        const { preview } = setup();
+        const options = request({ unavailable: true });
+        preview.open(options);
+        const close = document.querySelector<HTMLButtonElement>("[data-close]")!;
+        close.focus();
+        const bubble = vi.fn();
+        document.addEventListener("keydown", bubble);
+        const event = new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+        });
+        close.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+        expect(bubble).not.toHaveBeenCalled();
+        expect(options.onClose).toHaveBeenCalledOnce();
+        expect(options.focusCanvas).toHaveBeenCalledOnce();
+        expect(document.querySelector(".linked-form-preview-indicator")).toBeNull();
+        document.removeEventListener("keydown", bubble);
+        preview.dispose();
+    });
+    it("indicates unresolved indexed references without extra reads, pickers, or focus changes", () => {
+        const { preview, read, create } = setup();
+        const opener = document.createElement("button");
+        document.body.append(opener);
+        opener.focus();
+        const options = request({ unavailable: true });
+        preview.open(options);
+        expect(read).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+        expect(panel()).toBeNull();
+        const status = document.querySelector('[role="status"]')!;
+        expect(status.getAttribute("aria-live")).toBe("polite");
+        expect(status.textContent).toBe(
+            "The linked form is missing or invalid. Check the form reference.",
+        );
+        expect(document.activeElement).toBe(opener);
+        i18n.setLanguage("de");
+        expect(status.textContent).toBe(
+            "Das verknüpfte Formular fehlt oder ist ungültig. Prüfen Sie den Formularverweis.",
+        );
+        click("[data-close]");
+        expect(options.onClose).toHaveBeenCalledOnce();
+        expect(document.querySelector('[role="status"]')).toBeNull();
+        expect(options.focusCanvas).not.toHaveBeenCalled();
+        preview.dispose();
+    });
     it.each([
         { result: { kind: "unavailable", reason: "noScope" }, text: "Open a workspace folder" },
         { result: { kind: "unavailable", reason: "notFound" }, text: "No saved local form" },
@@ -101,7 +149,7 @@ describe("anchored linked form preview", () => {
         await vi.waitFor(loaded);
         preview.dispose();
     });
-    it("logs automatic failures without showing an error surface", async () => {
+    it("shows automatic malformed JSON failures as an accessible nonblocking indicator", async () => {
         const log = vi.fn();
         const preview = createFormPreview(
             async () => ({ kind: "loaded", content: "bad JSON" }),
@@ -113,6 +161,14 @@ describe("anchored linked form preview", () => {
             expect(log).toHaveBeenCalledWith(expect.stringContaining("not valid JSON")),
         );
         expect(panel()).toBeNull();
+        const indicator = document.querySelector(".linked-form-preview-indicator");
+        expect(
+            indicator?.querySelector('[role="status"][aria-live="polite"]')?.textContent,
+        ).toContain("invalid or unsupported");
+        expect(indicator?.querySelector<HTMLButtonElement>("[data-refresh]")?.hidden).toBe(true);
+        expect(indicator?.querySelector("[data-close]")?.getAttribute("aria-label")).toBe(
+            "Close form preview",
+        );
         preview.dispose();
     });
     it("translates live labels and error states and releases its locale listener", async () => {
@@ -166,7 +222,7 @@ describe("anchored linked form preview", () => {
         await vi.waitFor(loaded);
         preview.dispose();
     });
-    it("shows nothing while resolving and silently ignores missing forms without stealing focus", async () => {
+    it("shows nothing while resolving then indicates missing forms without stealing focus", async () => {
         let finish!: (result: FormPreviewResult) => void;
         const { preview } = setup(
             vi.fn(
@@ -186,6 +242,10 @@ describe("anchored linked form preview", () => {
         await Promise.resolve();
         await Promise.resolve();
         expect(panel()).toBeNull();
+        expect(document.querySelector('[role="status"]')?.textContent).toContain(
+            "No saved local form",
+        );
+        expect(document.activeElement).toBe(button);
         preview.dispose();
     });
     it("constructs a read-only viewer in a nonmodal region and cancels link/submit actions", async () => {
@@ -248,19 +308,23 @@ describe("anchored linked form preview", () => {
             await Promise.resolve();
             await Promise.resolve();
             expect(panel()).toBeNull();
+            expect(document.querySelector('[role="status"]')?.textContent).toContain(
+                "invalid or unsupported",
+            );
             expect(create).not.toHaveBeenCalled();
             preview.dispose();
         },
     );
     it("keeps explicit refresh errors retryable without stale content", async () => {
         const { preview, read } = setup();
-        const options = request();
+        const options = request({ onExplicitRequest: vi.fn() });
         preview.open(options);
         await vi.waitFor(loaded);
         read.mockResolvedValue({ kind: "unavailable", reason: "unreadable" });
         const refresh = document.querySelector<HTMLButtonElement>("[data-refresh]")!;
         refresh.focus();
         click("[data-refresh]");
+        expect(options.onExplicitRequest).toHaveBeenCalledOnce();
         await vi.waitFor(() => expect(panel()?.textContent).toContain("could not be read"));
         expect(document.activeElement).toBe(refresh);
         expect(document.querySelector(".linked-form-preview-content")?.children).toHaveLength(0);
@@ -280,6 +344,9 @@ describe("anchored linked form preview", () => {
         preview.open(request());
         await vi.waitFor(() => expect(destroy).toHaveBeenCalledOnce());
         expect(panel()).toBeNull();
+        expect(document.querySelector('[role="status"]')?.textContent).toContain(
+            "could not be loaded",
+        );
         preview.dispose();
     });
     it("discards old imports when a new selection finishes first", async () => {
@@ -302,6 +369,27 @@ describe("anchored linked form preview", () => {
         await vi.waitFor(() => expect(destroy).toHaveBeenCalledOnce());
         expect(old.onVisibilityChanged).not.toHaveBeenCalledWith(true);
         expect(document.querySelectorAll('[role="region"]')).toHaveLength(1);
+        preview.dispose();
+    });
+    it("does not replace a newer successful preview with a stale automatic failure indicator", async () => {
+        const { preview, create } = setup();
+        let reject!: (error: Error) => void;
+        const destroy = vi.fn();
+        const importSchema = vi.fn(
+            () =>
+                new Promise<void>((_resolve, fail) => {
+                    reject = fail;
+                }),
+        );
+        create.mockResolvedValueOnce({ importSchema, destroy });
+        preview.open(request());
+        await vi.waitFor(() => expect(importSchema).toHaveBeenCalledOnce());
+        preview.open(request({ id: "New" }));
+        await vi.waitFor(loaded);
+        reject(new Error("old invalid schema"));
+        await vi.waitFor(() => expect(destroy).toHaveBeenCalledOnce());
+        loaded();
+        expect(document.querySelector(".linked-form-preview-indicator")).toBeNull();
         preview.dispose();
     });
     it("cancels a pending read on disposal", async () => {

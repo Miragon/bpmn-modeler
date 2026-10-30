@@ -182,6 +182,20 @@ describe("createProtocolCapabilities", () => {
         expect(availabilityChanged).toHaveBeenCalledOnce();
     });
 
+    it("distinguishes a pending index from an initially empty index and notifies only once", () => {
+        const protocol = createProtocolCapabilities(createHost(), () => modelerSurface({}));
+        const navigation = protocol.capabilities.modelNavigation;
+        const changed = vi.fn();
+        navigation.onReferenceAvailabilityChanged!(changed);
+        expect(navigation.isReferenceAvailabilityKnown!()).toBe(false);
+        protocol.handlers.FormReferenceStatusQuery(new FormReferenceStatusQuery([]));
+        expect(navigation.isReferenceAvailabilityKnown!()).toBe(true);
+        expect(changed).toHaveBeenCalledOnce();
+        protocol.handlers.FormReferenceStatusQuery(new FormReferenceStatusQuery([]));
+        expect(changed).toHaveBeenCalledOnce();
+        protocol.dispose();
+    });
+
     it("asks the host for form reference status only for Camunda 8", () => {
         const host = createHost();
         const protocol = createProtocolCapabilities(host, () => modelerSurface({}));

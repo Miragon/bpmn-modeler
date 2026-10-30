@@ -105,7 +105,10 @@ export class FormPreviewController {
             kind: "selection",
             target,
             reference,
-            available: !!reference && this.status.isResolved(reference),
+            available:
+                this.port.isReferenceAvailabilityKnown?.() === false
+                    ? undefined
+                    : !!reference && this.status.isResolved(reference),
             visible: this.visible,
         });
     }
@@ -115,9 +118,10 @@ export class FormPreviewController {
         if (decision.action !== "keep") this.stop();
         this.state = decision.state;
         if (decision.action === "open") this.start(decision.automatic);
+        if (decision.action === "indicate") this.start(true, true);
     }
 
-    private start(automatic: boolean): void {
+    private start(automatic: boolean, unavailable = false): void {
         const target = this.state.target;
         const id = this.state.reference;
         if (!target || !id || !this.port.formPreview) return;
@@ -125,6 +129,7 @@ export class FormPreviewController {
         this.handle = this.port.formPreview.open({
             id,
             automatic,
+            unavailable,
             anchor: () => {
                 const container = this.canvas.getContainer();
                 const canvas = container.getBoundingClientRect();
@@ -147,6 +152,9 @@ export class FormPreviewController {
                 if (version !== this.version) return;
                 this.transition({ kind: "dismiss" });
                 this.refreshPad();
+            },
+            onExplicitRequest: () => {
+                if (version === this.version) this.transition({ kind: "refresh" });
             },
             focusCanvas: () => this.canvas.focus(),
         });

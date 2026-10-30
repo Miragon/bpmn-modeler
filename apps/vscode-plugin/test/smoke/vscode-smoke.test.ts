@@ -370,6 +370,48 @@ describe("the packaged extension in a real VS Code", () => {
         });
         const previewAction = () => webview.locator('[data-action="preview-linked-form"]');
         const preview = () => webview.getByRole("region", { name: "Linked form preview" });
+        const assertIndicatorFits = async (message: string, closeLabel: string) => {
+            const indicator = webview.locator(".linked-form-preview-indicator");
+            const status = indicator.getByRole("status");
+            await status.getByText(message, { exact: true }).waitFor();
+            await settle(webview);
+            const geometry = await indicator.evaluate((node) => {
+                const status = node.querySelector<HTMLElement>('[role="status"]')!;
+                const close = node.querySelector<HTMLElement>("[data-close]")!;
+                const box = node.getBoundingClientRect();
+                const range = document.createRange();
+                range.selectNodeContents(status);
+                const inside = (rect: DOMRect) =>
+                    rect.width > 0 &&
+                    rect.height > 0 &&
+                    rect.left >= box.left &&
+                    rect.right <= box.right &&
+                    rect.top >= box.top &&
+                    rect.bottom <= box.bottom;
+                return {
+                    width: box.width,
+                    panelFitsX: node.scrollWidth <= node.clientWidth,
+                    panelFitsY: node.scrollHeight <= node.clientHeight,
+                    statusFitsX: status.scrollWidth <= status.clientWidth,
+                    statusFitsY: status.scrollHeight <= status.clientHeight,
+                    textInside: [...range.getClientRects()].every(inside),
+                    closeInside: inside(close.getBoundingClientRect()),
+                };
+            });
+            expect(geometry.width).toBeGreaterThan(250);
+            expect(geometry.width).toBeLessThanOrEqual(340);
+            expect(geometry).toMatchObject({
+                panelFitsX: true,
+                panelFitsY: true,
+                statusFitsX: true,
+                statusFitsY: true,
+                textInside: true,
+                closeInside: true,
+            });
+            expect(await indicator.getByRole("button", { name: closeLabel }).isVisible()).toBe(
+                true,
+            );
+        };
         const selectLinked = async () => {
             await selectElement(webview, "Task_Missing");
             await selectElement(webview, "Task_Linked");
@@ -546,14 +588,60 @@ describe("the packaged extension in a real VS Code", () => {
             expectNoCspViolations();
         });
 
-        it("stays absent for missing and unlinked automatic selections", async () => {
+        it("indicates missing references but stays quiet for unlinked automatic selections", async () => {
             await selectLinked();
             await selectElement(webview, "Task_Missing");
             await expect.poll(() => preview().count()).toBe(0);
+            const indicator = webview.locator(".linked-form-preview-indicator");
+            await indicator
+                .getByRole("status")
+                .getByText("The linked form is missing or invalid. Check the form reference.", {
+                    exact: true,
+                })
+                .waitFor();
+            expect(
+                await indicator.getByRole("button", { name: "Refresh", exact: true }).count(),
+            ).toBe(0);
+            expect(
+                await indicator.getByRole("button", { name: "Close form preview" }).count(),
+            ).toBe(1);
             expect(await previewAction().count()).toBe(0);
+            await assertIndicatorFits(
+                "The linked form is missing or invalid. Check the form reference.",
+                "Close form preview",
+            );
             await selectElement(webview, "Task_Unlinked");
             expect(await preview().count()).toBe(0);
+            expect(await indicator.count()).toBe(0);
             expectNoCspViolations();
+        });
+
+        it("wraps the full longer localized indicator without clipping its close button", async () => {
+            await selectElement(webview, "Task_Missing");
+            const changeLanguage = async (label: string) => {
+                await vscode().runCommand("Change Modeler Language");
+                await vscode()
+                    .page.locator(".quick-input-widget")
+                    .getByText(label, { exact: true })
+                    .click();
+            };
+            try {
+                await changeLanguage("Deutsch");
+                await assertIndicatorFits(
+                    "Das verknüpfte Formular fehlt oder ist ungültig. Prüfen Sie den Formularverweis.",
+                    "Formularvorschau schließen",
+                );
+                expect(await previewAction().count()).toBe(0);
+                expectNoCspViolations();
+            } finally {
+                await changeLanguage("English");
+                await webview
+                    .getByRole("status")
+                    .getByText("The linked form is missing or invalid. Check the form reference.", {
+                        exact: true,
+                    })
+                    .waitFor();
+            }
         });
 
         it("blocks primary and auxiliary form links without widening CSP", async () => {
@@ -644,7 +732,7 @@ describe("the packaged extension in a real VS Code", () => {
             expectNoCspViolations();
         });
 
-        it("silently skips invalid automatic content and recovers on a new selection", async () => {
+        it("indicates initially malformed JSON with a hidden action and recovers on resolution", async () => {
             await selectLinked();
             await selectElement(webview, "Task_Missing");
             await webview.locator("html").evaluate((node, formId) => {
@@ -668,9 +756,39 @@ describe("the packaged extension in a real VS Code", () => {
             await selectElement(webview, "Task_Linked");
             await settle(webview);
             expect(await preview().count()).toBe(0);
+            await webview
+                .locator(".linked-form-preview-indicator")
+                .getByRole("status")
+                .getByText("The linked form is missing or invalid. Check the form reference.", {
+                    exact: true,
+                })
+                .waitFor();
+            expect(await previewAction().count()).toBe(0);
+            await writeFile(file, original);
+            await webview.getByRole("textbox", { name: "Customer name" }).waitFor();
+            expect(await webview.locator(".linked-form-preview-indicator").count()).toBe(0);
+            expectNoCspViolations();
+        });
+
+        it("indicates invalid automatic schema without a broken preview panel", async () => {
+            await selectLinked();
+            await selectElement(webview, "Task_Unlinked");
+            await writeFile(file, original.replace('"textfield"', '"iframe"'));
+            await selectElement(webview, "Task_Linked");
+            await webview
+                .locator(".linked-form-preview-indicator")
+                .getByRole("status")
+                .getByText(
+                    "The saved form is invalid or unsupported. Open it in the form editor.",
+                    { exact: true },
+                )
+                .waitFor();
+            expect(await preview().count()).toBe(0);
+            expect(await previewAction().count()).toBe(0);
+            await selectElement(webview, "Task_Unlinked");
+            expect(await webview.locator(".linked-form-preview-indicator").count()).toBe(0);
             await writeFile(file, original);
             await selectLinked();
-            await webview.getByRole("textbox", { name: "Customer name" }).waitFor();
             expectNoCspViolations();
         });
 
