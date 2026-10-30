@@ -159,6 +159,33 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(open.params.languageId).toBe("javascript");
     });
 
+    it("logs a language pick that fails on open and opens nothing", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "",
+            content: "",
+        });
+        const picker = await waitForFrame(
+            frames,
+            (f) => f.method === "picker/show" && f.id != null,
+        );
+        await rpc.handleLine(JSON.stringify({ id: picker.id, error: "host went away" }));
+
+        const log = await waitForFrame(
+            frames,
+            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        );
+        expect(log.params.message).toMatch(
+            /^Could not open the script of Task_1: .*host went away/,
+        );
+        expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
+    });
+
     it("routes an inbound script/didChange back to the webview as UpdateScriptContentQuery", async () => {
         const { rpc, frames, editorId } = await setup();
 
