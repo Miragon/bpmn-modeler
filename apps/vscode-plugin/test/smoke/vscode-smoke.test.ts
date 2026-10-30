@@ -343,6 +343,43 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
+    it("opens an Explorer file covered by a workbench file-path hover", async () => {
+        const page = vscode().page;
+        const source = page.locator(".explorer-folders-view").getByText(BPMN_FILE, { exact: true });
+        const target = page.locator(".explorer-folders-view").getByText(DMN_FILE, { exact: true });
+        await source.click();
+        await vscode().showInCustomEditor(BPMN_FILE, diagramRendered);
+        await page.bringToFront();
+        // Explorer registers its managed hover on first pointer entry.
+        await source.hover();
+        await page.mouse.move(0, 0);
+        await page.locator('.explorer-folders-view [role="tree"]').focus();
+        await page.keyboard.press(`${COMMAND_KEY}+k`);
+        await page.keyboard.press(`${COMMAND_KEY}+i`);
+        const hover = page.locator(".monaco-hover").filter({ hasText: BPMN_FILE });
+        await hover.waitFor({ state: "visible" });
+        await expect
+            .poll(() =>
+                target.evaluate((node) => {
+                    const box = node.getBoundingClientRect();
+                    return document
+                        .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+                        ?.closest('[role="tooltip"]')?.textContent;
+                }),
+            )
+            .toContain(BPMN_FILE);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "explorer-hover.png"));
+        await vscode().openFromExplorer(DMN_FILE);
+        await hover.waitFor({ state: "hidden" });
+        await page
+            .locator(".tabs-container .tab.active")
+            .getByText(DMN_FILE, { exact: true })
+            .waitFor();
+        await vscode().showInCustomEditor(DMN_FILE, (webview) =>
+            webview.getByText("Decision 1").first().isVisible(),
+        );
+    });
+
     describe("linked saved form preview", () => {
         let file: string;
         let original: string;

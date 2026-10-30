@@ -218,6 +218,9 @@ export class VsCodeSession {
     }
 
     async openFromExplorer(fileName: string): Promise<void> {
+        // Leave any hovered label before dismissing transient workbench UI.
+        await this.page.mouse.move(0, 0);
+        await this.page.keyboard.press("Escape");
         await this.page
             .locator(".explorer-folders-view")
             .getByText(fileName, { exact: true })
