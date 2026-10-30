@@ -32,6 +32,7 @@ import type {
     DiffReadyCommand,
     DmnFileQuery,
     DmnModelerSettingQuery,
+    ElementTemplateFileQuery,
     ElementTemplatesQuery,
     FocusElementQuery,
     FormDefaultsQuery,
@@ -47,6 +48,7 @@ import type {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetElementTemplatesCommand,
+    GetElementTemplateFileCommand,
     GetFormFileCommand,
     GetFormInputValuesCommand,
     GetFormReferenceStatusCommand,
@@ -103,6 +105,7 @@ export type ProtocolQuery =
     | DmnFileQuery
     | FormFileQuery
     | FormInputValuesQuery
+    | ElementTemplateFileQuery
     | ElementTemplatesQuery
     | BpmnlintResultsQuery
     | BpmnLintDisabledQuery
@@ -151,6 +154,7 @@ export type ProtocolCommand =
     | GetFormFileCommand
     | GetFormInputValuesCommand
     | UpdateFormOutputValuesCommand
+    | GetElementTemplateFileCommand
     | GetElementTemplatesCommand
     | GetBpmnlintConfigCommand
     | GetBpmnModelerSettingCommand
