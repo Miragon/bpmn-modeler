@@ -655,6 +655,35 @@ describe("DeploymentService.deploy", () => {
         ]);
     });
 
+    it("saves an ad-hoc deploy's connection in one write, so a failed save leaves the stored connection whole", async () => {
+        const { service, host, restClient } = createService({ files: MAIN_FILE });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        const storedConnection = {
+            endpoint: "https://old.example/api",
+            tenantId: "old-tenant",
+            authType: "basic",
+            tokenEndpoint: "https://old-idp/token",
+            audience: "old-audience",
+        } as const;
+        host.deploymentState.seed(storedConnection);
+        host.deploymentState.failSaves(
+            (patch) => patch.authType !== undefined,
+            new Error("state locked"),
+        );
+
+        const result = await deployAdHoc(
+            service,
+            buildConfig({
+                endpoint: "https://new.example/api",
+                tenantId: "new-tenant",
+                auth: new OAuth2Auth("cid", "csecret", "https://new-idp/token", "new-audience"),
+            }),
+        );
+
+        expect(result.message).toBe("ok Not saved: connection settings (state locked).");
+        expect(host.deploymentState.load()).toMatchObject(storedConnection);
+    });
+
     it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
