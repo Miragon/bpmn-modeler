@@ -106,9 +106,9 @@ export function applyDeploymentStatePatch(
 
 function patchedLedger(
     ledger: DeploymentState["ledger"],
-    { put = {}, remove = [] }: LedgerPatch,
+    { put, remove }: LedgerPatch,
 ): DeploymentState["ledger"] {
-    const kept = Object.entries(ledger).filter(([key]) => !remove.includes(key));
+    const kept = Object.entries(ledger).filter(([key]) => !remove?.includes(key));
     return { ...Object.fromEntries(kept), ...put };
 }
 

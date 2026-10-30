@@ -207,6 +207,6 @@ describe("connectionPatch", () => {
             },
         ],
     ])("remembers a deploy with %s", (_case, auth, expected) => {
-        expect(connectionPatch(connection, auth)).toEqual(expected);
+        expect(connectionPatch(connection, auth)).toStrictEqual(expected);
     });
 });
