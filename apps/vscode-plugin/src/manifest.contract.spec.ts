@@ -8,10 +8,6 @@ import { describe, expect, it, vi } from "vitest";
 // command-ID consts as the single source of truth. Same trick the service
 // specs use (see BpmnModelerService.spec.ts).
 vi.mock("vscode", () => ({}));
-// CommandController imports the i18n-extras entry (which declares no
-// `main`/`exports` and so cannot resolve under vitest); a stub keeps the
-// module-load import satisfied without affecting these manifest assertions.
-vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({ supportedModelerLanguages: [] }));
 
 import {
     CHANGE_ENGINE_VERSION_CMD,
@@ -64,6 +60,7 @@ import {
     SettingKey,
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
+import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import { MODELER_SETTINGS_SECTION } from "./shared/infrastructure/modelerConfiguration";
 
 const SRC_DIR = __dirname;
@@ -89,7 +86,10 @@ interface Manifest {
         configurationDefaults: Record<string, Record<string, string>>;
         jsonValidation: { fileMatch: string; url: string }[];
         configuration: {
-            properties: Record<string, { default?: unknown; enum?: string[]; maxItems?: number }>;
+            properties: Record<
+                string,
+                { default?: unknown; enum?: string[]; enumItemLabels?: string[]; maxItems?: number }
+            >;
         };
     };
 }
@@ -275,6 +275,32 @@ describe("package.json ↔ code contract", () => {
         ),
     )("reads the $key $value the manifest offers as itself", ({ key, value }) => {
         expect(parseSetting(key, value)).toBe(value);
+    });
+
+    it("offers every language the modeler ships, labelled as the language picker labels it", () => {
+        const { enum: locales = [], enumItemLabels: labels = [] } =
+            manifest.contributes.configuration.properties[`${MODELER_SETTINGS_SECTION}.language`];
+        const byLocale = (a: { locale: string }, b: { locale: string }) =>
+            a.locale.localeCompare(b.locale);
+        const offered = locales.map((locale, index) => ({ locale, label: labels[index] }));
+        const shipped = supportedModelerLanguages.map(({ locale, label }) => ({ locale, label }));
+
+        expect(labels).toHaveLength(locales.length);
+        expect(offered.sort(byLocale)).toEqual(shipped.sort(byLocale));
+    });
+
+    it("documents every language the modeler ships", () => {
+        const languageSupportPage = readFileSync(
+            resolve(__dirname, "../../../docs/vscode/features/language-support.md"),
+            "utf-8",
+        );
+        const documented = [...languageSupportPage.matchAll(/^\| `([^`]+)` \|/gm)].map(
+            ([, locale]) => locale,
+        );
+
+        expect(documented.sort()).toEqual(
+            supportedModelerLanguages.map(({ locale }) => locale).sort(),
+        );
     });
 
     it("pins as many favourite elements as the manifest allows", () => {

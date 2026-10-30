@@ -2,11 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
 
-// The i18n-extras package declares no `main`/`exports`, so Vite cannot resolve
-// its real entry under vitest. A small fixture keeps the language list
-// deterministic while letting the subject's module-level import resolve. The
-// literal is inlined because the mock factory is hoisted above any top-level
-// binding it might close over.
+// A two-language fixture keeps the picker specs independent of the shipped
+// catalogue. The literal is inlined because the mock factory is hoisted above
+// any top-level binding it might close over.
 vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({
     supportedModelerLanguages: [
         { label: "Deutsch", locale: "de" },

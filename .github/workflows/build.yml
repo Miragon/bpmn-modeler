@@ -37,7 +37,8 @@ jobs:
               # ProtocolHandlerCoverageTest checks the Kotlin handlers against it.
               - 'apps/modeler-bridge/src/protocol/protocol.json'
               # ModelerSettingsStoreTest runs the core's settings rows and checks
-              # the Kotlin defaults against the VS Code manifest.
+              # the Kotlin defaults against the VS Code manifest, ModelerLocalesTest
+              # the Kotlin languages.
               - 'libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json'
               - 'apps/vscode-plugin/package.json'
             intellij-plugin-src:

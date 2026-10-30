@@ -103,9 +103,9 @@ the decision is that".
   the status-bar badge, or the `miragon.bpmnModeler.linting.enabled` setting.
 - **Export** — copy the current diagram to the clipboard as SVG, or save an SVG
   next to the source file, via the SVG commands below.
-- **Multi-language UI** — palette, context pad, and properties panel available
-  in English, Deutsch, Español, Français, Nederlands, Português (Brasil),
-  Русский, 简体中文, and 繁體中文.
+- **Multi-language UI** — palette, context pad, and properties panel in 12
+  languages, from English and Deutsch to 日本語 and 한국어
+  ([all languages](https://miragon.github.io/bpmn-modeler/vscode/features/language-support)).
 
 ### Commands
 

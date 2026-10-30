@@ -109,7 +109,10 @@ class ModelerSettingsConfigurable : Configurable {
                     comboBox(
                         ModelerLocales.CODES,
                         textListCellRenderer<String?> { code -> code?.let { ModelerLocales.LABELS[it] ?: it } ?: "" },
-                    ).bindItem({ state.language }, { state.language = it ?: ModelerLocales.DEFAULT_LOCALE })
+                    ).bindItem(
+                        { state.language },
+                        { state.language = it ?: ModelerSettingsStore.DEFAULT_LANGUAGE },
+                    )
                 }
                 row {
                     checkBox("Enable Camunda SPIN script completion")

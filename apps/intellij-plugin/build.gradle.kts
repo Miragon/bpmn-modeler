@@ -82,8 +82,9 @@ tasks.test {
     useJUnitPlatform()
     // The tests read these TypeScript-side files: ProtocolHandlerCoverageTest the bridge's
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows and the VS Code
-    // manifest's defaults. As declared inputs, a change on the TypeScript side alone reruns
-    // the tests instead of restoring them from the build cache.
+    // manifest's defaults, ModelerLocalesTest the manifest's languages. As declared inputs, a
+    // change on the TypeScript side alone reruns the tests instead of restoring them from the
+    // build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
