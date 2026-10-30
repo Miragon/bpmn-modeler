@@ -16,6 +16,34 @@ const application = new ApplicationPackage({
 const widgetModule = "@theia/core/lib/browser/widgets/widget";
 const sharedWidget = require.resolve(widgetModule);
 
+test("built-in language plugins use the pinned Theia extension pack and preserve the Git pin", () => {
+    assert.equal(
+        app.theiaPlugins["eclipse-theia.builtin-extension-pack"],
+        "https://open-vsx.org/api/eclipse-theia/builtin-extension-pack/1.104.0/file/eclipse-theia.builtin-extension-pack-1.104.0.vsix",
+    );
+    assert.equal(
+        app.theiaPlugins["vscode.git"],
+        "https://open-vsx.org/api/vscode/git/1.95.3/file/vscode.git-1.95.3.vsix",
+    );
+});
+
+test("plugin downloads exclude only unavailable pack members and keep other failures fatal", () => {
+    assert.deepEqual(app.theiaPluginsExcludeIds, ["vscode.prompt", "vscode.terminal-suggest"]);
+    assert.equal(app.scripts["download:plugins"], "theia download:plugins");
+});
+
+for (const id of [
+    "vscode.java",
+    "vscode.javascript",
+    "vscode.json",
+    "vscode.markdown",
+    "vscode.yaml",
+]) {
+    test(`the built-in language pack retains ${id}`, () => {
+        assert.ok(!app.theiaPluginsExcludeIds?.includes(id));
+    });
+}
+
 for (const extension of application.extensionPackages) {
     test(`${extension.name} shares the application's Theia widget runtime`, () => {
         const fromExtension = createRequire(extension.raw.installed.packagePath);

@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-10-25
+- Last reviewed: 2026-10-27
 
 ## Context
 
@@ -21,6 +21,7 @@ users to install a full development SDK or allowing host-command execution.
 - [Release pull request](#release-pull-request)
 - [Packing and publishing](#packing-and-publishing)
 - [Standalone Linux Git](#standalone-linux-git)
+- [Standalone built-in languages](#standalone-built-in-languages)
 - [Consequences](#consequences)
 
 ## Decision
@@ -177,6 +178,30 @@ Git in the finished application's runtime rather than the build SDK. Running
 the full SDK at runtime would ship unnecessary development tools; forwarding
 Git to the host would require general host-command execution permission.
 
+### Standalone built-in languages
+
+The standalone host needs common syntax grammars without requiring users to
+install extensions. Declare the Open VSX `eclipse-theia.builtin-extension-pack`
+VSIX at version 1.104.0 in the standalone `theiaPlugins` manifest. Keep the
+existing explicit `vscode.git` 1.95.3 pin rather than upgrading Git with this
+language-support change.
+
+Use Theia's standard downloader to expand `extensionPack` and resolve extension
+dependencies during preparation and packaging; do not maintain a separate list
+of downloaded language plugins. electron-builder copies the resulting plugins
+as extra resources. The [runtime configuration test](../../apps/standalone/scripts/theia-runtime.test.mjs)
+guards the pack pin, exact exclusions, retained language members and fatal
+download errors; the
+[packaged runtime test](../../apps/standalone/scripts/packaged-runtime.test.mjs)
+checks representative language registrations and grammar files in the artifact.
+
+Exclude only `vscode.prompt` and `vscode.terminal-suggest` via
+`theiaPluginsExcludeIds`: the pack references both, but Open VSX returns no
+versions for either ID. Theia's standard downloader otherwise fails the entire
+preparation after resolving the remaining members. Keep all other download
+errors fatal rather than enabling `--ignore-errors`. Recheck these exclusions
+when updating the pack.
+
 ## Consequences
 
 Packages retain separate version lines while bundled feature/fix changes reach
@@ -199,6 +224,13 @@ The standalone package carries its own Git version and must update the source
 URL and checksum for Git fixes. Users need neither host Git nor the SDK runtime.
 Git and its subprocesses remain sandboxed; host-only credential helpers and
 hook dependencies need sandbox-compatible alternatives.
+
+Built-in language grammars work offline after installation. The pack manifest
+is pinned, but its members and their dependencies resolve to the latest
+Theia-compatible versions at download time, so the pin alone does not make
+plugin downloads reproducible. Syntax grammars do not imply full language-server
+support. Prompt-file support and terminal suggestions from the two unavailable
+extensions do not ship; the selected common language grammars remain included.
 
 Operational instructions live in the
 [release guide](../vscode/contributing/release-process.md); architecture and
