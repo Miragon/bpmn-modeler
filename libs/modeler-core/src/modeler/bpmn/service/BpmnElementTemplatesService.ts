@@ -79,7 +79,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             // instant, so a progress indicator would only flash.
             const readsFromDisk = this.needsDiskRead(templateDirs);
             if (readsFromDisk) {
-                this.showTemplateLoadStatus(this.templateLoadStatus.started(request));
+                this.recordTemplateLoad(this.templateLoadStatus.started(request));
             }
 
             const sources = await Promise.all([
@@ -90,7 +90,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             ]);
             if (isSuperseded()) {
                 if (readsFromDisk) {
-                    this.showTemplateLoadStatus(this.templateLoadStatus.abandoned(request));
+                    this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
                 }
                 return false;
             }
@@ -104,11 +104,11 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
                 }
                 return true;
             } else {
-                this.showTemplateLoadStatus(this.templateLoadStatus.abandoned(request));
+                this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
                 return this.handleError(new Error("Setting the `elementTemplates` failed."));
             }
         } catch (error) {
-            this.showTemplateLoadStatus(this.templateLoadStatus.abandoned(request));
+            this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
             if (!this.editorStore.hasEditor(editorId)) {
                 this.notifier.logDebug(
                     `Element-template load aborted; editor disposed mid-load: ${editorId}`,
@@ -217,7 +217,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         templateCount: number,
         sources: readonly ElementTemplateSource[],
     ): void {
-        this.showTemplateLoadStatus(this.templateLoadStatus.finished(request, templateCount));
+        this.recordTemplateLoad(this.templateLoadStatus.finished(request, templateCount));
         const fileCount = sources.reduce((sum, source) => sum + source.fileCount, 0);
         if (fileCount > 0) {
             this.notifier.logInfo(
@@ -226,7 +226,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         }
     }
 
-    private showTemplateLoadStatus(status: TemplateLoadStatus): void {
+    private recordTemplateLoad(status: TemplateLoadStatus): void {
         this.templateLoadStatus = status;
         const view = elementTemplatesStatusView(status.display);
         if (view) {
