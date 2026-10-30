@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-27
+- Last reviewed: 2026-10-30
 
 ## Context
 
@@ -180,7 +180,7 @@ VS Code runs the core in-process. The standalone app loads that extension in
 Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
 Its host also integrates diff, deployment and scripting; its visual editor does
-not currently provide DMN or Forms parity.
+not currently provide DMN or Forms parity, nor the element-template preview.
 
 A feature both hosts offer is built once in the core from ports, not wired per
 host. `EditorSessionLifecycle` runs every editor session: it routes webview
@@ -200,6 +200,17 @@ owns the document revision there. Host classes depend on the core ports, not
 on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
+
+The element-template preview is a read-only editor opened beside a template's
+own JSON editor, so the host's JSON support (`$schema` IntelliSense, undo,
+diagnostics) stays in charge of editing. Its page is a second entry of the BPMN
+webview bundle and parses the file itself: a host pushes the raw text with the
+configured locale (`ElementTemplateFileQuery`) and later language changes
+(`LanguageQuery`), and nothing else. That keeps an IntelliJ preview possible
+without a bridge session. In VS Code it is a custom editor with `option`
+priority on `*.json`, so it never takes JSON files over, and its sessions live
+in their own `EditorSessionStore`: a preview never becomes the target of
+modeler commands or counts towards `bpmn-modeler.openCustomEditors`.
 
 Inline scripts still open and sync their tabs per host (`ScriptTaskService`,
 `BridgeScriptEditor`), but both hosts read, write and delete the script files
