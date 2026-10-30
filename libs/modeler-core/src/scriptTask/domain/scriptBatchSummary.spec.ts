@@ -91,4 +91,29 @@ describe("scriptBatchSummary", () => {
             expect(scriptBatchSummary(outcome, "scripts")).toBe(expected);
         },
     );
+
+    it.each([
+        {
+            run: "names no folder when every script failed before one was resolved",
+            outcome: { generated: 0, alreadyOpen: 0, failed: 2 },
+            expected:
+                "No script files generated. Could not write 2 script file(s); see the log for details.",
+        },
+        {
+            run: "names no folder when every language pick was cancelled",
+            outcome: { generated: 0, alreadyOpen: 0, failed: 0 },
+            expected: "No script files generated.",
+        },
+        {
+            run: "still counts the generated scripts without a folder",
+            outcome: { generated: 1, alreadyOpen: 1, failed: 0 },
+            expected:
+                "Generated 1 script file(s) (1 already open, left untouched) — open a file to edit it with live sync into the diagram.",
+        },
+    ] satisfies { run: string; outcome: ScriptBatchOutcome; expected: string }[])(
+        "$run",
+        ({ outcome, expected }) => {
+            expect(scriptBatchSummary(outcome, undefined)).toBe(expected);
+        },
+    );
 });
