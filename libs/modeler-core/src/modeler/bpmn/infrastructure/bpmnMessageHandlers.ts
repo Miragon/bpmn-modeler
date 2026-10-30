@@ -45,7 +45,7 @@ export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): Messag
 /**
  * `GetBpmnModelerSettingCommand` → broadcast settings and language.
  *
- * Paired in registration order with {@link resyncScriptTasksHandler}: the
+ * Runs before the script editor's resync in the BPMN editor's table: the
  * webview re-requests settings on (re)load, which is also the moment to reload
  * inline scripts that changed while it was hidden.
  */

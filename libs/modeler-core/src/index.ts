@@ -153,6 +153,7 @@ export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/MarketplaceFeature";
 
 // ── scriptTask: domain ───────────────────────────────────────────────────────
+export * from "./scriptTask/domain/ports";
 export * from "./scriptTask/domain/ScriptUri";
 export * from "./scriptTask/domain/ScriptVariableStore";
 export * from "./scriptTask/domain/camundaDts";
@@ -169,3 +170,4 @@ export * from "./scriptTask/domain/scriptLanguage";
 export * from "./scriptTask/service/ScriptFileStore";
 export * from "./scriptTask/service/ScriptXmlService";
 export * from "./scriptTask/service/scriptBatch";
+export * from "./scriptTask/ScriptEditorFeature";

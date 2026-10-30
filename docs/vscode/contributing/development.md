@@ -523,7 +523,7 @@ apps/vscode-plugin/src/
     editor-session/  # Generic ModelerEditorController (runs the core EditorSessionLifecycle)
     bpmn/ form/      # controller/ infrastructure/
   deployment/ diff/ scriptTask/ templateMarketplace/        # controller/ infrastructure/
-  codeLink/ definitionSearch/ migration/ navigation/        # index.ts barrel only
+  migration/                                                # index.ts barrel only
 ```
 
 The layer + feature-isolation boundaries are enforced in CI by

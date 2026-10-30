@@ -39,4 +39,23 @@ describe("DefinitionSearchFeature", () => {
         );
         expect(editorContribution.participant).toBeInstanceOf(DefinitionSearchParticipant);
     });
+
+    it("stops watching the workspace once disposed", async () => {
+        const host = createTestHost({
+            folders: ["/work"],
+            files: { "/work/order.bpmn": model(""), "/work/billing.bpmn": model("") },
+        });
+        const editor = host.openEditor("/work/order.bpmn", model(""));
+        const feature = new DefinitionSearchFeature(host);
+        await feature.editorContribution.commandHandlers.SearchWorkspaceDefinitionsCommand(
+            new SearchWorkspaceDefinitionsCommand(1, "message", ""),
+            editor.id,
+        );
+        const watching = () => host.workspace.watchers.filter(({ disposed }) => !disposed);
+        expect(watching()).not.toEqual([]);
+
+        feature.dispose();
+
+        expect(watching()).toEqual([]);
+    });
 });

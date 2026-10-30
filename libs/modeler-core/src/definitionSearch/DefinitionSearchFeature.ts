@@ -20,12 +20,15 @@ export interface DefinitionSearchHostPorts {
 export class DefinitionSearchFeature {
     readonly editorContribution: EditorContribution<"SearchWorkspaceDefinitionsCommand">;
 
+    private readonly definitionIndex: WorkspaceDefinitionIndex;
+
     constructor(ports: DefinitionSearchHostPorts) {
+        this.definitionIndex = new WorkspaceDefinitionIndex(ports.workspace, ports.notifier);
         const search = new DefinitionSearchService(
             ports.store,
             ports.documents,
             ports.workspace,
-            new WorkspaceDefinitionIndex(ports.workspace, ports.notifier),
+            this.definitionIndex,
             ports.notifier,
         );
         this.editorContribution = {
@@ -34,5 +37,9 @@ export class DefinitionSearchFeature {
             },
             participant: new DefinitionSearchParticipant(search),
         };
+    }
+
+    dispose(): void {
+        this.definitionIndex.dispose();
     }
 }

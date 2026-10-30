@@ -31,6 +31,8 @@ export class CodeLinkFeature {
         "NavigateToImplementationCommand" | "SyncActivitiesCommand"
     >;
 
+    private readonly codeLinkMap: CodeLinkMapService;
+
     constructor(ports: CodeLinkHostPorts) {
         const locator = new ImplementationLocator(ports.workspace, ports.notifier);
         const navigation = new ImplementationNavigationService(
@@ -38,7 +40,7 @@ export class CodeLinkFeature {
             ports.notifier,
             ports.picker,
         );
-        const codeLinkMap = new CodeLinkMapService(
+        this.codeLinkMap = new CodeLinkMapService(
             ports.store,
             locator,
             new SourceIndex(ports.workspace, ports.notifier),
@@ -54,9 +56,13 @@ export class CodeLinkFeature {
                     navigation,
                     ports.notifier,
                 ),
-                SyncActivitiesCommand: syncActivitiesHandler(codeLinkMap),
+                SyncActivitiesCommand: syncActivitiesHandler(this.codeLinkMap),
             },
-            participant: new CodeLinkParticipant(codeLinkMap),
+            participant: new CodeLinkParticipant(this.codeLinkMap),
         };
+    }
+
+    dispose(): void {
+        this.codeLinkMap.dispose();
     }
 }

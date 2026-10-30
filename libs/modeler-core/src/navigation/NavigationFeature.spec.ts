@@ -25,8 +25,8 @@ function createFeature() {
         },
     });
     const editor = host.openEditor("/work/order.bpmn", bpmnWithProcess("Order"));
-    const { editorContribution } = new NavigationFeature(host);
-    return { host, editor, editorContribution };
+    const feature = new NavigationFeature(host);
+    return { host, editor, editorContribution: feature.editorContribution, feature };
 }
 
 describe("NavigationFeature", () => {
@@ -53,5 +53,19 @@ describe("NavigationFeature", () => {
             new FormReferenceStatusQuery(["Form_Approve"]),
         ]);
         expect(editorContribution.participant).toBeInstanceOf(FormReferenceStatusParticipant);
+    });
+
+    it("stops watching the workspace once disposed", async () => {
+        const { host, editor, editorContribution, feature } = createFeature();
+        await editorContribution.commandHandlers.GetFormReferenceStatusCommand(
+            new GetFormReferenceStatusCommand(),
+            editor.id,
+        );
+        const watching = () => host.workspace.watchers.filter(({ disposed }) => !disposed);
+        expect(watching()).not.toEqual([]);
+
+        feature.dispose();
+
+        expect(watching()).toEqual([]);
     });
 });

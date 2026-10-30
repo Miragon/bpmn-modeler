@@ -189,29 +189,33 @@ messages in document order, tracks focus, and runs each
 the others or their teardown. Participants see focus, document, setting,
 re-seed and dispose events, never a host panel. The host-free participants
 (element templates, bpmnlint, settings, engine version, deployment status,
-code-link, form-reference status, definition search) and the webview message
-handlers live in the core. `DeploymentFeature` and `MarketplaceCommands` own
-the deployment and marketplace flows. `BpmnEditorFeature` (`modeler/bpmn/`)
-builds the BPMN editor: its services, one router from a `CommandTable` that
-has an entry for every type in `BPMN_EDITOR_COMMAND_TYPES`
-(`WebviewMessageRouter.fromTable`), and its participants in one order. The
+code-link, form-reference status, definition search, script editor) and the
+webview message handlers live in the core. `DeploymentFeature` and
+`MarketplaceCommands` own the deployment and marketplace flows.
+`BpmnEditorFeature` (`modeler/bpmn/`) builds the BPMN editor: its services, one
+router from a `CommandTable` that has an entry for every type in
+`BPMN_EDITOR_COMMAND_TYPES` (`WebviewMessageRouter.fromTable`), and its
+participants in one order. The
 cross-feature rule holds for it as for every feature, with no exempt
-composition folder: navigation, definition search and code-link each export
-their handlers and participant as an `EditorContribution` (`NavigationFeature`,
-`DefinitionSearchFeature`, `CodeLinkFeature`), and the host's composition hands
-them to the editor with the deployment status participant and its script
-editor. A capability that differs between hosts is a
-`BpmnEditorHostExtensions` entry, and an absent one makes the editor ignore its
-commands with one reason. The three document commands
+composition folder: navigation, definition search, code-link and the script
+editor each export their handlers and participant as an `EditorContribution`
+(`NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`,
+`ScriptEditorFeature`), and the host's composition hands them to the editor
+with the deployment status participant. A feature that holds watchers or timers
+has a `dispose()` the host calls on shutdown. A capability that differs between
+hosts is a `BpmnEditorHostExtensions` entry, and an absent one makes the editor
+ignore its commands with one reason. The three document commands
 (`DOCUMENT_SYNC_COMMAND_TYPES`) form one such group: a host routes all of them
-to the core's document services or the editor ignores all three, because a
-host that routed `SyncDocumentCommand` without `DocumentFlushedCommand` would
-time out every flush, so a save or deploy could miss the last debounced edit.
-A host with its own document plumbing leaves `documentSync` out and answers the
-three on its own channel. The IntelliJ bridge runs the feature and pins its
-routes in a coverage spec, a `Record<BpmnEditorCommandType, "handled" |
-"ignored">`. VS Code still wires its BPMN router and participants in
-`composition/editorFeature.ts`, in the same order.
+to the core's document services or the editor ignores all three, because a host
+that routed `SyncDocumentCommand` without `DocumentFlushedCommand` would time
+out every flush, so a save or deploy could miss the last debounced edit. A host
+with its own document plumbing leaves `documentSync` out and answers the three
+on its own channel. Both hosts run the feature from their
+`composition/bpmnEditorFeature.ts`, so their routes and participant order are
+the same, and each pins its routes in a coverage spec, a
+`Record<BpmnEditorCommandType, "handled" | "ignored">`, with a row that the
+document group is handled or ignored as a whole. VS Code supplies every
+extension; the bridge leaves out the panel visibility.
 
 A host supplies adapters and maps its own surface (VS Code commands and views,
 bridge RPC) onto these modules. It keeps only what is genuinely host-specific:
@@ -223,18 +227,23 @@ on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
 
-Inline scripts still open and sync their tabs per host (`ScriptTaskService`,
-`BridgeScriptEditor`), but both hosts read, write and delete the script files
-through the core `ScriptFileStore`. It decides where a diagram's scripts live:
-below the config folder of its workspace root, or in the OS temp folder for a
-diagram that is not a file. A failed workspace lookup rejects instead of moving
-the scripts to the temp folder, so no host writes them somewhere the user did
-not configure. The store also owns the orphan sweep, once per folder and
-process, and the `.gitignore`, which it writes only when there is none. Each
-host passes its OS temp folder in the path spelling its workspace port
-answers, because VS Code compares `uri.path` values (`/c:/…`) where the bridge
-compares `C:/…`. It also passes how it spells such a path for the user, so a
-message names `c:\…` and not `/c:/…`.
+Inline scripts still open and sync their tabs per host, behind the core
+`ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab
+handling is host API. What the webview's script commands mean is the core
+`ScriptEditorFeature`'s on both: it stores the process variables the webview
+extracts, writes a "Generate Script Files" batch one script at a time and names
+its folder in the toast, logs a failed open with its element, resyncs after a
+reload and tears an editor's scripts down on close. Both hosts read, write and
+delete the script files through the core `ScriptFileStore`. It decides where a
+diagram's scripts live: below the config folder of its workspace root, or in
+the OS temp folder for a diagram that is not a file. A failed workspace lookup
+rejects instead of moving the scripts to the temp folder, so no host writes
+them somewhere the user did not configure. The store also owns the orphan
+sweep, once per folder and process, and the `.gitignore`, which it writes only
+when there is none. Each host passes its OS temp folder in the path spelling
+its workspace port answers, because VS Code compares `uri.path` values
+(`/c:/…`) where the bridge compares `C:/…`. It also passes how it spells such a
+path for the user, so a message names `c:\…` and not `/c:/…`.
 
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine

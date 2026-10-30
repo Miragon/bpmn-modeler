@@ -147,6 +147,8 @@ export class BpmnEditorFeature {
     readonly router: WebviewMessageRouter;
     readonly participants: readonly EditorSessionParticipant[];
 
+    private readonly panel: BpmnPropertiesPanelService;
+
     constructor(
         private readonly ports: BpmnEditorHostPorts,
         extensions: BpmnEditorHostExtensions,
@@ -190,7 +192,7 @@ export class BpmnEditorFeature {
             ports.settings,
             ports.notifier,
         );
-        const panel = new BpmnPropertiesPanelService(
+        this.panel = new BpmnPropertiesPanelService(
             ports.store,
             extensions.propertiesPanelState ?? PANEL_ALWAYS_VISIBLE,
             ports.notifier,
@@ -219,9 +221,9 @@ export class BpmnEditorFeature {
                 getBpmnModelerSettingHandler(settingsBroadcaster),
                 scriptEditor.commandHandlers.GetBpmnModelerSettingCommand,
             ],
-            GetPropertiesPanelStateCommand: [getPropertiesPanelStateHandler(panel)],
+            GetPropertiesPanelStateCommand: [getPropertiesPanelStateHandler(this.panel)],
             SetPropertiesPanelStateCommand: extensions.propertiesPanelState
-                ? [setPropertiesPanelStateHandler(panel)]
+                ? [setPropertiesPanelStateHandler(this.panel)]
                 : { ignored: "the host does not keep the panel visibility" },
             GetClipboardCommand: [getClipboardHandler(clipboard)],
             SetClipboardCommand: [setClipboardHandler(clipboard)],
@@ -263,6 +265,14 @@ export class BpmnEditorFeature {
             scriptEditor.participant,
             codeLink.participant,
         ];
+    }
+
+    initialPanelVisible(): boolean {
+        return this.panel.getPersistedPanelVisibility();
+    }
+
+    dispose(): void {
+        this.templates.dispose();
     }
 
     private documentSyncRoutes(
