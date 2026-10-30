@@ -37,8 +37,8 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 - Keep `modeler-core` and `shared` out of published browser code. Put protocol
   adaptation in webview bootstraps. `modeler-types` holds publishable concepts
   and the pure rules browser code shares with the core, such as script-surface
-  addressing and the XML comment and CDATA scan; DOM-id-coupled panel chrome and
-  host-theme adaptation belong in `shared`.
+  addressing, the XML comment and CDATA scan and process-variable extraction;
+  DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
 - Add host-independent logic to the core's feature-oriented domain/service
   layers. Reach host facilities through ports and editor handles. Cross-cutting
   host ports live in the core's `kernel/domain/hostPorts.ts`; a port or prompt

@@ -50,13 +50,13 @@ import {
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
     UpdateScriptSourceCommand,
-    VariableDef,
 } from "@miragon/bpmn-modeler-shared";
 import {
     AsyncDebounced,
     asyncDebounce,
     OpenScriptEditorRef,
     ScriptKind,
+    VariableDef,
 } from "@miragon/bpmn-modeler-types";
 
 import { Rpc } from "./rpc";

@@ -17,8 +17,8 @@ import {
     MethodDef,
     RawModelerSettings,
 } from "@miragon/bpmn-modeler-core";
-import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
-import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
+import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
+import { DiffOrigin, Engine, VariableDef } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentStateSnapshot, SessionMeta } from "../adapters";
 

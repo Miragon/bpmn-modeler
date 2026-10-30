@@ -103,9 +103,12 @@ libs/
                          # infrastructure), consumed by all hosts
   modeler-types/         # Public, host-agnostic modeler types + browser
                          # utilities (engine/lint/settings/scripting/diff,
-                         # theme, canvas resize and focus indicator). No
-                         # protocol dependency — the publishable half of the
-                         # old `shared` split out in #1371 (epic #1293)
+                         # theme, canvas resize and focus indicator) and the
+                         # pure rules the webview shares with the core
+                         # (script surfaces, XML comment/CDATA scan, process
+                         # variables). No protocol dependency — the
+                         # publishable half of the old `shared` split out in
+                         # #1371 (epic #1293)
   shared/                # Private webview ↔ host protocol: Query/Command
                          # message classes, HostApi, document-flush plumbing,
                          # properties-panel focus/resizer

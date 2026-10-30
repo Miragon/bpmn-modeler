@@ -14,9 +14,8 @@ import {
     type UpdateOpenScriptEditorsQuery,
     type UpdateScriptContentQuery,
     type UpdateScriptFormatQuery,
-    extractProcessVariables,
 } from "@miragon/bpmn-modeler-shared";
-import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
+import { type CleanupOutcome, extractProcessVariables } from "@miragon/bpmn-modeler-types";
 
 import type { HostModelerState } from "../hostModelerState";
 import {

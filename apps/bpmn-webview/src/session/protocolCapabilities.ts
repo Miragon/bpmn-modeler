@@ -11,9 +11,8 @@ import {
     UpdateScriptSourceCommand,
     type WorkspaceDefinitionsQuery,
     createReplyRegistry,
-    extractProcessVariables,
 } from "@miragon/bpmn-modeler-shared";
-import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
+import { type DetectedEngine, extractProcessVariables } from "@miragon/bpmn-modeler-types";
 
 import { isModelerHandle, type SurfaceHandle } from "../surface";
 import type { HostChannel } from "./hostChannel";

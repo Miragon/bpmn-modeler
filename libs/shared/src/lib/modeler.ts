@@ -51,7 +51,6 @@
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
 import { Command, Query } from "./messages";
-import { VariableDef } from "./processVariables";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -75,6 +74,7 @@ import type {
     ReferenceKind,
     ScriptKind,
     ScriptTaskScript,
+    VariableDef,
     Viewport,
     WorkspaceDefinition,
 } from "@miragon/bpmn-modeler-types";
