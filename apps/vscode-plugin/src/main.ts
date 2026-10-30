@@ -6,6 +6,7 @@ import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as codeLinkFeature from "./composition/codeLinkFeature";
+import * as bpmnEditorFeature from "./composition/bpmnEditorFeature";
 import * as editorFeature from "./composition/editorFeature";
 import * as compareFeature from "./composition/compareFeature";
 import * as commandsFeature from "./composition/commandsFeature";
@@ -26,10 +27,11 @@ export interface TestApi {
  *
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available) and is preserved exactly: diff → script →
- * codeLink → marketplace (service) → editor → marketplace (commands) → compare →
- * commands → deployment. Handles flow forward only: the editor routes into
- * diff's controller, script's service, code-link's handles, and the marketplace
- * service; later features reuse handles the earlier ones returned.
+ * codeLink → marketplace (service) → deployment → BPMN editor → DMN and Form
+ * editors → marketplace (commands) → compare → commands. Handles flow forward
+ * only: the BPMN editor routes into diff's controller, script's service,
+ * code-link's handles, the marketplace service and the deployment status;
+ * later features reuse handles the earlier ones returned.
  */
 export function activate(context: ExtensionContext): TestApi {
     setContext(context);
@@ -53,7 +55,7 @@ export function activate(context: ExtensionContext): TestApi {
     // Before the editor feature so its status bar participant can join the BPMN
     // session participant list (the same forward hand-off as code-link).
     const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
-    const { bpmnService, templatesSvc, layoutSvc } = editorFeature.register(context, deps, {
+    const { bpmnService, templatesSvc, layoutSvc } = bpmnEditorFeature.register(context, deps, {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
@@ -62,6 +64,7 @@ export function activate(context: ExtensionContext): TestApi {
         marketplaceSvc,
         deploymentStatusParticipant,
     });
+    editorFeature.register(context, deps);
     templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, { bpmnService, layoutSvc });
