@@ -53,6 +53,7 @@ async function createScriptFiles(resolvedFor: string[]): Promise<ScriptFileStore
         new ArtifactService(host.workspace, host.settings),
         host.notifier,
         "/tmp",
+        (path) => path,
     );
     for (const editorId of resolvedFor) {
         await scriptFiles.baseDirFor(editorId);

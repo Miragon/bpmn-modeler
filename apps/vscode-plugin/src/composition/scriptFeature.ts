@@ -24,7 +24,8 @@ export function register(
     scriptFiles: ScriptFileStore;
 } {
     // The temp folder in `uri.path` spelling, like every path VsCodeWorkspace
-    // answers, so an opened OS-temp script matches its base directory.
+    // answers, so an opened OS-temp script matches its base directory; messages
+    // name it as `fsPath` (`c:\…` rather than `/c:/…` on Windows).
     const scriptFiles = new ScriptFileStore(
         deps.editorStore,
         deps.vsWorkspace,
@@ -32,6 +33,7 @@ export function register(
         deps.artifactSvc,
         deps.notifier,
         canonicalPath(Uri.file(tmpdir())),
+        (path) => Uri.file(path).fsPath,
     );
 
     const scriptTaskSvc = new ScriptTaskService(

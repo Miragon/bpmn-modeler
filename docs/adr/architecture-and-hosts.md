@@ -208,7 +208,8 @@ not configure. The store also owns the orphan sweep, once per folder and
 process, and the `.gitignore`, which it writes only when there is none. Each
 host passes its OS temp folder in the path spelling its workspace port
 answers, because VS Code compares `uri.path` values (`/c:/…`) where the bridge
-compares `C:/…`.
+compares `C:/…`. It also passes how it spells such a path for the user, so a
+message names `c:\…` and not `/c:/…`.
 
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine

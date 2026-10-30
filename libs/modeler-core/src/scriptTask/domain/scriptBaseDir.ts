@@ -8,9 +8,15 @@ import { ScriptUri, TMP_SCRIPTING_SEGMENT } from "./ScriptUri";
 /** The `tmp/scripting` folder that holds one editor's scripts. */
 export interface ScriptBaseDir {
     readonly path: string;
-    /** What a message names: the path below the workspace root, or the whole path outside one. */
+    /**
+     * What a message names: the path below the workspace root, or outside one
+     * the whole path in the host's spelling.
+     */
     readonly displayName: string;
 }
+
+/** Spells a base dir's whole path the way the host shows paths to the user. */
+export type SpellForDisplay = (path: string) => string;
 
 /**
  * A document without a filesystem path (`untitled:`, a virtual file system)
@@ -23,19 +29,20 @@ export function keepsScriptsInOsTemp(documentScheme: string): boolean {
 /** Keeps the `tmp/scripting` marker, by which `parseScriptPath` finds a script's segments. */
 export function osTempScriptBaseDir(
     osTempDir: string,
-    _spellForDisplay: (path: string) => string,
+    spellForDisplay: SpellForDisplay,
 ): ScriptBaseDir {
     const path = joinWorkspacePath(osTempDir, "miragon-bpmn-modeler", TMP_SCRIPTING_SEGMENT);
-    return { path, displayName: path };
+    return { path, displayName: spellForDisplay(path) };
 }
 
 export function workspaceScriptBaseDir(
     workspaceRoot: string,
     configFolder: string,
-    _spellForDisplay: (path: string) => string,
+    spellForDisplay: SpellForDisplay,
 ): ScriptBaseDir {
     const path = configFolderPath(workspaceRoot, configFolder, TMP_SCRIPTING_SEGMENT);
-    return { path, displayName: relativeToRoot(path, toWorkspacePath(workspaceRoot)) || path };
+    const belowRoot = relativeToRoot(path, toWorkspacePath(workspaceRoot));
+    return { path, displayName: belowRoot || spellForDisplay(path) };
 }
 
 /** One level up, so it covers all of `tmp/`. */

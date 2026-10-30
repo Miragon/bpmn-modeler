@@ -1,4 +1,5 @@
 import { tmpdir } from "os";
+import { sep } from "path";
 
 import {
     OpenAllScriptTasksQuery,
@@ -49,6 +50,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         deps.artifactSvc,
         deps.notifier,
         tmpdir(),
+        (path) => path.replaceAll("/", sep),
     );
     const scriptEditor = new BridgeScriptEditor(
         deps.store,

@@ -23,6 +23,7 @@ function createStore({
         new ArtifactService(host.workspace, host.settings),
         host.notifier,
         OS_TEMP,
+        (path) => `<host spelling of ${path}>`,
     );
     return { host, store, diagram };
 }
@@ -102,7 +103,7 @@ describe("ScriptFileStore.displayNameFor", () => {
         expect(store.displayNameFor(diagram.id)).toBe(".camunda/tmp/scripting");
     });
 
-    it("names the whole OS temp folder for a diagram without a file path", async () => {
+    it("names the whole OS temp folder in the host's spelling for a diagram without a file path", async () => {
         const { host, store } = createStore();
         const untitled = new FakeEditorHandle("Untitled-1", { scheme: "untitled" });
         host.store.register(untitled);
@@ -110,7 +111,7 @@ describe("ScriptFileStore.displayNameFor", () => {
         await store.baseDirFor(untitled.id);
 
         expect(store.displayNameFor(untitled.id)).toBe(
-            `${OS_TEMP}/miragon-bpmn-modeler/tmp/scripting`,
+            `<host spelling of ${OS_TEMP}/miragon-bpmn-modeler/tmp/scripting>`,
         );
     });
 

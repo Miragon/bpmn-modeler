@@ -171,6 +171,7 @@ function createService(answers: PickerAnswers = {}) {
         new ArtifactService(host.workspace, host.settings),
         host.notifier,
         "/tmp",
+        (path) => path,
     );
     // Spied so a test can see which script files the service touched or make one fail.
     const scriptFiles = {

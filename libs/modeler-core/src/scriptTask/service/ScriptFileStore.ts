@@ -13,6 +13,7 @@ import {
     ScriptBaseDir,
     scriptFilePath,
     scriptGitignorePath,
+    SpellForDisplay,
     workspaceScriptBaseDir,
 } from "../domain/scriptBaseDir";
 import { ScriptUri } from "../domain/ScriptUri";
@@ -35,7 +36,10 @@ export class ScriptFileStore {
      */
     private readonly sweeps = new Map<string, Promise<void>>();
 
-    /** @param osTempDir The OS temp folder, spelled like the paths `workspace` answers. */
+    /**
+     * @param osTempDir The OS temp folder, spelled like the paths `workspace` answers.
+     * @param spellForDisplay Turns such a path into the spelling the host shows the user.
+     */
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly workspace: WorkspacePort,
@@ -43,6 +47,7 @@ export class ScriptFileStore {
         private readonly artifactSvc: ArtifactService,
         private readonly logger: LoggerPort,
         private readonly osTempDir: string,
+        private readonly spellForDisplay: SpellForDisplay,
     ) {}
 
     /**
@@ -64,14 +69,14 @@ export class ScriptFileStore {
     private async resolveBaseDir(editorId: string): Promise<ScriptBaseDir> {
         const handle = this.editorStore.requireHandle(editorId);
         if (keepsScriptsInOsTemp(handle.documentScheme())) {
-            return osTempScriptBaseDir(this.osTempDir, (path) => path);
+            return osTempScriptBaseDir(this.osTempDir, this.spellForDisplay);
         }
         const documentDir = this.workspace.getDocumentDirectory(handle.documentFsPath());
         const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
         return workspaceScriptBaseDir(
             workspaceRoot,
             this.settings.getConfigFolder(),
-            (path) => path,
+            this.spellForDisplay,
         );
     }
 

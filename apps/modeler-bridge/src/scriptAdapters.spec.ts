@@ -25,6 +25,7 @@ function scriptFilesOf(host: TestHost, osTempDir = "/tmp"): ScriptFileStore {
         new ArtifactService(host.workspace, host.settings),
         host.notifier,
         osTempDir,
+        (path) => path,
     );
 }
 
