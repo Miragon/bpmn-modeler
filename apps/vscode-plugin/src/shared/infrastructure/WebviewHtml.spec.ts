@@ -10,7 +10,12 @@ import {
     stylesheetsOf,
     tagsOf,
 } from "../../__fixtures__/webviewShell";
-import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
+import {
+    bpmnEditorUi,
+    dmnModelerHtml,
+    elementTemplatePreviewHtml,
+    formEditorHtml,
+} from "./WebviewHtml";
 
 type ShellBuilder = (initialPanelVisible?: boolean) => string;
 
@@ -45,6 +50,29 @@ describe("bpmnEditorUi", () => {
                 src: "https://webview.test/extension/bpmn-webview/index.js",
             },
         ]);
+    });
+});
+
+describe("elementTemplatePreviewHtml", () => {
+    const render = () => elementTemplatePreviewHtml(shellWebview, shellExtensionUri);
+
+    // The preview is a second entry of the BPMN bundle, so it shares its policy.
+    describeShellPolicy("bpmn", render);
+
+    it("loads the BPMN stylesheet and runs only the preview's nonced module entry", () => {
+        const html = render();
+
+        expect(stylesheetsOf(html)).toEqual([
+            "https://webview.test/extension/bpmn-webview/index.css",
+        ]);
+        expect(tagsOf(html, "script")).toEqual([
+            {
+                type: "module",
+                nonce: scriptNonceOf(html),
+                src: "https://webview.test/extension/bpmn-webview/templatePreview.js",
+            },
+        ]);
+        expect(tagsOf(html, "div")).toEqual([{ id: "app" }]);
     });
 });
 

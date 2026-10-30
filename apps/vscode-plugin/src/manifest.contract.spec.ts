@@ -44,6 +44,7 @@ import {
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
+import { OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD } from "./modeler/elementTemplate/controller/ElementTemplatePreviewController";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -55,6 +56,7 @@ import {
     DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
     DMN_VIEW_TYPE,
+    ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
     FORM_VIEW_TYPE,
     parseSetting,
     SettingKey,
@@ -125,6 +127,7 @@ const CODE_COMMAND_IDS = [
     FOCUS_LINT_ELEMENT_CMD,
     TOGGLE_FORM_INPUT_VALUES_CMD,
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
+    OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -175,7 +178,27 @@ describe("package.json ↔ code contract", () => {
     it("declares exactly the custom-editor viewTypes the code uses", () => {
         const declared = manifest.contributes.customEditors.map((e) => e.viewType);
 
-        expect(new Set(declared)).toEqual(new Set([BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE]));
+        expect(new Set(declared)).toEqual(
+            new Set([
+                BPMN_VIEW_TYPE,
+                DMN_VIEW_TYPE,
+                FORM_VIEW_TYPE,
+                ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+            ]),
+        );
+    });
+
+    it("offers the template preview for JSON files without taking them over", () => {
+        expect(manifest.contributes.customEditors).toContainEqual(
+            expect.objectContaining({
+                viewType: ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+                priority: "option",
+                selector: [{ filenamePattern: "*.json" }],
+            }),
+        );
+        expect(manifest.contributes.menus["editor/title"]).toContainEqual(
+            expect.objectContaining({ command: OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD }),
+        );
     });
 
     it("associates forms with JSON validation and the visual editor", () => {
@@ -374,6 +397,7 @@ describe("package.json ↔ code contract", () => {
         const contextKeys = [
             "bpmn-modeler.openCustomEditors",
             "bpmn-modeler.compareSelectionActive",
+            "bpmn-modeler.isElementTemplate",
         ];
 
         const sources = productionSourceFiles(SRC_DIR).map((file) => readFileSync(file, "utf-8"));

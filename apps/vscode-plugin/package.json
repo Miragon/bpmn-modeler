@@ -225,6 +225,17 @@
                     }
                 ],
                 "priority": "default"
+            },
+            {
+                "id": "bpmn-modeler.elementTemplatePreview",
+                "viewType": "bpmn-modeler.elementTemplatePreview",
+                "displayName": "Element Template Preview",
+                "selector": [
+                    {
+                        "filenamePattern": "*.json"
+                    }
+                ],
+                "priority": "option"
             }
         ],
         "configurationDefaults": {
@@ -274,6 +285,12 @@
                 "title": "Toggle Form Output Values",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(output)"
+            },
+            {
+                "command": "bpmn-modeler.openElementTemplatePreview",
+                "title": "Open Element Template Preview",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(open-preview)"
             },
             {
                 "command": "bpmn-modeler.openLoggingConsole",
@@ -442,6 +459,10 @@
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
                 },
                 {
+                    "command": "bpmn-modeler.openElementTemplatePreview",
+                    "when": "resourceExtname == .json"
+                },
+                {
                     "command": "bpmn-modeler.openLoggingConsole",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
@@ -550,6 +571,11 @@
                     "command": "bpmn-modeler.toggleFormOutputValues",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
+                    "command": "bpmn-modeler.openElementTemplatePreview",
+                    "group": "navigation",
+                    "when": "resourceExtname == .json && !activeCustomEditorId && (bpmn-modeler.isElementTemplate || resourcePath =~ /element-templates/)"
                 },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",

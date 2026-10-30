@@ -7,6 +7,7 @@ import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as codeLinkFeature from "./composition/codeLinkFeature";
 import * as editorFeature from "./composition/editorFeature";
+import * as elementTemplateFeature from "./composition/elementTemplateFeature";
 import * as compareFeature from "./composition/compareFeature";
 import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
@@ -26,10 +27,11 @@ export interface TestApi {
  *
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available) and is preserved exactly: diff → script →
- * codeLink → marketplace (service) → editor → marketplace (commands) → compare →
- * commands → deployment. Handles flow forward only: the editor routes into
- * diff's controller, script's service, code-link's handles, and the marketplace
- * service; later features reuse handles the earlier ones returned.
+ * codeLink → marketplace (service) → editor → marketplace (commands) →
+ * template preview → compare → commands → deployment. Handles flow forward
+ * only: the editor routes into diff's controller, script's service, code-link's
+ * handles, and the marketplace service; later features reuse handles the
+ * earlier ones returned.
  */
 export function activate(context: ExtensionContext): TestApi {
     setContext(context);
@@ -63,6 +65,7 @@ export function activate(context: ExtensionContext): TestApi {
         deploymentStatusParticipant,
     });
     templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
+    elementTemplateFeature.register(context, deps);
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, { bpmnService, layoutSvc });
 
