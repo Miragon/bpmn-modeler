@@ -9,7 +9,11 @@ import {
     MigrationVersions,
     PlannedWrite,
 } from "../domain/MigrationPlan";
-import { migrationSummary, WriteResult } from "../domain/migrationSummary";
+import {
+    MigrationResult,
+    migrationSummary,
+    nothingToMigrateSummary,
+} from "../domain/migrationSummary";
 import { MigrationPickerPort } from "../domain/ports";
 import {
     DocumentPort,
@@ -24,9 +28,9 @@ interface CurrentDiagram {
     readonly editorId: string | undefined;
 }
 
-interface ReadCandidates {
+interface CandidateReads {
     readonly candidates: readonly MigrationCandidate[];
-    readonly skippedReads: readonly WriteResult[];
+    readonly skippedReads: readonly MigrationResult[];
 }
 
 /**
@@ -64,11 +68,7 @@ export class BpmnMigrationService {
 
             const scopeDecision = plan.scopeDecision();
             if (scopeDecision.kind === "nothingToMigrate") {
-                this.notifier.showInfo(
-                    skippedReads.length > 0
-                        ? migrationSummary(skippedReads)
-                        : "Could not detect the engine for any BPMN file in the workspace.",
-                );
+                this.notifier.showInfo(nothingToMigrateSummary(skippedReads.length));
                 return false;
             }
 
@@ -88,7 +88,7 @@ export class BpmnMigrationService {
                 versions[engine] = await this.picker.pickEngineVersion(engine, getVersions(engine));
             }
 
-            const results: WriteResult[] = [...skippedReads];
+            const results: MigrationResult[] = [...skippedReads];
             for (const plannedWrite of plan.writesFor(versions)) {
                 results.push(await this.writeOrSkip(plannedWrite));
             }
@@ -104,9 +104,9 @@ export class BpmnMigrationService {
         }
     }
 
-    private async readCandidates(paths: readonly string[]): Promise<ReadCandidates> {
+    private async readCandidates(paths: readonly string[]): Promise<CandidateReads> {
         const candidates: MigrationCandidate[] = [];
-        const skippedReads: WriteResult[] = [];
+        const skippedReads: MigrationResult[] = [];
         for (const path of paths) {
             try {
                 const { document } = await this.readCurrentDiagram(path);
@@ -119,7 +119,7 @@ export class BpmnMigrationService {
         return { candidates, skippedReads };
     }
 
-    private async writeOrSkip(plannedWrite: PlannedWrite): Promise<WriteResult> {
+    private async writeOrSkip(plannedWrite: PlannedWrite): Promise<MigrationResult> {
         try {
             return await this.write(plannedWrite);
         } catch (error) {
@@ -135,7 +135,7 @@ export class BpmnMigrationService {
      * Files open in an editor are updated via {@link DocumentPort.write};
      * files only on disk are written via {@link WorkspacePort.writeFile}.
      */
-    private async write(plannedWrite: PlannedWrite): Promise<WriteResult> {
+    private async write(plannedWrite: PlannedWrite): Promise<MigrationResult> {
         const { path } = plannedWrite;
         const current = await this.readCurrentDiagramIfPresent(path);
         if (current === undefined) {
