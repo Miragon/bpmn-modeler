@@ -215,6 +215,44 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(2));
     });
 
+    it("ends the spinner of a disk load superseded mid-read", async () => {
+        const { service, host, editor, secondEditor, artifactSvc, addTemplate } = createService({
+            marketplace: false,
+        });
+        addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
+        const readDirectory = artifactSvc.readDirectory.getMockImplementation()!;
+        let releaseFirstRead: (() => void) | undefined;
+        artifactSvc.readDirectory.mockImplementationOnce(
+            (dir: string) =>
+                new Promise((resolve) => {
+                    releaseFirstRead = () => resolve(readDirectory(dir));
+                }),
+        );
+
+        const supersededLoad = service.setElementTemplates(editor.id);
+        await vi.waitFor(() => expect(releaseFirstRead).toBeDefined());
+        service.releaseEditor(editor.id);
+        releaseFirstRead!();
+
+        await expect(supersededLoad).resolves.toBe(false);
+        expect(host.statusBar.views.elementTemplates).toBeUndefined();
+        await service.setElementTemplates(secondEditor.id);
+        expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(1));
+    });
+
+    it("ends the spinner of a disk load that throws mid-read", async () => {
+        const { service, host, editor, artifactSvc, addTemplate } = createService({
+            marketplace: false,
+        });
+        addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
+        artifactSvc.readDirectory.mockRejectedValueOnce(new Error("EACCES"));
+
+        await expect(service.setElementTemplates(editor.id)).resolves.toBe(false);
+        expect(host.statusBar.views.elementTemplates).toBeUndefined();
+        await service.setElementTemplates(editor.id);
+        expect(host.statusBar.views.elementTemplates).toEqual(templatesReady(1));
+    });
+
     it("does not notify when the editor is disposed mid-load", async () => {
         const { service, host, editor, artifactSvc } = createService();
         // Editor is present at entry but gone by the time the awaited read throws.
