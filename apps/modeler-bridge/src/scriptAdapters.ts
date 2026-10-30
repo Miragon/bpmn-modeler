@@ -53,6 +53,7 @@ import {
 
 import { Rpc } from "./rpc";
 import { METHODS } from "./protocol/descriptor";
+import { ScriptOpenParams } from "./protocol/types";
 
 /** The element-addressing fields needed to route a host edit back to the webview. */
 interface TrackedScript {
@@ -173,7 +174,7 @@ export class BridgeScriptEditor {
             filePath,
             content: cmd.content,
             completion: this.completionPayloadFor(cmd.kind, editorId),
-        });
+        } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
         this.broadcastOpenScripts(editorId);
@@ -345,7 +346,7 @@ export class BridgeScriptEditor {
             filePath: normalized,
             content,
             completion: this.completionPayloadFor(match.kind, match.editorId),
-        });
+        } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
         this.broadcastOpenScripts(match.editorId);

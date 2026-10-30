@@ -472,12 +472,13 @@ export interface ScriptOpenParams {
     fileName: string;
     languageId: string;
     /**
-     * Absolute path of the real script file the bridge wrote under
-     * `<configFolder>/tmp/scripting/`. The host opens this file (re-enabling
-     * IdeaVim and file-based tooling) and falls back to an in-memory
-     * `LightVirtualFile` from `content` only if the path fails to resolve.
+     * Absolute path of the real script file the bridge wrote into the editor's
+     * script folder. The host opens this file (re-enabling IdeaVim and
+     * file-based tooling). The field is absent when the folder lookup or the
+     * write failed; the host then opens an in-memory `LightVirtualFile` from
+     * `content`, as it does when the path fails to resolve.
      */
-    filePath: string;
+    filePath?: string;
     content: string;
     completion: {
         beans: readonly ScriptCompletionBean[];
