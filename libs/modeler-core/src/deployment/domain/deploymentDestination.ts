@@ -91,7 +91,7 @@ export class NamedDestination {
     }
 
     get statusConnection(): StatusConnection {
-        return { kind: "none" };
+        return { kind: "named", name: this.target.name };
     }
 
     /** On one shortened line, as the name comes from the shared file. */
@@ -140,8 +140,9 @@ export class AdHocDestination {
         readonly tenantId: string,
     ) {}
 
+    /** Only a deploy saves the form's endpoint, so before one the freshness refers to no connection. */
     get statusConnection(): StatusConnection {
-        return { kind: "none" };
+        return this.endpoint.trim() === "" ? { kind: "none" } : { kind: "formValues" };
     }
 
     /** The endpoint was typed, so a nearer, possibly vendored targets file can't supply its variables. */

@@ -1,6 +1,11 @@
 import { posix } from "path";
 
-import { DocumentPort, NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
+import {
+    DocumentPort,
+    NotifierPort,
+    SettingsPort,
+    StatusBarPort,
+} from "../../kernel/domain/hostPorts";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
@@ -12,12 +17,9 @@ import {
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
 import { DeploymentDestination } from "../domain/deploymentDestination";
+import { deploymentStatusView, timestampFormatter } from "../domain/deploymentStatusView";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
-import {
-    DeploymentPickerPort,
-    DeploymentStatePort,
-    DeploymentStatusBarPort,
-} from "../domain/ports";
+import { DeploymentPickerPort, DeploymentStatePort } from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvValueResolver } from "./EnvValueResolver";
 
@@ -42,7 +44,7 @@ export class DeploymentStatusService {
         private readonly documentPort: DocumentPort,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly statusBar: DeploymentStatusBarPort,
+        private readonly statusBar: StatusBarPort,
         private readonly picker: DeploymentPickerPort,
         private readonly notifier: NotifierPort,
         private readonly envResolver: EnvValueResolver,
@@ -174,12 +176,17 @@ export class DeploymentStatusService {
             const revision = this.deploymentState.getDeployedRevision(
                 ledgerKeyFor(identity, filePath),
             );
-            const freshness = freshnessFor(revision, this.documentPort.getContent(editorId));
-            this.statusBar.showDeploymentTarget(
-                destination.target?.name,
-                freshness,
-                revision?.deployedAt,
-                revision?.verifiedAt,
+            this.statusBar.show(
+                "deploymentTarget",
+                deploymentStatusView(
+                    {
+                        connection: destination.statusConnection,
+                        freshness: freshnessFor(revision, this.documentPort.getContent(editorId)),
+                        deployedAt: revision?.deployedAt,
+                        verifiedAt: revision?.verifiedAt,
+                    },
+                    timestampFormatter(this.settings.getLanguage()),
+                ),
             );
         } catch (error) {
             this.notifier.logDebug(
@@ -210,6 +217,6 @@ export class DeploymentStatusService {
 
     hide(): void {
         this.refreshGeneration++;
-        this.statusBar.hideDeploymentTarget();
+        this.statusBar.hide("deploymentTarget");
     }
 }
