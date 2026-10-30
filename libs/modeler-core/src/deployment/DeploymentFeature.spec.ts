@@ -15,6 +15,7 @@ import {
     TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
+import { UserCancelledError } from "../kernel/domain/errors";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../editorSession/service/DocumentFlushService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
@@ -338,7 +339,8 @@ describe("DeploymentFeature command failures", () => {
         expect(host.notifier.errors).toEqual(["Deployment command failed\ntargets file is locked"]);
     });
 
-    it("reports a secret store that cannot be read and sends nothing to the engine", async () => {
+    /** The order process, focused, with a basic-auth target whose credentials cannot be read. */
+    async function focusWhileTheSecretStoreRejects(rejection: Error) {
         const http = new RecordingEngineHttp();
         const basicTarget = new DeploymentTarget(
             "dev",
@@ -349,15 +351,21 @@ describe("DeploymentFeature command failures", () => {
             "",
             "",
         );
+        const orderXml = '<bpmn:process id="order-process"/>';
         const { host, feature } = createFeature(
             { workspaceFiles: [ORDER_PROCESS] },
             [basicTarget],
-            { [ORDER_PROCESS]: "<bpmn:definitions/>" },
+            { [ORDER_PROCESS]: orderXml },
             http,
         );
         host.deploymentState.activeTargetName = "dev";
-        host.openEditor(ORDER_PROCESS);
-        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(
+        await host.openSession(ORDER_PROCESS, [], { content: orderXml });
+        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(rejection);
+        return { host, feature, http };
+    }
+
+    it("reports a secret store that cannot be read and sends nothing to the engine", async () => {
+        const { host, feature, http } = await focusWhileTheSecretStoreRejects(
             new Error("The OS keyring is not available."),
         );
 
@@ -367,6 +375,21 @@ describe("DeploymentFeature command failures", () => {
         expect(host.notifier.errors).toEqual([
             "Deployment command failed\nThe OS keyring is not available.",
         ]);
+    });
+
+    it.each([
+        { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
+        { command: "Deploy Diagram", run: (feature: DeploymentFeature) => feature.deployActive() },
+        { command: "Verify Deployment", run: (feature: DeploymentFeature) => feature.verify() },
+    ])("does not report a cancelled prompt in $command as a failure", async ({ run }) => {
+        const { host, feature, http } = await focusWhileTheSecretStoreRejects(
+            new UserCancelledError(),
+        );
+
+        await expect(run(feature)).resolves.toBeUndefined();
+
+        expect(http.deployments).toEqual([]);
+        expect(host.notifier.transcript()).toBe("");
     });
 });
 

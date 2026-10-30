@@ -9,6 +9,7 @@ import {
     SettingsPort,
     WorkspacePort,
 } from "../kernel/domain/hostPorts";
+import { UserCancelledError } from "../kernel/domain/errors";
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
@@ -256,6 +257,7 @@ export class DeploymentFeature {
         try {
             await command();
         } catch (error) {
+            if (error instanceof UserCancelledError) return;
             this.ports.notifier.notifyError(
                 "Deployment command failed",
                 error instanceof Error ? error : new Error(String(error)),
