@@ -35,6 +35,21 @@ const norm = (value: string): string =>
 
 // Kept in sync with SOURCE_ONLY in tools/build-overlay.mjs.
 const SOURCE_ONLY = new Set([
+    // Anchored form-preview chrome is outside the harvest driver's modeler interactions.
+    "Preview linked form",
+    "Linked form preview",
+    "The linked form is missing or invalid. Check the form reference.",
+    "Refresh",
+    "Close form preview",
+    "Read-only preview of the saved local form.",
+    "Saved form loaded.",
+    "Open a workspace folder to preview linked forms.",
+    "No saved local form matches this reference. Refresh to try again.",
+    "Multiple saved forms match this reference. Choose a form to preview.",
+    "The saved form could not be read. Refresh to try again.",
+    "The host did not answer. Refresh to try again.",
+    "The saved form is invalid or unsupported. Open it in the form editor.",
+    "The form preview could not be loaded. Refresh to try again.",
     "Read-only",
     "Being edited in",
     "Element actions",

@@ -13,6 +13,7 @@ import {
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
+    GetFormPreviewCommand,
     GetFormReferenceStatusCommand,
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
@@ -91,6 +92,7 @@ const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Typ
     ),
     SyncActivitiesCommand: new SyncActivitiesCommand([]),
     GetFormReferenceStatusCommand: new GetFormReferenceStatusCommand(),
+    GetFormPreviewCommand: new GetFormPreviewCommand(1, "Form_1", true),
     SearchWorkspaceDefinitionsCommand: new SearchWorkspaceDefinitionsCommand(1, "message", "order"),
     OpenScriptEditorCommand: new OpenScriptEditorCommand(
         "Task_1",

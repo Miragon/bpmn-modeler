@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Preview" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.8.0">
+  <bpmn:process id="Process_Preview" isExecutable="false">
+    <bpmn:userTask id="Task_Linked" name="Linked form">
+      <bpmn:extensionElements><zeebe:formDefinition formId="Form_Smoke" /></bpmn:extensionElements>
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Missing" name="Missing form">
+      <bpmn:extensionElements><zeebe:formDefinition formId="Form_Missing" /></bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Unlinked" name="No form"><bpmn:incoming>Flow_2</bpmn:incoming></bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Task_Linked" targetRef="Task_Missing" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Missing" targetRef="Task_Unlinked" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Preview"><bpmndi:BPMNPlane id="Plane_Preview" bpmnElement="Process_Preview">
+    <bpmndi:BPMNShape id="Linked_di" bpmnElement="Task_Linked"><dc:Bounds x="100" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="Missing_di" bpmnElement="Task_Missing"><dc:Bounds x="300" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="Unlinked_di" bpmnElement="Task_Unlinked"><dc:Bounds x="500" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="200" y="140" /><di:waypoint x="300" y="140" /></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="400" y="140" /><di:waypoint x="500" y="140" /></bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>

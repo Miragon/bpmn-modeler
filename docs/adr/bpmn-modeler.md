@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-10-30
 
 ## Context
 
@@ -18,6 +18,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 ## Contents
 
 - [Public API and capabilities](#public-api-and-capabilities)
+- [Linked form previews](#linked-form-previews)
 - [Surfaces and modes](#surfaces-and-modes)
 - [Document identity and creation](#document-identity-and-creation)
 - [Properties panel](#properties-panel)
@@ -74,6 +75,30 @@ moddle parse because hosts index whole workspaces.
 `selection`. Their map uses upstream documented types and can be narrowed with
 `Pick`. Other names retain the generic, unstable escape hatch. A separate raw
 instance or services object would duplicate this API and expose more internals.
+
+### Linked form previews
+
+**Context.** Task selection needs an adjacent automatic preview, lightweight
+feedback for unresolved references, and dismissal followed by an icon to reopen
+available forms. Embedders must not acquire the IDE protocol or form-js dependency.
+
+**Decision.** Expose only the optional, protocol-free anchored `formPreview`
+capability. The modeler owns selection/dismissal; the webview alone owns form-js
+and accessible nonmodal chrome. Both hosts reuse core saved-file resolution and
+read fresh saved bytes on open/refresh, never unsaved editor state. Unsupported
+components are rejected rather than widening CSP; form actions are blocked.
+The optional availability-known hook distinguishes a pending index from an empty
+one; an unavailable preview request renders status only, without reading a file.
+
+**Consequences.** Automatic adjacency keeps the saved form in context but competes
+with diagram space; obstacle-aware placement can constrain the scrollable preview.
+Saved-byte resolution avoids coupling to open form editors at the cost of not
+reflecting unsaved changes. The index cannot distinguish missing from malformed
+JSON, so lightweight feedback names both without another scan. Explicit attempts
+retain retryable feedback rather than inheriting automatic failure handling.
+The optional port keeps form-js and IDE transport out of embedders. Enforcement lives in
+`FormPreviewService.spec.ts`, preview reducer/webview specs and focused
+packaged-extension smoke scenarios.
 
 ### Surfaces and modes
 

@@ -110,4 +110,17 @@ describe("createReplyRegistry", () => {
         expect(second).toBeGreaterThan(first);
         expect(third).toBeGreaterThan(second);
     });
+
+    it("cancels every pending reply and ignores subsequent late replies", async () => {
+        const replies = createReplyRegistry<string>();
+        const first = replies.open();
+        const second = replies.open();
+        replies.cancelAll();
+        replies.settle(first.requestId, "late");
+        await expect(first.reply).resolves.toBeUndefined();
+        await expect(second.reply).resolves.toBeUndefined();
+        const next = replies.open();
+        replies.settle(next.requestId, "new");
+        await expect(next.reply).resolves.toBe("new");
+    });
 });

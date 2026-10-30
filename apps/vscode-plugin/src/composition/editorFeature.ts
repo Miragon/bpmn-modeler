@@ -25,7 +25,11 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { FormModelerService } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
-import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
+import {
+    ReferencedModelLocator,
+    FormPreviewService,
+    getFormPreviewHandler,
+} from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
 import {
@@ -206,6 +210,12 @@ export function register(
         deps.notifier,
     );
     const referencedModelLocator = new ReferencedModelLocator(deps.vsWorkspace, deps.notifier);
+    const formPreviewService = new FormPreviewService(
+        referencedModelLocator,
+        deps.vsWorkspace,
+        deps.picker,
+        deps.notifier,
+    );
     const modelNavigationService = new ModelNavigationService(
         referencedModelLocator,
         deps.notifier,
@@ -286,6 +296,10 @@ export function register(
     bpmnMessageRouter.on(
         "GetFormReferenceStatusCommand",
         getFormReferenceStatusHandler(formReferenceStatusService),
+    );
+    bpmnMessageRouter.on(
+        "GetFormPreviewCommand",
+        getFormPreviewHandler(deps.editorStore, formPreviewService),
     );
     bpmnMessageRouter.on(
         "SearchWorkspaceDefinitionsCommand",

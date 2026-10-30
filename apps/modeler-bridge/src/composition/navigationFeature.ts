@@ -6,6 +6,8 @@ import {
     ModelNavigationService,
     navigateToReferencedModelHandler,
     ReferencedModelLocator,
+    FormPreviewService,
+    getFormPreviewHandler,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeSharedDeps } from "./sharedDeps";
@@ -37,6 +39,18 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
     );
 
     deps.router
+        .on(
+            "GetFormPreviewCommand",
+            getFormPreviewHandler(
+                deps.store,
+                new FormPreviewService(
+                    referencedModelLocator,
+                    deps.nodeWorkspace,
+                    deps.picker,
+                    deps.notifier,
+                ),
+            ),
+        )
         .on(
             "NavigateToReferencedModelCommand",
             navigateToReferencedModelHandler(deps.store, modelNavigationService, deps.notifier),

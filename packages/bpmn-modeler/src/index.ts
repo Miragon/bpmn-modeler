@@ -30,7 +30,15 @@ export type {
 export type { BpmnSurfaceHandle } from "./surfaceHandle";
 export type { ModelerCapabilities } from "./capabilities";
 export type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
-export type { ModelNavigationPort, ModelReference } from "@miragon/bpmn-model-navigation";
+export type {
+    ModelNavigationPort,
+    ModelReference,
+    PreviewRect,
+    FormPreviewAnchor,
+    FormPreviewRequest,
+    FormPreviewHandle,
+    FormPreviewPort,
+} from "@miragon/bpmn-model-navigation";
 export type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 export type {

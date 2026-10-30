@@ -1,4 +1,6 @@
 import { Command, NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
+import { FormPreviewQuery, type GetFormPreviewCommand } from "@miragon/bpmn-modeler-shared";
+import { FormPreviewService } from "../service/FormPreviewService";
 import { isReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort } from "../../kernel/domain/hostPorts";
@@ -39,5 +41,29 @@ export function getFormReferenceStatusHandler(
 ): MessageHandler {
     return async (_message: Command, editorId: string) => {
         await statusService.requestStatus(editorId);
+    };
+}
+
+export function getFormPreviewHandler(
+    store: EditorSessionStore,
+    service: FormPreviewService,
+): MessageHandler<GetFormPreviewCommand> {
+    return async (command, editorId) => {
+        const handle = store.requireHandle(editorId);
+        const result =
+            typeof command.formId === "string" && command.formId.length > 0
+                ? await service.read(
+                      command.formId,
+                      handle.documentFsPath(),
+                      command.automatic === true,
+                  )
+                : {
+                      kind: "unavailable" as const,
+                      reason: "notFound" as const,
+                  };
+        // A hidden/replaced editor must not receive a result from the old session.
+        if (store.hasEditor(editorId) && store.requireHandle(editorId) === handle) {
+            await handle.postMessage(new FormPreviewQuery(command.requestId, result));
+        }
     };
 }

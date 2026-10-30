@@ -7,6 +7,29 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "The linked form is missing or invalid. Check the form reference.":
+        "Связанная форма отсутствует или недействительна. Проверьте ссылку на форму.",
+    "Preview linked form": "Просмотреть связанную форму",
+    "Linked form preview": "Предпросмотр связанной формы",
+    "Refresh": "Обновить",
+    "Close form preview": "Закрыть предпросмотр формы",
+    "Read-only preview of the saved local form.":
+        "Предпросмотр сохранённой локальной формы только для чтения.",
+    "Saved form loaded.": "Сохранённая форма загружена.",
+    "Open a workspace folder to preview linked forms.":
+        "Откройте папку рабочей области для предпросмотра связанных форм.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "Сохранённая локальная форма по этой ссылке не найдена. Обновите для повторной попытки.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "По этой ссылке найдено несколько сохранённых форм. Выберите форму для предпросмотра.",
+    "The saved form could not be read. Refresh to try again.":
+        "Не удалось прочитать сохранённую форму. Обновите для повторной попытки.",
+    "The host did not answer. Refresh to try again.":
+        "Хост не ответил. Обновите для повторной попытки.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "Сохранённая форма недопустима или не поддерживается. Откройте её в редакторе форм.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "Не удалось загрузить предпросмотр формы. Обновите для повторной попытки.",
     "Apply Template": "Применить шаблон",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Автоматизированная работа, выполняемая Java delegate, выражением или внешней задачей",
