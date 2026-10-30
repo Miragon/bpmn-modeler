@@ -26,6 +26,11 @@ import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";
 import { NewModelEngine } from "./newModelEngine";
 
+export interface EngineVersionStatus {
+    readonly platform: Engine;
+    readonly version: string;
+}
+
 export type MigrationOutcome =
     | { readonly kind: "unchanged" }
     | { readonly kind: "versionReplaced"; readonly document: BpmnDocument }
@@ -182,7 +187,7 @@ export class BpmnDocument {
      * The platform and version the engine-version status shows, or `undefined`
      * when the document lacks either, so the status is hidden.
      */
-    engineVersionStatus(): { platform: Engine; version: string } | undefined {
+    engineVersionStatus(): EngineVersionStatus | undefined {
         const platform = this.detectEngine();
         const version = this.detectPlatformVersion();
         return platform && version ? { platform, version } : undefined;

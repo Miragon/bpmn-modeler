@@ -3,8 +3,10 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../editorSession/domain/EditorSessionParticipant";
-import { DocumentPort, LegacyStatusBarPort } from "../../../kernel/domain/hostPorts";
+import { DocumentPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
+import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
+import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 
 /**
  * Shows the engine-version status bar item while a BPMN editor is focused and
@@ -14,7 +16,7 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
     private readonly statusOwnership = new StatusItemOwnership();
 
     constructor(
-        private readonly statusBar: LegacyStatusBarPort,
+        private readonly statusBar: StatusBarPort,
         private readonly documents: DocumentPort,
     ) {}
 
@@ -33,16 +35,12 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
     }
 
     private releaseStatusItem(editorId: string): void {
-        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hideEngineVersion();
+        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hide("engineVersion");
     }
 
     // The claimant must also hide: the previous owner's late blur no longer does.
     private updateEngineVersionStatusBar(editorId: string): void {
         const status = new BpmnDocument(this.documents.getContent(editorId)).engineVersionStatus();
-        if (status) {
-            this.statusBar.showEngineVersion(status.platform, status.version);
-        } else {
-            this.statusBar.hideEngineVersion();
-        }
+        updateStatusSlot(this.statusBar, "engineVersion", engineVersionStatusView(status));
     }
 }

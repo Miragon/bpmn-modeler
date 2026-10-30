@@ -1,4 +1,4 @@
-import { RegisterParams } from "../protocol/types";
+import { RegisterParams, StatusBarUpdateParams } from "../protocol/types";
 
 /** Drains pending microtasks and one macrotask turn, so "nothing happened" can be asserted. */
 export async function settle(): Promise<void> {
@@ -49,6 +49,19 @@ export function registerParams(
         content,
         ...overrides,
     };
+}
+
+/** An emitted frame, as far as a status-slot assertion reads it. */
+export interface StatusSlotFrame {
+    readonly method?: string;
+    readonly params?: Partial<StatusBarUpdateParams>;
+}
+
+/** Matches the core's `statusBar/update` frames for one slot; `view: null` hides it. */
+export function isStatusSlotUpdate(
+    slot: StatusBarUpdateParams["slot"],
+): (frame: StatusSlotFrame) => boolean {
+    return (frame) => frame.method === "statusBar/update" && frame.params?.slot === slot;
 }
 
 export function hostNotification(method: string, params: unknown): string {
