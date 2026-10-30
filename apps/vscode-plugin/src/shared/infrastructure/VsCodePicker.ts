@@ -3,6 +3,7 @@ import { posix } from "path";
 import { QuickPickItem, Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "@miragon/bpmn-modeler-core";
 import { DeploymentPickerPort, MigrationPickerPort, PickerPort } from "@miragon/bpmn-modeler-core";
 import { classifyLocateResult, LocatePrompts, LocateResult } from "@miragon/bpmn-modeler-core";
 import { MigrationScope } from "@miragon/bpmn-modeler-core";
@@ -23,6 +24,23 @@ import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
  */
 export class VsCodePicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     constructor(private readonly vsWorkspace: VsCodeWorkspace) {}
+
+    async choose<V>(_prompt: ChoicePrompt<V>): Promise<V | undefined> {
+        return undefined;
+    }
+
+    async chooseMany<V>(_prompt: ChoicePrompt<V>): Promise<readonly V[]> {
+        return [];
+    }
+
+    async confirm(_request: ConfirmRequest): Promise<boolean> {
+        return false;
+    }
+
+    async searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }> {
+        window.createQuickPick();
+        return { outcome: await search.search() };
+    }
 
     /**
      * @throws {UserCancelledError} If the user dismisses the quick pick.
