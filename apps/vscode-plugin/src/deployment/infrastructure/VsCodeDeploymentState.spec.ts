@@ -49,6 +49,20 @@ describe("VsCodeDeploymentState", () => {
         expect(new VsCodeDeploymentState(memento).load()).toEqual(SAVED);
     });
 
+    it("reads a stored value the core does not know as the default and drops a broken ledger row", async () => {
+        const memento = new InMemoryMemento();
+        await memento.update("bpmn-modeler.deployment.authType", "kerberos");
+        await memento.update("bpmn-modeler.deployment.endpoint", 8080);
+        await memento.update(LEDGER_KEY, {
+            "target:dev::/a.bpmn": revision("f1"),
+            "target:dev::/b.bpmn": { deployedAt: "2026-10-01T10:00:00.000Z" },
+        });
+
+        const state = new VsCodeDeploymentState(memento).load();
+        expect(state).toMatchObject({ endpoint: "", authType: "none" });
+        expect(state.ledger).toEqual({ "target:dev::/a.bpmn": revision("f1") });
+    });
+
     it("persists every saved field so a new session reads it back", async () => {
         const memento = new InMemoryMemento();
         const { ledger, ...fields } = SAVED;
