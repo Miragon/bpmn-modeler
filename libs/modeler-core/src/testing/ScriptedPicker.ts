@@ -7,6 +7,7 @@ import { UserCancelledError } from "../kernel/domain/errors";
 import { LocatePrompts, PickerPort } from "../kernel/domain/hostPorts";
 import { classifyLocateResult, LocateResult } from "../kernel/domain/locateResult";
 import { NewModelEngine } from "../kernel/domain/newModelEngine";
+import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "../kernel/domain/prompts";
 
 export interface PickerAnswers {
     newModelEngine?: NewModelEngine;
@@ -21,6 +22,9 @@ export interface PickerAnswers {
     deploymentStatusAction?: "switch" | "verify";
 }
 
+/** Scripted answers to the generic prompts, keyed by prompt id. */
+export type PromptAnswers = Readonly<Record<string, unknown>>;
+
 export interface Prompt {
     readonly method: keyof (PickerPort & DeploymentPickerPort & MigrationPickerPort);
     readonly args: readonly unknown[];
@@ -34,7 +38,26 @@ export interface Prompt {
 export class ScriptedPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
     readonly prompts: Prompt[] = [];
 
-    constructor(readonly answers: PickerAnswers = {}) {}
+    constructor(
+        readonly answers: PickerAnswers = {},
+        readonly promptAnswers: PromptAnswers = {},
+    ) {}
+
+    async choose<V>(_prompt: ChoicePrompt<V>): Promise<V | undefined> {
+        return undefined;
+    }
+
+    async chooseMany<V>(_prompt: ChoicePrompt<V>): Promise<readonly V[]> {
+        return [];
+    }
+
+    async confirm(_request: ConfirmRequest): Promise<boolean> {
+        return false;
+    }
+
+    async searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }> {
+        return { outcome: await search.search() };
+    }
 
     async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
         this.prompts.push({ method: "pickNewModelEngine", args: [placeHolder] });

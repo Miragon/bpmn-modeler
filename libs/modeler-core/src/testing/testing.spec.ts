@@ -9,6 +9,7 @@ import {
     NoWorkspaceFolderFoundError,
     UserCancelledError,
 } from "../kernel/domain/errors";
+import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
 import { createTestHost } from "./createTestHost";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
@@ -185,6 +186,119 @@ describe("ScriptedPicker", () => {
 
         expect(single.chosen).toBeUndefined();
         expect(multi.chosen).toBe("/b.bpmn");
+    });
+});
+
+describe("ScriptedPicker answers by prompt id", () => {
+    const engines: ChoicePrompt<string> = {
+        id: "engine",
+        placeholder: "Select the engine",
+        items: [
+            { label: "Camunda 7", value: "c7" },
+            { label: "Camunda 8", value: "c8" },
+        ],
+    };
+    const files: ChoicePrompt<string> = {
+        id: "files",
+        placeholder: "Select files",
+        items: ["/a.form", "/b.dmn", "/c.json"].map((path) => ({ label: path, path, value: path })),
+    };
+    const deleteTarget = {
+        id: "deleteTarget",
+        title: "Delete dev?",
+        confirmLabel: "Delete",
+        details: ["dev"],
+    };
+    const locate = (paths: string[]): SearchPrompt<string[]> => ({
+        id: "locate",
+        searchingPlaceholder: "Searching…",
+        search: async () => paths,
+        choices: (found) =>
+            found.length > 1
+                ? {
+                      id: "locatedFile",
+                      placeholder: "Select the file",
+                      items: found.map((path) => ({ label: path, value: path })),
+                  }
+                : undefined,
+    });
+
+    it("returns the scripted value of each prompt it is asked", async () => {
+        const { picker } = createTestHost({
+            promptAnswers: {
+                engine: "c8",
+                files: ["/a.form", "/c.json"],
+                deleteTarget: true,
+                locatedFile: "/w/b.bpmn",
+            },
+        });
+
+        await expect(picker.choose(engines)).resolves.toBe("c8");
+        await expect(picker.chooseMany(files)).resolves.toEqual(["/a.form", "/c.json"]);
+        await expect(picker.confirm(deleteTarget)).resolves.toBe(true);
+        await expect(picker.searchAndChoose(locate(["/w/a.bpmn", "/w/b.bpmn"]))).resolves.toEqual({
+            outcome: ["/w/a.bpmn", "/w/b.bpmn"],
+            chosen: "/w/b.bpmn",
+        });
+        expect(picker.prompts.map((prompt) => prompt.method)).toEqual([
+            "choose",
+            "chooseMany",
+            "confirm",
+            "searchAndChoose",
+        ]);
+    });
+
+    it("dismisses an unanswered prompt", async () => {
+        const picker = new ScriptedPicker();
+
+        await expect(picker.choose(engines)).resolves.toBeUndefined();
+        await expect(picker.chooseMany(files)).resolves.toEqual([]);
+        await expect(picker.confirm(deleteTarget)).resolves.toBe(false);
+        await expect(picker.searchAndChoose(locate(["/a", "/b"]))).resolves.toEqual({
+            outcome: ["/a", "/b"],
+            chosen: undefined,
+        });
+    });
+
+    it("chooses nothing when the search outcome leaves no choice", async () => {
+        const picker = new ScriptedPicker({}, { locatedFile: "/w/a.bpmn" });
+
+        await expect(picker.searchAndChoose(locate(["/w/a.bpmn"]))).resolves.toEqual({
+            outcome: ["/w/a.bpmn"],
+            chosen: undefined,
+        });
+    });
+
+    it.each([
+        [
+            "a value the prompt does not offer",
+            { engine: "c9" },
+            (picker: ScriptedPicker) => picker.choose(engines),
+        ],
+        [
+            "a list with a file not offered",
+            { files: ["/a.form", "/d.bpmn"] },
+            (picker: ScriptedPicker) => picker.chooseMany(files),
+        ],
+        [
+            "a single value for a multi-choice",
+            { files: "/a.form" },
+            (picker: ScriptedPicker) => picker.chooseMany(files),
+        ],
+        [
+            "a non-boolean confirmation",
+            { deleteTarget: "yes" },
+            (picker: ScriptedPicker) => picker.confirm(deleteTarget),
+        ],
+        [
+            "a located file not among the matches",
+            { locatedFile: "/w/c.bpmn" },
+            (picker: ScriptedPicker) => picker.searchAndChoose(locate(["/w/a.bpmn", "/w/b.bpmn"])),
+        ],
+    ])("rejects %s", async (_case, promptAnswers, ask) => {
+        await expect(ask(new ScriptedPicker({}, promptAnswers))).rejects.toThrow(
+            /not an answer to prompt "\w+"/,
+        );
     });
 });
 
