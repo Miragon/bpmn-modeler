@@ -189,12 +189,13 @@ messages in document order, tracks focus, and runs each
 the others or their teardown. Participants see focus, document, setting,
 re-seed and dispose events, never a host panel. The host-free participants
 (element templates, bpmnlint, settings, engine version, deployment status,
-code-link, form-reference status, definition search) and the webview message
-handlers live in the core. `DeploymentFeature` and `MarketplaceCommands` own
-the deployment and marketplace flows. `BpmnEditorFeature` (`modeler/bpmn/`)
-builds the BPMN editor: its services, one router from a `CommandTable` that has
-an entry for every type in `BPMN_EDITOR_COMMAND_TYPES`
-(`WebviewMessageRouter.fromTable`), and its participants in one order. The
+code-link, form-reference status, definition search, script editor) and the
+webview message handlers live in the core. `DeploymentFeature` and
+`MarketplaceCommands` own the deployment and marketplace flows.
+`BpmnEditorFeature` (`modeler/bpmn/`) builds the BPMN editor: its services, one
+router from a `CommandTable` that has an entry for every type in
+`BPMN_EDITOR_COMMAND_TYPES` (`WebviewMessageRouter.fromTable`), and its
+participants in one order. The
 cross-feature rule holds for it as for every feature, with no exempt
 composition folder: navigation, definition search, code-link and the script
 editor each export their handlers and participant as an `EditorContribution`
