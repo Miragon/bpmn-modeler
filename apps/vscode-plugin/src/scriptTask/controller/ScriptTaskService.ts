@@ -31,9 +31,12 @@ import {
     EditorSessionStore,
     generateCamundaDts,
     isHiddenEditorError,
+    joinWorkspacePath,
     matchScriptFile,
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
+    ScriptFileStore,
+    scriptFilePath,
     ScriptLanguage,
     ScriptMaterialization,
     ScriptUri,
@@ -41,7 +44,6 @@ import {
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
 import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
-import { ScriptFileStore } from "../infrastructure/ScriptFileStore";
 import { toUri } from "../../shared/infrastructure/uriPath";
 
 /**
@@ -100,15 +102,6 @@ export class ScriptTaskService {
     private readonly writingGuard = new Set<string>();
 
     /**
-     * Resolved `<…>/tmp/scripting` base directory per BPMN editor. Cached at
-     * first open both to avoid re-resolving per script and to keep teardown
-     * deterministic: the dispose sweep must delete from the directory the
-     * files were actually written to, even if the configFolder setting
-     * changed while the editor was open.
-     */
-    private readonly baseDirByEditor = new Map<string, string>();
-
-    /**
      * Editor IDs whose webview was hidden when a script change occurred.
      *
      * VS Code hides a webview when its editor tab is not visible (e.g. the
@@ -154,8 +147,8 @@ export class ScriptTaskService {
      * was hidden are NOT written back for these editors — the user chose to
      * throw the diagram's changes away, and the scripts go with them.
      *
-     * Tracked only for editors present in {@link baseDirByEditor} (i.e. those
-     * that opened at least one script), since that is the only case where a
+     * Tracked only for editors with a script base directory (those that opened,
+     * generated or adopted a script), since that is the only case where a
      * dispose-time write-back can happen.
      */
     private readonly revertedEditors = new Set<string>();
@@ -199,8 +192,8 @@ export class ScriptTaskService {
     /**
      * Opens an inline script in a VS Code editor tab.
      *
-     * Writes the current script content to its file under the editor's
-     * `tmp/scripting` base directory and opens it beside the BPMN modeler.
+     * Writes the current script content to its file in the editor's script
+     * base directory and opens it beside the BPMN modeler.
      * For JavaScript, a kind-scoped `camunda.d.ts` + `jsconfig.json` are
      * placed next to the script so tsserver serves typed bean/SPIN completion.
      *
@@ -229,7 +222,7 @@ export class ScriptTaskService {
         if (!target) {
             return; // language picker cancelled
         }
-        const { scriptUri, lang, baseDir } = target;
+        const { scriptUri, lang } = target;
 
         /**
          * Already open: just reveal the existing editor.
@@ -240,7 +233,7 @@ export class ScriptTaskService {
             return;
         }
 
-        await this.writeScriptToDisk(scriptUri, baseDir, content, lang, kind);
+        await this.writeScriptToDisk(scriptUri, content, lang, kind);
 
         const doc = await workspace.openTextDocument(scriptUri);
         await languages.setTextDocumentLanguage(doc, lang.languageId);
@@ -298,7 +291,7 @@ export class ScriptTaskService {
             return { kind: "alreadyOpen" };
         }
 
-        await this.writeScriptToDisk(target.scriptUri, target.baseDir, content, target.lang, kind);
+        await this.writeScriptToDisk(target.scriptUri, content, target.lang, kind);
         return { kind: "written" };
     }
 
@@ -306,10 +299,8 @@ export class ScriptTaskService {
      * Resolves the on-disk target for a script: prompts for a language when the
      * model's `scriptFormat` is missing or unsupported (persisting the pick so
      * the next open skips the prompt), builds the {@link ScriptUri}, and joins it
-     * onto the editor's cached base directory. `undefined` when the picker is
-     * cancelled. Shared by {@link openScriptEditor} and {@link materializeScript}
-     * so both resolve — and cache `baseDirByEditor` — identically; that cache
-     * population is what lets {@link disposeForEditor} later delete the files.
+     * onto the editor's base directory, prepared for the write. `undefined` when
+     * the picker is cancelled.
      */
     private async resolveScriptTarget(
         editorId: string,
@@ -318,7 +309,7 @@ export class ScriptTaskService {
         listenerIndex: number | undefined,
         eventName: string | undefined,
         scriptFormat: string,
-    ): Promise<{ scriptUri: Uri; lang: ScriptLanguage; baseDir: string } | undefined> {
+    ): Promise<{ scriptUri: Uri; lang: ScriptLanguage } | undefined> {
         let effectiveFormat = scriptFormat;
         if (!ScriptLanguage.isSupported(scriptFormat)) {
             const picked = await this.picker.pickScriptLanguage(scriptFormat);
@@ -338,57 +329,20 @@ export class ScriptTaskService {
             eventName,
             lang.extension,
         );
-        // Write path: sweep the base dir once (first use this process) before
-        // the file lands, so a crashed window's orphans are cleared but live
-        // scripts of this session are not.
-        const baseDir = await this.prepareBaseDir(editorId);
-        const scriptUri = toUri(posix.join(baseDir, script.relativePath()));
-        return { scriptUri, lang, baseDir };
-    }
-
-    /**
-     * Resolves (and caches) the editor's `<…>/tmp/scripting` base directory.
-     * Caching keeps teardown deterministic — see {@link baseDirByEditor}.
-     */
-    private async scriptsBaseDir(editorId: string): Promise<string> {
-        let baseDir = this.baseDirByEditor.get(editorId);
-        if (baseDir === undefined) {
-            baseDir = await this.scriptFiles.resolveBaseDir(editorId);
-            this.baseDirByEditor.set(editorId, baseDir);
-        }
-        return baseDir;
-    }
-
-    /**
-     * Resolves the editor's base dir (via {@link scriptsBaseDir}) and runs the
-     * one-shot orphan sweep for it. The write paths use this; adoption must not,
-     * since sweeping would delete the very file being opened — it calls
-     * {@link ScriptFileStore.markSwept} instead.
-     */
-    private async prepareBaseDir(editorId: string): Promise<string> {
-        const baseDir = await this.scriptsBaseDir(editorId);
-        await this.scriptFiles.prepareBaseDir(baseDir);
-        return baseDir;
+        const baseDir = await this.scriptFiles.prepareForWrite(editorId);
+        return { scriptUri: toUri(scriptFilePath(baseDir, script)), lang };
     }
 
     /**
      * Writes a script file (and, for JavaScript, its ambient files) under the
-     * echo-prevention {@link writingGuard}. The `.gitignore` is best-effort: a
-     * failure to write it must not block materialising the script itself.
+     * echo-prevention {@link writingGuard}.
      */
     private async writeScriptToDisk(
         scriptUri: Uri,
-        baseDir: string,
         content: string,
         lang: ScriptLanguage,
         kind: ScriptKind,
     ): Promise<void> {
-        try {
-            await this.scriptFiles.ensureGitignore(baseDir);
-        } catch (error) {
-            this.notifier.logError(error as Error);
-        }
-
         await this.withWritingGuard(scriptUri.path, async () => {
             await this.scriptFiles.writeFile(scriptUri.path, content);
             if (lang.languageId === "javascript") {
@@ -437,18 +391,9 @@ export class ScriptTaskService {
             return;
         }
 
-        // The tmp/scripting marker alone is a heuristic any same-named user
-        // directory satisfies; the resolved base dir is the exact containment.
-        // Resolve without sweeping — the adopted file lives in this dir, so a
-        // sweep here would delete it.
-        const baseDir = await this.scriptsBaseDir(match.editorId);
-        if (!uri.path.startsWith(`${baseDir}/`)) {
+        if (!(await this.scriptFiles.adopt(match.editorId, uri.path))) {
             return;
         }
-
-        // Mark the base dir swept so a later write-path sweep spares this
-        // adopted, live file.
-        this.scriptFiles.markSwept(baseDir);
 
         // Re-check after the awaits: our own open of the same path could have
         // raced in and tracked it already.
@@ -486,8 +431,8 @@ export class ScriptTaskService {
     private async writeJsAmbientFiles(scriptPath: string, kind: ScriptKind): Promise<void> {
         const dir = posix.dirname(scriptPath);
         const dts = generateCamundaDts(kind, this.settings.getScriptingSpin());
-        await this.scriptFiles.writeFile(posix.join(dir, "camunda.d.ts"), dts);
-        await this.scriptFiles.writeFile(posix.join(dir, "jsconfig.json"), SCRIPT_JSCONFIG);
+        await this.scriptFiles.writeFile(joinWorkspacePath(dir, "camunda.d.ts"), dts);
+        await this.scriptFiles.writeFile(joinWorkspacePath(dir, "jsconfig.json"), SCRIPT_JSCONFIG);
     }
 
     /**
@@ -582,7 +527,7 @@ export class ScriptTaskService {
             this.broadcastOpenScripts(editorId);
             await this.saveIfDirty(entry.uri);
             await this.closeTabsFor(new Set([entry.uri.path]));
-            void this.deleteScriptDir(entry.uri);
+            void this.scriptFiles.deleteScript(entry.uri.path);
             return;
         }
 
@@ -716,8 +661,7 @@ export class ScriptTaskService {
         const wasReverted = this.revertedEditors.has(editorId);
         this.revertedEditors.delete(editorId);
 
-        const baseDir = this.baseDirByEditor.get(editorId);
-        this.baseDirByEditor.delete(editorId);
+        const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
 
         void (async () => {
             // Unless the diagram was discarded, write buffered script content
@@ -734,10 +678,8 @@ export class ScriptTaskService {
                 await this.saveIfDirty(entry.uri);
             }
             await this.closeTabsFor(new Set(orphaned.keys()));
-            if (baseDir !== undefined) {
-                await this.scriptFiles.deleteDir(
-                    posix.join(baseDir, ScriptUri.hashEditorId(editorId)),
-                );
+            if (editorScriptDir !== undefined) {
+                await this.scriptFiles.deleteFolder(editorScriptDir);
             }
         })().catch((error) => this.notifier.logError(error as Error));
     }
@@ -792,10 +734,10 @@ export class ScriptTaskService {
      *
      * Echo-safe by construction: the session's own listeners are disposed by
      * the time dispose runs, and this service's doc-change listener ignores the
-     * `.bpmn` (it isn't in {@link openDocuments}, and the editor was removed
-     * from {@link baseDirByEditor} in the sync head so it can't read as a
-     * revert either). The `WorkspaceEdit` is followed by an explicit save
-     * because no editor remains to own the resulting dirty buffer.
+     * `.bpmn` (it isn't in {@link openDocuments}, and the sync head released the
+     * editor's base directory so it can't read as a revert either). The
+     * `WorkspaceEdit` is followed by an explicit save because no editor remains
+     * to own the resulting dirty buffer.
      */
     private async persistScriptsToDocument(
         editorId: string,
@@ -953,8 +895,8 @@ export class ScriptTaskService {
      * must succeed, and its content is refreshed from the current model on
      * reopen ({@link openScriptEditor} rewrites through the rewrite branch once
      * the path is gone from {@link openDocuments}). Deletion happens only on
-     * element deletion, editor dispose, and the first-open-per-base-dir orphan
-     * sweep ({@link ScriptFileStore.prepareBaseDir}).
+     * element deletion, editor dispose, and the first-write-per-base-dir orphan
+     * sweep ({@link ScriptFileStore.prepareForWrite}).
      */
     private performCleanup(uri: Uri): void {
         // Capture the owning editor before removing so the lock broadcast below
@@ -965,23 +907,6 @@ export class ScriptTaskService {
 
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
-        }
-    }
-
-    /**
-     * Deletes the script's slug directory — the file itself plus, for
-     * JavaScript, its `camunda.d.ts` and `jsconfig.json` siblings. Called only
-     * when the script surface itself is gone (element deletion via
-     * {@link applyModelChange}); a plain tab close leaves the file in place so a
-     * re-open can succeed and rewrite it from the current model. Editor dispose
-     * deletes the whole `<editorHash>` dir separately.
-     */
-    private async deleteScriptDir(uri: Uri): Promise<void> {
-        const dir = posix.dirname(uri.path);
-        try {
-            await this.scriptFiles.deleteDir(dir);
-        } catch (error) {
-            this.notifier.logError(error as Error);
         }
     }
 
@@ -997,7 +922,7 @@ export class ScriptTaskService {
 
         // A change on a tracked *diagram* (not a script file) is the
         // revert-detection signal for the "Don't Save" write-back suppression.
-        if (this.baseDirByEditor.has(uri.toString())) {
+        if (this.scriptFiles.hasBaseDir(uri.toString())) {
             this.trackDiagramRevert(event.document);
             return;
         }

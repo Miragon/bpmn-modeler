@@ -7,17 +7,14 @@ import {
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { posix } from "path";
-
 import {
     materializeScriptBatch,
     MessageHandler,
     NO_INLINE_SCRIPTS_MESSAGE,
     NotifierPort,
     scriptBatchSummary,
+    ScriptFileStore,
     ScriptVariableStore,
-    SettingsPort,
-    TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 import { ScriptTaskService } from "../../../../scriptTask/index";
 import { setLintingEnabled } from "../../../../shared/infrastructure/modelerConfiguration";
@@ -87,13 +84,13 @@ export function openScriptEditorHandler(
  * identical for all scripts in one diagram). The batch — sequential
  * materialisation, failure counting and logging — is
  * {@link materializeScriptBatch}; the toast text is {@link scriptBatchSummary},
- * which this handler shows. An empty batch — a C8 diagram or one with no inline
- * scripts — surfaces a friendly info message.
+ * which this handler shows with the folder the scripts went to. An empty batch —
+ * a C8 diagram or one with no inline scripts — surfaces a friendly info message.
  */
 export function openScriptEditorsHandler(
     scriptTaskSvc: ScriptTaskService,
     variableStore: ScriptVariableStore,
-    settings: SettingsPort,
+    scriptFiles: ScriptFileStore,
     notifier: NotifierPort,
 ): MessageHandler<OpenScriptEditorsCommand> {
     return async (cmd, editorId) => {
@@ -118,8 +115,7 @@ export function openScriptEditorsHandler(
             notifier,
         );
 
-        const folder = posix.join(settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
-        notifier.showInfo(scriptBatchSummary(outcome, folder));
+        notifier.showInfo(scriptBatchSummary(outcome, scriptFiles.displayNameFor(editorId)));
     };
 }
 

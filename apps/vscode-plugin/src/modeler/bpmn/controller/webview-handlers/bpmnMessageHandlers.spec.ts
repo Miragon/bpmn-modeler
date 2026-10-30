@@ -13,8 +13,16 @@ import {
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
-import type { ScriptMaterialization } from "@miragon/bpmn-modeler-core";
-import { InMemorySettings, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
+import {
+    ArtifactService,
+    ScriptFileStore,
+    type ScriptMaterialization,
+} from "@miragon/bpmn-modeler-core";
+import {
+    createTestHost,
+    FakeEditorHandle,
+    RecordingNotifier,
+} from "@miragon/bpmn-modeler-core/testing";
 
 import {
     openScriptEditorHandler,
@@ -27,6 +35,30 @@ import {
 const EDITOR = "file:///work/diagram.bpmn";
 // Commands the read-style handlers ignore; a typed placeholder keeps signatures honest.
 const ANY: Command = { type: "Ignored" } as Command;
+
+const UNTITLED_EDITOR = "untitled://Untitled-1";
+
+/**
+ * The store the batch summary names its folder from, holding the base dirs of
+ * `resolvedFor` as a real script write would have left them.
+ */
+async function createScriptFiles(resolvedFor: string[]): Promise<ScriptFileStore> {
+    const host = createTestHost({ folders: ["/work"] });
+    host.openEditor("/work/diagram.bpmn");
+    host.store.register(new FakeEditorHandle("Untitled-1", { scheme: "untitled" }));
+    const scriptFiles = new ScriptFileStore(
+        host.store,
+        host.workspace,
+        host.settings,
+        new ArtifactService(host.workspace, host.settings),
+        host.notifier,
+        "/tmp",
+    );
+    for (const editorId of resolvedFor) {
+        await scriptFiles.baseDirFor(editorId);
+    }
+    return scriptFiles;
+}
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -101,9 +133,6 @@ describe("openScriptEditorsHandler", () => {
         content,
     });
 
-    // The command only writes files; `.camunda` is the config folder the
-    // completion notification names, joined with the `tmp/scripting` segment.
-    const CONFIG_FOLDER = ".camunda";
     const FOLDER = ".camunda/tmp/scripting";
 
     it("materializes scripts strictly sequentially, awaiting each before the next", async () => {
@@ -119,14 +148,14 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValue({ kind: "written" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const scriptFiles = await createScriptFiles([EDITOR]);
         const notifier = new RecordingNotifier();
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
         const done = openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings,
+            scriptFiles,
             notifier,
         )(
             new OpenScriptEditorsCommand(
@@ -174,13 +203,13 @@ describe("openScriptEditorsHandler", () => {
     it("shows an info message and materializes nothing for an empty batch", async () => {
         const scriptTaskSvc = { materializeScript: vi.fn() };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const scriptFiles = await createScriptFiles([EDITOR]);
         const notifier = new RecordingNotifier();
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings,
+            scriptFiles,
             notifier,
         )(new OpenScriptEditorsCommand([], []), EDITOR);
 
@@ -201,13 +230,13 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValueOnce({ kind: "alreadyOpen" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const scriptFiles = await createScriptFiles([EDITOR]);
         const notifier = new RecordingNotifier();
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings,
+            scriptFiles,
             notifier,
         )(
             new OpenScriptEditorsCommand(
@@ -229,13 +258,13 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValueOnce({ kind: "written" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const scriptFiles = await createScriptFiles([EDITOR]);
         const notifier = new RecordingNotifier();
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
-            settings,
+            scriptFiles,
             notifier,
         )(
             new OpenScriptEditorsCommand(
@@ -258,14 +287,14 @@ describe("openScriptEditorsHandler", () => {
             .mockResolvedValueOnce({ kind: "written" });
         const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
-        const settings = new InMemorySettings({ configFolder: CONFIG_FOLDER });
+        const scriptFiles = await createScriptFiles([EDITOR]);
         const notifier = new RecordingNotifier();
 
         await expect(
             openScriptEditorsHandler(
                 scriptTaskSvc as never,
                 variableStore as never,
-                settings,
+                scriptFiles,
                 notifier,
             )(
                 new OpenScriptEditorsCommand(
@@ -289,6 +318,45 @@ describe("openScriptEditorsHandler", () => {
                 /^Could not write the script file of B: Error: EACCES: permission denied/,
             ),
         ]);
+    });
+});
+
+describe("openScriptEditorsHandler names the folder the scripts went to", () => {
+    const written = (): Promise<ScriptMaterialization> => Promise.resolve({ kind: "written" });
+
+    async function summaryFor(
+        editorId: string,
+        resolvedFor: string[],
+        materializeScript: () => Promise<ScriptMaterialization>,
+    ): Promise<string[]> {
+        const notifier = new RecordingNotifier();
+
+        await openScriptEditorsHandler(
+            { materializeScript } as never,
+            { setExtracted: vi.fn() } as never,
+            await createScriptFiles(resolvedFor),
+            notifier,
+        )(
+            new OpenScriptEditorsCommand(
+                [{ elementId: "A", scriptFormat: "groovy", content: "" }],
+                [],
+            ),
+            editorId,
+        );
+        return notifier.infos;
+    }
+
+    it("names the OS temp folder for a diagram that is not a file", async () => {
+        expect(await summaryFor(UNTITLED_EDITOR, [UNTITLED_EDITOR], written)).toEqual([
+            "Generated 1 script file(s) in /tmp/miragon-bpmn-modeler/tmp/scripting — open a file to edit it with live sync into the diagram.",
+        ]);
+    });
+
+    it("names no folder when no script got as far as resolving one", async () => {
+        const cancelled = (): Promise<ScriptMaterialization> =>
+            Promise.resolve({ kind: "cancelled" });
+
+        expect(await summaryFor(EDITOR, [], cancelled)).toEqual(["No script files generated."]);
     });
 });
 

@@ -87,8 +87,12 @@ vi.mock("vscode", () => {
 import { TabInputText, Uri } from "vscode";
 
 import { ScriptTaskService } from "./ScriptTaskService";
-import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
-import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import {
+    ArtifactService,
+    ScriptFileStore,
+    ScriptLanguage,
+    ScriptUri,
+} from "@miragon/bpmn-modeler-core";
 import {
     createTestHost,
     FakeEditorHandle,
@@ -100,6 +104,7 @@ const EDITOR_ID = `file://${EDITOR_PATH}`;
 const ELEMENT_ID = "Task_1";
 const KIND: ScriptKind = "script-task";
 const BASE_DIR = "/repo/.camunda/tmp/scripting";
+const GITIGNORE = "/repo/.camunda/tmp/.gitignore";
 
 /** The absolute file path production builds for the canonical script-task fixture. */
 function scriptPath(format = "javascript", elementId = ELEMENT_ID): string {
@@ -157,16 +162,21 @@ const STREAM_DEBOUNCE_MS = 300;
 function createService(answers: PickerAnswers = {}) {
     // The canonical editor is live so adoption's reverse hash→editor lookup
     // resolves an opened script to a session.
-    const host = createTestHost({ answers });
+    const host = createTestHost({ answers, folders: ["/repo"] });
     const editor = host.openEditor(EDITOR_PATH);
+    const scriptFileStore = new ScriptFileStore(
+        host.store,
+        host.workspace,
+        host.settings,
+        new ArtifactService(host.workspace, host.settings),
+        host.notifier,
+        "/tmp",
+    );
+    // Spied so a test can see which script files the service touched or make one fail.
     const scriptFiles = {
-        resolveBaseDir: vi.fn().mockResolvedValue(BASE_DIR),
-        prepareBaseDir: vi.fn().mockResolvedValue(undefined),
-        markSwept: vi.fn(),
-        writeFile: vi.fn().mockResolvedValue(undefined),
-        readFile: vi.fn().mockResolvedValue(""),
-        deleteDir: vi.fn().mockResolvedValue(undefined),
-        ensureGitignore: vi.fn().mockResolvedValue(undefined),
+        writeFile: vi.spyOn(scriptFileStore, "writeFile"),
+        readFile: vi.spyOn(scriptFileStore, "readFile"),
+        deleteFolder: vi.spyOn(scriptFileStore, "deleteFolder"),
     };
     // Default: nothing diverged, so the dispose-time write-back is a no-op.
     const scriptXml = { applyScriptContents: vi.fn().mockResolvedValue(undefined) };
@@ -186,7 +196,7 @@ function createService(answers: PickerAnswers = {}) {
 
     const service = new ScriptTaskService(
         host.store,
-        scriptFiles as never,
+        scriptFileStore,
         host.settings,
         host.notifier,
         host.picker,
@@ -298,15 +308,12 @@ afterEach(() => {
 
 describe("ScriptTaskService.openScriptEditor", () => {
     it("writes content, ensures the gitignore, and reveals the editor for a new script", async () => {
-        const { service, scriptFiles } = createService();
+        const { service, host } = createService();
 
         await openCanonicalScript(service, "javascript", "console.log(1)");
 
-        expect(scriptFiles.resolveBaseDir).toHaveBeenCalledWith(EDITOR_ID);
-        // The write path sweeps the base dir once before the file lands.
-        expect(scriptFiles.prepareBaseDir).toHaveBeenCalledWith(BASE_DIR);
-        expect(scriptFiles.ensureGitignore).toHaveBeenCalledWith(BASE_DIR);
-        expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath(), "console.log(1)");
+        expect(host.workspace.files.get(GITIGNORE)).toBe("*\n");
+        expect(host.workspace.files.get(scriptPath())).toBe("console.log(1)");
         expect(setTextDocumentLanguageMock).toHaveBeenCalledWith(expect.anything(), "javascript");
         expect(showTextDocumentMock).toHaveBeenCalledWith(expect.anything(), {
             viewColumn: 2,
@@ -394,10 +401,11 @@ describe("ScriptTaskService.openScriptEditor", () => {
         });
     });
 
-    it("resolves the base directory once per editor", async () => {
-        const { service, scriptFiles } = createService();
+    it("keeps writing into the editor's first base directory after the config folder changed", async () => {
+        const { service, host } = createService();
 
         await openCanonicalScript(service, "groovy");
+        host.settings.values.configFolder = ".bpmn";
         await service.openScriptEditor(
             EDITOR_ID,
             "Task_2",
@@ -408,7 +416,7 @@ describe("ScriptTaskService.openScriptEditor", () => {
             "b",
         );
 
-        expect(scriptFiles.resolveBaseDir).toHaveBeenCalledTimes(1);
+        expect(host.workspace.files.get(scriptPath("groovy", "Task_2"))).toBe("b");
     });
 
     it("opens two scripts as pinned tabs that both stay tracked (openAll regression)", async () => {
@@ -654,7 +662,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         const path = scriptPath("groovy");
         // The replay happened, then tracking was released — but the file stays
         // on disk (deletion is reserved for element deletion / editor dispose).
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
             (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(path),
         ).toBe(false);
@@ -689,7 +697,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
 
         const path = scriptPath("groovy");
         // A plain tab close must not delete the file — reopening it has to work.
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
             (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(path),
         ).toBe(false);
@@ -703,7 +711,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
         await flushAsync();
 
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
             (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(
                 scriptPath("groovy"),
@@ -720,7 +728,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
         await flushAsync();
 
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         // The `openDocuments` entry is the deferred replay's payload now, so it
         // must survive until `resyncOpenDocuments` finishes the cleanup.
         expect(
@@ -736,18 +744,18 @@ describe("ScriptTaskService.onTabsChanged", () => {
         fireTabsChange({ closed: [makeTab(scriptPath())], opened: [], changed: [] });
         await flushAsync();
 
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });
 
     it("ignores closed tabs for unrelated files", async () => {
         const { service, fireTabsChange, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
-        scriptFiles.deleteDir.mockClear();
+        scriptFiles.deleteFolder.mockClear();
 
         fireTabsChange({ closed: [makeTab("/somewhere/else/x.js")], opened: [], changed: [] });
         await flushAsync();
 
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });
 });
 
@@ -777,14 +785,14 @@ describe("ScriptTaskService reopen after close", () => {
         setOpenTabs([]);
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
         await flushAsync();
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
 
         // Editor dispose sweeps the whole <editorHash> dir, covering the
         // earlier-closed script's leftover file.
         service.disposeForEditor(EDITOR_ID);
         await flushAsync();
 
-        expect(scriptFiles.deleteDir).toHaveBeenCalledWith(
+        expect(scriptFiles.deleteFolder).toHaveBeenCalledWith(
             `${BASE_DIR}/${ScriptUri.hashEditorId(EDITOR_ID)}`,
         );
     });
@@ -849,7 +857,7 @@ describe("ScriptTaskService.applyModelChange", () => {
         expect(doc.save).toHaveBeenCalledTimes(1);
         expect(closeTabMock).toHaveBeenCalledTimes(1);
         const path = scriptPath("groovy");
-        expect(scriptFiles.deleteDir).toHaveBeenCalledWith(
+        expect(scriptFiles.deleteFolder).toHaveBeenCalledWith(
             path.substring(0, path.lastIndexOf("/")),
         );
         expect(lastBroadcastRefs(editor)).toEqual([]);
@@ -923,7 +931,7 @@ describe("ScriptTaskService.disposeForEditor", () => {
         await flushAsync();
 
         expect(closeTabMock).toHaveBeenCalledTimes(1);
-        expect(scriptFiles.deleteDir).toHaveBeenCalledWith(
+        expect(scriptFiles.deleteFolder).toHaveBeenCalledWith(
             `${BASE_DIR}/${ScriptUri.hashEditorId(EDITOR_ID)}`,
         );
         expect(
@@ -949,14 +957,14 @@ describe("ScriptTaskService.disposeForEditor", () => {
         setOpenTabs([scriptPath("groovy")]);
         service.disposeForEditor(EDITOR_ID);
         await flushAsync();
-        scriptFiles.deleteDir.mockClear();
+        scriptFiles.deleteFolder.mockClear();
         setOpenTabs([]);
 
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
         await flushAsync();
 
         // State was already cleared by dispose, so performCleanup never runs.
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });
 
     it("touches no disk when the editor never opened a script", async () => {
@@ -967,7 +975,7 @@ describe("ScriptTaskService.disposeForEditor", () => {
 
         expect(closeTabMock).not.toHaveBeenCalled();
         // No cached base dir → nothing was ever written → nothing to delete.
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });
 });
 
@@ -1005,7 +1013,7 @@ describe("ScriptTaskService keystroke debounce", () => {
         expect(queries).toHaveLength(1);
         expect(queries[0].content).toBe("typed");
         // …but the file itself survives the close.
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });
 
     it("arms pendingResync and defers cleanup when the flush hits a hidden webview", async () => {
@@ -1023,7 +1031,7 @@ describe("ScriptTaskService keystroke debounce", () => {
         expect(
             (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
         ).toBe(true);
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
             (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(
                 scriptPath("groovy"),
@@ -1079,7 +1087,7 @@ describe("ScriptTaskService dispose write-back", () => {
         const edit = applyEditMock.mock.calls[0][0] as { replacements: { newText: string }[] };
         expect(edit.replacements[0].newText).toBe("<new-xml/>");
         expect(diagramDoc.save).toHaveBeenCalledTimes(1);
-        expect(scriptFiles.deleteDir).toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).toHaveBeenCalled();
     });
 
     it("skips the write-back but still deletes when nothing diverged", async () => {
@@ -1093,7 +1101,7 @@ describe("ScriptTaskService dispose write-back", () => {
         await flushAsync();
 
         expect(applyEditMock).not.toHaveBeenCalled();
-        expect(scriptFiles.deleteDir).toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).toHaveBeenCalled();
     });
 
     it("reads the script file when its buffer is gone, then writes back", async () => {
@@ -1146,7 +1154,7 @@ describe("ScriptTaskService dispose write-back", () => {
         await flushAsync();
 
         expect(notifier.logged("error")).toEqual([boom.stack]);
-        expect(scriptFiles.deleteDir).toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).toHaveBeenCalled();
     });
 
     it("skips the write-back entirely when the diagram was reverted", async () => {
@@ -1172,7 +1180,7 @@ describe("ScriptTaskService revert tracking", () => {
 
     it("marks the editor on a clean diagram change and clears it on save", async () => {
         const { service, fireDocChange, fireSave } = createService();
-        // Open a script so the editor is tracked in baseDirByEditor.
+        // Open a script so the editor has a script base directory.
         await openCanonicalScript(service, "groovy");
 
         // A change landing on an already-clean diagram is a "Don't Save" revert.
@@ -1199,7 +1207,7 @@ describe("ScriptTaskService revert tracking", () => {
     it("ignores diagram changes for editors that never opened a script", async () => {
         const { service, fireDocChange } = createService();
 
-        // No script opened → editor absent from baseDirByEditor → not tracked.
+        // No script opened → no script base directory → not tracked.
         await fireDocChange(diagramChangeEvent(false));
 
         expect(reverted(service).has(EDITOR_ID)).toBe(false);
@@ -1365,15 +1373,23 @@ describe("ScriptTaskService adoption", () => {
         expect(refs?.[0]).toMatchObject({ elementId: ELEMENT_ID, kind: KIND });
     });
 
-    it("marks the base dir swept without sweeping it, so a later write spares the adopted file", async () => {
-        const { fireTabsChange, scriptFiles } = createService();
+    it("never sweeps the adopted file, not even on a later write into its base dir", async () => {
+        const { service, fireTabsChange, host } = createService();
+        await host.workspace.writeFile(scriptPath(), "disk content");
 
         await fireOpen(fireTabsChange, scriptPath());
+        await service.materializeScript(
+            EDITOR_ID,
+            "Task_2",
+            KIND,
+            undefined,
+            undefined,
+            "groovy",
+            "b",
+        );
 
-        // Adoption must reserve the dir (markSwept) but never sweep it — a sweep
-        // here would delete the very file being opened.
-        expect(scriptFiles.markSwept).toHaveBeenCalledWith(BASE_DIR);
-        expect(scriptFiles.prepareBaseDir).not.toHaveBeenCalled();
+        expect(host.workspace.files.get(scriptPath())).toBe("disk content");
+        expect(host.workspace.files.get(scriptPath("groovy", "Task_2"))).toBe("b");
     });
 
     it("streams a subsequent keystroke into the model once the script is adopted", async () => {
@@ -1448,6 +1464,6 @@ describe("ScriptTaskService adoption", () => {
 
         expect(openDocumentsOf(service).has(scriptPath())).toBe(false);
         expect(lastBroadcastRefs(editor)).toEqual([]);
-        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });
 });

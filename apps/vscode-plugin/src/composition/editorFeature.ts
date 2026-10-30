@@ -84,6 +84,7 @@ import {
     BPMN_VIEW_TYPE,
     DMN_VIEW_TYPE,
     FORM_VIEW_TYPE,
+    ScriptFileStore,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import { TemplateMarketplaceService } from "@miragon/bpmn-modeler-core";
@@ -96,7 +97,8 @@ import { DefinitionSearchService, WorkspaceDefinitionIndex } from "../definition
  * Lifecycle-bearing collaborators owned by sibling features that the editor
  * routes into: the diff controller decides whether a resolved pane is a diff
  * view, the script-task service handles inline-editor messages and teardown,
- * the variable store feeds script completion, and the code-link handles carry
+ * the variable store feeds script completion, the script file store names the
+ * folder "Generate Script Files" wrote into, and the code-link handles carry
  * go-to-implementation navigation, the always-on activity→code map, and its
  * teardown participant.
  */
@@ -104,6 +106,7 @@ interface EditorHandles {
     diffController: BpmnDiffController;
     scriptTaskSvc: ScriptTaskService;
     scriptVariableStore: ScriptVariableStore;
+    scriptFiles: ScriptFileStore;
     codeLink: CodeLinkHandles;
     marketplaceSvc: TemplateMarketplaceService;
     deploymentStatusParticipant: DeploymentStatusParticipant;
@@ -131,6 +134,7 @@ export function register(
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
+        scriptFiles,
         codeLink,
         marketplaceSvc,
         deploymentStatusParticipant,
@@ -260,7 +264,7 @@ export function register(
             openScriptEditorsHandler(
                 scriptTaskSvc,
                 scriptVariableStore,
-                deps.vsSettings,
+                scriptFiles,
                 deps.notifier,
             ),
         )
