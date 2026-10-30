@@ -97,6 +97,9 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual([
             "Could not detect the engine for any BPMN file in the workspace.",
         ]);
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped 1 file(s) with undetectable engine: /work/a.bpmn",
+        ]);
     });
 
     it("should migrate C8-only workspace without scope picker", async () => {
@@ -452,6 +455,7 @@ describe("migrateAllDiagrams", () => {
             expect.stringMatching(
                 /^Skipped a diagram that could not be read: \/work\/a\.bpmn: Error: Permission denied\n/,
             ),
+            "Skipped 1 file(s) with undetectable engine: /work/unknown.bpmn",
         ]);
         expect(notifier.infos).toEqual([
             "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",

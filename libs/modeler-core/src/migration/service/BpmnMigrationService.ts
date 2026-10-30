@@ -56,6 +56,12 @@ export class BpmnMigrationService {
 
             const { candidates, skippedReads } = await this.readCandidates(paths);
             const plan = MigrationPlan.classify(candidates);
+            if (plan.undetected.length > 0) {
+                this.notifier.logWarning(
+                    `Skipped ${plan.undetected.length} file(s) with undetectable engine: ${plan.undetected.join(", ")}`,
+                );
+            }
+
             const scopeDecision = plan.scopeDecision();
             if (scopeDecision.kind === "nothingToMigrate") {
                 this.notifier.showInfo(
@@ -64,12 +70,6 @@ export class BpmnMigrationService {
                         : "Could not detect the engine for any BPMN file in the workspace.",
                 );
                 return false;
-            }
-
-            if (plan.undetected.length > 0) {
-                this.notifier.logWarning(
-                    `Skipped ${plan.undetected.length} file(s) with undetectable engine: ${plan.undetected.join(", ")}`,
-                );
             }
 
             const scope =
