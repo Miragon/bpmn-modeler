@@ -118,10 +118,12 @@ it by writing NDJSON frames to its stdin and reading frames from its stdout.
 - `src/nodeAdapters.ts` — pure-`fs` `WorkspacePort` / `SettingsPort` for the
   element-templates pipeline.
 - `src/composition/*Feature.ts` — one wiring module per feature slice (diff,
-  templates/settings, marketplace, clipboard, navigation, code-link, script,
-  editor-session, deployment); `bridge.ts` is the composition root that calls
-  them. The marketplace cache root arrives via the
-  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
+  marketplace, BPMN editor, script, editor-session, commands, deployment);
+  `bridge.ts` is the composition root that calls them. The BPMN editor module
+  builds the core `BpmnEditorFeature`, which routes every BPMN editor webview
+  command and lists the session participants in VS Code's order;
+  `bridge.editor.spec.ts` pins its coverage table. The marketplace cache root
+  arrives via the `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
 - `src/stdioBinding.ts` — feeds stdin frames to the `Rpc` and tags every
   stderr line with `[core]`; `src/lineFraming.ts` splits the stdin stream
   into frames.

@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-27
+- Last reviewed: 2026-10-30
 
 ## Context
 
@@ -191,12 +191,34 @@ re-seed and dispose events, never a host panel. The host-free participants
 (element templates, bpmnlint, settings, engine version, deployment status,
 code-link, form-reference status, definition search) and the webview message
 handlers live in the core. `DeploymentFeature` and `MarketplaceCommands` own
-the deployment and marketplace flows. A host supplies adapters and maps its
-own surface (VS Code commands and views, bridge RPC) onto these modules. It
-keeps only what is genuinely host-specific: VS Code's input UI, settings
-writes and reload hint; the bridge's workspace-root registration, acknowledged
-marketplace persistence and rendering on `document/didChange`, because the host
-owns the document revision there. Host classes depend on the core ports, not
+the deployment and marketplace flows. `BpmnEditorFeature` (`modeler/bpmn/`)
+builds the BPMN editor: its services, one router from a `CommandTable` that
+has an entry for every type in `BPMN_EDITOR_COMMAND_TYPES`
+(`WebviewMessageRouter.fromTable`), and its participants in one order. The
+cross-feature rule holds for it as for every feature, with no exempt
+composition folder: navigation, definition search and code-link each export
+their handlers and participant as an `EditorContribution` (`NavigationFeature`,
+`DefinitionSearchFeature`, `CodeLinkFeature`), and the host's composition hands
+them to the editor with the deployment status participant and its script
+editor. A capability that differs between hosts is a
+`BpmnEditorHostExtensions` entry, and an absent one makes the editor ignore its
+commands with one reason. The three document commands
+(`DOCUMENT_SYNC_COMMAND_TYPES`) form one such group: a host routes all of them
+to the core's document services or the editor ignores all three, because a
+host that routed `SyncDocumentCommand` without `DocumentFlushedCommand` would
+time out every flush, so a save or deploy could miss the last debounced edit.
+A host with its own document plumbing leaves `documentSync` out and answers the
+three on its own channel. The IntelliJ bridge runs the feature and pins its
+routes in a coverage spec, a `Record<BpmnEditorCommandType, "handled" |
+"ignored">`. VS Code still wires its BPMN router and participants in
+`composition/editorFeature.ts`, in the same order.
+
+A host supplies adapters and maps its own surface (VS Code commands and views,
+bridge RPC) onto these modules. It keeps only what is genuinely host-specific:
+VS Code's input UI, settings writes and reload hint; the bridge's
+workspace-root registration, acknowledged marketplace persistence and
+rendering on `document/didChange`, because the host owns the document revision
+there. Host classes depend on the core ports, not
 on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
@@ -633,6 +655,11 @@ a cached result must equal an uncached run.
   isolate failing session hooks. Feature modules in the core cost a little
   indirection — a host reads its surface mapping, not the flow — in exchange for
   one place per fix.
+- `BpmnEditorFeature` could import the features whose commands it routes, if a
+  composition folder were exempt from the cross-feature rule. That exception
+  would never shrink, so the features hand their handlers and participants to
+  it as contributions instead, at the cost of one slot per contributing feature
+  in `BpmnEditorContributions`.
 - A WebSocket relay would add a second reconnect lifecycle and a server to the
   bridge. Stdio uses the browser the JVM already owns and gives one recovery
   boundary. A browser-only host may need a different transport.

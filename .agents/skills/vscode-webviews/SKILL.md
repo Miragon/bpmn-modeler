@@ -163,6 +163,8 @@ editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(m
 ```
 Adding a webview command is "register one more handler", with no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
 
+The BPMN editor's router comes from a table instead: the core `BpmnEditorFeature` (`libs/modeler-core/src/modeler/bpmn/`) passes `WebviewMessageRouter.fromTable` a `CommandTable<BpmnEditorCommandType>`, whose entry per command is its handlers in run order or `{ ignored: reason }`, so a new BPMN editor command does not compile until it has one. Another feature's commands arrive as its `EditorContribution`; a host capability that is absent from `BpmnEditorHostExtensions` turns its commands into ignored entries, and the three document commands are handled or ignored together. The IntelliJ bridge builds this feature; VS Code still registers its BPMN router in `composition/editorFeature.ts`.
+
 **Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript
 const inbound = asProtocolMessage(message);
