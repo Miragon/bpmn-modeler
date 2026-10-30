@@ -7,6 +7,27 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "Preview linked form": "リンクされたフォームをプレビュー",
+    "Linked form preview": "リンクされたフォームのプレビュー",
+    "Refresh": "更新",
+    "Close form preview": "フォームのプレビューを閉じる",
+    "Read-only preview of the saved local form.":
+        "保存済みローカルフォームの読み取り専用プレビューです。",
+    "Saved form loaded.": "保存済みフォームを読み込みました。",
+    "Open a workspace folder to preview linked forms.":
+        "リンクされたフォームをプレビューするにはワークスペースフォルダーを開いてください。",
+    "No saved local form matches this reference. Refresh to try again.":
+        "参照に一致する保存済みローカルフォームがありません。更新して再試行してください。",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "参照に一致する保存済みフォームが複数あります。プレビューするフォームを選択してください。",
+    "The saved form could not be read. Refresh to try again.":
+        "保存済みフォームを読み取れませんでした。更新して再試行してください。",
+    "The host did not answer. Refresh to try again.":
+        "ホストから応答がありませんでした。更新して再試行してください。",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "保存済みフォームが無効か未対応です。フォームエディターで開いてください。",
+    "The form preview could not be loaded. Refresh to try again.":
+        "フォームのプレビューを読み込めませんでした。更新して再試行してください。",
     "Apply Template": "テンプレートを適用",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Java デリゲート、式、または外部タスクが実行する自動化された作業です",

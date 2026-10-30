@@ -214,6 +214,7 @@ export function register(
         referencedModelLocator,
         deps.vsWorkspace,
         deps.picker,
+        deps.notifier,
     );
     const modelNavigationService = new ModelNavigationService(
         referencedModelLocator,

@@ -187,7 +187,7 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         expect(await fs.readFile(path, "utf8")).toBe(updated);
         expect(await request(3, "Missing")).toEqual({
             kind: "unavailable",
-            message: expect.any(String),
+            reason: "notFound",
         });
         expect(frames.find((f) => f.method === "notifier/openDocument")).toBeUndefined();
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
@@ -220,7 +220,7 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         );
         expect(reply.params.message).toMatchObject({
             requestId: 15,
-            result: { kind: "unavailable" },
+            result: { kind: "unavailable", reason: "ambiguous" },
         });
         expect(frames.find((frame) => frame.method === "picker/show")).toBeUndefined();
         expect(frames.find((frame) => frame.method === "notifier/openDocument")).toBeUndefined();

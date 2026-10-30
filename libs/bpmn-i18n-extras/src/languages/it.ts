@@ -7,6 +7,27 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "Preview linked form": "Visualizza anteprima del modulo collegato",
+    "Linked form preview": "Anteprima del modulo collegato",
+    "Refresh": "Aggiorna",
+    "Close form preview": "Chiudi anteprima del modulo",
+    "Read-only preview of the saved local form.":
+        "Anteprima di sola lettura del modulo locale salvato.",
+    "Saved form loaded.": "Modulo salvato caricato.",
+    "Open a workspace folder to preview linked forms.":
+        "Apri una cartella di lavoro per visualizzare i moduli collegati.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "Nessun modulo locale salvato corrisponde al riferimento. Aggiorna per riprovare.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "Più moduli salvati corrispondono al riferimento. Scegli un modulo da visualizzare.",
+    "The saved form could not be read. Refresh to try again.":
+        "Impossibile leggere il modulo salvato. Aggiorna per riprovare.",
+    "The host did not answer. Refresh to try again.":
+        "L’host non ha risposto. Aggiorna per riprovare.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "Il modulo salvato non è valido o supportato. Aprilo nell’editor di moduli.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "Impossibile caricare l’anteprima del modulo. Aggiorna per riprovare.",
     "Apply Template": "Applica modello",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Lavoro automatizzato svolto da un Java delegate, un'espressione o un'attività esterna",

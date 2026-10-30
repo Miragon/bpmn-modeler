@@ -7,6 +7,27 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "Preview linked form": "Previsualizar formulario vinculado",
+    "Linked form preview": "Vista previa del formulario vinculado",
+    "Refresh": "Actualizar",
+    "Close form preview": "Cerrar vista previa del formulario",
+    "Read-only preview of the saved local form.":
+        "Vista previa de solo lectura del formulario local guardado.",
+    "Saved form loaded.": "Formulario guardado cargado.",
+    "Open a workspace folder to preview linked forms.":
+        "Abra una carpeta de trabajo para previsualizar formularios vinculados.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "Ningún formulario local guardado coincide con esta referencia. Actualice para reintentar.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "Varios formularios guardados coinciden con esta referencia. Elija uno para previsualizar.",
+    "The saved form could not be read. Refresh to try again.":
+        "No se pudo leer el formulario guardado. Actualice para reintentar.",
+    "The host did not answer. Refresh to try again.":
+        "El host no respondió. Actualice para reintentar.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "El formulario guardado no es válido o no es compatible. Ábralo en el editor de formularios.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "No se pudo cargar la vista previa. Actualice para reintentar.",
     "Apply Template": "Aplicar plantilla",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Trabajo automatizado realizado por un Java delegate, una expresión o una tarea externa",

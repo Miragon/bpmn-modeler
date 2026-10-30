@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { FormPreviewReply } from "@miragon/bpmn-modeler-shared";
+import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
 import type { FormPreviewRequest } from "@miragon/bpmn-modeler";
 import { createFormPreview, type PreviewViewer, type PreviewViewerFactory } from "./formPreview";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
+import { extras } from "@miragon/bpmn-modeler-i18n-extras";
+
+i18n.extend(extras);
 
 const saved = JSON.stringify({ components: [{ type: "textfield", key: "name", id: "Name" }] });
 const runtime = vi.hoisted(() => ({
@@ -19,6 +23,7 @@ vi.mock("@bpmn-io/form-js-viewer", () => ({
     },
 }));
 afterEach(() => {
+    i18n.setLanguage("en");
     document.body.replaceChildren();
     vi.clearAllMocks();
 });
@@ -39,7 +44,7 @@ function request(overrides: Partial<FormPreviewRequest> = {}): FormPreviewReques
 }
 function setup(
     read = vi
-        .fn<(id: string, automatic: boolean) => Promise<FormPreviewReply>>()
+        .fn<(id: string, automatic: boolean) => Promise<FormPreviewResult>>()
         .mockResolvedValue({ kind: "loaded", content: saved }),
 ) {
     const viewers: PreviewViewer[] = [];
@@ -62,12 +67,111 @@ const loaded = () => {
 const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
 
 describe("anchored linked form preview", () => {
+    it.each([
+        { result: { kind: "unavailable", reason: "noScope" }, text: "Open a workspace folder" },
+        { result: { kind: "unavailable", reason: "notFound" }, text: "No saved local form" },
+        { result: { kind: "unavailable", reason: "ambiguous" }, text: "Multiple saved forms" },
+        { result: { kind: "unavailable", reason: "unreadable" }, text: "could not be read" },
+        { result: { kind: "unavailable", reason: "timeout" }, text: "host did not answer" },
+        { result: { kind: "loaded", content: "bad JSON" }, text: "invalid or unsupported" },
+    ] satisfies Array<{ result: FormPreviewResult; text: string }>)(
+        "shows explicit $text failures with a retry control",
+        async ({ result, text }) => {
+            const { preview, read } = setup(vi.fn().mockResolvedValue(result));
+            preview.open(request({ automatic: false }));
+            await vi.waitFor(() => expect(panel()?.textContent).toContain(text));
+            expect(panel()!.querySelector('[role="status"]')?.getAttribute("aria-live")).toBe(
+                "polite",
+            );
+            read.mockResolvedValue({ kind: "loaded", content: saved });
+            click("[data-refresh]");
+            await vi.waitFor(loaded);
+            preview.dispose();
+        },
+    );
+    it("shows import failures for explicit attempts and retries", async () => {
+        const { preview, create } = setup();
+        create.mockResolvedValueOnce({
+            importSchema: vi.fn().mockRejectedValue(new Error("unsupported version")),
+            destroy: vi.fn(),
+        });
+        preview.open(request({ automatic: false }));
+        await vi.waitFor(() => expect(panel()?.textContent).toContain("could not be loaded"));
+        click("[data-refresh]");
+        await vi.waitFor(loaded);
+        preview.dispose();
+    });
+    it("logs automatic failures without showing an error surface", async () => {
+        const log = vi.fn();
+        const preview = createFormPreview(
+            async () => ({ kind: "loaded", content: "bad JSON" }),
+            undefined,
+            log,
+        );
+        preview.open(request());
+        await vi.waitFor(() =>
+            expect(log).toHaveBeenCalledWith(expect.stringContaining("not valid JSON")),
+        );
+        expect(panel()).toBeNull();
+        preview.dispose();
+    });
+    it("translates live labels and error states and releases its locale listener", async () => {
+        const subscription = vi.spyOn(i18n, "onChange");
+        const { preview } = setup(
+            vi.fn().mockResolvedValue({ kind: "unavailable", reason: "timeout" }),
+        );
+        preview.open(request({ automatic: false }));
+        await vi.waitFor(() => expect(panel()?.textContent).toContain("host did not answer"));
+        const node = panel()!;
+        i18n.setLanguage("de");
+        expect(node.getAttribute("aria-label")).toBe("Vorschau des verknüpften Formulars");
+        expect(node.textContent).toContain("Der Host hat nicht geantwortet.");
+        expect(node.querySelector("[data-close]")?.getAttribute("aria-label")).toBe(
+            "Formularvorschau schließen",
+        );
+        expect(node.querySelector("[data-refresh]")?.textContent).toBe("Aktualisieren");
+        expect(subscription).toHaveBeenCalledOnce();
+        preview.dispose();
+        i18n.setLanguage("fr");
+        expect(node.getAttribute("aria-label")).toBe("Vorschau des verknüpften Formulars");
+        subscription.mockRestore();
+    });
+    it("treats picker cancellation as quiet, not an error", async () => {
+        const log = vi.fn();
+        const preview = createFormPreview(async () => ({ kind: "cancelled" }), undefined, log);
+        preview.open(request({ automatic: false }));
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(panel()).toBeNull();
+        expect(log).not.toHaveBeenCalled();
+        preview.dispose();
+    });
+    it("keeps a cancelled refresh quiet and retryable without stale successful content", async () => {
+        const { preview, read, viewers } = setup();
+        preview.open(request());
+        await vi.waitFor(loaded);
+        const region = panel()!;
+        const refresh = region.querySelector<HTMLButtonElement>("[data-refresh]")!;
+        refresh.focus();
+        read.mockResolvedValue({ kind: "cancelled" });
+        refresh.click();
+        await vi.waitFor(() => expect(region.getAttribute("aria-busy")).toBe("false"));
+        expect(panel()).toBe(region);
+        expect(region.querySelector('[role="status"]')!.textContent).toBe("");
+        expect(region.querySelector(".linked-form-preview-content")!.children).toHaveLength(0);
+        expect(viewers[0].destroy).toHaveBeenCalledOnce();
+        expect(document.activeElement).toBe(refresh);
+        read.mockResolvedValue({ kind: "loaded", content: saved });
+        refresh.click();
+        await vi.waitFor(loaded);
+        preview.dispose();
+    });
     it("shows nothing while resolving and silently ignores missing forms without stealing focus", async () => {
-        let finish!: (result: FormPreviewReply) => void;
+        let finish!: (result: FormPreviewResult) => void;
         const { preview } = setup(
             vi.fn(
                 () =>
-                    new Promise<FormPreviewReply>((resolve) => {
+                    new Promise<FormPreviewResult>((resolve) => {
                         finish = resolve;
                     }),
             ),
@@ -78,7 +182,7 @@ describe("anchored linked form preview", () => {
         preview.open(request());
         expect(panel()).toBeNull();
         expect(document.activeElement).toBe(button);
-        finish({ kind: "unavailable", message: "Missing" });
+        finish({ kind: "unavailable", reason: "notFound" });
         await Promise.resolve();
         await Promise.resolve();
         expect(panel()).toBeNull();
@@ -131,7 +235,7 @@ describe("anchored linked form preview", () => {
         await vi.waitFor(() => expect(viewers).toHaveLength(2));
         expect(viewers[0].destroy).toHaveBeenCalledOnce();
         expect(viewers[1].importSchema).toHaveBeenCalledWith({ components: [] });
-        expect(read).toHaveBeenLastCalledWith("Form_1", true);
+        expect(read).toHaveBeenLastCalledWith("Form_1", false);
         preview.dispose();
     });
     it.each(["invalid", '{"components":[{"type":"iframe"}]}'])(
@@ -148,15 +252,21 @@ describe("anchored linked form preview", () => {
             preview.dispose();
         },
     );
-    it("silently closes if refreshing a displayed form fails", async () => {
+    it("keeps explicit refresh errors retryable without stale content", async () => {
         const { preview, read } = setup();
         const options = request();
         preview.open(options);
         await vi.waitFor(loaded);
-        read.mockResolvedValue({ kind: "unavailable", message: "Missing" });
+        read.mockResolvedValue({ kind: "unavailable", reason: "unreadable" });
+        const refresh = document.querySelector<HTMLButtonElement>("[data-refresh]")!;
+        refresh.focus();
         click("[data-refresh]");
-        await vi.waitFor(() => expect(panel()).toBeNull());
-        expect(options.onVisibilityChanged).toHaveBeenLastCalledWith(false);
+        await vi.waitFor(() => expect(panel()?.textContent).toContain("could not be read"));
+        expect(document.activeElement).toBe(refresh);
+        expect(document.querySelector(".linked-form-preview-content")?.children).toHaveLength(0);
+        read.mockResolvedValue({ kind: "loaded", content: saved });
+        click("[data-refresh]");
+        await vi.waitFor(loaded);
         preview.dispose();
     });
 
@@ -195,11 +305,11 @@ describe("anchored linked form preview", () => {
         preview.dispose();
     });
     it("cancels a pending read on disposal", async () => {
-        let finish!: (result: FormPreviewReply) => void;
+        let finish!: (result: FormPreviewResult) => void;
         const { preview, create } = setup(
             vi.fn(
                 () =>
-                    new Promise<FormPreviewReply>((resolve) => {
+                    new Promise<FormPreviewResult>((resolve) => {
                         finish = resolve;
                     }),
             ),

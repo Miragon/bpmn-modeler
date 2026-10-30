@@ -61,6 +61,7 @@ function setup(available = true) {
         canvas,
         contextPad,
         port,
+        { isResolved: () => port.isReferenceAvailable() },
     );
     const select = (...elements: ReturnType<typeof task>[]) => {
         selected.splice(0, selected.length, ...elements);
@@ -81,6 +82,37 @@ function setup(available = true) {
 }
 
 describe("automatic linked form preview", () => {
+    it("does not discard a pending explicit read or its eventual error after availability loss", () => {
+        const { select, controller, open, port, availabilityChanged, handles } = setup();
+        const element = task();
+        select(element);
+        open.mock.calls[0][0].onClose();
+        controller.openManual(element);
+        const pending = open.mock.calls[1][0];
+        expect(pending.automatic).toBe(false);
+        port.isReferenceAvailable.mockReturnValue(false);
+        availabilityChanged();
+        expect(handles[1].close).not.toHaveBeenCalled();
+        pending.onVisibilityChanged(true);
+        expect(controller.isVisible(element)).toBe(true);
+        pending.onClose();
+        expect(handles[1].close).toHaveBeenCalledOnce();
+        expect(controller.isVisible(element)).toBe(false);
+        availabilityChanged();
+        expect(open).toHaveBeenCalledTimes(2);
+    });
+    it("preserves a visible panel for explicit retry when availability changes", () => {
+        const { select, open, port, availabilityChanged, handles, controller } = setup();
+        const element = task();
+        select(element);
+        open.mock.calls[0][0].onVisibilityChanged(true);
+        port.isReferenceAvailable.mockReturnValue(false);
+        availabilityChanged();
+        expect(handles[0].close).not.toHaveBeenCalled();
+        expect(controller.isVisible(element)).toBe(true);
+        select();
+        expect(handles[0].close).toHaveBeenCalledOnce();
+    });
     it("observes container resize, accepts optional availability hooks, and exposes canvas focus", () => {
         const handlers = new Map<string, (event?: unknown) => void>();
         let resized = () => {};
@@ -115,6 +147,7 @@ describe("automatic linked form preview", () => {
             { getContainer: () => container, getAbsoluteBBox: () => pad, focus },
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn(), formPreview: { open } },
+            { isResolved: () => true },
         );
         controller.openManual(task());
         handlers.get("selection.changed")!();
@@ -145,6 +178,7 @@ describe("automatic linked form preview", () => {
             canvas,
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn() },
+            { isResolved: () => true },
         );
         callbacks.forEach((fn) => fn());
         expect(canvas.focus).not.toHaveBeenCalled();

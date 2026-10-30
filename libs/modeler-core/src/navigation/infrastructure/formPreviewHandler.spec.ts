@@ -15,6 +15,7 @@ function setup() {
         new ReferencedModelLocator(host.workspace, host.notifier),
         host.workspace,
         host.picker,
+        host.notifier,
     );
     const handler = getFormPreviewHandler(host.store, service);
     return { host, editor, handler, service };
@@ -27,7 +28,7 @@ describe("form preview host handler", () => {
         await handler(new GetFormPreviewCommand(8, "Missing"), editor.id);
         expect(editor.posted).toEqual([
             new FormPreviewQuery(7, { kind: "loaded", content: '{"id":"Form_1","components":[]}' }),
-            new FormPreviewQuery(8, { kind: "unavailable", message: expect.any(String) }),
+            new FormPreviewQuery(8, { kind: "unavailable", reason: "notFound" }),
         ]);
     });
 
@@ -37,7 +38,7 @@ describe("form preview host handler", () => {
         await handler(new GetFormPreviewCommand(9, ""), editor.id);
         expect(read).not.toHaveBeenCalled();
         expect(editor.posted).toEqual([
-            new FormPreviewQuery(9, { kind: "unavailable", message: expect.any(String) }),
+            new FormPreviewQuery(9, { kind: "unavailable", reason: "notFound" }),
         ]);
     });
 
@@ -46,7 +47,7 @@ describe("form preview host handler", () => {
         vi.spyOn(host.workspace, "readFile").mockRejectedValue(new Error("permission denied"));
         await handler(new GetFormPreviewCommand(10, "Form_1"), editor.id);
         expect(editor.posted).toEqual([
-            new FormPreviewQuery(10, { kind: "unavailable", message: expect.any(String) }),
+            new FormPreviewQuery(10, { kind: "unavailable", reason: "unreadable" }),
         ]);
         expect(host.notifier.openedDocuments).toEqual([]);
     });

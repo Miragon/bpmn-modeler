@@ -89,6 +89,28 @@ function valueImportedModules(content: string): string[] {
 const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
 describe("bpmn-modeler import direction", () => {
+    it("keeps shared navigation JavaScript CSS-free for viewer and designer consumers", () => {
+        const navigation = join(LIBS_ROOT, "model-navigation", "src");
+        const offenders = listSourceFiles(navigation).flatMap((file) =>
+            valueImportedModules(readFileSync(file, "utf8"))
+                .filter(isStylesheet)
+                .map((specifier) => `${file} → ${specifier}`),
+        );
+        expect(offenders).toEqual([]);
+    });
+
+    it.each(["engineModeler", "design", "viewer"])(
+        "ships navigation controls through the %s stylesheet",
+        (surface) => {
+            const file = join(PKG_SRC, "styles", `${surface}.css`);
+            const imports: string[] = [];
+            postcss.parse(readFileSync(file, "utf8")).walkAtRules("import", (rule) => {
+                imports.push(resolve(dirname(file), cssImportSpecifier(rule.params)));
+            });
+            expect(imports).toContain(join(LIBS_ROOT, "model-navigation", "src", "style.css"));
+        },
+    );
+
     it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
         const collected = listSourceFiles(join(LIBS_ROOT, "properties-panel", "src"));
         expect(collected.some((file) => file.endsWith(".tsx"))).toBe(true);

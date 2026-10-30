@@ -271,7 +271,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 dispatchEvent(
                     new FormPreviewQuery(command.requestId, {
                         kind: "unavailable",
-                        message: "Local form previews require an IDE workspace.",
+                        reason: "noScope",
                     }),
                 );
                 break;

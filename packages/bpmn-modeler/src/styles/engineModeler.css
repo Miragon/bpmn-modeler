@@ -6,6 +6,7 @@
 @import "bpmn-js/dist/assets/bpmn-js.css";
 @import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
 @import "diagram-js-minimap/assets/diagram-js-minimap.css";
+@import "../../../../libs/model-navigation/src/style.css";
 @import "../../../../libs/properties-panel/src/properties-panel.css";
 @import "bpmn-js-color-picker/colors/color-picker.css";
 @import "bpmn-js-element-templates/dist/assets/element-templates.css";

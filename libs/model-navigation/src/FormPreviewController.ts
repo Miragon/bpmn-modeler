@@ -2,6 +2,12 @@ import type { BusinessObjectLike } from "./extractReference";
 import { extractReference } from "./extractReference";
 import { is } from "bpmn-js/lib/util/ModelUtil";
 import type { FormPreviewHandle, ModelNavigationPort, PreviewRect } from "./ModelNavigationPort";
+import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
+import {
+    reduceFormPreview,
+    type FormPreviewEvent,
+    type FormPreviewState,
+} from "./formPreviewState";
 
 interface PreviewElement {
     businessObject?: BusinessObjectLike;
@@ -26,11 +32,19 @@ interface ContextPad {
 }
 
 export class FormPreviewController {
-    static $inject = ["eventBus", "selection", "canvas", "contextPad", "modelNavigationPort"];
-    private target?: PreviewElement;
-    private reference?: string;
-    private dismissed = false;
-    private attempted = false;
+    static $inject = [
+        "eventBus",
+        "selection",
+        "canvas",
+        "contextPad",
+        "modelNavigationPort",
+        "formReferenceStatusClient",
+    ];
+    private state: FormPreviewState<PreviewElement> = {
+        dismissed: false,
+        attempted: false,
+        explicit: false,
+    };
     private visible = false;
     private handle?: FormPreviewHandle;
     private version = 0;
@@ -42,6 +56,7 @@ export class FormPreviewController {
         private readonly canvas: Canvas,
         private readonly contextPad: ContextPad,
         private readonly port: ModelNavigationPort,
+        private readonly status: Pick<FormReferenceStatusClient, "isResolved">,
     ) {
         eventBus.on("selection.changed", () => this.update());
         for (const name of ["elements.changed", "element.changed"]) {
@@ -68,24 +83,16 @@ export class FormPreviewController {
     }
 
     isVisible(element: PreviewElement): boolean {
-        return this.target === element && this.visible;
+        return this.state.target === element && this.visible;
     }
 
     openManual(element: PreviewElement): void {
-        if (
-            !this.disposed &&
-            element === this.target &&
-            this.reference &&
-            this.available(this.reference)
-        ) {
-            this.stop();
-            this.dismissed = false;
-            this.start(false);
-        }
-    }
-
-    private available(id: string): boolean {
-        return this.port.isReferenceAvailable?.({ id, kind: "form" }) ?? true;
+        if (this.disposed) return;
+        this.transition({
+            kind: "manual",
+            target: element,
+            available: !!this.state.reference && this.status.isResolved(this.state.reference),
+        });
     }
 
     private update(): void {
@@ -94,26 +101,26 @@ export class FormPreviewController {
         const target =
             elements.length === 1 && is(elements[0], "bpmn:UserTask") ? elements[0] : undefined;
         const reference = target && extractReference(target.businessObject, "form");
-        if (target !== this.target || reference !== this.reference) {
-            this.stop();
-            this.target = target;
-            this.reference = reference;
-            this.dismissed = false;
-            this.attempted = false;
-        }
-        if (!reference || !this.available(reference)) {
-            this.stop();
-            this.attempted = false;
-            return;
-        }
-        if (!this.dismissed && !this.attempted) this.start(true);
+        this.transition({
+            kind: "selection",
+            target,
+            reference,
+            available: !!reference && this.status.isResolved(reference),
+            visible: this.visible,
+        });
+    }
+
+    private transition(event: FormPreviewEvent<PreviewElement>): void {
+        const decision = reduceFormPreview(this.state, event);
+        if (decision.action !== "keep") this.stop();
+        this.state = decision.state;
+        if (decision.action === "open") this.start(decision.automatic);
     }
 
     private start(automatic: boolean): void {
-        const target = this.target;
-        const id = this.reference;
+        const target = this.state.target;
+        const id = this.state.reference;
         if (!target || !id || !this.port.formPreview) return;
-        this.attempted = true;
         const version = ++this.version;
         this.handle = this.port.formPreview.open({
             id,
@@ -138,8 +145,7 @@ export class FormPreviewController {
             },
             onClose: () => {
                 if (version !== this.version) return;
-                this.dismissed = true;
-                this.stop();
+                this.transition({ kind: "dismiss" });
                 this.refreshPad();
             },
             focusCanvas: () => this.canvas.focus(),
@@ -147,7 +153,8 @@ export class FormPreviewController {
     }
 
     private refreshPad(): void {
-        if (this.target && this.contextPad.isOpen()) this.contextPad.open(this.target, true);
+        if (this.state.target && this.contextPad.isOpen())
+            this.contextPad.open(this.state.target, true);
     }
 
     private stop(): void {

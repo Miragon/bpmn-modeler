@@ -7,6 +7,26 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "Preview linked form": "Preview linked form",
+    "Linked form preview": "Linked form preview",
+    "Refresh": "Refresh",
+    "Close form preview": "Close form preview",
+    "Read-only preview of the saved local form.": "Read-only preview of the saved local form.",
+    "Saved form loaded.": "Saved form loaded.",
+    "Open a workspace folder to preview linked forms.":
+        "Open a workspace folder to preview linked forms.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "No saved local form matches this reference. Refresh to try again.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "Multiple saved forms match this reference. Choose a form to preview.",
+    "The saved form could not be read. Refresh to try again.":
+        "The saved form could not be read. Refresh to try again.",
+    "The host did not answer. Refresh to try again.":
+        "The host did not answer. Refresh to try again.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "The saved form is invalid or unsupported. Open it in the form editor.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "The form preview could not be loaded. Refresh to try again.",
     "Apply Template": "Apply Template",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Automated work carried out by a Java delegate, expression, or external task",

@@ -27,3 +27,5 @@ export * from "./surfaceTheme";
 export * from "./textEditingSurface";
 export * from "./workspaceDefinitions";
 export * from "./xmlMarkup";
+export * from "./formPreview";
+export * from "./formRuntimeCompatibility";

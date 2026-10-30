@@ -59,7 +59,7 @@ export function getFormPreviewHandler(
                   )
                 : {
                       kind: "unavailable" as const,
-                      message: "This task has no local form reference.",
+                      reason: "notFound" as const,
                   };
         // A hidden/replaced editor must not receive a result from the old session.
         if (store.hasEditor(editorId) && store.requireHandle(editorId) === handle) {

@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FormPreviewQuery, type FormPreviewReply } from "@miragon/bpmn-modeler-shared";
+import { FormPreviewQuery } from "@miragon/bpmn-modeler-shared";
+import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
 import type { SurfaceHandle } from "../surface";
 import type { FormPreviewRequest } from "@miragon/bpmn-modeler";
-import { createProtocolCapabilities, DEFINITION_SEARCH_TIMEOUT_MS } from "./protocolCapabilities";
+import { createProtocolCapabilities, FORM_PREVIEW_TIMEOUT_MS } from "./protocolCapabilities";
 
-const requests = vi.hoisted(() => ({ pending: [] as Promise<FormPreviewReply>[] }));
+const requests = vi.hoisted(() => ({ pending: [] as Promise<FormPreviewResult>[] }));
 
 vi.mock("./formPreview", () => ({
-    createFormPreview: (read: (id: string, automatic: boolean) => Promise<FormPreviewReply>) => ({
+    createFormPreview: (read: (id: string, automatic: boolean) => Promise<FormPreviewResult>) => ({
         open: (request: FormPreviewRequest) => {
             requests.pending.push(read(request.id, request.automatic));
             return { close: vi.fn(), reposition: vi.fn() };
@@ -65,10 +66,10 @@ describe("form preview protocol", () => {
         );
         adapter.capabilities.modelNavigation.formPreview!.open(request("First"));
         const [pending] = requests.pending;
-        await vi.advanceTimersByTimeAsync(DEFINITION_SEARCH_TIMEOUT_MS);
+        await vi.advanceTimersByTimeAsync(FORM_PREVIEW_TIMEOUT_MS);
         await expect(pending).resolves.toEqual({
             kind: "unavailable",
-            message: expect.stringContaining("did not answer"),
+            reason: "timeout",
         });
     });
 

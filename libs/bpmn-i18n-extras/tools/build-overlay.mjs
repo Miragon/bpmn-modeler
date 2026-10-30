@@ -73,6 +73,20 @@ const sharedByNorm = new Set(Object.keys(shared.en).map(norm));
 // code-link feature, so these are absent from harvested.json but genuinely
 // needed and absent from the shared library. Keep them until upstreamed.
 const SOURCE_ONLY = new Set([
+    // Anchored form-preview chrome is outside the harvest driver's modeler interactions.
+    "Preview linked form",
+    "Linked form preview",
+    "Refresh",
+    "Close form preview",
+    "Read-only preview of the saved local form.",
+    "Saved form loaded.",
+    "Open a workspace folder to preview linked forms.",
+    "No saved local form matches this reference. Refresh to try again.",
+    "Multiple saved forms match this reference. Choose a form to preview.",
+    "The saved form could not be read. Refresh to try again.",
+    "The host did not answer. Refresh to try again.",
+    "The saved form is invalid or unsupported. Open it in the form editor.",
+    "The form preview could not be loaded. Refresh to try again.",
     "Read-only",
     "Being edited in",
     "Element actions",

@@ -7,6 +7,27 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "Preview linked form": "Gekoppeld formulier bekijken",
+    "Linked form preview": "Voorbeeld van gekoppeld formulier",
+    "Refresh": "Vernieuwen",
+    "Close form preview": "Formuliervoorbeeld sluiten",
+    "Read-only preview of the saved local form.":
+        "Alleen-lezenvoorbeeld van het opgeslagen lokale formulier.",
+    "Saved form loaded.": "Opgeslagen formulier geladen.",
+    "Open a workspace folder to preview linked forms.":
+        "Open een werkruimtemap om gekoppelde formulieren te bekijken.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "Geen opgeslagen lokaal formulier komt overeen met deze verwijzing. Vernieuw om opnieuw te proberen.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "Meerdere opgeslagen formulieren komen overeen met deze verwijzing. Kies een formulier.",
+    "The saved form could not be read. Refresh to try again.":
+        "Het opgeslagen formulier kon niet worden gelezen. Vernieuw om opnieuw te proberen.",
+    "The host did not answer. Refresh to try again.":
+        "De host heeft niet geantwoord. Vernieuw om opnieuw te proberen.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "Het opgeslagen formulier is ongeldig of niet ondersteund. Open het in de formuliereditor.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "Het formuliervoorbeeld kon niet worden geladen. Vernieuw om opnieuw te proberen.",
     "Apply Template": "Sjabloon toepassen",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Geautomatiseerd werk dat door een Java delegate, expressie of external task wordt uitgevoerd",

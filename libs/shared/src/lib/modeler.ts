@@ -77,6 +77,7 @@ import type {
     ScriptTaskScript,
     Viewport,
     WorkspaceDefinition,
+    FormPreviewResult,
 } from "@miragon/bpmn-modeler-types";
 
 // =================================== Queries ==================================>
@@ -673,13 +674,10 @@ export class GetFormPreviewCommand extends Command<"GetFormPreviewCommand"> {
     }
 }
 
-export type FormPreviewReply =
-    { kind: "loaded"; content: string } | { kind: "unavailable"; message: string };
-
 export class FormPreviewQuery extends Query<"FormPreviewQuery"> {
     constructor(
         public requestId: number,
-        public result: FormPreviewReply,
+        public result: FormPreviewResult,
     ) {
         super("FormPreviewQuery");
     }

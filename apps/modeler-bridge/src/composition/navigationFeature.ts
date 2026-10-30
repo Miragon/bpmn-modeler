@@ -43,7 +43,12 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
             "GetFormPreviewCommand",
             getFormPreviewHandler(
                 deps.store,
-                new FormPreviewService(referencedModelLocator, deps.nodeWorkspace, deps.picker),
+                new FormPreviewService(
+                    referencedModelLocator,
+                    deps.nodeWorkspace,
+                    deps.picker,
+                    deps.notifier,
+                ),
             ),
         )
         .on(

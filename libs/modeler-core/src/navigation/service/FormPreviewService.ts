@@ -1,14 +1,14 @@
-import type { PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
+import type { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { classifyLocateResult } from "../../kernel/domain/locateResult";
 import type { ReferencedModelLocator } from "./ReferencedModelLocator";
-
-export type FormPreviewResult =
-    { kind: "loaded"; content: string } | { kind: "unavailable"; message: string };
 
 export class FormPreviewService {
     constructor(
         private readonly locator: ReferencedModelLocator,
         private readonly workspace: WorkspacePort,
         private readonly picker: PickerPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async read(id: string, sourcePath: string, automatic = false): Promise<FormPreviewResult> {
@@ -25,22 +25,25 @@ export class FormPreviewService {
                       },
                       () => this.locator.findDeclaringFiles(id, "form", sourcePath),
                   );
-            if (outcome.kind !== "matches" || outcome.paths.length === 0) {
-                return {
-                    kind: "unavailable",
-                    message: "No readable local form matches this reference.",
-                };
+            const located = classifyLocateResult(outcome);
+            if (located.kind === "noScope") return { kind: "unavailable", reason: "noScope" };
+            if (located.kind === "unreadable") {
+                located.failures.forEach((message) => this.notifier.logWarning(message));
+                return { kind: "unavailable", reason: "unreadable" };
             }
-            const path = outcome.paths.length === 1 ? outcome.paths[0] : chosen;
-            if (!path || !outcome.paths.includes(path)) {
-                return { kind: "unavailable", message: "Form preview cancelled." };
+            located.readFailures.forEach((message) => this.notifier.logWarning(message));
+            if (located.kind === "notFound") return { kind: "unavailable", reason: "notFound" };
+            if (located.kind === "ambiguous" && automatic) {
+                this.notifier.logInfo("Automatic form preview skipped: multiple matching forms.");
+                return { kind: "unavailable", reason: "ambiguous" };
             }
+            const path = located.kind === "single" ? located.path : chosen;
+            if (!path || (located.kind === "ambiguous" && !located.paths.includes(path)))
+                return { kind: "cancelled" };
             return { kind: "loaded", content: await this.workspace.readFile(path) };
-        } catch {
-            return {
-                kind: "unavailable",
-                message: "The saved form could not be read. Try refreshing the preview.",
-            };
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            return { kind: "unavailable", reason: "unreadable" };
         }
     }
 }

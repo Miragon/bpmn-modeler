@@ -20,7 +20,6 @@ function build(
     opts: {
         types?: string[];
         initialAttrs?: Record<string, unknown>;
-        preview?: boolean;
         anchored?: boolean;
         controller?: { isVisible(element: unknown): boolean; openManual(element: unknown): void };
     } = {},
@@ -39,7 +38,6 @@ function build(
     const translate = vi.fn((template: string) => `t(${template})`);
     const port = {
         openReference: vi.fn(),
-        previewForm: opts.preview ? vi.fn() : undefined,
         formPreview: opts.anchored ? { open: vi.fn() } : undefined,
     };
     const formReferenceStatusClient = {
@@ -93,7 +91,12 @@ describe("NavigateContextPadProvider", () => {
         expect(controller.openManual).toHaveBeenCalledWith(element);
     });
     it("keeps open-editor navigation alongside the optional keyboard-accessible form preview", () => {
-        const { provider, element, port } = build({ types: ["bpmn:UserTask"], preview: true });
+        const controller = { isVisible: () => false, openManual: vi.fn() };
+        const { provider, element } = build({
+            types: ["bpmn:UserTask"],
+            anchored: true,
+            controller,
+        });
         const definition = { $type: "zeebe:FormDefinition", formId: "Form_Request" };
         element.businessObject.extensionElements = { values: [definition] };
         const entries = provider.getContextPadEntries(element as never);
@@ -101,10 +104,12 @@ describe("NavigateContextPadProvider", () => {
         const preview = entries["preview-linked-form"];
         expect(preview.html).toContain('<button type="button"');
         preview.action.click({} as never, element as never);
-        expect(port.previewForm).toHaveBeenCalledWith({ id: "Form_Request", kind: "form" });
+        expect(controller.openManual).toHaveBeenCalledWith(element);
+        expect(preview.html).toContain('aria-label="t(Preview linked form)"');
+        expect(preview.html).not.toContain("style=");
         definition.formId = "Missing";
         preview.action.click({} as never, element as never);
-        expect(port.previewForm).toHaveBeenCalledOnce();
+        expect(controller.openManual).toHaveBeenCalledOnce();
         expect(provider.getContextPadEntries(element as never)).toEqual({});
     });
     it("registers itself with the contextPad on construction", () => {

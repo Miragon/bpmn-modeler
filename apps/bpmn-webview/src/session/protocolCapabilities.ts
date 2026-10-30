@@ -23,6 +23,7 @@ import { createFormPreview } from "./formPreview";
 
 // The first search indexes the workspace cold, which can walk a whole directory tree.
 export const DEFINITION_SEARCH_TIMEOUT_MS = 30_000;
+export const FORM_PREVIEW_TIMEOUT_MS = 30_000;
 
 interface ProtocolCapabilityHandlers {
     FormPreviewQuery(query: FormPreviewQuery): void;
@@ -108,18 +109,22 @@ export function createProtocolCapabilities(
 ): ProtocolCapabilities {
     const formReferences = new FormReferenceAvailability();
     const definitionSearch = createDefinitionSearchRequests(host);
-    const previewReplies = createReplyRegistry<FormPreviewQuery>(DEFINITION_SEARCH_TIMEOUT_MS);
-    const preview = createFormPreview(async (id, automatic) => {
-        const { requestId, reply } = previewReplies.open();
-        host.postMessage(new GetFormPreviewCommand(requestId, id, automatic));
-        const answer = await reply;
-        return (
-            answer?.result ?? {
-                kind: "unavailable",
-                message: "The host did not answer. Refresh to try again.",
-            }
-        );
-    });
+    const previewReplies = createReplyRegistry<FormPreviewQuery>(FORM_PREVIEW_TIMEOUT_MS);
+    const preview = createFormPreview(
+        async (id, automatic) => {
+            const { requestId, reply } = previewReplies.open();
+            host.postMessage(new GetFormPreviewCommand(requestId, id, automatic));
+            const answer = await reply;
+            return (
+                answer?.result ?? {
+                    kind: "unavailable",
+                    reason: "timeout",
+                }
+            );
+        },
+        undefined,
+        (message) => host.postMessage(new LogWarningCommand(message)),
+    );
 
     return {
         capabilities: {

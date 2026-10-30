@@ -1,6 +1,7 @@
 import type { FormPreviewHandle, FormPreviewRequest } from "@miragon/bpmn-modeler";
-import type { FormPreviewReply } from "@miragon/bpmn-modeler-shared";
-import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-shared";
+import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
+import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-types";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { parsePreviewSchema } from "./formPreviewSchema";
 import { positionFormPreview } from "./formPreviewPosition";
@@ -21,8 +22,9 @@ async function createViewer(container: HTMLElement): Promise<PreviewViewer> {
 }
 
 export function createFormPreview(
-    read: (id: string, automatic: boolean) => Promise<FormPreviewReply>,
+    read: (id: string, automatic: boolean) => Promise<FormPreviewResult>,
     create: PreviewViewerFactory = createViewer,
+    log: (message: string) => void = (message) => console.warn(message),
 ) {
     let active: FormPreviewHandle | undefined;
 
@@ -35,12 +37,33 @@ export function createFormPreview(
         const panel = document.createElement("section");
         panel.className = "linked-form-preview";
         panel.setAttribute("role", "region");
-        panel.setAttribute("aria-label", "Linked form preview");
         panel.innerHTML =
-            '<header><h2>Linked form preview</h2><button type="button" data-refresh>Refresh</button><button type="button" data-close aria-label="Close form preview" title="Close form preview">×</button></header><p>Read-only preview of the saved local form.</p><p role="status" aria-live="polite"></p><div class="linked-form-preview-content"></div>';
+            '<header><h2></h2><button type="button" data-refresh></button><button type="button" data-close>×</button></header><p data-description></p><p role="status" aria-live="polite"></p><div class="linked-form-preview-content"></div>';
         const content = panel.querySelector<HTMLElement>(".linked-form-preview-content")!;
         const closeButton = panel.querySelector<HTMLButtonElement>("[data-close]")!;
         const status = panel.querySelector<HTMLElement>('[role="status"]')!;
+        let statusKey = "";
+        function translate(): void {
+            panel.setAttribute("aria-label", i18n.translate("Linked form preview"));
+            panel.querySelector("h2")!.textContent = i18n.translate("Linked form preview");
+            panel.querySelector("[data-refresh]")!.textContent = i18n.translate("Refresh");
+            closeButton.setAttribute("aria-label", i18n.translate("Close form preview"));
+            closeButton.title = i18n.translate("Close form preview");
+            panel.querySelector("[data-description]")!.textContent = i18n.translate(
+                "Read-only preview of the saved local form.",
+            );
+            status.textContent = statusKey ? i18n.translate(statusKey) : "";
+            reposition();
+        }
+        translate();
+        const unsubscribe = i18n.onChange(translate);
+        function show(message: string): void {
+            statusKey = message;
+            translate();
+            if (!panel.isConnected) document.body.append(panel);
+            reposition();
+            observer?.observe(panel);
+        }
 
         function setVisible(value: boolean): void {
             if (visible !== value) {
@@ -70,6 +93,7 @@ export function createFormPreview(
             closed = true;
             generation++;
             observer?.disconnect();
+            unsubscribe();
             window.removeEventListener("resize", reposition);
             panel.remove();
             viewer?.destroy();
@@ -82,18 +106,39 @@ export function createFormPreview(
             request.onClose();
             if (restoreFocus) request.focusCanvas();
         }
-        async function load(): Promise<void> {
+        async function load(automatic: boolean): Promise<void> {
             const token = ++generation;
+            const wasVisible = visible;
             viewer?.destroy();
             viewer = undefined;
-            panel.remove();
-            setVisible(false);
             content.replaceChildren();
+            statusKey = "";
+            translate();
+            panel.setAttribute("aria-busy", "true");
+            let failureKey = "The saved form could not be read. Refresh to try again.";
             let importing: PreviewViewer | undefined;
             try {
-                const result = await read(request.id, request.automatic);
+                const result = await read(request.id, automatic);
                 if (closed || token !== generation) return;
-                if (result.kind === "unavailable") return;
+                if (result.kind === "cancelled") {
+                    if (wasVisible) show("");
+                    return;
+                }
+                if (result.kind === "unavailable") {
+                    const messages = {
+                        noScope: "Open a workspace folder to preview linked forms.",
+                        notFound:
+                            "No saved local form matches this reference. Refresh to try again.",
+                        ambiguous:
+                            "Multiple saved forms match this reference. Choose a form to preview.",
+                        unreadable: "The saved form could not be read. Refresh to try again.",
+                        timeout: "The host did not answer. Refresh to try again.",
+                    };
+                    failureKey = messages[result.reason];
+                    throw new Error(failureKey);
+                }
+                failureKey =
+                    "The saved form is invalid or unsupported. Open it in the form editor.";
                 const schema = parsePreviewSchema(result.content);
                 const mount = document.createElement("div");
                 // Keep content readable to assistive technology without enabling form actions.
@@ -107,6 +152,7 @@ export function createFormPreview(
                         true,
                     );
                 }
+                failureKey = "The form preview could not be loaded. Refresh to try again.";
                 importing = await create(mount);
                 if (closed || token !== generation) return;
                 await importing.importSchema(schema);
@@ -114,23 +160,23 @@ export function createFormPreview(
                 viewer = importing;
                 importing = undefined;
                 content.replaceChildren(mount);
-                status.textContent = "Saved form loaded.";
                 panel.style.width = "340px";
-                document.body.append(panel);
-                reposition();
-                observer?.observe(panel);
-                if (!request.automatic && !panel.hidden) closeButton.focus();
-            } catch {
-                // Failed or unsupported forms have no preview surface.
+                show("Saved form loaded.");
+                if (!automatic && !panel.hidden) closeButton.focus();
+            } catch (error) {
                 if (!closed && token === generation) {
-                    panel.remove();
-                    setVisible(false);
+                    log(`Form preview: ${String(error)}`);
+                    if (!automatic) {
+                        show(failureKey);
+                        if (!wasVisible && !panel.hidden) closeButton.focus();
+                    }
                 }
             } finally {
                 importing?.destroy();
+                if (!closed && token === generation) panel.setAttribute("aria-busy", "false");
             }
         }
-        panel.querySelector("[data-refresh]")!.addEventListener("click", () => void load());
+        panel.querySelector("[data-refresh]")!.addEventListener("click", () => void load(false));
         closeButton.addEventListener("click", dismiss);
         panel.addEventListener("keydown", (event) => {
             event.stopPropagation();
@@ -141,7 +187,7 @@ export function createFormPreview(
         });
         window.addEventListener("resize", reposition);
         active = { close, reposition };
-        void load();
+        void load(request.automatic);
         return active;
     }
     return {

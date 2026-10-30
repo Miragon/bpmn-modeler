@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { BpmnModdle } from "bpmn-moddle";
 import type { FrameLocator } from "playwright-core";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
     COMMAND_KEY,
@@ -343,13 +343,31 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
-    it("automatically anchors linked saved forms without blocking the canvas and keeps manual reopen", async () => {
-        const file = join(workspaceDirectory, FORM_FILE);
-        const original = await readFile(file, "utf8");
-        await vscode().openFromExplorer("linked-form.bpmn");
-        await vscode().showInCustomEditor("linked-form.bpmn", diagramRendered);
-        let webview = vscode().webview();
-        await switchMode(webview, "implement");
+    describe("linked saved form preview", () => {
+        let file: string;
+        let original: string;
+        let webview: FrameLocator;
+        let scenario = 0;
+        beforeEach(async () => {
+            file = join(workspaceDirectory, FORM_FILE);
+            original = await readFile(join(FIXTURES_DIRECTORY, FORM_FILE), "utf8");
+            await writeFile(file, original);
+            await vscode().setColorTheme(COLOR_THEMES[0].name);
+            // A fresh document isolates persisted selection and viewport between scenarios.
+            const diagram = `linked-preview-${++scenario}.bpmn`;
+            await cp(
+                join(FIXTURES_DIRECTORY, "linked-form.bpmn"),
+                join(workspaceDirectory, diagram),
+            );
+            await vscode().openFromExplorer(diagram);
+            await vscode().showInCustomEditor(diagram, diagramRendered);
+            webview = vscode().webview();
+            await switchMode(webview, "implement");
+        });
+        afterEach(async () => {
+            await writeFile(file, original);
+            await vscode().setColorTheme(COLOR_THEMES[0].name);
+        });
         const previewAction = () => webview.locator('[data-action="preview-linked-form"]');
         const preview = () => webview.getByRole("region", { name: "Linked form preview" });
         const selectLinked = async () => {
@@ -389,8 +407,9 @@ describe("the packaged extension in a real VS Code", () => {
             );
             expect(Math.min(gapX, gapY)).toBeLessThan(200);
         };
-        try {
-            for (const theme of COLOR_THEMES) {
+        it.each(COLOR_THEMES)(
+            "anchors read-only content and aligned controls in $id",
+            async (theme) => {
                 await vscode().setColorTheme(theme.name);
                 await expect
                     .poll(() => webview.locator("body").getAttribute("class"))
@@ -439,18 +458,29 @@ describe("the packaged extension in a real VS Code", () => {
                 expect(await preview().count()).toBe(0);
                 await settle(webview);
                 expect(await preview().count()).toBe(0);
-                await previewAction().focus();
-                await vscode().page.keyboard.press("Enter");
-                await preview().waitFor();
-                await preview().getByRole("button", { name: "Close form preview" }).focus();
-                await vscode().page.keyboard.press("Escape");
-                await previewAction().waitFor();
-                expect(
-                    await webview
-                        .locator(".djs-container > svg")
-                        .evaluate((node) => node === document.activeElement),
-                ).toBe(true);
-            }
+                expectNoCspViolations();
+            },
+        );
+
+        it("reopens by keyboard after dismissal and restores canvas focus on Escape", async () => {
+            await selectLinked();
+            await preview().getByRole("button", { name: "Close form preview" }).click();
+            await previewAction().waitFor();
+            await previewAction().focus();
+            await vscode().page.keyboard.press("Enter");
+            await preview().waitFor();
+            await preview().getByRole("button", { name: "Close form preview" }).focus();
+            await vscode().page.keyboard.press("Escape");
+            await previewAction().waitFor();
+            expect(
+                await webview
+                    .locator(".djs-container > svg")
+                    .evaluate((node) => node === document.activeElement),
+            ).toBe(true);
+            expectNoCspViolations();
+        });
+
+        it("follows pan and zoom without covering task actions", async () => {
             await selectLinked();
             const shape = webview.locator('.djs-shape[data-element-id="Task_Linked"]');
             const svg = webview.locator(".djs-container > svg");
@@ -513,11 +543,20 @@ describe("the packaged extension in a real VS Code", () => {
             });
             await settle(webview);
             await assertAnchored();
+            expectNoCspViolations();
+        });
+
+        it("stays absent for missing and unlinked automatic selections", async () => {
+            await selectLinked();
             await selectElement(webview, "Task_Missing");
             await expect.poll(() => preview().count()).toBe(0);
             expect(await previewAction().count()).toBe(0);
             await selectElement(webview, "Task_Unlinked");
             expect(await preview().count()).toBe(0);
+            expectNoCspViolations();
+        });
+
+        it("blocks primary and auxiliary form links without widening CSP", async () => {
             await selectLinked();
             const withLinks = JSON.parse(original);
             withLinks.components.push(
@@ -559,7 +598,16 @@ describe("the packaged extension in a real VS Code", () => {
                     href,
                 );
                 expect(await preview().isVisible()).toBe(true);
+                await link.click();
+                expect(await webview.locator("html").evaluate(() => window.location.href)).toBe(
+                    href,
+                );
             }
+            expectNoCspViolations();
+        });
+
+        it("refreshes saved content and recovers explicit errors without changing the form", async () => {
+            await selectLinked();
             await writeFile(file, original.replace("Customer name", "Saved updated name"));
             await webview.getByRole("button", { name: "Refresh", exact: true }).click();
             await webview.getByRole("textbox", { name: "Saved updated name" }).waitFor();
@@ -569,9 +617,52 @@ describe("the packaged extension in a real VS Code", () => {
             expect(await vscode().isActiveTabDirty()).toBe(false);
             await writeFile(file, original.replace('"textfield"', '"iframe"'));
             await webview.getByRole("button", { name: "Refresh", exact: true }).click();
-            await expect.poll(() => preview().count()).toBe(0);
-            await previewAction().waitFor();
+            await preview()
+                .getByRole("status")
+                .getByText(
+                    "The saved form is invalid or unsupported. Open it in the form editor.",
+                    { exact: true },
+                )
+                .waitFor();
+            expect(await preview().getByRole("textbox").count()).toBe(0);
+            await writeFile(file, original);
+            await webview.getByRole("button", { name: "Refresh", exact: true }).click();
+            await preview().getByRole("textbox", { name: "Customer name" }).waitFor();
+            await rm(file);
+            await webview.getByRole("button", { name: "Refresh", exact: true }).click();
+            await preview()
+                .getByRole("status")
+                .getByText("No saved local form matches this reference. Refresh to try again.", {
+                    exact: true,
+                })
+                .waitFor();
+            await settle(webview);
+            expect(await preview().getByRole("textbox").count()).toBe(0);
+            await writeFile(file, original);
+            await webview.getByRole("button", { name: "Refresh", exact: true }).click();
+            await preview().getByRole("textbox", { name: "Customer name" }).waitFor();
+            expectNoCspViolations();
+        });
+
+        it("silently skips invalid automatic content and recovers on a new selection", async () => {
+            await selectLinked();
+            await selectElement(webview, "Task_Missing");
+            await webview.locator("html").evaluate((node, formId) => {
+                const receive = (event: MessageEvent) => {
+                    if (
+                        event.data?.type === "FormReferenceStatusQuery" &&
+                        !event.data.formIds.includes(formId)
+                    ) {
+                        node.setAttribute("data-form-unavailable", "true");
+                        window.removeEventListener("message", receive);
+                    }
+                };
+                window.addEventListener("message", receive);
+            }, JSON.parse(original).id);
             await writeFile(file, "invalid JSON");
+            await expect
+                .poll(() => webview.locator("html").getAttribute("data-form-unavailable"))
+                .toBe("true");
             await selectElement(webview, "Task_Missing");
             expect(await previewAction().count()).toBe(0);
             await selectElement(webview, "Task_Linked");
@@ -580,6 +671,11 @@ describe("the packaged extension in a real VS Code", () => {
             await writeFile(file, original);
             await selectLinked();
             await webview.getByRole("textbox", { name: "Customer name" }).waitFor();
+            expectNoCspViolations();
+        });
+
+        it("retains the independent form editor action", async () => {
+            await selectLinked();
             await preview().getByRole("button", { name: "Close form preview" }).click();
             await webview.locator('[data-action="navigate-to-referenced-model"]').click();
             await vscode().showInCustomEditor(FORM_FILE, (frame) =>
@@ -588,9 +684,7 @@ describe("the packaged extension in a real VS Code", () => {
             webview = vscode().webview();
             expect(await webview.locator("#form-editor").isVisible()).toBe(true);
             expectNoCspViolations();
-        } finally {
-            await writeFile(file, original);
-        }
+        });
     });
 
     // Runs last: proves the collector sees violations, so the empty lists above mean something.
