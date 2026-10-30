@@ -326,6 +326,24 @@ element-template, engine-version and BPMNlint slots already show the core's
 views, so `LegacyStatusBarPort` and its RPCs have no caller left; they are
 removed together with `DeploymentStatusBarPort`.
 
+Prompts follow the same split. `PickerPort`'s `choose`, `chooseMany`, `confirm`
+and `searchAndChoose` take a prompt the core builds in full, typed in
+`kernel/domain/prompts.ts`: an id, a title, a placeholder and items with a
+label, a description or a file path, an icon from a closed union, and the value
+a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
+caller decides whether it cancels. Confirmation details arrive summarised, and
+both hosts show every line. VS Code shows a path relative to the workspace,
+filters on descriptions too, draws an icon as its codicon and reveals the busy
+list of a search after 150 ms. The bridge sends a choice over the existing
+`picker/show` request with the path as its description and no icon, maps the
+chosen indices back to values, and brackets a search with status-bar progress,
+so neither the protocol nor Kotlin changes. The test kit's `ScriptedPicker`
+answers a prompt by its id and fails a test whose answer the prompt does not
+offer. Until each feature's prompts move to the core
+([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
+feature-shaped prompts remain: the other `PickerPort` methods,
+`DeploymentPickerPort` and `MigrationPickerPort`, whose text the adapters build.
+
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
 syncs, and a single, snapshot-checked initialization of an empty file that a

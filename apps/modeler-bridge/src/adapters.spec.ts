@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { posix, resolve } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
 import {
+    ChoicePrompt,
     DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
+    LocateResult,
+    SearchPrompt,
     SettingChange,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
@@ -1163,5 +1166,219 @@ describe("RpcPicker", () => {
         await settle();
         await answerLast({ selected: null });
         await expect(pending).resolves.toEqual([]);
+    });
+
+    describe("generic prompts", () => {
+        const statusActions: ChoicePrompt<string> = {
+            id: "deploymentStatusAction",
+            title: "Deployment",
+            placeholder: 'Deployment target "dev"',
+            items: [
+                { label: "Switch deployment target…", icon: "swap", value: "switch" },
+                {
+                    label: "Verify on dev",
+                    description: "Camunda 7",
+                    icon: "cloud",
+                    value: "verify",
+                },
+            ],
+        };
+        const files: ChoicePrompt<string> = {
+            id: "deployableFiles",
+            placeholder: "Select files",
+            items: ["/w/a.form", "/w/b.dmn", "/w/c.json"].map((path) => ({
+                label: posix.basename(path),
+                description: "unused",
+                path,
+                value: path,
+            })),
+        };
+        const matches = (paths: string[]): LocateResult => ({
+            kind: "matches",
+            paths,
+            readFailures: [],
+        });
+        const locate = (search: () => Promise<LocateResult>): SearchPrompt<LocateResult> => ({
+            id: "locate",
+            searchingPlaceholder: "Searching…",
+            search,
+            choices: (outcome) =>
+                outcome.kind === "matches" && outcome.paths.length > 1
+                    ? {
+                          id: "locatedFile",
+                          placeholder: "Select the file to open",
+                          items: outcome.paths.map((path) => ({
+                              label: posix.basename(path),
+                              path,
+                              value: path,
+                          })),
+                      }
+                    : undefined,
+        });
+
+        it("choose sends labels and descriptions without icons and returns the chosen value", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.choose(statusActions);
+
+            expect(last(frames)).toMatchObject({
+                method: "picker/show",
+                params: {
+                    title: "Deployment",
+                    placeholder: 'Deployment target "dev"',
+                    canPickMany: false,
+                    items: [
+                        { label: "Switch deployment target…" },
+                        { label: "Verify on dev", description: "Camunda 7" },
+                    ],
+                },
+            });
+            expect(last(frames).params.items.flatMap(Object.keys)).toEqual([
+                "label",
+                "label",
+                "description",
+            ]);
+            await answerLast({ selected: [1] });
+            await expect(pending).resolves.toBe("verify");
+        });
+
+        it("choose resolves undefined on dismissal", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.choose(statusActions);
+            expect(last(frames)?.method).toBe("picker/show");
+            await answerLast({ selected: null });
+            await expect(pending).resolves.toBeUndefined();
+        });
+
+        it("choose rejects an index the prompt does not hold", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.choose(statusActions);
+            expect(last(frames)?.method).toBe("picker/show");
+            await answerLast({ selected: [2] });
+            await expect(pending).rejects.toThrow(/index 2/);
+        });
+
+        it("chooseMany shows each file's path and maps the chosen indices to values", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.chooseMany(files);
+
+            expect(last(frames)).toMatchObject({
+                method: "picker/show",
+                params: { placeholder: "Select files", canPickMany: true },
+            });
+            expect(last(frames).params.items).toEqual([
+                { label: "a.form", description: "/w/a.form" },
+                { label: "b.dmn", description: "/w/b.dmn" },
+                { label: "c.json", description: "/w/c.json" },
+            ]);
+            await answerLast({ selected: [0, 2] });
+            await expect(pending).resolves.toEqual(["/w/a.form", "/w/c.json"]);
+        });
+
+        it("chooseMany resolves [] on dismissal", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.chooseMany(files);
+            expect(last(frames)?.method).toBe("picker/show");
+            await answerLast({ selected: null });
+            await expect(pending).resolves.toEqual([]);
+        });
+
+        it("confirm sends the details as given and is true only on confirmation", async () => {
+            const { frames, picker, answerLast } = setup();
+            const details = Array.from({ length: 14 }, (_, index) => `target-${index + 1}`);
+            const request = {
+                id: "deleteTarget",
+                title: "Delete?",
+                confirmLabel: "Delete",
+                details,
+            };
+
+            const confirmed = picker.confirm(request);
+            expect(last(frames)).toMatchObject({
+                method: "confirm/show",
+                params: { title: "Delete?", confirmLabel: "Delete", details },
+            });
+            await answerLast({ confirmed: true });
+            await expect(confirmed).resolves.toBe(true);
+
+            const declined = picker.confirm(request);
+            await answerLast({ confirmed: false });
+            await expect(declined).resolves.toBe(false);
+        });
+
+        it("confirm answers false when the host replies without a confirmation", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.confirm({
+                id: "deleteTarget",
+                title: "Delete?",
+                confirmLabel: "Delete",
+                details: ["dev"],
+            });
+            expect(last(frames)?.method).toBe("confirm/show");
+            await answerLast(null);
+            await expect(pending).resolves.toBe(false);
+        });
+
+        it("searchAndChoose brackets the search with progress, then asks for the choice it leaves", async () => {
+            const { frames, picker, answerLast } = setup();
+            const outcome = matches(["/w/b.bpmn", "/w/a.bpmn"]);
+            const pending = picker.searchAndChoose(locate(async () => outcome));
+            await settle();
+
+            expect(frames.filter((f) => f.method.startsWith("notifier/progress"))).toEqual([
+                { method: "notifier/progressStart", params: { title: "Searching…" } },
+                { method: "notifier/progressEnd", params: { title: "Searching…" } },
+            ]);
+            expect(last(frames)).toMatchObject({
+                method: "picker/show",
+                params: {
+                    placeholder: "Select the file to open",
+                    items: [
+                        { label: "b.bpmn", description: "/w/b.bpmn" },
+                        { label: "a.bpmn", description: "/w/a.bpmn" },
+                    ],
+                },
+            });
+            await answerLast({ selected: [1] });
+            await expect(pending).resolves.toEqual({ outcome, chosen: "/w/a.bpmn" });
+        });
+
+        it("searchAndChoose skips the picker when the outcome leaves no choice", async () => {
+            const { frames, picker } = setup();
+
+            const result = await picker.searchAndChoose(locate(async () => matches(["/w/a.bpmn"])));
+
+            expect(result).toEqual({ outcome: matches(["/w/a.bpmn"]), chosen: undefined });
+            expect(frames.map((f) => f.method)).toEqual([
+                "notifier/progressStart",
+                "notifier/progressEnd",
+            ]);
+        });
+
+        it("searchAndChoose returns chosen=undefined when the list is dismissed", async () => {
+            const { frames, picker, answerLast } = setup();
+            const pending = picker.searchAndChoose(
+                locate(async () => matches(["/w/a.bpmn", "/w/b.bpmn"])),
+            );
+            await settle();
+            expect(last(frames)?.method).toBe("picker/show");
+            await answerLast({ selected: null });
+            await expect(pending).resolves.toMatchObject({ chosen: undefined });
+        });
+
+        it("searchAndChoose still ends the spinner when the search throws", async () => {
+            const { frames, picker } = setup();
+
+            await expect(
+                picker.searchAndChoose(
+                    locate(async () => {
+                        throw new Error("scan failed");
+                    }),
+                ),
+            ).rejects.toThrow("scan failed");
+            expect(frames.map((f) => f.method)).toEqual([
+                "notifier/progressStart",
+                "notifier/progressEnd",
+            ]);
+        });
     });
 });

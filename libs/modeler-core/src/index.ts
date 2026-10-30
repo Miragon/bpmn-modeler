@@ -20,6 +20,7 @@ export * from "./kernel/domain/http";
 export * from "./kernel/domain/locateResult";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
+export * from "./kernel/domain/prompts";
 export * from "./kernel/domain/rootContainment";
 export * from "./kernel/domain/statusView";
 export * from "./kernel/domain/viewTypes";

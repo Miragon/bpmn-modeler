@@ -19,8 +19,10 @@ import { posix } from "node:path";
 import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
+    ChoicePrompt,
     classifyLocateResult,
     ClipboardPort,
+    ConfirmRequest,
     DeployedRevision,
     DeploymentFreshness,
     DeploymentPickerPort,
@@ -43,6 +45,7 @@ import {
     NotifierPort,
     PickerPort,
     ScriptLanguage,
+    SearchPrompt,
     SecretStorePort,
     SettingChange,
     StatusBarPort,
@@ -759,6 +762,41 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
         return result?.selected ?? null;
     }
 
+    async choose<V>(prompt: ChoicePrompt<V>): Promise<V | undefined> {
+        const [index] = (await this.show(pickerShowParams(prompt, false))) ?? [];
+        return index === undefined ? undefined : valueAt(prompt, index);
+    }
+
+    async chooseMany<V>(prompt: ChoicePrompt<V>): Promise<readonly V[]> {
+        const selected = await this.show(pickerShowParams(prompt, true));
+        return selected?.map((index) => valueAt(prompt, index)) ?? [];
+    }
+
+    /** A cancelled round trip resolves to `false`: silence is never consent. */
+    async confirm(request: ConfirmRequest): Promise<boolean> {
+        const result = (await this.rpc.request(METHODS.confirmShow, {
+            title: request.title,
+            confirmLabel: request.confirmLabel,
+            details: [...request.details],
+        } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
+        return result?.confirmed === true;
+    }
+
+    async searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }> {
+        // The host can't render a busy list, so the search keeps its status-bar spinner.
+        const title = search.searchingPlaceholder;
+        this.rpc.notify(METHODS.notifierProgressStart, { title });
+        let outcome: R;
+        try {
+            outcome = await search.search();
+        } finally {
+            this.rpc.notify(METHODS.notifierProgressEnd, { title });
+        }
+
+        const choices = search.choices(outcome);
+        return { outcome, chosen: choices && (await this.choose(choices)) };
+    }
+
     async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
         const selected = await this.show({
             placeholder: placeHolder,
@@ -947,4 +985,25 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
         });
         return { outcome, chosen: selected === null ? undefined : sorted[selected[0]] };
     }
+}
+
+// IntelliJ's list popup shows no icons, so a choice travels without one.
+function pickerShowParams<V>(prompt: ChoicePrompt<V>, canPickMany: boolean): PickerShowParams {
+    return {
+        title: prompt.title,
+        placeholder: prompt.placeholder,
+        canPickMany,
+        items: prompt.items.map((item) => ({
+            label: item.label,
+            description: item.path ?? item.description,
+        })),
+    };
+}
+
+function valueAt<V>(prompt: ChoicePrompt<V>, index: number): V {
+    const item = prompt.items[index];
+    if (!item) {
+        throw new Error(`picker/show chose index ${index} of prompt "${prompt.id}"`);
+    }
+    return item.value;
 }
