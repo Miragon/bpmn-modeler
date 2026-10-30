@@ -1,4 +1,4 @@
-import { posix } from "path";
+import { tmpdir } from "os";
 
 import {
     OpenAllScriptTasksQuery,
@@ -12,8 +12,8 @@ import {
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
     scriptBatchSummary,
+    ScriptFileStore,
     ScriptVariableStore,
-    TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
@@ -36,18 +36,26 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * script/didOpenExternal.
  */
 export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
-    // "Edit Script" orchestrator. Unlike the other features this one has no
-    // in-core service — the VS Code original was never extracted (its guts are
-    // VS Code-specific accidental complexity) — so the portable slice lives here
-    // and the Kotlin host is a dumb editor surface keyed by an opaque scriptId.
+    // "Edit Script" orchestrator. Its tab handling has no in-core service — the
+    // VS Code original was never extracted (its guts are VS Code-specific
+    // accidental complexity) — so the portable slice lives here, writing through
+    // the core's file store, and the Kotlin host is a dumb editor surface keyed
+    // by an opaque scriptId.
+    const scriptFiles = new ScriptFileStore(
+        deps.store,
+        deps.nodeWorkspace,
+        deps.settings,
+        deps.artifactSvc,
+        deps.notifier,
+        tmpdir(),
+    );
     const scriptEditor = new BridgeScriptEditor(
         deps.store,
         deps.picker,
         deps.rpc,
         deps.notifier,
         deps.settings,
-        deps.nodeWorkspace,
-        deps.artifactSvc,
+        scriptFiles,
         new ScriptVariableStore(),
     );
 
@@ -111,8 +119,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
             deps.notifier,
         );
 
-        const folder = posix.join(deps.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
-        deps.notifier.showInfo(scriptBatchSummary(outcome, folder));
+        deps.notifier.showInfo(scriptBatchSummary(outcome, scriptFiles.displayNameFor(editorId)));
     }
 
     // The host edited an open script tab → push the new content into the owning

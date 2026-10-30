@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ArtifactService, ScriptUri, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
-import { createTestHost, FakeEditorHandle } from "@miragon/bpmn-modeler-core/testing";
+import {
+    ArtifactService,
+    ScriptFileStore,
+    ScriptUri,
+    ScriptVariableStore,
+} from "@miragon/bpmn-modeler-core";
+import { createTestHost, FakeEditorHandle, TestHost } from "@miragon/bpmn-modeler-core/testing";
 import {
     OpenScriptEditorCommand,
     UpdateOpenScriptEditorsQuery,
@@ -12,12 +17,16 @@ import {
 import { BridgeScriptEditor } from "./scriptAdapters";
 import { METHODS } from "./protocol/descriptor";
 
-const osTemp = vi.hoisted(() => ({ dir: undefined as string | undefined }));
-
-vi.mock("os", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("os")>();
-    return { ...actual, tmpdir: () => osTemp.dir ?? actual.tmpdir() };
-});
+function scriptFilesOf(host: TestHost, osTempDir = "/tmp"): ScriptFileStore {
+    return new ScriptFileStore(
+        host.store,
+        host.workspace,
+        host.settings,
+        new ArtifactService(host.workspace, host.settings),
+        host.notifier,
+        osTempDir,
+    );
+}
 
 /**
  * Focused unit coverage for the host-keystroke debounce wired into
@@ -42,7 +51,6 @@ function createEditor() {
     const host = createTestHost({ files: { [SCRIPT_FILE]: "a" } });
     const modelerEditor = host.openEditor(EDITOR_PATH);
     const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
-    const artifactSvc = {};
 
     const editor = new BridgeScriptEditor(
         host.store,
@@ -50,8 +58,7 @@ function createEditor() {
         rpc as never,
         host.notifier,
         host.settings,
-        host.workspace,
-        artifactSvc as never,
+        scriptFilesOf(host),
         new ScriptVariableStore(),
     );
 
@@ -198,11 +205,9 @@ describe("BridgeScriptEditor keystroke debounce", () => {
 
 /**
  * Unit coverage for the "Generate Script Files" materialise + adopt-on-open path.
- * `baseDirByEditor` is seeded directly so resolution is deterministic without the
- * workspace-root/config-folder plumbing (exercised end-to-end in
- * `bridge.script.spec.ts`); these tests pin the branch decisions the integration
- * harness can't isolate — skip-when-tracked, the four adoption bail-outs, and the
- * invariant that adoption never runs the orphan sweep.
+ * These tests pin the branch decisions the integration harness
+ * (`bridge.script.spec.ts`) can't isolate — skip-when-tracked, the four adoption
+ * bail-outs, and the invariant that adoption never runs the orphan sweep.
  */
 describe("BridgeScriptEditor materialise + adopt-on-open", () => {
     const FULL_EDITOR_PATH = "/repo/proc.bpmn";
@@ -210,13 +215,16 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
     const BASE_DIR = "/repo/.camunda/tmp/scripting";
 
     interface FullInternals {
-        baseDirByEditor: Map<string, string>;
         scripts: Map<string, unknown>;
         filePathByScript: Map<string, string>;
     }
 
     function createFullEditor(files: Record<string, string> = {}) {
-        const host = createTestHost({ files, settings: { scriptingSpin: false } });
+        const host = createTestHost({
+            folders: ["/repo"],
+            files,
+            settings: { scriptingSpin: false },
+        });
         const modelerEditor = host.openEditor(FULL_EDITOR_PATH);
         const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
         const scriptVariables = new ScriptVariableStore();
@@ -227,13 +235,10 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             rpc as never,
             host.notifier,
             host.settings,
-            host.workspace,
-            {} as never,
+            scriptFilesOf(host),
             scriptVariables,
         );
         const internals = editor as unknown as FullInternals;
-        // Skip the workspace-root resolution; the sweep still exercises deleteDirectory.
-        internals.baseDirByEditor.set(FULL_EDITOR, BASE_DIR);
         return { editor, host, modelerEditor, rpc, internals, scriptVariables };
     }
 
@@ -357,8 +362,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 content: "disk content",
             });
             expect(modelerEditor.postedOfType("UpdateOpenScriptEditorsQuery")).not.toEqual([]);
-            // The whole point of resolveBaseDir (not prepareBaseDir): the file being
-            // opened must not be swept out from under the adoption.
+            // Adoption must not sweep the file being opened out from under it.
             expect(Object.fromEntries(host.workspace.files)).toEqual({
                 [filePath]: "disk content",
             });
@@ -497,7 +501,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 });
 
 describe("BridgeScriptEditor base directory", () => {
-    it("fails the write when a file diagram's workspace lookup fails, instead of using the OS temp folder", async () => {
+    function createEditorWhoseLookupFails() {
         const host = createTestHost({ folders: ["/repo"] });
         host.openEditor("/repo/process.bpmn");
         vi.spyOn(host.workspace, "getWorkspaceFolderForDocument").mockImplementation(() => {
@@ -510,15 +514,31 @@ describe("BridgeScriptEditor base directory", () => {
             rpc as never,
             host.notifier,
             host.settings,
-            host.workspace,
-            new ArtifactService(host.workspace, host.settings),
+            scriptFilesOf(host),
             new ScriptVariableStore(),
         );
+        return { editor, host, rpc };
+    }
+
+    it("fails the write when a file diagram's workspace lookup fails, instead of using the OS temp folder", async () => {
+        const { editor, host } = createEditorWhoseLookupFails();
 
         await expect(
             editor.materialize(openCommand("groovy", "x = 1"), "file:///repo/process.bpmn"),
         ).rejects.toThrow("workspace lookup failed");
         expect(host.workspace.files.size).toBe(0);
+    });
+
+    it("opens the script without a file and logs why when the workspace lookup fails", async () => {
+        const { editor, host, rpc } = createEditorWhoseLookupFails();
+
+        await editor.open(openCommand("groovy", "x = 1"), "file:///repo/process.bpmn");
+
+        expect(scriptOpenCall(rpc)).toMatchObject({ filePath: undefined, content: "x = 1" });
+        expect(host.workspace.files.size).toBe(0);
+        expect(host.notifier.logged("error")).toEqual([
+            expect.stringContaining("workspace lookup failed"),
+        ]);
     });
 });
 
@@ -540,10 +560,9 @@ describe("BridgeScriptEditor keeps the UNC root of script files in a workspace o
 
     afterEach(() => {
         vi.unstubAllGlobals();
-        osTemp.dir = undefined;
     });
 
-    function createShareEditor(files: Record<string, string> = {}) {
+    function createShareEditor(files: Record<string, string> = {}, osTempDir?: string) {
         const host = createTestHost({
             folders: [SHARE_ROOT],
             files,
@@ -557,8 +576,7 @@ describe("BridgeScriptEditor keeps the UNC root of script files in a workspace o
             rpc as never,
             host.notifier,
             host.settings,
-            host.workspace,
-            new ArtifactService(host.workspace, host.settings),
+            scriptFilesOf(host, osTempDir),
             new ScriptVariableStore(),
         );
         return { editor, host, rpc };
@@ -623,8 +641,7 @@ describe("BridgeScriptEditor keeps the UNC root of script files in a workspace o
     });
 
     it("keeps the UNC root of an OS temp folder on a share for a document without a file path", async () => {
-        osTemp.dir = "\\\\server\\profiles\\peter\\Temp";
-        const { editor, host } = createShareEditor();
+        const { editor, host } = createShareEditor({}, "\\\\server\\profiles\\peter\\Temp");
         const untitled = new FakeEditorHandle("Untitled-1", { scheme: "untitled" });
         host.store.register(untitled);
         const tempScripting = "//server/profiles/peter/Temp/miragon-bpmn-modeler/tmp";

@@ -925,9 +925,10 @@ describe("bridge script editor (real core over a fake transport)", () => {
         );
         await rpc.handleLine(JSON.stringify({ id: picker.id, error: "host went away" }));
 
+        // No script got as far as a folder, so the summary names none.
         const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
         expect(info.params.message).toBe(
-            "No script files generated in .camunda/tmp/scripting. Could not write 1 script file(s); see the log for details.",
+            "No script files generated. Could not write 1 script file(s); see the log for details.",
         );
         const log = frames.find((f) => f.method === "notifier/log" && f.params?.level === "error");
         expect(log.params.message).toMatch(
