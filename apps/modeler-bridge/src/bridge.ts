@@ -33,6 +33,8 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+
 import { Rpc } from "./rpc";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
@@ -71,13 +73,14 @@ export interface BridgeOptions {
  * @param write Emits one framed JSON line (caller appends the newline + flushes).
  * @param log   Diagnostic sink (stderr in production; a spy in tests). Kept off
  *              the RPC `write` so it can never corrupt the stdout frame stream.
- * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine`.
+ * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
+ *   and the BPMN editor's routes, which the coverage spec reads.
  */
 export function createBridge(
     write: (line: string) => void,
     log: (message: string) => void = () => {},
     options: BridgeOptions = {},
-): { rpc: Rpc } {
+): { rpc: Rpc; editorRoutes: Pick<WebviewMessageRouter, "routeOf"> } {
     const deps = buildSharedDeps(write, log);
 
     const homeDir = options.homeDir ?? homedir();
@@ -118,5 +121,5 @@ export function createBridge(
         homeDir,
     });
 
-    return { rpc: deps.rpc };
+    return { rpc: deps.rpc, editorRoutes: deps.router };
 }
