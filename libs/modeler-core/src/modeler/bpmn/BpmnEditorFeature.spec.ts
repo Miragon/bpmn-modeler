@@ -18,7 +18,7 @@ import {
     WebviewMessageRouter,
 } from "../../editorSession/service/WebviewMessageRouter";
 import { DocumentRenderParticipant } from "../../editorSession/session/DocumentRenderParticipant";
-import { createTestHost } from "../../testing";
+import { createTestHost, FakeEditorHandle } from "../../testing";
 import {
     BpmnEditorContributions,
     BpmnEditorFeature,
@@ -106,7 +106,10 @@ class RecordingLintingPreference {
 }
 
 /** Contributions whose handlers and participants only record that they ran. */
-function recordingContributions(calls: string[]): BpmnEditorContributions {
+function recordingContributions(
+    calls: string[],
+    onScriptResync: () => void,
+): BpmnEditorContributions {
     const participant = (name: string): EditorSessionParticipant => ({
         onResolve: () => {
             calls.push(`${name} resolved`);
@@ -134,7 +137,10 @@ function recordingContributions(calls: string[]): BpmnEditorContributions {
                 OpenScriptEditorsCommand: handler("open scripts"),
                 UpdateScriptSourceCommand: handler("update script source"),
                 UpdateScriptVariablesCommand: handler("update script variables"),
-                GetBpmnModelerSettingCommand: handler("resync scripts"),
+                GetBpmnModelerSettingCommand: () => {
+                    calls.push("resync scripts");
+                    onScriptResync();
+                },
             },
             participant: participant("scriptEditor"),
         },
@@ -153,12 +159,13 @@ type HostCapabilities = "full" | "bare";
 function createFeature(
     capabilities: HostCapabilities = "full",
     rendering: BpmnEditorHostExtensions["rendering"] = "host-driven",
+    onScriptResync: () => void = () => undefined,
 ) {
     const host = createTestHost({ folders: ["/work"] });
     const calls: string[] = [];
     const servedExtensions: string[] = [];
     const lintingPreference = new RecordingLintingPreference(true);
-    const contributions = recordingContributions(calls);
+    const contributions = recordingContributions(calls, onScriptResync);
     const extensions: BpmnEditorHostExtensions =
         capabilities === "full"
             ? {
@@ -313,17 +320,18 @@ describe("BpmnEditorFeature", () => {
     });
 
     it("broadcasts the settings before the script editor resyncs", async () => {
-        const { host, feature, calls } = createFeature("full");
+        const opened: FakeEditorHandle[] = [];
+        const settingsQueriesAtResync: number[] = [];
+        const { host, feature, calls } = createFeature("full", "host-driven", () => {
+            settingsQueriesAtResync.push(opened[0].postedOfType("BpmnModelerSettingQuery").length);
+        });
         const editor = host.openEditor(DIAGRAM, C7_XML);
+        opened.push(editor);
 
         await feature.router.dispatch(new GetBpmnModelerSettingCommand(), editor.id);
 
-        expect(editor.postedOfType("BpmnModelerSettingQuery")).toHaveLength(1);
         expect(calls).toEqual(["resync scripts"]);
-        const settingsPosted = editor.posted.findIndex(
-            ({ type }) => type === "BpmnModelerSettingQuery",
-        );
-        expect(settingsPosted).toBe(0);
+        expect(settingsQueriesAtResync).toEqual([1]);
     });
 
     it("stores a changed linting choice without pushing the lint state again", async () => {

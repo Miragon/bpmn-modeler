@@ -42,9 +42,18 @@ export class WebviewMessageRouter {
     private readonly ignoredReasons = new Map<string, string>();
 
     static fromTable<TType extends ProtocolCommandType>(
-        _table: CommandTable<TType>,
+        table: CommandTable<TType>,
     ): WebviewMessageRouter {
-        return new WebviewMessageRouter();
+        const router = new WebviewMessageRouter();
+        for (const type of Object.keys(table) as TType[]) {
+            const route: CommandRoute<TType> = table[type];
+            if ("ignored" in route) {
+                router.ignore(type, route.ignored);
+            } else {
+                for (const handler of route) router.on(type, handler);
+            }
+        }
+        return router;
     }
 
     /**
