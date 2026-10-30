@@ -1,3 +1,5 @@
+import { ChoicePrompt } from "../../kernel/domain/prompts";
+
 /**
  * Value object that maps a Camunda `scriptFormat` string to VS Code language
  * identifiers and file extensions.
@@ -75,4 +77,9 @@ export class ScriptLanguage {
     private static normalize(scriptFormat: string): string {
         return scriptFormat.toLowerCase().trim();
     }
+}
+
+export function scriptLanguagePrompt(currentFormat: string): ChoicePrompt<string> {
+    void currentFormat;
+    return { id: "", placeholder: "", items: [] };
 }
