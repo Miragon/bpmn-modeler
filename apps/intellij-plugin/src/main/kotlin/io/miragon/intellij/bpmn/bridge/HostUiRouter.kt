@@ -8,21 +8,35 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
-import io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidget
-import io.miragon.intellij.bpmn.EngineStatusBarWidget
+import com.intellij.util.concurrency.AppExecutorUtil
+import io.miragon.intellij.bpmn.AutoHidingStatusSlots
 import io.miragon.intellij.bpmn.HostPicker
+import io.miragon.intellij.bpmn.StatusAction
+import io.miragon.intellij.bpmn.StatusBarSlots
+import io.miragon.intellij.bpmn.StatusIcon
+import io.miragon.intellij.bpmn.StatusSlot
+import io.miragon.intellij.bpmn.StatusSlots
+import io.miragon.intellij.bpmn.StatusTone
+import io.miragon.intellij.bpmn.StatusView
+import io.miragon.intellij.bpmn.WireValue
+import io.miragon.intellij.bpmn.wireValueOf
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort`,
- * `DeploymentStatusBarPort` and `NotifierPort` — onto native IntelliJ surfaces.
- * Stateless: every handler delegates to a project-scoped widget, the system
- * clipboard, or the lazy [io.miragon.intellij.bpmn.HostNotifications].
+ * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort` and
+ * its widget-shaped predecessors, and `NotifierPort` — onto native IntelliJ
+ * surfaces. Every status frame becomes one view of one slot in [statusSlots];
+ * the other handlers delegate to the system clipboard or the lazy
+ * [io.miragon.intellij.bpmn.HostNotifications].
  */
-internal class HostUiRouter(private val deps: BridgeDeps) {
+internal class HostUiRouter(
+    private val deps: BridgeDeps,
+    private val statusSlots: StatusSlots =
+        AutoHidingStatusSlots(StatusBarSlots(deps.project), AppExecutorUtil.getAppScheduledExecutorService()),
+) {
     private val log = Logger.getInstance(HostUiRouter::class.java)
 
     private val notifications get() = deps.notifications.value
@@ -39,24 +53,32 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             .on("confirm/show") { params, id -> handleConfirm(params, id) }
             .on("clipboard/read") { _, id -> handleClipboardRead(id) }
             .on("clipboard/write") { params, _ -> handleClipboardWrite(params) }
+            .on("statusBar/update") { params, _ -> handleStatusUpdate(params) }
             .on("statusBar/showEngineVersion") { params, _ ->
-                val label = if (params.get("platform")?.asString == "c7") "Camunda 7" else "Camunda 8"
-                EngineStatusBarWidget.updateEngine(project, "$label ${params.get("version")?.asString}")
+                statusSlots.show(
+                    StatusSlot.ENGINE_VERSION,
+                    LegacyStatusViews.engineVersion(params.get("platform")?.asString, params.get("version")?.asString),
+                )
             }
-            .on("statusBar/hideEngineVersion") { _, _ -> EngineStatusBarWidget.updateEngine(project, null) }
+            .on("statusBar/hideEngineVersion") { _, _ -> statusSlots.hide(StatusSlot.ENGINE_VERSION) }
             .on("statusBar/templatesReady") { params, _ ->
-                EngineStatusBarWidget.updateTemplateCount(project, params.get("count")?.asInt ?: 0)
+                statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesReady(params.get("count")?.asInt ?: 0))
             }
-            .on("statusBar/templatesHide") { _, _ -> EngineStatusBarWidget.updateTemplateCount(project, null) }
-            .on("statusBar/templatesLoading") { _, _ -> EngineStatusBarWidget.showTemplatesLoading(project) }
+            .on("statusBar/templatesHide") { _, _ -> statusSlots.hide(StatusSlot.ELEMENT_TEMPLATES) }
+            .on("statusBar/templatesLoading") { _, _ ->
+                statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesLoading)
+            }
             .on("statusBar/showDeploymentTarget") { params, _ ->
-                val name = params.get("name")?.takeIf { !it.isJsonNull }?.asString
-                val freshness = params.get("freshness")?.takeIf { !it.isJsonNull }?.asString ?: "unknown"
-                val deployedAt = params.get("deployedAt")?.takeIf { !it.isJsonNull }?.asString
-                val verifiedAt = params.get("verifiedAt")?.takeIf { !it.isJsonNull }?.asString
-                DeploymentTargetStatusBarWidget.updateTarget(project, name, freshness, deployedAt, verifiedAt)
+                val name = params.optionalString("name")
+                val freshness = params.optionalString("freshness") ?: "unknown"
+                val deployedAt = params.optionalString("deployedAt")
+                val verifiedAt = params.optionalString("verifiedAt")
+                statusSlots.show(
+                    StatusSlot.DEPLOYMENT_TARGET,
+                    LegacyStatusViews.deploymentTarget(name, freshness, deployedAt, verifiedAt),
+                )
             }
-            .on("statusBar/hideDeploymentTarget") { _, _ -> DeploymentTargetStatusBarWidget.hide(project) }
+            .on("statusBar/hideDeploymentTarget") { _, _ -> statusSlots.hide(StatusSlot.DEPLOYMENT_TARGET) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showWarning") { params, _ -> notifications.showWarning(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }
@@ -120,6 +142,43 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
     }
 
     /**
+     * Shows or hides one slot. Only `statusBar/update`'s top-level keys are in
+     * `protocol.json`, so the view's fields are read here once; a value this host
+     * does not know is logged and left out rather than failing the frame.
+     */
+    private fun handleStatusUpdate(params: JsonObject) {
+        val slotName = params.optionalString("slot")
+        val slot = slotName?.let { wireValueOf<StatusSlot>(it) }
+        if (slot == null) {
+            log.warn("statusBar/update: no placement for status slot '$slotName'")
+            return
+        }
+        val view = params.get("view")?.takeIf { it.isJsonObject }?.asJsonObject
+        if (view == null) {
+            statusSlots.hide(slot)
+        } else {
+            statusSlots.show(slot, readStatusView(view))
+        }
+    }
+
+    private fun readStatusView(view: JsonObject): StatusView =
+        StatusView(
+            text = view.optionalString("text").orEmpty(),
+            icon = view.optionalWireValue<StatusIcon>("icon"),
+            tooltip = view.optionalString("tooltip"),
+            tone = view.optionalWireValue<StatusTone>("tone") ?: StatusTone.NEUTRAL,
+            action = view.optionalWireValue<StatusAction>("action"),
+            transient = view.optionalBoolean("transient") ?: false,
+        )
+
+    private inline fun <reified E> JsonObject.optionalWireValue(key: String): E? where E : Enum<E>, E : WireValue {
+        val name = optionalString(key) ?: return null
+        val value = wireValueOf<E>(name)
+        if (value == null) log.warn("statusBar/update: unknown $key '$name', left out")
+        return value
+    }
+
+    /**
      * Modal yes/no listing what is about to be removed.
      *
      * Every path that cannot ask replies `false`: a disposed project or a
@@ -127,9 +186,8 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
      */
     private fun handleConfirm(params: JsonObject, id: Int?) {
         if (id == null) return
-        val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
-        val confirmLabel =
-            params.get("confirmLabel")?.takeIf { !it.isJsonNull }?.asString ?: "Continue"
+        val title = params.optionalString("title").orEmpty()
+        val confirmLabel = params.optionalString("confirmLabel") ?: "Continue"
         val details = params.getAsJsonArray("details")?.map { it.asString }.orEmpty()
 
         deps.channel.replyFromEdt(id, "confirm/show") {
@@ -157,16 +215,16 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
         // A picker prompt is always a request expecting a reply; a missing id
         // would mean nothing to answer, so there is nothing to do.
         if (id == null) return
-        val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString
-        val placeholder = params.get("placeholder")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
-        val canPickMany = params.get("canPickMany")?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+        val title = params.optionalString("title")
+        val placeholder = params.optionalString("placeholder").orEmpty()
+        val canPickMany = params.optionalBoolean("canPickMany") ?: false
         val items =
             params.getAsJsonArray("items").mapIndexed { index, element ->
                 val obj = element.asJsonObject
                 HostPicker.PickItem(
                     index,
                     obj.get("label").asString,
-                    obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
+                    obj.optionalString("description"),
                 )
             }
         deps.channel.replyLaterFromEdt(id, "picker/show") { reply ->
@@ -199,9 +257,13 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
 
     /** Writes the webview's copied text onto the system clipboard (fire-and-forget). */
     private fun handleClipboardWrite(params: JsonObject) {
-        val text = params.get("text")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        val text = params.optionalString("text").orEmpty()
         ApplicationManager.getApplication().invokeLater {
             CopyPasteManager.getInstance().setContents(StringSelection(text))
         }
     }
+
+    private fun JsonObject.optionalString(key: String): String? = get(key)?.takeIf { !it.isJsonNull }?.asString
+
+    private fun JsonObject.optionalBoolean(key: String): Boolean? = get(key)?.takeIf { !it.isJsonNull }?.asBoolean
 }

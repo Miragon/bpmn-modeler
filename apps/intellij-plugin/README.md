@@ -24,7 +24,7 @@ flowchart TD
         jsquery["JBCefJSQuery"]
         supervisor["CoreProcess<br/>supervisor · spawns / restarts the bridge"]
         notifier["Notifier → Notifications.Bus balloons"]
-        statusbar["StatusBar → EngineStatusBarWidget"]
+        statusbar["StatusBar → one StatusSlotWidget per slot"]
     end
 
     file --> provider --> editor
@@ -95,7 +95,14 @@ does not answer is saved as it is. See
 ### Display ports
 
 - **Notifier → `Notifications.Bus`** balloons (+ IDE log) via `HostNotifications`.
-- **StatusBar → `EngineStatusBarWidget`**: engine version + element-template count.
+- **StatusBar → `StatusSlotWidget`s**: one widget per core status slot (element
+  templates, engine version, BPMNlint, deployment target). `HostUiRouter` reads
+  `statusBar/update` into a `StatusView`; `AutoHidingStatusSlots` hides a transient
+  view after 3 s like VS Code; `StatusBarSlots` places each slot in its widget. A
+  click runs the view's action: Change Engine Version, the lint toggle
+  (`linting/toggle`), or the deployment menu. `StatusSlotPlacementTest` fails
+  when the core's `statusView.ts` gains a slot, icon, tone or action without a
+  Kotlin counterpart.
 
 ## Build & run
 
@@ -130,8 +137,9 @@ cd apps/intellij-plugin && ./gradlew runIde
 A sandboxed IntelliJ IDEA Community launches. Open any `.bpmn` file — it opens in
 a **BPMN Modeler** tab and the diagram renders. Move/add an element, then
 `Ctrl/Cmd+S`, and switch to the plain-text tab to confirm the round-tripped XML.
-The status bar shows the engine version + template count; loading errors surface
-as balloons. Tail the IDE log for `[bridge stderr]` lines to watch the seam.
+The status bar shows the template load, the engine version and the deployment
+target, one widget each; loading errors surface as balloons. Tail the IDE log
+for `[bridge stderr]` lines to watch the seam.
 
 > The Gradle build only repackages the artefacts `intellij:build` produced — a
 > webview/CSS change is **not** picked up until you rebuild them. Re-run

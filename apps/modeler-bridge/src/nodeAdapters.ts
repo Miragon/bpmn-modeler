@@ -502,9 +502,9 @@ export class BridgeSettings implements SettingsPort {
     }
 
     /**
-     * The webview's lint toggle. IntelliJ has no setting for it, so the choice
-     * lives as long as this bridge process: one project, until the IDE restarts or
-     * the bridge respawns.
+     * The lint toggle of the webview and of the IntelliJ status widget. IntelliJ
+     * has no setting for it, so the choice lives as long as this bridge process:
+     * one project, until the IDE restarts or the bridge respawns.
      *
      * @returns whether the toggle changed the setting.
      */

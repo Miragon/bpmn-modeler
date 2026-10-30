@@ -46,6 +46,9 @@ import {
     ScriptLanguage,
     SecretStorePort,
     SettingChange,
+    StatusBarPort,
+    StatusSlot,
+    StatusView,
     summarizeAffectedItems,
     TokenPromptPort,
     TokenStorePort,
@@ -68,6 +71,7 @@ import {
     SecretApprovedDestinations,
     SecretGetApprovedDestinationsParams,
     SecretSaveApprovedDestinationsParams,
+    StatusBarUpdateParams,
     TokenPromptShowResult,
     TokenStoreGetResult,
 } from "./protocol/types";
@@ -418,15 +422,26 @@ export class RpcNotifier implements NotifierPort {
 }
 
 /**
- * Forwards every {@link LegacyStatusBarPort} and {@link DeploymentStatusBarPort}
- * call to the host, which owns the actual `StatusBarWidget`s (element-template
- * count + engine version; deployment target). The core stays the single source
- * of truth for *what* to show; the host decides *how*.
+ * Sends each status slot's view to the host, which shows every slot in its own
+ * `StatusBarWidget`. The core decides *what* a slot shows; the host only places
+ * it. The widget-shaped methods keep one RPC each until their callers show
+ * their slot through {@link StatusBarPort}.
  */
 export class RpcStatusBar
-    implements LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
+    implements StatusBarPort, LegacyStatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort
 {
     constructor(private readonly rpc: Rpc) {}
+
+    show(slot: StatusSlot, view: StatusView): void {
+        this.rpc.notify(METHODS.statusBarUpdate, { slot, view } satisfies StatusBarUpdateParams);
+    }
+
+    hide(slot: StatusSlot): void {
+        this.rpc.notify(METHODS.statusBarUpdate, {
+            slot,
+            view: null,
+        } satisfies StatusBarUpdateParams);
+    }
 
     showElementTemplatesLoading(): void {
         this.rpc.notify(METHODS.statusBarTemplatesLoading, {});
@@ -467,7 +482,7 @@ export class RpcStatusBar
     }
 
     showBpmnlint(): void {
-        /* not supported yet for intellij */
+        // IntelliJ shows BPMNlint only through its slot.
     }
 }
 

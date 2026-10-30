@@ -70,6 +70,17 @@ class ModelerCommandsRouterTest {
     }
 
     @Test
+    fun `toggleLinting notifies linting toggle`() {
+        val (wired, router) = router()
+
+        router.toggleLinting()
+
+        val frames = wired.fake.framesUntilQuiet().map(::parse)
+        assertEquals(listOf("linting/toggle"), frames.map { it.get("method").asString })
+        assertTrue(frames.single().getAsJsonObject("params").entrySet().isEmpty(), "linting/toggle carries no params")
+    }
+
+    @Test
     fun `switchDeploymentTarget notifies with the project workspace root`() {
         val (wired, router) = router()
 

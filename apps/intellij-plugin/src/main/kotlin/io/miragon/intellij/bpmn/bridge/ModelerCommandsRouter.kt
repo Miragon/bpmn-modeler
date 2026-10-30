@@ -1,10 +1,10 @@
 package io.miragon.intellij.bpmn.bridge
 
 /**
- * Routes the portable modeler commands as outbound Host→Core notifications
- * (mirrors [MarketplaceRouter]'s notify pattern): change the active diagram's
- * engine version, and migrate every `.bpmn` in the workspace. Both results surface
- * through the core's existing ports (`picker/show`, `document/write`, notifier),
+ * Routes the portable modeler commands — the Tools-menu actions and the status
+ * widgets' clicks — as outbound Host→Core notifications (mirrors
+ * [MarketplaceRouter]'s notify pattern). Their results surface through the core's
+ * existing ports (`picker/show`, `document/write`, notifier, `statusBar/update`),
  * so this router only sends — it registers no inbound handlers.
  *
  * Each notify buffers in the outbound queue until the bridge is up, so the trailing
@@ -18,6 +18,15 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun changeEngineVersion(editorId: String) {
         deps.channel.notify(METHODS_CHANGE_ENGINE_VERSION, linkedMapOf("editorId" to editorId))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `linting/toggle`, the BPMNlint widget's click. The bridge owns the
+     * project's lint choice and re-lints every open diagram.
+     */
+    fun toggleLinting() {
+        deps.channel.notify(METHODS_LINTING_TOGGLE, linkedMapOf<String, Any>())
         deps.ensureStartedAsync()
     }
 
@@ -106,10 +115,10 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
     }
 
     private companion object {
-        // Mirrors METHODS.modelerChangeEngineVersion / migrationMigrateAll in
-        // apps/modeler-bridge/src/protocol/descriptor.ts (the protocol.json snapshot
-        // keeps the two sides honest).
+        // Host→core METHODS of apps/modeler-bridge/src/protocol/descriptor.ts;
+        // ModelerCommandsRouterTest pins each name.
         const val METHODS_CHANGE_ENGINE_VERSION = "modeler/changeEngineVersion"
+        const val METHODS_LINTING_TOGGLE = "linting/toggle"
         const val METHODS_MIGRATE_ALL = "migration/migrateAll"
         const val METHODS_LAYOUT_FORMAT = "layout/format"
         const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"

@@ -16,6 +16,8 @@ import {
     GlobalFunctionDef,
     MethodDef,
     RawModelerSettings,
+    StatusSlot,
+    StatusView,
 } from "@miragon/bpmn-modeler-core";
 import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, Engine, VariableDef } from "@miragon/bpmn-modeler-types";
@@ -379,6 +381,12 @@ export interface NotifierLogParams {
 /** `notifier/progressStart`, `notifier/progressEnd` — bracket a host spinner. */
 export interface NotifierProgressParams {
     title: string;
+}
+
+/** `statusBar/update` — what one status slot shows, or `null` to hide the slot. */
+export interface StatusBarUpdateParams {
+    slot: StatusSlot;
+    view: StatusView | null;
 }
 
 /** `statusBar/templatesReady` — element-template count for the status widget. */

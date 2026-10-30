@@ -48,6 +48,12 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Add / Update / Remove Template Marketplace… | Manage [template marketplaces](/vscode/features/template-marketplace) |
 | Reload Modeler | Re-read element templates and re-render open diagrams |
 
+## Status bar
+
+The status bar shows the element-template load and, for the focused diagram, its engine version and the active
+deployment target, one widget each. Click the engine version to change it. Click the deployment target to switch
+targets or, for Camunda 7, verify against the engine.
+
 ## Settings
 
 The settings live under **Settings ▸ Tools ▸ Miragon BPMN Modeler**: default mode, language, colour theme, config

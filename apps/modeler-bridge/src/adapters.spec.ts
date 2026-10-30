@@ -831,6 +831,35 @@ describe("RpcClipboard", () => {
 });
 
 describe("RpcStatusBar", () => {
+    it("sends a slot's view to the host", () => {
+        const { frames, rpc } = harness();
+        const view = {
+            text: "Camunda 7 (7.20)",
+            icon: "engine",
+            tooltip: "Click to change engine version",
+            tone: "neutral",
+            action: "changeEngineVersion",
+        } as const;
+
+        new RpcStatusBar(rpc).show("engineVersion", view);
+
+        expect(last(frames)).toEqual({
+            method: "statusBar/update",
+            params: { slot: "engineVersion", view },
+        });
+    });
+
+    it("hides a slot by sending no view", () => {
+        const { frames, rpc } = harness();
+
+        new RpcStatusBar(rpc).hide("bpmnlint");
+
+        expect(last(frames)).toEqual({
+            method: "statusBar/update",
+            params: { slot: "bpmnlint", view: null },
+        });
+    });
+
     it("forwards template and engine-version updates as host frames", () => {
         const { frames, rpc } = harness();
         const statusBar = new RpcStatusBar(rpc);

@@ -41,6 +41,8 @@ jobs:
               # the Kotlin languages.
               - 'libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json'
               - 'apps/vscode-plugin/package.json'
+              # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
+              - 'libs/modeler-core/src/kernel/domain/statusView.ts'
             intellij-plugin-src:
               - 'apps/intellij-plugin/src/**'
             standalone:
