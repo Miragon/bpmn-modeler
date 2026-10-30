@@ -35,6 +35,7 @@ export * from "./editorSession/domain/EditorSession";
 export * from "./editorSession/domain/EditorSessionParticipant";
 export * from "./editorSession/domain/session";
 export * from "./editorSession/service/DocumentFlushService";
+export * from "./editorSession/service/EditorContribution";
 export * from "./editorSession/service/EditorDocumentSync";
 export * from "./editorSession/service/EditorHandle";
 export * from "./editorSession/service/EditorSessionDocuments";
@@ -51,6 +52,7 @@ export * from "./editorSession/infrastructure/webviewLogMessageHandlers";
 export * from "./editorSession/infrastructure/webviewNotificationMessageHandlers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
+export * from "./modeler/bpmn/BpmnEditorFeature";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/domain/ports";
 export * from "./modeler/bpmn/service/BpmnModelerService";

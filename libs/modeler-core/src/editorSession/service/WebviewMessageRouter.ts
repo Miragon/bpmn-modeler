@@ -14,6 +14,16 @@ export type MessageRoute =
     | { readonly kind: "ignored"; readonly reason: string }
     | { readonly kind: "unrouted" };
 
+/** A command's handlers in run order, or the reason its editor drops it. */
+export type CommandRoute<TType extends ProtocolCommandType> =
+    | readonly [MessageHandler<MessageOfType<TType>>, ...MessageHandler<MessageOfType<TType>>[]]
+    | { readonly ignored: string };
+
+/** Routes for a closed set of command types: a type without an entry fails to compile. */
+export type CommandTable<TType extends ProtocolCommandType> = {
+    readonly [T in TType]: CommandRoute<T>;
+};
+
 /**
  * Open/closed dispatch table for webview → host messages.
  *
@@ -30,6 +40,12 @@ export class WebviewMessageRouter {
     private readonly handlers = new Map<string, MessageHandler<Command>[]>();
 
     private readonly ignoredReasons = new Map<string, string>();
+
+    static fromTable<TType extends ProtocolCommandType>(
+        _table: CommandTable<TType>,
+    ): WebviewMessageRouter {
+        return new WebviewMessageRouter();
+    }
 
     /**
      * Registers a handler for a command type. Repeated calls for the same type

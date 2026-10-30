@@ -44,6 +44,12 @@ export interface DiagnosticsPort {
     clear(documentUri: string): void;
 }
 
+/** The user's linting on/off switch, on a host that keeps one. */
+export interface LintingPreferencePort {
+    /** @returns `false` when `enabled` already was the stored choice. */
+    setLintingEnabled(enabled: boolean): boolean | Promise<boolean>;
+}
+
 /**
  * Persists the global default visibility of the BPMN properties panel across
  * sessions. {@link getVisibility} is synchronous so the webview HTML can be
