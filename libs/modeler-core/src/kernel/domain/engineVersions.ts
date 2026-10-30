@@ -11,7 +11,8 @@ export {
 
 export function engineVersionPrompt(platform: Engine): ChoicePrompt<string> {
     return {
-        id: "engineVersion",
+        // One id per engine: migrating both engines asks for both versions in one run.
+        id: `${platform}EngineVersion`,
         placeholder: `Select ${ENGINE_LABEL[platform]} engine version`,
         items: getVersions(platform).map((version) => ({ label: version, value: version })),
     };

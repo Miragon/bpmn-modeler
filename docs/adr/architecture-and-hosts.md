@@ -340,13 +340,14 @@ list of a search after 150 ms. The bridge sends a choice over the existing
 chosen indices back to values, and brackets a search with status-bar progress,
 so neither the protocol nor Kotlin changes. The test kit's `ScriptedPicker`
 answers a prompt by its id and fails a test whose answer the prompt does not
-offer. Until each feature's prompts move to the core
+offer, so the prompts of one run carry distinct ids: each engine's version prompt
+has its own. Until each feature's prompts move to the core
 ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
-feature-shaped prompts remain: the other `PickerPort` methods,
-`DeploymentPickerPort` and `MigrationPickerPort`, whose text the adapters build.
-The new-model engine, engine-version and cleanup prompts already come from the
-core, so `pickNewModelEngine` has no caller left; it is removed together with
-the other feature-shaped methods.
+feature-shaped prompts remain: the other `PickerPort` methods and
+`DeploymentPickerPort`, whose text the adapters build. The new-model engine,
+engine-version, migration-scope and cleanup prompts already come from the core,
+so `pickNewModelEngine`, `pickEngineVersion` and `MigrationPickerPort` have no
+caller left; they are removed together with the other feature-shaped methods.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
