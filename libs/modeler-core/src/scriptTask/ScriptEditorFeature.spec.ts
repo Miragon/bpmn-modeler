@@ -93,6 +93,7 @@ describe("ScriptEditorFeature", () => {
         const { host, scriptEditor, variables, editorContribution } = createFeature();
         const editor = await host.openSession(DIAGRAM, [editorContribution.participant]);
         variables.setExtracted(editor.id, VARIABLES);
+        expect(scriptEditor.disposedEditors).toEqual([]);
 
         editor.dispose();
 

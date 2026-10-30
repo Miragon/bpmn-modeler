@@ -5,7 +5,6 @@ vi.mock("vscode", async () => {
     const disposable = { dispose: () => undefined };
     return {
         ...windowFake,
-        ViewColumn: { Beside: -2 },
         ConfigurationTarget: { Global: 1 },
         workspace: {
             fs: {},
@@ -38,22 +37,21 @@ vi.mock("vscode", async () => {
 import { ExtensionContext } from "vscode";
 
 import {
+    BpmnDiffService,
     DiffPaneStore,
     DOCUMENT_SYNC_COMMAND_TYPES,
     EditorSessionParticipant,
+    ScriptEditorFeature,
     ScriptFileStore,
     ScriptVariableStore,
-    ScriptXmlService,
 } from "@miragon/bpmn-modeler-core";
-import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
+import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
 import { BPMN_EDITOR_COMMAND_TYPES, BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
-import { ScriptTaskService } from "../scriptTask/infrastructure/ScriptTaskService";
 import { setContext } from "../shared/infrastructure/extensionContext";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
-import * as codeLinkFeature from "./codeLinkFeature";
 import { buildSharedDeps } from "./sharedDeps";
 
 /** How VS Code serves each command its BPMN editor webview posts. */
@@ -122,37 +120,32 @@ function createVsCodeBpmnEditor() {
             new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore),
             deps.notifier,
         ),
-        scriptTaskSvc: new ScriptTaskService(
-            deps.editorStore,
-            scriptFiles,
-            deps.vsSettings,
-            deps.notifier,
-            deps.picker,
-            new ScriptXmlService(),
-        ),
-        scriptVariableStore: new ScriptVariableStore(),
-        scriptFiles,
-        codeLink: codeLinkFeature.register(context, deps),
         marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,
+        scriptEditor: new ScriptEditorFeature({
+            scriptEditor: new RecordingScriptEditor(),
+            variables: new ScriptVariableStore(),
+            scriptFiles,
+            notifier: deps.notifier,
+        }).editorContribution,
     });
 }
 
 describe("VS Code's BPMN editor", () => {
     it("routes match the host's coverage table", () => {
-        const { editorRoutes } = createVsCodeBpmnEditor();
+        const { router } = createVsCodeBpmnEditor();
 
         const coverage = Object.fromEntries(
-            BPMN_EDITOR_COMMAND_TYPES.map((type) => [type, editorRoutes.routeOf(type).kind]),
+            BPMN_EDITOR_COMMAND_TYPES.map((type) => [type, router.routeOf(type).kind]),
         );
 
         expect(coverage).toEqual(VSCODE_COVERAGE);
     });
 
     it("routes the whole document group to the core's document services", () => {
-        const { editorRoutes } = createVsCodeBpmnEditor();
+        const { router } = createVsCodeBpmnEditor();
 
-        expect(DOCUMENT_SYNC_COMMAND_TYPES.map((type) => editorRoutes.routeOf(type))).toEqual([
+        expect(DOCUMENT_SYNC_COMMAND_TYPES.map((type) => router.routeOf(type))).toEqual([
             { kind: "handled" },
             { kind: "handled" },
             { kind: "handled" },

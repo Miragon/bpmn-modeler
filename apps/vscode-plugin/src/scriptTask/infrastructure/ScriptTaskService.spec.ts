@@ -183,7 +183,7 @@ function createService(answers: PickerAnswers = {}) {
     const scriptXml = { applyScriptContents: vi.fn().mockResolvedValue(undefined) };
 
     // A generic TextDocument shape works both for the script opened in
-    // `openScriptEditor` and the diagram re-opened by `persistScriptsToDocument`.
+    // `open` and the diagram re-opened by `persistScriptsToDocument`.
     openTextDocumentMock.mockResolvedValue({
         uri: Uri.file("/repo/process.bpmn"),
         getText: () => "<diagram-xml/>",
@@ -283,15 +283,14 @@ async function openCanonicalScript(
     format = "javascript",
     content = "a",
 ): Promise<void> {
-    await service.openScriptEditor(
-        EDITOR_ID,
-        ELEMENT_ID,
-        KIND,
-        undefined,
-        undefined,
-        format,
+    await service.open(EDITOR_ID, {
+        elementId: ELEMENT_ID,
+        kind: KIND,
+        listenerIndex: undefined,
+        eventName: undefined,
+        scriptFormat: format,
         content,
-    );
+    });
 }
 
 beforeEach(() => {
@@ -307,7 +306,7 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe("ScriptTaskService.openScriptEditor", () => {
+describe("ScriptTaskService.open", () => {
     it("writes content, ensures the gitignore, and reveals the editor for a new script", async () => {
         const { service, host } = createService();
 
@@ -350,15 +349,14 @@ describe("ScriptTaskService.openScriptEditor", () => {
     it("returns silently when the format is unsupported and the user cancels the picker", async () => {
         const { service, scriptFiles, editor, host } = createService();
 
-        await service.openScriptEditor(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "cobol",
-            "x",
-        );
+        await service.open(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "cobol",
+            content: "x",
+        });
 
         expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: ["cobol"] }]);
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
@@ -368,15 +366,14 @@ describe("ScriptTaskService.openScriptEditor", () => {
     it("persists the picked format then opens with its extension when the format is unsupported", async () => {
         const { service, scriptFiles, editor } = createService({ scriptLanguage: "groovy" });
 
-        await service.openScriptEditor(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "cobol",
-            "x",
-        );
+        await service.open(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "cobol",
+            content: "x",
+        });
 
         expect(editor.posted).toContainEqual(
             expect.objectContaining({ type: "UpdateScriptFormatQuery", scriptFormat: "groovy" }),
@@ -407,15 +404,14 @@ describe("ScriptTaskService.openScriptEditor", () => {
 
         await openCanonicalScript(service, "groovy");
         host.settings.values.configFolder = ".bpmn";
-        await service.openScriptEditor(
-            EDITOR_ID,
-            "Task_2",
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "b",
-        );
+        await service.open(EDITOR_ID, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
 
         expect(host.workspace.files.get(scriptPath("groovy", "Task_2"))).toBe("b");
     });
@@ -424,15 +420,14 @@ describe("ScriptTaskService.openScriptEditor", () => {
         const { service } = createService();
 
         await openCanonicalScript(service, "groovy", "a");
-        await service.openScriptEditor(
-            EDITOR_ID,
-            "Task_2",
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "b",
-        );
+        await service.open(EDITOR_ID, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
 
         // Neither open may replace the other: both tabs are pinned…
         for (const call of showTextDocumentMock.mock.calls) {
@@ -597,15 +592,14 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         await openCanonicalScript(service, "groovy");
         // A doc for a different editor must be skipped during replay.
         const otherEditor = host.openEditor("/repo/other.bpmn");
-        await service.openScriptEditor(
-            otherEditor.id,
-            "Task_2",
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "b",
-        );
+        await service.open(otherEditor.id, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
         setOpenTabs([scriptPath("groovy")]);
         scriptFiles.readFile.mockResolvedValue("decoded");
         clearPosted(editor);
@@ -627,15 +621,14 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
     it("skips an entry whose readFile rejects and continues the loop", async () => {
         const { service, editor, scriptFiles, notifier } = createService();
         await openCanonicalScript(service, "groovy");
-        await service.openScriptEditor(
-            EDITOR_ID,
-            "Task_2",
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "b",
-        );
+        await service.open(EDITOR_ID, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
         setOpenTabs([scriptPath("groovy"), scriptPath("groovy", "Task_2")]);
         scriptFiles.readFile.mockRejectedValueOnce(new Error("gone"));
         scriptFiles.readFile.mockResolvedValue("ok");
@@ -790,7 +783,7 @@ describe("ScriptTaskService reopen after close", () => {
 
         // Editor dispose sweeps the whole <editorHash> dir, covering the
         // earlier-closed script's leftover file.
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(scriptFiles.deleteFolder).toHaveBeenCalledWith(
@@ -806,7 +799,12 @@ describe("ScriptTaskService.applyModelChange", () => {
         stageDocument(scriptPath("groovy"), "old");
         clearPosted(editor);
 
-        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "undone");
+        await service.applyModelChange(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "undone",
+        });
 
         expect(applyEditMock).toHaveBeenCalledTimes(1);
         const edit = applyEditMock.mock.calls[0][0] as { replacements: { newText: string }[] };
@@ -820,7 +818,12 @@ describe("ScriptTaskService.applyModelChange", () => {
         await openCanonicalScript(service, "groovy", "same");
         stageDocument(scriptPath("groovy"), "same");
 
-        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "same");
+        await service.applyModelChange(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "same",
+        });
 
         expect(applyEditMock).not.toHaveBeenCalled();
     });
@@ -830,7 +833,12 @@ describe("ScriptTaskService.applyModelChange", () => {
         await openCanonicalScript(service, "groovy", "old");
         scriptFiles.writeFile.mockClear();
 
-        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "undone");
+        await service.applyModelChange(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "undone",
+        });
 
         expect(applyEditMock).not.toHaveBeenCalled();
         expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath("groovy"), "undone");
@@ -839,7 +847,12 @@ describe("ScriptTaskService.applyModelChange", () => {
     it("is a no-op for a script that has no open tab", async () => {
         const { service, scriptFiles } = createService();
 
-        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "x");
+        await service.applyModelChange(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "x",
+        });
 
         expect(applyEditMock).not.toHaveBeenCalled();
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
@@ -852,7 +865,12 @@ describe("ScriptTaskService.applyModelChange", () => {
         const doc = stageDocument(scriptPath("groovy"), "a", true);
         clearPosted(editor);
 
-        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, undefined);
+        await service.applyModelChange(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: undefined,
+        });
         await flushAsync();
 
         expect(doc.save).toHaveBeenCalledTimes(1);
@@ -898,6 +916,25 @@ describe("ScriptTaskService lock broadcast", () => {
         expect(lastBroadcastRefs(editor)).toEqual([]);
     });
 
+    it("replays what a hidden webview missed, then locks its open scripts again (resync)", async () => {
+        const { service, fireDocChange, editor, scriptFiles } = createService();
+        await openCanonicalScript(service, "groovy");
+        editor.hidden = true;
+        scriptFiles.readFile.mockResolvedValue("buffered");
+        await typeInScript(fireDocChange, scriptPath("groovy"), "buffered");
+        editor.hidden = false;
+        setOpenTabs([scriptPath("groovy")]);
+        clearPosted(editor);
+
+        await service.resync(EDITOR_ID);
+
+        expect(contentQueries(editor)).toEqual([
+            new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "buffered"),
+        ]);
+        expect(editor.posted.at(-1)).toBeInstanceOf(UpdateOpenScriptEditorsQuery);
+        expect(lastBroadcastRefs(editor)?.map(({ elementId }) => elementId)).toEqual([ELEMENT_ID]);
+    });
+
     it("re-broadcasts the current open set on the reload handshake (syncLockState)", async () => {
         const { service, editor } = createService();
         await openCanonicalScript(service, "groovy");
@@ -922,13 +959,13 @@ describe("ScriptTaskService lock broadcast", () => {
     });
 });
 
-describe("ScriptTaskService.disposeForEditor", () => {
+describe("ScriptTaskService.disposeEditor", () => {
     it("clears state, closes orphaned tabs, and deletes the editor's script directory", async () => {
         const { service, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         setOpenTabs([scriptPath("groovy")]);
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(closeTabMock).toHaveBeenCalledTimes(1);
@@ -946,7 +983,7 @@ describe("ScriptTaskService.disposeForEditor", () => {
         setOpenTabs([scriptPath("groovy")]);
         const doc = stageDocument(scriptPath("groovy"), "edited", true);
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(doc.save).toHaveBeenCalledTimes(1);
@@ -956,7 +993,7 @@ describe("ScriptTaskService.disposeForEditor", () => {
         const { service, fireTabsChange, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         setOpenTabs([scriptPath("groovy")]);
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
         scriptFiles.deleteFolder.mockClear();
         setOpenTabs([]);
@@ -971,7 +1008,7 @@ describe("ScriptTaskService.disposeForEditor", () => {
     it("touches no disk when the editor never opened a script", async () => {
         const { service, scriptFiles } = createService();
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(closeTabMock).not.toHaveBeenCalled();
@@ -989,7 +1026,12 @@ describe("ScriptTaskService keystroke debounce", () => {
 
         // Type, then let a canvas undo overwrite the buffer before the window ends.
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "stale"));
-        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "undone");
+        await service.applyModelChange(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "undone",
+        });
         await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
 
         // The stale keystroke was cancelled: it never streamed back as a query.
@@ -1062,7 +1104,7 @@ describe("ScriptTaskService keystroke debounce", () => {
         clearPosted(editor);
 
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
 
         expect(contentQueries(editor)).toHaveLength(0);
@@ -1079,7 +1121,7 @@ describe("ScriptTaskService dispose write-back", () => {
         const diagramDoc = stageDocument("/repo/process.bpmn", "<old-xml/>");
         scriptXml.applyScriptContents.mockResolvedValue("<new-xml/>");
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(scriptXml.applyScriptContents).toHaveBeenCalledWith("<old-xml/>", [
@@ -1098,7 +1140,7 @@ describe("ScriptTaskService dispose write-back", () => {
         stageDocument("/repo/process.bpmn", "<xml/>");
         // The default scriptXml stub resolves undefined (no divergence).
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(applyEditMock).not.toHaveBeenCalled();
@@ -1113,7 +1155,7 @@ describe("ScriptTaskService dispose write-back", () => {
         stageDocument("/repo/process.bpmn", "<xml/>");
         scriptXml.applyScriptContents.mockResolvedValue("<new/>");
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(scriptXml.applyScriptContents).toHaveBeenCalledWith("<xml/>", [
@@ -1136,7 +1178,7 @@ describe("ScriptTaskService dispose write-back", () => {
         };
         openTextDocumentMock.mockResolvedValue(diagramDoc);
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(openTextDocumentMock).toHaveBeenCalled();
@@ -1151,7 +1193,7 @@ describe("ScriptTaskService dispose write-back", () => {
         const boom = new Error("boom");
         scriptXml.applyScriptContents.mockRejectedValue(boom);
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(notifier.logged("error")).toEqual([boom.stack]);
@@ -1165,7 +1207,7 @@ describe("ScriptTaskService dispose write-back", () => {
         stageDocument("/repo/process.bpmn", "<xml/>");
         (service as never as { revertedEditors: Set<string> }).revertedEditors.add(EDITOR_ID);
 
-        service.disposeForEditor(EDITOR_ID);
+        service.disposeEditor(EDITOR_ID);
         await flushAsync();
 
         expect(scriptXml.applyScriptContents).not.toHaveBeenCalled();
@@ -1225,19 +1267,18 @@ function slugDirOf(path: string): string {
     return path.substring(0, path.lastIndexOf("/"));
 }
 
-describe("ScriptTaskService.materializeScript", () => {
+describe("ScriptTaskService.materialize", () => {
     it("writes the script and its JS ambient files without opening, tracking, or locking", async () => {
         const { service, scriptFiles, editor } = createService();
 
-        const result = await service.materializeScript(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "javascript",
-            "console.log(1)",
-        );
+        const result = await service.materialize(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "javascript",
+            content: "console.log(1)",
+        });
 
         expect(result).toEqual({ kind: "written" });
         expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath(), "console.log(1)");
@@ -1255,15 +1296,14 @@ describe("ScriptTaskService.materializeScript", () => {
     it("writes no ambient files for a non-JavaScript script", async () => {
         const { service, scriptFiles } = createService();
 
-        const result = await service.materializeScript(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "a",
-        );
+        const result = await service.materialize(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "a",
+        });
 
         expect(result).toEqual({ kind: "written" });
         expect(scriptFiles.writeFile).toHaveBeenCalledTimes(1);
@@ -1273,15 +1313,14 @@ describe("ScriptTaskService.materializeScript", () => {
     it("reports a cancelled language pick and writes nothing", async () => {
         const { service, scriptFiles } = createService();
 
-        const result = await service.materializeScript(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "cobol",
-            "x",
-        );
+        const result = await service.materialize(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "cobol",
+            content: "x",
+        });
 
         expect(result).toEqual({ kind: "cancelled" });
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
@@ -1293,15 +1332,14 @@ describe("ScriptTaskService.materializeScript", () => {
         await openCanonicalScript(service, "groovy", "old");
         scriptFiles.writeFile.mockClear();
 
-        const result = await service.materializeScript(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "new",
-        );
+        const result = await service.materialize(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "new",
+        });
 
         expect(result).toEqual({ kind: "alreadyOpen" });
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
@@ -1312,15 +1350,14 @@ describe("ScriptTaskService.materializeScript", () => {
         scriptFiles.writeFile.mockRejectedValueOnce(new Error("EACCES: permission denied"));
 
         await expect(
-            service.materializeScript(
-                EDITOR_ID,
-                ELEMENT_ID,
-                KIND,
-                undefined,
-                undefined,
-                "groovy",
-                "x",
-            ),
+            service.materialize(EDITOR_ID, {
+                elementId: ELEMENT_ID,
+                kind: KIND,
+                listenerIndex: undefined,
+                eventName: undefined,
+                scriptFormat: "groovy",
+                content: "x",
+            }),
         ).rejects.toThrow("EACCES: permission denied");
     });
 
@@ -1329,24 +1366,22 @@ describe("ScriptTaskService.materializeScript", () => {
 
         // Materialise never tracks, so a second call is still "untracked" and
         // rewrites — proving a file that went stale is refreshed from the model.
-        await service.materializeScript(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "v1",
-        );
-        await service.materializeScript(
-            EDITOR_ID,
-            ELEMENT_ID,
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "v2",
-        );
+        await service.materialize(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "v1",
+        });
+        await service.materialize(EDITOR_ID, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "v2",
+        });
 
         expect(scriptFiles.writeFile).toHaveBeenLastCalledWith(scriptPath("groovy"), "v2");
     });
@@ -1379,15 +1414,14 @@ describe("ScriptTaskService adoption", () => {
         await host.workspace.writeFile(scriptPath(), "disk content");
 
         await fireOpen(fireTabsChange, scriptPath());
-        await service.materializeScript(
-            EDITOR_ID,
-            "Task_2",
-            KIND,
-            undefined,
-            undefined,
-            "groovy",
-            "b",
-        );
+        await service.materialize(EDITOR_ID, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
 
         expect(host.workspace.files.get(scriptPath())).toBe("disk content");
         expect(host.workspace.files.get(scriptPath("groovy", "Task_2"))).toBe("b");
@@ -1407,7 +1441,7 @@ describe("ScriptTaskService adoption", () => {
 
     it("does not re-adopt our own open (no duplicate tracking or broadcast)", async () => {
         const { service, fireTabsChange, editor } = createService();
-        // openScriptEditor tracks before revealing, so the opened-tab event it
+        // open tracks before revealing, so the opened-tab event it
         // would trigger must be a no-op for the adoption listener.
         await openCanonicalScript(service, "groovy");
         clearPosted(editor);
