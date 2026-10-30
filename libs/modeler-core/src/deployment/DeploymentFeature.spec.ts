@@ -284,6 +284,43 @@ describe("DeploymentFeature panel target commands", () => {
 
         expect([...host.deploymentState.ledger.keys()]).toEqual(keptRows.map(ledgerKeyOf));
     });
+
+    it("a ledger prune failure after a successful save still reports the target as saved", async () => {
+        const { host, feature } = createFeature();
+        host.openEditor(ORDER_PROCESS);
+        host.deploymentState.ledger.set(ledgerKeyOf("dev"), {
+            fingerprint: "f",
+            deployedAt: "2026-01-01T00:00:00.000Z",
+        });
+        vi.spyOn(host.deploymentState, "deleteDeployedRevisions").mockRejectedValue(
+            new Error("workspace state is read-only"),
+        );
+        const { panel, posted } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+        );
+
+        expect(
+            posted.filter(
+                (query) =>
+                    query instanceof TargetSavedQuery || query instanceof DeploymentTargetsQuery,
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                type: "TargetSavedQuery",
+                success: true,
+                message: 'Saved deployment target "staging".',
+            }),
+            expect.objectContaining({
+                type: "DeploymentTargetsQuery",
+                activeTargetName: "staging",
+            }),
+        ]);
+        expect(host.notifier.loggedErrors.map((error) => error.message)).toEqual([
+            "workspace state is read-only",
+        ]);
+    });
 });
 
 describe("DeploymentFeature.statusMenu", () => {
