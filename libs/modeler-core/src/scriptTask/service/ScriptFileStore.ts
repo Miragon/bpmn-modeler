@@ -64,11 +64,15 @@ export class ScriptFileStore {
     private async resolveBaseDir(editorId: string): Promise<ScriptBaseDir> {
         const handle = this.editorStore.requireHandle(editorId);
         if (keepsScriptsInOsTemp(handle.documentScheme())) {
-            return osTempScriptBaseDir(this.osTempDir);
+            return osTempScriptBaseDir(this.osTempDir, (path) => path);
         }
         const documentDir = this.workspace.getDocumentDirectory(handle.documentFsPath());
         const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
-        return workspaceScriptBaseDir(workspaceRoot, this.settings.getConfigFolder());
+        return workspaceScriptBaseDir(
+            workspaceRoot,
+            this.settings.getConfigFolder(),
+            (path) => path,
+        );
     }
 
     /** Whether the editor opened, generated or adopted a script since it opened. */

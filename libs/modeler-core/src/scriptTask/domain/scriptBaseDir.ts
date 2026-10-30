@@ -21,12 +21,19 @@ export function keepsScriptsInOsTemp(documentScheme: string): boolean {
 }
 
 /** Keeps the `tmp/scripting` marker, by which `parseScriptPath` finds a script's segments. */
-export function osTempScriptBaseDir(osTempDir: string): ScriptBaseDir {
+export function osTempScriptBaseDir(
+    osTempDir: string,
+    _spellForDisplay: (path: string) => string,
+): ScriptBaseDir {
     const path = joinWorkspacePath(osTempDir, "miragon-bpmn-modeler", TMP_SCRIPTING_SEGMENT);
     return { path, displayName: path };
 }
 
-export function workspaceScriptBaseDir(workspaceRoot: string, configFolder: string): ScriptBaseDir {
+export function workspaceScriptBaseDir(
+    workspaceRoot: string,
+    configFolder: string,
+    _spellForDisplay: (path: string) => string,
+): ScriptBaseDir {
     const path = configFolderPath(workspaceRoot, configFolder, TMP_SCRIPTING_SEGMENT);
     return { path, displayName: relativeToRoot(path, toWorkspacePath(workspaceRoot)) || path };
 }

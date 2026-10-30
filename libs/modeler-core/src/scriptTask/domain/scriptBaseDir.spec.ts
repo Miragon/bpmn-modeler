@@ -10,6 +10,8 @@ import {
 } from "./scriptBaseDir";
 import { ScriptUri } from "./ScriptUri";
 
+const spelledByHost = (path: string) => `<host spelling of ${path}>`;
+
 describe("keepsScriptsInOsTemp", () => {
     it.each([
         { documentScheme: "file", inOsTemp: false },
@@ -43,9 +45,15 @@ describe("osTempScriptBaseDir", () => {
             osTempDir: "\\\\server\\profiles\\peter\\Temp",
             path: "//server/profiles/peter/Temp/miragon-bpmn-modeler/tmp/scripting",
         },
-    ])("$osTempDir holds scripts in $path and names it whole", ({ osTempDir, path }) => {
-        expect(osTempScriptBaseDir(osTempDir)).toEqual({ path, displayName: path });
-    });
+    ])(
+        "$osTempDir holds scripts in $path and names it whole, spelled by the host",
+        ({ osTempDir, path }) => {
+            expect(osTempScriptBaseDir(osTempDir, spelledByHost)).toEqual({
+                path,
+                displayName: `<host spelling of ${path}>`,
+            });
+        },
+    );
 });
 
 describe("workspaceScriptBaseDir", () => {
@@ -84,12 +92,15 @@ describe("workspaceScriptBaseDir", () => {
             root: "/ws/app",
             configFolder: "../shared",
             path: "/ws/shared/tmp/scripting",
-            displayName: "/ws/shared/tmp/scripting",
+            displayName: "<host spelling of /ws/shared/tmp/scripting>",
         },
     ])(
         "$root with config folder $configFolder holds scripts in $path, named $displayName",
         ({ root, configFolder, path, displayName }) => {
-            expect(workspaceScriptBaseDir(root, configFolder)).toEqual({ path, displayName });
+            expect(workspaceScriptBaseDir(root, configFolder, spelledByHost)).toEqual({
+                path,
+                displayName,
+            });
         },
     );
 });
