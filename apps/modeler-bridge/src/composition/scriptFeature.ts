@@ -11,6 +11,7 @@ import {
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     materializeScriptBatch,
     NO_INLINE_SCRIPTS_MESSAGE,
+    notifiedErrorLogText,
     scriptBatchSummary,
     ScriptFileStore,
     ScriptVariableStore,
@@ -60,8 +61,19 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
     );
 
     deps.router
+        // Not awaited: a language prompt would hold up the editor's later
+        // messages until the user picks.
         .on("OpenScriptEditorCommand", (message, editorId) => {
-            void scriptEditor.open(message, editorId);
+            void scriptEditor
+                .open(message, editorId)
+                .catch((error) =>
+                    deps.notifier.logError(
+                        notifiedErrorLogText(
+                            `Could not open the script of ${message.elementId}`,
+                            error,
+                        ),
+                    ),
+                );
         })
         // Live process-variable model update → push to every open script tab of
         // this editor so completion stays current without reopening.
