@@ -12,6 +12,7 @@ import {
 import { createTestHost } from "./createTestHost";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
+import { RecordingStatusBar } from "./RecordingStatusBar";
 import { ScriptedPicker } from "./ScriptedPicker";
 
 describe("InMemoryWorkspace", () => {
@@ -184,6 +185,38 @@ describe("ScriptedPicker", () => {
 
         expect(single.chosen).toBeUndefined();
         expect(multi.chosen).toBe("/b.bpmn");
+    });
+});
+
+describe("RecordingStatusBar", () => {
+    it("holds the last view of each slot until the slot is hidden", () => {
+        const statusBar = new RecordingStatusBar();
+        const loading = {
+            text: "Loading element templates…",
+            icon: "loading",
+            tone: "neutral",
+        } as const;
+        const engine = {
+            text: "Camunda 8 (8.7)",
+            tone: "neutral",
+            action: "changeEngineVersion",
+        } as const;
+        const lint = { text: "BPMNlint: off", icon: "off", tone: "neutral" } as const;
+
+        statusBar.show("elementTemplates", loading);
+        statusBar.show("engineVersion", { text: "Camunda 7 (7.22)", tone: "neutral" });
+        statusBar.show("engineVersion", engine);
+        statusBar.show("bpmnlint", lint);
+        statusBar.show("deploymentTarget", { text: "dev", icon: "dot", tone: "success" });
+        statusBar.hide("deploymentTarget");
+        statusBar.hide("elementTemplates");
+        statusBar.show("elementTemplates", { ...loading, transient: true });
+
+        expect(statusBar.views).toEqual({
+            elementTemplates: { ...loading, transient: true },
+            engineVersion: engine,
+            bpmnlint: lint,
+        });
     });
 });
 

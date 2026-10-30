@@ -52,22 +52,30 @@ window
 
 ## Status Bar
 
-`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) manages status bar items for element-template and engine-version feedback:
+The core shows status through `StatusBarPort` (`libs/modeler-core/src/kernel/domain/hostPorts.ts`): `show(slot, view)` and `hide(slot)`. Each slot (`elementTemplates`, `engineVersion`, `bpmnlint`, `deploymentTarget`) holds one `StatusView` (`kernel/domain/statusView.ts`) with its text, icon, tone, tooltip, click action and `transient` flag. The core writes the text; a host only places the slot and renders the view.
+
+`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) creates one item per slot on first show, at the side and priority its placement table gives. It maps each icon to a codicon, each tone to a theme colour (`warning` to `statusBarItem.warningBackground`) and each action to a command:
 
 ```typescript
-statusBar.showElementTemplatesLoading();      // "$(loading~spin) Loading element templates…"
-statusBar.showElementTemplatesReady(count);   // "$(check) Element templates (N)" — auto-hides after 3s
-statusBar.hideElementTemplatesStatus();       // Hide explicitly (used on error paths)
-statusBar.showEngineVersion(platform, ver);   // Engine version of the focused BPMN editor
+statusBar.show("elementTemplates", {
+    text: "Element templates (3)",
+    icon: "check",
+    tone: "neutral",
+    transient: true,
+});                                    // "$(check) Element templates (3)", hidden after 3 s
+statusBar.hide("elementTemplates");    // hide explicitly (used on error paths)
 ```
 
-Every template load shares one item, so **a later show or hide cancels a pending
-auto-hide**. Any status that hides itself keeps that rule. The item shows the
-latest status: a count stays 3 s after the latest ready, and a spinner stays
-until the next ready or hide. It does not track which loads still run, so when
-loads overlap, one load's count or hide ends another load's spinner.
+The widget-shaped methods (`showElementTemplatesLoading`, `showEngineVersion`, `showBpmnlint`, `showDeploymentTarget`, …) stay until each caller moves to its slot. In VS Code they build a view and show it in the same slot.
 
-The status bar item is lazily created. Use the **right side** for transient status and progress. Keep items concise: icon + short text, with tooltips for detail.
+A transient view hides itself after 3 s. Each slot reuses one item, so **a
+later show or hide of a slot cancels its pending auto-hide**. Any status that
+hides itself keeps that rule. The template slot shows the latest status: a
+count stays 3 s after the latest ready, and a spinner stays until the next
+ready or hide. It does not track which loads still run, so when loads overlap,
+one load's count or hide ends another load's spinner.
+
+Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/api/ux-guidelines/status-bar) says: status for the whole workspace and its progress on the **left** (the element-template load, which also runs for diagrams in the background), the focused diagram's state on the **right** (engine version, BPMNlint, deployment target). Keep items concise: an icon and short text, with tooltips for detail.
 
 ## Quick Picks
 

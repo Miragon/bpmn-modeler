@@ -3,7 +3,7 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../editorSession/domain/EditorSessionParticipant";
-import { DocumentPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
+import { DocumentPort, LegacyStatusBarPort } from "../../../kernel/domain/hostPorts";
 import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 
 /**
@@ -14,7 +14,7 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
     private readonly statusOwnership = new StatusItemOwnership();
 
     constructor(
-        private readonly statusBar: StatusBarPort,
+        private readonly statusBar: LegacyStatusBarPort,
         private readonly documents: DocumentPort,
     ) {}
 
