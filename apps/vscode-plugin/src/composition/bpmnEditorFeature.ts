@@ -27,8 +27,9 @@ import {
 import {
     BpmnlintParticipant,
     BpmnSettingsParticipant,
+    CachedTemplateProvider,
     DefinitionSearchParticipant,
-    DeploymentStatusParticipant,
+    EditorSessionParticipant,
     ElementTemplatesParticipant,
     EngineVersionStatusBarParticipant,
     FormReferenceStatusParticipant,
@@ -67,7 +68,6 @@ import {
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { BPMN_VIEW_TYPE, ScriptFileStore, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
-import { TemplateMarketplaceService } from "@miragon/bpmn-modeler-core";
 import { CodeLinkHandles } from "./codeLinkFeature";
 import { SharedDeps } from "./sharedDeps";
 import { FormReferenceStatusService } from "../navigation";
@@ -88,8 +88,8 @@ interface EditorHandles {
     scriptVariableStore: ScriptVariableStore;
     scriptFiles: ScriptFileStore;
     codeLink: CodeLinkHandles;
-    marketplaceSvc: TemplateMarketplaceService;
-    deploymentStatusParticipant: DeploymentStatusParticipant;
+    marketplaceSvc: CachedTemplateProvider;
+    deploymentStatusParticipant: EditorSessionParticipant;
 }
 
 /**
@@ -99,7 +99,7 @@ interface EditorHandles {
  * implementation and the activity→code map arrive as code-link handles so the
  * locator is shared and the source-file watcher's lifetime is owned in one
  * place. `bpmnService` is returned because the command feature reuses it for
- * batch operations.
+ * batch operations, and the router's routes for the coverage spec.
  */
 export function register(
     context: ExtensionContext,
@@ -109,6 +109,7 @@ export function register(
     bpmnService: BpmnModelerService;
     templatesSvc: BpmnElementTemplatesService;
     layoutSvc: BpmnLayoutService;
+    editorRoutes: Pick<WebviewMessageRouter, "routeOf">;
 } {
     const {
         diffController,
@@ -216,7 +217,10 @@ export function register(
         .on("DiagramFormattedCommand", diagramFormattedHandler(layoutSvc))
         .on("CleanupReportCommand", cleanupReportHandler(layoutSvc))
         .on("DocumentFlushedCommand", documentFlushedHandler(deps.flushSvc))
-        .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
+        .on(
+            "OpenScriptEditorCommand",
+            openScriptEditorHandler(scriptTaskSvc, scriptVariableStore, deps.notifier),
+        )
         .on(
             "OpenScriptEditorsCommand",
             openScriptEditorsHandler(
@@ -309,5 +313,5 @@ export function register(
 
     deps.pendingEdits.serve(".bpmn", bpmnService);
 
-    return { bpmnService, templatesSvc, layoutSvc };
+    return { bpmnService, templatesSvc, layoutSvc, editorRoutes: bpmnMessageRouter };
 }

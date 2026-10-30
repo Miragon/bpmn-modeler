@@ -82,7 +82,11 @@ describe("openScriptEditorHandler", () => {
         const scriptTaskSvc = { openScriptEditor: vi.fn().mockResolvedValue(undefined) };
         const variableStore = { setExtracted: vi.fn() };
 
-        await openScriptEditorHandler(scriptTaskSvc as never, variableStore as never)(
+        await openScriptEditorHandler(
+            scriptTaskSvc as never,
+            variableStore as never,
+            new RecordingNotifier(),
+        )(
             new OpenScriptEditorCommand(
                 "Element_1",
                 "execution-listener",
@@ -110,7 +114,11 @@ describe("openScriptEditorHandler", () => {
         const variableStore = { setExtracted: vi.fn() };
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
-        await openScriptEditorHandler(scriptTaskSvc as never, variableStore as never)(
+        await openScriptEditorHandler(
+            scriptTaskSvc as never,
+            variableStore as never,
+            new RecordingNotifier(),
+        )(
             new OpenScriptEditorCommand(
                 "Element_1",
                 "script-task",
@@ -124,6 +132,30 @@ describe("openScriptEditorHandler", () => {
         );
 
         expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
+    });
+});
+
+describe("openScriptEditorHandler when the open fails", () => {
+    it("logs the failure with the element it was for", async () => {
+        const scriptTaskSvc = {
+            openScriptEditor: vi.fn().mockRejectedValue(new Error("host went away")),
+        };
+        const notifier = new RecordingNotifier();
+
+        await expect(
+            openScriptEditorHandler(
+                scriptTaskSvc as never,
+                { setExtracted: vi.fn() } as never,
+                notifier,
+            )(
+                new OpenScriptEditorCommand("Task_1", "script-task", undefined, undefined, "", ""),
+                EDITOR,
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(notifier.logged("error")).toEqual([
+            expect.stringMatching(/^Could not open the script of Task_1: .*host went away/),
+        ]);
     });
 });
 

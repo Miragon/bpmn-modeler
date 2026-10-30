@@ -60,6 +60,7 @@ export function setLintingEnabledHandler(): MessageHandler<SetLintingEnabledComm
 export function openScriptEditorHandler(
     scriptTaskSvc: ScriptTaskService,
     variableStore: ScriptVariableStore,
+    _notifier: NotifierPort,
 ): MessageHandler<OpenScriptEditorCommand> {
     return async (cmd, editorId) => {
         variableStore.setExtracted(editorId, cmd.variables ?? []);
