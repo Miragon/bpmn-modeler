@@ -27,6 +27,8 @@ function createStore({
     return { host, store, diagram };
 }
 
+const flushPendingWork = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 function groovyScript(editorId: string, elementId = "Task_1"): ScriptUri {
     return new ScriptUri(editorId, elementId, "script-task", undefined, undefined, "groovy");
 }
@@ -203,6 +205,9 @@ describe("ScriptFileStore.prepareScriptFile", () => {
         const sharedWrite = store
             .prepareScriptFile(sharingDiagram.id, groovyScript(sharingDiagram.id))
             .then((path) => host.workspace.writeFile(path, "live"));
+        await flushPendingWork();
+        expect(host.workspace.files.has(sharedScriptPath)).toBe(false);
+
         finishSweep();
         await Promise.all([firstWrite, sharedWrite]);
 
