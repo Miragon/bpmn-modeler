@@ -1,6 +1,6 @@
 import { AuthConfig } from "./deployment";
 import { DeployedRevision } from "./deploymentLedger";
-import { TargetAuthType } from "./deploymentTarget";
+import { isTargetAuthType, TargetAuthType } from "./deploymentTarget";
 
 /**
  * The non-secret deployment state a host keeps per workspace: the ad-hoc
@@ -34,14 +34,12 @@ export type RawDeploymentState = Partial<Record<keyof DeploymentState, unknown>>
 
 type DeploymentStateField = Exclude<keyof DeploymentState, "ledger">;
 
-const AUTH_TYPES: readonly TargetAuthType[] = ["none", "basic", "oauth2"];
-
 const FIELD_PARSERS: {
     readonly [K in DeploymentStateField]: (raw: unknown) => DeploymentState[K];
 } = {
     endpoint: (raw) => stringOr(raw, DEFAULT_DEPLOYMENT_STATE.endpoint),
     tenantId: (raw) => stringOr(raw, DEFAULT_DEPLOYMENT_STATE.tenantId),
-    authType: (raw) => AUTH_TYPES.find((type) => type === raw) ?? DEFAULT_DEPLOYMENT_STATE.authType,
+    authType: (raw) => (isTargetAuthType(raw) ? raw : DEFAULT_DEPLOYMENT_STATE.authType),
     tokenEndpoint: (raw) => stringOr(raw, DEFAULT_DEPLOYMENT_STATE.tokenEndpoint),
     audience: (raw) => stringOr(raw, DEFAULT_DEPLOYMENT_STATE.audience),
     activeTargetName: (raw) => stringOr(raw, DEFAULT_DEPLOYMENT_STATE.activeTargetName),
