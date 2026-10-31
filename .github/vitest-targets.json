@@ -61,6 +61,7 @@
                 "@miragon/bpmn-modeler-i18n-extras",
                 "@miragon/bpmn-modeler-append-menu",
                 "@miragon/bpmn-modeler-element-template-chooser",
+                "@miragon/bpmn-modeler-element-template-builder",
                 "@miragon/bpmn-modeler-clipboard"
             ],
             "paths": [
@@ -78,6 +79,7 @@
                 "libs/model-navigation/**",
                 "libs/code-link/**",
                 "libs/definition-search/**",
+                "libs/element-template-builder/**",
                 "libs/inline-scripting/**",
                 "libs/flow-navigation/**",
                 "libs/bpmn-layout/**",
@@ -254,6 +256,15 @@
             "package": "@miragon/bpmn-modeler-code-link",
             "paths": [
                 "libs/code-link/**",
+                "libs/modeler-types/**"
+            ],
+            "typecheck": "build"
+        },
+        "element-template-builder": {
+            "dir": "libs/element-template-builder",
+            "package": "@miragon/bpmn-modeler-element-template-builder",
+            "paths": [
+                "libs/element-template-builder/**",
                 "libs/modeler-types/**"
             ],
             "typecheck": "build"

@@ -82,7 +82,7 @@ export default defineConfig({
             // import — the host shells no longer link a `#theme-link`.
             input: {
                 index: resolve(__dirname, "src/main.ts"),
-                templatePreview: resolve(__dirname, "src/templatePreview/main.ts"),
+                templateEditor: resolve(__dirname, "src/templateEditor/main.ts"),
             },
             output: {
                 entryFileNames: `[name].js`,

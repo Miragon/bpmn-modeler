@@ -8,7 +8,7 @@ const applyEditMock = vi.fn();
 const isWritableFileSystemMock = vi.fn<(scheme: string) => boolean | undefined>();
 
 // `WorkspaceEdit.replace` is the only method the subject calls; capturing the
-// args lets us assert the edit targets the full document range.
+// args lets us assert which range of the document the edit replaces.
 const replaceMock = vi.fn();
 
 vi.mock("vscode", () => ({
@@ -21,14 +21,11 @@ vi.mock("vscode", () => ({
     WorkspaceEdit: class {
         replace = replaceMock;
     },
-    // Constructor stub records the range corners so the spec can verify the
-    // edit spans line 0 through the document's last line.
+    // Records the two positions, which the fake document reports as offsets.
     Range: class {
         constructor(
-            readonly startLine: number,
-            readonly startChar: number,
-            readonly endLine: number,
-            readonly endChar: number,
+            readonly start: unknown,
+            readonly end: unknown,
         ) {}
     },
 }));
@@ -71,6 +68,7 @@ function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
 interface FakeDocument {
     uri: { scheme: string; path: string; fsPath: string; toString: () => string };
     getText: () => string;
+    positionAt: (offset: number) => { offset: number };
     lineCount: number;
     isDirty: boolean;
     save: ReturnType<typeof vi.fn>;
@@ -86,6 +84,7 @@ function makeDocument(overrides: Partial<FakeDocument> = {}): FakeDocument {
             toString: () => `${scheme}:/a.bpmn`,
         },
         getText: () => "<old/>",
+        positionAt: (offset) => ({ offset }),
         lineCount: 3,
         isDirty: false,
         save: vi.fn().mockResolvedValue(true),
@@ -144,8 +143,8 @@ describe("VsCodeEditorHandle.writeContent", () => {
         expect(isWritableFileSystemMock).toHaveBeenCalledWith("bpm-live");
         expect(replaceMock).toHaveBeenCalledWith(
             document.uri,
-            expect.objectContaining({ startLine: 0, startChar: 0, endLine: 3, endChar: 0 }),
-            "<new/>",
+            { start: { offset: 1 }, end: { offset: 4 } },
+            "new",
         );
     });
 
@@ -168,19 +167,20 @@ describe("VsCodeEditorHandle.writeContent", () => {
         expect(applyEditMock).not.toHaveBeenCalled();
     });
 
-    it("applies an edit over the full document range and returns the applyEdit result", async () => {
+    // A side-by-side text editor keeps its cursor, and undo restores just this change.
+    it("replaces only the text that changed and returns the applyEdit result", async () => {
         applyEditMock.mockResolvedValue(true);
-        const document = makeDocument({ getText: () => "<old/>", lineCount: 3 });
+        const document = makeDocument({ getText: () => '{\n  "name": "Old"\n}' });
         const handle = createHandle(makePanel(), document);
 
-        const result = await handle.writeContent("<new/>");
+        const result = await handle.writeContent('{\n  "name": "New"\n}');
 
         expect(result).toBe(true);
         expect(applyEditMock).toHaveBeenCalledTimes(1);
         expect(replaceMock).toHaveBeenCalledWith(
             document.uri,
-            expect.objectContaining({ startLine: 0, startChar: 0, endLine: 3, endChar: 0 }),
-            "<new/>",
+            { start: { offset: 13 }, end: { offset: 16 } },
+            "New",
         );
     });
 });
