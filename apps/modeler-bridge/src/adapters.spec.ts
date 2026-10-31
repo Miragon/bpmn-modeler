@@ -843,56 +843,6 @@ describe("RpcStatusBar", () => {
             params: { slot: "bpmnlint", view: null },
         });
     });
-
-    it("forwards template and engine-version updates as host frames", () => {
-        const { frames, rpc } = harness();
-        const statusBar = new RpcStatusBar(rpc);
-
-        statusBar.showElementTemplatesLoading();
-        expect(last(frames)).toEqual({ method: "statusBar/templatesLoading", params: {} });
-
-        statusBar.showElementTemplatesReady(12);
-        expect(last(frames)).toEqual({
-            method: "statusBar/templatesReady",
-            params: { count: 12 },
-        });
-
-        statusBar.showEngineVersion("c7", "7.20.0");
-        expect(last(frames)).toEqual({
-            method: "statusBar/showEngineVersion",
-            params: { platform: "c7", version: "7.20.0" },
-        });
-
-        statusBar.hideEngineVersion();
-        expect(last(frames)).toEqual({ method: "statusBar/hideEngineVersion", params: {} });
-    });
-
-    it("forwards the deployment target with verifiedAt, nulling absent values", () => {
-        const { frames, rpc } = harness();
-        const statusBar = new RpcStatusBar(rpc);
-
-        statusBar.showDeploymentTarget(
-            "dev",
-            "superseded",
-            "2026-09-17T14:40:00.000Z",
-            "2026-09-17T15:00:00.000Z",
-        );
-        expect(last(frames)).toEqual({
-            method: "statusBar/showDeploymentTarget",
-            params: {
-                name: "dev",
-                freshness: "superseded",
-                deployedAt: "2026-09-17T14:40:00.000Z",
-                verifiedAt: "2026-09-17T15:00:00.000Z",
-            },
-        });
-
-        statusBar.showDeploymentTarget(undefined, "unknown");
-        expect(last(frames)).toEqual({
-            method: "statusBar/showDeploymentTarget",
-            params: { name: null, freshness: "unknown", deployedAt: null, verifiedAt: null },
-        });
-    });
 });
 
 describe("RpcPicker", () => {

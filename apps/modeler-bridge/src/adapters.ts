@@ -25,19 +25,16 @@ import {
     ClipboardPort,
     ConfirmRequest,
     DEFAULT_DEPLOYMENT_STATE,
-    DeploymentFreshness,
     DeploymentPickerPort,
     DeploymentState,
     DeploymentStatePatch,
     DeploymentStatePort,
     deploymentStateFrom,
-    DeploymentStatusBarPort,
     DocumentChangeEvent,
     DocumentPort,
     EditorHandle,
     EditorSubscription,
     errorLogText,
-    LegacyStatusBarPort,
     LocatePrompts,
     LocateResult,
     MigrationPickerPort,
@@ -431,10 +428,9 @@ export class RpcNotifier implements NotifierPort {
 /**
  * Sends each status slot's view to the host, which shows every slot in its own
  * `StatusBarWidget`. The core decides *what* a slot shows; the host only places
- * it. The widget-shaped methods have no core caller left; they keep one RPC
- * each until they are removed together with their Kotlin handlers.
+ * it.
  */
-export class RpcStatusBar implements StatusBarPort, LegacyStatusBarPort, DeploymentStatusBarPort {
+export class RpcStatusBar implements StatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
     show(slot: StatusSlot, view: StatusView): void {
@@ -446,44 +442,6 @@ export class RpcStatusBar implements StatusBarPort, LegacyStatusBarPort, Deploym
             slot,
             view: null,
         } satisfies StatusBarUpdateParams);
-    }
-
-    showElementTemplatesLoading(): void {
-        this.rpc.notify(METHODS.statusBarTemplatesLoading, {});
-    }
-
-    showElementTemplatesReady(count: number): void {
-        this.rpc.notify(METHODS.statusBarTemplatesReady, { count });
-    }
-
-    hideElementTemplatesStatus(): void {
-        this.rpc.notify(METHODS.statusBarTemplatesHide, {});
-    }
-
-    showEngineVersion(platform: Engine, version: string): void {
-        this.rpc.notify(METHODS.statusBarShowEngineVersion, { platform, version });
-    }
-
-    hideEngineVersion(): void {
-        this.rpc.notify(METHODS.statusBarHideEngineVersion, {});
-    }
-
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void {
-        this.rpc.notify(METHODS.statusBarShowDeploymentTarget, {
-            name: name ?? null,
-            freshness,
-            deployedAt: deployedAt ?? null,
-            verifiedAt: verifiedAt ?? null,
-        });
-    }
-
-    hideDeploymentTarget(): void {
-        this.rpc.notify(METHODS.statusBarHideDeploymentTarget, {});
     }
 }
 

@@ -523,58 +523,6 @@
         ]
     },
     {
-        "method": "statusBar/templatesLoading",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
-        "method": "statusBar/templatesReady",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "count"
-        ]
-    },
-    {
-        "method": "statusBar/templatesHide",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
-        "method": "statusBar/showEngineVersion",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "platform",
-            "version"
-        ]
-    },
-    {
-        "method": "statusBar/hideEngineVersion",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
-        "method": "statusBar/showDeploymentTarget",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "deployedAt",
-            "freshness",
-            "name",
-            "verifiedAt"
-        ]
-    },
-    {
-        "method": "statusBar/hideDeploymentTarget",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
         "method": "diff/postMessage",
         "direction": "coreToHost",
         "kind": "notification",

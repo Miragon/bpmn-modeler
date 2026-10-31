@@ -25,7 +25,6 @@ isn't talking to VS Code.
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |
-| core → host | `statusBar/*` (the other seven)         | `LegacyStatusBarPort`, `DeploymentStatusBarPort` (no core caller left) → Kotlin builds the slot's view; removed with both ports |
 | host → core | `linting/toggle`                        | BPMNlint widget click → flips the bridge's lint choice (as the webview toggle does) and re-lints open diagrams |
 | core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one with its approved destinations |
 | host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror with what the host stored; the core fills in the defaults (synchronous `load()`; see BridgeSettings) |

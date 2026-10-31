@@ -1,14 +1,12 @@
 /**
  * Domain-level abstractions for Camunda engine interaction and the host
- * facilities only deployment uses (secrets, form state, its prompts and its
- * status-bar item).
+ * facilities only deployment uses (secrets, form state and its prompts).
  *
  * Decouples business logic from transport and protocol details so that
  * services can be tested with simple in-memory stubs.
  */
 
 import { AuthConfig, DeploymentConfig, DeploymentResult } from "./deployment";
-import { DeploymentFreshness } from "./deploymentLedger";
 import { DeploymentState, DeploymentStatePatch } from "./deploymentState";
 import { EngineDeploymentSnapshot } from "./deploymentVerification";
 import { StartInstanceConfig, StartInstanceResult } from "./startInstance";
@@ -92,26 +90,6 @@ export interface DeploymentPickerPort {
         targetName?: string;
         canVerify: boolean;
     }): Promise<"switch" | "verify" | undefined>;
-}
-
-/**
- * The widget-shaped deployment status methods. The core shows the deployment
- * target slot through `StatusBarPort`, so this stays only until the hosts drop
- * it together with `LegacyStatusBarPort`.
- */
-export interface DeploymentStatusBarPort {
-    /**
-     * `undefined` name renders "No deployment target"; a name renders the active
-     * target. `freshness` drives the coloured dot; `deployedAt` / `verifiedAt`
-     * (ISO) enrich the tooltip when a revision was recorded / engine-verified.
-     */
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void;
-    hideDeploymentTarget(): void;
 }
 
 /**
