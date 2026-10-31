@@ -55,7 +55,7 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
     /** Drops the deployment sink and marks the panel closed (stops default refreshes). */
     fun unregisterDeploymentWindow() {
         deploymentSink = null
-        deps.channel.notify("deployment/open", linkedMapOf("open" to false))
+        setDeploymentOpen(false)
     }
 
     /** Forwards one raw deployment-webview message (already JSON) to the core untouched. */
