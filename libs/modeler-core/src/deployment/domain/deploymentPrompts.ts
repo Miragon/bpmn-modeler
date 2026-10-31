@@ -1,12 +1,12 @@
-import { posix } from "path";
-
 import { confirmation } from "../../kernel/domain/affectedItems";
+import { fileChoice, fileChoicesInWorkspaceOrder } from "../../kernel/domain/fileChoices";
 import { ChoiceItem, ChoicePrompt, ConfirmRequest } from "../../kernel/domain/prompts";
 import { CredentialDestinations } from "./credentialDestinations";
 import { DeploymentTarget } from "./deploymentTarget";
 
 export type DeploymentStatusAction = "switch" | "verify";
 
+/** Kept nearest first as found, the one file list whose order means something. */
 export function payloadFilePrompt(paths: readonly string[]): ChoicePrompt<string> {
     return {
         id: "payloadFile",
@@ -55,19 +55,23 @@ export interface FoundFiles {
 export function deployableFilesPrompt({
     targetName,
     files,
+    workspaceFolders,
 }: FoundFiles & { readonly targetName: string }): ChoicePrompt<string> {
     return {
         id: "deployableFiles",
         placeholder: `Select files to deploy to "${targetName}"`,
-        items: files.map(fileChoice),
+        items: fileChoicesInWorkspaceOrder(files, workspaceFolders),
     };
 }
 
-export function additionalFilesPrompt({ files }: FoundFiles): ChoicePrompt<string> {
+export function additionalFilesPrompt({
+    files,
+    workspaceFolders,
+}: FoundFiles): ChoicePrompt<string> {
     return {
         id: "additionalFiles",
         placeholder: "Select additional files to include in the deployment",
-        items: files.map(fileChoice),
+        items: fileChoicesInWorkspaceOrder(files, workspaceFolders),
     };
 }
 
@@ -105,8 +109,4 @@ export function credentialApprovalConfirmation({
             "The shared deployment targets file and .env decide where they go. Continue only if you expect this host.",
         ],
     };
-}
-
-function fileChoice(path: string): ChoiceItem<string> {
-    return { label: posix.basename(path), path, value: path };
 }
