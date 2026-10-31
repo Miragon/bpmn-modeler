@@ -789,6 +789,39 @@ describe("DeploymentTargetService.saveTarget", () => {
             await expect(c.host.secrets.getBasicAuth(slot("old"))).resolves.toBeUndefined();
             await expect(c.host.secrets.getApprovedDestinations(slot("old"))).resolves.toEqual([]);
         });
+
+        it("reports the failed step and logs the failed cleanup when the store rejects deletes too", async () => {
+            const c = await serviceWithOldTarget();
+            const cleanupFailure = new Error("delete failed");
+            vi.spyOn(c.host.secrets, "saveBasicAuth").mockRejectedValue(failure);
+            vi.spyOn(c.host.secrets, "delete").mockRejectedValue(cleanupFailure);
+
+            await expect(renameOldToNew(c)).rejects.toThrow(failure);
+
+            expect(c.host.notifier.loggedErrors).toEqual([cleanupFailure]);
+            expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith(old));
+        });
+    });
+
+    it("keeps the credentials stored for a saved target when writing the targets file fails", async () => {
+        const dev = target("dev", { authType: "basic" });
+        const c = serviceWithTargetsFile(fileWith(dev));
+        vi.spyOn(c.host.workspace, "writeFile").mockRejectedValue(new Error("EROFS"));
+
+        await expect(
+            c.service.saveTarget(
+                { ...toTargetPayload(dev), tenantId: "edited" },
+                { authType: "basic", username: "u", password: "p" },
+                "dev",
+                DOC_DIR,
+            ),
+        ).rejects.toThrow("EROFS");
+
+        expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith(dev));
+        await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toEqual({
+            username: "u",
+            password: "p",
+        });
     });
 });
 

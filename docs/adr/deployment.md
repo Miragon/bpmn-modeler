@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-10-31
 
 ## Context
 
@@ -65,11 +65,22 @@ Each edit of the file returns a `TargetChange` from `DeploymentTargets`
 (`created`, `saved`, `renamed` or `removed`, with the target it replaces or
 removes as `before`), the one place that decides whether a save renames. It names
 the retired slot (the old or deleted name, even when the file no longer holds
-it), the retired target whose ledger rows are pruned, and the name whose
-approvals carry over: the saved or renamed target's, none for a create
+it), the retired target whose ledger rows are pruned, the name whose
+approvals carry over (the saved or renamed target's, none for a create), and
+the new slot no saved target owns yet (a created or renamed target's)
 ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
 The services act on the change, so nothing reads a target before saving or
 deleting it.
+
+A save stores the slot's credentials and approvals before it writes the file.
+Once the file holds a new name, nothing names the old slot again, so a failure
+before that point leaves the file and the old slot as they were and empties the
+new slot; a failure to empty it is logged, not reported in place of the
+original error. Once the file is written, a rename deletes the old slot even
+when saving the active name fails. A save of an existing target keeps what it
+stored in that target's slot when the file write fails, because the slot is
+still in use
+([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts)).
 
 Creating and updating are separate operations so a target is never overwritten
 by accident. **New** creates a target from the entered form data and rejects a

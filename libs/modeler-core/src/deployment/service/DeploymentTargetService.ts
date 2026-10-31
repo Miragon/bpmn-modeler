@@ -220,27 +220,48 @@ export class DeploymentTargetService {
         });
         const current = new DeploymentTargets(await this.readTargets(location));
         const change = apply(current, target);
-        await this.workspace.writeFile(
-            location.filePath,
-            serializeDeploymentTargets(change.targets),
-        );
 
-        // Refs are stored too: they overwrite any older literal, and a backend that
-        // reads an empty half back as null would drop the literal next to it.
+        // Once the file holds the new name nothing names the old slot again, so the
+        // secrets go first and the old slot goes even when a later step fails.
         const slot = targetSecretSlot(location, target.name);
-        await storeCredentials(this.secretStore, credentials, slot);
-        await this.approveTypedDestinations(
-            slot,
-            target,
-            change.approvalsInheritedFrom,
-            current,
-            location,
-        );
-        await this.saveActiveTargetName(target.name);
-        if (change.retiredSlotName !== undefined) {
-            await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
+        try {
+            // Refs are stored too: they overwrite any older literal, and a backend that
+            // reads an empty half back as null would drop the literal next to it.
+            await storeCredentials(this.secretStore, credentials, slot);
+            await this.approveTypedDestinations(
+                slot,
+                target,
+                change.approvalsInheritedFrom,
+                current,
+                location,
+            );
+            await this.workspace.writeFile(
+                location.filePath,
+                serializeDeploymentTargets(change.targets),
+            );
+        } catch (error) {
+            await this.emptyNewSlot(change, location);
+            throw error;
+        }
+
+        try {
+            await this.saveActiveTargetName(target.name);
+        } finally {
+            if (change.retiredSlotName !== undefined) {
+                await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
+            }
         }
         return this.publishEdit(new TargetEdit(change, location), documentDir);
+    }
+
+    /** The edit's own failure is the one to report, so a failed cleanup is only logged. */
+    private async emptyNewSlot(change: TargetChange, location: TargetsLocation): Promise<void> {
+        if (change.newSlotName === undefined) return;
+        try {
+            await this.secretStore.delete(targetSecretSlot(location, change.newSlotName));
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+        }
     }
 
     private async publishEdit(
