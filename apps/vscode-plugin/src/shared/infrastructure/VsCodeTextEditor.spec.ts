@@ -13,12 +13,17 @@ vi.mock("vscode", () => {
         constructor(readonly uri: { path: string }) {}
     }
 
-    const fileUri = (path: string) => ({
-        scheme: "file",
-        path,
-        fsPath: path,
-        toString: () => `file://${path}`,
-    });
+    // Takes a UNC server as the authority, as VS Code's `Uri.file` does.
+    const fileUri = (path: string) => {
+        const [, authority = "", uriPath = path] = /^\/\/([^/]+)(\/.*)$/.exec(path) ?? [];
+        return {
+            scheme: "file",
+            authority,
+            path: uriPath,
+            fsPath: path,
+            toString: () => `file://${authority}${uriPath}`,
+        };
+    };
 
     return {
         commands: {
@@ -126,5 +131,46 @@ describe("VsCodeTextEditor", () => {
 
         await expect(textEditor.toggle(DOCUMENT_PATH)).resolves.toBe(false);
         expect(closeTabMock).toHaveBeenCalledWith(targetedTab);
+    });
+
+    describe("for a document on a UNC share", () => {
+        const UNC_DOCUMENT_PATH = "//server/share/process.bpmn";
+
+        function openDocumentTab() {
+            const tab = { input: new TabInputText(Uri.file(UNC_DOCUMENT_PATH)) };
+            openTextDocumentMock.mockResolvedValue({ uri: tab.input.uri });
+            showTextDocumentMock.mockResolvedValue(undefined);
+            executeCommandMock.mockResolvedValue(undefined);
+            return tab;
+        }
+
+        it("closes the text editor it opened", async () => {
+            const tab = openDocumentTab();
+            closeTabMock.mockImplementation(async () => {
+                openTabGroups = [];
+                return true;
+            });
+            const textEditor = new VsCodeTextEditor();
+
+            await textEditor.toggle(UNC_DOCUMENT_PATH);
+            openTabGroups = [{ tabs: [tab] }];
+
+            await expect(textEditor.toggle(UNC_DOCUMENT_PATH)).resolves.toBe(false);
+            expect(closeTabMock).toHaveBeenCalledWith(tab);
+        });
+
+        it("opens the text editor again after the user closed its tab", async () => {
+            const tab = openDocumentTab();
+            const textEditor = new VsCodeTextEditor();
+            const reportTabChange = onDidChangeTabsMock.mock.calls[0][0] as (
+                event: unknown,
+            ) => void;
+
+            await textEditor.toggle(UNC_DOCUMENT_PATH);
+            reportTabChange({ opened: [], closed: [tab], changed: [] });
+
+            await expect(textEditor.toggle(UNC_DOCUMENT_PATH)).resolves.toBe(true);
+            expect(openTextDocumentMock).toHaveBeenCalledTimes(2);
+        });
     });
 });

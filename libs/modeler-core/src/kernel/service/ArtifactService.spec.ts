@@ -192,6 +192,27 @@ describe("ArtifactService.getWorkspaceRoot", () => {
         await expect(service.getWorkspaceRoot("/tmp/loose")).resolves.toBe("/");
     });
 
+    it("finds a git repository at the UNC share root", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "//server/share/.git": "directory",
+        });
+
+        await expect(service.getWorkspaceRoot("//server/share/repo/processes")).resolves.toBe(
+            "//server/share",
+        );
+    });
+
+    it("stops looking for a git root at the UNC share root", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "//server/.git": "directory",
+            "/.git": "directory",
+        });
+
+        await expect(service.getWorkspaceRoot("//server/share/repo/processes")).resolves.toBe(
+            "//server/share/repo/processes",
+        );
+    });
+
     it("keeps URI-form document directories in URI form", async () => {
         const service = createServiceOutsideWorkspaceFolders({ "file:///repo/.git": "directory" });
 

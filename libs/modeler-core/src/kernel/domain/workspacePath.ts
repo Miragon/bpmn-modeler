@@ -14,6 +14,11 @@ export function toWorkspacePath(path: string): string {
     return joinWorkspacePath(path);
 }
 
+export function parentWorkspacePath(path: string): string | undefined {
+    const parent = posix.dirname(path);
+    return parent === path ? undefined : parent;
+}
+
 /** The path a `file://` URI names, for the hosts that accept both spellings. */
 export function withoutFileScheme(path: string): string {
     return path.startsWith(FILE_SCHEME) ? path.slice(FILE_SCHEME.length) : path;

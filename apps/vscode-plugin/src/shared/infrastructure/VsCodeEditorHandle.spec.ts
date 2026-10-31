@@ -69,7 +69,13 @@ function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
 }
 
 interface FakeDocument {
-    uri: { scheme: string; path: string; fsPath: string; toString: () => string };
+    uri: {
+        scheme: string;
+        authority?: string;
+        path: string;
+        fsPath: string;
+        toString: () => string;
+    };
     getText: () => string;
     lineCount: number;
     isDirty: boolean;
@@ -289,6 +295,22 @@ describe("VsCodeEditorHandle.documentPath", () => {
 
         expect(createHandle(makePanel(), document).documentPath()).toBe("/c:/ws/order.bpmn");
     });
+
+    it("keeps the server of a document on a UNC share", () => {
+        const document = makeDocument({
+            uri: {
+                scheme: "file",
+                authority: "server",
+                path: "/share/ws/order.bpmn",
+                fsPath: "\\\\server\\share\\ws\\order.bpmn",
+                toString: () => "file://server/share/ws/order.bpmn",
+            },
+        });
+
+        expect(createHandle(makePanel(), document).documentPath()).toBe(
+            "//server/share/ws/order.bpmn",
+        );
+    });
 });
 
 describe("VsCodeEditorHandle.dispose", () => {
@@ -373,16 +395,14 @@ describe("VsCodeEditorHandle.onDidChangeActive", () => {
 });
 
 describe("VsCodeEditorHandle.onDidChangeDocument", () => {
-    function emitTextDocumentChange(contentChanges: unknown[]) {
+    function emitTextDocumentChange(
+        contentChanges: unknown[],
+        uri: object = { path: "/ws/other.bpmn", toString: () => "file:///ws/other.bpmn" },
+    ) {
         const listener = vi.mocked(workspace.onDidChangeTextDocument).mock.calls[0][0] as (
             event: unknown,
         ) => void;
-        listener({
-            contentChanges,
-            document: {
-                uri: { path: "/ws/other.bpmn", toString: () => "file:///ws/other.bpmn" },
-            },
-        });
+        listener({ contentChanges, document: { uri } });
     }
 
     it("reports which document changed and whether its content did", () => {
@@ -397,6 +417,20 @@ describe("VsCodeEditorHandle.onDidChangeDocument", () => {
         expect(edit.documentPath()).toBe("/ws/other.bpmn");
         expect(edit.hasContentChanges()).toBe(true);
         expect(saveOnly.hasContentChanges()).toBe(false);
+    });
+
+    it("keeps the server in the path of a changed document on a UNC share", () => {
+        const received = vi.fn();
+        createHandle(makePanel(), makeDocument()).onDidChangeDocument(received);
+
+        emitTextDocumentChange([{ text: "x" }], {
+            scheme: "file",
+            authority: "server",
+            path: "/share/ws/other.bpmn",
+            toString: () => "file://server/share/ws/other.bpmn",
+        });
+
+        expect(received.mock.calls[0][0].documentPath()).toBe("//server/share/ws/other.bpmn");
     });
 });
 

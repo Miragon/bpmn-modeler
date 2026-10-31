@@ -1,7 +1,12 @@
 import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
-import { joinWorkspacePath, toWorkspacePath, withoutFileScheme } from "./workspacePath";
+import {
+    joinWorkspacePath,
+    parentWorkspacePath,
+    toWorkspacePath,
+    withoutFileScheme,
+} from "./workspacePath";
 
 describe("toWorkspacePath", () => {
     it.each([
@@ -161,6 +166,58 @@ describe("joinWorkspacePath", () => {
         },
     ])("$behaviour", ({ directory, segments, joined }) => {
         expect(joinWorkspacePath(directory, ...segments)).toBe(joined);
+    });
+});
+
+describe("parentWorkspacePath", () => {
+    it.each([
+        {
+            behaviour: "returns the directory holding a POSIX path",
+            path: "/repo/src",
+            parent: "/repo",
+        },
+        {
+            behaviour: "climbs from a top-level folder to the filesystem root",
+            path: "/repo",
+            parent: "/",
+        },
+        {
+            behaviour: "has no parent above the filesystem root",
+            path: "/",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the share root of a UNC path",
+            path: "//server/share/repo",
+            parent: "//server/share",
+        },
+        {
+            behaviour: "has no parent above a UNC share root",
+            path: "//server/share",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above a UNC share root with a trailing slash",
+            path: "//server/share/",
+            parent: undefined,
+        },
+        {
+            behaviour: "keeps the scheme of a URI-form path",
+            path: "file:///repo/src",
+            parent: "file:///repo",
+        },
+        {
+            behaviour: "climbs to the share root of a UNC path behind a file:// scheme",
+            path: "file:////server/share/repo",
+            parent: "file:////server/share",
+        },
+        {
+            behaviour: "has no parent above a UNC share root behind a file:// scheme",
+            path: "file:////server/share",
+            parent: undefined,
+        },
+    ])("$behaviour", ({ path, parent }) => {
+        expect(parentWorkspacePath(path)).toBe(parent);
     });
 });
 
