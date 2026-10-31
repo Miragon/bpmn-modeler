@@ -258,6 +258,15 @@
             ],
             "typecheck": "build"
         },
+        "element-template-builder": {
+            "dir": "libs/element-template-builder",
+            "package": "@miragon/bpmn-modeler-element-template-builder",
+            "paths": [
+                "libs/element-template-builder/**",
+                "libs/modeler-types/**"
+            ],
+            "typecheck": "build"
+        },
         "definition-search": {
             "dir": "libs/definition-search",
             "package": "@miragon/bpmn-modeler-definition-search",
