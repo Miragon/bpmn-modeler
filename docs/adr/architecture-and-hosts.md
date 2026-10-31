@@ -400,7 +400,10 @@ In the BPMN webview, a value that still waits in the properties panel's
 600 ms input debounce counts as such an edit. The panel's `debounceInput`
 service comes from `libs/properties-panel` and tracks its waiting calls; the
 flush applies them before it exports, so the persisted file holds the value
-the panel shows.
+the panel shows. A mode switch that rebuilds the surface applies them before
+it exports the diagram for the next surface, and the webview's `beforeDestroy`
+posts the sync they scheduled, so both the next surface and the document get
+the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents

@@ -85,7 +85,11 @@ export interface ModeSessionOptions {
     onModeChanged?: (mode: SurfaceMode, transition: ModeTransition) => void;
     /** Fires when a recreate enters/leaves its handle-less window. */
     onSwitchStateChanged?: (busy: boolean) => void;
-    /** Runs before `destroy()` on a recreate — the place for a host to flush pending sync. */
+    /**
+     * Runs before `destroy()` on a recreate, once the outgoing surface's pending
+     * properties-panel input is applied and the diagram exported — the place for
+     * a host to flush pending sync.
+     */
     beforeDestroy?: () => void | Promise<void>;
     /**
      * Fires when a switch fails — the export/capture/`beforeDestroy` path and the

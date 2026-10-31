@@ -466,10 +466,12 @@ keeps it a single control that stays reachable while the panel is collapsed. Por
 Mode-strip translation keys remain on the i18n overlay's source-only allowlist
 because hosts can render the strip before a surface exists for harvesting.
 
-Tagged Design/Implement switches toggle live. Recreate transitions capture view
-state, export XML, await `beforeDestroy` (host flush), destroy the old surface,
-construct/load the new one and restore plane, viewport and selection. Bind
-recreated surfaces before loading carried XML. The surface fits a fresh open
+Tagged Design/Implement switches toggle live, so panel input still waiting in
+its debounce lands on the same surface. Recreate transitions apply the old
+surface's pending properties-panel input, capture view state, export XML, await
+`beforeDestroy` (host flush), destroy the old surface, construct/load the new
+one and restore plane, viewport and selection. Bind recreated surfaces before
+loading carried XML. The surface fits a fresh open
 itself; the host only restores its persisted plane and viewport, on first open
 and after a fallback, which carries no snapshot. Recreation loses instance undo
 and simulation state.
@@ -528,7 +530,8 @@ with the repo's own from `libs/properties-panel`. It keeps the library's
 600 ms delay and tracks the input still waiting in it. The modeler and designer
 handles reach it through the internal `hasPendingInput()` and
 `flushPendingInput()` (`PendingInputHandle`), which the IDE webview's flush
-uses to apply a typed value before it exports. They are not public API yet.
+and a recreating mode switch use to apply a typed value before they export.
+They are not public API yet.
 
 ## Consequences and enforcement
 
