@@ -18,7 +18,7 @@
         "@vitest/coverage-v8": "5.0.5",
         "bpmn-js": "18.31.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
-        "vite": "8.3.4",
+        "vite": "8.3.5",
         "vitest": "5.0.5"
     }
 }
