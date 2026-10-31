@@ -308,12 +308,3 @@ export interface StatusBarPort {
     show(slot: StatusSlot, view: StatusView): void;
     hide(slot: StatusSlot): void;
 }
-
-/** The widget-shaped status methods, kept until every caller shows its slot through {@link StatusBarPort}. */
-export interface LegacyStatusBarPort {
-    showElementTemplatesLoading(): void;
-    showElementTemplatesReady(count: number): void;
-    hideElementTemplatesStatus(): void;
-    showEngineVersion(platform: Engine, version: string): void;
-    hideEngineVersion(): void;
-}
