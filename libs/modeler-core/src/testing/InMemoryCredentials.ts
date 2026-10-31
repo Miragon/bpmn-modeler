@@ -67,7 +67,7 @@ export class InMemoryTokenStore implements TokenStorePort {
     }
 }
 
-/** Answers per host from `answers`; an unanswered or blank answer is a decline. */
+/** Answers per host from `answers` as typed, like a host; an unanswered host is a dismissal. */
 export class ScriptedTokenPrompt implements TokenPromptPort {
     readonly prompts: Array<{ host: string; reason: string }> = [];
 
@@ -75,7 +75,6 @@ export class ScriptedTokenPrompt implements TokenPromptPort {
 
     async promptForToken(host: string, reason: string): Promise<string | undefined> {
         this.prompts.push({ host, reason });
-        const trimmed = this.answers[host]?.trim();
-        return trimmed ? trimmed : undefined;
+        return this.answers[host];
     }
 }

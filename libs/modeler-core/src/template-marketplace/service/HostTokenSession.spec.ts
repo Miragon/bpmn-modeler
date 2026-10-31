@@ -229,6 +229,36 @@ describe("HostTokenSession.run", () => {
         expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
     });
 
+    it.each([
+        { answered: "an empty answer", answer: "" },
+        { answered: "a blank answer", answer: " \t " },
+    ])(
+        "takes $answered from the host for no token: stores and sends nothing",
+        async ({ answer }) => {
+            const { session, tokens, notifier } = sessionOver({
+                tokenAnswers: { "github.com": answer },
+            });
+            const privateRepo = fakeFetch(nobody);
+
+            await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).rejects.toThrow(
+                errorWithMessage(/requires a personal access token/),
+            );
+            expect(privateRepo.attempts).toEqual([undefined]);
+            expect(tokens.tokens).toEqual(new Map());
+            expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
+        },
+    );
+
+    it("stores and sends a token without the whitespace the host's answer carried", async () => {
+        const { session, tokens } = sessionOver({ tokenAnswers: { "github.com": "  granted\n" } });
+        const privateRepo = fakeFetch(only("granted"));
+
+        await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).resolves.toBe("served");
+
+        expect(privateRepo.attempts).toEqual([undefined, "granted"]);
+        expect(tokens.tokens.get("github.com")).toBe("granted");
+    });
+
     it.each<{
         rung: string;
         storedTokens: Record<string, string>;

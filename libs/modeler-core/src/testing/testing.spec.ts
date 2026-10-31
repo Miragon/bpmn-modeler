@@ -350,7 +350,7 @@ describe("createTestHost", () => {
         ).rejects.toSatisfy(isHiddenEditorError);
     });
 
-    it("keeps credentials per slot and treats a blank token answer as a decline", async () => {
+    it("keeps credentials per slot and answers a token prompt as typed", async () => {
         const host = createTestHost({ tokenAnswers: { "github.com": "  ", "gitlab.com": " t " } });
 
         await host.secrets.saveBasicAuth("ada", "secret", "targets.json::dev");
@@ -362,8 +362,9 @@ describe("createTestHost", () => {
             clientId: "client",
             clientSecret: "s3cret",
         });
-        await expect(host.tokenPrompt.promptForToken("github.com", "401")).resolves.toBeUndefined();
-        await expect(host.tokenPrompt.promptForToken("gitlab.com", "401")).resolves.toBe("t");
+        await expect(host.tokenPrompt.promptForToken("github.com", "401")).resolves.toBe("  ");
+        await expect(host.tokenPrompt.promptForToken("gitlab.com", "401")).resolves.toBe(" t ");
+        await expect(host.tokenPrompt.promptForToken("gitea.com", "401")).resolves.toBeUndefined();
     });
 
     it("keeps approved destinations per slot and drops them with the slot's credentials", async () => {
