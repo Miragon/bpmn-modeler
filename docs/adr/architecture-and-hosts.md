@@ -550,11 +550,17 @@ How long the bridge's `Rpc.request` waits is data on each request in the
 after two minutes, so a reply the host never sends cannot hold the caller's
 per-editor queue; the caller's own error handling runs. The limit is generous
 because host work can queue behind a modal dialog or a keychain prompt. Prompts
-wait for the user. `document/write` and `deploymentState/save` have no deadline
-either: only their reply updates the bridge mirror, so giving up on a write the
-host still applies would leave the mirror behind the host. Such a request holds
-its caller's queue until the host answers, which a modal dialog can delay. When
-stdin ends, every outstanding request fails.
+wait for the user. A write the core keeps its own state in step with has no
+deadline either, because giving up on a write the host still applies would
+leave that state out of step with the host: `document/write` and
+`deploymentState/save` update a bridge mirror only on their reply, and a failed
+`marketplaceState/save` drops the templates its add just fetched. Such a
+request holds its caller until the host answers. `document/write` runs on the
+EDT, so a modal dialog delays it; the host answers the other two on its reader
+thread, so only an earlier request that blocks that thread, such as a keychain
+prompt, delays them. `Rpc` fails every outstanding and later request once its
+input ends; the stdio binding signals the end of stdin and then exits the
+process.
 
 Notifications and status indicators are native host UI backed by RPC ports.
 The core writes the text of every notification, including the error balloon

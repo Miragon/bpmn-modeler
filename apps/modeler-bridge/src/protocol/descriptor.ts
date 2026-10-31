@@ -88,12 +88,14 @@ type Kind = "notification" | "request";
 /**
  * How long the core waits for the host's reply to a request:
  * - `prompt`: the host asks the user, who takes as long as they need.
- * - `mirroredWrite`: the reply is the only update of a bridge mirror, so giving
- *   up on a write the host still applies would leave the mirror behind it.
+ * - `syncedWrite`: the core keeps its own state in step with the reply (a
+ *   bridge mirror it updates on acceptance, a fetched cache it drops on
+ *   failure), so giving up on a write the host still applies would leave that
+ *   state out of step with the host.
  * - `hostWork`: fails after {@link HOST_WORK_REPLY_DEADLINE_MS}, so a reply the
  *   host never sends cannot hold the caller's editor queue.
  */
-type ReplyWait = "prompt" | "mirroredWrite" | "hostWork";
+type ReplyWait = "prompt" | "syncedWrite" | "hostWork";
 
 interface ProtocolEntryShape {
     readonly method: string;
@@ -414,7 +416,7 @@ export const PROTOCOL = [
         method: METHODS.documentWrite,
         direction: "coreToHost",
         kind: "request",
-        replyWait: "mirroredWrite",
+        replyWait: "syncedWrite",
         paramsFixture: {
             editorId: "e1",
             sessionId: 1,
@@ -547,7 +549,7 @@ export const PROTOCOL = [
         method: METHODS.deploymentStateSave,
         direction: "coreToHost",
         kind: "request",
-        replyWait: "mirroredWrite",
+        replyWait: "syncedWrite",
         paramsFixture: {
             patch: {
                 endpoint: "https://engine",
@@ -577,7 +579,7 @@ export const PROTOCOL = [
         method: METHODS.marketplaceStateSave,
         direction: "coreToHost",
         kind: "request",
-        replyWait: "hostWork",
+        replyWait: "syncedWrite",
         paramsFixture: {
             location: "https://github.com/owner/repo",
             scope: "project",
