@@ -39,7 +39,9 @@ describe("getTemplateEditorHostApi", () => {
 
         getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
 
-        expect(replies).toEqual([new ElementTemplateFileQuery(JSON.stringify(c8Samples, null, 2))]);
+        expect(replies).toEqual([
+            new ElementTemplateFileQuery(`${JSON.stringify(c8Samples, null, 2)}\n`),
+        ]);
     });
 
     it("serves the C7 samples and switches the language on request", () => {
@@ -50,9 +52,22 @@ describe("getTemplateEditorHostApi", () => {
         getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
 
         expect(replies).toEqual([
-            new ElementTemplateFileQuery(JSON.stringify(c7Samples, null, 2)),
+            new ElementTemplateFileQuery(`${JSON.stringify(c7Samples, null, 2)}\n`),
             new LanguageQuery("de"),
         ]);
+    });
+
+    it.each([
+        ["empty", ""],
+        ["broken", '{\n  "name": "Broken",\n'],
+    ])("serves the %s file for the editor's other states", (file, content) => {
+        vi.stubEnv("NODE_ENV", "development");
+        window.history.replaceState({}, "", `/?file=${file}`);
+        const replies = captureReplies();
+
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
+
+        expect(replies).toEqual([new ElementTemplateFileQuery(content)]);
     });
 
     it("only logs other commands", () => {

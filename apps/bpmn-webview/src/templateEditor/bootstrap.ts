@@ -1,4 +1,16 @@
 import { createTemplatePreview } from "@miragon/bpmn-modeler";
+import {
+    applyTemplateEdits,
+    catalogFor,
+    createTemplateBuilder,
+    type Diagnostic,
+    newTemplateText,
+    ruleDiagnostics,
+    schemaDiagnostics,
+    type TemplateBuilderState,
+    type TemplateEdit,
+    withSchema,
+} from "@miragon/bpmn-modeler-element-template-builder";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
@@ -13,11 +25,11 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
-import { TemplateDocumentSession } from "./documentSession";
-import { mountPreviewView } from "./previewView";
+import { TemplateDocumentSession, type TextOrigin } from "./documentSession";
+import { type EditorMain, mountEditorView } from "./editorView";
 import { readTemplateFile, type TemplateFileState } from "./templateFile";
 
-type PreviewHost = Pick<HostApi<unknown, Command>, "postMessage">;
+type EditorHost = Pick<HostApi<unknown, Command>, "postMessage">;
 
 type TemplateEditorHostMessages = {
     ElementTemplateFileQuery: MessageOfType<"ElementTemplateFileQuery">;
@@ -29,63 +41,118 @@ type TemplateEditorHostMessages = {
 // Host edits arrive already debounced; this skips the half-typed states of the page's own.
 const EDIT_DEBOUNCE_MS = 300;
 
+const translate = (template: string, replacements?: Record<string, string>) =>
+    i18n.translate(template, replacements);
+
 /** Resolves to a disposer that stops listening to the host. */
-export async function bootstrapTemplateEditor(host: PreviewHost): Promise<() => void> {
+export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => void> {
     i18n.extend(i18nExtras);
     const root = document.getElementById("app");
     if (!root) {
-        throw new Error("Template preview: missing #app");
+        throw new Error("Template editor: missing #app");
     }
-    const view = mountPreviewView(root);
-    const preview = await createTemplatePreview(view.panel, { theme: resolveHostThemeKind() });
+    const view = mountEditorView(root, translate);
+    const preview = await createTemplatePreview(view.previewPanel, {
+        theme: resolveHostThemeKind(),
+    });
     const themeAdapter = createHostThemeAdapter((kind) => {
         applyPageThemeScope("data-bpmn-theme", kind);
         preview.setTheme(kind);
     });
     themeAdapter.setMode("automatic");
 
+    let state: TemplateFileState = { kind: "empty" };
     let selected: string | undefined;
-    let pendingUpdate: ReturnType<typeof setTimeout> | undefined;
-    const session = new TemplateDocumentSession(host, (_text, origin) =>
-        scheduleUpdate(origin === "host"),
-    );
+    let diagnostics: Diagnostic[] = [];
+    // While the JSON is broken, the builder keeps showing this, read-only.
+    let lastShown: TemplateBuilderState | undefined;
+    let pendingCheck: ReturnType<typeof setTimeout> | undefined;
 
-    async function update(): Promise<void> {
-        const state = readTemplateFile(session.text, selected);
+    const session = new TemplateDocumentSession(host, (_text, origin) => refresh(origin));
+    const builder = createTemplateBuilder(view.builderRoot, {
+        translate,
+        onEdit: (edits: TemplateEdit[]) => {
+            if (state.kind === "template") {
+                session.edit(applyTemplateEdits(session.text, state.path, edits));
+            }
+        },
+    });
+
+    function showBuilder(next: TemplateBuilderState): void {
+        lastShown = next;
+        builder.show(next);
+    }
+
+    /** Shows the text at once; the preview and the validation follow when editing pauses. */
+    function refresh(origin: TextOrigin | "select"): void {
+        state = readTemplateFile(session.text, selected);
         if (state.kind === "template" || state.kind === "unknownEngine") {
             selected = state.selected;
             view.showChoices(state.choices, state.selected);
+        } else {
+            view.showChoices([], undefined);
         }
+        const main = mainFor(state, lastShown !== undefined);
+        view.showMain(main);
+        view.showPreview(main === "builder");
         if (state.kind !== "template") {
-            // Like an unparseable edit, every unrenderable state keeps the last preview.
+            view.showEngine(undefined);
             view.showMessages(messagesFor(state));
+            if (lastShown) {
+                builder.show({ ...lastShown, editable: false });
+            }
             return;
         }
         view.showEngine(state.engine);
-        const outcome = await preview.show(state.template, state.engine);
-        view.showMessages(
-            outcome.errors.length > 0
-                ? [i18n.translate("The template is invalid:"), ...outcome.errors]
-                : [],
-        );
-    }
-
-    function scheduleUpdate(immediately: boolean): void {
-        clearTimeout(pendingUpdate);
-        pendingUpdate = setTimeout(
+        showBuilder({
+            template: state.template,
+            engine: state.engine,
+            editable: true,
+            diagnostics,
+        });
+        clearTimeout(pendingCheck);
+        pendingCheck = setTimeout(
             () =>
-                void update().catch((error: unknown) =>
+                void check().catch((error: unknown) =>
                     host.postMessage(
                         new LogErrorCommand(`Template preview failed: ${String(error)}`),
                     ),
                 ),
-            immediately ? 0 : EDIT_DEBOUNCE_MS,
+            origin === "edit" ? EDIT_DEBOUNCE_MS : 0,
         );
+    }
+
+    async function check(): Promise<void> {
+        if (state.kind !== "template") {
+            return;
+        }
+        const { template, engine } = state;
+        diagnostics = [
+            ...schemaDiagnostics(engine, template),
+            ...ruleDiagnostics(template, catalogFor(engine)),
+        ];
+        showBuilder({ template, engine, editable: true, diagnostics });
+        const outcome = await preview.show(template, engine);
+        if (outcome.rendered) {
+            view.showMessages([]);
+        } else if (diagnostics.length > 0) {
+            view.showMessages([translate("The preview shows the last template without errors.")]);
+        } else {
+            view.showMessages(outcome.errors);
+        }
     }
 
     view.onSelect((key) => {
         selected = key;
-        scheduleUpdate(true);
+        refresh("select");
+    });
+    view.onCreate((engine, elementType, name) => {
+        session.edit(newTemplateText(engine, { name, elementType }));
+    });
+    view.onChooseEngine((engine) => {
+        if (state.kind === "unknownEngine") {
+            session.edit(withSchema(session.text, state.path, engine));
+        }
     });
 
     const route = createHostMessageRouter<TemplateEditorHostMessages>(host, {
@@ -113,24 +180,39 @@ export async function bootstrapTemplateEditor(host: PreviewHost): Promise<() => 
         window.removeEventListener("message", onMessage);
         document.removeEventListener("visibilitychange", onVisibilityChange);
         session.dispose();
-        clearTimeout(pendingUpdate);
+        clearTimeout(pendingCheck);
         themeAdapter.dispose();
+        builder.destroy();
         preview.destroy();
     };
+}
+
+/** While the JSON is broken, the builder stays on the last template it showed, if any. */
+function mainFor(state: TemplateFileState, shownBefore: boolean): EditorMain {
+    switch (state.kind) {
+        case "empty":
+            return "wizard";
+        case "unknownEngine":
+            return "engineChoice";
+        case "template":
+            return "builder";
+        default:
+            return shownBefore ? "builder" : "placeholder";
+    }
 }
 
 function messagesFor(state: Exclude<TemplateFileState, { kind: "template" }>): string[] {
     switch (state.kind) {
         case "empty":
-            return [i18n.translate("Add an element template to this file to preview it.")];
+            return [];
         case "invalidJson":
             return [
-                i18n.translate("The JSON is invalid: {message}", { message: state.message }),
-                i18n.translate("The preview shows the last valid template."),
+                translate("The JSON is invalid: {message}", { message: state.message }),
+                translate("Fix it in the JSON editor; until then the builder is read-only."),
             ];
         case "notATemplate":
-            return [i18n.translate("This file does not contain an element template.")];
+            return [translate("This file does not contain an element template.")];
         case "unknownEngine":
-            return [i18n.translate('Add a "$schema" to choose between Camunda 7 and Camunda 8.')];
+            return [translate('The template has no "$schema" that names its engine.')];
     }
 }

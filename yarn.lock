@@ -3230,7 +3230,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmn-modeler-element-template-builder@workspace:libs/element-template-builder":
+"@miragon/bpmn-modeler-element-template-builder@workspace:*, @miragon/bpmn-modeler-element-template-builder@workspace:libs/element-template-builder":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-element-template-builder@workspace:libs/element-template-builder"
   dependencies:
@@ -3481,6 +3481,7 @@ __metadata:
     "@bpmn-io/properties-panel": "npm:3.57.0"
     "@bpmn-io/svg-to-image": "npm:1.0.1"
     "@miragon/bpmn-modeler": "workspace:*"
+    "@miragon/bpmn-modeler-element-template-builder": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"

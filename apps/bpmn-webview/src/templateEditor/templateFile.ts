@@ -11,20 +11,24 @@ export interface TemplateChoice {
     label: string;
 }
 
+/** Where the selected template sits in the file: `[]` for a single one, `[index]` in an array. */
+type TemplatePath = [] | [number];
+
 export type TemplateFileState =
     | { kind: "empty" }
     | { kind: "invalidJson"; message: string }
     | { kind: "notATemplate" }
-    | { kind: "unknownEngine"; choices: TemplateChoice[]; selected: string }
+    | { kind: "unknownEngine"; choices: TemplateChoice[]; selected: string; path: TemplatePath }
     | {
           kind: "template";
           template: ElementTemplate;
           engine: Engine;
           choices: TemplateChoice[];
           selected: string;
+          path: TemplatePath;
       };
 
-/** What the preview shows for a file's text, keeping `selectedKey` while it still exists. */
+/** What the editor shows for a file's text, keeping `selectedKey` while it still exists. */
 export function readTemplateFile(text: string, selectedKey?: string): TemplateFileState {
     if (text.trim() === "") {
         return { kind: "empty" };
@@ -36,10 +40,13 @@ export function readTemplateFile(text: string, selectedKey?: string): TemplateFi
         return { kind: "invalidJson", message: (error as Error).message };
     }
 
-    const templates = templatesOfFile(parsed).filter(isTemplateObject);
-    if (templates.length === 0) {
+    const entries = templatesOfFile(parsed).flatMap((template, position) =>
+        isTemplateObject(template) ? [{ template, position }] : [],
+    );
+    if (entries.length === 0) {
         return { kind: "notATemplate" };
     }
+    const templates = entries.map(({ template }) => template);
     const choices = templates.map(choiceOf);
     const index = Math.max(
         choices.findIndex((choice) => choice.key === selectedKey),
@@ -47,10 +54,11 @@ export function readTemplateFile(text: string, selectedKey?: string): TemplateFi
     );
     const template = templates[index];
     const selected = choices[index].key;
+    const path: TemplatePath = Array.isArray(parsed) ? [entries[index].position] : [];
     const engine = detectTemplateEngine(template) ?? detectTemplateEngine(templates);
     return engine
-        ? { kind: "template", template, engine, choices, selected }
-        : { kind: "unknownEngine", choices, selected };
+        ? { kind: "template", template, engine, choices, selected, path }
+        : { kind: "unknownEngine", choices, selected, path };
 }
 
 function isTemplateObject(value: unknown): value is ElementTemplate {

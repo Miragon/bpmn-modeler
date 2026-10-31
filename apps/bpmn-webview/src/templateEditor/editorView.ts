@@ -1,0 +1,237 @@
+import { catalogFor } from "@miragon/bpmn-modeler-element-template-builder";
+import { ENGINE_LABEL, type Engine } from "@miragon/bpmn-modeler-types";
+
+import type { TemplateChoice } from "./templateFile";
+
+type Translate = (template: string, replacements?: Record<string, string>) => string;
+
+/** The template editor's page: toolbar, messages, the preview on the left and the builder. */
+export interface EditorView {
+    readonly previewPanel: HTMLElement;
+    readonly builderRoot: HTMLElement;
+    showEngine(engine: Engine | undefined): void;
+    showChoices(choices: readonly TemplateChoice[], selected: string | undefined): void;
+    showMessages(messages: readonly string[]): void;
+    /** Whether there is a template to preview; without one the preview column is left out. */
+    showPreview(available: boolean): void;
+    showMain(main: EditorMain): void;
+    onSelect(listener: (key: string) => void): void;
+    onCreate(listener: (engine: Engine, elementType: string, name: string) => void): void;
+    onChooseEngine(listener: (engine: Engine) => void): void;
+}
+
+/** The builder, the new-template wizard, the engine choice, or a note while nothing can be built. */
+export type EditorMain = "builder" | "wizard" | "engineChoice" | "placeholder";
+
+const ENGINES: readonly Engine[] = ["c8", "c7"];
+
+// Template names come from the edited file, so text is only ever set, never parsed as HTML.
+export function mountEditorView(root: HTMLElement, translate: Translate): EditorView {
+    const doc = root.ownerDocument;
+    const element = <K extends keyof HTMLElementTagNameMap>(
+        tag: K,
+        className: string,
+        text?: string,
+    ): HTMLElementTagNameMap[K] => {
+        const node = doc.createElement(tag);
+        node.className = className;
+        if (text !== undefined) {
+            node.textContent = text;
+        }
+        return node;
+    };
+
+    const container = element("div", "template-editor");
+    const toolbar = element("div", "template-editor__toolbar");
+    const engineBadge = element("span", "template-editor__engine");
+    engineBadge.hidden = true;
+    const choice = element("select", "template-editor__choice");
+    choice.setAttribute("aria-label", translate("Template"));
+    choice.hidden = true;
+    const previewToggle = element(
+        "button",
+        "template-editor__preview-toggle",
+        translate("Preview"),
+    );
+    previewToggle.type = "button";
+    previewToggle.setAttribute("aria-pressed", "true");
+    previewToggle.hidden = true;
+    const messages = element("div", "template-editor__messages");
+    messages.setAttribute("role", "status");
+
+    const body = element("div", "template-editor__body");
+    const previewPanel = element("aside", "template-editor__preview");
+    previewPanel.setAttribute("aria-label", translate("Preview"));
+    const main = element("main", "template-editor__main");
+    const builderRoot = element("div", "template-editor__builder");
+
+    const wizard = element("form", "template-editor__wizard");
+    const wizardTitle = element(
+        "h2",
+        "template-editor__wizard-title",
+        translate("Create an element template"),
+    );
+    const wizardLead = element(
+        "p",
+        "template-editor__lead",
+        translate(
+            "Pick the engine and the element the template is for. You can change both later.",
+        ),
+    );
+    const engineSelect = element("select", "template-editor__wizard-engine");
+    for (const engine of ENGINES) {
+        const option = element("option", "", ENGINE_LABEL[engine]);
+        option.value = engine;
+        engineSelect.append(option);
+    }
+    const elementTypeSelect = element("select", "template-editor__wizard-element-type");
+    const nameInput = element("input", "template-editor__wizard-name");
+    nameInput.required = true;
+    nameInput.placeholder = translate("For example: Send mail");
+    const createButton = element(
+        "button",
+        "template-editor__wizard-create",
+        translate("Create template"),
+    );
+    createButton.type = "submit";
+    const labelled = (text: string, field: HTMLElement) => {
+        const label = element("label", "template-editor__wizard-field");
+        label.append(element("span", "", text), field);
+        return label;
+    };
+    wizard.append(
+        wizardTitle,
+        wizardLead,
+        labelled(translate("Engine"), engineSelect),
+        labelled(translate("Applies to"), elementTypeSelect),
+        labelled(translate("Name"), nameInput),
+        createButton,
+    );
+    const fillElementTypes = () => {
+        elementTypeSelect.replaceChildren(
+            ...catalogFor(engineSelect.value as Engine).elementTypes.map((type) => {
+                const option = element("option", "", type);
+                option.value = type;
+                return option;
+            }),
+        );
+    };
+    engineSelect.addEventListener("change", fillElementTypes);
+    fillElementTypes();
+
+    const engineChoice = element("div", "template-editor__engine-choice");
+    const engineButtons = element("div", "template-editor__engine-buttons");
+    engineButtons.append(
+        ...ENGINES.map((engine) => {
+            const button = element(
+                "button",
+                "template-editor__engine-button",
+                ENGINE_LABEL[engine],
+            );
+            button.type = "button";
+            button.dataset.engine = engine;
+            return button;
+        }),
+    );
+    engineChoice.append(
+        element(
+            "h2",
+            "template-editor__wizard-title",
+            translate("Which engine is this template for?"),
+        ),
+        element(
+            "p",
+            "template-editor__lead",
+            translate(
+                'The engine decides which bindings the template can use. Your choice is saved as its "$schema".',
+            ),
+        ),
+        engineButtons,
+    );
+    const placeholder = element(
+        "p",
+        "template-editor__placeholder",
+        translate("The builder opens once the file holds a valid element template."),
+    );
+
+    // Nothing shows until the first file arrives.
+    for (const view of [builderRoot, wizard, engineChoice, placeholder]) {
+        view.hidden = true;
+    }
+    main.append(builderRoot, wizard, engineChoice, placeholder);
+    body.append(previewPanel, main);
+    toolbar.append(engineBadge, choice, previewToggle);
+    // An empty toolbar would only be a stray line above the wizard.
+    const fitToolbar = () => {
+        toolbar.hidden = engineBadge.hidden && choice.hidden && previewToggle.hidden;
+    };
+    fitToolbar();
+    container.append(toolbar, messages, body);
+    root.replaceChildren(container);
+
+    previewToggle.addEventListener("click", () => {
+        const hidden = container.classList.toggle("template-editor--preview-hidden");
+        previewToggle.setAttribute("aria-pressed", String(!hidden));
+    });
+
+    return {
+        previewPanel,
+        builderRoot,
+        showEngine(engine) {
+            engineBadge.textContent = engine ? ENGINE_LABEL[engine] : "";
+            engineBadge.hidden = !engine;
+            fitToolbar();
+        },
+        showChoices(choices, selected) {
+            choice.replaceChildren(
+                ...choices.map(({ key, label }) => {
+                    const option = element("option", "", label);
+                    option.value = key;
+                    return option;
+                }),
+            );
+            choice.value = selected ?? "";
+            choice.hidden = choices.length < 2;
+            fitToolbar();
+        },
+        showMessages(lines) {
+            messages.replaceChildren(...lines.map((line) => element("p", "", line)));
+            messages.hidden = lines.length === 0;
+        },
+        showPreview(available) {
+            container.classList.toggle("template-editor--no-preview", !available);
+            previewToggle.hidden = !available;
+            fitToolbar();
+        },
+        showMain(shown) {
+            const opensWizard = shown === "wizard" && wizard.hidden;
+            builderRoot.hidden = shown !== "builder";
+            wizard.hidden = shown !== "wizard";
+            engineChoice.hidden = shown !== "engineChoice";
+            placeholder.hidden = shown !== "placeholder";
+            if (opensWizard) {
+                nameInput.focus({ preventScroll: true });
+            }
+        },
+        onSelect(listener) {
+            choice.addEventListener("change", () => listener(choice.value));
+        },
+        onCreate(listener) {
+            wizard.addEventListener("submit", (event) => {
+                event.preventDefault();
+                const name = nameInput.value.trim();
+                if (name !== "") {
+                    listener(engineSelect.value as Engine, elementTypeSelect.value, name);
+                }
+            });
+        },
+        onChooseEngine(listener) {
+            engineChoice.addEventListener("click", (event) => {
+                const engine = (event.target as HTMLElement).dataset?.engine;
+                if (engine === "c7" || engine === "c8") {
+                    listener(engine);
+                }
+            });
+        },
+    };
+}

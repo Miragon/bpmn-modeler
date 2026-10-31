@@ -18,25 +18,34 @@ type MessageType = Command | Query;
 
 export function getTemplateEditorHostApi(): HostApi<unknown, MessageType> {
     if (process.env.NODE_ENV === "development") {
-        return new MockPreviewHost();
+        return new MockTemplateEditorHost();
     }
     return new HostApiImpl<unknown, MessageType>();
 }
 
+// Files for the editor's other states, picked with `?file=`.
+const FILES: Readonly<Record<string, string>> = {
+    empty: "",
+    noschema: `${JSON.stringify({ name: "Plain", id: "plain", appliesTo: ["bpmn:ServiceTask"], properties: [] }, null, 2)}\n`,
+    broken: '{\n  "name": "Broken",\n',
+};
+
 /**
- * Serves the C8 sample templates, or the C7 ones for `?engine=c7`. `?lang=de`
- * switches the language once the first template is shown.
+ * Serves the C8 sample templates, the C7 ones for `?engine=c7`, or one of
+ * {@link FILES} for `?file=`. `?lang=de` switches the language once the
+ * first template is shown.
  */
-class MockPreviewHost extends MockHostApi<unknown, MessageType> {
+class MockTemplateEditorHost extends MockHostApi<unknown, MessageType> {
     override postMessage(message: MessageType): void {
         const command = asProtocolMessage(message);
         if (command.type !== "GetElementTemplateFileCommand") {
-            console.debug("[dev] template preview sent", command);
+            console.debug("[dev] template editor sent", command);
             return;
         }
         const params = new URLSearchParams(window.location.search);
         const samples = params.get("engine") === "c7" ? c7Samples : c8Samples;
-        dispatch(new ElementTemplateFileQuery(JSON.stringify(samples, null, 2)));
+        const file = FILES[params.get("file") ?? ""] ?? `${JSON.stringify(samples, null, 2)}\n`;
+        dispatch(new ElementTemplateFileQuery(file));
         const lang = params.get("lang");
         if (lang) {
             dispatch(new LanguageQuery(lang));
