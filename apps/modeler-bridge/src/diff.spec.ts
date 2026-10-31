@@ -1,8 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { DIFF_PANE_COMMAND_TYPES, DiffPaneCommandType } from "@miragon/bpmn-modeler-shared";
+
 import { hostNotification, settle } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
+
+/** How the IntelliJ host serves each command its diff panes post. */
+const INTELLIJ_DIFF_COVERAGE: Record<DiffPaneCommandType, "handled" | "ignored"> = {
+    DiffReadyCommand: "handled",
+    ViewportChangedCommand: "handled",
+    CursorChangedCommand: "handled",
+    // IntelliJ's diff viewer swaps the sides itself and never forwards the command.
+    SwapCompareSidesCommand: "ignored",
+    LogErrorCommand: "ignored",
+};
 
 /**
  * Drives the **diff** half of the bridge end-to-end: the real diff brain
@@ -41,6 +53,24 @@ function postsTo(frames: any[], paneUri: string): any[] {
         .filter((f) => f.method === "diff/postMessage" && f.params.paneUri === paneUri)
         .map((f) => f.params.message);
 }
+
+describe("the bridge's diff pane routes", () => {
+    it("match the host's coverage table", () => {
+        const { diffPaneRoutes } = createBridge(() => {});
+
+        const coverage = Object.fromEntries(
+            DIFF_PANE_COMMAND_TYPES.map((type) => [type, diffPaneRoutes.routeOf(type).kind]),
+        );
+
+        expect(coverage).toEqual(INTELLIJ_DIFF_COVERAGE);
+    });
+
+    it("answer the file request the pane sends before it knows it is a diff pane", () => {
+        const { diffPaneRoutes } = createBridge(() => {});
+
+        expect(diffPaneRoutes.routeOf("GetBpmnFileCommand")).toEqual({ kind: "handled" });
+    });
+});
 
 describe("bridge diff (real diff brain over a fake transport)", () => {
     const BEFORE = "file:///proc.bpmn#d1-before";

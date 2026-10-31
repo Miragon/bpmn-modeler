@@ -77,7 +77,11 @@ export function createBridge(
     write: (line: string) => void,
     log: (message: string) => void = () => {},
     options: BridgeOptions = {},
-): { rpc: Rpc; editorRoutes: Pick<WebviewMessageRouter, "routeOf"> } {
+): {
+    rpc: Rpc;
+    editorRoutes: Pick<WebviewMessageRouter, "routeOf">;
+    diffPaneRoutes: Pick<WebviewMessageRouter, "routeOf">;
+} {
     const deps = buildSharedDeps(write, log);
 
     const homeDir = options.homeDir ?? homedir();
@@ -107,5 +111,9 @@ export function createBridge(
         homeDir,
     });
 
-    return { rpc: deps.rpc, editorRoutes: editor.router };
+    return {
+        rpc: deps.rpc,
+        editorRoutes: editor.router,
+        diffPaneRoutes: new WebviewMessageRouter(),
+    };
 }

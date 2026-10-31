@@ -1,9 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
     ApplyDiffHighlightsQuery,
+    type CursorChangedCommand,
+    type DiffReadyCommand,
+    type LogErrorCommand,
+    type SwapCompareSidesCommand,
+    type SyncDocumentCommand,
     SyncCursorQuery,
     SyncViewportQuery,
+    type ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import type { DiffOrigin } from "@miragon/bpmn-modeler-types";
 
@@ -61,6 +67,8 @@ import { DiffMode } from "./diffMode";
 const viewer = () => fakes.FakeDiffViewer.last;
 const navigator = () => fakes.FakeDiffNavigator.last;
 const legend = () => fakes.FakeDiffLegend.last;
+
+type PostedByDiffMode = Parameters<ConstructorParameters<typeof DiffMode>[2]["postMessage"]>[0];
 
 function dispatch(data: unknown): void {
     window.dispatchEvent(new MessageEvent("message", { data }));
@@ -310,5 +318,24 @@ describe("DiffMode", () => {
                 expect.objectContaining({ type: "SwapCompareSidesCommand" }),
             ]);
         });
+    });
+});
+
+// Type-level spec: the `typecheck` script fails when an expectation breaks.
+describe("DiffMode's host channel", () => {
+    it("posts the diff pane's commands", () => {
+        expectTypeOf<DiffReadyCommand>().toExtend<PostedByDiffMode>();
+        expectTypeOf<ViewportChangedCommand>().toExtend<PostedByDiffMode>();
+        expectTypeOf<CursorChangedCommand>().toExtend<PostedByDiffMode>();
+        expectTypeOf<SwapCompareSidesCommand>().toExtend<PostedByDiffMode>();
+        expectTypeOf<LogErrorCommand>().toExtend<PostedByDiffMode>();
+    });
+
+    it("rejects a command of the BPMN editor", () => {
+        expectTypeOf<SyncDocumentCommand>().not.toExtend<PostedByDiffMode>();
+    });
+
+    it("rejects a query, which only the host sends", () => {
+        expectTypeOf<SyncViewportQuery>().not.toExtend<PostedByDiffMode>();
     });
 });

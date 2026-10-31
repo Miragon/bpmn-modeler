@@ -9,6 +9,7 @@ import {
     basenameOfUriString,
     routeWebviewLogCommand,
     SettingChange,
+    WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { onDidChangeModelerSetting } from "../../shared/infrastructure/modelerConfiguration";
@@ -52,6 +53,10 @@ export class BpmnDiffController {
         private readonly diffService: BpmnDiffService,
         private readonly notifier: NotifierPort,
     ) {}
+
+    get paneRoutes(): Pick<WebviewMessageRouter, "routeOf"> {
+        return new WebviewMessageRouter();
+    }
 
     /**
      * Subscribes to language-setting changes so every open diff pane
