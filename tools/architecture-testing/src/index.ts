@@ -1,5 +1,6 @@
 export { readClassDeclarations } from "./classDeclarations";
 export type { ClassDeclaration } from "./classDeclarations";
+export { stripComments } from "./comments";
 export { filesReaching, isHostModule } from "./hostReach";
 export { findImportCycles } from "./importCycles";
 export type { DirectedEdge } from "./importCycles";

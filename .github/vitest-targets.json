@@ -132,8 +132,12 @@
         "bpmn-modeler": {
             "dir": "packages/bpmn-modeler",
             "package": "@miragon/bpmn-modeler",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "packages/bpmn-modeler/**",
+                "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "scripts/perf/**",
                 "libs/modeler-types/**",
@@ -157,8 +161,12 @@
         "dmn-modeler": {
             "dir": "packages/dmn-modeler",
             "package": "@miragon/dmn-modeler",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "packages/dmn-modeler/**",
+                "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-i18n-extras/**"

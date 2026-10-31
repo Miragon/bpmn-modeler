@@ -1,5 +1,12 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, normalize, resolve } from "node:path";
+import {
+    buildImportGraph,
+    readModuleImports,
+    readSourceTree,
+    requireMatches,
+    stripComments,
+} from "@miragon/architecture-testing";
+import type { SourceFile } from "@miragon/architecture-testing";
+import { join, normalize } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
@@ -17,72 +24,34 @@ const PKG_SRC = __dirname;
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 const LIBS_ROOT = join(REPO_ROOT, "libs");
 
-const isTsSource = (entry: string): boolean =>
-    /\.tsx?$/.test(entry) && !entry.endsWith(".d.ts") && !/\.(spec|test)\.tsx?$/.test(entry);
+const packageSources = readSourceTree(PKG_SRC);
+const libSources = readSourceTree(LIBS_ROOT);
 
-const isStylesheet = (entry: string): boolean => entry.endsWith(".css");
-
-function listSourceFiles(
-    root: string,
-    isIncluded: (entry: string) => boolean = isTsSource,
-): string[] {
-    const out: string[] = [];
-    const SKIP_DIRS = new Set(["node_modules", "dist", "lib", "coverage"]);
-    const walk = (absDir: string): void => {
-        for (const entry of readdirSync(absDir)) {
-            const abs = join(absDir, entry);
-            if (statSync(abs).isDirectory()) {
-                if (SKIP_DIRS.has(entry)) continue;
-                walk(abs);
-            } else if (isIncluded(entry)) {
-                out.push(abs);
-            }
-        }
-    };
-    walk(root);
-    return out;
+function importedModules({ path, text }: SourceFile): string[] {
+    return readModuleImports(path, text).map(({ specifier }) => specifier);
 }
 
-const SPECIFIER_PATTERNS: readonly RegExp[] = [
-    /\bfrom\s*["']([^"']+)["']/g,
-    /\bimport\s+["']([^"']+)["']/g,
-    /\bimport\s*\(\s*["']([^"']+)["']/g,
-    /\brequire\s*\(\s*["']([^"']+)["']/g,
-];
+// Value imports only — `import type` / `export type` are erased at build and so
+// never pull runtime code into a bundle.
+function valueImportedModules({ path, text }: SourceFile): string[] {
+    return readModuleImports(path, text)
+        .filter(({ typeOnly }) => !typeOnly)
+        .map(({ specifier }) => specifier);
+}
 
-function importedModules(content: string): string[] {
-    return SPECIFIER_PATTERNS.flatMap((pattern) =>
-        [...content.matchAll(pattern)].map((match) => match[1]),
+function sourcesIn(folder: string): SourceFile[] {
+    return requireMatches(
+        `${folder}/ sources`,
+        packageSources.filter(({ path }) => path.startsWith(`${folder}/`)),
     );
+}
+
+function stylesheetsIn(root: string): SourceFile[] {
+    return requireMatches(`stylesheets in ${root}`, readSourceTree(root, { extensions: [".css"] }));
 }
 
 function cssImportSpecifier(importParams: string): string {
     return /^(?:url\(\s*)?["']?([^"')\s]+)/.exec(importParams.trim())?.[1] ?? importParams;
-}
-
-// Value imports only — `import type` / `export type` are erased at build and so
-// never pull runtime code into a bundle. Used by the lint-injection gate below.
-const VALUE_SPECIFIER_PATTERNS: readonly RegExp[] = [
-    /\bimport\s+(?!type\b)[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
-    /\bexport\s+(?!type\b)[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
-    /\bimport\s*["']([^"']+)["']/g,
-    /\bimport\s*\(\s*["']([^"']+)["']/g,
-    /\brequire\s*\(\s*["']([^"']+)["']/g,
-];
-
-// Drop block + line comments so a specifier *named in prose* (e.g. the
-// `typeof import("./bpmnlint")` mention in a jsdoc) is not read as a real
-// import. Coarse — it may nick a `//` inside a string literal — but harmless
-// here: we only pattern-match import specifiers out of the result.
-function stripComments(content: string): string {
-    return content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-}
-
-function valueImportedModules(content: string): string[] {
-    const code = stripComments(content);
-    return VALUE_SPECIFIER_PATTERNS.flatMap((pattern) =>
-        [...code.matchAll(pattern)].map((match) => match[1]),
-    );
 }
 
 /** `@miragon/bpmn-modeler` exactly, or a subpath of it — but not `-types`/`-core`/… */
@@ -90,21 +59,21 @@ const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
 describe("bpmn-modeler import direction", () => {
     it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
-        const collected = listSourceFiles(join(LIBS_ROOT, "properties-panel", "src"));
-        expect(collected.some((file) => file.endsWith(".tsx"))).toBe(true);
+        const collected = readSourceTree(join(LIBS_ROOT, "properties-panel", "src"));
+        expect(collected.some(({ path }) => path.endsWith(".tsx"))).toBe(true);
     });
 
     it("package source never names the protocol, the engine, or apps/", () => {
         const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            for (const spec of importedModules(readFileSync(file, "utf8"))) {
+        for (const file of packageSources) {
+            for (const spec of importedModules(file)) {
                 const forbidden =
                     spec === "@miragon/bpmn-modeler-shared" ||
                     spec === "@miragon/bpmn-modeler-core" ||
                     spec.startsWith("@miragon/bpmn-modeler-core/") ||
                     /(^|\/)apps\//.test(spec);
                 if (forbidden) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -120,14 +89,11 @@ describe("bpmn-modeler import direction", () => {
         // `prefers-color-scheme` or an injected mode, never by reading the host's
         // chrome. A `vscode-*` body class in TS source would mean the watcher
         // leaked back in. (CSS files legitimately style `body.vscode-dark`; this
-        // gate is TS-only, matching listSourceFiles.)
+        // gate is TS-only.)
         const VSCODE_CLASS = /vscode-(dark|light|high-contrast)/;
-        const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (VSCODE_CLASS.test(readFileSync(file, "utf8"))) {
-                offenders.push(file.slice(PKG_SRC.length + 1));
-            }
-        }
+        const offenders = packageSources
+            .filter(({ text }) => VSCODE_CLASS.test(text))
+            .map(({ path }) => path);
         expect(
             offenders,
             `package TS source must not read VS Code body theme classes:\n${offenders.join("\n")}`,
@@ -139,15 +105,12 @@ describe("bpmn-modeler import direction", () => {
         // across instances (and the legacy split is derived by stripping the
         // scope). A top-level rule that forgot the attribute would paint every
         // instance dark. Nested rules are exempt — their parent carries the scope.
-        const DARK_DIR = join(PKG_SRC, "styles", "dark-theme");
         const offenders: string[] = [];
-        for (const entry of readdirSync(DARK_DIR)) {
-            if (!entry.endsWith(".css")) continue;
-            const root = postcss.parse(readFileSync(join(DARK_DIR, entry), "utf8"));
-            root.walkRules((rule) => {
+        for (const { path, text } of stylesheetsIn(join(PKG_SRC, "styles", "dark-theme"))) {
+            postcss.parse(text).walkRules((rule) => {
                 if (rule.parent?.type !== "root") return; // nested rule: parent scopes it
                 if (!rule.selector.includes("data-bpmn-theme")) {
-                    offenders.push(`${entry}: ${rule.selector}`);
+                    offenders.push(`${path}: ${rule.selector}`);
                 }
             });
         }
@@ -164,17 +127,17 @@ describe("bpmn-modeler import direction", () => {
         const isPrebuiltCopy = (spec: string): boolean =>
             spec === "bpmn-js/dist/assets/diagram-js.css";
         const offenders: string[] = [];
-        const collectOffender = (file: string, spec: string): void => {
-            if (isPrebuiltCopy(spec)) offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+        const collectOffender = (path: string, spec: string): void => {
+            if (isPrebuiltCopy(spec)) offenders.push(`${path} → ${spec}`);
         };
-        for (const file of listSourceFiles(PKG_SRC, isStylesheet)) {
-            postcss.parse(readFileSync(file, "utf8")).walkAtRules("import", (rule) => {
-                collectOffender(file, cssImportSpecifier(rule.params));
+        for (const { path, text } of stylesheetsIn(PKG_SRC)) {
+            postcss.parse(text).walkAtRules("import", (rule) => {
+                collectOffender(path, cssImportSpecifier(rule.params));
             });
         }
-        for (const file of listSourceFiles(PKG_SRC)) {
-            for (const spec of importedModules(readFileSync(file, "utf8"))) {
-                collectOffender(file, spec);
+        for (const file of packageSources) {
+            for (const spec of importedModules(file)) {
+                collectOffender(file.path, spec);
             }
         }
         expect(offenders, offenders.join("\n")).toEqual([]);
@@ -188,13 +151,12 @@ describe("bpmn-modeler import direction", () => {
         // inlines even under `linting: false`. `import type` stays fine.
         const LINT_STACK = (spec: string): boolean =>
             spec === "bpmnlint" || spec === "bpmn-js-bpmnlint" || /(^|\/)bpmnlint$/.test(spec); // the `./bpmnlint` barrel, not its type subpaths
-        const BPMNLINT_DIR = join(PKG_SRC, "bpmnlint");
+        sourcesIn("bpmnlint");
         const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (file.startsWith(BPMNLINT_DIR)) continue;
-            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+        for (const file of packageSources.filter(({ path }) => !path.startsWith("bpmnlint/"))) {
+            for (const spec of valueImportedModules(file)) {
                 if (LINT_STACK(spec)) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -214,7 +176,6 @@ describe("bpmn-modeler import direction", () => {
         // stack here is exactly what a single-file bundler
         // would inline into a design-only consumer. `import type` stays fine. The
         // runtime graph is gated separately by `check-design-pure-entry.mjs`.
-        const DESIGN_DIR = join(PKG_SRC, "design");
         const isAllowed = (spec: string): boolean =>
             spec.startsWith(".") ||
             spec === "bpmn-js" ||
@@ -251,11 +212,10 @@ describe("bpmn-modeler import direction", () => {
             // carries a Camunda stack.
             spec === "@miragon/bpmn-modeler-layout";
         const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (!file.startsWith(DESIGN_DIR)) continue;
-            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+        for (const file of sourcesIn("design")) {
+            for (const spec of valueImportedModules(file)) {
                 if (!isAllowed(spec)) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -274,14 +234,12 @@ describe("bpmn-modeler import direction", () => {
         // `cssCodeSplit: false` on the lib build would fold any reachable sheet
         // into the shared `dist/bpmn-modeler.css`. The panel sheets ship via
         // `dist/viewer.css` instead; deep (file-level) imports stay fine.
-        const VIEWER_DIR = join(PKG_SRC, "viewer");
         const BARREL = "@miragon/bpmn-modeler-properties-panel";
         const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (!file.startsWith(VIEWER_DIR)) continue;
-            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+        for (const file of sourcesIn("viewer")) {
+            for (const spec of valueImportedModules(file)) {
                 if (spec === BARREL) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -299,13 +257,16 @@ describe("bpmn-modeler import direction", () => {
         // engine-neutral /design entry, so its value imports must target
         // chooser subpaths; only tree-shaking luck kept minisearch out of the
         // design graph before `check-design-pure-entry.mjs` caught it.
-        const APPEND_MENU_SRC = join(LIBS_ROOT, "append-menu", "src");
+        const appendMenuSources = requireMatches(
+            "libs/append-menu/src sources",
+            readSourceTree(join(LIBS_ROOT, "append-menu", "src")),
+        );
         const BARREL = "@miragon/bpmn-modeler-element-template-chooser";
         const offenders: string[] = [];
-        for (const file of listSourceFiles(APPEND_MENU_SRC)) {
-            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+        for (const file of appendMenuSources) {
+            for (const spec of valueImportedModules(file)) {
                 if (spec === BARREL) {
-                    offenders.push(`${file.slice(APPEND_MENU_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -325,20 +286,22 @@ describe("bpmn-modeler import direction", () => {
         // out of their closure by intent stops the mode wiring from leaking into
         // the engine-neutral bundles. `check-design-pure-entry.mjs` backs the
         // design side at the built-graph level; this is the source-level intent.
-        const MODE_FILES = new Set([
-            resolve(PKG_SRC, "mode.ts"),
-            resolve(PKG_SRC, "modeModules.ts"),
-        ]);
-        const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (!/(^|\/)(design|viewer|modeSession)\//.test(file.slice(PKG_SRC.length))) continue;
-            for (const spec of importedModules(readFileSync(file, "utf8"))) {
-                if (!spec.startsWith(".")) continue;
-                if (MODE_FILES.has(resolve(dirname(file), `${spec}.ts`))) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
-                }
-            }
-        }
+        const MODE_FILES = ["mode.ts", "modeModules.ts"];
+        const MODE_LESS_SURFACES = ["design", "viewer", "modeSession"];
+        const graph = buildImportGraph(packageSources);
+        requireMatches(
+            "mode files",
+            graph.files.filter((file) => MODE_FILES.includes(file)),
+        );
+        MODE_LESS_SURFACES.forEach(sourcesIn);
+        const offenders = graph.edges
+            .filter(
+                ({ from, to }) =>
+                    from.split("/").some((segment) => MODE_LESS_SURFACES.includes(segment)) &&
+                    to !== undefined &&
+                    MODE_FILES.includes(to),
+            )
+            .map(({ from, specifier }) => `${from} → ${specifier}`);
         expect(
             offenders,
             `the /design, /viewer and /mode subpaths must not import ./mode or ` +
@@ -356,18 +319,16 @@ describe("bpmn-modeler import direction", () => {
         // (`-types`), and i18n are value-importable; the handle types from
         // `../publicApi` / `../viewer` / `../design` must stay `import type`. The
         // built graph is gated separately by `check-mode-pure-entry.mjs`.
-        const MODE_DIR = join(PKG_SRC, "modeSession");
         const isAllowed = (spec: string): boolean =>
             spec.startsWith("./") ||
             spec === "@miragon/bpmn-modeler-types" ||
             spec === "@miragon/bpmn-modeler-i18n" ||
             spec === "@miragon/bpmn-modeler-i18n-extras";
         const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (!file.startsWith(MODE_DIR)) continue;
-            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+        for (const file of sourcesIn("modeSession")) {
+            for (const spec of valueImportedModules(file)) {
                 if (!isAllowed(spec)) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -388,18 +349,30 @@ describe("bpmn-modeler import direction", () => {
         // members. The vendored properties-panel fork is out of scope — it uses
         // `this._x` on its own ported classes pervasively — except our own
         // `modeFilter/` code.
-        const ADAPTER_SUFFIXES = [
+        const ADAPTER_FILES = [
             "libs/bpmn-clipboard/src/directEditingInternals.ts",
             "libs/bpmn-diff/src/differResult.ts",
             "libs/append-menu/src/popupMenuInternals.ts",
             "packages/bpmn-modeler/src/bpmnlint/lintingInternals.ts",
         ];
-        const inScope = (file: string): boolean => {
-            const rel = file.slice(REPO_ROOT.length + 1);
-            if (ADAPTER_SUFFIXES.some((suffix) => rel.endsWith(suffix))) return false;
+        const repoSources = [
+            ...packageSources.map((file) => ({
+                ...file,
+                path: `packages/bpmn-modeler/src/${file.path}`,
+            })),
+            ...libSources.map((file) => ({ ...file, path: `libs/${file.path}` })),
+        ];
+        for (const adapter of ADAPTER_FILES) {
+            requireMatches(
+                `private-state adapter ${adapter}`,
+                repoSources.filter(({ path }) => path === adapter),
+            );
+        }
+        const inScope = ({ path }: SourceFile): boolean => {
+            if (ADAPTER_FILES.includes(path)) return false;
             if (
-                rel.includes("properties-panel/src/") &&
-                !rel.includes("properties-panel/src/modeFilter/")
+                path.includes("properties-panel/src/") &&
+                !path.includes("properties-panel/src/modeFilter/")
             ) {
                 return false;
             }
@@ -411,11 +384,10 @@ describe("bpmn-modeler import direction", () => {
         const QUOTED_PRIVATE =
             /["'](_textbox|_getContext|_added|_removed|_changed|_layoutChanged)["']/;
         const offenders: string[] = [];
-        for (const file of [...listSourceFiles(PKG_SRC), ...listSourceFiles(LIBS_ROOT)]) {
-            if (!inScope(file)) continue;
-            const code = stripComments(readFileSync(file, "utf8"));
+        for (const file of repoSources.filter(inScope)) {
+            const code = stripComments(file.path, file.text);
             if (DOTTED_PRIVATE.test(code) || QUOTED_PRIVATE.test(code)) {
-                offenders.push(file.slice(REPO_ROOT.length + 1));
+                offenders.push(file.path);
             }
         }
         expect(
@@ -428,10 +400,10 @@ describe("bpmn-modeler import direction", () => {
 
     it("no libs/* source imports @miragon/bpmn-modeler", () => {
         const offenders: string[] = [];
-        for (const file of listSourceFiles(LIBS_ROOT)) {
-            for (const spec of importedModules(readFileSync(file, "utf8"))) {
+        for (const file of libSources) {
+            for (const spec of importedModules(file)) {
                 if (PACKAGE_SELF.test(spec)) {
-                    offenders.push(`${file.slice(LIBS_ROOT.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -445,13 +417,10 @@ describe("bpmn-modeler import direction", () => {
 
 describe("bpmn-modeler warning sink", () => {
     it("only reporting.ts writes console.warn, so every facade warning reaches onWarning", () => {
-        const REPORTER = join(PKG_SRC, "reporting.ts");
-        const offenders = listSourceFiles(PKG_SRC)
-            .filter((file) => file !== REPORTER)
-            .filter((file) =>
-                /\bconsole\.warn\s*\(/.test(stripComments(readFileSync(file, "utf8"))),
-            )
-            .map((file) => file.slice(PKG_SRC.length + 1));
+        const offenders = packageSources
+            .filter(({ path }) => path !== "reporting.ts")
+            .filter(({ path, text }) => /\bconsole\.warn\s*\(/.test(stripComments(path, text)))
+            .map(({ path }) => path);
         expect(
             offenders,
             `warn through the surface reporter (createReporter), not console.warn:\n` +
