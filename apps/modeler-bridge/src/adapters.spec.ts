@@ -338,6 +338,22 @@ describe("RpcEditorHandle", () => {
         expect(onDispose).toHaveBeenCalledOnce();
     });
 
+    it("does not run an onDidDispose callback whose subscription was disposed", () => {
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
+        const onDispose = vi.fn();
+        const subscription = handle.onDidDispose(onDispose);
+
+        subscription.dispose();
+        handle.dispose();
+
+        expect(onDispose).not.toHaveBeenCalled();
+    });
+
     it("onDidChangeSetting relays the shared settings hub and detaches on dispose", () => {
         const settings = new BridgeSettings();
         const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}), settings);
