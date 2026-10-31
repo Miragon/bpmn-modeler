@@ -10,7 +10,9 @@ import {
     DEFAULT_MODELER_SETTINGS,
     ModelerSettingsSnapshot,
     normalizeSettings,
+    DEFAULT_OPEN_TEMPLATE_PREVIEW,
     parseLintingEnabled,
+    parseOpenTemplatePreview,
     SettingKey,
     settingKeyOf,
 } from "./modelerSettings";
@@ -75,6 +77,21 @@ describe("parseLintingEnabled", () => {
         { case: "a text as the default", raw: "false", enabled: DEFAULT_LINTING_ENABLED },
     ])("reads $case", ({ raw, enabled }) => {
         expect(parseLintingEnabled(raw)).toBe(enabled);
+    });
+});
+
+describe("parseOpenTemplatePreview", () => {
+    it.each([
+        { case: "an enabled flag", raw: true, open: true },
+        { case: "a disabled flag", raw: false, open: false },
+        { case: "no flag as the default", raw: undefined, open: DEFAULT_OPEN_TEMPLATE_PREVIEW },
+        { case: "a text as the default", raw: "false", open: DEFAULT_OPEN_TEMPLATE_PREVIEW },
+    ])("reads $case", ({ raw, open }) => {
+        expect(parseOpenTemplatePreview(raw)).toBe(open);
+    });
+
+    it("opens the preview unless told otherwise", () => {
+        expect(DEFAULT_OPEN_TEMPLATE_PREVIEW).toBe(true);
     });
 });
 

@@ -15,6 +15,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { ElementTemplatePreviewController } from "../modeler/elementTemplate/controller/ElementTemplatePreviewController";
+import { openTemplatePreviewAutomatically } from "../shared/infrastructure/modelerConfiguration";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -53,5 +54,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
             new PreviewLanguageParticipant(previewStore, deps.vsSettings, deps.notifier),
         ],
     }).register(context);
-    new ElementTemplatePreviewController(deps.notifier).register(context);
+    new ElementTemplatePreviewController(deps.notifier, openTemplatePreviewAutomatically).register(
+        context,
+    );
 }

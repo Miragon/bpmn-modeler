@@ -236,7 +236,15 @@ configured locale (`ElementTemplateFileQuery`) and later language changes
 without a bridge session. In VS Code it is a custom editor with `option`
 priority on `*.json`, so it never takes JSON files over, and its sessions live
 in their own `EditorSessionStore`: a preview never becomes the target of
-modeler commands or counts towards `bpmn-modeler.openCustomEditors`.
+modeler commands or counts towards `bpmn-modeler.openCustomEditors`. VS Code
+opens it on its own the first time a template file is shown, once per opened
+file so a preview the user closed stays closed, unless
+`elementTemplatePreview.openAutomatically` is off. Because that needs the
+extension running before any diagram is open, it also activates in workspaces
+that contain an `element-templates` folder. `isElementTemplateFile` in
+`modeler-types` is the one rule for what counts as a template file; the
+manifest's `when` clause repeats only its folder half, which needs no
+activation.
 
 Inline scripts still open and sync their tabs per host, behind the core
 `ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab

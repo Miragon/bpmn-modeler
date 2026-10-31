@@ -55,6 +55,7 @@ import {
     BPMN_VIEW_TYPE,
     DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
+    DEFAULT_OPEN_TEMPLATE_PREVIEW,
     DMN_VIEW_TYPE,
     ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
     FORM_VIEW_TYPE,
@@ -152,6 +153,13 @@ describe("package.json ↔ code contract", () => {
                 `onFileSystem:${FORM_INPUT_VALUES_SCHEME}`,
                 `onFileSystem:${FORM_OUTPUT_VALUES_SCHEME}`,
             ]),
+        );
+    });
+
+    // The preview opens on its own only once the extension runs.
+    it("activates where element templates live", () => {
+        expect(manifest.activationEvents).toContain(
+            "workspaceContains:**/element-templates/**/*.json",
         );
     });
 
@@ -266,6 +274,7 @@ describe("package.json ↔ code contract", () => {
             "scripting.spin": true,
             "marketplaces": true,
             "linting.enabled": true,
+            "elementTemplatePreview.openAutomatically": true,
         };
 
         expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));
@@ -283,9 +292,11 @@ describe("package.json ↔ code contract", () => {
                 .map(([key, property]) => [settingsValueName(key), property.default]),
         );
 
-        expect({ ...DEFAULT_MODELER_SETTINGS, lintingEnabled: DEFAULT_LINTING_ENABLED }).toEqual(
-            manifestDefaults,
-        );
+        expect({
+            ...DEFAULT_MODELER_SETTINGS,
+            lintingEnabled: DEFAULT_LINTING_ENABLED,
+            elementTemplatePreviewOpenAutomatically: DEFAULT_OPEN_TEMPLATE_PREVIEW,
+        }).toEqual(manifestDefaults);
         expect(new InMemorySettings().values).toEqual(manifestDefaults);
     });
 

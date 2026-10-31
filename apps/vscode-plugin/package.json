@@ -92,7 +92,8 @@
     "main": "main.js",
     "activationEvents": [
         "onFileSystem:bpmn-form-input-values",
-        "onFileSystem:bpmn-form-output-values"
+        "onFileSystem:bpmn-form-output-values",
+        "workspaceContains:**/element-templates/**/*.json"
     ],
     "contributes": {
         "walkthroughs": [
@@ -626,6 +627,11 @@
                     "default": true,
                     "scope": "application",
                     "markdownDescription": "Run BPMN linting (in-canvas hints, Problems entries, and the status-bar badge). Turn this off if you only design processes and do not want automation/execution rules. You can also toggle it from the lint hint in the modeler or via the **BPMN: Toggle Linting** command."
+                },
+                "miragon.bpmnModeler.elementTemplatePreview.openAutomatically": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Open the element template preview beside a template's JSON editor the first time it is shown. A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in an `element-templates` folder. You can always open it with **Open Element Template Preview**."
                 },
                 "miragon.bpmnModeler.configFolder": {
                     "type": "string",
