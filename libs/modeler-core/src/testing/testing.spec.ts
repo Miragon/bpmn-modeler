@@ -9,7 +9,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
 import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
-import { tokenPrompt } from "../template-marketplace/domain/tokenPrompt";
+import { tokenPromptFor } from "../template-marketplace/domain/tokenPrompt";
 import { createTestHost } from "./createTestHost";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
@@ -363,7 +363,7 @@ describe("createTestHost", () => {
             clientId: "client",
             clientSecret: "s3cret",
         });
-        const promptFor = (tokenHost: string) => tokenPrompt(tokenHost, "401");
+        const promptFor = (tokenHost: string) => tokenPromptFor(tokenHost, "declaredPrivate");
         await expect(host.tokenPrompt.promptForToken(promptFor("github.com"))).resolves.toBe("  ");
         await expect(host.tokenPrompt.promptForToken(promptFor("gitlab.com"))).resolves.toBe(" t ");
         await expect(

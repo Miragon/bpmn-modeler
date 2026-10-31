@@ -1,5 +1,3 @@
-import { TokenPrompt } from "./tokenPrompt";
-
 /**
  * Domain port abstracting a remote repository that hosts template files.
  *
@@ -137,6 +135,18 @@ export class RepositoryAccessError extends Error {
 export interface TokenStorePort {
     getToken(host: string): Promise<string | undefined>;
     setToken(host: string, token: string): Promise<void>;
+}
+
+/** A masked input the core builds in full; the host renders it and returns what was typed. */
+export interface TokenPrompt {
+    /**
+     * The host the token is for: the session stores the answer under it and the
+     * test kit answers by it; no host renders it.
+     */
+    readonly host: string;
+    readonly title: string;
+    readonly prompt: string;
+    readonly password: true;
 }
 
 /**

@@ -1,6 +1,5 @@
 import { SecretStorePort } from "../deployment/domain/ports";
-import { TokenPromptPort, TokenStorePort } from "../template-marketplace/domain/ports";
-import { TokenPrompt } from "../template-marketplace/domain/tokenPrompt";
+import { TokenPrompt, TokenPromptPort, TokenStorePort } from "../template-marketplace/domain/ports";
 
 interface SlotCredentials {
     basicAuth?: { username: string; password: string };

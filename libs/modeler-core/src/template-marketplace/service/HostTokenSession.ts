@@ -4,10 +4,11 @@ import {
     hostForConfig,
     RepositoryAccessError,
     RepositorySourceConfig,
+    TokenPrompt,
     TokenPromptPort,
     TokenStorePort,
 } from "../domain/ports";
-import { enteredToken, TokenPrompt, tokenPrompt } from "../domain/tokenPrompt";
+import { enteredToken, tokenPromptFor } from "../domain/tokenPrompt";
 
 /**
  * The per-host personal access tokens of one user-initiated command. Within a
@@ -134,7 +135,7 @@ export class HostTokenSession {
                 throw this.accessFailure(denial, hadToken);
             }
             const fresh = await this.promptAndStore(
-                tokenPrompt(host, AccessDenial.of(denial, { tokenTried: hadToken }).promptReason()),
+                tokenPromptFor(host, AccessDenial.of(denial, { tokenTried: hadToken })),
             );
             if (fresh === undefined) {
                 throw this.accessFailure(denial, hadToken);
@@ -173,12 +174,7 @@ export class HostTokenSession {
         }
         for (const host of hosts) {
             if ((await this.storedToken(host)) === undefined && this.claimPrompt(host)) {
-                await this.promptAndStore(
-                    tokenPrompt(
-                        host,
-                        `${host} hosts a private template source. Enter a personal access token to fetch it.`,
-                    ),
-                );
+                await this.promptAndStore(tokenPromptFor(host, "declaredPrivate"));
             }
         }
     }

@@ -1,24 +1,39 @@
 import { describe, expect, it } from "vitest";
 
-import { enteredToken, tokenPrompt } from "./tokenPrompt";
+import { AccessDenial } from "./accessDenial";
+import { RepositoryAccessError } from "./ports";
+import { enteredToken, TokenPromptReason, tokenPromptFor } from "./tokenPrompt";
 
-describe("tokenPrompt", () => {
-    it.each([
+describe("tokenPromptFor", () => {
+    it.each<{
+        behaviour: string;
+        host: string;
+        reason: TokenPromptReason;
+        title: string;
+        prompt: string;
+    }>([
         {
-            behaviour: "names github.com in the title and asks with the given reason",
+            behaviour: "asks with the denial's wording after a refused request",
             host: "github.com",
-            reason: "github.com denied access to acme/templates (HTTP 404); it may be private. Enter a personal access token.",
+            reason: AccessDenial.of(
+                new RepositoryAccessError("github.com", 404, "acme/templates", false),
+                { tokenTried: false },
+            ),
+            title: "Personal Access Token for github.com",
+            prompt: "github.com denied access to acme/templates (HTTP 404); it may be private. Enter a personal access token.",
         },
         {
-            behaviour: "names a self-hosted host in the title",
+            behaviour: "asks up front for a source the marketplace declares private",
             host: "gitlab.acme.com",
-            reason: "gitlab.acme.com hosts a private template source. Enter a personal access token to fetch it.",
+            reason: "declaredPrivate",
+            title: "Personal Access Token for gitlab.acme.com",
+            prompt: "gitlab.acme.com hosts a private template source. Enter a personal access token to fetch it.",
         },
-    ])("$behaviour, in a masked input", ({ host, reason }) => {
-        expect(tokenPrompt(host, reason)).toStrictEqual({
+    ])("$behaviour, in a masked input", ({ host, reason, title, prompt }) => {
+        expect(tokenPromptFor(host, reason)).toStrictEqual({
             host,
-            title: `Personal Access Token for ${host}`,
-            prompt: reason,
+            title,
+            prompt,
             password: true,
         });
     });
