@@ -139,8 +139,12 @@ export class VsCodeEditorHandle implements EditorHandle {
         bootstrapWebview(this.viewType, this.panel, this.initialPanelVisible);
     }
 
+    /**
+     * Theia can report a hidden tab's panel as active (a restored background tab
+     * it made its active widget), so only a visible panel counts as active.
+     */
     isActive(): boolean {
-        return this.panel.active;
+        return this.panel.active && this.panel.visible;
     }
 
     addSubscription(subscription: EditorSubscription): void {
@@ -164,7 +168,7 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     onDidChangeActive(callback: (active: boolean) => void): EditorSubscription {
-        return this.panel.onDidChangeViewState(() => callback(this.panel.active));
+        return this.panel.onDidChangeViewState(() => callback(this.isActive()));
     }
 
     /**
