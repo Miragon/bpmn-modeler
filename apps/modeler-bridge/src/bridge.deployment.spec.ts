@@ -11,6 +11,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { DeployCommand } from "@miragon/bpmn-modeler-shared";
 import {
+    hostErrorReply,
     hostNotification,
     hostReply,
     isStatusSlotUpdate,
@@ -565,6 +566,71 @@ describe("deployment commands over the bridge", () => {
                     action: "deploymentMenu",
                 }),
             );
+        });
+
+        it("keeps showing a diagram as never deployed when the host rejects recording its verified revision", async () => {
+            const neverDeployedOnDev = {
+                text: "dev",
+                icon: "dot",
+                tooltip: "Never deployed to this target from this machine — click to switch target",
+                tone: "neutral",
+                action: "deploymentMenu",
+            };
+            const root = await fs.mkdtemp(join(tmpdir(), "deployment-status-"));
+            roots.push(root);
+            const diagramPath = join(root, "order.bpmn");
+            await fs.writeFile(diagramPath, DIAGRAM);
+            await fs.mkdir(join(root, ".camunda"));
+            await fs.writeFile(
+                join(root, ".camunda/deployment-targets.json"),
+                JSON.stringify({
+                    targets: [
+                        {
+                            name: "dev",
+                            endpoint: "https://root.test",
+                            engine: "c7",
+                            auth: { type: "none" },
+                        },
+                    ],
+                }),
+            );
+            mockEngineLookup();
+            const frames: { method: string; params: any; id?: number }[] = [];
+            const { rpc } = createBridge((line) => {
+                const frame: (typeof frames)[number] = JSON.parse(line);
+                frames.push(frame);
+                if (frame.id === undefined) return;
+                void rpc.handleLine(
+                    isLedgerRowSave(frame)
+                        ? hostErrorReply(frame.id, "disk full")
+                        : hostReply(frame.id, null),
+                );
+            });
+            await rpc.handleLine(
+                hostNotification(METHODS.deploymentStateSeed, {
+                    state: { activeTargetName: "dev" },
+                }),
+            );
+            await rpc.handleLine(
+                hostNotification(
+                    METHODS.sessionRegister,
+                    registerParams(`file://${diagramPath}`, root, diagramPath, DIAGRAM),
+                ),
+            );
+            await vi.waitFor(() =>
+                expect(shownDeploymentStatus(frames)).toEqual(neverDeployedOnDev),
+            );
+
+            await rpc.handleLine(
+                hostNotification(METHODS.deploymentVerify, { workspaceRoot: root }),
+            );
+
+            const rejectedWrite = frames.findIndex(isLedgerRowSave);
+            expect(rejectedWrite).toBeGreaterThan(-1);
+            expect(frames.slice(rejectedWrite).some(isStatusSlotUpdate("deploymentTarget"))).toBe(
+                true,
+            );
+            expect(shownDeploymentStatus(frames)).toEqual(neverDeployedOnDev);
         });
     });
 });
