@@ -112,7 +112,11 @@ export abstract class ImplementationTarget {
     abstract isImplementedBy(absolutePath: string, content?: string): boolean;
 
     /** The batched scan's check of a file whose name did not settle the target. */
-    abstract isDeclaredIn(facts: SourceFileFacts, content: string | undefined): boolean;
+    abstract isDeclaredIn(
+        absolutePath: string,
+        facts: SourceFileFacts,
+        content: string | undefined,
+    ): boolean;
 }
 
 /** `camunda:class` is a fully-qualified class name, so the file path alone decides. */
@@ -166,12 +170,19 @@ class BeanTarget extends ImplementationTarget {
     isImplementedBy(absolutePath: string, content?: string): boolean {
         return (
             this.matchesFileName(absolutePath) ||
-            (content !== undefined && contentDeclaresBean(content, this.bean))
+            (content !== undefined &&
+                this.searchesContentOf(absolutePath) &&
+                contentDeclaresBean(content, this.bean))
         );
     }
 
-    isDeclaredIn(facts: SourceFileFacts): boolean {
-        return facts.declaresBean(this.bean);
+    isDeclaredIn(absolutePath: string, facts: SourceFileFacts): boolean {
+        return this.searchesContentOf(absolutePath) && facts.declaresBean(this.bean);
+    }
+
+    /** Navigate searches the annotation only in these files, so the map links no other. */
+    private searchesContentOf(absolutePath: string): boolean {
+        return this.contentSearch.files.includes(absolutePath);
     }
 }
 
@@ -200,7 +211,11 @@ class LiteralTarget extends ImplementationTarget {
         return content !== undefined && contentImplementsLiteral(content, this.reference);
     }
 
-    isDeclaredIn(facts: SourceFileFacts, content: string | undefined): boolean {
+    isDeclaredIn(
+        _absolutePath: string,
+        facts: SourceFileFacts,
+        content: string | undefined,
+    ): boolean {
         if (this.isDecidedByFacts) {
             return facts.implementsLiteral(this.reference);
         }
