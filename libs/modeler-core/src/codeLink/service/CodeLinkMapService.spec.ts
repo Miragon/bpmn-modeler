@@ -334,6 +334,25 @@ describe("CodeLinkMapService — live linking", () => {
         );
     });
 
+    it("reads a file once when the folders above it are created at once", async () => {
+        const worker = "/work/proj/src/pay/sub/Worker.java";
+        const { service, host, editor } = createService({
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        const readFile = vi.spyOn(host.workspace, "readFile");
+
+        const created = Promise.all([
+            service.onSourceFileChanged("/work/proj/src/pay", "create", ROOT),
+            service.onSourceFileChanged("/work/proj/src/pay/sub", "create", ROOT),
+        ]);
+        await vi.runAllTimersAsync();
+        await created;
+
+        expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
+        expect(readFile.mock.calls).toEqual([[worker]]);
+    });
+
     it("does not push when a changed file is irrelevant to the map", async () => {
         const { service, editor } = createService({
             resolveMap: { "com.example.A": ["/work/proj/src/A.java"] },

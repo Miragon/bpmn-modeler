@@ -326,6 +326,21 @@ describe("FormReferenceStatusService — folders", () => {
         await vi.waitFor(() => expect(lastFormIds(editor)).toEqual(["Form_A", "Form_C"]));
     });
 
+    it("walks the folders created at once from the outermost one only", async () => {
+        const { service, host, editor } = setupWithForms({ "/work/c.form": form("Form_C") });
+        await service.requestStatus(editor.id);
+        const readDirectory = vi.spyOn(host.workspace, "readDirectory");
+        const watcher = host.workspace.watchers.find(({ root }) => root === "/work")!;
+
+        host.workspace.createDirectory("/work/forms", {
+            "/work/forms/sub/a.form": form("Form_A"),
+        });
+        watcher.handlers.onCreate?.("/work/forms/sub");
+
+        await vi.waitFor(() => expect(lastFormIds(editor)).toEqual(["Form_A", "Form_C"]));
+        expect(readDirectory.mock.calls).toEqual([["/work/forms"], ["/work/forms/sub"]]);
+    });
+
     it("does not read the forms again for files and folders without forms", async () => {
         const { service, host, editor } = setupWithForms({
             "/work/c.form": form("Form_C"),
