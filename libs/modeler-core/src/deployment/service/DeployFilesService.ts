@@ -1,4 +1,5 @@
 import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { deployableFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
@@ -33,11 +34,11 @@ export class DeployFilesService {
         }
         const { target } = destination;
 
-        const files = await this.picker.pickWorkspaceFiles({
-            glob: DEPLOYABLE_FILES_GLOB,
-            exclude: DEPENDENCY_FOLDERS_GLOB,
-            placeholder: `Select files to deploy to "${target.name}"`,
-        });
+        const found = await this.workspace.findFiles(
+            DEPLOYABLE_FILES_GLOB,
+            DEPENDENCY_FOLDERS_GLOB,
+        );
+        const files = await this.picker.chooseMany(deployableFilesPrompt(target.name, found));
         if (files.length === 0) {
             return;
         }

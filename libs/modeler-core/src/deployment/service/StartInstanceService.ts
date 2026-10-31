@@ -2,8 +2,14 @@ import { posix } from "path";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
-import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { CamundaEnginePort, DeploymentPickerPort } from "../domain/ports";
+import {
+    DocumentPort,
+    NotifierPort,
+    PickerPort,
+    WorkspacePort,
+} from "../../kernel/domain/hostPorts";
+import { CamundaEnginePort } from "../domain/ports";
+import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { DeploymentDestination } from "../domain/deploymentDestination";
@@ -34,7 +40,7 @@ export class StartInstanceService {
         private readonly vsWorkspace: WorkspacePort,
         private readonly restClient: CamundaEnginePort,
         private readonly notifier: NotifierPort,
-        private readonly picker: DeploymentPickerPort,
+        private readonly picker: PickerPort,
         private readonly artifactService: ArtifactService,
         private readonly envResolver: EnvValueResolver,
         private readonly credentialApproval: CredentialApprovalService,
@@ -53,7 +59,7 @@ export class StartInstanceService {
 
     /**
      * Discovers payload JSON files using the convention-based walk-up pattern
-     * and opens a VS Code QuickPick for single selection.
+     * and lets the user choose one.
      *
      * @param editorId Document URI path of the target editor.
      * @returns An object with `filePath` and `label`, or `null` if the user cancels
@@ -70,7 +76,10 @@ export class StartInstanceService {
             return null;
         }
 
-        return this.picker.pickPayloadFile(payloadPaths);
+        const payloadPath = await this.picker.choose(payloadFilePrompt(payloadPaths));
+        return payloadPath === undefined
+            ? null
+            : { filePath: payloadPath, label: posix.basename(payloadPath) };
     }
 
     /**
