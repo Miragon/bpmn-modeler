@@ -701,6 +701,12 @@ export const PROTOCOL = [
     },
 ] as const;
 
+export const HOST_WORK_REPLY_DEADLINE_MS = 120_000;
+
+export function replyDeadlineMs(_method: string): number | undefined {
+    return undefined;
+}
+
 /** Language-neutral, per-method key contract — what the Kotlin host verifies against. */
 export interface ProtocolSnapshotEntry {
     method: string;

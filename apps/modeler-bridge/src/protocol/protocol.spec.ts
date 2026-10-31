@@ -15,7 +15,14 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { METHODS, PROTOCOL, protocolSnapshot, protocolTable } from "./descriptor";
+import {
+    HOST_WORK_REPLY_DEADLINE_MS,
+    METHODS,
+    PROTOCOL,
+    protocolSnapshot,
+    protocolTable,
+    replyDeadlineMs,
+} from "./descriptor";
 
 // `PROTOCOL` is `as const`, so the compiler already proves a request is never
 // Host→Core (its direction narrows to the literal `"coreToHost"`). Widen the
@@ -163,6 +170,43 @@ describe("RPC protocol descriptor", () => {
                     "  script/close",
                 ].join("\n"),
             );
+        });
+    });
+
+    describe("reply deadlines", () => {
+        it.each([METHODS.pickerShow, METHODS.confirmShow, METHODS.tokenPromptShow])(
+            "waits for the user to answer %s",
+            (method) => {
+                expect(replyDeadlineMs(method)).toBeUndefined();
+            },
+        );
+
+        it.each([METHODS.documentWrite, METHODS.deploymentStateSave])(
+            "waits for the reply to %s, the only update of its bridge mirror",
+            (method) => {
+                expect(replyDeadlineMs(method)).toBeUndefined();
+            },
+        );
+
+        it.each([
+            METHODS.documentSave,
+            METHODS.clipboardRead,
+            METHODS.secretStoreSaveBasicAuth,
+            METHODS.secretStoreGetBasicAuth,
+            METHODS.secretStoreSaveOAuth2,
+            METHODS.secretStoreGetOAuth2,
+            METHODS.secretStoreGetApprovedDestinations,
+            METHODS.secretStoreSaveApprovedDestinations,
+            METHODS.secretStoreDelete,
+            METHODS.marketplaceStateSave,
+            METHODS.tokenStoreGet,
+            METHODS.tokenStoreSet,
+        ])("gives up on %s after the host-work deadline", (method) => {
+            expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
+        });
+
+        it("leaves host work two minutes to queue behind a modal dialog or a keychain prompt", () => {
+            expect(HOST_WORK_REPLY_DEADLINE_MS).toBe(120_000);
         });
     });
 });

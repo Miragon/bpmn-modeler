@@ -104,6 +104,10 @@ export class Rpc {
         }
     }
 
+    handleEnd(): void {
+        // Not implemented yet.
+    }
+
     private callQueueKey(message: { method?: string; params?: unknown }): string {
         const params = message.params;
         if (params && typeof params === "object" && "editorId" in params) {
