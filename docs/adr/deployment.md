@@ -79,7 +79,12 @@ new slot. Once the file is written, a rename deletes the old slot even when
 saving the active name fails. The first failure is the one reported; a cleanup
 failing after it is only logged. A save of an existing target keeps what it
 stored in that target's slot when the file write fails, because the slot is
-still in use
+still in use. That is a trade-off for one case: switching a stored literal to
+an environment reference leaves the reference in the slot while the file still
+lacks it, so the target sends an empty value until a save succeeds. Writing the
+file first would open the reverse case instead, a reference replaced by a
+literal while the secret store rejects writes, and a rejecting secret store is
+the likelier failure
 ([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts)).
 
 Creating and updating are separate operations so a target is never overwritten

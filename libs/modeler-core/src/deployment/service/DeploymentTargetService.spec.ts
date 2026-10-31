@@ -883,6 +883,30 @@ describe("DeploymentTargetService.saveTarget", () => {
             password: "p",
         });
     });
+
+    it("keeps a saved target's credential ref in the file when storing its new literal fails", async () => {
+        const dev = target("dev", {
+            authType: "basic",
+            credentialRefs: CredentialRefs.basic(undefined, "${env:MIRAGON_PW}"),
+        });
+        const c = serviceWithTargetsFile(fileWith(dev));
+        await c.host.secrets.saveBasicAuth("u", "${env:MIRAGON_PW}", slot("dev"));
+        vi.spyOn(c.host.secrets, "saveBasicAuth").mockRejectedValue(new Error("no keyring"));
+
+        await expect(
+            c.service.saveTarget(
+                toTargetPayload(dev),
+                { authType: "basic", username: "u", password: "literal" },
+                "dev",
+                DOC_DIR,
+            ),
+        ).rejects.toThrow("no keyring");
+
+        expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith(dev));
+        await expect(c.service.getCredentials(named(dev))).resolves.toEqual(
+            new BasicAuth("u", "${env:MIRAGON_PW}"),
+        );
+    });
 });
 
 describe("DeploymentTargetService.createTarget", () => {
