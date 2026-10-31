@@ -13,6 +13,7 @@ import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
+import { FlushableDebounceInputModule } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnlintConfig,
@@ -61,6 +62,7 @@ import type { SelectionManager } from "./selection";
 import type { RootElementManager } from "./rootElement";
 import type { ViewState } from "./viewState";
 import { deriveEngines } from "./engines";
+import { executionPlatformAttributes } from "./executionPlatformAttributes";
 import { loadEngineStack } from "./engineStacks";
 import { initialDiagram } from "./initialDiagram";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
@@ -221,6 +223,8 @@ export class BpmnModeler {
             propertiesPanelRootModule,
             ModeFilterModule,
             CustomGroupsModule,
+            // After the upstream panel, so its `debounceInput` is the flushable one.
+            FlushableDebounceInputModule,
             ModeUiModule,
             DrilldownFitModule,
         ];
@@ -358,6 +362,16 @@ export class BpmnModeler {
     /** @see BpmnModelerHandle.onFormatted */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
         return subscribeFormatted(this.core, listener);
+    }
+
+    /** @internal See {@link PendingInputHandle.hasPendingInput}. */
+    hasPendingInput(): boolean {
+        return this.core.hasPendingInput();
+    }
+
+    /** @internal See {@link PendingInputHandle.flushPendingInput}. */
+    flushPendingInput(): void {
+        this.core.flushPendingInput();
     }
 
     /**
@@ -620,10 +634,7 @@ export class BpmnModeler {
     // C7 may omit the service; an empty profile clears any previous engine version.
     private applyEnginesFromDefinitions(): void {
         const definitions = this.getModeler().getDefinitions();
-        const engines = deriveEngines(
-            definitions?.get("modeler:executionPlatform"),
-            definitions?.get("modeler:executionPlatformVersion"),
-        );
+        const engines = deriveEngines(definitions ? executionPlatformAttributes(definitions) : {});
         this.getModeler()
             .get<ElementTemplatesEngineService>("elementTemplates", false)
             ?.setEngines(engines);

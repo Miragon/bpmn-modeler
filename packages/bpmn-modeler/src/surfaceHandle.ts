@@ -7,6 +7,18 @@ import type { ViewState } from "./viewState";
 import type { ViewportManager } from "./viewport";
 
 /**
+ * @internal The editable surfaces' properties-panel input that still waits in
+ * the panel's 600 ms input debounce, so it is not in the diagram or an export.
+ */
+export interface PendingInputHandle {
+    /** Whether the properties panel holds such input; `false` once destroyed. */
+    hasPendingInput(): boolean;
+
+    /** Applies that input to the diagram now. A no-op once destroyed. */
+    flushPendingInput(): void;
+}
+
+/**
  * The members every BPMN surface handle shares — modeler, designer and viewer
  * — with one contract: same document I/O, view state, theme and teardown.
  */

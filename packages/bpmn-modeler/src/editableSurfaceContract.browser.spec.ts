@@ -10,6 +10,7 @@ import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import { createDesigner } from "./design/createDesigner";
 import type { BpmnDesignerHandle, DesignerOptions } from "./design/publicApi";
+import type { PendingInputHandle } from "./surfaceHandle";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import {
     afterPaint,
@@ -22,8 +23,8 @@ import {
 /**
  * The host-command contract the modeler and the designer both expose (import fit, export, format,
  * cleanup, import errors, theme, lint pushes, debounced save, favourites, command-stack and format
- * notifications). Both run the real bpmn-js modeling stack, so the contract runs in the browser
- * project against each surface.
+ * notifications, pending panel input). Both run the real bpmn-js modeling stack, so the contract
+ * runs in the browser project against each surface.
  */
 
 type SharedOptions = Pick<
@@ -38,9 +39,11 @@ interface PopupMenuService {
     close(): void;
 }
 
+type EditableSurface = BpmnDesignerHandle & PendingInputHandle;
+
 interface EditableSurfaceDescriptor {
     name: string;
-    create(mount: SurfaceMount, options: SharedOptions): Promise<BpmnDesignerHandle>;
+    create(mount: SurfaceMount, options: SharedOptions): Promise<EditableSurface>;
 }
 
 const EDITABLE_SURFACES: EditableSurfaceDescriptor[] = [
@@ -118,10 +121,23 @@ function diagramGeometry(surface: BpmnDesignerHandle) {
     );
 }
 
-describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor) => {
-    let surface: BpmnDesignerHandle | undefined;
+// Types into the panel's name field as a user would, leaving the value in the input debounce.
+async function typeTaskName(surface: EditableSurface, panel: HTMLElement, name: string) {
+    surface.selection.selectElementsByIds(["Task_1"]);
+    const nameField = () => panel.querySelector<HTMLTextAreaElement>("#bio-properties-panel-name");
+    await expect.poll(() => nameField()?.value).toBe("A");
+    nameField()!.value = name;
+    nameField()!.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
-    async function open(options: SharedOptions = { linting: false }): Promise<BpmnDesignerHandle> {
+function taskName(surface: EditableSurface): string | undefined {
+    return surface.getService("elementRegistry").get("Task_1")?.businessObject.name;
+}
+
+describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor) => {
+    let surface: EditableSurface | undefined;
+
+    async function open(options: SharedOptions = { linting: false }): Promise<EditableSurface> {
         return (await openMounted(options)).handle;
     }
 
@@ -447,5 +463,54 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         handle.destroy();
 
         expect(() => handle.setFavouriteBpmnElements(["bpmn:UserTask"])).toThrow(NoModelerError);
+    });
+
+    describe("properties-panel input", () => {
+        it("holds a typed value until the input debounce applies it", async () => {
+            const { handle, panel } = await openMounted();
+            await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+
+            await typeTaskName(handle, panel, "Approve invoice");
+
+            expect(handle.hasPendingInput()).toBe(true);
+            expect(taskName(handle)).toBe("A");
+            // Headroom over the 600 ms debounce for a loaded runner.
+            await expect.poll(() => handle.hasPendingInput(), { timeout: 3000 }).toBe(false);
+            expect(taskName(handle)).toBe("Approve invoice");
+        });
+
+        it("keeps the pending input of another surface apart", async () => {
+            const otherSurface = await descriptor.create(mountWithPanel(), { linting: false });
+            try {
+                const { handle, panel } = await openMounted();
+                await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+
+                await typeTaskName(handle, panel, "Approve invoice");
+
+                expect(handle.hasPendingInput()).toBe(true);
+                expect(otherSurface.hasPendingInput()).toBe(false);
+            } finally {
+                otherSurface.destroy();
+            }
+        });
+
+        it("applies a typed value at once when the pending input is flushed", async () => {
+            const { handle, panel } = await openMounted();
+            await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+            await typeTaskName(handle, panel, "Approve invoice");
+
+            handle.flushPendingInput();
+
+            expect(handle.hasPendingInput()).toBe(false);
+            expect(await handle.exportDiagram()).toContain('name="Approve invoice"');
+        });
+
+        it("holds no input once destroyed", async () => {
+            const handle = await open();
+            handle.destroy();
+
+            expect(handle.hasPendingInput()).toBe(false);
+            expect(() => handle.flushPendingInput()).not.toThrow();
+        });
     });
 });

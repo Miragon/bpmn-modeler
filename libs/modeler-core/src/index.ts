@@ -84,6 +84,7 @@ export * from "./modeler/form/service/FormModelerService";
 export * from "./diff/domain/DiffSession";
 export * from "./diff/service/BpmnDiffService";
 export * from "./diff/service/DiffPaneStore";
+export * from "./diff/service/diffPaneRouter";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";

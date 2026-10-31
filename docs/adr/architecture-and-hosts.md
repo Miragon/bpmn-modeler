@@ -146,15 +146,28 @@ bootstrap nor a session module can post another surface's command or a query.
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
 `WebviewDocumentSync` takes a channel for exactly the three messages it posts,
-so handing it the BPMN channel proves they are on the list. Only the diff pane,
-which the bootstrap starts instead of the editor, still posts through the full
-`HostApi`. The diff pane, the DMN and Form editors and the deployment sidebar
-post their own commands, and a spec fails when a protocol command belongs to
-neither side. A host's router still dispatches an unrouted type as a no-op, but
-records a type it drops on purpose with `ignore(type, reason)`, once and with a
-non-blank reason. `routeOf(type)` reports a type as handled, ignored with that
-reason, or unrouted, and a type is never both handled and ignored, so a
-coverage spec can tell a deliberate drop from a missing route.
+so handing it the BPMN channel proves they are on the list. The diff pane,
+which the bootstrap starts instead of the editor, posts through its own
+`DiffPaneChannel`, typed to the closed `DIFF_PANE_COMMAND_TYPES`
+(`libs/shared/src/lib/diffPaneCommands.ts`), so it cannot post an editor
+command. Both hosts route a pane's commands through the core's
+`createDiffPaneRouter`, a `CommandTable` whose handlers get the pane. The table
+covers that list and `DIFF_PANE_HANDSHAKE_COMMAND_TYPES`, the editor requests
+the page posts before it knows it is a diff pane: it answers the file request
+and ignores the settings and panel-state requests, which a read-only pane does
+not use. A `DiffPaneHostExtensions` entry a host leaves out makes its command
+ignored: both hosts supply the pane log; VS Code also supplies the swap, and
+the bridge does not, because IntelliJ's diff viewer swaps the sides before it
+forwards a message. Each host pins these
+routes in a coverage spec, a `Record` over both lists, and the preview host's
+spec posts every command of the editor and diff-pane lists. The DMN and Form editors
+and the deployment sidebar post their own commands, and a spec fails when a
+protocol command belongs to none of the lists. A host's router still
+dispatches an unrouted type as a no-op, but records a type it drops on purpose
+with `ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
+reports a type as handled, ignored with that reason, or unrouted, and a type is
+never both handled and ignored, so a coverage spec can tell a deliberate drop
+from a missing route.
 
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while
@@ -404,6 +417,14 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
+In the BPMN webview, a value that still waits in the properties panel's
+600 ms input debounce counts as such an edit. The panel's `debounceInput`
+service comes from `libs/properties-panel` and tracks its waiting calls; the
+flush applies them before it exports, so the persisted file holds the value
+the panel shows. A mode switch that rebuilds the surface applies them before
+it exports the diagram for the next surface, and the webview's `beforeDestroy`
+posts the sync they scheduled, so both the next surface and the document get
+the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents
@@ -424,10 +445,11 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a properties-panel
-value the panel has not passed to the modeler yet is not flushed on either
-host; and a save of one Document (`saveDocument`), which neither Ctrl+S nor
-autosave makes, does not flush.
+write has not reached the EDT yet, lands after the save; a DMN or Form
+properties-panel value the panel has not passed to the editor yet (dmn-js
+debounces it for 600 ms, form-js for 300 ms) is not flushed; and a save of one
+Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
+flush.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and

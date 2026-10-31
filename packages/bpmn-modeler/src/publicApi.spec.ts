@@ -18,6 +18,7 @@ import type {
     ThemeMode,
 } from "./publicApi";
 import type { ViewState } from "./viewState";
+import type { PendingInputHandle } from "./surfaceHandle";
 import type {
     BpmnViewerHandle,
     CoreViewerServices,
@@ -76,6 +77,12 @@ const _viewerConformance = (v: BpmnViewer): BpmnViewerHandle => v;
 void _viewerConformance;
 const _designerConformance = (d: BpmnDesigner): BpmnDesignerHandle => d;
 void _designerConformance;
+
+// The editable surfaces carry the internal pending-input members the IDE webview flushes.
+const _modelerPendingInput = (modeler: BpmnModeler): PendingInputHandle => modeler;
+void _modelerPendingInput;
+const _designerPendingInput = (designer: BpmnDesigner): PendingInputHandle => designer;
+void _designerPendingInput;
 
 const _viewState = {
     viewport: { x: 0, y: 0, width: 100, height: 100 },

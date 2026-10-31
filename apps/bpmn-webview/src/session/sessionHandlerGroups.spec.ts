@@ -22,6 +22,8 @@ function sessionHandlerGroups(): Record<string, object> {
                 importDocument: vi.fn(),
                 exportDocument: vi.fn(),
                 afterSync: vi.fn(),
+                hasPendingInput: vi.fn(),
+                flushPendingInput: vi.fn(),
                 refreshDiagram: vi.fn(),
                 centerOnElement: vi.fn(),
             },

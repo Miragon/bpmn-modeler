@@ -1,14 +1,15 @@
 import { commands, ExtensionContext, TextDocument, Uri, WebviewPanel, window } from "vscode";
 
-import { asProtocolMessage, Command } from "@miragon/bpmn-modeler-shared";
+import { Command } from "@miragon/bpmn-modeler-shared";
 
 import {
     BPMN_VIEW_TYPE,
     DiffPaneHandle,
     DiffSession,
     basenameOfUriString,
-    routeWebviewLogCommand,
+    createDiffPaneRouter,
     SettingChange,
+    WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { onDidChangeModelerSetting } from "../../shared/infrastructure/modelerConfiguration";
@@ -41,6 +42,8 @@ const GIT_PROVIDED_SCHEMES = new Set<string>(["git", "gitfs"]);
  * Pane resolution is a session lookup rather than a scheme-based heuristic.
  */
 export class BpmnDiffController {
+    private readonly paneRouter: WebviewMessageRouter<DiffPaneHandle>;
+
     /**
      * @param store Session registry (lookups, pending SCM panes, TTL timers).
      * @param diffService Diff content driver (viewer file, differ, sync,
@@ -51,7 +54,17 @@ export class BpmnDiffController {
         private readonly store: DiffPaneStore,
         private readonly diffService: BpmnDiffService,
         private readonly notifier: NotifierPort,
-    ) {}
+    ) {
+        this.paneRouter = createDiffPaneRouter(diffService, {
+            swapSides: (pane) => this.swapCompareFilesSides(pane),
+            paneLog: notifier,
+        });
+    }
+
+    /** How this host routes each command its diff panes post. */
+    get paneRoutes(): Pick<WebviewMessageRouter<DiffPaneHandle>, "routeOf"> {
+        return this.paneRouter;
+    }
 
     /**
      * Subscribes to language-setting changes so every open diff pane
@@ -144,7 +157,7 @@ export class BpmnDiffController {
         const handle = new WebviewPaneHandle(panel, document);
 
         panel.webview.onDidReceiveMessage((message: Command) =>
-            this.onMessage(handle, message).catch((error) => {
+            this.paneRouter.dispatch(message, handle).catch((error) => {
                 // VS Code's emitter doesn't await this listener, so a rejected
                 // handler would surface as an unhandled rejection — log instead.
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
@@ -248,34 +261,6 @@ export class BpmnDiffController {
         session.detachPane(handle);
         if (session.isEmpty()) {
             this.store.remove(session);
-        }
-    }
-
-    private async onMessage(handle: DiffPaneHandle, message: Command): Promise<void> {
-        // Diff panes reuse bpmn-webview, whose global error hooks post
-        // Log*Commands. The switch below doesn't know them, so route them onto
-        // the channel first (tagged with the pane's file) or they're dropped.
-        if (routeWebviewLogCommand(this.notifier, message, basenameOfUriString(handle.uri))) {
-            return;
-        }
-
-        const command = asProtocolMessage(message);
-        switch (command.type) {
-            case "GetBpmnFileCommand":
-                await this.diffService.sendViewerFile(handle);
-                break;
-            case "DiffReadyCommand":
-                await this.diffService.markReady(handle);
-                break;
-            case "ViewportChangedCommand":
-                await this.diffService.forwardViewport(handle, command.viewport);
-                break;
-            case "CursorChangedCommand":
-                await this.diffService.forwardCursor(handle, command.index);
-                break;
-            case "SwapCompareSidesCommand":
-                await this.swapCompareFilesSides(handle);
-                break;
         }
     }
 

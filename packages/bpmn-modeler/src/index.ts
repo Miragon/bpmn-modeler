@@ -106,3 +106,5 @@ export type DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 export { BpmnModeler } from "./modeler";
 /** @internal */
 export type { CreateModelerOptions } from "./createModeler";
+/** @internal */
+export type { PendingInputHandle } from "./surfaceHandle";
