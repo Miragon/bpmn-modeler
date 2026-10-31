@@ -1,3 +1,8 @@
+import {
+    ENGINE_EXECUTION_PLATFORM,
+    executionPlatformAttributeNames,
+} from "@miragon/bpmn-modeler-types";
+
 /**
  * Element-template engine profile — currently only Camunda contributes a
  * version constraint, mirroring `bpmn-js-element-templates`' `EngineProfile`.
@@ -8,10 +13,12 @@ export interface Engines {
 
 /**
  * Derives the element-template engine profile from a diagram's execution
- * platform metadata (`modeler:executionPlatform` / `...Version` on
- * `bpmn:Definitions`).
+ * platform metadata on `bpmn:Definitions`, read under the prefix the diagram
+ * binds to the modeler namespace. The bundled moddles do not register that
+ * namespace, so moddle keeps the attributes in `$attrs` under the file's own
+ * prefix.
  *
- * This mirrors the bundled library's own `getEnginesConfig` lint rule: only a
+ * Like the bundled library's own `getEnginesConfig` lint rule, only a
  * Camunda Cloud (C8) diagram carrying a version contributes a `camunda` engine.
  * A C7 diagram reports "Camunda Platform", so the platform check makes the
  * C8-only rule implicit; anything else yields `{}`, which the library reads as
@@ -21,9 +28,12 @@ export interface Engines {
  * the file actually targets.
  */
 export function deriveEngines(definitionsAttributes: Readonly<Record<string, string>>): Engines {
-    const platform = definitionsAttributes["modeler:executionPlatform"];
-    const version = definitionsAttributes["modeler:executionPlatformVersion"];
-    if (platform === "Camunda Cloud" && version) {
+    const names = executionPlatformAttributeNames(
+        Object.entries(definitionsAttributes).map(([name, value]) => ({ name, value })),
+    );
+    const platform = definitionsAttributes[names.platform];
+    const version = definitionsAttributes[names.version];
+    if (platform === ENGINE_EXECUTION_PLATFORM.c8 && version) {
         return { camunda: version };
     }
     return {};

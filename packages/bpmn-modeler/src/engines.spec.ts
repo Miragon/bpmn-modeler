@@ -83,6 +83,6 @@ describe("deriveEngines", () => {
             expected: {},
         },
     ])("derives the engine profile of $given", ({ attributes, expected }) => {
-        expect(deriveEngines(attributes)).toEqual(expected);
+        expect(deriveEngines(attributes)).toStrictEqual(expected);
     });
 });
