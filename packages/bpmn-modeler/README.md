@@ -490,6 +490,8 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 | `setTheme(theme)`                                                                              | Switch the colour theme live; a no-op once destroyed.                                 |
 | `setMode(mode)` / `getMode()`                                                                  | Switch / read the design-implement mode live (fires `onModeChanged`).                 |
 | `applyLintResults(results)` / `applyLintingDisabled()` / `startInPageLinting(config?, token?)` | Host-driven lint state.                                                               |
+| `onCommandStackChanged(listener)`                                                              | Every executed, undone or redone edit, undebounced; an import resets the stack without a call. Returns the unsubscribe function. For the debounced XML, use `onContentSaved`. |
+| `onFormatted(listener)`                                                                        | The `LayoutOutcome` of every format attempt, failures included: `formatDiagram()`, the palette entry and the canvas shortcut alike. Returns the unsubscribe function. |
 | `getService(name)`                                                                             | Reach a [core service](#core-services--escape-hatch) or the escape hatch.             |
 | `destroy()`                                                                                    | Tear the instance down. Idempotent; every other member except the no-op `setTheme` then throws `NoModelerError`, including host pushes. |
 
@@ -684,7 +686,7 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 `loadDiagram`, `exportDiagram`, `newDiagram`, `getDiagramSvg`, `viewport`,
 `selection`, `captureViewState`, `applyViewState`, `setTheme`, `getService`,
 `applyLintResults`, `applyLintingDisabled`, `startInPageLinting`,
-`setFavouriteBpmnElements`, and `destroy` — each **signature-identical** to its
+`setFavouriteBpmnElements`, `onCommandStackChanged`, `onFormatted`, and `destroy` — each **signature-identical** to its
 `BpmnModelerHandle` counterpart, so a modeler handle narrows to a designer
 handle with no adapter.
 `captureViewState` / `applyViewState` (see

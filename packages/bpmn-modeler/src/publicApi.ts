@@ -120,11 +120,11 @@ export interface ClipboardOptions {
 
 /**
  * Outbound content notification. Debounced and owned by the package (300ms,
- * 1000ms maxWait), because every consumer needs exactly that debounce; raw
- * `commandStack.changed` stays reachable through the
- * {@link BpmnModelerHandle.getService} escape hatch for the rare consumer that
- * wants it un-debounced. A failing save (export or `onContentSaved`) is reported
- * through {@link ModelerOptions.onError}, not by rejecting the debounced run.
+ * 1000ms maxWait), because every consumer needs exactly that debounce;
+ * {@link BpmnModelerHandle.onCommandStackChanged} reports each change
+ * undebounced for the rare consumer that wants it. A failing save (export or
+ * `onContentSaved`) is reported through {@link ModelerOptions.onError}, not by
+ * rejecting the debounced run.
  */
 export interface ContentSavedEvent {
     readonly xml: string;
