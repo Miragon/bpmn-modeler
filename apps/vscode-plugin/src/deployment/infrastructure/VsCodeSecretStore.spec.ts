@@ -330,15 +330,13 @@ describe("VsCodeSecretStore", () => {
             await expect(store.delete(SLOT)).rejects.toBe(KEYRING_UNAVAILABLE);
         });
 
-        it("keeps the new pair when removing the two keys earlier releases stored fails", async () => {
+        it("saves the new pair although removing the two keys earlier releases stored fails", async () => {
             const { secrets, store } = createStore();
             await secrets.store(slotKey("basicUsername"), "old-name");
             await secrets.store(slotKey("basicPassword"), "old-secret");
             vi.spyOn(secrets, "delete").mockRejectedValue(KEYRING_UNAVAILABLE);
 
-            await expect(store.saveBasicAuth("demo", "secret", SLOT)).rejects.toBe(
-                KEYRING_UNAVAILABLE,
-            );
+            await expect(store.saveBasicAuth("demo", "secret", SLOT)).resolves.toBeUndefined();
 
             await expect(store.getBasicAuth(SLOT)).resolves.toEqual({
                 username: "demo",

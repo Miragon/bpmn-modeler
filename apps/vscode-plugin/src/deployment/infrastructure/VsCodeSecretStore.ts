@@ -78,14 +78,21 @@ export class VsCodeSecretStore implements SecretStorePort {
         ]);
     }
 
-    /** The legacy halves go only once the pair is stored, so a failed write leaves the old pair readable. */
+    /**
+     * The legacy halves go only once the pair is stored, so a failed write leaves
+     * the old pair readable. Once it is stored the save has succeeded: the entry
+     * shadows any half left behind, and the next save or the slot's delete
+     * removes it.
+     */
     private async savePair<Field extends string>(
         layout: CredentialPairLayout<Field>,
         pair: CredentialPair<Field>,
         slot: string | undefined,
     ): Promise<void> {
         await this.secrets.store(this.key(layout.key, slot), JSON.stringify(pair));
-        await this.deleteEach(layout.legacyKeys.map((legacyKey) => this.key(legacyKey, slot)));
+        await this.deleteEach(
+            layout.legacyKeys.map((legacyKey) => this.key(legacyKey, slot)),
+        ).catch(() => undefined);
     }
 
     /** The legacy halves count only while no pair entry exists; a corrupt entry reads as none. */
