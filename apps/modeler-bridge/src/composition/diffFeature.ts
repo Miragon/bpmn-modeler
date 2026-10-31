@@ -29,7 +29,7 @@ export function register(deps: BridgeSharedDeps): {
     const diffStore = new DiffPaneStore();
     const diffService = new BpmnDiffService(deps.notifier, deps.settings, diffStore);
     // IntelliJ's diff viewer swaps the sides itself, so the swap never reaches the bridge.
-    const paneRouter = createDiffPaneRouter(diffService, {});
+    const paneRouter = createDiffPaneRouter(diffService, { paneLog: deps.notifier });
 
     // Diff panes route by `paneUri` (a diff has two browsers, indexed
     // independently of editor sessions); `diffSessions` maps each `diffId` to
