@@ -32,6 +32,7 @@ import type {
 } from "./design/publicApi";
 import type {
     CleanupOutcome,
+    CleanupStatus,
     LayoutOutcome,
     ModelNavigationPort as ModelNavigationPortFromRoot,
     ModelReference as ModelReferenceFromRoot,
@@ -41,6 +42,7 @@ import type {
     CleanupItem as CleanupItemFromDesign,
     CleanupKind as CleanupKindFromDesign,
     CleanupOutcome as CleanupOutcomeFromDesign,
+    CleanupStatus as CleanupStatusFromDesign,
     LayoutDiagnostic as LayoutDiagnosticFromDesign,
     LayoutErrorCode as LayoutErrorCodeFromDesign,
     LayoutOutcome as LayoutOutcomeFromDesign,
@@ -380,8 +382,19 @@ const _designOnlyConsumerNamesOutcomeTypes = async (d: BpmnDesignerHandle) => {
     const cleanup: CleanupOutcomeFromDesign = d.cleanupDiagram();
     const items: CleanupItemFromDesign[] = cleanup.items;
     const kinds: CleanupKindFromDesign[] = items.map((item) => item.kind);
+    const cleanupStatus: CleanupStatusFromDesign = cleanup.status;
     const rootOutcomes: [LayoutOutcome, CleanupOutcome] = [formatted, cleanup];
-    void [status, code, diagnostics, stopFormats, kinds, rootOutcomes];
+    const rootCleanupStatus: CleanupStatus = cleanup.status;
+    void [
+        status,
+        code,
+        diagnostics,
+        stopFormats,
+        kinds,
+        cleanupStatus,
+        rootOutcomes,
+        rootCleanupStatus,
+    ];
 };
 void _designOnlyConsumerNamesOutcomeTypes;
 

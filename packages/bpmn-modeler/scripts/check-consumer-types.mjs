@@ -44,7 +44,7 @@ const CONSUMER_FIXTURES = {
     `,
     "designer.ts": `
         import { createDesigner } from "${PKG}/design";
-        import type { CleanupOutcome, LayoutOutcome } from "${PKG}/design";
+        import type { CleanupOutcome, CleanupStatus, LayoutOutcome } from "${PKG}/design";
 
         export async function useDesigner(
             canvas: HTMLElement,
@@ -61,7 +61,8 @@ const CONSUMER_FIXTURES = {
             designer.onFormatted((outcome: LayoutOutcome) => void outcome.diagnostics)();
             const formatted: LayoutOutcome = await designer.formatDiagram();
             const cleanup: CleanupOutcome = designer.cleanupDiagram();
-            void [formatted, cleanup];
+            const cleanupStatus: CleanupStatus = cleanup.status;
+            void [formatted, cleanup, cleanupStatus];
             designer.destroy();
         }
     `,
