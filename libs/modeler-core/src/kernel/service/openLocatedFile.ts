@@ -1,5 +1,5 @@
 import { NotifierPort, PickerPort, WorkspacePort } from "../domain/hostPorts";
-import { classifyLocateResult, LocateResult } from "../domain/locateResult";
+import { classifyLocateResult, locatedFileChoices, LocateResult } from "../domain/locateResult";
 import { referenceForDisplay, truncateForDisplay } from "../domain/truncateForDisplay";
 
 // Tighter cap for the busy-list placeholder — it's space-constrained.
@@ -30,16 +30,19 @@ export async function openLocatedFile(
     request: LocatedFileRequest,
     host: { notifier: NotifierPort; picker: PickerPort; workspace: WorkspacePort },
 ): Promise<void> {
-    const { notifier, picker } = host;
+    const { notifier, picker, workspace } = host;
     const displayReference = referenceForDisplay(request.reference);
     const progressReference = truncateForDisplay(request.reference, PROGRESS_LABEL_LIMIT);
-    const { outcome, chosen } = await picker.searchAndPickLocatedFile(
-        {
-            searchingPlaceholder: `Searching for ${request.searchSubject} "${progressReference}"…`,
-            pickPlaceholder: request.pickPlaceholder,
-        },
-        request.locate,
-    );
+    const { outcome, chosen } = await picker.searchAndChoose({
+        id: "locateFile",
+        searchingPlaceholder: `Searching for ${request.searchSubject} "${progressReference}"…`,
+        search: request.locate,
+        choices: (found) =>
+            locatedFileChoices(found, {
+                placeholder: request.pickPlaceholder,
+                workspaceFolders: workspace.getWorkspaceFolderPaths(),
+            }),
+    });
 
     const located = classifyLocateResult(outcome);
     if (located.kind === "noScope") {
