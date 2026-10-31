@@ -68,7 +68,12 @@ export const C7_CATALOG: EngineCatalog = {
             label: "Field injection",
             fields: [
                 { key: "name", label: "Name", kind: "text", required: true, initial: "field" },
-                { key: "expression", label: "Value is an expression", kind: "flag" },
+                {
+                    key: "expression",
+                    label: "Expression",
+                    description: "The value is an expression.",
+                    kind: "flag",
+                },
             ],
             types: ["String", "Text", "Hidden", "Dropdown"],
         },

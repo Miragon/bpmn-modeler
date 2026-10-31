@@ -7,6 +7,8 @@ export interface BindingField {
     key: string;
     label: string;
     kind: "text" | "choice" | "flag";
+    /** What checking a `flag` field means, shown beside its checkbox. */
+    description?: string;
     /** The values a `choice` field offers. */
     options?: readonly string[];
     required?: boolean;
