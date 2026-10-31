@@ -32,6 +32,7 @@ import {
     ScriptEditorPort,
     ScriptFileStore,
     ScriptLanguage,
+    scriptLanguagePrompt,
     ScriptMaterialization,
     ScriptSourceChange,
     ScriptUri,
@@ -253,7 +254,7 @@ export class BridgeScriptEditor implements ScriptEditorPort {
     ): Promise<{ scriptId: string; uri: ScriptUri; lang: ScriptLanguage } | undefined> {
         let effectiveFormat = script.scriptFormat;
         if (!ScriptLanguage.isSupported(script.scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(script.scriptFormat);
+            const picked = await this.picker.choose(scriptLanguagePrompt(script.scriptFormat));
             if (!picked) {
                 return undefined;
             }

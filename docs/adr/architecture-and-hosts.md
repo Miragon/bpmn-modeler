@@ -344,9 +344,10 @@ has its own. Until each feature's prompts move to the core
 ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
 feature-shaped prompts remain: the other `PickerPort` methods and
 `DeploymentPickerPort`, whose text the adapters build. The new-model engine,
-engine-version, migration-scope and cleanup prompts already come from the core,
-so `pickNewModelEngine`, `pickEngineVersion` and `MigrationPickerPort` have no
-caller left; they are removed together with the other feature-shaped methods.
+engine-version, migration-scope, script-language and cleanup prompts already
+come from the core, so `pickNewModelEngine`, `pickEngineVersion`,
+`pickScriptLanguage` and `MigrationPickerPort` have no caller left; they are
+removed together with the other feature-shaped methods.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked

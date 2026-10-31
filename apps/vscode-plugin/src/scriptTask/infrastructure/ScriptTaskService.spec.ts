@@ -91,12 +91,13 @@ import {
     ArtifactService,
     ScriptFileStore,
     ScriptLanguage,
+    scriptLanguagePrompt,
     ScriptUri,
 } from "@miragon/bpmn-modeler-core";
 import {
     createTestHost,
     FakeEditorHandle,
-    PickerAnswers,
+    PromptAnswers,
 } from "@miragon/bpmn-modeler-core/testing";
 
 const EDITOR_PATH = "/repo/process.bpmn";
@@ -159,10 +160,10 @@ const STREAM_DEBOUNCE_MS = 300;
  * listener callbacks the subject hands to vscode so tests can fire document
  * and tab events directly.
  */
-function createService(answers: PickerAnswers = {}) {
+function createService(promptAnswers: PromptAnswers = {}) {
     // The canonical editor is live so adoption's reverse hash→editor lookup
     // resolves an opened script to a session.
-    const host = createTestHost({ answers, folders: ["/repo"] });
+    const host = createTestHost({ promptAnswers, folders: ["/repo"] });
     const editor = host.openEditor(EDITOR_PATH);
     const scriptFileStore = new ScriptFileStore(
         host.store,
@@ -358,7 +359,9 @@ describe("ScriptTaskService.open", () => {
             content: "x",
         });
 
-        expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: ["cobol"] }]);
+        expect(host.picker.prompts).toEqual([
+            { method: "choose", args: [scriptLanguagePrompt("cobol")] },
+        ]);
         expect(scriptFiles.writeFile).not.toHaveBeenCalled();
         expect(editor.posted).toEqual([]);
     });

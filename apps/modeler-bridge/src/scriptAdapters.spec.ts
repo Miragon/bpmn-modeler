@@ -4,6 +4,7 @@ import {
     ArtifactService,
     InlineScript,
     ScriptFileStore,
+    scriptLanguagePrompt,
     ScriptUri,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
@@ -299,7 +300,9 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             const result = await editor.materialize(FULL_EDITOR, openCommand("", ""));
 
             expect(result).toEqual({ kind: "cancelled" });
-            expect(host.picker.prompts).toEqual([{ method: "pickScriptLanguage", args: [""] }]);
+            expect(host.picker.prompts).toEqual([
+                { method: "choose", args: [scriptLanguagePrompt("")] },
+            ]);
             expect(host.workspace.files.size).toBe(0);
         });
 
