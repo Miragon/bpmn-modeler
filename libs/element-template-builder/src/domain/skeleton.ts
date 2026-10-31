@@ -4,7 +4,12 @@ import { applyTemplateEdits, type JsonPath } from "./templateText";
 
 /** A template id from its name: lower-case words joined by dashes. */
 export function templateIdOf(name: string): string {
-    return name.toLowerCase().match(/[a-z0-9]+/g)?.join("-") ?? "template";
+    return (
+        name
+            .toLowerCase()
+            .match(/[a-z0-9]+/g)
+            ?.join("-") ?? "template"
+    );
 }
 
 /** The text of a new, valid template without properties. */
