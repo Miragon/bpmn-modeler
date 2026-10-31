@@ -247,8 +247,11 @@ export class CodeLinkMapService {
         }
         try {
             return { kind: "written", path, content: await this.vsWorkspace.readFile(path) };
-        } catch {
-            return { kind: "written", path, content: undefined };
+        } catch (error) {
+            this.notifier.logDebug(
+                `[code-link] changed file unreadable, keeping its links ${path}: ${(error as Error).message}`,
+            );
+            return { kind: "unreadable", path };
         }
     }
 

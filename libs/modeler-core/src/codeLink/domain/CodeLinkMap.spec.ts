@@ -48,7 +48,7 @@ function artifactOf(...entries: PersistedEntry[]): CodeLinkMapJson {
     };
 }
 
-function written(path: string, content: string | undefined): SourceFileChange {
+function written(path: string, content: string): SourceFileChange {
     return { kind: "written", path, content };
 }
 
@@ -326,7 +326,7 @@ describe("CodeLinkMap.applyFileChange", () => {
         {
             name: "links a written class by its path alone",
             held: [linked(charge)],
-            change: written(CHARGE_CLASS, undefined),
+            change: written(CHARGE_CLASS, ""),
             links: [linked(charge, CHARGE_CLASS)],
             changed: true,
         },

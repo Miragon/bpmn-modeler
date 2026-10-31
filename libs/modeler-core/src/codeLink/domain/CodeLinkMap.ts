@@ -27,7 +27,7 @@ export interface SyncPlan {
 }
 
 export type SourceFileChange =
-    | { readonly kind: "written"; readonly path: string; readonly content: string | undefined }
+    | { readonly kind: "written"; readonly path: string; readonly content: string }
     | { readonly kind: "unreadable"; readonly path: string }
     | { readonly kind: "deleted"; readonly path: string };
 
@@ -141,9 +141,13 @@ export class CodeLinkMap {
     /**
      * A written file is linked exactly when it implements the activity and
      * unlinked when it stops doing so, whether or not the activity was
-     * resolved; a deleted file leaves every link.
+     * resolved; a deleted file leaves every link. A file that could not be
+     * read keeps its links and gains none: the read may fail only for a moment.
      */
     applyFileChange(change: SourceFileChange): { map: CodeLinkMap; changed: boolean } {
+        if (change.kind === "unreadable") {
+            return { map: this, changed: false };
+        }
         const held = this.links;
         const links = held.map((link) => linkAfter(change, link));
         const changed = links.some((link, index) => link !== held[index]);
@@ -187,7 +191,10 @@ function linkOf(entry: ImplementationEntry, paths: readonly string[]): CodeLink 
     return { ...bindingOf(entry), paths: [...new Set(paths)] };
 }
 
-function linkAfter(change: SourceFileChange, link: CodeLink): CodeLink {
+function linkAfter(
+    change: Exclude<SourceFileChange, { readonly kind: "unreadable" }>,
+    link: CodeLink,
+): CodeLink {
     const linked = link.paths.includes(change.path);
     const implemented =
         change.kind === "written" &&
