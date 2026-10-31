@@ -322,11 +322,11 @@ what it does not know. `statusBar/update` is the only status RPC, so a new
 status needs a slot, its view function and one placement per host, and no new
 port method, RPC or Kotlin handler. No host builds status text of its own.
 
-Prompts follow the same split. `PickerPort`'s `choose`, `chooseMany`, `confirm`
-and `searchAndChoose` take a prompt the core builds in full, typed in
-`kernel/domain/prompts.ts`: an id, a title, a placeholder and items with a
-label, a description or a file path, an icon from a closed union, and the value
-a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
+Prompts follow the same split. `PickerPort` has four methods, `choose`,
+`chooseMany`, `confirm` and `searchAndChoose`, and each takes a prompt the core
+builds in full, typed in `kernel/domain/prompts.ts`: an id, a title, a
+placeholder and items with a label, a description or a file path, an icon from
+a closed union, and the value a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
 caller decides whether it cancels. `confirmation()` in
 `kernel/domain/affectedItems.ts` summarises a confirmation's details, and both
 hosts show every line. The core also orders a file list by the path VS Code
@@ -349,11 +349,8 @@ the status-bar menu, the files to deploy, the additional files, and the
 confirmations to delete a target and to approve a credential host) come from
 the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
-`chooseMany`. So the feature-shaped prompts, whose text the adapters build, have
-no caller left: `pickNewModelEngine`, `pickEngineVersion`, `pickScriptLanguage`,
-`pickWorkspaceFiles`, `searchAndPickLocatedFile` and `confirmDestructive` on
-`PickerPort`, `MigrationPickerPort` and `DeploymentPickerPort`. They are removed
-together ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)).
+`chooseMany`. No adapter builds prompt text, so a new prompt needs a builder and
+an id, and no new port method, RPC or Kotlin handler.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
@@ -697,6 +694,11 @@ a cached result must equal an uncached run.
   aliases and Vitest targets for code no consumer imports apart from the core,
   so they stay folders whose import direction the core architecture test
   enforces.
+- One port method per status item or prompt let each host build the text. The
+  copies drifted (labels, plurals, summaries, tooltips), and every new item
+  touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
+  the hosts per-item freedom: a host renders only what the shared shape
+  carries, so a widget-specific touch needs a field in that shape first.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

@@ -14,18 +14,13 @@
  * hit a local cache instead of blocking on a round-trip.
  */
 
-import { posix } from "node:path";
-
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
-import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
     applyDeploymentStatePatch,
     ChoicePrompt,
-    classifyLocateResult,
     ClipboardPort,
     ConfirmRequest,
     DEFAULT_DEPLOYMENT_STATE,
-    DeploymentPickerPort,
     DeploymentState,
     DeploymentStatePatch,
     DeploymentStatePort,
@@ -35,28 +30,19 @@ import {
     EditorHandle,
     EditorSubscription,
     errorLogText,
-    LocatePrompts,
-    LocateResult,
-    MigrationPickerPort,
-    MigrationScope,
-    NEW_MODEL_ENGINE_CHOICES,
-    NewModelEngine,
     notifiedErrorLogText,
     notifiedErrorToastText,
     NotifierPort,
     PickerPort,
     RawDeploymentState,
-    ScriptLanguage,
     SearchPrompt,
     SecretStorePort,
     SettingChange,
     StatusBarPort,
     StatusSlot,
     StatusView,
-    summarizeAffectedItems,
     TokenPromptPort,
     TokenStorePort,
-    UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeSettings } from "./nodeAdapters";
@@ -604,30 +590,13 @@ export class RpcDeploymentState implements DeploymentStatePort {
 }
 
 /**
- * Narrow file-discovery dependency for {@link RpcPicker.pickWorkspaceFiles} —
- * the one picker that searches the workspace rather than receiving its
- * candidates. Typed as a slice of `WorkspacePort` so it is trivially satisfied
- * by `NodeWorkspace` and stubbable in tests.
+ * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list and
+ * replies with the chosen indices (or `null` on dismissal); this class maps them
+ * back to the prompt's values. The core builds every prompt, so the host carries
+ * no per-prompt logic.
  */
-export interface FileFinder {
-    findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
-}
-
-/**
- * Real {@link PickerPort}, {@link DeploymentPickerPort} and
- * {@link MigrationPickerPort} over RPC: the host shows a native `JBPopup` list and
- * replies with the chosen indices (or `null` on dismissal); this class keeps
- * each prompt's item array and re-applies the cancel-vs-throw convention.
- *
- * The convention lives here, not in Kotlin, so it stays byte-for-byte identical
- * to `VsCodePicker` (the contract's reference) and the host carries no
- * per-picker logic — it only renders a generic chooser.
- */
-export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
-    constructor(
-        private readonly rpc: Rpc,
-        private readonly fileFinder: FileFinder,
-    ) {}
+export class RpcPicker implements PickerPort {
+    constructor(private readonly rpc: Rpc) {}
 
     /** Round-trips one popup; returns the chosen indices or `null` on cancel. */
     private async show(opts: PickerShowParams): Promise<number[] | null> {
@@ -671,195 +640,6 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
 
         const choices = search.choices(outcome);
         return { outcome, chosen: choices && (await this.choose(choices)) };
-    }
-
-    async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
-        const selected = await this.show({
-            placeholder: placeHolder,
-            canPickMany: false,
-            items: NEW_MODEL_ENGINE_CHOICES.map((choice) => ({
-                label: choice.label,
-                description: choice.description,
-            })),
-        });
-        if (selected === null) {
-            throw new UserCancelledError();
-        }
-        const choice = NEW_MODEL_ENGINE_CHOICES[selected[0]];
-        if (!choice) {
-            throw new Error(`No new-model engine at index ${selected[0]}`);
-        }
-        return choice.id;
-    }
-
-    async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {
-        const items = [
-            `${ENGINE_LABEL.c7} only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
-            `${ENGINE_LABEL.c8} only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
-            `Both (${c7Count + c8Count} diagram${c7Count + c8Count !== 1 ? "s" : ""})`,
-        ];
-        const selected = await this.show({
-            placeholder: "Which diagrams do you want to migrate?",
-            canPickMany: false,
-            items: items.map((label) => ({ label })),
-        });
-        if (selected === null) {
-            throw new UserCancelledError();
-        }
-        const result = items[selected[0]];
-        if (result.startsWith(ENGINE_LABEL.c7)) {
-            return "c7";
-        } else if (result.startsWith(ENGINE_LABEL.c8)) {
-            return "c8";
-        }
-        return "both";
-    }
-
-    async pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string> {
-        const label = ENGINE_LABEL[platform];
-        const selected = await this.show({
-            placeholder: `Select ${label} engine version`,
-            canPickMany: false,
-            items: versions.map((version) => ({ label: version })),
-        });
-        if (selected === null) {
-            throw new UserCancelledError();
-        }
-        return versions[selected[0]];
-    }
-
-    async pickWorkspaceFiles(opts: {
-        glob: string;
-        exclude?: string | null;
-        placeholder: string;
-        limit?: number;
-    }): Promise<string[]> {
-        const paths = await this.fileFinder.findFiles(opts.glob, opts.exclude, opts.limit);
-        const selected = await this.show({
-            placeholder: opts.placeholder,
-            canPickMany: true,
-            items: paths.map((path) => ({ label: posix.basename(path), description: path })),
-        });
-        return selected?.map((index) => paths[index]) ?? [];
-    }
-
-    async pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null> {
-        const selected = await this.show({
-            placeholder: "Select a payload file",
-            canPickMany: false,
-            items: paths.map((path) => ({ label: posix.basename(path), description: path })),
-        });
-        if (selected === null) {
-            return null;
-        }
-        const filePath = paths[selected[0]];
-        return { filePath, label: posix.basename(filePath) };
-    }
-
-    async pickScriptLanguage(currentFormat: string): Promise<string | undefined> {
-        const normalized = currentFormat.toLowerCase().trim();
-        // Pin the current format to the top so it stays the default highlighted
-        // option even when unrecognised (mirrors VsCodePicker).
-        const formats = [...ScriptLanguage.supportedFormats()].sort((a, b) => {
-            if (a === normalized) return -1;
-            if (b === normalized) return 1;
-            return 0;
-        });
-        const selected = await this.show({
-            title: "Script Language",
-            placeholder: "Select the scripting language",
-            canPickMany: false,
-            items: formats.map((format) => ({
-                label: format.charAt(0).toUpperCase() + format.slice(1),
-                description: `.${new ScriptLanguage(format).extension}`,
-            })),
-        });
-        return selected === null ? undefined : formats[selected[0]];
-    }
-
-    /**
-     * Modal confirmation, rendered natively by the host.
-     *
-     * A cancelled or failed round trip resolves to `false`: silence must never
-     * be read as consent to delete.
-     */
-    async confirmDestructive(options: {
-        title: string;
-        confirmLabel: string;
-        details: string[];
-    }): Promise<boolean> {
-        const result = (await this.rpc.request(METHODS.confirmShow, {
-            title: options.title,
-            confirmLabel: options.confirmLabel,
-            details: summarizeAffectedItems(options.details),
-        } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
-        return result?.confirmed === true;
-    }
-
-    async pickDeploymentTarget(names: string[]): Promise<string | undefined> {
-        // Index 0 is the explicit ad-hoc entry (→ ""); the rest map to `names`.
-        const labels = ["(none — use form values)", ...names];
-        const selected = await this.show({
-            placeholder: "Select the active deployment target",
-            canPickMany: false,
-            items: labels.map((label) => ({ label })),
-        });
-        if (selected === null) {
-            return undefined;
-        }
-        return selected[0] === 0 ? "" : names[selected[0] - 1];
-    }
-
-    async pickDeploymentStatusAction(opts: {
-        targetName?: string;
-        canVerify: boolean;
-    }): Promise<"switch" | "verify" | undefined> {
-        // Index 0 is always switch; index 1 (verify) only exists for a C7 target.
-        const actions: ("switch" | "verify")[] = opts.canVerify ? ["switch", "verify"] : ["switch"];
-        const labels = [
-            "Switch deployment target…",
-            ...(opts.canVerify ? [`Verify on ${opts.targetName}`] : []),
-        ];
-        const selected = await this.show({
-            placeholder: opts.targetName
-                ? `Deployment target "${opts.targetName}"`
-                : "No deployment target selected",
-            canPickMany: false,
-            items: labels.map((label) => ({ label })),
-        });
-        return selected === null ? undefined : actions[selected[0]];
-    }
-
-    async searchAndPickLocatedFile(
-        prompts: LocatePrompts,
-        search: () => Promise<LocateResult>,
-    ): Promise<{ outcome: LocateResult; chosen?: string }> {
-        // The host can't render a busy list, so it keeps its status-bar spinner:
-        // bracket the local search with the progress notifications, then open the
-        // native picker only for an ambiguous result.
-        const title = prompts.searchingPlaceholder;
-        this.rpc.notify(METHODS.notifierProgressStart, { title });
-        let outcome: LocateResult;
-        try {
-            outcome = await search();
-        } finally {
-            this.rpc.notify(METHODS.notifierProgressEnd, { title });
-        }
-
-        const located = classifyLocateResult(outcome);
-        if (located.kind !== "ambiguous") {
-            return { outcome, chosen: undefined };
-        }
-
-        // Sort by path so nearby files surface first. The bridge has no VS Code
-        // `asRelativePath`, so the absolute path is both the detail and sort key.
-        const sorted = [...located.paths].sort((a, b) => a.localeCompare(b));
-        const selected = await this.show({
-            placeholder: prompts.pickPlaceholder,
-            canPickMany: false,
-            items: sorted.map((path) => ({ label: posix.basename(path), description: path })),
-        });
-        return { outcome, chosen: selected === null ? undefined : sorted[selected[0]] };
     }
 }
 

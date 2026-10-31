@@ -1,6 +1,6 @@
 /**
  * Domain-level abstractions for Camunda engine interaction and the host
- * facilities only deployment uses (secrets, form state and its prompts).
+ * facilities only deployment uses (secrets and form state).
  *
  * Decouples business logic from transport and protocol details so that
  * services can be tested with simple in-memory stubs.
@@ -63,37 +63,6 @@ export interface EngineInspectionPort {
      * @throws {EngineInspectionFailedError} on any other non-2xx response.
      */
     fetchLatestDefinition(request: DefinitionLookup): Promise<EngineDeploymentSnapshot | undefined>;
-}
-
-/**
- * The feature-shaped deployment prompts. The core builds them in
- * `deploymentPrompts.ts` and asks through `PickerPort`, so this stays only until
- * the hosts drop it with the other feature-shaped prompts.
- */
-export interface DeploymentPickerPort {
-    /** @returns the chosen payload, or `null` on dismissal. */
-    pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null>;
-
-    /**
-     * Prompts for the active deployment target. `names` are the saved targets;
-     * the picker also offers an explicit "(none — use form values)" entry for
-     * ad-hoc mode.
-     *
-     * @returns the chosen target name, `""` for the ad-hoc entry, or `undefined`
-     *   on dismissal (a no-op, mirroring the engine-version cancel convention).
-     */
-    pickDeploymentTarget(names: string[]): Promise<string | undefined>;
-
-    /**
-     * The status-bar item's click menu: switch the active target, or (for a
-     * Camunda 7 target) verify the ledger against the engine.
-     *
-     * @returns the chosen action, or `undefined` on dismissal (a no-op).
-     */
-    pickDeploymentStatusAction(opts: {
-        targetName?: string;
-        canVerify: boolean;
-    }): Promise<"switch" | "verify" | undefined>;
 }
 
 /**

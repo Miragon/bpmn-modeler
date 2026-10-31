@@ -41,9 +41,10 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
   DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
 - Add host-independent logic to the core's feature-oriented domain/service
   layers. Reach host facilities through ports and editor handles. Cross-cutting
-  host ports live in the core's `kernel/domain/hostPorts.ts`; a port or prompt
-  one feature owns lives in that feature's `domain/ports.ts`. Wire concrete
-  adapters in the applications using constructor composition.
+  host ports live in the core's `kernel/domain/hostPorts.ts`; a port one
+  feature owns lives in that feature's `domain/ports.ts`, and the prompts it
+  asks are built in its `domain/`. Wire concrete adapters in the applications
+  using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.

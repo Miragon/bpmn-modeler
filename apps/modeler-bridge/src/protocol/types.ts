@@ -246,8 +246,8 @@ export interface PickerShowResult {
  * answer before deleting anything; requests only run core→host, which is the
  * direction needed here.
  *
- * `details` arrives already summarised by `summarizeAffectedItems`, so the
- * host renders it verbatim and never shortens it.
+ * `details` arrives as the core's `ConfirmRequest` holds it, already
+ * summarised, so the host renders it verbatim and never shortens it.
  */
 export interface ConfirmShowParams {
     title: string;
