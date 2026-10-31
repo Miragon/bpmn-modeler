@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     detectTemplateEngine,
     ELEMENT_TEMPLATE_SCHEMA_URL,
+    isElementTemplateFile,
     isElementTemplateText,
     templatesOfFile,
 } from "./elementTemplates";
@@ -120,5 +121,35 @@ describe("isElementTemplateText", () => {
     it("only scans the head so a large file stays cheap", () => {
         const late = `{"icon":"${"x".repeat(10_000)}","$schema":"${C8_SCHEMA}"}`;
         expect(isElementTemplateText(late)).toBe(false);
+    });
+});
+
+describe("isElementTemplateFile", () => {
+    const template = `{"$schema":"${C8_SCHEMA}"}`;
+
+    it.each([
+        ["a JSON file naming a template schema", "/work/status.json", template],
+        [
+            "any JSON file in an element-templates folder",
+            "/work/.camunda/element-templates/x.json",
+            "{}",
+        ],
+        ["a nested element-templates folder", "/work/element-templates/mail/mail.json", ""],
+        ["a Windows path", "C:\\work\\element-templates\\x.json", "{}"],
+    ])("accepts %s", (_, path, text) => {
+        expect(isElementTemplateFile(path, text)).toBe(true);
+    });
+
+    it.each([
+        ["a JSON file without a template schema", "/work/package.json", '{"name":"x"}'],
+        ["a non-JSON file naming a template schema", "/work/notes.md", template],
+        [
+            "a folder that only starts like element-templates",
+            "/work/element-templates-old/x.json",
+            "{}",
+        ],
+        ["a JSON file named like the folder", "/work/element-templates.json", "{}"],
+    ])("rejects %s", (_, path, text) => {
+        expect(isElementTemplateFile(path, text)).toBe(false);
     });
 });

@@ -16,6 +16,8 @@ const C7_SCHEMA_PACKAGE = "element-templates-json-schema";
 // large data-URI icons out of a per-keystroke check.
 const TEXT_HEAD_LENGTH = 4096;
 const SCHEMA_PROPERTY = /"\$schema"\s*:\s*"[^"]*element-templates-json-schema[^"]*"/;
+// The `<configFolder>/element-templates/` convention the template loader reads.
+const TEMPLATE_FOLDER = /[\\/]element-templates[\\/]/;
 
 /** A template file holds either a single template or an array of them. */
 export function templatesOfFile(parsedFile: unknown): ElementTemplate[] {
@@ -40,6 +42,11 @@ export function detectTemplateEngine(parsedFile: unknown): Engine | undefined {
 /** Whether raw JSON text declares an element-template `$schema` near its start. */
 export function isElementTemplateText(text: string): boolean {
     return SCHEMA_PROPERTY.test(text.slice(0, TEXT_HEAD_LENGTH));
+}
+
+/** A JSON file that names a template schema, or sits in an `element-templates` folder. */
+export function isElementTemplateFile(path: string, text: string): boolean {
+    return path.endsWith(".json") && (TEMPLATE_FOLDER.test(path) || isElementTemplateText(text));
 }
 
 function engineOfTemplate(template: Record<string, unknown>): Engine | undefined {
