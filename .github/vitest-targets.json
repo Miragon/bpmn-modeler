@@ -18,10 +18,12 @@
                 "@miragon/bpmn-modeler-core",
                 "@miragon/bpmn-modeler-shared",
                 "@miragon/bpmn-modeler-types",
-                "@miragon/bpmn-modeler-i18n-extras"
+                "@miragon/bpmn-modeler-i18n-extras",
+                "@miragon/architecture-testing"
             ],
             "paths": [
                 "apps/vscode-plugin/**",
+                "tools/architecture-testing/**",
                 "libs/modeler-core/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
@@ -106,14 +108,25 @@
         "form-webview": {
             "dir": "apps/form-webview",
             "package": "@miragon/form-modeler-webview",
-            "focus": ["bpmn-modeler", "@miragon/bpmn-modeler-shared"],
-            "paths": ["apps/form-webview/**", "libs/shared/**", "libs/modeler-types/**"],
+            "focus": [
+                "bpmn-modeler",
+                "@miragon/bpmn-modeler-shared"
+            ],
+            "paths": [
+                "apps/form-webview/**",
+                "libs/shared/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "typecheck"
         },
         "deployment-webview": {
             "dir": "apps/deployment-webview",
             "package": "@miragon/bpmn-modeler-deployment-webview",
-            "paths": ["apps/deployment-webview/**", "libs/shared/**", "libs/modeler-types/**"],
+            "paths": [
+                "apps/deployment-webview/**",
+                "libs/shared/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "typecheck"
         },
         "bpmn-modeler": {
@@ -175,98 +188,143 @@
         "architecture-testing": {
             "dir": "tools/architecture-testing",
             "package": "@miragon/architecture-testing",
-            "focus": ["bpmn-modeler"],
-            "paths": ["tools/architecture-testing/**"],
+            "focus": [
+                "bpmn-modeler"
+            ],
+            "paths": [
+                "tools/architecture-testing/**"
+            ],
             "typecheck": "typecheck"
         },
         "shared": {
             "dir": "libs/shared",
             "package": "@miragon/bpmn-modeler-shared",
-            "paths": ["libs/shared/**", "libs/modeler-types/**"],
+            "paths": [
+                "libs/shared/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "typecheck"
         },
         "modeler-types": {
             "dir": "libs/modeler-types",
             "package": "@miragon/bpmn-modeler-types",
-            "paths": ["libs/modeler-types/**"],
+            "paths": [
+                "libs/modeler-types/**"
+            ],
             "typecheck": "build"
         },
         "bpmn-diff": {
             "dir": "libs/bpmn-diff",
             "package": "@miragon/bpmn-modeler-diff",
-            "paths": ["libs/bpmn-diff/**", "yarn.lock"],
+            "paths": [
+                "libs/bpmn-diff/**",
+                "yarn.lock"
+            ],
             "typecheck": "build"
         },
         "bpmn-i18n-extras": {
             "dir": "libs/bpmn-i18n-extras",
             "package": "@miragon/bpmn-modeler-i18n-extras",
-            "paths": ["libs/bpmn-i18n-extras/**"],
+            "paths": [
+                "libs/bpmn-i18n-extras/**"
+            ],
             "typecheck": "build"
         },
         "bpmn-clipboard": {
             "dir": "libs/bpmn-clipboard",
             "package": "@miragon/bpmn-modeler-clipboard",
-            "paths": ["libs/bpmn-clipboard/**"],
+            "paths": [
+                "libs/bpmn-clipboard/**"
+            ],
             "typecheck": "build"
         },
         "bpmn-layout": {
             "dir": "libs/bpmn-layout",
             "package": "@miragon/bpmn-modeler-layout",
-            "paths": ["libs/bpmn-layout/**", "libs/modeler-types/**"],
+            "paths": [
+                "libs/bpmn-layout/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "build"
         },
         "append-menu": {
             "dir": "libs/append-menu",
             "package": "@miragon/bpmn-modeler-append-menu",
-            "paths": ["libs/append-menu/**", "libs/element-template-chooser/**"],
+            "paths": [
+                "libs/append-menu/**",
+                "libs/element-template-chooser/**"
+            ],
             "typecheck": "build"
         },
         "element-template-chooser": {
             "dir": "libs/element-template-chooser",
             "package": "@miragon/bpmn-modeler-element-template-chooser",
-            "paths": ["libs/element-template-chooser/**"],
+            "paths": [
+                "libs/element-template-chooser/**"
+            ],
             "typecheck": "build"
         },
         "code-link": {
             "dir": "libs/code-link",
             "package": "@miragon/bpmn-modeler-code-link",
-            "paths": ["libs/code-link/**", "libs/modeler-types/**"],
+            "paths": [
+                "libs/code-link/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "build"
         },
         "definition-search": {
             "dir": "libs/definition-search",
             "package": "@miragon/bpmn-modeler-definition-search",
-            "paths": ["libs/definition-search/**", "libs/modeler-types/**"],
+            "paths": [
+                "libs/definition-search/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "build"
         },
         "flow-navigation": {
             "dir": "libs/flow-navigation",
             "package": "@miragon/bpmn-modeler-flow-navigation",
-            "paths": ["libs/flow-navigation/**"],
+            "paths": [
+                "libs/flow-navigation/**"
+            ],
             "typecheck": "build"
         },
         "inline-scripting": {
             "dir": "libs/inline-scripting",
             "package": "@miragon/bpmn-modeler-inline-scripting",
-            "paths": ["libs/inline-scripting/**", "libs/modeler-types/**"],
+            "paths": [
+                "libs/inline-scripting/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "build"
         },
         "model-navigation": {
             "dir": "libs/model-navigation",
             "package": "@miragon/bpmn-model-navigation",
-            "paths": ["libs/model-navigation/**", "libs/modeler-types/**"],
+            "paths": [
+                "libs/model-navigation/**",
+                "libs/modeler-types/**"
+            ],
             "typecheck": "build"
         },
         "properties-panel": {
             "dir": "libs/properties-panel",
             "package": "@miragon/bpmn-modeler-properties-panel",
-            "paths": ["libs/properties-panel/**", "yarn.lock"],
+            "paths": [
+                "libs/properties-panel/**",
+                "yarn.lock"
+            ],
             "typecheck": "build"
         },
         "standalone-extension": {
             "dir": "libs/standalone-extension",
             "package": "@miragon/bpmn-modeler-standalone-extension",
-            "paths": ["libs/standalone-extension/**", "apps/standalone/package.json", "yarn.lock"],
+            "paths": [
+                "libs/standalone-extension/**",
+                "apps/standalone/package.json",
+                "yarn.lock"
+            ],
             "typecheck": "typecheck",
             "nativeBuildDeps": true
         }
