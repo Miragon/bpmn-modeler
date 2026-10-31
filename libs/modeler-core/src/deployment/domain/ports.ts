@@ -67,7 +67,11 @@ export interface EngineInspectionPort {
     fetchLatestDefinition(request: DefinitionLookup): Promise<EngineDeploymentSnapshot | undefined>;
 }
 
-/** Deployment's own quick picks, beside the cross-cutting `PickerPort`. */
+/**
+ * The feature-shaped deployment prompts. The core builds them in
+ * `deploymentPrompts.ts` and asks through `PickerPort`, so this stays only until
+ * the hosts drop it with the other feature-shaped prompts.
+ */
 export interface DeploymentPickerPort {
     /** @returns the chosen payload, or `null` on dismissal. */
     pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null>;
