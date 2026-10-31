@@ -78,7 +78,8 @@ flowchart TD
   diagrams edited since their last render: one you never edited keeps its text,
   even where the modeler would serialize it differently. A read-only file keeps
   its text, and its diagram re-renders from it. A tab closed while recovery
-  re-registers it is disposed in the new bridge too.
+  re-registers it is disposed in the new bridge too, and a file reopened
+  meanwhile keeps the new tab's session.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that

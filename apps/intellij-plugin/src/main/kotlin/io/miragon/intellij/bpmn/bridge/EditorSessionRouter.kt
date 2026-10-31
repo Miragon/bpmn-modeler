@@ -463,16 +463,28 @@ internal class EditorSessionRouter(
             if (sessions[entry.session.editorId] !== entry) return@forEach
             // Armed before the replay goes out, so its render cannot overtake the hold.
             flushesByEntry[entry]?.let(::holdUntilRendered)
-            sendRegister(entry)
-            // A tab closed while the frame was built may have sent its dispose ahead of the register.
-            if (sessions[entry.session.editorId] !== entry) {
-                sendDispose(entry)
-                return@forEach
-            }
+            if (!reregisterCurrentOwner(entry)) return@forEach
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
         focusSelectedEditor()
+    }
+
+    /**
+     * Returns whether [entry] still owns its editor id. A tab closed or reopened
+     * while a register frame was built sent its own frames ahead of it, and the
+     * bridge keeps whichever register comes last, so the owner's register or a
+     * dispose must follow.
+     */
+    private fun reregisterCurrentOwner(entry: SessionEntry): Boolean {
+        var registered = entry
+        while (true) {
+            sendRegister(registered)
+            val owner = sessions[registered.session.editorId]
+            if (owner === registered) return registered === entry
+            sendDispose(registered)
+            registered = owner ?: return false
+        }
     }
 
     // The bridge takes every register for the focused tab, so the session replayed last would keep the command target.

@@ -981,6 +981,34 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a reopened file closed again while recovery registers it ends up disposed in the bridge`() {
+        var whileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                whileRegisterFrameIsBuilt?.also { whileRegisterFrameIsBuilt = null }?.invoke()
+                readDocumentTextInReadAction(file)
+            }
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        whileRegisterFrameIsBuilt = {
+            f.router.disposeSession(page.session)
+            val reopened = CoreSession(page.session.editorId, page.session.file, page.session.project) {}
+            f.router.registerSession(reopened)
+            whileRegisterFrameIsBuilt = { f.router.disposeSession(reopened) }
+        }
+
+        f.router.reregisterLiveSessions()
+
+        val sessionFrames = f.wired.fake.framesUntilQuiet().map(::parse).sessionFramesFor(page.session.editorId)
+        val reopenedSessionId =
+            sessionFrames.first { (method, sessionId) -> method == "session/register" && sessionId != page.sessionId }.second
+        assertEquals(
+            "session/dispose" to reopenedSessionId,
+            sessionFrames.lastOrNull(),
+            "the new bridge must not keep a session for a closed tab: $sessionFrames",
+        )
+    }
+
+    @Test
     fun `a page closed before its replayed render gets no release`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
