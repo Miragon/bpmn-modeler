@@ -550,23 +550,16 @@ export class RpcTokenPrompt implements TokenPromptPort {
 }
 
 /**
- * The host stores the user's lint choice. A changed choice goes to the host,
- * which pushes it back in the settings snapshot; the bridge never flips its copy.
+ * The host stores the user's lint choice and pushes it back in the settings
+ * snapshot; the bridge never flips its copy.
  */
 export class RpcLintingPreference implements LintingPreferencePort {
-    constructor(
-        private readonly rpc: Rpc,
-        private readonly settings: BridgeSettings,
-    ) {}
+    constructor(private readonly rpc: Rpc) {}
 
-    async setLintingEnabled(enabled: boolean): Promise<boolean> {
-        if (enabled === this.settings.getLintingEnabled()) {
-            return false;
-        }
+    async setLintingEnabled(enabled: boolean): Promise<void> {
         await this.rpc.request(METHODS.settingsSetLintingEnabled, {
             enabled,
         } satisfies SettingsSetLintingEnabledParams);
-        return true;
     }
 }
 

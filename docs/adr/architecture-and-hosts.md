@@ -663,9 +663,10 @@ widget drive it. The bridge never changes its copy. It reports a changed
 choice to the host over `settings/setLintingEnabled`; the host stores it per
 user in `PropertiesComponent` (application level) and pushes the snapshot to
 every running bridge before it acks. The choice therefore holds across bridge
-respawns, IDE restarts and open projects, as VS Code's User setting does. A
-reported choice that equals the snapshot is not sent; the bridge pushes the
-lint state to the page again, so a page out of step catches up.
+respawns, IDE restarts and open projects, as VS Code's User setting does. The
+core compares the page's choice with the stored one on every host: an equal
+choice is not stored, and the core pushes the lint state to the page again
+instead, so a page out of step catches up.
 
 The deployment state is one `DeploymentState` snapshot in the core's
 [`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):

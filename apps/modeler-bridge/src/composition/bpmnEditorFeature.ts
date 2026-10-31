@@ -43,7 +43,7 @@ export function register(
         picker: deps.picker,
         artifacts: deps.artifactSvc,
     };
-    const lintingPreference = new RpcLintingPreference(deps.rpc, deps.settings);
+    const lintingPreference = new RpcLintingPreference(deps.rpc);
     const editor = new BpmnEditorFeature(
         {
             ...ports,

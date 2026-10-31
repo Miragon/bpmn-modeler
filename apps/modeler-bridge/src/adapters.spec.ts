@@ -458,42 +458,26 @@ describe("BridgeSettings", () => {
 });
 
 describe("RpcLintingPreference", () => {
-    it("reports a changed choice to the host and leaves the snapshot to the host's push", async () => {
+    it("asks the host to store the choice and settles on its ack", async () => {
         const { frames, rpc, answerLast } = harness();
-        const settings = new BridgeSettings();
-        const preference = new RpcLintingPreference(rpc, settings);
 
-        const changed = preference.setLintingEnabled(false);
+        const stored = new RpcLintingPreference(rpc).setLintingEnabled(false);
         expect(last(frames)).toMatchObject({
             method: "settings/setLintingEnabled",
             params: { enabled: false },
         });
-        expect(settings.getLintingEnabled()).toBe(true);
         await answerLast(null);
 
-        await expect(changed).resolves.toBe(true);
-    });
-
-    it("sends nothing for the choice the snapshot already holds", async () => {
-        const { frames, rpc } = harness();
-        const settings = new BridgeSettings();
-        settings.apply({ lintingEnabled: false });
-
-        await expect(
-            new RpcLintingPreference(rpc, settings).setLintingEnabled(false),
-        ).resolves.toBe(false);
-        expect(frames).toEqual([]);
+        await expect(stored).resolves.toBeUndefined();
     });
 
     it("rejects when the host fails to store the choice", async () => {
         const { frames, rpc } = harness();
-        const changed = new RpcLintingPreference(rpc, new BridgeSettings()).setLintingEnabled(
-            false,
-        );
+        const stored = new RpcLintingPreference(rpc).setLintingEnabled(false);
 
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "store failed" }));
 
-        await expect(changed).rejects.toThrow("store failed");
+        await expect(stored).rejects.toThrow("store failed");
     });
 });
 

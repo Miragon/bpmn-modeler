@@ -44,10 +44,12 @@ export interface DiagnosticsPort {
     clear(documentUri: string): void;
 }
 
-/** The user's linting on/off switch, on a host that keeps one. */
+/**
+ * Stores the user's linting on/off switch, on a host that keeps one. The host
+ * reports the stored choice back through `SettingsPort.getLintingEnabled`.
+ */
 export interface LintingPreferencePort {
-    /** @returns `false` when `enabled` already was the stored choice. */
-    setLintingEnabled(enabled: boolean): boolean | Promise<boolean>;
+    setLintingEnabled(enabled: boolean): void | Promise<void>;
 }
 
 /**
