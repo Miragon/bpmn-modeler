@@ -1,15 +1,20 @@
 import { extractModelDefinitions, type ModelDefinition } from "@miragon/bpmn-modeler-types";
 
 import type { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import {
     type SearchScope,
     searchScopeKey,
     searchScopeRoots,
 } from "../../kernel/domain/searchScope";
+import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
+import type { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { findFilesInScope, resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
 
 const BPMN_GLOB = "**/*.bpmn";
+
+const isBpmnFile = (path: string) => path.endsWith(".bpmn");
 
 export interface IndexedModel {
     readonly path: string;
@@ -93,20 +98,15 @@ export class WorkspaceDefinitionIndex {
             watchers: [],
             definitionsByPath: new Map(),
         };
-        const forgetFile = (path: string) => {
-            state.definitionsByPath.delete(path);
-        };
-        const forgetFileAndListing = (path: string) => {
-            forgetFile(path);
-            state.paths = undefined;
-        };
         for (const root of searchScopeRoots(scope)) {
+            const forget = (event: WatcherEventKind) => (path: string) =>
+                this.forgetChanged(state, event, path, root);
             try {
                 state.watchers.push(
-                    this.workspace.createWatcher(root, BPMN_GLOB, {
-                        onChange: forgetFile,
-                        onCreate: forgetFileAndListing,
-                        onDelete: forgetFileAndListing,
+                    this.workspace.createWatcher(root, EVERY_PATH_GLOB, {
+                        onChange: forget("change"),
+                        onCreate: forget("create"),
+                        onDelete: forget("delete"),
                     }),
                 );
             } catch (error) {
@@ -118,13 +118,44 @@ export class WorkspaceDefinitionIndex {
         return state;
     }
 
-    private listPaths(state: ScopeState): Promise<string[]> {
-        if (state.paths) {
-            return state.paths;
+    private forgetChanged(
+        state: ScopeState,
+        event: WatcherEventKind,
+        path: string,
+        root: string,
+    ): void {
+        if (watchedChangeOf(event, path, root, isBpmnFile) === "unrelated") {
+            return;
         }
-        const listing = findFilesInScope(this.workspace, state.scope, BPMN_GLOB, {
-            matchesWalkedFile: (path) => path.endsWith(".bpmn"),
-        });
+        for (const known of [...state.definitionsByPath.keys()]) {
+            if (isWithinRoot(known, path)) {
+                state.definitionsByPath.delete(known);
+            }
+        }
+        if (event === "create") {
+            state.paths = undefined;
+        } else if (event === "delete" && state.paths) {
+            this.holdListing(
+                state,
+                state.paths.then((paths) => paths.filter((listed) => !isWithinRoot(listed, path))),
+            );
+        }
+    }
+
+    private listPaths(state: ScopeState): Promise<string[]> {
+        return (
+            state.paths ??
+            this.holdListing(
+                state,
+                findFilesInScope(this.workspace, state.scope, BPMN_GLOB, {
+                    matchesWalkedFile: isBpmnFile,
+                }),
+            )
+        );
+    }
+
+    /** A failed listing is dropped, so the next search lists again. */
+    private holdListing(state: ScopeState, listing: Promise<string[]>): Promise<string[]> {
         state.paths = listing;
         listing.catch(() => {
             if (state.paths === listing) {

@@ -16,6 +16,8 @@ export interface WorkspaceContractFixture {
     openFolder(folder: string): void;
     /** Creates an empty directory, which the port itself cannot. */
     createDirectory(path: string): Promise<void>;
+    /** Moves a directory holding `files` in from outside the root, as another program would. */
+    moveDirectoryIn(path: string, files: Readonly<Record<string, string>>): Promise<void>;
     /** Removes a file the way another program would; the port has no file delete. */
     removeFile(path: string): Promise<void>;
     /** Resolves once the watchers created before the call report changes. */
@@ -38,7 +40,8 @@ const WATCHER_SCENARIO_TIMEOUT_MS = 15000;
  * adapter. The in-memory fake and the bridge's `NodeWorkspace` both run them,
  * so within these scenarios a spec that passes on the fake cannot rely on a
  * rule the bridge breaks. Where the hosts differ, VS Code is the reference.
- * Watcher events for folders are left out: the hosts do not agree on them yet.
+ * A directory created or deleted as a whole may arrive as one event for it or
+ * as one for each of its files; the fake reports the directory, as VS Code does.
  */
 export function describeWorkspaceContract(
     adapter: string,
@@ -76,6 +79,11 @@ export function describeWorkspaceContract(
         const pathsOf = (events: readonly WatcherEvent[]) => [
             ...new Set(events.map((event) => event.path)),
         ];
+        const reportsWholeDirectory =
+            (kind: WatcherEventKind, directory: string, files: readonly string[]) =>
+            (events: readonly WatcherEvent[]) =>
+                kindsFor(events, directory).includes(kind) ||
+                files.every((file) => kindsFor(events, file).includes(kind));
 
         // Delivery may be synchronous, as in the fake, or deferred, as in the hosts.
         const eventually = (assertion: () => void) =>
@@ -351,6 +359,46 @@ export function describeWorkspaceContract(
                         pathsOf(events),
                     );
                     expect(pathsOf(events)).toEqual([file]);
+                },
+                WATCHER_SCENARIO_TIMEOUT_MS,
+            );
+
+            it(
+                "reports a directory moved in by a create for it or for each of its files",
+                async () => {
+                    const { root } = fixture;
+                    const directory = `${root}/models`;
+                    const files = [`${directory}/order.bpmn`, `${directory}/sub/ship.bpmn`];
+                    const { events } = watch(root, "**/*");
+                    await fixture.watchersReady();
+
+                    await fixture.moveDirectoryIn(
+                        directory,
+                        Object.fromEntries(files.map((file) => [file, "<model/>"])),
+                    );
+
+                    await eventually(() =>
+                        expect(events).toSatisfy(reportsWholeDirectory("create", directory, files)),
+                    );
+                },
+                WATCHER_SCENARIO_TIMEOUT_MS,
+            );
+
+            it(
+                "reports a deleted directory by a delete for it or for each of its files",
+                async () => {
+                    const { workspace, root } = fixture;
+                    const directory = `${root}/models`;
+                    const files = [`${directory}/order.bpmn`, `${directory}/sub/ship.bpmn`];
+                    for (const file of files) await workspace.writeFile(file, "<model/>");
+                    const { events } = watch(root, "**/*");
+                    await fixture.watchersReady();
+
+                    await workspace.deleteDirectory(directory);
+
+                    await eventually(() =>
+                        expect(events).toSatisfy(reportsWholeDirectory("delete", directory, files)),
+                    );
                 },
                 WATCHER_SCENARIO_TIMEOUT_MS,
             );

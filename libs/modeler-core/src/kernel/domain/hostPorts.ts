@@ -208,6 +208,12 @@ export interface WorkspacePort {
      * {@link import("./watcherEvents").coalesceWatcherEvents}; VS Code drops a
      * file created and removed within one burst.
      *
+     * A folder created or deleted as a whole, moved in or out for example, may
+     * arrive as one event for the folder and none for its files, as on VS Code;
+     * the bridge may report the files one by one instead. A consumer of some
+     * files therefore watches every path, as
+     * {@link import("./watchedFiles").watchedChangeOf} reads its events.
+     *
      * Returns a handle that disposes the watcher and its listeners in one call.
      */
     createWatcher(
