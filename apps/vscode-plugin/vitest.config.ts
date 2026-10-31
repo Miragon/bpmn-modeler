@@ -11,9 +11,6 @@ export default defineConfig({
     test: {
         name: "vscode-plugin",
         environment: "node",
-        // archunit's vitest adapter extends `expect` on import; it needs the
-        // global `expect` to exist, so enable Vitest's globals for this project.
-        globals: true,
         include: ["src/**/*.{spec,test}.{ts,tsx}"],
         // `@miragon/bpmnlint-plugin-rules`' pre-built ESM has one extensionless deep
         // import (`bpmnlint/lib/resolver/static-resolver`) that strict native
