@@ -11,9 +11,10 @@
  * pins the method set, directions, and per-method key sets against the snapshot.
  *
  * Adding a method = add a {@link METHODS} entry + a {@link PROTOCOL} entry +
- * refresh `protocol.json`; the contract test fails until all three agree. A
- * Core→Host method also needs its Kotlin handler: the IntelliJ
- * `ProtocolHandlerCoverageTest` reads `protocol.json` and fails until one exists.
+ * refresh `protocol.json`; the contract test fails until all three agree. The
+ * IntelliJ `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host
+ * method needs its Kotlin handler, a Host→Core method a Kotlin sender, and both
+ * must use the param keys listed here.
  */
 
 import { Command, Query } from "@miragon/bpmn-modeler-shared";

@@ -5,7 +5,14 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /** The method and top-level param keys of one host→core frame a Kotlin sender wrote. */
-internal data class SentFrame(val method: String, val paramKeys: Set<String>)
+internal data class SentFrame(val method: String, val paramKeys: Set<String>) {
+    companion object {
+        fun of(line: String): SentFrame {
+            val frame = JsonParser.parseString(line).asJsonObject
+            return SentFrame(frame.get("method").asString, frame.getAsJsonObject("params").keySet().toSet())
+        }
+    }
+}
 
 /**
  * The bridge's committed protocol descriptor (`protocol.json`) and the checks
@@ -28,10 +35,32 @@ internal class ProtocolDescriptor private constructor(
      * Compares the frames the Kotlin senders wrote, keyed by the method each
      * sender must write, with the descriptor's host→core methods and keys.
      */
-    fun hostToCoreDrift(framesBySentMethod: Map<String, SentFrame>): List<String> = emptyList()
+    fun hostToCoreDrift(framesBySentMethod: Map<String, SentFrame>): List<String> {
+        val hostToCore = hostToCoreMethods()
+        val frameDrift =
+            framesBySentMethod.toSortedMap().mapNotNull { (method, frame) ->
+                when {
+                    method !in hostToCore -> "$method is not a host→core method of the descriptor"
+                    frame.method != method -> "the sender of $method sent ${frame.method}"
+                    frame.paramKeys != paramKeys(method) ->
+                        "$method sends ${frame.paramKeys.sorted()}, the descriptor lists ${paramKeys(method).sorted()}"
+                    else -> null
+                }
+            }
+        val unsent = (hostToCore - framesBySentMethod.keys).sorted().map { "no sender drives $it" }
+        return frameDrift + unsent
+    }
 
-    /** Lists the keys a core→host handler reads that the descriptor does not list for its method. */
-    fun coreToHostReadDrift(keysReadByMethod: Map<String, Set<String>>): List<String> = emptyList()
+    /** Lists the core→host handlers that read a key the descriptor does not list for their method. */
+    fun coreToHostReadDrift(keysReadByMethod: Map<String, Set<String>>): List<String> =
+        keysReadByMethod.toSortedMap().mapNotNull { (method, keysRead) ->
+            val listed = methods[method]?.paramKeys.orEmpty()
+            if (listed.containsAll(keysRead)) {
+                null
+            } else {
+                "$method reads ${keysRead.sorted()}, the descriptor lists ${listed.sorted()}"
+            }
+        }
 
     private fun methodsIn(direction: String): Set<String> =
         methods.filterValues { it.direction == direction }.keys

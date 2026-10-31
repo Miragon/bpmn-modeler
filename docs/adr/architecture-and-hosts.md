@@ -532,11 +532,15 @@ Update its committed snapshot when the private wire contract changes; the
 [contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
-reads that snapshot and registers the production `BridgeRouters`: each
-core→host method needs exactly one Kotlin handler, and a handler for a method
-the core no longer sends fails it. It compares method names, not parameter
-keys. The snapshot is an input of the Gradle test task and of the IntelliJ CI
-path filter, so a TypeScript-only protocol change runs the test.
+reads that snapshot and registers the production `BridgeRouters`: each core→host
+method needs exactly one Kotlin handler, and a handler for a method the core no
+longer sends fails it. It also compares parameter keys. Each host→core sender
+runs once, and its frame must carry the keys the snapshot lists. Each core→host
+handler reads its params before it acts, through `RpcParams`, so the test lets
+every handler read without acting and fails on a key the snapshot does not list.
+Reply keys are not compared. The snapshot is an input of the Gradle test task
+and of the IntelliJ CI path filter, so a TypeScript-only protocol change runs
+the test.
 
 ### Process lifecycle
 
