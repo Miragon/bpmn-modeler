@@ -31,7 +31,7 @@ import type {
 } from "./protocol/types";
 
 /** The `deploymentState/save` that records ledger rows, the last step of an accepted deploy. */
-function isLedgerRowSave(frame: { method: string; params: unknown }): boolean {
+function isLedgerRowSave(frame: { method?: string; params?: unknown }): boolean {
     return (
         frame.method === METHODS.deploymentStateSave &&
         (frame.params as DeploymentSaveParams).patch.ledger?.put !== undefined
@@ -595,7 +595,7 @@ describe("deployment commands over the bridge", () => {
                 }),
             );
             mockEngineLookup();
-            const frames: { method: string; params: any; id?: number }[] = [];
+            const frames: (StatusSlotFrame & { id?: number })[] = [];
             const { rpc } = createBridge((line) => {
                 const frame: (typeof frames)[number] = JSON.parse(line);
                 frames.push(frame);
