@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 import { coveragePreset, workspaceAliases } from "../../vitest.shared";
 
-// Kept apart so the PR coverage action, which regex-reads the first unquoted
+// Kept apart so the coverage report action, which regex-reads the first unquoted
 // `statements:` in this file, reports the global gate rather than a glob tier.
 const overallThresholds = { statements: 88, branches: 82, functions: 83, lines: 89 };
 

@@ -149,8 +149,10 @@ Each Vitest workspace owns its coverage target as literal `coverage.thresholds`
 in its `vitest.config.ts`, set about three points below the measured baseline.
 Its `test` script runs `vitest run --coverage`, so its CI leg fails below the
 target and the required `ci` check enforces it without a separate coverage job.
-The PR coverage comment reads the same numbers; it parses the thresholds from
-the config text, which is why they are not computed in the shared preset.
+The coverage report in each leg's job summary reads the same numbers; it parses
+the thresholds from the config text, which is why they are not computed in the
+shared preset. It posts no PR comment: one comment per leg buried the
+conversation, and the comment never gated anything.
 `coveragePreset` in `vitest.shared.ts` measures all `src/**/*.{ts,tsx}` files
 rather than only those a test imports, otherwise a new untested module does not
 lower the percentage. Workspaces exclude only code with no testable logic and
@@ -227,7 +229,7 @@ both packages trigger on it. The [build workflow](../../.github/workflows/build.
 turns each entry into an `<id>` path filter, plus the shared `global` paths
 (registry, workflow, preset, root manifest), and an `<id>-src` filter of its
 own code files. One `test` matrix job runs every affected target: tests with
-coverage, its typecheck script, the PR comment and the Codecov upload. Vitest
+coverage, its typecheck script and the job-summary coverage report. Vitest
 strips types without checking them, so the typecheck is the only gate on spec
 types: it covers the app or library sources and the specs, through the
 workspace's `tsconfig.spec.json` where one exists. Configs that reach another
@@ -246,11 +248,11 @@ typecheck: the target names no `typecheck`, the script skips an existing
 the registry, each workspace needed a hand-written job, filter and `ci.needs`
 entry, and twelve workspaces' specs never ran in CI.
 
-Only `<id>-src` matches upload coverage, so the release-please PR (changelogs,
-manifests) gets none. Codecov statuses stay advisory, and
-[`codecov.yml`](../../.github/codecov.yml) carries every flag forward because
-path-filtered legs upload only what a commit touched. A manual
-`workflow_dispatch` run executes all targets to refresh those flags.
+Only a leg whose `<id>-src` filter matches reports coverage, so the
+release-please PR (changelogs, manifests) gets none. A manual
+`workflow_dispatch` run executes all targets. CI uploads nothing to Codecov:
+from March 2026 it processed none of the uploads, and nobody noticed, because
+the thresholds are the gate and nothing read its numbers.
 
 ### Architecture tests
 

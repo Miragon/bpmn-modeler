@@ -157,7 +157,7 @@ cd apps/intellij-plugin && ./gradlew check
 
 `check` runs the JUnit suite and fails below the JaCoCo floor in
 `build.gradle.kts`. The tests need no built artefacts; the report lands in
-`build/reports/jacoco/test/jacocoTestReport.xml`. After adding tests, raise the
+`build/reports/jacoco/test/html/index.html`. After adding tests, raise the
 floor to about three points below the new numbers.
 
 ### Verifying the dark-mode Token Simulation fix
