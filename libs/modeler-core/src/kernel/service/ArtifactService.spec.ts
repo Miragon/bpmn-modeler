@@ -235,6 +235,15 @@ describe("ArtifactService.getWorkspaceRoot", () => {
         );
     });
 
+    // IntelliJ spells a Windows document `file://C:/…`, with no authority.
+    it("finds a git repository at the drive root of IntelliJ's Windows spelling", async () => {
+        const service = createServiceOutsideWorkspaceFolders({ "file://C:/.git": "directory" });
+
+        await expect(service.getWorkspaceRoot("file://C:/repo/processes")).resolves.toBe(
+            "file://C:",
+        );
+    });
+
     it("keeps URI-form document directories in URI form", async () => {
         const service = createServiceOutsideWorkspaceFolders({ "file:///repo/.git": "directory" });
 

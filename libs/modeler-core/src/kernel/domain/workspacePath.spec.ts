@@ -241,6 +241,16 @@ describe("parentWorkspacePath", () => {
             path: "file:///",
             parent: undefined,
         },
+        {
+            behaviour: "climbs to the drive root of IntelliJ's file://C:/ spelling",
+            path: "file://C:/repo",
+            parent: "file://C:",
+        },
+        {
+            behaviour: "has no parent above the drive root of IntelliJ's file://C:/ spelling",
+            path: "file://C:",
+            parent: undefined,
+        },
     ])("$behaviour", ({ path, parent }) => {
         expect(parentWorkspacePath(path)).toBe(parent);
     });
