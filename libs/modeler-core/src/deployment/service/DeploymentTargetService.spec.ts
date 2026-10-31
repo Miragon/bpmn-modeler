@@ -4,7 +4,7 @@ import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modele
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
-import { createTestHost, PickerAnswers, TestHostOptions } from "../../testing";
+import { createTestHost, PromptAnswers, TestHostOptions } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
 import {
@@ -15,6 +15,7 @@ import {
     UnknownTarget,
 } from "../domain/deploymentDestination";
 import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
+import { deleteTargetConfirmation, deploymentTargetPrompt } from "../domain/deploymentPrompts";
 import {
     serializeDeploymentTargets,
     DeploymentTarget,
@@ -81,7 +82,7 @@ function createService(options: TestHostOptions = {}) {
     const host = createTestHost({
         folders: [WORKSPACE_ROOT],
         settings: { configFolder: CONFIG_FOLDER },
-        answers: { confirmDestructive: true },
+        promptAnswers: { deleteTarget: true },
         ...options,
     });
     const artifactService = {
@@ -812,6 +813,9 @@ describe("DeploymentTargetService.deleteTarget", () => {
 
         await c.service.deleteTarget("dev", DOC_DIR);
 
+        expect(c.host.picker.prompts).toEqual([
+            { method: "confirm", args: [deleteTargetConfirmation("dev")] },
+        ]);
         const written = c.host.workspace.files.get(FILE_PATH);
         expect(written).not.toContain('"dev"');
         await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
@@ -833,7 +837,7 @@ describe("DeploymentTargetService.deleteTarget", () => {
 
     it("is a no-op when the user cancels the confirm", async () => {
         const existing = fileWith(target("dev"));
-        const c = createService({ files: { [FILE_PATH]: existing }, answers: {} });
+        const c = createService({ files: { [FILE_PATH]: existing }, promptAnswers: {} });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
 
         expect(await c.service.deleteTarget("dev", DOC_DIR)).toBeUndefined();
@@ -900,19 +904,38 @@ describe("DeploymentTargetService.switchActiveTarget", () => {
 
         await c.service.switchActiveTarget(DOC_DIR);
 
+        expect(c.host.picker.prompts).toEqual([
+            { method: "choose", args: [deploymentTargetPrompt([])] },
+        ]);
         expect(c.host.deploymentState.load().activeTargetName).toBe("prod");
     });
 
     it("persists the picked target", async () => {
         const c = createService({
-            files: { [FILE_PATH]: fileWith(target("dev")) },
-            answers: { deploymentTarget: "dev" },
+            files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
+            promptAnswers: { deploymentTarget: "dev" },
         });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
 
         await c.service.switchActiveTarget(DOC_DIR);
 
+        expect(c.host.picker.prompts).toEqual([
+            { method: "choose", args: [deploymentTargetPrompt(["dev", "prod"])] },
+        ]);
         expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
+    });
+
+    it("switches to the form values when the user picks them", async () => {
+        const c = createService({
+            files: { [FILE_PATH]: fileWith(target("dev")) },
+            promptAnswers: { deploymentTarget: "" },
+        });
+        c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
+        c.host.deploymentState.seed({ activeTargetName: "dev" });
+
+        await c.service.switchActiveTarget(DOC_DIR);
+
+        expect(c.host.deploymentState.load().activeTargetName).toBe("");
     });
 });
 
@@ -920,13 +943,13 @@ describe("DeploymentTargetService.onDidChange", () => {
     const noAuth: AuthConfigPayload = { authType: "none" };
     const payloadOf = (name: string) => toTargetPayload(target(name));
 
-    const DEFAULT_ANSWERS: PickerAnswers = { confirmDestructive: true, deploymentTarget: "prod" };
+    const DEFAULT_ANSWERS: PromptAnswers = { deleteTarget: true, deploymentTarget: "prod" };
 
     /** `dev`, the active target, and `prod`; deletes are confirmed and the picker picks `prod`. */
-    function listeningService(answers: PickerAnswers = DEFAULT_ANSWERS) {
+    function listeningService(promptAnswers: PromptAnswers = DEFAULT_ANSWERS) {
         const c = createService({
             files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
-            answers,
+            promptAnswers,
         });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
         c.host.deploymentState.seed({ activeTargetName: "dev" });
@@ -989,7 +1012,7 @@ describe("DeploymentTargetService.onDidChange", () => {
 
     it.each<{
         mutation: string;
-        answers?: PickerAnswers;
+        promptAnswers?: PromptAnswers;
         attempt: (service: DeploymentTargetService) => Promise<unknown>;
     }>([
         {
@@ -1002,16 +1025,16 @@ describe("DeploymentTargetService.onDidChange", () => {
         },
         {
             mutation: "a cancelled delete",
-            answers: { confirmDestructive: false },
+            promptAnswers: { deleteTarget: false },
             attempt: (service) => service.deleteTarget("dev", DOC_DIR),
         },
         {
             mutation: "a dismissed picker",
-            answers: {},
+            promptAnswers: {},
             attempt: (service) => service.switchActiveTarget(DOC_DIR),
         },
-    ])("never notifies for $mutation", async ({ answers, attempt }) => {
-        const c = listeningService(answers);
+    ])("never notifies for $mutation", async ({ promptAnswers, attempt }) => {
+        const c = listeningService(promptAnswers);
 
         await attempt(c.service).catch(() => undefined);
 

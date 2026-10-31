@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
@@ -14,6 +14,7 @@ export class DeployFilesService {
     constructor(
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentService: DeploymentService,
+        private readonly workspace: WorkspacePort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}

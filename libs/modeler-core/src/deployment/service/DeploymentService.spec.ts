@@ -12,6 +12,7 @@ import {
 } from "../domain/deployment";
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { contentFingerprint } from "../domain/deploymentLedger";
+import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { CamundaEnginePort } from "../domain/ports";
@@ -58,7 +59,7 @@ interface ServiceOptions extends TestHostOptions {
 /**
  * The env resolver and credential approval are real, so a test can assert what
  * the REST client vs. the secret store see and whether `.env` was read at all.
- * Every credential prompt is confirmed unless `answers` declines it.
+ * Every credential prompt is confirmed unless `promptAnswers` declines it.
  */
 function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: ServiceOptions = {}) {
     const dotEnvContents = Object.entries(dotEnvFiles).flatMap(([dir, dotEnv]) =>
@@ -77,7 +78,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         ...hostOptions,
         folders: hostOptions.folders ?? [...new Set(["/work", ...Object.keys(dotEnvFiles)])],
         files: { ...Object.fromEntries(dotEnvContents), ...hostOptions.files },
-        answers: { confirmDestructive: true, ...hostOptions.answers },
+        promptAnswers: { credentialApproval: true, ...hostOptions.promptAnswers },
     });
     const readWorkspaceFile = host.workspace.readFile.bind(host.workspace);
     const readFile = vi.spyOn(host.workspace, "readFile").mockImplementation(async (filePath) => {
@@ -229,9 +230,10 @@ function refuseQuotingRequest() {
 /** The prompt asking to send `connection`'s credentials and `.env` values to `origins`. */
 function approvalPrompt(origins: string, connection: string): Prompt {
     return {
-        method: "confirmDestructive",
+        method: "confirm",
         args: [
             expect.objectContaining({
+                id: "credentialApproval",
                 title: `Send credentials and .env values to ${origins}?`,
                 details: expect.arrayContaining([`They belong to ${connection}.`]),
             }),
@@ -357,23 +359,44 @@ describe("DeploymentService.getStoredCredentials", () => {
 });
 
 describe("DeploymentService.selectAdditionalFiles", () => {
-    it("forwards the deployment-resource glob to the picker", async () => {
-        const { service, host } = createService({ answers: { workspaceFiles: ["/work/a.form"] } });
+    const RESOURCES = {
+        "/work/forms/order.form": "{}",
+        "/work/payloads/vars.json": "{}",
+        "/work/decisions/discount.dmn": "<definitions/>",
+    };
+
+    it("offers the workspace's forms, JSON files and decisions and returns the chosen ones", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/order.bpmn": "<definitions/>",
+                "/work/element-templates/task.json": "[]",
+            },
+            promptAnswers: {
+                additionalFiles: ["/work/forms/order.form", "/work/decisions/discount.dmn"],
+            },
+        });
 
         const result = await service.selectAdditionalFiles();
 
-        expect(result).toEqual(["/work/a.form"]);
+        expect(result).toEqual(["/work/forms/order.form", "/work/decisions/discount.dmn"]);
+        expect(host.picker.prompts).toEqual([
+            { method: "chooseMany", args: [additionalFilesPrompt(Object.keys(RESOURCES))] },
+        ]);
+    });
+
+    it("offers at most 20 files and returns none when the user dismisses the list", async () => {
+        const forms = Object.fromEntries(
+            Array.from({ length: 21 }, (_, index) => [`/work/forms/form-${index}.form`, "{}"]),
+        );
+        const { service, host } = createService({ files: forms });
+
+        await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
+
         expect(host.picker.prompts).toEqual([
             {
-                method: "pickWorkspaceFiles",
-                args: [
-                    {
-                        glob: "**/*.{form,json,dmn}",
-                        exclude: "**/element-templates/**",
-                        placeholder: expect.any(String),
-                        limit: 20,
-                    },
-                ],
+                method: "chooseMany",
+                args: [additionalFilesPrompt(Object.keys(forms).slice(0, 20))],
             },
         ]);
     });
@@ -1067,7 +1090,7 @@ describe("DeploymentService.deploy credential approval", () => {
     it("deploys, persists and records nothing when the user declines the destination", async () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: MAIN_FILE,
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
@@ -1146,7 +1169,7 @@ describe("DeploymentService.deploy credential approval", () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: MAIN_FILE,
             dotEnvFiles: { "/work": { MIRAGON_URL: "https://from-env.example/engine-rest" } },
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
@@ -1582,7 +1605,7 @@ describe("DeploymentService.deployFiles", () => {
     it("fails every file without a single deploy when the user declines the destination", async () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: xmlFiles("/work/a.bpmn", "/work/b.bpmn"),
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 

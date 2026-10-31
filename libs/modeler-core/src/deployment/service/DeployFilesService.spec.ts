@@ -1,13 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost, PickerAnswers } from "../../testing";
+import { createTestHost, PromptAnswers } from "../../testing";
 import { BasicAuth } from "../domain/deployment";
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
+import { deployableFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployFilesService } from "./DeployFilesService";
 
 const DOCUMENT_DIR = "/work/processes";
 const PICKED_FILES = ["/work/processes/order.bpmn", "/work/decisions/discount.dmn"];
+/** The workspace's BPMN and DMN files outside its dependencies, in the order found. */
+const DEPLOYABLE_FILES = [
+    "/work/processes/order.bpmn",
+    "/work/processes/invoice.bpmn",
+    "/work/decisions/discount.dmn",
+];
+const WORKSPACE_FILES = {
+    "/work/processes/order.bpmn": "<definitions/>",
+    "/work/processes/invoice.bpmn": "<definitions/>",
+    "/work/forms/order.form": "{}",
+    "/work/node_modules/library/process.bpmn": "<definitions/>",
+    "/work/decisions/discount.dmn": "<definitions/>",
+};
 
 const devTarget = new DeploymentTarget(
     "dev",
@@ -26,8 +40,8 @@ const devDestination = new NamedDestination(devTarget, {
 /** No target is active. */
 const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
 
-function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }) {
-    const host = createTestHost({ answers });
+function createService(promptAnswers: PromptAnswers = { deployableFiles: PICKED_FILES }) {
+    const host = createTestHost({ folders: ["/work"], files: WORKSPACE_FILES, promptAnswers });
     const calls: string[] = [];
     const credentials = new BasicAuth("demo", "demo");
     const deploymentTargetService = {
@@ -41,15 +55,16 @@ function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }
             return [];
         }),
     };
-    const pickWorkspaceFiles = host.picker.pickWorkspaceFiles.bind(host.picker);
-    vi.spyOn(host.picker, "pickWorkspaceFiles").mockImplementation((options) => {
+    const chooseMany = host.picker.chooseMany.bind(host.picker);
+    vi.spyOn(host.picker, "chooseMany").mockImplementation((prompt) => {
         calls.push("pickFiles");
-        return pickWorkspaceFiles(options);
+        return chooseMany(prompt);
     });
 
     const service = new DeployFilesService(
         deploymentTargetService as never,
         deploymentService as never,
+        host.workspace,
         host.picker,
         host.notifier,
     );
@@ -72,16 +87,7 @@ describe("DeployFilesService.deployFiles", () => {
 
         expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith(DOCUMENT_DIR);
         expect(c.host.picker.prompts).toEqual([
-            {
-                method: "pickWorkspaceFiles",
-                args: [
-                    {
-                        glob: "**/*.{bpmn,dmn}",
-                        exclude: "**/node_modules/**",
-                        placeholder: 'Select files to deploy to "dev"',
-                    },
-                ],
-            },
+            { method: "chooseMany", args: [deployableFilesPrompt("dev", DEPLOYABLE_FILES)] },
         ]);
         expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(devDestination);
         expect(c.host.notifier.progressTitles).toEqual(['Deploying 2 file(s) to "dev"']);

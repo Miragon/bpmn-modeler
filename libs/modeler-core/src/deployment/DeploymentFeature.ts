@@ -150,6 +150,7 @@ export class DeploymentFeature {
         this.deployFilesService = new DeployFilesService(
             this.targets,
             deployment,
+            ports.workspace,
             ports.picker,
             ports.notifier,
         );
