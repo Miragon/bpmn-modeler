@@ -17,15 +17,20 @@ export function toWorkspacePath(path: string): string {
 
 /**
  * The directory holding `path`, or `undefined` at a root: the filesystem root
- * or the `//server/share` root of a UNC path. Above a share, `//server` names
- * no folder and `/` names the current drive on Windows.
+ * or the share root of a UNC path, spelled `//server/share`,
+ * `file:////server/share` or `file://server/share`. Above a share, the server
+ * names no folder and `/` names the current drive on Windows.
  */
 export function parentWorkspacePath(path: string): string | undefined {
-    if (UNC_SHARE_ROOT.test(withoutFileScheme(path))) {
+    const scheme = path.startsWith(FILE_SCHEME) ? FILE_SCHEME : "";
+    const schemeless = path.slice(scheme.length);
+    // A URI's path starts with `/`; anything before it is the server.
+    const uncPath = scheme && !schemeless.startsWith("/") ? `//${schemeless}` : schemeless;
+    if (UNC_SHARE_ROOT.test(uncPath)) {
         return undefined;
     }
-    const parent = posix.dirname(path);
-    return parent === path ? undefined : parent;
+    const parent = posix.dirname(schemeless);
+    return parent === schemeless ? undefined : scheme + parent;
 }
 
 /** The path a `file://` URI names, for the hosts that accept both spellings. */
