@@ -9,13 +9,13 @@ const APPROVED_DESTINATIONS = "approvedDestinations";
 
 /**
  * One auth type's credential pair, stored as one JSON entry so a write replaces
- * both halves or neither. Earlier releases kept each half under a `legacyKeys`
- * entry of its own.
+ * both halves or neither. Earlier releases kept each half under one of the
+ * `perHalfKeys`.
  */
 interface CredentialPairLayout<Field extends string> {
     readonly key: string;
     readonly fields: readonly [Field, Field];
-    readonly legacyKeys: readonly [string, string];
+    readonly perHalfKeys: readonly [string, string];
 }
 
 type CredentialPair<Field extends string> = Record<Field, string>;
@@ -23,13 +23,13 @@ type CredentialPair<Field extends string> = Record<Field, string>;
 const BASIC_AUTH: CredentialPairLayout<"username" | "password"> = {
     key: "basicAuth",
     fields: ["username", "password"],
-    legacyKeys: ["basicUsername", "basicPassword"],
+    perHalfKeys: ["basicUsername", "basicPassword"],
 };
 
 const OAUTH2: CredentialPairLayout<"clientId" | "clientSecret"> = {
     key: "oauth2",
     fields: ["clientId", "clientSecret"],
-    legacyKeys: ["oauth2ClientId", "oauth2ClientSecret"],
+    perHalfKeys: ["oauth2ClientId", "oauth2ClientSecret"],
 };
 
 /**
@@ -79,10 +79,10 @@ export class VsCodeSecretStore implements SecretStorePort {
     }
 
     /**
-     * The legacy halves go only once the pair is stored, so a failed write leaves
+     * The per-half keys go only once the pair is stored, so a failed write leaves
      * the old pair readable. Once it is stored the save has succeeded: the entry
-     * shadows any half left behind, and the next save or the slot's delete
-     * removes it.
+     * shadows any per-half key left behind, and the next save or the slot's
+     * delete removes it.
      */
     private async savePair<Field extends string>(
         layout: CredentialPairLayout<Field>,
@@ -91,11 +91,11 @@ export class VsCodeSecretStore implements SecretStorePort {
     ): Promise<void> {
         await this.secrets.store(this.key(layout.key, slot), JSON.stringify(pair));
         await this.deleteEach(
-            layout.legacyKeys.map((legacyKey) => this.key(legacyKey, slot)),
+            layout.perHalfKeys.map((perHalfKey) => this.key(perHalfKey, slot)),
         ).catch(() => undefined);
     }
 
-    /** The legacy halves count only while no pair entry exists; a corrupt entry reads as none. */
+    /** The per-half keys count only while no pair entry exists; a corrupt entry reads as none. */
     private async getPair<Field extends string>(
         layout: CredentialPairLayout<Field>,
         slot: string | undefined,
@@ -104,7 +104,7 @@ export class VsCodeSecretStore implements SecretStorePort {
         if (stored !== undefined) {
             return parsePair(stored, layout.fields);
         }
-        const [firstKey, secondKey] = layout.legacyKeys;
+        const [firstKey, secondKey] = layout.perHalfKeys;
         return pairOf(layout.fields, [
             await this.secrets.get(this.key(firstKey, slot)),
             await this.secrets.get(this.key(secondKey, slot)),
@@ -115,7 +115,7 @@ export class VsCodeSecretStore implements SecretStorePort {
         layout: CredentialPairLayout<Field>,
         slot: string,
     ): string[] {
-        return [layout.key, ...layout.legacyKeys].map((field) => this.key(field, slot));
+        return [layout.key, ...layout.perHalfKeys].map((field) => this.key(field, slot));
     }
 
     /** Tries every key before reporting the first failure, so one failure leaves no other key behind. */
