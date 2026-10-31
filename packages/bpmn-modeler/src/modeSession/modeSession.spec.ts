@@ -15,7 +15,10 @@ import type {
  * makes `exportDiagram` reject so the export-failure path can be exercised.
  * Each surface exports `<xml id="<id>"/>`, so a `load` log entry names whose
  * export the surface received. `pendingInput` gives it a properties panel that
- * holds that value until `flushPendingInput` adds it to the export.
+ * holds that value until `flushPendingInput` adds it to the export;
+ * `pendingIdInput` holds a new ID for the selected `Task_1` the same way, so the
+ * captured selection names whichever ID was applied. `flushShouldThrow` makes
+ * that flush throw.
  */
 function makeSurface(opts: {
     id: string;
@@ -26,20 +29,31 @@ function makeSurface(opts: {
     loadShouldThrow?: boolean;
     applyShouldThrow?: boolean;
     pendingInput?: string;
+    pendingIdInput?: string;
+    flushShouldThrow?: boolean;
     log: string[];
 }): BpmnModelerHandle {
     let mode = opts.initialMode ?? "implement";
     let pendingInput = opts.pendingInput;
+    let pendingIdInput = opts.pendingIdInput;
     let appliedInput = "";
+    let selectedElementId = "Task_1";
     const panel =
-        opts.pendingInput === undefined
+        opts.pendingInput === undefined && opts.pendingIdInput === undefined
             ? {}
             : {
-                  hasPendingInput: () => pendingInput !== undefined,
+                  hasPendingInput: () => pendingInput !== undefined || pendingIdInput !== undefined,
                   flushPendingInput: () => {
+                      if (opts.flushShouldThrow) {
+                          throw new Error("flush boom");
+                      }
                       if (pendingInput !== undefined) {
                           appliedInput = ` name="${pendingInput}"`;
                           pendingInput = undefined;
+                      }
+                      if (pendingIdInput !== undefined) {
+                          selectedElementId = pendingIdInput;
+                          pendingIdInput = undefined;
                       }
                   },
               };
@@ -50,7 +64,10 @@ function makeSurface(opts: {
             if (opts.captureShouldThrow) {
                 throw new Error("capture boom");
             }
-            return { viewport: { x: 0, y: 0, width: 1, height: 1 } };
+            return {
+                viewport: { x: 0, y: 0, width: 1, height: 1 },
+                selectedElementIds: [selectedElementId],
+            };
         }),
         exportDiagram: vi.fn(async () => {
             if (opts.exportShouldThrow) {
@@ -251,6 +268,32 @@ describe("createModeSession — transitions", () => {
         });
         await session.requestMode("view");
         expect(log).toEqual(["modeler:destroy", 'view:load <xml id="modeler" name="Typed name"/>']);
+    });
+
+    it("restores the selection under the ID the panel's pending input gave it", async () => {
+        const session = await createModeSession({
+            container: container(),
+            engine,
+            surfaces: {
+                view: async () => makeSurface({ id: "view", hasSetMode: false, log }),
+                implement: async (ctx: ModelerSurfaceContext) =>
+                    makeSurface({
+                        id: "modeler",
+                        hasSetMode: true,
+                        initialMode: ctx.mode,
+                        pendingIdInput: "Task_renamed",
+                        log,
+                    }),
+            },
+            initialMode: "implement",
+        });
+        await session.requestMode("view");
+        const view = session.getHandle() as unknown as {
+            applyViewState: ReturnType<typeof vi.fn>;
+        };
+        expect(view.applyViewState).toHaveBeenCalledWith(
+            expect.objectContaining({ selectedElementIds: ["Task_renamed"] }),
+        );
     });
 
     it("runs beforeDestroy before the destroy on a recreate", async () => {
@@ -574,6 +617,41 @@ describe("createModeSession — fault injection", () => {
         // beforeDestroy no longer throws: the next request completes.
         await session.requestMode("view");
         expect(session.getMode()).toBe("view");
+    });
+
+    it("keeps the original alive with no switch when applying the panel's input throws", async () => {
+        const log: string[] = [];
+        const onError = vi.fn();
+        const onModeChanged = vi.fn();
+        const beforeDestroy = vi.fn();
+        const session = await createModeSession({
+            container: container(),
+            engine,
+            surfaces: {
+                view: async () => makeSurface({ id: "view", hasSetMode: false, log }),
+                implement: async (ctx: ModelerSurfaceContext) =>
+                    makeSurface({
+                        id: "modeler",
+                        hasSetMode: true,
+                        initialMode: ctx.mode,
+                        pendingInput: "Typed name",
+                        flushShouldThrow: true,
+                        log,
+                    }),
+            },
+            initialMode: "implement",
+            beforeDestroy,
+            onError,
+            onModeChanged,
+        });
+
+        await session.requestMode("view");
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(new Error("flush boom"));
+        expect(session.getMode()).toBe("implement");
+        expect(log).toEqual([]);
+        expect(beforeDestroy).not.toHaveBeenCalled();
+        expect(onModeChanged).not.toHaveBeenCalled();
     });
 
     it("destroys the candidate and falls back when loadDiagram throws (leak regression)", async () => {
