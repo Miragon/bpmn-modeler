@@ -92,6 +92,8 @@ const result = await window.showQuickPick(items, {
 
 If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine, migration or deployment choice writes nothing and shows no message, while declining to send credentials to a new host reports that nothing was sent. Use quick picks for selection from a list. Don't abuse notification buttons for this.
 
+The one input box a core service asks for is the marketplace's personal access token. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/infrastructure/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
+
 ## Output Channel
 
 `VsCodeNotifier` wraps a `LogOutputChannel` directly (there is no separate logger class):

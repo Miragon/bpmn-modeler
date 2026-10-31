@@ -43,8 +43,10 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
   layers. Reach host facilities through ports and editor handles. Cross-cutting
   host ports live in the core's `kernel/domain/hostPorts.ts`; a port one
   feature owns lives in that feature's `domain/ports.ts`, and the prompts it
-  asks are built in its `domain/`. Wire concrete adapters in the applications
-  using constructor composition.
+  asks are built in its `domain/`, the marketplace's masked token prompt
+  (`tokenPrompt.ts`) included. A host only renders a prompt and returns the
+  answer; the core reads it, and takes a blank token for no token. Wire
+  concrete adapters in the applications using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.

@@ -349,8 +349,25 @@ the status-bar menu, the files to deploy, the additional files, and the
 confirmations to delete a target and to approve a credential host) come from
 the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
-`chooseMany`. No adapter builds prompt text, so a new prompt needs a builder and
-an id, and no new port method, RPC or Kotlin handler.
+`chooseMany`.
+
+One prompt stays outside `PickerPort`: the template marketplace asks for a
+personal access token in a masked input, which a chooser cannot show. Its port
+follows the same split. `TokenPromptPort.promptForToken` takes a `TokenPrompt`
+the core builds in full (`template-marketplace/domain/tokenPrompt.ts`): the
+title `Personal Access Token for <host>`, the reason the session asks as its
+prompt, `password: true`, and the host, which the test kit's
+`ScriptedTokenPrompt` answers by and no host shows. VS Code renders it in an
+input box that stays open while the user leaves to create the token. The
+bridge sends the title and the prompt over `tokenPrompt/show`, and IntelliJ
+shows them in its password dialog. Both hosts return the answer as typed, and
+the core (`enteredToken`) takes a blank answer for no token, so a blank token
+is never stored and no host trims.
+
+No adapter builds prompt text. A new choice or confirmation needs a builder and
+an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
+as the masked one, needs its own port method, RPC and Kotlin handler, as the
+token prompt has.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
