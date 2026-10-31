@@ -42,7 +42,7 @@ vi.mock("./bootstrapWebview", () => ({
 
 import { workspace } from "vscode";
 
-import { SettingChange } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore, SettingChange } from "@miragon/bpmn-modeler-core";
 
 import { bootstrapWebview } from "./bootstrapWebview";
 import { VsCodeEditorHandle } from "./VsCodeEditorHandle";
@@ -306,20 +306,70 @@ describe("VsCodeEditorHandle.dispose", () => {
     });
 });
 
+describe("VsCodeEditorHandle.isActive", () => {
+    it.each([
+        { state: "active and visible", active: true, visible: true, reported: "active" },
+        { state: "active but hidden", active: true, visible: false, reported: "not active" },
+        { state: "visible but inactive", active: false, visible: true, reported: "not active" },
+        { state: "inactive and hidden", active: false, visible: false, reported: "not active" },
+    ])("reports a panel that is $state as $reported", ({ active, visible, reported }) => {
+        const handle = createHandle(makePanel({ active, visible }), makeDocument());
+
+        expect(handle.isActive()).toBe(reported === "active");
+    });
+});
+
 describe("VsCodeEditorHandle.onDidChangeActive", () => {
+    function viewStateListener(panel: FakePanel): () => void {
+        return panel.onDidChangeViewState.mock.calls[0][0] as () => void;
+    }
+
     it("reports the panel's focus state on every view-state change", () => {
         const panel = makePanel();
         const activeChanged = vi.fn();
         createHandle(panel, makeDocument()).onDidChangeActive(activeChanged);
-        const viewStateChanged = panel.onDidChangeViewState.mock.calls[0][0] as () => void;
 
         panel.active = false;
-        viewStateChanged();
+        viewStateListener(panel)();
         panel.active = true;
-        viewStateChanged();
+        viewStateListener(panel)();
 
         expect(activeChanged.mock.calls).toEqual([[false], [true]]);
     });
+
+    it("reports a panel that stays active but turns hidden as blurred", () => {
+        const panel = makePanel({ active: true, visible: true });
+        const activeChanged = vi.fn();
+        createHandle(panel, makeDocument()).onDidChangeActive(activeChanged);
+
+        panel.visible = false;
+        viewStateListener(panel)();
+
+        expect(activeChanged.mock.calls).toEqual([[false]]);
+    });
+
+    // Theia creates every panel active and visible, then reports a restored
+    // background tab as its active widget while the tab stays hidden.
+    it("hands the command target back to the visible diagram when a hidden tab reports active", () => {
+        const store = new EditorSessionStore(() => undefined);
+        const visiblePanel = makePanel({ active: true, visible: true });
+        const hiddenPanel = makePanel({ active: true, visible: true });
+        store.register(createSessionHandle("file:///repo/1.bpmn", visiblePanel));
+        store.subscribeToTabChangeEvent("file:///repo/1.bpmn");
+        store.register(createSessionHandle("file:///repo/3.bpmn", hiddenPanel));
+        store.subscribeToTabChangeEvent("file:///repo/3.bpmn");
+
+        hiddenPanel.visible = false;
+        viewStateListener(hiddenPanel)();
+
+        expect(store.getActiveEditorId()).toBe("file:///repo/1.bpmn");
+        expect(store.isFocused("file:///repo/3.bpmn")).toBe(false);
+    });
+
+    function createSessionHandle(editorId: string, panel: FakePanel): VsCodeEditorHandle {
+        nextPanel = panel;
+        return VsCodeEditorHandle.create("bpmn", editorId, panel as never, makeDocument() as never);
+    }
 });
 
 describe("VsCodeEditorHandle.onDidChangeDocument", () => {
