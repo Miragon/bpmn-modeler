@@ -80,8 +80,8 @@ export * from "./modeler/dmn/session/DmnSettingsParticipant";
 export * from "./modeler/dmn/infrastructure/dmnMessageHandlers";
 export * from "./modeler/form/domain/emptyForm";
 export * from "./modeler/form/service/FormModelerService";
-export * from "./modeler/elementTemplate/service/ElementTemplatePreviewService";
-export * from "./modeler/elementTemplate/session/PreviewLanguageParticipant";
+export * from "./modeler/elementTemplate/service/ElementTemplateEditorService";
+export * from "./modeler/elementTemplate/session/TemplateEditorLanguageParticipant";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/DiffSession";

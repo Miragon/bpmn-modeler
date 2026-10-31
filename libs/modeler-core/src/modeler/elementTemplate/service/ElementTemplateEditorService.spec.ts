@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ElementTemplateFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost, InMemorySettings } from "../../../testing";
-import { ElementTemplatePreviewService } from "./ElementTemplatePreviewService";
+import { ElementTemplateEditorService } from "./ElementTemplateEditorService";
 
 const PATH = "/work/.camunda/element-templates/status.json";
 const TEMPLATE = '{"$schema":"…/zeebe-element-templates-json-schema/…","id":"status"}';
@@ -12,7 +12,7 @@ function createService(content: string) {
     const host = createTestHost();
     const editor = host.openEditor(PATH, content);
     const settings = new InMemorySettings({ language: "de" });
-    const service = new ElementTemplatePreviewService(
+    const service = new ElementTemplateEditorService(
         host.store,
         host.documents,
         settings,
@@ -22,7 +22,7 @@ function createService(content: string) {
     return { service, host, editor };
 }
 
-describe("ElementTemplatePreviewService", () => {
+describe("ElementTemplateEditorService", () => {
     it.each([
         ["a template", TEMPLATE],
         ["an empty file", ""],

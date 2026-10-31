@@ -7,15 +7,14 @@ import {
     DocumentRenderParticipant,
     EditorSessionDocuments,
     EditorSessionStore,
-    ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
-    ElementTemplatePreviewService,
-    PreviewLanguageParticipant,
+    ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
+    ElementTemplateEditorService,
+    TemplateEditorLanguageParticipant,
     registerWebviewLogHandlers,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
-import { ElementTemplatePreviewController } from "../modeler/elementTemplate/controller/ElementTemplatePreviewController";
-import { openTemplatePreviewAutomatically } from "../shared/infrastructure/modelerConfiguration";
+import { ElementTemplateEditorController } from "../modeler/elementTemplate/controller/ElementTemplateEditorController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -27,7 +26,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     const previewStore = new EditorSessionStore(() => undefined);
     context.subscriptions.push(previewStore);
     const previewDocuments = new EditorSessionDocuments(previewStore);
-    const previewService = new ElementTemplatePreviewService(
+    const previewService = new ElementTemplateEditorService(
         previewStore,
         previewDocuments,
         deps.vsSettings,
@@ -47,14 +46,12 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     });
 
     new ModelerEditorController(previewStore, deps.notifier, {
-        viewType: ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+        viewType: ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
         messageRouter,
         participants: [
             new DocumentRenderParticipant(previewService, ".json", deps.notifier),
-            new PreviewLanguageParticipant(previewStore, deps.vsSettings, deps.notifier),
+            new TemplateEditorLanguageParticipant(previewStore, deps.vsSettings, deps.notifier),
         ],
     }).register(context);
-    new ElementTemplatePreviewController(deps.notifier, openTemplatePreviewAutomatically).register(
-        context,
-    );
+    new ElementTemplateEditorController(deps.notifier).register(context);
 }

@@ -7,15 +7,12 @@ import {
 } from "../kernel/domain/hostPorts";
 import {
     DEFAULT_LINTING_ENABLED,
-    DEFAULT_OPEN_TEMPLATE_PREVIEW,
     ModelerSettingsSnapshot,
     normalizeSettings,
 } from "../kernel/domain/modelerSettings";
 
 export interface SettingsValues extends ModelerSettingsSnapshot {
     lintingEnabled: boolean;
-    /** VS Code reads it without the port; kept so the values mirror every manifest default. */
-    elementTemplatePreviewOpenAutomatically: boolean;
 }
 
 /**
@@ -29,7 +26,6 @@ export class InMemorySettings implements SettingsPort {
         this.values = {
             ...normalizeSettings({}),
             lintingEnabled: DEFAULT_LINTING_ENABLED,
-            elementTemplatePreviewOpenAutomatically: DEFAULT_OPEN_TEMPLATE_PREVIEW,
             ...overrides,
         };
     }

@@ -11,7 +11,7 @@ import type { LoggerPort, SettingsPort } from "../../../kernel/domain/hostPorts"
  * Follows language changes in an open template preview. The initial language
  * rides on the file itself, so this only sends what changes afterwards.
  */
-export class PreviewLanguageParticipant implements EditorSessionParticipant {
+export class TemplateEditorLanguageParticipant implements EditorSessionParticipant {
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly settings: Pick<SettingsPort, "getLanguage">,

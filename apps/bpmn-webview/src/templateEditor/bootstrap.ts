@@ -18,7 +18,7 @@ import { readTemplateFile, type TemplateFileState } from "./templateFile";
 
 type PreviewHost = Pick<HostApi<unknown, Command>, "postMessage">;
 
-type TemplatePreviewHostMessages = {
+type TemplateEditorHostMessages = {
     ElementTemplateFileQuery: MessageOfType<"ElementTemplateFileQuery">;
     LanguageQuery: MessageOfType<"LanguageQuery">;
 };
@@ -27,7 +27,7 @@ type TemplatePreviewHostMessages = {
 const EDIT_DEBOUNCE_MS = 300;
 
 /** Resolves to a disposer that stops listening to the host. */
-export async function bootstrapTemplatePreview(host: PreviewHost): Promise<() => void> {
+export async function bootstrapTemplateEditor(host: PreviewHost): Promise<() => void> {
     i18n.extend(i18nExtras);
     const root = document.getElementById("app");
     if (!root) {
@@ -83,7 +83,7 @@ export async function bootstrapTemplatePreview(host: PreviewHost): Promise<() =>
         scheduleUpdate(true);
     });
 
-    const route = createHostMessageRouter<TemplatePreviewHostMessages>(host, {
+    const route = createHostMessageRouter<TemplateEditorHostMessages>(host, {
         ElementTemplateFileQuery: (query) => {
             if (query.locale) {
                 preview.setLocale(query.locale);

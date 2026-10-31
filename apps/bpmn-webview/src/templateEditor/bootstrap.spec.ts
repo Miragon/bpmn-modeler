@@ -33,7 +33,7 @@ vi.mock("@miragon/bpmn-modeler", () => ({
 
 vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({ extras: {} }));
 
-import { bootstrapTemplatePreview } from "./bootstrap";
+import { bootstrapTemplateEditor } from "./bootstrap";
 
 const C8_SCHEMA =
     "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
@@ -46,7 +46,7 @@ let posted: Command[];
 let dispose: (() => void) | undefined;
 
 async function start(): Promise<void> {
-    dispose = await bootstrapTemplatePreview({ postMessage: (message) => posted.push(message) });
+    dispose = await bootstrapTemplateEditor({ postMessage: (message) => posted.push(message) });
 }
 
 function receive(content: string): void {
@@ -57,8 +57,8 @@ function receive(content: string): void {
 
 const text = (selector: string) => document.querySelector(selector)?.textContent;
 const messages = () =>
-    Array.from(document.querySelectorAll(".template-preview__messages p"), (p) => p.textContent);
-const choice = () => document.querySelector<HTMLSelectElement>(".template-preview__choice")!;
+    Array.from(document.querySelectorAll(".template-editor__messages p"), (p) => p.textContent);
+const choice = () => document.querySelector<HTMLSelectElement>(".template-editor__choice")!;
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -78,7 +78,7 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe("bootstrapTemplatePreview", () => {
+describe("bootstrapTemplateEditor", () => {
     it("asks the host for the template file once it listens", async () => {
         await start();
 
@@ -92,7 +92,7 @@ describe("bootstrapTemplatePreview", () => {
         await vi.advanceTimersByTimeAsync(0);
 
         expect(mocks.shown).toEqual([{ template: STATUS, engine: "c8" }]);
-        expect(text(".template-preview__engine")).toBe("Camunda 8");
+        expect(text(".template-editor__engine")).toBe("Camunda 8");
         expect(choice().hidden).toBe(true);
         expect(messages()).toEqual([]);
     });
@@ -113,7 +113,7 @@ describe("bootstrapTemplatePreview", () => {
             { template: STATUS, engine: "c8" },
             { template: MAIL, engine: "c7" },
         ]);
-        expect(text(".template-preview__engine")).toBe("Camunda 7");
+        expect(text(".template-editor__engine")).toBe("Camunda 7");
     });
 
     it("keeps the chosen template of an array file across edits", async () => {
