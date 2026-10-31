@@ -620,8 +620,11 @@ its snapshot only once the host accepted it, onto the snapshot as it is then,
 so an overlapping save is kept. A rejected write rejects, as it does on
 VS Code, and leaves the snapshot as it was: a read never shows a value the
 host did not store, so the freshness indicator does not show a revision the
-host never recorded. Whether a failed write fails the operation is the core's
-decision, not the adapter's: an engine-accepted deploy stays deployed (see
+host never recorded. The cost is that `load()` returns the previous state
+until the save resolves, so a core caller awaits a save before it reads what
+the save wrote; `DeploymentStatePort.save` states this for every host. Whether
+a failed write fails the operation is the core's decision, not the adapter's:
+an engine-accepted deploy stays deployed (see
 [deployment](deployment.md#saved-target-execution)).
 
 A new synchronous port must specify its seed, respawn replay, writer, update

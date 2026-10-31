@@ -97,6 +97,9 @@ export interface SecretStorePort {
 export interface DeploymentStatePort {
     /** Synchronous, so the initial webview seed and status render can read it. */
     load(): DeploymentState;
-    /** Writes only what `patch` names. */
+    /**
+     * Writes only what `patch` names. `load()` is guaranteed to show the patch
+     * only once this resolves; until then a host may still return the old state.
+     */
     save(patch: DeploymentStatePatch): Promise<void>;
 }
