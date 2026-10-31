@@ -502,7 +502,7 @@ listener's return value. An import resets the command stack without a call; for 
 use `onContentSaved`. `onFormatted` hands the listener the same plain `LayoutOutcome` that
 `formatDiagram()` resolves, whether `formatDiagram()`, the palette entry or the canvas shortcut
 started the run. A `formatDiagram()` call made while a run is in flight joins that run and gets no
-extra notification.
+extra notification. Like every other member, subscribing after `destroy()` throws `NoModelerError`.
 
 ### Surviving design mode
 

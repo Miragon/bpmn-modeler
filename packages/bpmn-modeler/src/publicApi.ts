@@ -370,8 +370,9 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
      * Subscribe to every command-stack change, undebounced: each executed,
      * undone or redone edit. An import resets the stack without a
      * notification. The listener's return value is ignored. Returns a function
-     * that removes the listener; `destroy()` removes it too. For the debounced
-     * XML, use {@link ModelerOptions.onContentSaved}.
+     * that removes the listener; `destroy()` removes it too, and subscribing
+     * after `destroy()` throws `NoModelerError`. For the debounced XML, use
+     * {@link ModelerOptions.onContentSaved}.
      */
     onCommandStackChanged(listener: () => void): () => void;
 
@@ -381,7 +382,8 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
      * shortcut, whose outcome reaches no caller otherwise. The listener
      * receives the same {@link LayoutOutcome} `formatDiagram` resolves. A
      * call made while a run is in flight joins that run and gets no extra
-     * notification. Returns a function that removes the listener.
+     * notification. Returns a function that removes the listener; subscribing
+     * after `destroy()` throws `NoModelerError`.
      */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
 
