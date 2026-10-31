@@ -132,18 +132,30 @@ export class WorkspaceDefinitionIndex {
                 state.definitionsByPath.delete(known);
             }
         }
-        if (event !== "change") {
+        if (event === "create") {
             state.paths = undefined;
+        } else if (event === "delete" && state.paths) {
+            this.holdListing(
+                state,
+                state.paths.then((paths) => paths.filter((listed) => !isWithinRoot(listed, path))),
+            );
         }
     }
 
     private listPaths(state: ScopeState): Promise<string[]> {
-        if (state.paths) {
-            return state.paths;
-        }
-        const listing = findFilesInScope(this.workspace, state.scope, BPMN_GLOB, {
-            matchesWalkedFile: isBpmnFile,
-        });
+        return (
+            state.paths ??
+            this.holdListing(
+                state,
+                findFilesInScope(this.workspace, state.scope, BPMN_GLOB, {
+                    matchesWalkedFile: isBpmnFile,
+                }),
+            )
+        );
+    }
+
+    /** A failed listing is dropped, so the next search lists again. */
+    private holdListing(state: ScopeState, listing: Promise<string[]>): Promise<string[]> {
         state.paths = listing;
         listing.catch(() => {
             if (state.paths === listing) {
