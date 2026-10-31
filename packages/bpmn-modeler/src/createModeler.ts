@@ -1,15 +1,8 @@
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
-import type { ModelerOptions } from "./publicApi";
+import type { CreateModelerOptions } from "./publicApi";
 import { BpmnModeler } from "./modeler";
 import { createSurface } from "./createSurface";
-
-export interface CreateModelerOptions extends ModelerOptions {
-    /**
-     * @internal Opt in only for single-instance hosts; body-targeted Escape has no instance scope.
-     */
-    handleGlobalEscape?: boolean;
-}
 
 /**
  * Creates an independent modeler in `container` with its own properties panel.

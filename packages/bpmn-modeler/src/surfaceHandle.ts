@@ -1,6 +1,6 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
-import type { ThemeMode } from "./publicApi";
+import type { ThemeMode } from "./themeMode";
 import type { RootElementManager } from "./rootElement";
 import type { SelectionManager } from "./selection";
 import type { ViewState } from "./viewState";

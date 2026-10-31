@@ -22,7 +22,18 @@ import {
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, VariableDef } from "@miragon/bpmn-modeler-types";
 
-import { SessionMeta } from "../adapters";
+/** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
+export interface SessionMeta {
+    editorId: string;
+    /** Exact host editor generation for rejecting same-URI stale traffic. */
+    sessionId?: number;
+    uriString: string;
+    path: string;
+    fsPath: string;
+    scheme: string;
+    /** Host-provided workspace root, used to seed element-template discovery. */
+    workspaceRoot?: string;
+}
 
 /**
  * `session/register` — the editor identity/meta plus the initial document

@@ -30,9 +30,9 @@ import {
     RpcSecretStore,
     RpcStatusBar,
     RpcTokenPrompt,
-    SessionMeta,
 } from "./adapters";
 import { BridgeSettings } from "./nodeAdapters";
+import { SessionMeta } from "./protocol/types";
 import { Rpc } from "./rpc";
 
 const META: SessionMeta = {
