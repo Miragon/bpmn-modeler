@@ -790,17 +790,77 @@ describe("DeploymentTargetService.saveTarget", () => {
             await expect(c.host.secrets.getApprovedDestinations(slot("old"))).resolves.toEqual([]);
         });
 
-        it("reports the failed step and logs the failed cleanup when the store rejects deletes too", async () => {
-            const c = await serviceWithOldTarget();
-            const cleanupFailure = new Error("delete failed");
-            vi.spyOn(c.host.secrets, "saveBasicAuth").mockRejectedValue(failure);
-            vi.spyOn(c.host.secrets, "delete").mockRejectedValue(cleanupFailure);
+        it.each<{
+            step: string;
+            fail: (c: ReturnType<typeof createService>) => void;
+            fileName: string;
+        }>([
+            {
+                step: "storing the renamed target's credentials",
+                fail: (c) => vi.spyOn(c.host.secrets, "saveBasicAuth").mockRejectedValue(failure),
+                fileName: "old",
+            },
+            {
+                step: "saving the active target name",
+                fail: (c) =>
+                    c.host.deploymentState.failSaves(
+                        (patch) => patch.activeTargetName !== undefined,
+                        failure,
+                    ),
+                fileName: "new",
+            },
+        ])(
+            "reports the failure of $step and logs the failed cleanup when the store rejects deletes too",
+            async ({ fail, fileName }) => {
+                const c = await serviceWithOldTarget();
+                const cleanupFailure = new Error("delete failed");
+                fail(c);
+                vi.spyOn(c.host.secrets, "delete").mockRejectedValue(cleanupFailure);
 
-            await expect(renameOldToNew(c)).rejects.toThrow(failure);
+                await expect(renameOldToNew(c)).rejects.toThrow(failure);
 
-            expect(c.host.notifier.loggedErrors).toEqual([cleanupFailure]);
-            expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith(old));
-        });
+                expect(c.host.notifier.loggedErrors).toEqual([cleanupFailure]);
+                expect(writtenTarget(c, fileName)).toBeDefined();
+            },
+        );
+
+        it.each<{ step: string; fail: (c: ReturnType<typeof createService>) => void }>([
+            {
+                step: "saving the active target name",
+                fail: (c) =>
+                    c.host.deploymentState.failSaves(
+                        (patch) => patch.activeTargetName !== undefined,
+                        failure,
+                    ),
+            },
+            {
+                step: "deleting the old slot",
+                fail: (c) => vi.spyOn(c.host.secrets, "delete").mockRejectedValue(failure),
+            },
+        ])(
+            "reports the failure and still publishes the written rename when $step fails",
+            async ({ fail }) => {
+                const c = await serviceWithOldTarget();
+                const events: DeploymentTargetsEvent[] = [];
+                c.service.onDidChange((event) => void events.push(event));
+                fail(c);
+
+                await expect(renameOldToNew(c)).rejects.toThrow(failure);
+
+                expect(events).toEqual([
+                    {
+                        kind: "targetsChanged",
+                        edit: expect.objectContaining({
+                            change: expect.objectContaining({
+                                kind: "renamed",
+                                previousName: "old",
+                            }),
+                        }),
+                        documentDir: DOC_DIR,
+                    },
+                ]);
+            },
+        );
     });
 
     it("keeps the credentials stored for a saved target when writing the targets file fails", async () => {
