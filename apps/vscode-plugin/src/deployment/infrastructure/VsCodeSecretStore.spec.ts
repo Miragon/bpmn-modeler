@@ -157,6 +157,61 @@ describe("VsCodeSecretStore", () => {
 
             await expect(store.delete(SLOT)).rejects.toBe(KEYRING_UNAVAILABLE);
         });
+
+        it.each([
+            {
+                kind: "basic-auth",
+                save: (store: VsCodeSecretStore, name: string, secret: string) =>
+                    store.saveBasicAuth(name, secret, SLOT),
+                read: (store: VsCodeSecretStore) => store.getBasicAuth(SLOT),
+                oldPair: { username: "old-name", password: "old-secret" },
+            },
+            {
+                kind: "OAuth2",
+                save: (store: VsCodeSecretStore, name: string, secret: string) =>
+                    store.saveOAuth2(name, secret, SLOT),
+                read: (store: VsCodeSecretStore) => store.getOAuth2(SLOT),
+                oldPair: { clientId: "old-name", clientSecret: "old-secret" },
+            },
+        ])(
+            "keeps the old $kind pair when saving the new secret fails",
+            async ({ save, read, oldPair }) => {
+                const { secrets, store } = createStore();
+                await save(store, "old-name", "old-secret");
+                const storeSecret = secrets.store.bind(secrets);
+                vi.spyOn(secrets, "store").mockImplementation(async (key, value) => {
+                    if (value.includes("new-secret")) {
+                        throw KEYRING_UNAVAILABLE;
+                    }
+                    await storeSecret(key, value);
+                });
+
+                await expect(save(store, "new-name", "new-secret")).rejects.toBe(
+                    KEYRING_UNAVAILABLE,
+                );
+
+                await expect(read(store)).resolves.toEqual(oldPair);
+            },
+        );
+
+        it("deletes the remaining keys when one delete fails", async () => {
+            const { secrets, store } = createStore();
+            await store.saveBasicAuth("demo", "secret", SLOT);
+            await store.saveOAuth2("client", "client-secret", SLOT);
+            await store.saveApprovedDestinations(SLOT, ["https://engine.example"]);
+            const deleteSecret = secrets.delete.bind(secrets);
+            vi.spyOn(secrets, "delete").mockImplementation(async (key) => {
+                if (key.includes("basic")) {
+                    throw KEYRING_UNAVAILABLE;
+                }
+                await deleteSecret(key);
+            });
+
+            await expect(store.delete(SLOT)).rejects.toBe(KEYRING_UNAVAILABLE);
+
+            await expect(store.getOAuth2(SLOT)).resolves.toBeUndefined();
+            await expect(store.getApprovedDestinations(SLOT)).resolves.toEqual([]);
+        });
     });
 
     describe("approved destinations", () => {
