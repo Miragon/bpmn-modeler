@@ -3,6 +3,7 @@ import { posix } from "path";
 const FILE_SCHEME = "file://";
 const UNC_ROOT = /^[\\/]{2}(?=[^\\/])/;
 const UNC_SHARE_ROOT = /^\/\/[^/]+\/[^/]+\/?$/;
+const WINDOWS_DRIVE = /^[A-Za-z]:/;
 
 /**
  * The spelling of an absolute workspace path that hosts and the core exchange:
@@ -16,21 +17,23 @@ export function toWorkspacePath(path: string): string {
 }
 
 /**
- * The directory holding `path`, or `undefined` at a root: the filesystem root
- * or the share root of a UNC path, spelled `//server/share`,
- * `file:////server/share` or `file://server/share`. Above a share, the server
- * names no folder and `/` names the current drive on Windows.
+ * The directory holding `path`, or `undefined` at a root: the filesystem root,
+ * the `file://C:` drive root IntelliJ spells, or the share root of a UNC path,
+ * spelled `//server/share`, `file:////server/share` or `file://server/share`.
+ * Above a share, the server names no folder and `/` names the current drive
+ * on Windows.
  */
 export function parentWorkspacePath(path: string): string | undefined {
     const scheme = path.startsWith(FILE_SCHEME) ? FILE_SCHEME : "";
     const schemeless = path.slice(scheme.length);
-    // A URI's path starts with `/`; anything before it is the server.
-    const uncPath = scheme && !schemeless.startsWith("/") ? `//${schemeless}` : schemeless;
-    if (UNC_SHARE_ROOT.test(uncPath)) {
+    // VS Code puts a UNC server where IntelliJ puts a Windows drive.
+    const namesServer =
+        scheme !== "" && !schemeless.startsWith("/") && !WINDOWS_DRIVE.test(schemeless);
+    if (UNC_SHARE_ROOT.test(namesServer ? `//${schemeless}` : schemeless)) {
         return undefined;
     }
     const parent = posix.dirname(schemeless);
-    return parent === schemeless ? undefined : scheme + parent;
+    return parent === schemeless || parent === "." ? undefined : scheme + parent;
 }
 
 /** The path a `file://` URI names, for the hosts that accept both spellings. */
