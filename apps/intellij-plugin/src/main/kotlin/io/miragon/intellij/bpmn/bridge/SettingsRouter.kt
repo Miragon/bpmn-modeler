@@ -21,8 +21,7 @@ internal class SettingsRouter(
 
     /** Pushes before it acks: the bridge flips the widget's next click from the pushed snapshot. */
     private fun handleSetLintingEnabled(enabled: Boolean, id: Int?) {
-        val store = ModelerSettingsStore.getInstance()
-        store.update(store.current().copy(lintingEnabled = enabled))
+        ModelerSettingsStore.getInstance().setLintingEnabled(enabled)
         pushToRunningBridges()
         id?.let { deps.channel.reply(it, null) }
     }

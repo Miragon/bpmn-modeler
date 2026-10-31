@@ -114,6 +114,11 @@ class ModelerSettingsStore {
         )
     }
 
+    /** Writes the lint choice alone, so a toggle never rewrites a setting another writer just changed. */
+    fun setLintingEnabled(enabled: Boolean) {
+        props.setValue(LINTING_ENABLED, enabled, DEFAULT_LINTING_ENABLED)
+    }
+
     /**
      * Appends a registration to the app-level ("all my projects") list, de-duping
      * against that list *alone*. Per the promotion rule, an entry that already
