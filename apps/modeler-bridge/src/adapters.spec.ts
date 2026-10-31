@@ -523,6 +523,8 @@ describe("RpcDocumentPort", () => {
 
 describe("RpcDeploymentState", () => {
     const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
+    const DEV_ROW = "target:dev@localhost:8080::/a.bpmn";
+    const PROD_ROW = "target:prod@localhost:8080::/a.bpmn";
 
     it("serves the seeded state through the synchronous load", () => {
         const state = new RpcDeploymentState(new Rpc(() => {}));
@@ -552,47 +554,63 @@ describe("RpcDeploymentState", () => {
         });
     });
 
-    it("sends a save as one acknowledged request and applies it to the mirror optimistically", async () => {
+    it("sends a save as one acknowledged request and applies it to the mirror once the host accepted it", async () => {
         const { frames, rpc, answerLast } = harness();
         const state = new RpcDeploymentState(rpc);
-        state.seed({
-            ledger: {
-                "target:dev@localhost:8080::/a.bpmn": revision,
-                "target:prod@localhost:8080::/a.bpmn": revision,
-            },
-        });
+        state.seed({ ledger: { [DEV_ROW]: revision, [PROD_ROW]: revision } });
+        const stored = state.load();
         const patch: DeploymentStatePatch = {
             endpoint: "https://engine",
             authType: "oauth2",
-            ledger: { remove: ["target:dev@localhost:8080::/a.bpmn"] },
+            ledger: { remove: [DEV_ROW] },
         };
 
         const pending = state.save(patch);
         // The persist is a request (has an id), not a fire-and-forget notification.
         expect(last(frames)).toMatchObject({ method: "deploymentState/save", params: { patch } });
         expect(last(frames).id).toBeTypeOf("number");
-        // Reads are correct before the host even acks (optimistic update).
-        expect(state.load()).toMatchObject({
-            endpoint: "https://engine",
-            authType: "oauth2",
-            ledger: { "target:prod@localhost:8080::/a.bpmn": revision },
-        });
-        expect(Object.keys(state.load().ledger)).toEqual(["target:prod@localhost:8080::/a.bpmn"]);
+        expect(state.load()).toEqual(stored);
 
         await answerLast(null);
         await expect(pending).resolves.toBeUndefined();
+        expect(state.load()).toEqual({
+            ...stored,
+            endpoint: "https://engine",
+            authType: "oauth2",
+            ledger: { [PROD_ROW]: revision },
+        });
     });
 
-    it("rejects when the host fails to persist and keeps the optimistic mirror", async () => {
+    it.each<{ write: string; patch: DeploymentStatePatch }>([
+        { write: "a deployed revision", patch: { ledger: { put: { [PROD_ROW]: revision } } } },
+        { write: "a forgotten revision", patch: { ledger: { remove: [DEV_ROW] } } },
+        {
+            write: "the ad-hoc connection",
+            patch: {
+                endpoint: "https://other",
+                tenantId: "t2",
+                authType: "oauth2",
+                tokenEndpoint: "https://token",
+                audience: "aud",
+            },
+        },
+        { write: "the active target", patch: { activeTargetName: "prod" } },
+    ])("keeps what the host stored when the host rejects $write", async ({ patch }) => {
         const { frames, rpc } = harness();
         const state = new RpcDeploymentState(rpc);
+        state.seed({
+            endpoint: "https://engine",
+            authType: "basic",
+            activeTargetName: "dev",
+            ledger: { [DEV_ROW]: revision },
+        });
+        const stored = state.load();
 
-        const pending = state.save({ endpoint: "https://engine", tenantId: "t1" });
+        const pending = state.save(patch);
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
 
         await expect(pending).rejects.toThrow("disk full");
-        // Rolling back would show stale form values mid-session; the next seed reconciles.
-        expect(state.load().endpoint).toBe("https://engine");
+        expect(state.load()).toEqual(stored);
     });
 });
 
