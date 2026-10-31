@@ -38,6 +38,10 @@ const SLOT_RECORD = "slot.json";
  * registered.
  */
 export class MarketplaceCache {
+    // Two replaces of one slot in flight pick the same generation, or one
+    // drops the generation the other writes, so the writes run one at a time.
+    private writes: Promise<unknown> = Promise.resolve();
+
     /**
      * @param cacheRoot Absolute path to the `marketplaces/` directory under the
      *   host's global storage.
@@ -84,6 +88,29 @@ export class MarketplaceCache {
                 throw new Error(`Rejected unsafe template path "${repoPath}"`);
             }
         }
+        return this.oneAtATime(() =>
+            this.writeGeneration(marketplaceId, sourceIndex, sourceIdentity, files),
+        );
+    }
+
+    removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {
+        return this.oneAtATime(() =>
+            this.workspace.deleteDirectory(this.sourceDir(marketplaceId, sourceIndex)),
+        );
+    }
+
+    private oneAtATime<T>(write: () => Promise<T>): Promise<T> {
+        const written = this.writes.then(write);
+        this.writes = written.catch(() => undefined);
+        return written;
+    }
+
+    private async writeGeneration(
+        marketplaceId: string,
+        sourceIndex: number,
+        sourceIdentity: string,
+        files: readonly FetchedTemplateFile[],
+    ): Promise<void> {
         const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
         const record = nextSourceSlotRecord(await this.readSlotRecord(sourceDir), sourceIdentity);
         const generationDir = `${sourceDir}/${record.generation}`;
@@ -101,10 +128,6 @@ export class MarketplaceCache {
                 await this.workspace.deleteDirectory(directory);
             }
         }
-    }
-
-    async removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {
-        await this.workspace.deleteDirectory(this.sourceDir(marketplaceId, sourceIndex));
     }
 
     private sourceDir(marketplaceId: string, sourceIndex: number): string {
@@ -157,18 +180,20 @@ export class MarketplaceCache {
      *
      * @returns the ids of the slots actually deleted, for the caller to log.
      */
-    async prune(registeredIds: ReadonlySet<string>): Promise<string[]> {
-        const pruned: string[] = [];
-        for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
-            // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
-            // root prefix is the marketplaceId the slot was written under.
-            const id = marketplaceDir.slice(this.cacheRoot.length + 1);
-            if (!registeredIds.has(id)) {
-                await this.workspace.deleteDirectory(marketplaceDir);
-                pruned.push(id);
+    prune(registeredIds: ReadonlySet<string>): Promise<string[]> {
+        return this.oneAtATime(async () => {
+            const pruned: string[] = [];
+            for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+                // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
+                // root prefix is the marketplaceId the slot was written under.
+                const id = marketplaceDir.slice(this.cacheRoot.length + 1);
+                if (!registeredIds.has(id)) {
+                    await this.workspace.deleteDirectory(marketplaceDir);
+                    pruned.push(id);
+                }
             }
-        }
-        return pruned;
+            return pruned;
+        });
     }
 
     /**
