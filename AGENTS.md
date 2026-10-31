@@ -1,249 +1,116 @@
 # Agent Instructions
 
-This file provides guidance to AI coding agents when working with code in this repository.
+Rules for AI coding agents in this repository: VS Code, IntelliJ and Theia
+hosts for BPMN, DMN and Camunda Form modeling, built with **Yarn 4
+workspaces**. This file holds only what the code and the skills do not say.
 
-## Project Overview
+## Skills
 
-VS Code extension for BPMN/DMN process and Camunda Form modeling, built with **Yarn 4 workspaces**.
-Detailed architecture knowledge is available via the `architecture`, `bpmn-js`,
+The skills in `.agents/skills/` carry the detail: `architecture` (where code
+belongs, package boundaries, ports), `tdd`, `adr`, `commit`, `bpmn-js`,
 `vscode-custom-editors`, `vscode-webviews`, `vscode-ux-guidelines`,
-`intellij-plugin`, `i18n-translate`, and `bpmn-browser-testing` skills.
-New features and bug fixes start test-first with the `tdd` skill.
-Invoke skills with `/skill-name` in Claude Code or `$skill-name` in Codex
-(for example, `/architecture` or `$architecture`).
+`intellij-plugin`, `i18n-translate` and `bpmn-browser-testing`. Invoke them
+with `/skill-name` in Claude Code or `$skill-name` in Codex.
 
 `AGENTS.md` is the only instruction file: Codex and Claude Code (2.1.277 or
-later) both read it directly. Skills live in `.agents/skills/`;
-`.claude/skills/` links to that directory because Claude Code does not read
-`.agents/`.
-Client settings are separate: `.claude/settings.json` configures Claude only.
-See `docs/vscode/contributing/development.md` (Coding agents) for browser tool
-setup and verification in both clients, including Conductor.
+later) both read it directly. `.claude/skills/` links to `.agents/skills/`
+because Claude Code does not read `.agents/`. `.claude/settings.json`
+configures Claude only. Browser tool setup for both clients, Conductor
+included, is in `docs/vscode/contributing/development.md` (Coding agents).
 
-Architecture decisions are recorded in **`docs/adr/`** as living topic records
-(Context / Decision / Consequences — see `docs/adr/README.md`). When a change
-moves a package boundary, public API, dependency, protocol, or another
-hard-to-reverse choice, update or add an ADR in the same PR. Update the existing
-topic first and replace superseded text; Git preserves history. Use the `adr`
-skill for the rules. These records are contributor-facing and deliberately
-excluded from the published VitePress site.
+## Rules
+
+- New features and bug fixes start test-first with the `tdd` skill.
+- Place code with the `architecture` skill. Workspace aliases live in
+  `tsconfig.base.json`.
+- A change that moves a package boundary, public API, dependency, protocol or
+  another hard-to-reverse choice updates or adds an ADR in `docs/adr/` in the
+  same PR. Update the existing topic first and replace superseded text; Git
+  preserves history. Use the `adr` skill. ADRs are contributor-facing and not
+  published on the VitePress site.
+- A new Vitest workspace is listed in `.github/vitest-targets.json`;
+  `.github/scripts/check-vitest-targets.mjs` fails the lint job and pre-push
+  otherwise.
+- VS Code settings use the `miragon.bpmnModeler` namespace (for example
+  `miragon.bpmnModeler.language`), never the legacy `miragon.camundaModeler`
+  prefix.
 
 ## Commands
 
-Use `corepack yarn` as the package manager. Build orchestration uses `npm-run-all`.
+Use `corepack yarn` as the package manager.
 
 ```bash
 corepack yarn install           # Install dependencies
 corepack yarn build             # Build everything (libs → webviews + plugin)
-corepack yarn build:libs        # Build shared libraries only
-corepack yarn watch             # Development watch mode (F5 Extension Host)
-corepack yarn test              # Test every Vitest project (no coverage)
+corepack yarn watch             # F5 Extension Host: webviews rebuild to disk
+corepack yarn test              # Every Vitest project, no coverage
 corepack yarn test:coverage     # Each workspace's `test`: coverage + thresholds as in CI
-corepack yarn lint              # Lint
+corepack yarn lint
 
-# IntelliJ plugin: build the webview/bridge artefacts, then launch a sandbox IDE
-corepack yarn intellij:run      # = intellij:build (libs → webviews → bridge) + gradlew runIde
-corepack yarn intellij:build    # refresh artefacts only (re-run after a webview change)
+corepack yarn test libs/modeler-core/src/kernel/domain/BpmnDocument.spec.ts  # One spec
+corepack yarn workspace @miragon/bpmn-modeler-core test                      # One workspace with its coverage gate
+corepack yarn workspace vs-code-bpmn-modeler build                           # One workspace build
 
-# Target a single workspace
-corepack yarn workspace vs-code-bpmn-modeler build
-corepack yarn workspace @miragon/bpmn-modeler-webview build
-
-# Run a single test file
-corepack yarn test libs/modeler-core/src/kernel/domain/BpmnDocument.spec.ts
-
-# One workspace with its coverage gate (what its CI test leg runs)
-corepack yarn workspace @miragon/bpmn-modeler-core test
-
-# The packaged extension in a real VS Code, in a Podman/Docker container (no
-# window, no focus stealing; installs and builds inside). Not part of `test`.
-corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+corepack yarn intellij:run      # Build webview/bridge artefacts, launch a sandbox IntelliJ
+corepack yarn intellij:build    # Refresh the artefacts only, after a webview change
+corepack yarn workspace @miragon/bpmn-modeler-standalone dev   # Theia/Electron app, full chain
+corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker  # Packaged extension in a real VS Code, in a container; not part of `test`
 ```
 
-For the full IntelliJ dev/verify loop (prerequisites, sandbox behaviour, and how
-to reproduce dark-mode webview bugs without launching a host) see
-`apps/intellij-plugin/README.md`.
-
-### Webview scripts (bpmn-webview, dmn-webview, form-webview, deployment-webview)
-
-Each webview workspace has these scripts, one per workflow:
-
-- `build` — one-shot bundle to `dist/webview-staging/<name>/`.
-- `watch` — `vite build --watch`; rebuilds the bundle to disk. Used by the
-  root `yarn watch` orchestrator (the VS Code extension host reads the files
-  from disk via `webview.asWebviewUri`, so a dev HTTP server would not work
-  here).
-- `serve` — Vite HTTP dev server via for standalone browser preview.
-- `dev` / `dev:app` — `dev` is only the [`portless`](https://portless.sh)
-  entrypoint; the real Vite command lives in `dev:app`
-  (`vite --port $PORT --host 127.0.0.1`). portless (a pinned dev dependency)
-  serves the app under a stable `<worktree>.<app>.localhost` URL, with
-  `portless.json` naming the app and pointing `dev` at `dev:app`. One-time
-  per machine: `npx portless service install`.
-
-At the root level: `yarn watch` runs the F5 orchestrator;
-`yarn workspace @miragon/bpmn-modeler-webview serve` / `yarn workspace @miragon/dmn-modeler-webview serve` / `yarn workspace @miragon/form-modeler-webview serve` / `yarn workspace @miragon/bpmn-modeler-deployment-webview serve`
-launch the per-webview dev server.
-
-## Workspace Structure
-
-```
-apps/
-  vscode-plugin/         # VS Code extension (Node/Webpack)
-  bpmn-webview/          # BPMN webview frontend (Vite/browser)
-  dmn-webview/           # DMN webview frontend (Vite/browser)
-  form-webview/          # Camunda Form editor/preview frontend (Vite/browser)
-  deployment-webview/    # Deployment sidebar webview (Vite/browser)
-  intellij-plugin/       # IntelliJ host (Kotlin/Gradle, JCEF editors)
-  modeler-bridge/        # stdio JSON-RPC Bun binary running modeler-core
-                         # out-of-process for the IntelliJ host
-  standalone/            # Theia/Electron desktop host shell
-libs/
-  modeler-core/          # Host-agnostic engine core (domain/service/
-                         # infrastructure), consumed by all hosts
-  modeler-types/         # Public, host-agnostic modeler types + browser
-                         # utilities (engine/lint/settings/scripting/diff,
-                         # theme, canvas resize and focus indicator) and the
-                         # pure rules the webview shares with the core
-                         # (script surfaces, XML comment/CDATA scan, process
-                         # variables). No protocol dependency — the
-                         # publishable half of the old `shared` split out in
-                         # #1371 (epic #1293)
-  shared/                # Private webview ↔ host protocol: Query/Command
-                         # message classes, HostApi, document-flush plumbing,
-                         # properties-panel focus/resizer
-  append-menu/           # bpmn-js append-menu module
-  bpmn-clipboard/        # bpmn-js clipboard modules
-  bpmn-i18n-extras/      # C7/dmn-js/internal translation overlay merged onto
-                         # the shared @miragon/bpmn-modeler-i18n npm package
-  code-link/             # Code-link feature
-  definition-search/     # Workspace search for messages/signals/errors/
-                         # escalations defined in other models
-  element-template-chooser/ # Element-template chooser module
-  inline-scripting/      # Inline-script editing (C7 script tasks/listeners)
-  model-navigation/      # Model navigation module
-  standalone-extension/  # Theia frontend extension consumed by
-                         # `apps/standalone/` (Miragon themes, splash,
-                         # hidden built-in views)
-tools/
-  architecture-testing/  # Dev-only engine every architecture.spec.ts reads
-                         # sources through (imports, graph, cycles, exceptions)
-  repo-checks/           # Rules over every workspace: no import cycles,
-                         # stable dependencies
-```
-
-The standalone Electron app is composed of the Theia shell (`apps/standalone/`)
-plus a Theia frontend extension (`libs/standalone-extension/`). The extension
-ships as its own package because Theia's generator only discovers
-`theiaExtensions` declared on dependencies — see
-`libs/standalone-extension/README.md` for details. Run
-`yarn workspace @miragon/bpmn-modeler-standalone dev` for the full
-build → package plugin → bundle → start chain.
-
-## Build System
-
-- **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
-- **Webviews**: Vite — `apps/{bpmn,dmn,form,deployment}-webview/vite.config.mts`
-- **Tests**: Vitest — root `vitest.config.ts` globs every `apps/*`, `libs/*`,
-  `packages/*` and `tools/*` config into one multi-project run (the
-  bpmn-modeler aggregator config is swapped for its unit and browser
-  projects). Each workspace config takes
-  its aliases (generated from `tsconfig.base.json` paths) and coverage preset
-  from the root `vitest.shared.ts`, keeping its thresholds literal. CI runs one
-  matrix leg per workspace listed in `.github/vitest-targets.json`;
-  `.github/scripts/check-vitest-targets.mjs` (lint job and pre-push) fails when
-  a Vitest workspace is missing there or its trigger paths miss a dependency
-- **Output**: `dist/apps/vscode-plugin/`
-
-## Path Aliases (`tsconfig.base.json`)
-
-Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
-
-- `@miragon/bpmn-modeler-shared` → `libs/shared` (private host protocol)
-- `@miragon/bpmn-modeler-types` → `libs/modeler-types` (public modeler types +
-  browser utilities; publishable, no protocol dependency — #1371)
-- `@miragon/bpmn-modeler-core` → `libs/modeler-core`
-- `@miragon/bpmn-modeler-clipboard` → `libs/bpmn-clipboard`
-- `@miragon/bpmn-modeler-i18n-extras` → `libs/bpmn-i18n-extras`
-- `@miragon/bpmn-modeler-i18n` → external npm package (shared translations),
-  resolved from node_modules; the local `@miragon/bpmn-modeler-i18n-extras`
-  overlay fills the modeler-internal strings it does not ship
-- `@miragon/bpmn-modeler-element-template-chooser` → `libs/element-template-chooser`
-- `@miragon/bpmn-modeler-append-menu` → `libs/append-menu`
-- `@miragon/bpmn-model-navigation` → `libs/model-navigation`
-- `@miragon/bpmn-modeler-code-link` → `libs/code-link`
-- `@miragon/bpmn-modeler-definition-search` → `libs/definition-search`
-- `@miragon/bpmn-modeler-inline-scripting` → `libs/inline-scripting`
-- `@miragon/architecture-testing` → `tools/architecture-testing`
-- Resolved by `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) and
-  the generated `workspaceAliases` in `vitest.shared.ts` (Vitest)
-
-## Configuration Namespace
-
-All VS Code settings use the `miragon.bpmnModeler` namespace (e.g. `miragon.bpmnModeler.alignToOrigin`, `miragon.bpmnModeler.language`). Do **not** use the legacy `miragon.camundaModeler` prefix.
+`watch` writes bundles to disk because the extension host reads them through
+`webview.asWebviewUri`; a dev server does not work there. A webview's `serve`
+and `dev` scripts are browser previews (see the `bpmn-browser-testing`
+skill). The IntelliJ dev loop is in `apps/intellij-plugin/README.md`.
 
 ## Commit Conventions
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
-There is no local commitlint/husky hook, but CI validates the **PR title**
-(`lint-pr-title.yml`). PRs are squash-merged, so the PR title is the commit
-that lands on `main` and the line release-please reads to cut a release — it
-must use one of the five types below. Intermediate commits on a branch are
-upheld by discipline; match the existing history. Use the `commit` skill
-(`/commit` in Claude Code, `$commit` in Codex) to create a conforming commit.
+PRs are squash-merged, so the **PR title** is the commit that lands on `main`
+and the line release-please reads. CI validates it (`lint-pr-title.yml`); no
+local hook checks commits. Use the `commit` skill to create one.
 
 **Format:** `<type>(<scope>): <subject>`
 
 - **Subject:** imperative present tense, lowercase, no trailing period
-  (e.g. `add`, not `added`/`adds`). Keep the header under ~72 characters.
-- **Types:** the PR title must use one of the five release-please acts on:
-  `feat` (minor bump), `fix` (patch bump), `refactor`, `docs`, `chore`. The
-  other Conventional-Commit types (`style`, `test`, `build`, `ci`, `perf`,
-  `revert`) are fine on intermediate branch commits, but fold them into `chore`
-  for the PR title — they bump nothing and never reach the changelog.
-- **Scope:** the affected workspace or feature, matching existing history —
-  e.g. `bpmn-webview`, `dmn-webview`, `deployment-webview`, `vscode-plugin`,
-  `editor`, `diff`, `domain`, `infrastructure`, `service`, `deps`, `release`.
-  Omit the scope only when a change is genuinely repo-wide.
-- **Body/footer:** optional. Explain the *why* in the body when the subject
-  isn't self-explanatory; reference PRs/issues in the footer as the history
-  does (e.g. `(#1056)`). Mark breaking changes with `!` after the
-  type/scope (`feat(editor)!: …`) or a `BREAKING CHANGE:` footer.
-- **No agent attribution.** Do not add `Co-Authored-By` or generated-by
-  attribution to commits or PRs, regardless of the coding agent or model.
-  Claude's automatic attribution is also disabled in `.claude/settings.json`;
-  that setting does not configure Codex.
+  (`add`, not `added`/`adds`). Keep the header under ~72 characters.
+- **Types:** a PR title uses one of `feat` (minor bump), `fix` (patch bump),
+  `refactor`, `docs`, `chore`. `style`, `test`, `build`, `ci`, `perf` and
+  `revert` are fine on branch commits; fold them into `chore` for the PR title.
+- **Scope:** the affected workspace or feature, as in the history: for example
+  `modeler-core`, `bpmn-modeler`, `modeler-bridge`, `bpmn-webview`,
+  `intellij-plugin`, `vscode-plugin`, `deps`. Omit it only for a genuinely
+  repo-wide change.
+- **Body/footer:** optional. Explain the *why* when the subject does not.
+  Reference PRs/issues in the footer (`(#1056)`). Mark a breaking change with
+  `!` after the type/scope or a `BREAKING CHANGE:` footer.
+- **No agent attribution.** No `Co-Authored-By` or generated-by lines in
+  commits or PRs, whatever the agent or model. `.claude/settings.json`
+  disables Claude's automatic attribution; it does not configure Codex.
 
-Examples (from this repo's history):
+Examples from the history:
 
 ```
 fix(bpmn-webview): keep bpmn:Group transparent in dark mode (#1056)
-refactor(editor): introduce EditorHandle port and split EditorStore
-chore(release): bump version to 1.0.1
+fix(modeler-bridge): detach the dispose listener when its subscription is disposed (#2091)
+chore(eslint): fail on an empty arrow function in a port adapter (#2092)
 ```
 
 ## Comment Style
 
 Prefer clean code over comments. Write the minimum: no comment for what
-the code already says, only a short one to *add* a non-obvious *why* — a
+the code already says, only a short one to *add* a non-obvious *why*: a
 hidden constraint, an invariant the types can't express, the bug behind
 this shape. If there's nothing to add, add nothing.
 
 - Never restate the signature or narrate what the code does.
-- When you do comment, be brief and precise — usually one line.
+- When you do comment, be brief and precise, usually one line.
 - Don't reference PRs, tickets, or callers; that belongs in git history.
 
 ## Deployment Webview (Single-Source Markup)
 
-The deployment form's DOM lives in **one** place:
+The deployment form's DOM lives only in
 `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which
-`main.ts` injects into `#app` at runtime. Every host shell ships only an empty
-`<div id="app"></div>` and lets the bundle render the body:
-
-- `apps/deployment-webview/index.html` — Vite dev shell.
-- `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` —
-  VS Code runtime shell (keeps the CSP nonce + asset-URI injection).
-- IntelliJ deployment tool-window shell (`WebviewServer.kt`).
-
-When changing the form markup, edit **only** `formTemplate.ts` — the shells no
-longer carry a copy to keep in sync.
+`main.ts` injects into `#app`. The host shells (`apps/deployment-webview/index.html`,
+`apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`,
+IntelliJ's `WebviewServer.kt`) ship an empty `<div id="app"></div>`. Edit form
+markup only in `formTemplate.ts`.

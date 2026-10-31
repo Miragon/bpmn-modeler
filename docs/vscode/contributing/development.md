@@ -540,4 +540,4 @@ Key design decisions:
 - **Webview communication**: `postMessage` with typed message contracts defined in
   `libs/shared`.
 
-See `AGENTS.md` in the repository root for the full architectural reference.
+See the `architecture` skill (`.agents/skills/architecture/SKILL.md`) for where code belongs and the [architecture overview](./architecture-overview.md) for the diagrams.
