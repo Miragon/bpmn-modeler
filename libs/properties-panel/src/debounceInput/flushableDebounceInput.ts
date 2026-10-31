@@ -1,9 +1,9 @@
 import { debounce } from "min-dash";
 
 /** The delay of the `@bpmn-io/properties-panel` default this service replaces. */
-export const INPUT_DEBOUNCE_MS = 600;
+const INPUT_DEBOUNCE_MS = 600;
 
-export interface DebouncedInput<Args extends unknown[]> {
+interface DebouncedInput<Args extends unknown[]> {
     (...args: Args): void;
     flush(): void;
     cancel(): void;
