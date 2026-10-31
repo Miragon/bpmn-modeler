@@ -78,7 +78,7 @@ internal class MarketplaceRouter(
 
     private fun handleTokenGet(host: String, id: Int?) {
         val token = tokenStore.getToken(host)
-        id?.let { deps.channel.reply(it, if (token != null) mapOf("token" to token) else null) }
+        id?.let { deps.channel.reply(it, token?.let(::TokenStoreGetResult)) }
     }
 
     private fun handleTokenSet(host: String, token: String, id: Int?) {
@@ -95,7 +95,7 @@ internal class MarketplaceRouter(
         if (id == null) return
         deps.channel.replyFromEdt(id, "tokenPrompt/show") {
             if (deps.project.isDisposed) return@replyFromEdt null
-            passwordPrompt(title, prompt)?.let { mapOf("token" to it) }
+            passwordPrompt(title, prompt)?.let(::TokenPromptShowResult)
         }
     }
 

@@ -32,7 +32,7 @@ internal class SecretStoreRouter(private val deps: BridgeDeps) {
                         deps.channel.reply(
                             it,
                             if (username != null && password != null) {
-                                mapOf("username" to username, "password" to password)
+                                BasicAuthCredentials(username, password)
                             } else {
                                 null
                             },
@@ -59,7 +59,7 @@ internal class SecretStoreRouter(private val deps: BridgeDeps) {
                         deps.channel.reply(
                             it,
                             if (clientId != null && clientSecret != null) {
-                                mapOf("clientId" to clientId, "clientSecret" to clientSecret)
+                                OAuth2Credentials(clientId, clientSecret)
                             } else {
                                 null
                             },
@@ -71,7 +71,7 @@ internal class SecretStoreRouter(private val deps: BridgeDeps) {
                 val slot = params.string("slot")
                 RpcAction { id ->
                     val origins = secretStore.getApprovedDestinations(slot)
-                    id?.let { deps.channel.reply(it, origins?.let { mapOf("origins" to it) }) }
+                    id?.let { deps.channel.reply(it, origins?.let(::SecretApprovedDestinations)) }
                 }
             }
             .on("secretStore/saveApprovedDestinations") { params ->

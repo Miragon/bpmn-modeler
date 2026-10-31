@@ -188,7 +188,7 @@ internal class HostUiRouter(
      */
     private fun handleConfirm(title: String, confirmLabel: String, details: List<String>, id: Int) {
         deps.channel.replyFromEdt(id, "confirm/show") {
-            if (project.isDisposed) return@replyFromEdt mapOf("confirmed" to false)
+            if (project.isDisposed) return@replyFromEdt ConfirmShowResult(confirmed = false)
             val message = (listOf(title) + details).joinToString("\n")
             val choice =
                 Messages.showYesNoDialog(
@@ -199,7 +199,7 @@ internal class HostUiRouter(
                     "Cancel",
                     Messages.getWarningIcon(),
                 )
-            mapOf("confirmed" to (choice == Messages.YES))
+            ConfirmShowResult(confirmed = choice == Messages.YES)
         }
     }
 
@@ -235,11 +235,11 @@ internal class HostUiRouter(
     ) {
         deps.channel.replyLaterFromEdt(id, "picker/show") { reply ->
             if (project.isDisposed) {
-                reply.result(mapOf("selected" to null))
+                reply.result(PickerShowResult(selected = null))
                 return@replyLaterFromEdt
             }
             HostPicker.show(project, title, placeholder, canPickMany, items) { selected ->
-                reply.result(mapOf("selected" to selected))
+                reply.result(PickerShowResult(selected))
             }
         }
     }
@@ -257,7 +257,7 @@ internal class HostUiRouter(
                 runCatching {
                     CopyPasteManager.getInstance().getContents<String>(DataFlavor.stringFlavor)
                 }.getOrNull().orEmpty()
-            mapOf("text" to text)
+            ClipboardReadResult(text)
         }
     }
 

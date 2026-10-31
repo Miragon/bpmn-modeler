@@ -74,7 +74,7 @@ internal class RpcChannel(
      */
     fun notifyRaw(line: String, coalesceKey: String? = null) = enqueue(line, coalesceKey, false)
 
-    fun reply(id: Int, result: Any?) =
+    fun reply(id: Int, result: RpcResult?) =
         enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null, true)
 
     // The bridge's `rpc.ts` turns `{id, error}` into a rejected promise, so a
@@ -93,7 +93,7 @@ internal class RpcChannel(
         id: Int?,
         method: String,
         runOnEdt: (Runnable) -> Unit = invokeLaterOnEdt,
-        work: () -> Any?,
+        work: () -> RpcResult?,
     ) = runOnEdt(Runnable { answerOnce(PendingReply(this, id), method) { it.result(work()) } })
 
     /**
@@ -297,7 +297,7 @@ private val invokeLaterOnEdt: (Runnable) -> Unit = { ApplicationManager.getAppli
 internal class PendingReply(private val channel: RpcChannel, private val id: Int?) {
     private val answered = AtomicBoolean(false)
 
-    fun result(value: Any?) = answer { channel.reply(it, value) }
+    fun result(value: RpcResult?) = answer { channel.reply(it, value) }
 
     fun error(message: String) = answer { channel.replyError(it, message) }
 

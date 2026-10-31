@@ -548,7 +548,7 @@ internal class EditorSessionRouter(
         val content = StringUtil.convertLineSeparators(writtenContent)
         val entry = sessions[editorId]
         if (entry == null || !matchesSession(sessionId, entry)) {
-            id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
+            id?.let { deps.channel.reply(it, DocumentWriteResult(changed = false, accepted = false)) }
             return
         }
         deps.channel.replyFromEdt(id, "document/write") {
@@ -558,7 +558,7 @@ internal class EditorSessionRouter(
                 (expectedDocumentRevision != null &&
                     expectedDocumentRevision != entry.documentRevision.get())
             ) {
-                return@replyFromEdt mapOf("changed" to false, "accepted" to false)
+                return@replyFromEdt DocumentWriteResult(changed = false, accepted = false)
             }
             var changed = false
             val session = entry.session
@@ -588,11 +588,12 @@ internal class EditorSessionRouter(
         }
     }
 
-    private fun writeResult(changed: Boolean, writtenContent: String, normalizedContent: String): Map<String, Any> {
-        val result = linkedMapOf<String, Any>("changed" to changed, "accepted" to true)
-        if (changed && normalizedContent != writtenContent) result["normalizedContent"] = normalizedContent
-        return result
-    }
+    private fun writeResult(changed: Boolean, writtenContent: String, normalizedContent: String) =
+        DocumentWriteResult(
+            changed = changed,
+            accepted = true,
+            normalizedContent = normalizedContent.takeIf { changed && it != writtenContent },
+        )
 
     private fun handleSave(editorId: String, sessionId: Long?, id: Int?) {
         val entry = sessions[editorId]
@@ -606,7 +607,7 @@ internal class EditorSessionRouter(
             // A veto, a memory/disk conflict or a write error leaves the Document
             // unsaved without throwing.
             if (document != null) documentManager.saveDocument(document)
-            mapOf("saved" to (document != null && !documentManager.isDocumentUnsaved(document)))
+            DocumentSaveResult(saved = document != null && !documentManager.isDocumentUnsaved(document))
         }
     }
 
