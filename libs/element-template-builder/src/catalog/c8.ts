@@ -24,7 +24,7 @@ const USER_TASK_BINDING: Requirement = {
     label: "a zeebe:userTask property",
 };
 
-/** Camunda 8 bindings the builder edits; `catalog.coverage.spec.ts` lists the rest. */
+/** Camunda 8 bindings the builder edits, the default for a new property first; `catalog.coverage.spec.ts` lists the rest. */
 export const C8_CATALOG: EngineCatalog = {
     engine: "c8",
     propertyTypes: ALL,
