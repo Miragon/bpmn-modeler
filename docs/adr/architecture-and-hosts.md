@@ -318,12 +318,9 @@ only the `dot` icon; the other icons are IntelliJ's own. The protocol snapshot h
 only top-level keys, so `HostUiRouterTest` pins the view fields and
 `StatusSlotPlacementTest` reads `statusView.ts` and fails when a slot, icon,
 tone or action has no Kotlin counterpart; at runtime the router logs and drops
-what it does not know. All four slots show the core's views, so the
-widget-shaped `LegacyStatusBarPort` and `DeploymentStatusBarPort` have no
-caller left. Their adapter methods, their `statusBar/*` RPCs and the Kotlin
-handlers that build a view from them with IntelliJ's old labels remain until
-they are removed together
-([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)).
+what it does not know. `statusBar/update` is the only status RPC, so a new
+status needs a slot, its view function and one placement per host, and no new
+port method, RPC or Kotlin handler. No host builds status text of its own.
 
 Prompts follow the same split. `PickerPort`'s `choose`, `chooseMany`, `confirm`
 and `searchAndChoose` take a prompt the core builds in full, typed in

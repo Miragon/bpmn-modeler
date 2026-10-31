@@ -11,7 +11,6 @@
  */
 
 import {
-    DeploymentFreshness,
     DeploymentStatePatch,
     GlobalFunctionDef,
     MethodDef,
@@ -21,7 +20,7 @@ import {
     StatusView,
 } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
-import { DiffOrigin, Engine, VariableDef } from "@miragon/bpmn-modeler-types";
+import { DiffOrigin, VariableDef } from "@miragon/bpmn-modeler-types";
 
 import { SessionMeta } from "../adapters";
 
@@ -38,7 +37,7 @@ export interface RegisterParams extends SessionMeta {
     settings?: RawModelerSettings;
 }
 
-/** Empty-body notification/request (e.g. `clipboard/read`, `statusBar/templatesHide`). */
+/** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
 export type EmptyParams = Record<string, never>;
 
 // ── Host → Core notifications ────────────────────────────────────────────────
@@ -393,17 +392,6 @@ export interface StatusBarUpdateParams {
     view: StatusView | null;
 }
 
-/** `statusBar/templatesReady` — element-template count for the status widget. */
-export interface StatusBarTemplatesReadyParams {
-    count: number;
-}
-
-/** `statusBar/showEngineVersion` — the resolved engine + version to display. */
-export interface StatusBarEngineVersionParams {
-    platform: Engine;
-    version: string;
-}
-
 /** `diff/postMessage` — the core drives one diff pane's host browser. */
 export interface DiffPostMessageParams {
     paneUri: string;
@@ -416,18 +404,6 @@ export interface DiffPostMessageParams {
  */
 export interface DeploymentSaveParams {
     patch: DeploymentStatePatch;
-}
-
-/**
- * `statusBar/showDeploymentTarget` — the active target name (or `null` for "no
- * target"), the freshness dot state, and the last-deploy / last-verify
- * timestamps (or `null`).
- */
-export interface StatusBarDeploymentTargetParams {
-    name: string | null;
-    freshness: DeploymentFreshness;
-    deployedAt: string | null;
-    verifiedAt: string | null;
 }
 
 /**

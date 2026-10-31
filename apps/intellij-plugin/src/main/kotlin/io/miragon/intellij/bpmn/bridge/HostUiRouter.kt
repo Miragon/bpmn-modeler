@@ -27,10 +27,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort` and
- * its widget-shaped predecessors, and `NotifierPort` — onto native IntelliJ
- * surfaces. Every status frame becomes one view of one slot in [statusSlots];
- * the other handlers delegate to the system clipboard or the lazy
- * [io.miragon.intellij.bpmn.HostNotifications].
+ * `NotifierPort` — onto native IntelliJ surfaces. Every status frame becomes one
+ * view of one slot in [statusSlots]; the other handlers delegate to the system
+ * clipboard or the lazy [io.miragon.intellij.bpmn.HostNotifications].
  */
 internal class HostUiRouter(
     private val deps: BridgeDeps,
@@ -54,31 +53,6 @@ internal class HostUiRouter(
             .on("clipboard/read") { _, id -> handleClipboardRead(id) }
             .on("clipboard/write") { params, _ -> handleClipboardWrite(params) }
             .on("statusBar/update") { params, _ -> handleStatusUpdate(params) }
-            .on("statusBar/showEngineVersion") { params, _ ->
-                statusSlots.show(
-                    StatusSlot.ENGINE_VERSION,
-                    LegacyStatusViews.engineVersion(params.get("platform")?.asString, params.get("version")?.asString),
-                )
-            }
-            .on("statusBar/hideEngineVersion") { _, _ -> statusSlots.hide(StatusSlot.ENGINE_VERSION) }
-            .on("statusBar/templatesReady") { params, _ ->
-                statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesReady(params.get("count")?.asInt ?: 0))
-            }
-            .on("statusBar/templatesHide") { _, _ -> statusSlots.hide(StatusSlot.ELEMENT_TEMPLATES) }
-            .on("statusBar/templatesLoading") { _, _ ->
-                statusSlots.show(StatusSlot.ELEMENT_TEMPLATES, LegacyStatusViews.templatesLoading)
-            }
-            .on("statusBar/showDeploymentTarget") { params, _ ->
-                val name = params.optionalString("name")
-                val freshness = params.optionalString("freshness") ?: "unknown"
-                val deployedAt = params.optionalString("deployedAt")
-                val verifiedAt = params.optionalString("verifiedAt")
-                statusSlots.show(
-                    StatusSlot.DEPLOYMENT_TARGET,
-                    LegacyStatusViews.deploymentTarget(name, freshness, deployedAt, verifiedAt),
-                )
-            }
-            .on("statusBar/hideDeploymentTarget") { _, _ -> statusSlots.hide(StatusSlot.DEPLOYMENT_TARGET) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showWarning") { params, _ -> notifications.showWarning(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }

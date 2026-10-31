@@ -68,7 +68,7 @@ statusBar.hide("elementTemplates");    // hide explicitly (used on error paths)
 
 A feature builds its slot's view in its `domain/` as a pure function (`elementTemplatesStatusView`, `engineVersionStatusView`, `bpmnlintStatusView` in `libs/modeler-core/src/modeler/bpmn/domain/`, `deploymentStatusView` in `libs/modeler-core/src/deployment/domain/`). A time in a view is formatted in the core, in the modeler language (`timestampFormatter`), so both hosts show the same text. When the feature's own state can hide the slot, the function returns `undefined` for it, and the service hands the result to `updateStatusSlot` (`kernel/service/`), which shows the view or hides the slot. A slot that hides only when its editor blurs or closes is hidden by the session participant with `hide` (`BpmnlintParticipant`).
 
-All four slots show the core's views, so the widget-shaped `LegacyStatusBarPort` (`showElementTemplatesLoading`, `showEngineVersion` and their siblings) and `DeploymentStatusBarPort` (`showDeploymentTarget`, `hideDeploymentTarget`) have no caller left. Do not call them; their adapter methods stay only until both ports are removed.
+A new status is a new slot: add it to `StatusSlot`, write its view function, and place it in `VsCodeStatusBar`'s table and in IntelliJ (`StatusSlot` in `StatusView.kt`, its widget id in `StatusBarSlots.kt`, a `StatusSlotWidgetFactory` subclass registered in `plugin.xml`; `StatusSlotPlacementTest` fails until it is placed). The port, the `statusBar/update` RPC and the Kotlin router stay as they are.
 
 A transient view hides itself after 3 s. Each slot reuses one item, so **a
 later show or hide of a slot cancels its pending auto-hide**. Any status that
