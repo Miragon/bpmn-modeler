@@ -181,9 +181,13 @@ describe("RPC protocol descriptor", () => {
             },
         );
 
-        it.each([METHODS.documentWrite, METHODS.deploymentStateSave])(
-            "waits for the reply to %s, the only update of its bridge mirror",
-            (method) => {
+        it.each([
+            { method: METHODS.documentWrite, state: "the document mirror" },
+            { method: METHODS.deploymentStateSave, state: "the deployment-state mirror" },
+            { method: METHODS.marketplaceStateSave, state: "the fetched marketplace cache" },
+        ])(
+            "waits for the reply to $method, so $state stays in step with the host",
+            ({ method }) => {
                 expect(replyDeadlineMs(method)).toBeUndefined();
             },
         );
@@ -198,15 +202,10 @@ describe("RPC protocol descriptor", () => {
             METHODS.secretStoreGetApprovedDestinations,
             METHODS.secretStoreSaveApprovedDestinations,
             METHODS.secretStoreDelete,
-            METHODS.marketplaceStateSave,
             METHODS.tokenStoreGet,
             METHODS.tokenStoreSet,
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
-        });
-
-        it("leaves host work two minutes to queue behind a modal dialog or a keychain prompt", () => {
-            expect(HOST_WORK_REPLY_DEADLINE_MS).toBe(120_000);
         });
     });
 });

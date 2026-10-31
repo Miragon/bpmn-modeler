@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { settle } from "./__fixtures__/bridgeHarness";
-import { HOST_WORK_REPLY_DEADLINE_MS, METHODS } from "./protocol/descriptor";
+import { METHODS } from "./protocol/descriptor";
 import { Rpc } from "./rpc";
 
 /** Parses the single most-recent frame a write spy captured. */
@@ -218,6 +218,8 @@ describe("Rpc inbound dispatch", () => {
 });
 
 describe("Rpc reply deadline", () => {
+    const TWO_MINUTES_MS = 120_000;
+
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -230,7 +232,7 @@ describe("Rpc reply deadline", () => {
         const rpc = new Rpc(vi.fn());
 
         const save = outcomeOf(rpc.request(METHODS.documentSave, { editorId: "e1" }));
-        await vi.advanceTimersByTimeAsync(HOST_WORK_REPLY_DEADLINE_MS - 1);
+        await vi.advanceTimersByTimeAsync(TWO_MINUTES_MS - 1);
         expect(save.current).toBe("pending");
         await vi.advanceTimersByTimeAsync(1);
 
@@ -280,7 +282,7 @@ describe("Rpc reply deadline", () => {
         void rpc.handleLine(
             JSON.stringify({ method: "webview/message", params: { editorId: "e1", step: "next" } }),
         );
-        await vi.advanceTimersByTimeAsync(HOST_WORK_REPLY_DEADLINE_MS);
+        await vi.advanceTimersByTimeAsync(TWO_MINUTES_MS);
 
         expect(handled).toEqual(["next"]);
         await expect(saving).rejects.toThrow("No reply to document/save within 120 s");
