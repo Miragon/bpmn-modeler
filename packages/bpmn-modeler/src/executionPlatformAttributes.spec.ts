@@ -18,8 +18,14 @@ async function definitionsOf(
     return rootElement as unknown as ModdleDefinitions;
 }
 
+interface ModdleCase {
+    prefix: string;
+    registers: string;
+    packages: Record<string, object>;
+}
+
 describe("executionPlatformAttributes", () => {
-    it.each([
+    it.each<ModdleCase>([
         { prefix: "modeler", registers: "no package", packages: {} },
         { prefix: "cm", registers: "no package", packages: {} },
         {

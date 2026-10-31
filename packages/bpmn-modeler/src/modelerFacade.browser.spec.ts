@@ -406,7 +406,7 @@ describe("BpmnModeler element templates", () => {
         modeler.destroy();
     });
 
-    it.each([
+    it.each<{ registers: string; moddleExtensions: Record<string, object> }>([
         { registers: "no package", moddleExtensions: {} },
         { registers: "a modeler package", moddleExtensions: { modeler: MODELER_MODDLE } },
     ])(
