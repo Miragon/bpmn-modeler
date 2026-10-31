@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isWithinRoot, relativeToRoot, relativeToWorkspace } from "./rootContainment";
+import {
+    isWithinRoot,
+    outermostPaths,
+    relativeToRoot,
+    relativeToWorkspace,
+} from "./rootContainment";
 
 describe("relativeToRoot", () => {
     it.each([
@@ -146,5 +151,33 @@ describe("relativeToWorkspace", () => {
         },
     ])("$behaviour", ({ path, folders, relative }) => {
         expect(relativeToWorkspace(path, folders)).toBe(relative);
+    });
+});
+
+describe("outermostPaths", () => {
+    it.each([
+        {
+            behaviour: "keeps paths that hold none of the others",
+            paths: ["/work/a", "/work/b"],
+            outermost: ["/work/a", "/work/b"],
+        },
+        {
+            behaviour: "drops a path below another, in either order",
+            paths: ["/work/a/b/c", "/work/a", "/work/a/b"],
+            outermost: ["/work/a"],
+        },
+        {
+            behaviour: "keeps a path that only shares a prefix",
+            paths: ["/work/a", "/work/ab"],
+            outermost: ["/work/a", "/work/ab"],
+        },
+        {
+            behaviour: "keeps a repeated path once",
+            paths: ["/work/a", "/work/a"],
+            outermost: ["/work/a"],
+        },
+        { behaviour: "returns nothing for no paths", paths: [], outermost: [] },
+    ])("$behaviour", ({ paths, outermost }) => {
+        expect(outermostPaths(paths)).toEqual(outermost);
     });
 });

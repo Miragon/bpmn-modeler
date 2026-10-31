@@ -13,7 +13,7 @@ import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFil
 import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
-import { findFilesBelow } from "../../kernel/service/workspaceFileSearch";
+import { CreatedFolderWalks } from "../../kernel/service/CreatedFolderWalks";
 import { parseMapJson } from "../domain/codeLinkArtifact";
 import { CodeLink, CodeLinkMap, SourceFileChange } from "../domain/CodeLinkMap";
 import { SOURCE_FILES } from "../domain/ImplementationReference";
@@ -50,6 +50,7 @@ interface EditorState {
 /** A workspace-root watcher shared by every diagram rooted there, ref-counted by editor. */
 interface SourceWatcher {
     handle: { dispose(): void };
+    createdFolders: CreatedFolderWalks;
     refCount: number;
 }
 
@@ -121,9 +122,7 @@ export class CodeLinkMapService {
             return;
         }
         if (change === "folderCreated") {
-            const files = await findFilesBelow(this.vsWorkspace, path, SOURCE_FILES.includes);
-            await Promise.all(files.map((file) => this.onSourceFileChanged(file, "create", root)));
-            return;
+            return this.watchers.get(root)?.createdFolders.add(path);
         }
 
         // Queue synchronously and read fresh *inside* each editor's serialized
@@ -155,6 +154,7 @@ export class CodeLinkMapService {
     dispose(): void {
         for (const watcher of this.watchers.values()) {
             watcher.handle.dispose();
+            watcher.createdFolders.dispose();
         }
         this.watchers.clear();
         this.states.clear();
@@ -359,7 +359,15 @@ export class CodeLinkMapService {
                 onChange: (path) => void this.onSourceFileChanged(path, "change", root),
                 onDelete: (path) => void this.onSourceFileChanged(path, "delete", root),
             });
-            watcher = { handle, refCount: 0 };
+            const createdFolders = new CreatedFolderWalks(
+                this.vsWorkspace,
+                SOURCE_FILES.includes,
+                (files) =>
+                    Promise.all(
+                        files.map((file) => this.onSourceFileChanged(file, "create", root)),
+                    ),
+            );
+            watcher = { handle, createdFolders, refCount: 0 };
             this.watchers.set(root, watcher);
         }
         watcher.refCount += 1;
@@ -373,6 +381,7 @@ export class CodeLinkMapService {
         watcher.refCount -= 1;
         if (watcher.refCount <= 0) {
             watcher.handle.dispose();
+            watcher.createdFolders.dispose();
             this.watchers.delete(root);
         }
     }

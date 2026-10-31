@@ -19,6 +19,14 @@ export function isWithinRoot(path: string, root: string): boolean {
     return relativeToRoot(path, root) !== undefined;
 }
 
+/** The `paths` that no other of them holds, each once, in their first order. */
+export function outermostPaths(paths: readonly string[]): string[] {
+    const unique = [...new Set(paths)];
+    return unique.filter(
+        (path) => !unique.some((other) => other !== path && isWithinRoot(path, other)),
+    );
+}
+
 /**
  * `path` as VS Code's `asRelativePath` spells it, so both hosts order a file
  * list as VS Code shows it: below the innermost of `folders` holding it, led by

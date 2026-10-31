@@ -6,7 +6,8 @@ import { searchScopeKey, searchScopeRoots } from "../../kernel/domain/searchScop
 import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
 import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
-import { findFilesBelow, resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
+import { CreatedFolderWalks } from "../../kernel/service/CreatedFolderWalks";
+import { resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
 import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const WATCH_DEBOUNCE_MS = 150;
@@ -26,6 +27,7 @@ interface EditorState {
 interface RootState {
     editors: Set<string>;
     watcher: { dispose(): void };
+    createdFolders: CreatedFolderWalks;
 }
 
 /** Maintains the set of resolvable form ids for every open BPMN webview. */
@@ -69,7 +71,10 @@ export class FormReferenceStatusService {
         this.disposed = true;
         if (this.watchTimer !== undefined) clearTimeout(this.watchTimer);
         this.watchTimer = undefined;
-        for (const state of this.roots.values()) state.watcher.dispose();
+        for (const state of this.roots.values()) {
+            state.watcher.dispose();
+            state.createdFolders.dispose();
+        }
         this.roots.clear();
         this.editors.clear();
         this.refreshChains.clear();
@@ -120,7 +125,10 @@ export class FormReferenceStatusService {
                 onCreate: changed("create"),
                 onDelete: changed("delete"),
             });
-            this.roots.set(root, { editors: new Set([editorId]), watcher });
+            const createdFolders = new CreatedFolderWalks(this.workspace, isFormFile, (forms) => {
+                if (forms.length > 0) this.scheduleRefresh(root);
+            });
+            this.roots.set(root, { editors: new Set([editorId]), watcher, createdFolders });
         } catch (error) {
             this.notifier.logWarning(
                 `Could not watch Camunda Forms under ${root}: ${(error as Error).message}`,
@@ -134,6 +142,7 @@ export class FormReferenceStatusService {
         state.editors.delete(editorId);
         if (state.editors.size === 0) {
             state.watcher.dispose();
+            state.createdFolders.dispose();
             this.roots.delete(root);
             this.pendingRoots.delete(root);
         }
@@ -147,17 +156,12 @@ export class FormReferenceStatusService {
                 this.scheduleRefresh(root);
                 break;
             case "folderCreated":
-                void this.refreshIfFormsBelow(root, path);
+                void this.roots.get(root)?.createdFolders.add(path);
                 break;
             case "folderDeleted":
                 if (this.mayHaveReadFormsBelow(root, path)) this.scheduleRefresh(root);
                 break;
         }
-    }
-
-    private async refreshIfFormsBelow(root: string, folder: string): Promise<void> {
-        const forms = await findFilesBelow(this.workspace, folder, isFormFile);
-        if (forms.length > 0) this.scheduleRefresh(root);
     }
 
     private mayHaveReadFormsBelow(root: string, folder: string): boolean {
