@@ -6,6 +6,7 @@ import {
     DocumentChangeEvent,
     EditorHandle,
     EditorSubscription,
+    minimalReplacement,
     SettingChange,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "./bootstrapWebview";
@@ -92,12 +93,21 @@ export class VsCodeEditorHandle implements EditorHandle {
     async writeContent(content: string, _expectedDocumentRevision?: number): Promise<boolean> {
         this.assertWritableFileSystem("write to", "editable");
 
-        if (this.document.getText() === content) {
+        const replacement = minimalReplacement(this.document.getText(), content);
+        if (!replacement) {
             return false;
         }
 
+        // Only the changed range, so a text editor open beside keeps its cursor.
         const edit = new WorkspaceEdit();
-        edit.replace(this.document.uri, new Range(0, 0, this.document.lineCount, 0), content);
+        edit.replace(
+            this.document.uri,
+            new Range(
+                this.document.positionAt(replacement.start),
+                this.document.positionAt(replacement.end),
+            ),
+            replacement.text,
+        );
         return workspace.applyEdit(edit);
     }
 

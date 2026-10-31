@@ -23,6 +23,7 @@ export * from "./kernel/domain/newModelEngine";
 export * from "./kernel/domain/prompts";
 export * from "./kernel/domain/rootContainment";
 export * from "./kernel/domain/statusView";
+export * from "./kernel/domain/textReplacement";
 export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
 export * from "./kernel/domain/workspacePath";
