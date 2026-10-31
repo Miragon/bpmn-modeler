@@ -43,6 +43,8 @@ afterEach(() => {
     builder.destroy();
 });
 
+const CONSTRAINTS = ["notEmpty", "minLength", "maxLength", "pattern", "patternMessage"];
+
 const lastEdits = () => {
     const calls = builder.onEdit.mock.calls;
     return calls[calls.length - 1]?.[0];
@@ -129,6 +131,26 @@ describe("the groups", () => {
             ),
         );
         expect(lastEdits()).toEqual(removeGroup(current, 0));
+    });
+
+    it("keeps the lists and their items as they are when adding or removing", () => {
+        builder.show(template([input(), input({ label: "Second" })]));
+        const properties = '[data-group-id="group-properties"]';
+
+        builder.click(
+            builder.parent.querySelector(`${properties} .bio-properties-panel-add-entry`),
+        );
+        builder.click(
+            builder.parent.querySelector(
+                `${properties} [data-entry-id="property-0"] .bio-properties-panel-remove-entry`,
+            ),
+        );
+
+        expect(
+            builder.parent.querySelector(`${properties} > .bio-properties-panel-group-header`)
+                ?.classList,
+        ).toContain("open");
+        expect(builder.entry("property-0")?.classList).not.toContain("open");
     });
 
     it("moves a property into a group", () => {
@@ -231,6 +253,30 @@ describe("a property's options", () => {
         expect(lastEdits()).toEqual([
             { kind: "set", path: ["properties", 0, "editable"], value: false },
         ]);
+    });
+
+    it.each([
+        ["String", ["notEmpty", "minLength", "maxLength", "pattern", "patternMessage"]],
+        ["Text", ["notEmpty", "minLength", "maxLength", "pattern", "patternMessage"]],
+        ["Number", ["notEmpty"]],
+        ["Dropdown", ["notEmpty"]],
+        ["Boolean", []],
+    ])("offers the constraints that suit a %s value", (type, offered) => {
+        builder.show(template([input({ type })]));
+
+        expect(CONSTRAINTS.filter((key) => builder.entry(`property-0-constraints-${key}`))).toEqual(
+            offered,
+        );
+    });
+
+    it("still shows a constraint the JSON sets on any value", () => {
+        builder.show(
+            template([input({ type: "Boolean", constraints: { notEmpty: true, maxLength: 3 } })]),
+        );
+
+        expect(CONSTRAINTS.filter((key) => builder.entry(`property-0-constraints-${key}`))).toEqual(
+            ["notEmpty", "maxLength"],
+        );
     });
 
     it("sets constraints and a pattern with its message", () => {
@@ -343,5 +389,38 @@ describe("the problems", () => {
 
         expect(builder.parent.textContent).toContain("Whole template.");
         expect(builder.buttonLabelled("Show")).toBeDefined();
+    });
+
+    it("names the property a problem is about and leads to it", () => {
+        builder.show(template([input()]), {
+            diagnostics: [{ path: ["properties", 0], severity: "warning", message: "Deprecated." }],
+        });
+
+        const problem = builder.parent.querySelector(".etb-problem");
+        expect(problem?.querySelector(".etb-problem__where")?.textContent).toBe("In: ");
+        expect(problem?.querySelector(".etb-link")).not.toBeNull();
+        expect(builder.entry("property-0-label")?.textContent).toContain("Deprecated.");
+    });
+});
+
+describe("the property list", () => {
+    it.each([
+        [input(), "In"],
+        [input({ label: undefined, id: "in-id" }), "in-id"],
+        [
+            { type: "Hidden", value: "3", binding: { type: "zeebe:taskHeader", key: "retries" } },
+            "Hidden · retries",
+        ],
+        [{ binding: { type: "zeebe:taskDefinition:type" } }, "zeebe:taskDefinition:type"],
+        [{}, "Unlabeled property"],
+    ])("titles %j as %s", (property, title) => {
+        builder.show(template([property]));
+
+        expect(
+            builder
+                .entry("property-0")
+                ?.querySelector(".bio-properties-panel-collapsible-entry-header-title")
+                ?.textContent,
+        ).toBe(title);
     });
 });

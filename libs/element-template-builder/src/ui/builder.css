@@ -16,6 +16,7 @@
     padding: 1px 4px 1px 8px;
     border: 1px solid var(--input-border-color, #ccc);
     border-radius: 10px;
+    background: var(--input-background-color, transparent);
 }
 
 .etb-builder .etb-chip__remove,
@@ -71,8 +72,15 @@
     padding: 4px 0;
 }
 
+/* A hanging indent keeps wrapped lines clear of the severity dot. */
 .etb-builder .etb-problem__message {
     flex: 1 1 200px;
+    padding-left: 1em;
+    text-indent: -1em;
+}
+
+.etb-builder .etb-problem__where {
+    font-weight: 600;
 }
 
 .etb-builder .etb-problem--error .etb-problem__message::before {

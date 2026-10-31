@@ -24,7 +24,7 @@ export function bindingSpecOf(
 }
 
 /** The spec's narrower rules for the variant `binding` selects, if any. */
-export function variantOf(
+function variantOf(
     spec: BindingSpec,
     binding: Readonly<Record<string, unknown>>,
 ): BindingVariant | undefined {
