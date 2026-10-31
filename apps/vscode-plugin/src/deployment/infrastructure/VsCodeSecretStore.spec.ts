@@ -269,6 +269,36 @@ describe("VsCodeSecretStore", () => {
             },
         );
 
+        it.each([
+            {
+                kind: "basic-auth",
+                perHalfKeys: ["basicUsername", "basicPassword"],
+                save: (store: VsCodeSecretStore) => store.saveBasicAuth("demo", "secret", SLOT),
+                read: (store: VsCodeSecretStore) => store.getBasicAuth(SLOT),
+                oldPair: { username: "old-name", password: "old-secret" },
+            },
+            {
+                kind: "OAuth2",
+                perHalfKeys: ["oauth2ClientId", "oauth2ClientSecret"],
+                save: (store: VsCodeSecretStore) =>
+                    store.saveOAuth2("client", "client-secret", SLOT),
+                read: (store: VsCodeSecretStore) => store.getOAuth2(SLOT),
+                oldPair: { clientId: "old-name", clientSecret: "old-secret" },
+            },
+        ])(
+            "keeps the old $kind pair earlier releases stored when saving the new one fails",
+            async ({ perHalfKeys: [firstKey, secondKey], save, read, oldPair }) => {
+                const { secrets, store } = createStore();
+                await secrets.store(slotKey(firstKey), "old-name");
+                await secrets.store(slotKey(secondKey), "old-secret");
+                vi.spyOn(secrets, "store").mockRejectedValue(KEYRING_UNAVAILABLE);
+
+                await expect(save(store)).rejects.toBe(KEYRING_UNAVAILABLE);
+
+                await expect(read(store)).resolves.toEqual(oldPair);
+            },
+        );
+
         it("deletes the remaining keys when one delete fails", async () => {
             const { secrets, store } = createStore();
             await store.saveBasicAuth("demo", "secret", SLOT);
