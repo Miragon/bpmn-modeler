@@ -6,6 +6,7 @@ import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
 import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML, START_EVENT_XML } from "./__fixtures__/bpmnXml";
+import { MODELER_MODDLE, declaringCamunda87Under } from "./__fixtures__/modelerModdle";
 import { animationFrames, mountWithPanel, removeMounts, wait } from "./__fixtures__/surfaceMount";
 
 /**
@@ -23,11 +24,6 @@ const SCRIPT_TASK_MORPHED_XML = C7_SCRIPTS_XML.replace(
 const LEGACY_SCRIPT_FORMAT_XML = C7_SCRIPTS_XML.replace(
     '<bpmn:scriptTask id="ScriptTask_1" scriptFormat="groovy">',
     '<bpmn:scriptTask id="ScriptTask_1" camunda:scriptFormat="javascript">',
-);
-
-const C8_UNDER_CUSTOM_MODELER_PREFIX_XML = START_EVENT_XML.replace(
-    "<bpmn:definitions ",
-    '<bpmn:definitions xmlns:cm="http://camunda.org/schema/modeler/1.0" cm:executionPlatform="Camunda Cloud" cm:executionPlatformVersion="8.7.0" ',
 );
 
 const SERVICE_TASK_WITHOUT_JOB_TYPE_XML = FAR_FROM_ORIGIN_XML.replace(
@@ -367,6 +363,11 @@ describe("BpmnModeler element templates", () => {
         appliesTo: ["bpmn:Task"],
         properties: [],
     };
+    const C8_TEMPLATE = {
+        ...VALID_TEMPLATE,
+        $schema:
+            "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    };
 
     afterEach(removeMounts);
 
@@ -405,28 +406,42 @@ describe("BpmnModeler element templates", () => {
         modeler.destroy();
     });
 
-    it("gates templates on the engine version a diagram declares under any modeler prefix", async () => {
-        const { container, panel } = mountWithPanel();
-        const modeler = await createModeler(container, {
-            engine: "c8",
-            propertiesPanel: { parent: panel },
-            linting: false,
-        });
+    it.each([
+        { registers: "no package", moddleExtensions: {} },
+        { registers: "a modeler package", moddleExtensions: { modeler: MODELER_MODDLE } },
+    ])(
+        "gates templates on the engine version a diagram declares under any modeler prefix when moddle registers $registers",
+        async ({ moddleExtensions }) => {
+            const { container, panel } = mountWithPanel();
+            const modeler = await createModeler(container, {
+                engine: "c8",
+                propertiesPanel: { parent: panel },
+                linting: false,
+                moddleExtensions,
+                elementTemplates: [
+                    { ...C8_TEMPLATE, id: "com.example.audit-8-7", engines: { camunda: "^8.7" } },
+                    { ...C8_TEMPLATE, id: "com.example.audit-8-8", engines: { camunda: "^8.8" } },
+                ],
+            });
 
-        await modeler.loadDiagram(C8_UNDER_CUSTOM_MODELER_PREFIX_XML);
+            await modeler.loadDiagram(declaringCamunda87Under("cm", START_EVENT_XML));
 
-        expect(
-            modeler
-                .getService<{ getEngines(): Record<string, string> }>("elementTemplates")
-                .getEngines(),
-        ).toMatchObject({ camunda: "8.7.0" });
-        modeler.destroy();
-    });
+            expect(latestTemplateIds(modeler)).toEqual(["com.example.audit-8-7"]);
+            modeler.destroy();
+        },
+    );
 
     function templateIds(modeler: BpmnModeler): string[] {
         return modeler
             .getService<{ getAll(): Array<{ id: string }> }>("elementTemplates")
             .getAll()
+            .map((template) => template.id);
+    }
+
+    function latestTemplateIds(modeler: BpmnModeler): string[] {
+        return modeler
+            .getService<{ getLatest(): Array<{ id: string }> }>("elementTemplates")
+            .getLatest()
             .map((template) => template.id);
     }
 });
