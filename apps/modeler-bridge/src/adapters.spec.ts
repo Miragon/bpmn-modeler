@@ -7,6 +7,7 @@ import {
     ChoicePrompt,
     DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
+    DeploymentStatePatch,
     LocateResult,
     SearchPrompt,
     SettingChange,
@@ -521,97 +522,77 @@ describe("RpcDocumentPort", () => {
 });
 
 describe("RpcDeploymentState", () => {
-    it("seeds the snapshot and serves it through the synchronous getters", () => {
+    const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
+
+    it("serves the seeded state through the synchronous load", () => {
         const state = new RpcDeploymentState(new Rpc(() => {}));
         state.seed({ endpoint: "https://engine", tenantId: "t1", authType: "basic" });
 
-        expect(state.getEndpoint()).toBe("https://engine");
-        expect(state.getTenantId()).toBe("t1");
-        expect(state.getAuthType()).toBe("basic");
+        expect(state.load()).toMatchObject({
+            endpoint: "https://engine",
+            tenantId: "t1",
+            authType: "basic",
+        });
     });
 
-    it("save* emits an acknowledged request and updates the snapshot optimistically", async () => {
-        const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc);
+    it("replaces the mirror on a seed and reads what the host did not store as the defaults", () => {
+        const state = new RpcDeploymentState(new Rpc(() => {}));
+        state.seed({ endpoint: "https://engine", activeTargetName: "dev" });
 
-        const pending = state.save("https://engine", "t1");
-        // The persist is a request (has an id), not a fire-and-forget notification.
-        expect(last(frames)).toMatchObject({
-            method: "deploymentState/save",
-            params: { endpoint: "https://engine", tenantId: "t1" },
+        state.seed({ authType: "kerberos", ledger: { "target:dev::/a.bpmn": revision } });
+
+        expect(state.load()).toEqual({
+            endpoint: "",
+            tenantId: "",
+            authType: "none",
+            tokenEndpoint: "",
+            audience: "",
+            activeTargetName: "",
+            ledger: { "target:dev::/a.bpmn": revision },
         });
-        expect(last(frames).id).toBeTypeOf("number");
-        // Reads are correct before the host even acks (optimistic update).
-        expect(state.getEndpoint()).toBe("https://engine");
-
-        await answerLast(null);
-        await expect(pending).resolves.toBeUndefined();
     });
 
-    it("saveAuthType / saveOAuth2Config also round-trip as requests", async () => {
+    it("sends a save as one acknowledged request and applies it to the mirror optimistically", async () => {
         const { frames, rpc, answerLast } = harness();
         const state = new RpcDeploymentState(rpc);
-
-        const auth = state.saveAuthType("oauth2");
-        expect(last(frames)).toMatchObject({
-            method: "deploymentState/saveAuthType",
-            params: { authType: "oauth2" },
-        });
-        await answerLast(null);
-        await expect(auth).resolves.toBeUndefined();
-        expect(state.getAuthType()).toBe("oauth2");
-
-        const oauth = state.saveOAuth2Config("https://token", "aud");
-        expect(last(frames)).toMatchObject({
-            method: "deploymentState/saveOAuth2Config",
-            params: { tokenEndpoint: "https://token", audience: "aud" },
-        });
-        await answerLast(null);
-        await expect(oauth).resolves.toBeUndefined();
-        expect(state.getTokenEndpoint()).toBe("https://token");
-        expect(state.getAudience()).toBe("aud");
-    });
-
-    it("lists ledger keys and deletes revisions optimistically with an acknowledged request", async () => {
-        const { frames, rpc, answerLast } = harness();
-        const state = new RpcDeploymentState(rpc);
-        const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
         state.seed({
             ledger: {
                 "target:dev@localhost:8080::/a.bpmn": revision,
                 "target:prod@localhost:8080::/a.bpmn": revision,
             },
         });
+        const patch: DeploymentStatePatch = {
+            endpoint: "https://engine",
+            authType: "oauth2",
+            ledger: { remove: ["target:dev@localhost:8080::/a.bpmn"] },
+        };
 
-        expect(state.listLedgerKeys()).toEqual([
-            "target:dev@localhost:8080::/a.bpmn",
-            "target:prod@localhost:8080::/a.bpmn",
-        ]);
-
-        const pending = state.deleteDeployedRevisions(["target:dev@localhost:8080::/a.bpmn"]);
-        expect(last(frames)).toMatchObject({
-            method: "deploymentState/deleteDeployedRevisions",
-            params: { ledgerKeys: ["target:dev@localhost:8080::/a.bpmn"] },
-        });
+        const pending = state.save(patch);
+        // The persist is a request (has an id), not a fire-and-forget notification.
+        expect(last(frames)).toMatchObject({ method: "deploymentState/save", params: { patch } });
         expect(last(frames).id).toBeTypeOf("number");
-        // The mirror drops the row before the host acks (optimistic update).
-        expect(state.listLedgerKeys()).toEqual(["target:prod@localhost:8080::/a.bpmn"]);
-        expect(state.getDeployedRevision("target:dev@localhost:8080::/a.bpmn")).toBeUndefined();
+        // Reads are correct before the host even acks (optimistic update).
+        expect(state.load()).toMatchObject({
+            endpoint: "https://engine",
+            authType: "oauth2",
+            ledger: { "target:prod@localhost:8080::/a.bpmn": revision },
+        });
+        expect(Object.keys(state.load().ledger)).toEqual(["target:prod@localhost:8080::/a.bpmn"]);
 
         await answerLast(null);
         await expect(pending).resolves.toBeUndefined();
     });
 
-    it("rejects when the host fails to persist and keeps the optimistic snapshot", async () => {
+    it("rejects when the host fails to persist and keeps the optimistic mirror", async () => {
         const { frames, rpc } = harness();
         const state = new RpcDeploymentState(rpc);
 
-        const pending = state.save("https://engine", "t1");
+        const pending = state.save({ endpoint: "https://engine", tenantId: "t1" });
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
 
         await expect(pending).rejects.toThrow("disk full");
         // Rolling back would show stale form values mid-session; the next seed reconciles.
-        expect(state.getEndpoint()).toBe("https://engine");
+        expect(state.load().endpoint).toBe("https://engine");
     });
 });
 

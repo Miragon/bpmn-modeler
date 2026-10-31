@@ -44,7 +44,7 @@ export function register(deps: BridgeSharedDeps): { statusParticipant: EditorSes
     );
 
     // Seed the deployment-state mirror once at startup (and after a persisted
-    // save, if the host chooses to re-seed); getters then read it synchronously.
+    // save, if the host chooses to re-seed); `load()` then reads it synchronously.
     deps.rpc.on(METHODS.deploymentStateSeed, (params: DeploymentSeedParams) => {
         deploymentState.seed(params.state);
     });

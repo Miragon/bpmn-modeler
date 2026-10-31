@@ -23,12 +23,7 @@ import {
     ClipboardReadResult,
     ClipboardWriteParams,
     DeploymentOpenParams,
-    DeploymentDeleteDeployedRevisionsParams,
     DeploymentPostMessageParams,
-    DeploymentSaveActiveTargetParams,
-    DeploymentSaveAuthTypeParams,
-    DeploymentSaveDeployedRevisionParams,
-    DeploymentSaveOAuth2ConfigParams,
     DeploymentSaveParams,
     DeploymentSeedParams,
     DeploymentWebviewMessageParams,
@@ -143,12 +138,7 @@ export const METHODS = {
     secretStoreGetApprovedDestinations: "secretStore/getApprovedDestinations",
     secretStoreSaveApprovedDestinations: "secretStore/saveApprovedDestinations",
     secretStoreDelete: "secretStore/delete",
-    deploymentStateSaveAuthType: "deploymentState/saveAuthType",
-    deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
     deploymentStateSave: "deploymentState/save",
-    deploymentStateSaveActiveTarget: "deploymentState/saveActiveTarget",
-    deploymentStateSaveDeployedRevision: "deploymentState/saveDeployedRevision",
-    deploymentStateDeleteDeployedRevisions: "deploymentState/deleteDeployedRevisions",
     marketplaceStateSave: "marketplaceState/save",
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
@@ -524,61 +514,35 @@ export const PROTOCOL = [
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretDeleteParams,
     },
-    // Acknowledged persists (requests, not notifications): the bridge awaits the
+    // Acknowledged persist (a request, not a notification): the bridge awaits the
     // host's empty ack so a persist failure rejects the core's write instead of
     // diverging silently. No resultFixture (empty ack).
-    {
-        method: METHODS.deploymentStateSaveAuthType,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: { authType: "basic" } satisfies DeploymentSaveAuthTypeParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveOAuth2Config,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: {
-            tokenEndpoint: "https://token",
-            audience: "aud",
-        } satisfies DeploymentSaveOAuth2ConfigParams,
-    },
     {
         method: METHODS.deploymentStateSave,
         direction: "coreToHost",
         kind: "request",
         paramsFixture: {
-            endpoint: "https://engine",
-            tenantId: "t1",
-        } satisfies DeploymentSaveParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveActiveTarget,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: { name: "dev" } satisfies DeploymentSaveActiveTargetParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveDeployedRevision,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: {
-            ledgerKey: "target:dev@localhost:8080::/work/order.bpmn",
-            revision: {
-                fingerprint: "0123456789abcdef",
-                deployedAt: "2026-09-17T14:32:00.000Z",
-                deploymentId: "dep-1",
-                origin: "engine",
-                verifiedAt: "2026-09-17T15:00:00.000Z",
+            patch: {
+                endpoint: "https://engine",
+                tenantId: "t1",
+                authType: "oauth2",
+                tokenEndpoint: "https://token",
+                audience: "aud",
+                activeTargetName: "dev",
+                ledger: {
+                    put: {
+                        "target:dev@localhost:8080::/work/order.bpmn": {
+                            fingerprint: "0123456789abcdef",
+                            deployedAt: "2026-09-17T14:32:00.000Z",
+                            deploymentId: "dep-1",
+                            origin: "engine",
+                            verifiedAt: "2026-09-17T15:00:00.000Z",
+                        },
+                    },
+                    remove: ["target:prod@localhost:8080::/work/order.bpmn"],
+                },
             },
-        } satisfies DeploymentSaveDeployedRevisionParams,
-    },
-    {
-        method: METHODS.deploymentStateDeleteDeployedRevisions,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: {
-            ledgerKeys: ["target:dev@localhost:8080::/work/order.bpmn"],
-        } satisfies DeploymentDeleteDeployedRevisionsParams,
+        } satisfies DeploymentSaveParams,
     },
     // Acknowledged persist: the host adds the entry, fans the snapshot to all
     // bridges, then acks an empty reply — the core awaits only the round-trip.

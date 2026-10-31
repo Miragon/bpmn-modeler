@@ -172,7 +172,7 @@ describe("DeploymentFeature target commands", () => {
 
         await feature.switchTarget();
 
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.statusBar.views.deploymentTarget?.text).toBe("prod");
         expect(targetListsIn(posted)).toEqual([
             expect.objectContaining({ activeTargetName: "prod", documentDir: "/ws/src" }),
@@ -185,7 +185,7 @@ describe("DeploymentFeature target commands", () => {
 
         await feature.switchTarget();
 
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.errors).toEqual([]);
     });
 
@@ -273,27 +273,34 @@ describe("DeploymentFeature panel target commands", () => {
     ])("$behaviour", async ({ command, keptRows }) => {
         const { host, feature } = createFeature({ confirmDestructive: true });
         host.openEditor(ORDER_PROCESS);
-        for (const name of ["dev", "prod"]) {
-            host.deploymentState.ledger.set(ledgerKeyOf(name), {
-                fingerprint: "f",
-                deployedAt: "2026-01-01T00:00:00.000Z",
-            });
-        }
+        host.deploymentState.seed({
+            ledger: Object.fromEntries(
+                ["dev", "prod"].map((name) => [
+                    ledgerKeyOf(name),
+                    { fingerprint: "f", deployedAt: "2026-01-01T00:00:00.000Z" },
+                ]),
+            ),
+        });
         const { panel } = attach(feature, false);
 
         await panel.handle(command);
 
-        expect([...host.deploymentState.ledger.keys()]).toEqual(keptRows.map(ledgerKeyOf));
+        expect(Object.keys(host.deploymentState.load().ledger)).toEqual(keptRows.map(ledgerKeyOf));
     });
 
     it("a ledger prune failure after a successful save still reports the target as saved", async () => {
         const { host, feature } = createFeature();
         host.openEditor(ORDER_PROCESS);
-        host.deploymentState.ledger.set(ledgerKeyOf("dev"), {
-            fingerprint: "f",
-            deployedAt: "2026-01-01T00:00:00.000Z",
+        host.deploymentState.seed({
+            ledger: {
+                [ledgerKeyOf("dev")]: {
+                    fingerprint: "f",
+                    deployedAt: "2026-01-01T00:00:00.000Z",
+                },
+            },
         });
-        vi.spyOn(host.deploymentState, "deleteDeployedRevisions").mockRejectedValue(
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger?.remove !== undefined,
             new Error("workspace state is read-only"),
         );
         const { panel, posted } = attach(feature, false);
@@ -382,7 +389,7 @@ describe("DeploymentFeature.statusMenu", () => {
 
         await feature.statusMenu();
 
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.infos).toEqual([]);
     });
 
@@ -407,7 +414,7 @@ describe("DeploymentFeature.statusMenu", () => {
         expect(host.picker.prompts.map((prompt) => prompt.method)).toEqual([
             "pickDeploymentStatusAction",
         ]);
-        expect(host.deploymentState.activeTargetName).toBe("");
+        expect(host.deploymentState.load().activeTargetName).toBe("");
         expect(host.notifier.infos).toEqual([]);
     });
 });
@@ -444,7 +451,7 @@ describe("DeploymentFeature command failures", () => {
             { [ORDER_PROCESS]: orderXml },
             http,
         );
-        host.deploymentState.activeTargetName = "dev";
+        host.deploymentState.seed({ activeTargetName: "dev" });
         await host.openSession(ORDER_PROCESS, [], { content: orderXml });
         vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(rejection);
         return { host, feature, http };
@@ -497,7 +504,7 @@ describe("DeploymentFeature.activeDocumentDir", () => {
         expect(host.picker.prompts).toEqual([
             { method: "pickDeploymentTarget", args: [["dev", "prod"]] },
         ]);
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.errors).toEqual([]);
     });
 });
@@ -530,7 +537,7 @@ describe("DeploymentFeature with .env references", () => {
             { "/ws/.env": dotEnv, [ORDER_PROCESS]: "<bpmn:definitions/>" },
             http,
         );
-        host.deploymentState.activeTargetName = "dev";
+        host.deploymentState.seed({ activeTargetName: "dev" });
         host.openEditor(ORDER_PROCESS);
         return { host, feature, http };
     }
@@ -565,9 +572,10 @@ describe("DeploymentFeature with .env references", () => {
             ),
             ORDER_PROCESS,
         );
-        host.deploymentState.ledger.set(resolvedRow, {
-            fingerprint: "f",
-            deployedAt: "2026-01-01T00:00:00.000Z",
+        host.deploymentState.seed({
+            ledger: {
+                [resolvedRow]: { fingerprint: "f", deployedAt: "2026-01-01T00:00:00.000Z" },
+            },
         });
         const { panel } = attach(feature, false);
 
@@ -583,8 +591,8 @@ describe("DeploymentFeature with .env references", () => {
             ),
         );
 
-        expect(host.deploymentState.activeTargetName).toBe("staging");
-        expect([...host.deploymentState.ledger.keys()]).toEqual([]);
+        expect(host.deploymentState.load().activeTargetName).toBe("staging");
+        expect(Object.keys(host.deploymentState.load().ledger)).toEqual([]);
     });
 
     it("sends nothing when the user declines the host", async () => {
@@ -619,7 +627,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
                 [ORDER_PROCESS]: SAVED_XML,
             },
         });
-        host.deploymentState.activeTargetName = "dev";
+        host.deploymentState.seed({ activeTargetName: "dev" });
         const flushes = new DocumentFlushService(host.store, host.notifier);
         const pendingEdits = new PendingEditsFlush(host.store, flushes, host.notifier);
         pendingEdits.serve(".bpmn", {
@@ -753,9 +761,11 @@ describe("DeploymentFeature status after a ledger write", () => {
             { [ORDER_PROCESS]: ORDER_XML },
             http,
         );
-        host.deploymentState.activeTargetName = activeTargetName;
-        host.deploymentState.endpoint = LOCAL_ENGINE;
-        for (const row of deployedRows) host.deploymentState.ledger.set(row, DEPLOYED_ORDER_XML);
+        host.deploymentState.seed({
+            activeTargetName,
+            endpoint: LOCAL_ENGINE,
+            ledger: Object.fromEntries(deployedRows.map((row) => [row, DEPLOYED_ORDER_XML])),
+        });
         await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: ORDER_XML });
         await settle();
         return { host, feature };
@@ -790,7 +800,7 @@ describe("DeploymentFeature status after a ledger write", () => {
 
         await feature.verify();
 
-        expect(host.deploymentState.ledger.has(devRow)).toBe(false);
+        expect(devRow in host.deploymentState.load().ledger).toBe(false);
         expect(host.statusBar.views.deploymentTarget).toEqual(
             expect.objectContaining({ text: "dev", tone: "neutral" }),
         );
@@ -803,7 +813,8 @@ describe("DeploymentFeature status after a ledger write", () => {
             deployedRows: [localAdHocRow],
         });
         expect(host.statusBar.views.deploymentTarget?.tone).toBe("success");
-        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger?.put !== undefined,
             new Error("workspace state is read-only"),
         );
         const { panel } = attach(feature, false);
@@ -821,7 +832,7 @@ describe("DeploymentFeature status after a ledger write", () => {
             }),
         );
 
-        expect(host.deploymentState.endpoint).toBe(stagingEngine);
+        expect(host.deploymentState.load().endpoint).toBe(stagingEngine);
         expect(host.statusBar.views.deploymentTarget).toEqual(
             expect.objectContaining({ text: "Form values", tone: "neutral" }),
         );

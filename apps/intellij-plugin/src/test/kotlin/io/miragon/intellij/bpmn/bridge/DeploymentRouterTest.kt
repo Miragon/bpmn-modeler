@@ -11,10 +11,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 
 /**
- * Covers that the deployment-state writes are *acknowledged* requests, not
- * fire-and-forget notifications. Each `deploymentState/save*` must persist
- * through [IntellijDeploymentState] (so a getter / re-seed reflects it across an IDE
- * restart) **and** answer the request id, so a failed persist surfaces as a rejected
+ * Covers that `deploymentState/save` is an *acknowledged* request, not a
+ * fire-and-forget notification: it must persist the patch through
+ * [IntellijDeploymentState] (so a re-seed reflects it across an IDE restart)
+ * **and** answer the request id, so a failed persist surfaces as a rejected
  * promise on the core instead of being silently dropped.
  *
  * Uses a real project (`projectFixture`) so the project-scoped `PropertiesComponent`
@@ -37,24 +37,44 @@ class DeploymentRouterTest {
 
     private fun parse(line: String): JsonObject = gson.fromJson(line, JsonObject::class.java)
 
+    private fun revision(fingerprint: String): Map<String, String> =
+        mapOf("fingerprint" to fingerprint, "deployedAt" to "2026-09-17T14:32:00.000Z")
+
     @Test
-    fun `deploymentState save handlers reply to the request id and persist`() {
+    fun `seeds only what the project stores, leaving the defaults to the core`() {
+        val project = projectFixture.get()
+        val wired = wireChannel().also { this.wired = it }
+        DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
+        val state = IntellijDeploymentState.getInstance(project)
+
+        assertEquals(emptyMap<String, Any>(), state.snapshotMap())
+
+        save(wired, mapOf("endpoint" to "https://engine", "activeTargetName" to ""), id = 40)
+
+        assertEquals(mapOf("endpoint" to "https://engine", "activeTargetName" to ""), state.snapshotMap())
+    }
+
+    @Test
+    fun `save persists every patched field and replies to the request id`() {
         val project = projectFixture.get()
         val wired = wireChannel().also { this.wired = it }
         DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
 
-        dispatchSave(wired, "deploymentState/save", mapOf("endpoint" to "https://engine", "tenantId" to "t1"), id = 42)
-        dispatchSave(wired, "deploymentState/saveAuthType", mapOf("authType" to "oauth2"), id = 43)
-        dispatchSave(
+        save(
             wired,
-            "deploymentState/saveOAuth2Config",
-            mapOf("tokenEndpoint" to "https://token", "audience" to "zeebe"),
-            id = 44,
+            mapOf(
+                "endpoint" to "https://engine",
+                "tenantId" to "t1",
+                "authType" to "oauth2",
+                "tokenEndpoint" to "https://token",
+                "audience" to "zeebe",
+                "activeTargetName" to "dev",
+            ),
+            id = 42,
         )
-        dispatchSave(wired, "deploymentState/saveActiveTarget", mapOf("name" to "dev"), id = 45)
 
-        // The persist must have run before the ack, so the live state mirror reflects
-        // every saved field — the same snapshot the bridge re-seeds on the next spawn.
+        // The persist must have run before the ack, so the stored state reflects
+        // every saved field — the same values the bridge is seeded with on the next spawn.
         val snapshot = IntellijDeploymentState.getInstance(project).snapshotMap()
         assertEquals("https://engine", snapshot["endpoint"])
         assertEquals("t1", snapshot["tenantId"])
@@ -65,79 +85,74 @@ class DeploymentRouterTest {
     }
 
     @Test
-    fun `saveDeployedRevision acknowledges and persists the ledger entry`() {
+    fun `save keeps the fields a patch leaves out`() {
         val project = projectFixture.get()
         val wired = wireChannel().also { this.wired = it }
         DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
+        save(wired, mapOf("endpoint" to "https://engine", "tenantId" to "t1"), id = 43)
 
-        val revision =
-            JsonObject().apply {
-                addProperty("fingerprint", "0123456789abcdef")
-                addProperty("deployedAt", "2026-09-17T14:32:00.000Z")
-                addProperty("deploymentId", "dep-1")
-            }
-        val params =
-            JsonObject().apply {
-                addProperty("ledgerKey", "target:dev::/work/order.bpmn")
-                add("revision", revision)
-            }
-        wired.handlers.dispatch("deploymentState/saveDeployedRevision", params, 50)
-        val reply = parse(wired.fake.nextFrame())
-        assertEquals(50, reply.get("id").asInt, "saveDeployedRevision must acknowledge its request id")
-        assertFalse(reply.has("method"), "an ack is a reply frame, never another request")
+        save(wired, mapOf("tenantId" to "t2"), id = 44)
 
-        val ledger =
-            gson.toJsonTree(IntellijDeploymentState.getInstance(project).snapshotMap()["ledger"])
-                .asJsonObject
-        val stored = ledger.getAsJsonObject("target:dev::/work/order.bpmn")
-        assertEquals("0123456789abcdef", stored.get("fingerprint").asString)
-        assertEquals("dep-1", stored.get("deploymentId").asString)
+        val snapshot = IntellijDeploymentState.getInstance(project).snapshotMap()
+        assertEquals("https://engine", snapshot["endpoint"])
+        assertEquals("t2", snapshot["tenantId"])
     }
 
     @Test
-    fun `deleteDeployedRevisions acknowledges and drops exactly the named entries`() {
+    fun `save removes and puts ledger rows in one patch and keeps the others`() {
         val project = projectFixture.get()
         val wired = wireChannel().also { this.wired = it }
         DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
-        val state = IntellijDeploymentState.getInstance(project)
-        val revision =
-            JsonObject().apply {
-                addProperty("fingerprint", "0123456789abcdef")
-                addProperty("deployedAt", "2026-09-17T14:32:00.000Z")
-            }
-        state.saveDeployedRevision("target:dev@localhost:8080::/work/a.bpmn", revision)
-        state.saveDeployedRevision("target:prod@localhost:8080::/work/a.bpmn", revision)
+        val devRow = "target:dev@localhost:8080::/work/a.bpmn"
+        val prodRow = "target:prod@localhost:8080::/work/a.bpmn"
+        val stagingRow = "target:staging@localhost:8080::/work/a.bpmn"
+        val recorded = mapOf(devRow to revision("d1"), prodRow to revision("p1"))
+        save(wired, mapOf("ledger" to mapOf("put" to recorded)), id = 50)
 
-        val params =
-            JsonObject().apply {
-                add(
-                    "ledgerKeys",
-                    gson.toJsonTree(listOf("target:dev@localhost:8080::/work/a.bpmn")),
-                )
-            }
-        wired.handlers.dispatch("deploymentState/deleteDeployedRevisions", params, 51)
-        val reply = parse(wired.fake.nextFrame())
-        assertEquals(51, reply.get("id").asInt, "deleteDeployedRevisions must acknowledge its request id")
-        assertFalse(reply.has("method"), "an ack is a reply frame, never another request")
-
-        val ledger = gson.toJsonTree(state.snapshotMap()["ledger"]).asJsonObject
-        assertFalse(ledger.has("target:dev@localhost:8080::/work/a.bpmn"))
-        assertEquals(
-            "0123456789abcdef",
-            ledger.getAsJsonObject("target:prod@localhost:8080::/work/a.bpmn").get("fingerprint").asString,
+        save(
+            wired,
+            mapOf(
+                "ledger" to
+                    mapOf(
+                        "remove" to listOf(devRow, "target:gone::/x.bpmn"),
+                        "put" to mapOf(stagingRow to revision("s1"), prodRow to revision("p2")),
+                    ),
+            ),
+            id = 51,
         )
+
+        val ledger =
+            gson.toJsonTree(IntellijDeploymentState.getInstance(project).snapshotMap()["ledger"]).asJsonObject
+        assertEquals(setOf(prodRow, stagingRow), ledger.keySet())
+        assertEquals("p2", ledger.getAsJsonObject(prodRow).get("fingerprint").asString)
+        assertEquals("s1", ledger.getAsJsonObject(stagingRow).get("fingerprint").asString)
+    }
+
+    @Test
+    fun `save puts a row the same patch removes, as the core does`() {
+        val project = projectFixture.get()
+        val wired = wireChannel().also { this.wired = it }
+        DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
+        val devRow = "target:dev@localhost:8080::/work/a.bpmn"
+
+        val ledgerPatch = mapOf("remove" to listOf(devRow), "put" to mapOf(devRow to revision("d2")))
+        save(wired, mapOf("ledger" to ledgerPatch), id = 52)
+
+        val ledger =
+            gson.toJsonTree(IntellijDeploymentState.getInstance(project).snapshotMap()["ledger"]).asJsonObject
+        assertEquals("d2", ledger.getAsJsonObject(devRow).get("fingerprint").asString)
     }
 
     /** Dispatches one acknowledged save and asserts the matching empty reply frame. */
-    private fun dispatchSave(
+    private fun save(
         wired: WiredBridge,
-        method: String,
-        params: Map<String, String>,
+        patch: Map<String, Any>,
         id: Int,
     ) {
-        wired.handlers.dispatch(method, wired.channel.gson.toJsonTree(params).asJsonObject, id)
+        val params = JsonObject().apply { add("patch", wired.channel.gson.toJsonTree(patch)) }
+        wired.handlers.dispatch("deploymentState/save", params, id)
         val reply = parse(wired.fake.nextFrame())
-        assertEquals(id, reply.get("id").asInt, "$method must acknowledge its request id")
+        assertEquals(id, reply.get("id").asInt, "deploymentState/save must acknowledge its request id")
         assertFalse(reply.has("method"), "an ack is a reply frame, never another request")
     }
 }

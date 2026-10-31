@@ -1,100 +1,45 @@
 import { Memento } from "vscode";
 
-import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
+import {
+    applyDeploymentStatePatch,
+    DeploymentState,
+    DeploymentStatePatch,
+    DeploymentStatePort,
+    deploymentStateFrom,
+    patchedKeys,
+} from "@miragon/bpmn-modeler-core";
 
-import { DeployedRevision, DeploymentStatePort } from "@miragon/bpmn-modeler-core";
+/** The keys earlier releases wrote; renaming one would forget the stored value. */
+const MEMENTO_KEYS: Readonly<Record<keyof DeploymentState, string>> = {
+    endpoint: "bpmn-modeler.deployment.endpoint",
+    tenantId: "bpmn-modeler.deployment.tenantId",
+    authType: "bpmn-modeler.deployment.authType",
+    tokenEndpoint: "bpmn-modeler.deployment.tokenEndpoint",
+    audience: "bpmn-modeler.deployment.audience",
+    activeTargetName: "bpmn-modeler.deployment.activeTargetName",
+    ledger: "bpmn-modeler.deployment.ledger",
+};
 
-/**
- * Persists deployment form state (endpoint, tenantId, authType, OAuth2 config)
- * across VS Code sessions in the extension's `workspaceState`.
- */
+/** Persists the deployment state in the extension's per-project `workspaceState`. */
 export class VsCodeDeploymentState implements DeploymentStatePort {
-    private static readonly ENDPOINT_KEY = "bpmn-modeler.deployment.endpoint";
-
-    private static readonly TENANT_ID_KEY = "bpmn-modeler.deployment.tenantId";
-
-    private static readonly AUTH_TYPE_KEY = "bpmn-modeler.deployment.authType";
-
-    private static readonly TOKEN_ENDPOINT_KEY = "bpmn-modeler.deployment.tokenEndpoint";
-
-    private static readonly AUDIENCE_KEY = "bpmn-modeler.deployment.audience";
-
-    private static readonly ACTIVE_TARGET_KEY = "bpmn-modeler.deployment.activeTargetName";
-
-    private static readonly LEDGER_KEY = "bpmn-modeler.deployment.ledger";
-
     constructor(private readonly workspaceState: Memento) {}
 
-    getEndpoint(): string {
-        return this.workspaceState.get<string>(VsCodeDeploymentState.ENDPOINT_KEY, "");
+    load(): DeploymentState {
+        return deploymentStateFrom({
+            endpoint: this.workspaceState.get(MEMENTO_KEYS.endpoint),
+            tenantId: this.workspaceState.get(MEMENTO_KEYS.tenantId),
+            authType: this.workspaceState.get(MEMENTO_KEYS.authType),
+            tokenEndpoint: this.workspaceState.get(MEMENTO_KEYS.tokenEndpoint),
+            audience: this.workspaceState.get(MEMENTO_KEYS.audience),
+            activeTargetName: this.workspaceState.get(MEMENTO_KEYS.activeTargetName),
+            ledger: this.workspaceState.get(MEMENTO_KEYS.ledger),
+        });
     }
 
-    getTenantId(): string {
-        return this.workspaceState.get<string>(VsCodeDeploymentState.TENANT_ID_KEY, "");
-    }
-
-    getAuthType(): AuthTypePayload {
-        return this.workspaceState.get<AuthTypePayload>(
-            VsCodeDeploymentState.AUTH_TYPE_KEY,
-            "none",
-        );
-    }
-
-    async saveAuthType(authType: AuthTypePayload): Promise<void> {
-        await this.workspaceState.update(VsCodeDeploymentState.AUTH_TYPE_KEY, authType);
-    }
-
-    getTokenEndpoint(): string {
-        return this.workspaceState.get<string>(VsCodeDeploymentState.TOKEN_ENDPOINT_KEY, "");
-    }
-
-    getAudience(): string {
-        return this.workspaceState.get<string>(VsCodeDeploymentState.AUDIENCE_KEY, "");
-    }
-
-    async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
-        await this.workspaceState.update(VsCodeDeploymentState.TOKEN_ENDPOINT_KEY, tokenEndpoint);
-        await this.workspaceState.update(VsCodeDeploymentState.AUDIENCE_KEY, audience);
-    }
-
-    async save(endpoint: string, tenantId: string): Promise<void> {
-        await this.workspaceState.update(VsCodeDeploymentState.ENDPOINT_KEY, endpoint);
-        await this.workspaceState.update(VsCodeDeploymentState.TENANT_ID_KEY, tenantId);
-    }
-
-    getActiveTargetName(): string {
-        return this.workspaceState.get<string>(VsCodeDeploymentState.ACTIVE_TARGET_KEY, "");
-    }
-
-    async saveActiveTargetName(name: string): Promise<void> {
-        await this.workspaceState.update(VsCodeDeploymentState.ACTIVE_TARGET_KEY, name);
-    }
-
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
-        return this.readLedger()[ledgerKey];
-    }
-
-    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
-        const ledger = { ...this.readLedger(), [ledgerKey]: revision };
-        await this.workspaceState.update(VsCodeDeploymentState.LEDGER_KEY, ledger);
-    }
-
-    listLedgerKeys(): string[] {
-        return Object.keys(this.readLedger());
-    }
-
-    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
-        const ledger = { ...this.readLedger() };
-        for (const key of ledgerKeys) {
-            delete ledger[key];
+    async save(patch: DeploymentStatePatch): Promise<void> {
+        const next = applyDeploymentStatePatch(this.load(), patch);
+        for (const key of patchedKeys(patch)) {
+            await this.workspaceState.update(MEMENTO_KEYS[key], next[key]);
         }
-        await this.workspaceState.update(VsCodeDeploymentState.LEDGER_KEY, ledger);
-    }
-
-    private readLedger(): Record<string, DeployedRevision> {
-        return this.workspaceState.get<Record<string, DeployedRevision>>(
-            VsCodeDeploymentState.LEDGER_KEY,
-            {},
-        );
     }
 }

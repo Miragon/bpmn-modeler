@@ -270,8 +270,7 @@ describe("DeploymentService.getFormDefaults", () => {
     it("derives the deployment name from the filename and auto-detects the engine", () => {
         const { service, host } = createService();
         const editor = host.openEditor("/work/order-process.bpmn", C8_XML);
-        host.deploymentState.endpoint = "https://camunda.example/api";
-        host.deploymentState.tenantId = "acme";
+        host.deploymentState.seed({ endpoint: "https://camunda.example/api", tenantId: "acme" });
 
         const defaults = service.getFormDefaults(editor.id);
 
@@ -315,7 +314,7 @@ describe("DeploymentService.getFormDefaults", () => {
 describe("DeploymentService.getStoredCredentials", () => {
     it("returns basic credentials when basic auth is stored", async () => {
         const { service, host } = createService();
-        host.deploymentState.authType = "basic";
+        host.deploymentState.seed({ authType: "basic" });
         await host.secrets.saveBasicAuth("admin", "secret");
 
         await expect(service.getStoredCredentials()).resolves.toEqual({
@@ -327,9 +326,11 @@ describe("DeploymentService.getStoredCredentials", () => {
 
     it("returns oauth2 credentials plus the stored token endpoint and audience", async () => {
         const { service, host } = createService();
-        host.deploymentState.authType = "oauth2";
-        host.deploymentState.tokenEndpoint = "https://idp/token";
-        host.deploymentState.audience = "zeebe-api";
+        host.deploymentState.seed({
+            authType: "oauth2",
+            tokenEndpoint: "https://idp/token",
+            audience: "zeebe-api",
+        });
         await host.secrets.saveOAuth2("cid", "csecret");
 
         await expect(service.getStoredCredentials()).resolves.toEqual({
@@ -343,7 +344,7 @@ describe("DeploymentService.getStoredCredentials", () => {
 
     it("returns a none payload when the auth type is basic but no secret exists", async () => {
         const { service, host } = createService();
-        host.deploymentState.authType = "basic";
+        host.deploymentState.seed({ authType: "basic" });
 
         await expect(service.getStoredCredentials()).resolves.toEqual({ authType: "none" });
     });
@@ -402,14 +403,14 @@ describe("DeploymentService.deploy", () => {
 
     it("persists the endpoint, tenant and auth type on success", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
-        host.deploymentState.authType = "basic";
+        host.deploymentState.seed({ authType: "basic" });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
         await deployAdHoc(service, buildConfig({ endpoint: "https://c/api", tenantId: "acme" }));
 
-        expect(host.deploymentState.endpoint).toBe("https://c/api");
-        expect(host.deploymentState.tenantId).toBe("acme");
-        expect(host.deploymentState.authType).toBe("none");
+        expect(host.deploymentState.load().endpoint).toBe("https://c/api");
+        expect(host.deploymentState.load().tenantId).toBe("acme");
+        expect(host.deploymentState.load().authType).toBe("none");
     });
 
     it("stores basic-auth credentials on success", async () => {
@@ -418,7 +419,7 @@ describe("DeploymentService.deploy", () => {
 
         await deployAdHoc(service, buildConfig({ auth: new BasicAuth("admin", "secret") }));
 
-        expect(host.deploymentState.authType).toBe("basic");
+        expect(host.deploymentState.load().authType).toBe("basic");
         await expect(host.secrets.getBasicAuth()).resolves.toEqual({
             username: "admin",
             password: "secret",
@@ -440,8 +441,8 @@ describe("DeploymentService.deploy", () => {
             clientId: "cid",
             clientSecret: "csecret",
         });
-        expect(host.deploymentState.tokenEndpoint).toBe("https://idp/token");
-        expect(host.deploymentState.audience).toBe("zeebe-api");
+        expect(host.deploymentState.load().tokenEndpoint).toBe("https://idp/token");
+        expect(host.deploymentState.load().audience).toBe("zeebe-api");
     });
 
     it("persists only credentials under the slot (not legacy state) in target mode", async () => {
@@ -458,9 +459,9 @@ describe("DeploymentService.deploy", () => {
             password: "secret",
         });
         await expect(host.secrets.getBasicAuth()).resolves.toBeUndefined();
-        expect(host.deploymentState.endpoint).toBe("");
-        expect(host.deploymentState.tenantId).toBe("");
-        expect(host.deploymentState.authType).toBe("none");
+        expect(host.deploymentState.load().endpoint).toBe("");
+        expect(host.deploymentState.load().tenantId).toBe("");
+        expect(host.deploymentState.load().authType).toBe("none");
     });
 
     it("persists a ref next to a literal to the target slot as typed, sending only the resolved value", async () => {
@@ -588,7 +589,7 @@ describe("DeploymentService.deploy", () => {
         );
 
         expect(result.success).toBe(false);
-        expect(host.deploymentState.endpoint).toBe("");
+        expect(host.deploymentState.load().endpoint).toBe("");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
 
@@ -621,7 +622,10 @@ describe("DeploymentService.deploy", () => {
     it("reports an engine-accepted ad-hoc deploy as deployed and still stores its credentials and ledger row when saving the connection settings throws", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        vi.spyOn(host.deploymentState, "save").mockRejectedValue(new Error("state locked"));
+        host.deploymentState.failSaves(
+            (patch) => patch.endpoint !== undefined,
+            new Error("state locked"),
+        );
 
         const result = await deployAdHoc(
             service,
@@ -643,12 +647,41 @@ describe("DeploymentService.deploy", () => {
             username: "admin",
             password: "secret",
         });
-        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+        expect(host.deploymentState.load().ledger).toEqual({
             "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
         });
         expect(host.notifier.logged("warning")).toEqual([
             "Deployment succeeded, but saving its connection settings failed: state locked",
         ]);
+    });
+
+    it("saves an ad-hoc deploy's connection in one write, so a failed save leaves the stored connection whole", async () => {
+        const { service, host, restClient } = createService({ files: MAIN_FILE });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        const storedConnection = {
+            endpoint: "https://old.example/api",
+            tenantId: "old-tenant",
+            authType: "basic",
+            tokenEndpoint: "https://old-idp/token",
+            audience: "old-audience",
+        } as const;
+        host.deploymentState.seed(storedConnection);
+        host.deploymentState.failSaves(
+            (patch) => patch.authType !== undefined,
+            new Error("state locked"),
+        );
+
+        const result = await deployAdHoc(
+            service,
+            buildConfig({
+                endpoint: "https://new.example/api",
+                tenantId: "new-tenant",
+                auth: new OAuth2Auth("cid", "csecret", "https://new-idp/token", "new-audience"),
+            }),
+        );
+
+        expect(result.message).toBe("ok Not saved: connection settings (state locked).");
+        expect(host.deploymentState.load()).toMatchObject(storedConnection);
     });
 
     it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
@@ -668,8 +701,8 @@ describe("DeploymentService.deploy", () => {
         expect(result).toEqual(
             new DeploymentResult(true, "ok Not saved: credentials (no OS keyring).", "dep-1"),
         );
-        expect(host.deploymentState.endpoint).toBe("https://c.example/api");
-        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+        expect(host.deploymentState.load().endpoint).toBe("https://c.example/api");
+        expect(host.deploymentState.load().ledger).toEqual({
             "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
         });
         expect(host.notifier.logged("warning")).toEqual([
@@ -680,7 +713,8 @@ describe("DeploymentService.deploy", () => {
     it("reports an engine-accepted deploy as deployed when recording the ledger row throws", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger !== undefined,
             new Error("workspace state unavailable"),
         );
 
@@ -762,10 +796,10 @@ describe("DeploymentService.deploy", () => {
         expect(sentConfig.endpoint).toBe("https://camunda.prod.example/api");
         expect((sentConfig.auth as BasicAuth).password).toBe("s3cret");
         // Persisted state must keep the literal ref, never the resolved secret.
-        expect(host.deploymentState.endpoint).toBe(
+        expect(host.deploymentState.load().endpoint).toBe(
             "https://camunda.${env:MIRAGON_STAGE}.example/api",
         );
-        expect(host.deploymentState.tenantId).toBe("");
+        expect(host.deploymentState.load().tenantId).toBe("");
         await expect(host.secrets.getBasicAuth()).resolves.toEqual({
             username: "admin",
             password: "${env:MIRAGON_PASSWORD}",
@@ -1050,8 +1084,8 @@ describe("DeploymentService.deploy credential approval", () => {
         await expect(host.secrets.getBasicAuth(TARGET_SLOT)).resolves.toBeUndefined();
         await expect(host.secrets.getOAuth2(TARGET_SLOT)).resolves.toBeUndefined();
         await expect(host.secrets.getBasicAuth()).resolves.toBeUndefined();
-        expect(host.deploymentState.endpoint).toBe("");
-        expect(host.deploymentState.authType).toBe("none");
+        expect(host.deploymentState.load().endpoint).toBe("");
+        expect(host.deploymentState.load().authType).toBe("none");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
 
@@ -1127,7 +1161,7 @@ describe("DeploymentService.deploy credential approval", () => {
         expect(result).toMatchObject({ success: false, message: declinedAdHoc.message });
         expect(restClient.deploy).not.toHaveBeenCalled();
         await expect(host.secrets.getBasicAuth()).resolves.toBeUndefined();
-        expect(host.deploymentState.endpoint).toBe("");
+        expect(host.deploymentState.load().endpoint).toBe("");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
 });
@@ -1186,7 +1220,7 @@ describe("DeploymentService.deployFiles", () => {
         expect(results.map((r) => r.success)).toEqual([true, false, false]);
         expect(results[1].message).toBe("b: boom");
         expect(host.notifier.errors).toEqual(['Deployed 1/3 file(s) to "dev". b: boom']);
-        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+        expect(host.deploymentState.load().ledger).toEqual({
             "target:dev@c::/work/a.bpmn": recordedRevision("dep-a"),
         });
     });
@@ -1203,14 +1237,15 @@ describe("DeploymentService.deployFiles", () => {
         );
 
         expect(results).toEqual([new DeploymentResult(false, "rejected by server")]);
-        expect(host.deploymentState.ledger).toEqual(new Map());
+        expect(host.deploymentState.load().ledger).toEqual({});
         expect(host.notifier.errors).toEqual(['Deployed 0/1 file(s) to "dev". rejected by server']);
     });
 
     it("counts a file the engine accepted as deployed when recording its ledger row throws", async () => {
         const { service, host, restClient } = createService({ files: xmlFiles("/work/a.bpmn") });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger !== undefined,
             new Error("workspace state unavailable"),
         );
 

@@ -298,7 +298,7 @@ export class DeploymentTargetService {
         );
         await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
 
-        if (this.deploymentState.getActiveTargetName() === change.name) {
+        if (this.deploymentState.load().activeTargetName === change.name) {
             await this.saveActiveTargetName("");
         }
         return this.publishEdit(new TargetEdit(change, location), documentDir);
@@ -326,11 +326,8 @@ export class DeploymentTargetService {
      * that no longer resolves to a target (file hand-edited) is tolerated as ad-hoc.
      */
     async getActiveDestination(documentDir?: string): Promise<DeploymentDestination> {
-        const rememberedAdHoc = new AdHocDestination(
-            this.deploymentState.getEndpoint(),
-            this.deploymentState.getTenantId(),
-        );
-        const name = this.deploymentState.getActiveTargetName();
+        const { endpoint, tenantId, activeTargetName: name } = this.deploymentState.load();
+        const rememberedAdHoc = new AdHocDestination(endpoint, tenantId);
         if (!namesTarget(name)) {
             return rememberedAdHoc;
         }
@@ -354,7 +351,7 @@ export class DeploymentTargetService {
     /** A target edit publishes its own change, so it stores the active name without another one. */
     private async saveActiveTargetName(name: string): Promise<string> {
         const activeName = name.trim();
-        await this.deploymentState.saveActiveTargetName(activeName);
+        await this.deploymentState.save({ activeTargetName: activeName });
         return activeName;
     }
 

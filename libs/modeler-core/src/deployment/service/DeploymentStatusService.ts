@@ -94,16 +94,14 @@ export class DeploymentStatusService {
             deploymentId,
             origin: "local",
         };
-        await this.writeThenRefresh(() =>
-            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
-        );
+        await this.putRevision(ledgerKeyFor(identity, filePath), revision);
     }
 
     getRevision(
         filePath: string,
         identity: DeploymentTargetIdentity,
     ): DeployedRevision | undefined {
-        return this.deploymentState.getDeployedRevision(ledgerKeyFor(identity, filePath));
+        return this.deploymentState.load().ledger[ledgerKeyFor(identity, filePath)];
     }
 
     async adoptRevision(
@@ -111,14 +109,20 @@ export class DeploymentStatusService {
         identity: DeploymentTargetIdentity,
         revision: DeployedRevision,
     ): Promise<void> {
+        await this.putRevision(ledgerKeyFor(identity, filePath), revision);
+    }
+
+    private async putRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
         await this.writeThenRefresh(() =>
-            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
+            this.deploymentState.save({ ledger: { put: { [ledgerKey]: revision } } }),
         );
     }
 
     async forgetRevision(filePath: string, identity: DeploymentTargetIdentity): Promise<void> {
         await this.writeThenRefresh(() =>
-            this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]),
+            this.deploymentState.save({
+                ledger: { remove: [ledgerKeyFor(identity, filePath)] },
+            }),
         );
     }
 
@@ -126,11 +130,11 @@ export class DeploymentStatusService {
     async pruneTarget(identity: DeploymentTargetIdentity): Promise<void> {
         const prefix = ledgerKeyPrefixFor(identity);
         await this.writeThenRefresh(async () => {
-            const keys = this.deploymentState
-                .listLedgerKeys()
-                .filter((key) => key.startsWith(prefix));
+            const keys = Object.keys(this.deploymentState.load().ledger).filter((key) =>
+                key.startsWith(prefix),
+            );
             if (keys.length > 0) {
-                await this.deploymentState.deleteDeployedRevisions(keys);
+                await this.deploymentState.save({ ledger: { remove: keys } });
             }
         });
     }
@@ -184,9 +188,7 @@ export class DeploymentStatusService {
                 return;
             }
 
-            const revision = this.deploymentState.getDeployedRevision(
-                ledgerKeyFor(identity, filePath),
-            );
+            const revision = this.deploymentState.load().ledger[ledgerKeyFor(identity, filePath)];
             this.statusBar.show(
                 "deploymentTarget",
                 deploymentStatusView(

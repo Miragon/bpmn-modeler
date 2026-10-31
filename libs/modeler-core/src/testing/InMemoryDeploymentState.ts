@@ -1,73 +1,36 @@
-import { DeployedRevision } from "../deployment/domain/deploymentLedger";
-import { TargetAuthType } from "../deployment/domain/deploymentTarget";
+import {
+    applyDeploymentStatePatch,
+    DEFAULT_DEPLOYMENT_STATE,
+    DeploymentState,
+    DeploymentStatePatch,
+} from "../deployment/domain/deploymentState";
 import { DeploymentStatePort } from "../deployment/domain/ports";
 
+interface SaveFailure {
+    readonly matches: (patch: DeploymentStatePatch) => boolean;
+    readonly error: Error;
+}
+
 export class InMemoryDeploymentState implements DeploymentStatePort {
-    endpoint = "";
-    tenantId = "";
-    authType: TargetAuthType = "none";
-    tokenEndpoint = "";
-    audience = "";
-    activeTargetName = "";
-    readonly ledger = new Map<string, DeployedRevision>();
+    private state: DeploymentState = DEFAULT_DEPLOYMENT_STATE;
+    private failure: SaveFailure | undefined;
 
-    getEndpoint(): string {
-        return this.endpoint;
+    /** What the host had stored before the test: unnamed fields keep their values. */
+    seed(stored: Partial<DeploymentState>): void {
+        this.state = { ...this.state, ...stored };
     }
 
-    getTenantId(): string {
-        return this.tenantId;
+    /** Every later save whose patch `matches` rejects with `error` and writes nothing. */
+    failSaves(matches: (patch: DeploymentStatePatch) => boolean, error: Error): void {
+        this.failure = { matches, error };
     }
 
-    getAuthType(): TargetAuthType {
-        return this.authType;
+    load(): DeploymentState {
+        return this.state;
     }
 
-    async saveAuthType(authType: TargetAuthType): Promise<void> {
-        this.authType = authType;
-    }
-
-    getTokenEndpoint(): string {
-        return this.tokenEndpoint;
-    }
-
-    getAudience(): string {
-        return this.audience;
-    }
-
-    async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
-        this.tokenEndpoint = tokenEndpoint;
-        this.audience = audience;
-    }
-
-    async save(endpoint: string, tenantId: string): Promise<void> {
-        this.endpoint = endpoint;
-        this.tenantId = tenantId;
-    }
-
-    getActiveTargetName(): string {
-        return this.activeTargetName;
-    }
-
-    async saveActiveTargetName(name: string): Promise<void> {
-        this.activeTargetName = name;
-    }
-
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
-        return this.ledger.get(ledgerKey);
-    }
-
-    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
-        this.ledger.set(ledgerKey, revision);
-    }
-
-    listLedgerKeys(): string[] {
-        return [...this.ledger.keys()];
-    }
-
-    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
-        for (const key of ledgerKeys) {
-            this.ledger.delete(key);
-        }
+    async save(patch: DeploymentStatePatch): Promise<void> {
+        if (this.failure?.matches(patch)) throw this.failure.error;
+        this.state = applyDeploymentStatePatch(this.state, patch);
     }
 }
