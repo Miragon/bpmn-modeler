@@ -354,13 +354,16 @@ the core. The deployment services search the workspace through
 One prompt stays outside `PickerPort`: the template marketplace asks for a
 personal access token in a masked input, which a chooser cannot show. Its port
 follows the same split. `TokenPromptPort.promptForToken` takes a `TokenPrompt`
-the core builds in full (`template-marketplace/domain/tokenPrompt.ts`): the
-title `Personal Access Token for <host>`, the reason the session asks as its
-prompt, `password: true`, and the host, which the test kit's
-`ScriptedTokenPrompt` answers by and no host shows. VS Code renders it in an
-input box that stays open while the user leaves to create the token. The
-bridge sends the title and the prompt over `tokenPrompt/show`, and IntelliJ
-shows them in its password dialog. Both hosts return the answer as typed, and
+that `tokenPromptFor` (`template-marketplace/domain/tokenPrompt.ts`) builds in
+full from the host and why the session asks: a refused request, worded by
+`AccessDenial`, or a source the marketplace declares private. The view holds
+the title `Personal Access Token for <host>`, the prompt text,
+`password: true`, and the host. The session stores the answer under that host
+and the test kit's `ScriptedTokenPrompt` answers by it; no host shows it. No
+service writes any of this text. VS Code renders the view in an input box that
+stays open while the user leaves to create the token. The bridge sends the
+title and the prompt over `tokenPrompt/show`, and IntelliJ shows them in its
+password dialog. Both hosts return the answer as typed, and
 the core (`enteredToken`) takes a blank answer for no token, so a blank token
 is never stored and no host trims.
 
