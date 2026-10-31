@@ -24,31 +24,32 @@ import {
     COMPLEX_TYPES,
     EditorSessionStore,
     globalFunctionsFor,
+    InlineScript,
     matchScriptFile,
     methodsForBean,
     NotifierPort,
     PickerPort,
+    ScriptEditorPort,
     ScriptFileStore,
     ScriptLanguage,
+    scriptLanguagePrompt,
     ScriptMaterialization,
+    ScriptSourceChange,
     ScriptUri,
     ScriptVariableStore,
     SettingsPort,
     toWorkspacePath,
 } from "@miragon/bpmn-modeler-core";
 import {
-    OpenScriptEditorCommand,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
-    UpdateScriptSourceCommand,
 } from "@miragon/bpmn-modeler-shared";
 import {
     AsyncDebounced,
     asyncDebounce,
     OpenScriptEditorRef,
     ScriptKind,
-    VariableDef,
 } from "@miragon/bpmn-modeler-types";
 
 import { Rpc } from "./rpc";
@@ -69,7 +70,7 @@ interface TrackedScript {
  * instead of duplicating it, and `didChange` can be mapped back to the element
  * without the host knowing anything about BPMN.
  */
-export class BridgeScriptEditor {
+export class BridgeScriptEditor implements ScriptEditorPort {
     private readonly scripts = new Map<string, TrackedScript>();
 
     // Absolute file path per open script, retained for deletion on close.
@@ -129,8 +130,8 @@ export class BridgeScriptEditor {
      * content; the host ignores it when the `scriptId` is already tracked and
      * just reveals the existing tab (so a re-open never clobbers in-flight edits).
      */
-    async open(cmd: OpenScriptEditorCommand, editorId: string): Promise<void> {
-        const target = await this.resolveScriptTarget(cmd, editorId);
+    async open(editorId: string, script: InlineScript): Promise<void> {
+        const target = await this.resolveScriptTarget(script, editorId);
         if (!target) {
             return; // language picker cancelled
         }
@@ -143,7 +144,7 @@ export class BridgeScriptEditor {
         if (filePath === undefined) {
             try {
                 const writtenPath = await this.scriptFiles.prepareScriptFile(editorId, uri);
-                await this.scriptFiles.writeFile(writtenPath, cmd.content);
+                await this.scriptFiles.writeFile(writtenPath, script.content);
                 this.filePathByScript.set(scriptId, writtenPath);
                 filePath = writtenPath;
             } catch (error) {
@@ -156,14 +157,10 @@ export class BridgeScriptEditor {
 
         this.scripts.set(scriptId, {
             editorId,
-            elementId: cmd.elementId,
-            kind: cmd.kind,
-            listenerIndex: cmd.listenerIndex,
+            elementId: script.elementId,
+            kind: script.kind,
+            listenerIndex: script.listenerIndex,
         });
-
-        // Seed the editor's extracted model from the open command so the host has
-        // variable completion before the first live update arrives.
-        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
@@ -172,8 +169,8 @@ export class BridgeScriptEditor {
             fileName: uri.filename,
             languageId: lang.languageId,
             filePath,
-            content: cmd.content,
-            completion: this.completionPayloadFor(cmd.kind, editorId),
+            content: script.content,
+            completion: this.completionPayloadFor(script.kind, editorId),
         } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
@@ -223,11 +220,8 @@ export class BridgeScriptEditor {
      * the panel button's rewrite-from-model semantics. A script already owned by
      * an open tab is left untouched (`alreadyOpen`) — its buffer is authoritative.
      */
-    async materialize(
-        cmd: OpenScriptEditorCommand,
-        editorId: string,
-    ): Promise<ScriptMaterialization> {
-        const target = await this.resolveScriptTarget(cmd, editorId);
+    async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
+        const target = await this.resolveScriptTarget(script, editorId);
         if (!target) {
             return { kind: "cancelled" };
         }
@@ -237,12 +231,7 @@ export class BridgeScriptEditor {
         }
 
         const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
-        await this.scriptFiles.writeFile(filePath, cmd.content);
-
-        // Seed the editor's extracted model so a later open/adoption has variables
-        // before the first live `UpdateScriptVariablesCommand`.
-        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
-
+        await this.scriptFiles.writeFile(filePath, script.content);
         return { kind: "written" };
     }
 
@@ -260,26 +249,26 @@ export class BridgeScriptEditor {
      * the model content we were just handed.
      */
     private async resolveScriptTarget(
-        cmd: OpenScriptEditorCommand,
+        script: InlineScript,
         editorId: string,
     ): Promise<{ scriptId: string; uri: ScriptUri; lang: ScriptLanguage } | undefined> {
-        let effectiveFormat = cmd.scriptFormat;
-        if (!ScriptLanguage.isSupported(cmd.scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(cmd.scriptFormat);
+        let effectiveFormat = script.scriptFormat;
+        if (!ScriptLanguage.isSupported(script.scriptFormat)) {
+            const picked = await this.picker.choose(scriptLanguagePrompt(script.scriptFormat));
             if (!picked) {
                 return undefined;
             }
             effectiveFormat = picked;
-            await this.sendFormatUpdate(editorId, cmd, picked);
+            await this.sendFormatUpdate(editorId, script, picked);
         }
 
         const lang = new ScriptLanguage(effectiveFormat);
         const uri = new ScriptUri(
             editorId,
-            cmd.elementId,
-            cmd.kind,
-            cmd.listenerIndex,
-            cmd.eventName,
+            script.elementId,
+            script.kind,
+            script.listenerIndex,
+            script.eventName,
             lang.extension,
         );
         const scriptId = uri.toString();
@@ -358,7 +347,7 @@ export class BridgeScriptEditor {
      * `GetBpmnModelerSettingCommand` handshake, the same signal the webview
      * sends whenever it (re)initialises.
      */
-    syncLockState(editorId: string): void {
+    resync(editorId: string): void {
         this.broadcastOpenScripts(editorId);
     }
 
@@ -371,17 +360,17 @@ export class BridgeScriptEditor {
      * open document via `script/updateContent` (echo-guarded on the host);
      * the file on disk follows through IntelliJ's own save cycle.
      */
-    applyModelChange(cmd: UpdateScriptSourceCommand, editorId: string): void {
+    applyModelChange(editorId: string, change: ScriptSourceChange): void {
         for (const [scriptId, entry] of this.scripts) {
             if (
                 entry.editorId !== editorId ||
-                entry.elementId !== cmd.elementId ||
-                entry.kind !== cmd.kind ||
-                (entry.listenerIndex ?? 0) !== (cmd.listenerIndex ?? 0)
+                entry.elementId !== change.elementId ||
+                entry.kind !== change.kind ||
+                (entry.listenerIndex ?? 0) !== (change.listenerIndex ?? 0)
             ) {
                 continue;
             }
-            if (cmd.content === undefined) {
+            if (change.content === undefined) {
                 // Surface gone: drop the sender so a pending keystroke can't
                 // fire against a deleted element.
                 this.dropSender(scriptId);
@@ -394,7 +383,7 @@ export class BridgeScriptEditor {
                 this.contentSenders.get(scriptId)?.cancel();
                 this.rpc.notify(METHODS.scriptUpdateContent, {
                     scriptId,
-                    content: cmd.content,
+                    content: change.content,
                 });
             }
             return;
@@ -448,18 +437,11 @@ export class BridgeScriptEditor {
     }
 
     /**
-     * Replaces an editor's webview-extracted model and re-pushes it to every
-     * open script tab of that editor via `script/updateVariables`, so completion
-     * goes live without reopening. Scoped to the originating editor's scripts
-     * only.
+     * Re-pushes an editor's webview-extracted model to every open script tab of
+     * that editor via `script/updateVariables`, so completion goes live without
+     * reopening. Scoped to the originating editor's scripts only.
      */
-    updateVariables(editorId: string, variables: VariableDef[]): void {
-        this.scriptVariables.setExtracted(editorId, variables);
-        this.pushVariables(editorId);
-    }
-
-    /** Pushes the editor's model to every open script tab of `editorId`. */
-    private pushVariables(editorId: string): void {
+    variablesChanged(editorId: string): void {
         const variables = this.scriptVariables.variablesFor(editorId);
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
@@ -605,8 +587,6 @@ export class BridgeScriptEditor {
                 });
             }
         }
-
-        this.scriptVariables.clear(editorId);
     }
 
     /**
@@ -615,16 +595,16 @@ export class BridgeScriptEditor {
      */
     private async sendFormatUpdate(
         editorId: string,
-        cmd: OpenScriptEditorCommand,
+        script: InlineScript,
         scriptFormat: string,
     ): Promise<void> {
         try {
             await this.store.postMessage(
                 editorId,
                 new UpdateScriptFormatQuery(
-                    cmd.elementId,
-                    cmd.kind,
-                    cmd.listenerIndex,
+                    script.elementId,
+                    script.kind,
+                    script.listenerIndex,
                     scriptFormat,
                 ),
             );

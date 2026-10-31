@@ -2,8 +2,6 @@ import {
     BpmnLayoutService,
     BpmnMigrationService,
     BpmnModelerService,
-    cleanupReportHandler,
-    diagramFormattedHandler,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
 } from "@miragon/bpmn-modeler-core";
 import { METHODS } from "../protocol/descriptor";
@@ -18,16 +16,17 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * `notifier/*` ports, so no new Core→Host method is needed (the protocol contract
  * forbids Host→Core requests anyway).
  *
- * The engine-version change reuses the same {@link BpmnModelerService} instance the
- * editor-session feature owns (handed in via `handles`) so it shares the store and
- * document mirror. Migration gets its own {@link BpmnMigrationService} — its
- * orchestration (scope/version pickers + bulk fs writes) has no per-editor state.
+ * The engine-version change and the layout commands reuse the BPMN editor's
+ * {@link BpmnModelerService} and {@link BpmnLayoutService} (handed in via
+ * `handles`) so they share the store and document mirror. Migration gets its own
+ * {@link BpmnMigrationService} — its orchestration (scope/version pickers + bulk
+ * fs writes) has no per-editor state.
  */
 export function register(
     deps: BridgeSharedDeps,
-    handles: { bpmnService: BpmnModelerService },
+    handles: { bpmnService: BpmnModelerService; layout: BpmnLayoutService },
 ): void {
-    // Both services swallow their own errors (UserCancelledError → silent, others →
+    // Both services swallow their own errors (a dismissed prompt → silent, others →
     // a notifier balloon), so these handlers just await and never need a try/catch.
     deps.rpc.on(METHODS.modelerChangeEngineVersion, async (params: EditorRefParams) => {
         await handles.bpmnService.changeEngineVersion(params.editorId);
@@ -41,14 +40,11 @@ export function register(
         deps.notifier,
     );
     // Formatting and cleanup: the host fires them as notifications and the
-    // outcome comes back over the webview channel, so the replies are routed
-    // here rather than returned. `confirm/show` is the one new Core→Host
-    // request the pair needs — deleting on the user's behalf has to wait for an
-    // answer, and requests only run in that direction.
-    const layoutSvc = new BpmnLayoutService(deps.store, deps.notifier, deps.picker);
-    deps.router
-        .on("DiagramFormattedCommand", diagramFormattedHandler(layoutSvc))
-        .on("CleanupReportCommand", cleanupReportHandler(layoutSvc));
+    // outcome comes back over the webview channel, which the BPMN editor routes.
+    // `confirm/show` is the one new Core→Host request the pair needs — deleting
+    // on the user's behalf has to wait for an answer, and requests only run in
+    // that direction.
+    const layoutSvc = handles.layout;
 
     const withActiveEditor = async (action: (editorId: string) => Promise<void>): Promise<void> => {
         try {

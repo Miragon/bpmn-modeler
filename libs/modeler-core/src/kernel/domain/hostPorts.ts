@@ -18,6 +18,7 @@ import { Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { LocateResult } from "./locateResult";
 import { NewModelEngine } from "./newModelEngine";
+import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "./prompts";
 import { StatusSlot, StatusView } from "./statusView";
 
 /**
@@ -67,11 +68,34 @@ export interface LocatePrompts {
 }
 
 /**
- * Domain-aware quick-pick prompts (engine, engine version, located file, …).
- * Each method owns the cancel-vs-throw convention for its prompt so callsites
- * stay free of `vscode` and the convention is not re-derived.
+ * User choices and confirmations. The generic prompts carry everything the user
+ * reads, built by the core; a host only renders them and reports the pick, and a
+ * dismissal is an answer the caller handles. The other prompts are
+ * feature-shaped: their adapters build the text and own the cancel-vs-throw
+ * convention. They stay until their callers move to the generic ones.
  */
 export interface PickerPort {
+    /** @returns the chosen item's value, or `undefined` on dismissal. */
+    choose<V>(prompt: ChoicePrompt<V>): Promise<V | undefined>;
+    /** @returns the chosen items' values, or `[]` on dismissal. */
+    chooseMany<V>(prompt: ChoicePrompt<V>): Promise<readonly V[]>;
+    /**
+     * Modal by contract: the caller is about to remove something on the user's
+     * behalf, and a dismissible toast is not consent.
+     *
+     * @returns `true` only on explicit confirmation.
+     */
+    confirm(request: ConfirmRequest): Promise<boolean>;
+    /**
+     * Runs the search behind a busy chooser, so the spinner sits where the user
+     * is looking. The chooser opens only for the choice the outcome leaves; the
+     * untouched `outcome` comes back either way, so the caller keeps the other
+     * cases and their messages.
+     *
+     * @returns `{ outcome, chosen }` — `chosen` set only when the user chose.
+     */
+    searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }>;
+
     /**
      * Prompts for the execution platform of a new model — Camunda 7/8 or the
      * engine-neutral choice (Design mode).

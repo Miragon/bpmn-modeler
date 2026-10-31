@@ -4,15 +4,17 @@ import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modele
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
-import { createTestHost, TestHostOptions } from "../../testing";
+import { createTestHost, PickerAnswers, TestHostOptions } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
 import {
     AdHocDestination,
     NamedDestination,
+    TargetEdit,
     TargetsLocation,
     UnknownTarget,
 } from "../domain/deploymentDestination";
+import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
 import {
     serializeDeploymentTargets,
     DeploymentTarget,
@@ -119,7 +121,7 @@ async function expectNothingPersisted(c: ReturnType<typeof createService>) {
     expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith());
     await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
     await expect(c.host.secrets.getOAuth2(slot("dev"))).resolves.toBeUndefined();
-    expect(c.host.deploymentState.activeTargetName).toBe("");
+    expect(c.host.deploymentState.load().activeTargetName).toBe("");
 }
 
 describe("DeploymentTargetService.locateTargetsFile", () => {
@@ -277,7 +279,7 @@ describe("DeploymentTargetService.openTargetsFile", () => {
 describe("DeploymentTargetService.saveTarget", () => {
     async function seedOldTarget(c: ReturnType<typeof createService>) {
         await c.host.secrets.saveBasicAuth("old-user", "old-pass", slot("old"));
-        c.host.deploymentState.activeTargetName = "old";
+        c.host.deploymentState.seed({ activeTargetName: "old" });
     }
 
     async function expectOldTargetUntouched(c: ReturnType<typeof createService>) {
@@ -285,7 +287,7 @@ describe("DeploymentTargetService.saveTarget", () => {
             username: "old-user",
             password: "old-pass",
         });
-        expect(c.host.deploymentState.activeTargetName).toBe("old");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("old");
     }
 
     it.each(["{ broken", JSON.stringify({ targets: [{ name: "broken" }] })])(
@@ -345,7 +347,7 @@ describe("DeploymentTargetService.saveTarget", () => {
         { name: "new", endpoint: " " },
     ])("rejects invalid input before writing: %j", async (fields) => {
         const c = createService();
-        c.host.deploymentState.activeTargetName = "old";
+        c.host.deploymentState.seed({ activeTargetName: "old" });
         await expect(
             c.service.saveTarget(
                 { ...fields, engine: "c7", tenantId: "", authType: "basic" },
@@ -356,7 +358,7 @@ describe("DeploymentTargetService.saveTarget", () => {
         ).rejects.toThrow();
         expect(c.host.workspace.files.size).toBe(0);
         await expect(c.host.secrets.getBasicAuth(slot(fields.name))).resolves.toBeUndefined();
-        expect(c.host.deploymentState.activeTargetName).toBe("old");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("old");
     });
 
     it.each([
@@ -411,7 +413,7 @@ describe("DeploymentTargetService.saveTarget", () => {
             username: "u",
             password: "p",
         });
-        expect(c.host.deploymentState.activeTargetName).toBe("dev");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
     });
 
     it.each(["${env:MIRAGON_CAMUNDA_PASSWORD}", "  ${env:MIRAGON_CAMUNDA_PASSWORD} "])(
@@ -739,7 +741,7 @@ describe("DeploymentTargetService.createTarget", () => {
             username: "u",
             password: "p",
         });
-        expect(c.host.deploymentState.activeTargetName).toBe("dev");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
     });
 
     it("throws and writes nothing when the name already exists", async () => {
@@ -762,7 +764,7 @@ describe("DeploymentTargetService.createTarget", () => {
         ).rejects.toThrow(/already exists/);
         expect(c.host.workspace.files.get(FILE_PATH)).toBe(existing);
         await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
-        expect(c.host.deploymentState.activeTargetName).toBe("");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("");
     });
 
     it("writes a padded whole-value credential ref to the JSON trimmed and stores it as typed", async () => {
@@ -805,7 +807,7 @@ describe("DeploymentTargetService.deleteTarget", () => {
             files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
         });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-        c.host.deploymentState.activeTargetName = "dev";
+        c.host.deploymentState.seed({ activeTargetName: "dev" });
         await c.host.secrets.saveBasicAuth("u", "p", slot("dev"));
 
         await c.service.deleteTarget("dev", DOC_DIR);
@@ -813,7 +815,7 @@ describe("DeploymentTargetService.deleteTarget", () => {
         const written = c.host.workspace.files.get(FILE_PATH);
         expect(written).not.toContain('"dev"');
         await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
-        expect(c.host.deploymentState.activeTargetName).toBe("");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("");
     });
 
     it("returns a removed change carrying the deleted target", async () => {
@@ -843,7 +845,7 @@ describe("DeploymentTargetService.getActiveTarget", () => {
     it("returns undefined for a dangling active name", async () => {
         const c = createService({ files: { [FILE_PATH]: fileWith(target("dev")) } });
         c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
-        c.host.deploymentState.activeTargetName = "gone";
+        c.host.deploymentState.seed({ activeTargetName: "gone" });
 
         expect(await c.service.getActiveTarget(DOC_DIR)).toBeUndefined();
     });
@@ -854,9 +856,8 @@ describe("DeploymentTargetService.getActiveDestination", () => {
 
     function serviceRemembering(activeTargetName: string) {
         const c = serviceWithTargetsFile(fileWith(target("dev")));
-        c.host.deploymentState.endpoint = remembered.endpoint;
-        c.host.deploymentState.tenantId = remembered.tenantId;
-        c.host.deploymentState.activeTargetName = activeTargetName;
+        const { endpoint, tenantId } = remembered;
+        c.host.deploymentState.seed({ endpoint, tenantId, activeTargetName });
         return c;
     }
 
@@ -895,11 +896,11 @@ describe("DeploymentTargetService.getActiveDestination", () => {
 describe("DeploymentTargetService.switchActiveTarget", () => {
     it("is a no-op on dismissal", async () => {
         const c = createService();
-        c.host.deploymentState.activeTargetName = "prod";
+        c.host.deploymentState.seed({ activeTargetName: "prod" });
 
         await c.service.switchActiveTarget(DOC_DIR);
 
-        expect(c.host.deploymentState.activeTargetName).toBe("prod");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("prod");
     });
 
     it("persists the picked target", async () => {
@@ -911,7 +912,165 @@ describe("DeploymentTargetService.switchActiveTarget", () => {
 
         await c.service.switchActiveTarget(DOC_DIR);
 
-        expect(c.host.deploymentState.activeTargetName).toBe("dev");
+        expect(c.host.deploymentState.load().activeTargetName).toBe("dev");
+    });
+});
+
+describe("DeploymentTargetService.onDidChange", () => {
+    const noAuth: AuthConfigPayload = { authType: "none" };
+    const payloadOf = (name: string) => toTargetPayload(target(name));
+
+    const DEFAULT_ANSWERS: PickerAnswers = { confirmDestructive: true, deploymentTarget: "prod" };
+
+    /** `dev`, the active target, and `prod`; deletes are confirmed and the picker picks `prod`. */
+    function listeningService(answers: PickerAnswers = DEFAULT_ANSWERS) {
+        const c = createService({
+            files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
+            answers,
+        });
+        c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
+        c.host.deploymentState.seed({ activeTargetName: "dev" });
+        const events: DeploymentTargetsEvent[] = [];
+        c.service.onDidChange((event) => void events.push(event));
+        return { ...c, events };
+    }
+
+    const targetsChanged = (edit: TargetEdit | undefined): DeploymentTargetsEvent => {
+        if (edit === undefined) throw new Error("the edit was not made");
+        return { kind: "targetsChanged", edit, documentDir: DOC_DIR };
+    };
+
+    it.each<{
+        mutation: string;
+        change: (service: DeploymentTargetService) => Promise<DeploymentTargetsEvent>;
+    }>([
+        {
+            mutation: "a create",
+            change: async (service) =>
+                targetsChanged(await service.createTarget(payloadOf("staging"), noAuth, DOC_DIR)),
+        },
+        {
+            mutation: "a save",
+            change: async (service) =>
+                targetsChanged(await service.saveTarget(payloadOf("dev"), noAuth, "dev", DOC_DIR)),
+        },
+        {
+            mutation: "a rename",
+            change: async (service) =>
+                targetsChanged(
+                    await service.saveTarget(payloadOf("staging"), noAuth, "dev", DOC_DIR),
+                ),
+        },
+        {
+            mutation: "a delete",
+            change: async (service) => targetsChanged(await service.deleteTarget("dev", DOC_DIR)),
+        },
+        {
+            mutation: "a picked switch",
+            change: async (service) => {
+                await service.switchActiveTarget(DOC_DIR);
+                return { kind: "activeTargetChanged", activeName: "prod" };
+            },
+        },
+        {
+            mutation: "a select",
+            change: async (service) => {
+                await service.setActiveTarget(" prod ");
+                return { kind: "activeTargetChanged", activeName: "prod" };
+            },
+        },
+    ])("notifies listeners once with the change after $mutation", async ({ change }) => {
+        const c = listeningService();
+
+        const expected = await change(c.service);
+
+        expect(c.events).toEqual([expected]);
+    });
+
+    it.each<{
+        mutation: string;
+        answers?: PickerAnswers;
+        attempt: (service: DeploymentTargetService) => Promise<unknown>;
+    }>([
+        {
+            mutation: "a rejected create",
+            attempt: (service) => service.createTarget(payloadOf("dev"), noAuth, DOC_DIR),
+        },
+        {
+            mutation: "a rejected rename",
+            attempt: (service) => service.saveTarget(payloadOf("prod"), noAuth, "dev", DOC_DIR),
+        },
+        {
+            mutation: "a cancelled delete",
+            answers: { confirmDestructive: false },
+            attempt: (service) => service.deleteTarget("dev", DOC_DIR),
+        },
+        {
+            mutation: "a dismissed picker",
+            answers: {},
+            attempt: (service) => service.switchActiveTarget(DOC_DIR),
+        },
+    ])("never notifies for $mutation", async ({ answers, attempt }) => {
+        const c = listeningService(answers);
+
+        await attempt(c.service).catch(() => undefined);
+
+        expect(c.events).toEqual([]);
+    });
+
+    it("notifies the listeners in subscription order, each after the previous one settled", async () => {
+        const c = createService();
+        const calls: string[] = [];
+        let settleFirst: () => void = () => undefined;
+        c.service.onDidChange(
+            () =>
+                new Promise<void>((resolve) => {
+                    calls.push("first notified");
+                    settleFirst = () => {
+                        calls.push("first settled");
+                        resolve();
+                    };
+                }),
+        );
+        c.service.onDidChange(() => void calls.push("second notified"));
+
+        const selecting = c.service.setActiveTarget("prod");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(calls).toEqual(["first notified"]);
+        settleFirst();
+        await selecting;
+
+        expect(calls).toEqual(["first notified", "first settled", "second notified"]);
+    });
+
+    it("logs a failing listener and still notifies the next one", async () => {
+        const c = createService();
+        const events: DeploymentTargetsEvent[] = [];
+        c.service.onDidChange(() => {
+            throw new Error("status bar is gone");
+        });
+        c.service.onDidChange(async () => {
+            throw new Error("panel is gone");
+        });
+        c.service.onDidChange((event) => void events.push(event));
+
+        await expect(c.service.setActiveTarget("prod")).resolves.toBeUndefined();
+
+        expect(events).toEqual([{ kind: "activeTargetChanged", activeName: "prod" }]);
+        expect(c.host.notifier.loggedErrors.map((error) => error.message)).toEqual([
+            "status bar is gone",
+            "panel is gone",
+        ]);
+    });
+
+    it("stops notifying a listener once its subscription is disposed", async () => {
+        const c = createService();
+        const events: DeploymentTargetsEvent[] = [];
+        c.service.onDidChange((event) => void events.push(event)).dispose();
+
+        await c.service.setActiveTarget("prod");
+
+        expect(events).toEqual([]);
     });
 });
 

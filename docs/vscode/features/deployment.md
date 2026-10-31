@@ -94,6 +94,10 @@ Supported fields: `username`, `password`, `clientId`, `clientSecret`, `tokenEndp
 
 The status bar shows the active target with a coloured dot. Click it to switch targets or, for Camunda 7, verify against the engine.
 
+With no target selected, the item reads **Form values** once a deploy has saved the form's connection, and its dot then refers to that connection. A target name that is no longer in `deployment-targets.json` falls back to the form values, so it reads **Form values** too. Until a deploy saves the form's connection, the item reads **No deployment target** without a freshness colour.
+
+The tooltip shows when the diagram was last deployed and verified, in the modeler's UI language.
+
 | Dot | Meaning |
 |---|---|
 | Green | The diagram matches your last deployment to this target. |

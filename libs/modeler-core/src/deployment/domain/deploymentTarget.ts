@@ -23,7 +23,13 @@ import {
     wholeEnvRefOf,
 } from "./envRef";
 
-export type TargetAuthType = "none" | "basic" | "oauth2";
+const TARGET_AUTH_TYPES = ["none", "basic", "oauth2"] as const;
+
+export type TargetAuthType = (typeof TARGET_AUTH_TYPES)[number];
+
+export function isTargetAuthType(raw: unknown): raw is TargetAuthType {
+    return TARGET_AUTH_TYPES.some((type) => type === raw);
+}
 
 const NON_EMPTY_STRING = "must be a non-empty string";
 
@@ -261,7 +267,7 @@ export class DeploymentTarget {
         if (fields.endpoint.trim() === "") {
             throw new InvalidDeploymentTargetError("endpoint", NON_EMPTY_STRING);
         }
-        if (authType !== "none" && authType !== "basic" && authType !== "oauth2") {
+        if (!isTargetAuthType(authType)) {
             throw new InvalidDeploymentTargetError(
                 "auth.type",
                 'must be "none", "basic", or "oauth2"',

@@ -5,7 +5,7 @@ import { notifyIfNewRelease } from "./shared/infrastructure/releaseNotes";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";
-import * as codeLinkFeature from "./composition/codeLinkFeature";
+import * as bpmnEditorFeature from "./composition/bpmnEditorFeature";
 import * as editorFeature from "./composition/editorFeature";
 import * as elementTemplateFeature from "./composition/elementTemplateFeature";
 import * as compareFeature from "./composition/compareFeature";
@@ -26,12 +26,12 @@ export interface TestApi {
  * adding one file and one line here.
  *
  * The register order is observable (it is the order custom editors, providers,
- * and commands become available) and is preserved exactly: diff → script →
- * codeLink → marketplace (service) → editor → marketplace (commands) →
- * template preview → compare → commands → deployment. Handles flow forward
- * only: the editor routes into diff's controller, script's service, code-link's
- * handles, and the marketplace service; later features reuse handles the
- * earlier ones returned.
+ * and commands become available): diff → script → marketplace (service) →
+ * deployment → BPMN editor → DMN and Form editors → marketplace (commands) →
+ * template preview → compare → commands. Handles flow forward only: the BPMN
+ * editor routes into diff's controller, the script editor's contribution, the
+ * marketplace service and the deployment status; later features reuse handles
+ * the earlier ones returned.
  */
 export function activate(context: ExtensionContext): TestApi {
     setContext(context);
@@ -44,30 +44,30 @@ export function activate(context: ExtensionContext): TestApi {
         deps.notifier,
     );
     const { diffController, diffStore } = diffFeature.register(context, deps);
-    const { scriptTaskSvc, scriptVariableStore, scriptFiles } = scriptFeature.register(
-        context,
-        deps,
-    );
-    const codeLink = codeLinkFeature.register(context, deps);
-    // Service built before the editor feature (which merges its cache); commands
+    const script = scriptFeature.register(context, deps);
+    // Service built before the BPMN editor (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
     const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
-    // Before the editor feature so its status bar participant can join the BPMN
-    // session participant list (the same forward hand-off as code-link).
+    // Before the BPMN editor so its status bar participant can join the BPMN
+    // session participant list (the same forward hand-off as the script editor).
     const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
-    const { bpmnService, templatesSvc, layoutSvc } = editorFeature.register(context, deps, {
+    const bpmnEditor = bpmnEditorFeature.register(context, deps, {
         diffController,
-        scriptTaskSvc,
-        scriptVariableStore,
-        scriptFiles,
-        codeLink,
         marketplaceSvc,
         deploymentStatusParticipant,
+        scriptEditor: script.editorContribution,
     });
-    templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
+    editorFeature.register(context, deps);
+    templateMarketplaceFeature.registerCommands(context, deps, {
+        marketplaceSvc,
+        templatesSvc: bpmnEditor.templates,
+    });
     elementTemplateFeature.register(context, deps);
     compareFeature.register(context, deps, { diffController });
-    commandsFeature.register(context, deps, { bpmnService, layoutSvc });
+    commandsFeature.register(context, deps, {
+        bpmnService: bpmnEditor.bpmnService,
+        layoutSvc: bpmnEditor.layout,
+    });
 
     return {
         diff: {

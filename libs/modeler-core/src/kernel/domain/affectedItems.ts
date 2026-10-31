@@ -1,3 +1,5 @@
+import { ConfirmRequest } from "./prompts";
+
 export const MAX_LISTED_AFFECTED_ITEMS = 12;
 
 /**
@@ -11,4 +13,18 @@ export function summarizeAffectedItems(
     const listed = items.slice(0, limit);
     const remainder = items.length - listed.length;
     return remainder > 0 ? [...listed, `…and ${remainder} more`] : listed;
+}
+
+export function confirmation({
+    id,
+    title,
+    confirmLabel,
+    affected,
+}: {
+    id: string;
+    title: string;
+    confirmLabel: string;
+    affected: readonly string[];
+}): ConfirmRequest {
+    return { id, title, confirmLabel, details: summarizeAffectedItems(affected) };
 }

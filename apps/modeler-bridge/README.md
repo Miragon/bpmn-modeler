@@ -25,16 +25,16 @@ isn't talking to VS Code.
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |
-| core → host | `statusBar/*` (the other seven)         | `LegacyStatusBarPort` (no core caller left), `DeploymentStatusBarPort` → Kotlin builds the slot's view until every caller sends `statusBar/update` |
+| core → host | `statusBar/*` (the other seven)         | `LegacyStatusBarPort`, `DeploymentStatusBarPort` (no core caller left) → Kotlin builds the slot's view; removed with both ports |
 | host → core | `linting/toggle`                        | BPMNlint widget click → flips the bridge's lint choice (as the webview toggle does) and re-lints open diagrams |
 | core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one with its approved destinations |
-| host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings)              |
+| host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror with what the host stored; the core fills in the defaults (synchronous `load()`; see BridgeSettings) |
 | host → core | `deployment/open`                       | deployment tool-window visibility → refresh form defaults on open                             |
 | host → core | `deployment/webviewMessage`             | inbound deployment `Command` → the core `DeploymentFeature`'s panel                            |
 | core → host | `deployment/postMessage`                | deployment `Query` → tool-window webview (`window.postMessage`)                               |
 | host → core | `deployment/switchTarget`, `deployment/deployFiles` | status-bar/action → switch the active target, or pick + deploy files to it (carries `workspaceRoot`) |
 | host → core | `deployment/verify`, `deployment/statusBarMenu` | verify the active diagram against the C7 engine; status-bar click menu (switch/verify) (carries `workspaceRoot`) |
-| core → host | `deploymentState/save*`, `deploymentState/deleteDeployedRevisions` | `DeploymentStatePort` persist/prune → `PropertiesComponent` (non-secret form state, incl. active target + ledger) |
+| core → host | `deploymentState/save`                  | `DeploymentStatePort.save(patch)` → `PropertiesComponent` writes exactly the patched fields and ledger rows (non-secret form state, incl. active target + ledger) |
 | host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked)             |
 | core → host | `marketplaceState/save`                 | persist the added registration + fan the snapshot to every open bridge                        |
 | core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |
@@ -118,10 +118,12 @@ it by writing NDJSON frames to its stdin and reading frames from its stdout.
 - `src/nodeAdapters.ts` — pure-`fs` `WorkspacePort` / `SettingsPort` for the
   element-templates pipeline.
 - `src/composition/*Feature.ts` — one wiring module per feature slice (diff,
-  templates/settings, marketplace, clipboard, navigation, code-link, script,
-  editor-session, deployment); `bridge.ts` is the composition root that calls
-  them. The marketplace cache root arrives via the
-  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
+  marketplace, BPMN editor, script, editor-session, commands, deployment);
+  `bridge.ts` is the composition root that calls them. The BPMN editor module
+  builds the core `BpmnEditorFeature`, which routes every BPMN editor webview
+  command and lists the session participants in VS Code's order;
+  `bridge.editor.spec.ts` pins its coverage table. The marketplace cache root
+  arrives via the `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
 - `src/stdioBinding.ts` — feeds stdin frames to the `Rpc` and tags every
   stderr line with `[core]`; `src/lineFraming.ts` splits the stdin stream
   into frames.

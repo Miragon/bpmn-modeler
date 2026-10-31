@@ -30,14 +30,18 @@ import {
 import {
     EditorSessionStore,
     generateCamundaDts,
+    InlineScript,
     isHiddenEditorError,
     joinWorkspacePath,
     matchScriptFile,
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
+    ScriptEditorPort,
     ScriptFileStore,
     ScriptLanguage,
+    scriptLanguagePrompt,
     ScriptMaterialization,
+    ScriptSourceChange,
     ScriptUri,
     ScriptXmlService,
     SettingsPort,
@@ -72,7 +76,7 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * participate: tsserver and language-server extensions hard-code `scheme: "file"`
  * selectors, and coding agents can only read/write bytes that exist on disk.
  *
- * A file can enter live sync two ways: {@link openScriptEditor} writes it and
+ * A file can enter live sync two ways: {@link open} writes it and
  * opens a tab in one step (the panel-field button), while
  * {@link adoptExternallyOpenedScript} starts sync for a file opened any other way
  * (Explorer, Quick Open, or the "Generate Script Files" command's output). Three
@@ -94,7 +98,7 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * reload) delivered through {@link applyModelChange}, which overwrites the
  * buffer.
  */
-export class ScriptTaskService {
+export class ScriptTaskService implements ScriptEditorPort {
     // Open script documents keyed by canonical `uri.path`.
     private readonly openDocuments = new Map<string, OpenDocument>();
 
@@ -110,7 +114,7 @@ export class ScriptTaskService {
      * if we just logged that error. Instead we mark the editor here and
      * replay all open script documents the next time the webview comes
      * back (signalled by it sending `GetBpmnModelerSettingCommand` after a
-     * reload, which the controller forwards to {@link resyncOpenDocuments}).
+     * reload, which reaches {@link resync}).
      */
     private readonly pendingResync = new Set<string>();
 
@@ -202,14 +206,9 @@ export class ScriptTaskService {
      * (undefined for `script-task`); `eventName` is the listener's `event`
      * attribute, used for the editor tab title.
      */
-    async openScriptEditor(
+    async open(
         editorId: string,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        eventName: string | undefined,
-        scriptFormat: string,
-        content: string,
+        { elementId, kind, listenerIndex, eventName, scriptFormat, content }: InlineScript,
     ): Promise<void> {
         const target = await this.resolveScriptTarget(
             editorId,
@@ -266,14 +265,9 @@ export class ScriptTaskService {
      * that tab's buffer is the authoritative copy, so overwriting it from the
      * model would clobber unsaved edits.
      */
-    async materializeScript(
+    async materialize(
         editorId: string,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        eventName: string | undefined,
-        scriptFormat: string,
-        content: string,
+        { elementId, kind, listenerIndex, eventName, scriptFormat, content }: InlineScript,
     ): Promise<ScriptMaterialization> {
         const target = await this.resolveScriptTarget(
             editorId,
@@ -312,7 +306,7 @@ export class ScriptTaskService {
     ): Promise<{ scriptUri: Uri; lang: ScriptLanguage } | undefined> {
         let effectiveFormat = scriptFormat;
         if (!ScriptLanguage.isSupported(scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(scriptFormat);
+            const picked = await this.picker.choose(scriptLanguagePrompt(scriptFormat));
             if (!picked) {
                 return undefined;
             }
@@ -449,6 +443,19 @@ export class ScriptTaskService {
     }
 
     /**
+     * The reload handshake: replays the edits made while the webview was
+     * hidden, then refreshes the lock it dropped.
+     */
+    async resync(editorId: string): Promise<void> {
+        await this.resyncOpenDocuments(editorId);
+        this.syncLockState(editorId);
+    }
+
+    variablesChanged(): void {
+        // Completion reads the variable store on every request; no tab holds a copy.
+    }
+
+    /**
      * Posts the full set of open inline-script editors for `editorId` so the
      * webview can lock the matching panel fields. Called on every open/close
      * and on the reload handshake — a full-set broadcast is idempotent, so a
@@ -506,10 +513,7 @@ export class ScriptTaskService {
      */
     async applyModelChange(
         editorId: string,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        content: string | undefined,
+        { elementId, kind, listenerIndex, content }: ScriptSourceChange,
     ): Promise<void> {
         const entry = this.findOpenDocument(editorId, elementId, kind, listenerIndex);
         if (!entry) {
@@ -558,7 +562,7 @@ export class ScriptTaskService {
      * Re-sends the current content of every open script document for the
      * given editor as `UpdateScriptContentQuery` messages.
      *
-     * Called by the controller when the webview reloads (which happens
+     * Called through {@link resync} when the webview reloads (which happens
      * implicitly whenever VS Code hides and re-shows it — e.g. tab
      * switching or window restore). Without this, edits made while the
      * webview was hidden would be lost: `postMessage` to a hidden webview
@@ -637,7 +641,7 @@ export class ScriptTaskService {
      * handler is a no-op for these URIs; the save/close/delete tail is
      * fire-and-forget because the participant's dispose path is synchronous.
      */
-    disposeForEditor(editorId: string): void {
+    disposeEditor(editorId: string): void {
         // Keep the full entries (not just URIs): the dispose-time write-back
         // needs each script's elementId/kind/listenerIndex to address the XML.
         const orphaned = new Map<string, OpenDocument>();
@@ -767,11 +771,11 @@ export class ScriptTaskService {
      * `TextDocument` — disposal is debounced so the doc lingers in an
      * internal cache after the tab closes (so quick reopens are cheap).
      * While the doc lingers, our `openDocuments` map would keep the stale
-     * entry and the next `openScriptEditor` call for the same URI would hit
+     * entry and the next `open` call for the same URI would hit
      * the "already open" branch and reveal the cached doc with outdated
      * content (e.g. switching language groovy → js → groovy and reopening).
      *
-     * Safe no-op when {@link disposeForEditor} has already removed the
+     * Safe no-op when {@link disposeEditor} has already removed the
      * entry — it clears state before programmatically closing tabs.
      */
     private onTabsChanged(event: TabChangeEvent): void {
@@ -893,7 +897,7 @@ export class ScriptTaskService {
      * Releases tracking for a closed script tab without touching the file on
      * disk. The file survives a tab close on purpose: reopening the same script
      * must succeed, and its content is refreshed from the current model on
-     * reopen ({@link openScriptEditor} rewrites through the rewrite branch once
+     * reopen ({@link open} rewrites through the rewrite branch once
      * the path is gone from {@link openDocuments}). Deletion happens only on
      * element deletion, editor dispose, and the first-write-per-base-dir orphan
      * sweep ({@link ScriptFileStore.prepareScriptFile}).

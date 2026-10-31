@@ -9,16 +9,13 @@ import {
     DeploymentConfigBuilder,
     DeploymentResult,
 } from "../domain/deployment";
-import {
-    DeploymentDestination,
-    LegacyConnection,
-    NamedDestination,
-} from "../domain/deploymentDestination";
+import { DeploymentDestination, NamedDestination } from "../domain/deploymentDestination";
 import {
     DeploymentOutcome,
     RememberedPart,
     rememberedPartLabel,
 } from "../domain/deploymentOutcome";
+import { connectionPatch } from "../domain/deploymentState";
 import { EnvLookup } from "../domain/envRef";
 import { loggableHost } from "../../kernel/domain/http";
 import {
@@ -51,7 +48,7 @@ export class DeploymentService {
     /**
      * @param vsDocument Active-document path and content helper.
      * @param vsWorkspace Filesystem and workspace-folder helper.
-     * @param deploymentState Persists/restores endpoint and tenantId.
+     * @param deploymentState Persists/restores the ad-hoc connection.
      * @param restClient HTTP client for the Camunda REST API.
      * @param notifier User-facing message and logging helper.
      * @param picker Quick-pick helper for selecting deployment resources.
@@ -94,14 +91,15 @@ export class DeploymentService {
             // No active editor or detection failed — use empty defaults.
         }
 
+        const state = this.deploymentState.load();
         return {
             deploymentName,
-            tenantId: this.deploymentState.getTenantId(),
-            endpoint: this.deploymentState.getEndpoint() || "http://localhost:8080/engine-rest",
+            tenantId: state.tenantId,
+            endpoint: state.endpoint || "http://localhost:8080/engine-rest",
             engine,
-            authType: this.deploymentState.getAuthType(),
-            tokenEndpoint: this.deploymentState.getTokenEndpoint(),
-            audience: this.deploymentState.getAudience(),
+            authType: state.authType,
+            tokenEndpoint: state.tokenEndpoint,
+            audience: state.audience,
         };
     }
 
@@ -112,7 +110,7 @@ export class DeploymentService {
      *   or a `"none"` payload if no credentials are available.
      */
     async getStoredCredentials(): Promise<AuthConfigPayload> {
-        const authType = this.deploymentState.getAuthType();
+        const { authType, tokenEndpoint, audience } = this.deploymentState.load();
 
         if (authType === "basic") {
             const creds = await this.secretStore.getBasicAuth();
@@ -130,8 +128,8 @@ export class DeploymentService {
                     authType: "oauth2",
                     clientId: creds.clientId,
                     clientSecret: creds.clientSecret,
-                    tokenEndpoint: this.deploymentState.getTokenEndpoint(),
-                    audience: this.deploymentState.getAudience(),
+                    tokenEndpoint,
+                    audience,
                 };
             }
         }
@@ -202,7 +200,7 @@ export class DeploymentService {
             if (persistence.legacyConnection !== undefined) {
                 const { legacyConnection } = persistence;
                 outcome = await this.remember(outcome, "connection", () =>
-                    this.saveConnection(legacyConnection, persistence.auth),
+                    this.deploymentState.save(connectionPatch(legacyConnection, persistence.auth)),
                 );
             }
             outcome = await this.remember(outcome, "credentials", () =>
@@ -315,17 +313,6 @@ export class DeploymentService {
                 `Deployment succeeded, but saving its ${rememberedPartLabel(part)} failed: ${reason}`,
             );
             return outcome.notRemembering(part, reason);
-        }
-    }
-
-    private async saveConnection(
-        { endpoint, tenantId }: LegacyConnection,
-        auth: AuthConfig,
-    ): Promise<void> {
-        await this.deploymentState.save(endpoint, tenantId);
-        await this.deploymentState.saveAuthType(auth.type);
-        if (auth.type === "oauth2") {
-            await this.deploymentState.saveOAuth2Config(auth.tokenEndpoint, auth.audience);
         }
     }
 

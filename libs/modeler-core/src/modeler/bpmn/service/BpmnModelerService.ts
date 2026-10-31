@@ -1,7 +1,7 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { isHiddenEditorError, UserCancelledError } from "../../../kernel/domain/errors";
-import { getVersions } from "../../../kernel/domain/engineVersions";
+import { engineVersionPrompt } from "../../../kernel/domain/engineVersions";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
     DocumentPort,
@@ -10,6 +10,7 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
+import { newModelEnginePrompt } from "../../../kernel/domain/newModelEngine";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
@@ -57,10 +58,11 @@ export class BpmnModelerService {
                     snapshot,
                     hostUpdated,
                     async () => {
-                        const choice = await this.picker.pickNewModelEngine(
-                            "Select the execution platform.",
-                        );
-                        return BpmnDocument.forNewModel(choice).xml;
+                        const engine = await this.picker.choose(newModelEnginePrompt());
+                        if (engine === undefined) {
+                            throw new UserCancelledError();
+                        }
+                        return BpmnDocument.forNewModel(engine).xml;
                     },
                 );
                 if (xml === undefined) return false;
@@ -119,9 +121,10 @@ export class BpmnModelerService {
                 );
                 return false;
             }
-            const versions = getVersions(platform);
-
-            const newVersion = await this.picker.pickEngineVersion(platform, versions);
+            const newVersion = await this.picker.choose(engineVersionPrompt(platform));
+            if (newVersion === undefined) {
+                return false;
+            }
             if (!snapshot.isCurrent()) {
                 this.reportVersionNotChanged(editorId);
                 return false;
@@ -148,9 +151,6 @@ export class BpmnModelerService {
 
             return await this.display(editorId);
         } catch (error) {
-            if (error instanceof UserCancelledError) {
-                return false;
-            }
             return this.handleError(error as Error);
         }
     }

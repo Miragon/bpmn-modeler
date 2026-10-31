@@ -6,6 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { LayoutErrorCode } from "@miragon/bpmn-modeler-types";
 
+import { confirmation } from "../../../kernel/domain/affectedItems";
 import { NotifierPort, PickerPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
@@ -107,11 +108,14 @@ export class BpmnLayoutService {
             return;
         }
 
-        const confirmed = await this.picker.confirmDestructive({
-            title: `Remove ${items.length} leftover item(s) from this diagram?`,
-            confirmLabel: "Clean Up",
-            details: items.map((item) => item.label),
-        });
+        const confirmed = await this.picker.confirm(
+            confirmation({
+                id: "cleanupLeftovers",
+                title: `Remove ${items.length} leftover item(s) from this diagram?`,
+                confirmLabel: "Clean Up",
+                affected: items.map((item) => item.label),
+            }),
+        );
         if (!confirmed) return;
 
         await this.editorStore.postMessage(editorId, new CleanupDiagramQuery(true));

@@ -189,14 +189,40 @@ messages in document order, tracks focus, and runs each
 the others or their teardown. Participants see focus, document, setting,
 re-seed and dispose events, never a host panel. The host-free participants
 (element templates, bpmnlint, settings, engine version, deployment status,
-code-link, form-reference status, definition search) and the webview message
-handlers live in the core. `DeploymentFeature` and `MarketplaceCommands` own
-the deployment and marketplace flows. A host supplies adapters and maps its
-own surface (VS Code commands and views, bridge RPC) onto these modules. It
-keeps only what is genuinely host-specific: VS Code's input UI, settings
-writes and reload hint; the bridge's workspace-root registration, acknowledged
-marketplace persistence and rendering on `document/didChange`, because the host
-owns the document revision there. Host classes depend on the core ports, not
+code-link, form-reference status, definition search, script editor) and the
+webview message handlers live in the core. `DeploymentFeature` and
+`MarketplaceCommands` own the deployment and marketplace flows.
+`BpmnEditorFeature` (`modeler/bpmn/`) builds the BPMN editor: its services, one
+router from a `CommandTable` that has an entry for every type in
+`BPMN_EDITOR_COMMAND_TYPES` (`WebviewMessageRouter.fromTable`), and its
+participants in one order. The
+cross-feature rule holds for it as for every feature, with no exempt
+composition folder: navigation, definition search, code-link and the script
+editor each export their handlers and participant as an `EditorContribution`
+(`NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`,
+`ScriptEditorFeature`), and the host's composition hands them to the editor
+with the deployment status participant. A feature that holds watchers or timers
+has a `dispose()` the host calls on shutdown. A capability that differs between
+hosts is a `BpmnEditorHostExtensions` entry, and an absent one makes the editor
+ignore its commands with one reason. The three document commands
+(`DOCUMENT_SYNC_COMMAND_TYPES`) form one such group: a host routes all of them
+to the core's document services or the editor ignores all three, because a host
+that routed `SyncDocumentCommand` without `DocumentFlushedCommand` would time
+out every flush, so a save or deploy could miss the last debounced edit. A host
+with its own document plumbing leaves `documentSync` out and answers the three
+on its own channel. Both hosts run the feature from their
+`composition/bpmnEditorFeature.ts`, so their routes and participant order are
+the same, and each pins its routes in a coverage spec, a
+`Record<BpmnEditorCommandType, "handled" | "ignored">`, with a row that the
+document group is handled or ignored as a whole. VS Code supplies every
+extension; the bridge leaves out the panel visibility.
+
+A host supplies adapters and maps its own surface (VS Code commands and views,
+bridge RPC) onto these modules. It keeps only what is genuinely host-specific:
+VS Code's input UI, settings writes and reload hint; the bridge's
+workspace-root registration, acknowledged marketplace persistence and
+rendering on `document/didChange`, because the host owns the document revision
+there. Host classes depend on the core ports, not
 on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
@@ -212,25 +238,31 @@ priority on `*.json`, so it never takes JSON files over, and its sessions live
 in their own `EditorSessionStore`: a preview never becomes the target of
 modeler commands or counts towards `bpmn-modeler.openCustomEditors`.
 
-Inline scripts still open and sync their tabs per host (`ScriptTaskService`,
-`BridgeScriptEditor`), but both hosts read, write and delete the script files
-through the core `ScriptFileStore`. It decides where a diagram's scripts live:
-below the config folder of its workspace root, or in the OS temp folder for a
-diagram that is not a file. A failed workspace lookup rejects instead of moving
-the scripts to the temp folder, so no host writes them somewhere the user did
-not configure. The store also owns the orphan sweep, once per folder and
-process, and the `.gitignore`, which it writes only when there is none. Each
-host passes its OS temp folder in the path spelling its workspace port
-answers, because VS Code compares `uri.path` values (`/c:/…`) where the bridge
-compares `C:/…`. It also passes how it spells such a path for the user, so a
-message names `c:\…` and not `/c:/…`.
+Inline scripts still open and sync their tabs per host, behind the core
+`ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab
+handling is host API. What the webview's script commands mean is the core
+`ScriptEditorFeature`'s on both: it stores the process variables the webview
+extracts, writes a "Generate Script Files" batch one script at a time and names
+its folder in the toast, logs a failed open with its element, resyncs after a
+reload and tears an editor's scripts down on close. Both hosts read, write and
+delete the script files through the core `ScriptFileStore`. It decides where a
+diagram's scripts live: below the config folder of its workspace root, or in
+the OS temp folder for a diagram that is not a file. A failed workspace lookup
+rejects instead of moving the scripts to the temp folder, so no host writes
+them somewhere the user did not configure. The store also owns the orphan
+sweep, once per folder and process, and the `.gitignore`, which it writes only
+when there is none. Each host passes its OS temp folder in the path spelling
+its workspace port answers, because VS Code compares `uri.path` values
+(`/c:/…`) where the bridge compares `C:/…`. It also passes how it spells such a
+path for the user, so a message names `c:\…` and not `/c:/…`.
 
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine
 version, bpmnlint, deployment) show an editor's state only if it is focused
-when the item is written. A ledger write or a command that refreshes the
-deployment item afterwards refreshes the focused editor (`refreshFocused`), not
-the editor it acted on. Each item's participant hides it on blur and close, and
+when the item is written. A ledger write or a
+[target change](deployment.md#targets-and-credentials) refreshes the
+deployment item for the focused editor (`refreshFocused`), not the editor it
+acted on. Each item's participant hides it on blur and close, and
 `StatusItemOwnership` decides only that hide. Only BPMN sessions run these
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
@@ -297,14 +329,36 @@ only the `dot` icon; the other icons are IntelliJ's own. The protocol snapshot h
 only top-level keys, so `HostUiRouterTest` pins the view fields and
 `StatusSlotPlacementTest` reads `statusView.ts` and fails when a slot, icon,
 tone or action has no Kotlin counterpart; at runtime the router logs and drops
-what it does not know. Until the deployment target's caller moves to the
-port ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
-widget-shaped `DeploymentStatusBarPort` remains: VS Code builds its view in its
-adapter, the bridge forwards it as one RPC per widget method, and IntelliJ
-builds the same slot's view from them with its old labels. The
-element-template, engine-version and BPMNlint slots already show the core's
-views, so `LegacyStatusBarPort` and its RPCs have no caller left; they are
-removed together with `DeploymentStatusBarPort`.
+what it does not know. All four slots show the core's views, so the
+widget-shaped `LegacyStatusBarPort` and `DeploymentStatusBarPort` have no
+caller left. Their adapter methods, their `statusBar/*` RPCs and the Kotlin
+handlers that build a view from them with IntelliJ's old labels remain until
+they are removed together
+([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)).
+
+Prompts follow the same split. `PickerPort`'s `choose`, `chooseMany`, `confirm`
+and `searchAndChoose` take a prompt the core builds in full, typed in
+`kernel/domain/prompts.ts`: an id, a title, a placeholder and items with a
+label, a description or a file path, an icon from a closed union, and the value
+a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
+caller decides whether it cancels. `confirmation()` in
+`kernel/domain/affectedItems.ts` summarises a confirmation's details, and both
+hosts show every line. VS Code shows a path relative to the workspace,
+filters on descriptions too, draws an icon as its codicon and reveals the busy
+list of a search after 150 ms. The bridge sends a choice over the existing
+`picker/show` request with the path as its description and no icon, maps the
+chosen indices back to values, and brackets a search with status-bar progress,
+so neither the protocol nor Kotlin changes. The test kit's `ScriptedPicker`
+answers a prompt by its id and fails a test whose answer the prompt does not
+offer, so the prompts of one run carry distinct ids: each engine's version prompt
+has its own. Until each feature's prompts move to the core
+([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
+feature-shaped prompts remain: the other `PickerPort` methods and
+`DeploymentPickerPort`, whose text the adapters build. The new-model engine,
+engine-version, migration-scope, script-language and cleanup prompts already
+come from the core, so `pickNewModelEngine`, `pickEngineVersion`,
+`pickScriptLanguage` and `MigrationPickerPort` have no caller left; they are
+removed together with the other feature-shaped methods.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
@@ -501,7 +555,7 @@ keeps explicit local mirrors with these ownership rules:
 | --- | --- | --- |
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
-| Deployment state | `deploymentState/seed`, including active target and ledger | Bridge snapshot during the process lifetime; host persists it for the next seed |
+| Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Bridge snapshot during the process lifetime; host persists the patches for the next seed |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -530,7 +584,20 @@ shows the values without the bridge.
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
 the Kotlin test also compares its defaults with the manifest's.
 
-Deployment writes update the optimistic snapshot and await acknowledged host
+The deployment state is one `DeploymentState` snapshot in the core's
+[`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):
+the ad-hoc connection, the active target and the freshness ledger.
+`DeploymentStatePort` has two methods, a synchronous `load()` and
+`save(patch)`. A `DeploymentStatePatch` names the fields it writes and the
+ledger rows it puts and removes, so a deploy's connection or a prune's rows
+travel as one write. The core owns the defaults and the shape:
+`deploymentStateFrom` reads a missing value or one of the wrong type as the
+default and drops a ledger row that is not a revision, on both hosts. Hosts
+store only what a patch names: VS Code writes the patched workspace-state
+keys, and IntelliJ seeds the bridge with the keys it has stored, without
+defaults, and applies each patch in the one `deploymentState/save` handler.
+
+The bridge applies a patch to its snapshot and awaits the acknowledged host
 persistence. Failures reject, as they do on VS Code, but are not rolled back:
 rolling back would show stale values mid-session, and the next seed reconciles
 with the persisted host state. Whether a failed write fails the operation is
@@ -644,6 +711,11 @@ a cached result must equal an uncached run.
   isolate failing session hooks. Feature modules in the core cost a little
   indirection — a host reads its surface mapping, not the flow — in exchange for
   one place per fix.
+- `BpmnEditorFeature` could import the features whose commands it routes, if a
+  composition folder were exempt from the cross-feature rule. That exception
+  would never shrink, so the features hand their handlers and participants to
+  it as contributions instead, at the cost of one slot per contributing feature
+  in `BpmnEditorContributions`.
 - A WebSocket relay would add a second reconnect lifecycle and a server to the
   bridge. Stdio uses the browser the JVM already owns and gives one recovery
   boundary. A browser-only host may need a different transport.

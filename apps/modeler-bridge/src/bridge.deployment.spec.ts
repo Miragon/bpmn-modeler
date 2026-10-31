@@ -2,19 +2,40 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FetchHttpClient } from "@miragon/bpmn-modeler-core";
+import {
+    contentFingerprint,
+    DeploymentTargetIdentity,
+    FetchHttpClient,
+    ledgerKeyFor,
+    NO_ENV_VARIABLES,
+} from "@miragon/bpmn-modeler-core";
 import { DeployCommand } from "@miragon/bpmn-modeler-shared";
 import {
     hostNotification,
     hostReply,
+    isStatusSlotUpdate,
     registerParams,
+    StatusSlotFrame,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import { register } from "./composition/deploymentFeature";
 import { METHODS } from "./protocol/descriptor";
-import type { PickerShowParams } from "./protocol/types";
+import type {
+    DeploymentSaveParams,
+    DeploymentSeedParams,
+    PickerShowParams,
+    StatusBarUpdateParams,
+} from "./protocol/types";
+
+/** The `deploymentState/save` that records ledger rows, the last step of an accepted deploy. */
+function isLedgerRowSave(frame: { method: string; params: unknown }): boolean {
+    return (
+        frame.method === METHODS.deploymentStateSave &&
+        (frame.params as DeploymentSaveParams).patch.ledger?.put !== undefined
+    );
+}
 
 describe("deployment commands over the bridge", () => {
     const roots: string[] = [];
@@ -113,9 +134,7 @@ describe("deployment commands over the bridge", () => {
             { label: "order.bpmn", description: join(c.root, "order.bpmn") },
         ]);
         expect(c.post.mock.calls[0][0]).toBe("https://root.test/deployment/create");
-        expect(
-            c.frames.some((frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision),
-        ).toBe(true);
+        expect(c.frames.some(isLedgerRowSave)).toBe(true);
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
     });
 
@@ -230,12 +249,10 @@ describe("deployment commands over the bridge", () => {
         await c.command(METHODS.deploymentVerify);
 
         expect(getJson.mock.calls[0][0]).toBe("https://root.test/process-definition/key/order");
-        const save = c.frames.find(
-            (frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision,
-        )!;
-        expect(save.params).toMatchObject({
-            revision: { deploymentId: "dep-9", origin: "engine" },
-        });
+        const save = c.frames.find(isLedgerRowSave)!;
+        expect(
+            Object.values((save.params as DeploymentSaveParams).patch.ledger?.put ?? {}),
+        ).toEqual([expect.objectContaining({ deploymentId: "dep-9", origin: "engine" })]);
         expect(c.frames.some((frame) => frame.method === METHODS.notifierShowInfo)).toBe(true);
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
     });
@@ -397,11 +414,7 @@ describe("deployment commands over the bridge", () => {
             );
             await deploying;
             // The sidebar's deploy runs detached from its RPC notification.
-            await waitForFrame(
-                frames,
-                (frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision,
-                { fromIndex },
-            );
+            await waitForFrame(frames, isLedgerRowSave, { fromIndex });
 
             expect(post).toHaveBeenCalledOnce();
             const handOffs = frames.slice(fromIndex).flatMap((frame) => {
@@ -450,9 +463,7 @@ describe("deployment commands over the bridge", () => {
             deploymentId: "deployment-1",
         });
         expect(posted.params.message.message).toContain("PasswordSafe unavailable");
-        expect(
-            c.frames.some((frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision),
-        ).toBe(true);
+        expect(c.frames.some(isLedgerRowSave)).toBe(true);
     });
 
     it("reports and deploys nothing when no diagram is focused", async () => {
@@ -478,5 +489,82 @@ describe("deployment commands over the bridge", () => {
             message: expect.stringMatching(/\ndiscovery failed$/),
         });
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    describe("the host's deployment status slot", () => {
+        const FORM_ENDPOINT = "https://form.test/engine-rest";
+
+        /** The host shows one deployment widget, so the last update of its slot is what it shows now. */
+        function shownDeploymentStatus(
+            frames: readonly StatusSlotFrame[],
+        ): StatusBarUpdateParams["view"] | undefined {
+            const updates = frames.filter(isStatusSlotUpdate("deploymentTarget"));
+            return updates[updates.length - 1]?.params?.view;
+        }
+
+        /** Opens a diagram in a workspace without a targets file, after the host seeded its state. */
+        async function openDiagramWithSeed(
+            seedFor: (diagramPath: string) => DeploymentSeedParams["state"],
+        ): Promise<StatusSlotFrame[]> {
+            const root = await fs.mkdtemp(join(tmpdir(), "deployment-status-"));
+            roots.push(root);
+            const diagramPath = join(root, "order.bpmn");
+            await fs.writeFile(diagramPath, DIAGRAM);
+            const frames: StatusSlotFrame[] = [];
+            const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
+            await rpc.handleLine(
+                hostNotification(METHODS.deploymentStateSeed, { state: seedFor(diagramPath) }),
+            );
+            await rpc.handleLine(
+                hostNotification(
+                    METHODS.sessionRegister,
+                    registerParams(`file://${diagramPath}`, root, diagramPath, DIAGRAM),
+                ),
+            );
+            return frames;
+        }
+
+        it("asks for a target while no connection is saved", async () => {
+            const frames = await openDiagramWithSeed(() => ({ activeTargetName: "" }));
+
+            await vi.waitFor(() =>
+                expect(shownDeploymentStatus(frames)).toEqual({
+                    text: "No deployment target",
+                    icon: "dot",
+                    tooltip: "No deployment target selected — click to choose one",
+                    tone: "neutral",
+                    action: "deploymentMenu",
+                }),
+            );
+        });
+
+        it("labels the form values a sidebar deploy saved and recorded", async () => {
+            const frames = await openDiagramWithSeed((diagramPath) => ({
+                activeTargetName: "",
+                endpoint: FORM_ENDPOINT,
+                tenantId: "",
+                ledger: {
+                    [ledgerKeyFor(
+                        DeploymentTargetIdentity.adHoc(FORM_ENDPOINT, "", NO_ENV_VARIABLES),
+                        diagramPath,
+                    )]: {
+                        fingerprint: contentFingerprint(DIAGRAM),
+                        deployedAt: "2026-09-17T14:40:00.000Z",
+                    },
+                },
+            }));
+
+            await vi.waitFor(() =>
+                expect(shownDeploymentStatus(frames)).toEqual({
+                    text: "Form values",
+                    icon: "dot",
+                    tooltip: expect.stringMatching(
+                        /^Deployed with the form values — last deployed \S/,
+                    ),
+                    tone: "success",
+                    action: "deploymentMenu",
+                }),
+            );
+        });
     });
 });

@@ -1,7 +1,7 @@
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { notifiedErrorLogText } from "../../kernel/domain/errorLogText";
-import { FileNotFound, UserCancelledError } from "../../kernel/domain/errors";
-import { getVersions } from "../../kernel/domain/engineVersions";
+import { FileNotFound } from "../../kernel/domain/errors";
+import { engineVersionPrompt } from "../../kernel/domain/engineVersions";
 import {
     enginesIn,
     MigrationCandidate,
@@ -14,7 +14,7 @@ import {
     migrationSummary,
     nothingToMigrateSummary,
 } from "../domain/migrationSummary";
-import { MigrationPickerPort } from "../domain/ports";
+import { migrationScopePrompt } from "../domain/migrationScopePrompt";
 import {
     DocumentPort,
     NotifierPort,
@@ -46,7 +46,7 @@ export class BpmnMigrationService {
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: DocumentPort,
         private readonly vsWorkspace: WorkspacePort,
-        private readonly picker: PickerPort & MigrationPickerPort,
+        private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 
@@ -74,18 +74,22 @@ export class BpmnMigrationService {
 
             const scope =
                 scopeDecision.kind === "ask"
-                    ? await this.picker.pickMigrationScope(
-                          scopeDecision.c7Count,
-                          scopeDecision.c8Count,
-                      )
+                    ? await this.picker.choose(migrationScopePrompt(scopeDecision))
                     : scopeDecision.scope;
+            if (scope === undefined) {
+                return false;
+            }
 
             // Collect all input before any writes: document-change listeners
             // triggered by a write would steal focus and dismiss a subsequent
             // QuickPick.
             const versions: MigrationVersions = {};
             for (const engine of enginesIn(scope)) {
-                versions[engine] = await this.picker.pickEngineVersion(engine, getVersions(engine));
+                const version = await this.picker.choose(engineVersionPrompt(engine));
+                if (version === undefined) {
+                    return false;
+                }
+                versions[engine] = version;
             }
 
             const results: MigrationResult[] = [...skippedReads];
@@ -97,9 +101,6 @@ export class BpmnMigrationService {
 
             return true;
         } catch (error) {
-            if (error instanceof UserCancelledError) {
-                return false;
-            }
             return this.handleError(error as Error);
         }
     }

@@ -384,54 +384,11 @@
         ]
     },
     {
-        "method": "deploymentState/saveAuthType",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "authType"
-        ]
-    },
-    {
-        "method": "deploymentState/saveOAuth2Config",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "audience",
-            "tokenEndpoint"
-        ]
-    },
-    {
         "method": "deploymentState/save",
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [
-            "endpoint",
-            "tenantId"
-        ]
-    },
-    {
-        "method": "deploymentState/saveActiveTarget",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "name"
-        ]
-    },
-    {
-        "method": "deploymentState/saveDeployedRevision",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "ledgerKey",
-            "revision"
-        ]
-    },
-    {
-        "method": "deploymentState/deleteDeployedRevisions",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "ledgerKeys"
+            "patch"
         ]
     },
     {

@@ -16,15 +16,21 @@
 
 import { posix } from "node:path";
 
-import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
+    applyDeploymentStatePatch,
+    ChoicePrompt,
     classifyLocateResult,
     ClipboardPort,
-    DeployedRevision,
+    ConfirmRequest,
+    DEFAULT_DEPLOYMENT_STATE,
     DeploymentFreshness,
     DeploymentPickerPort,
+    DeploymentState,
+    DeploymentStatePatch,
     DeploymentStatePort,
+    deploymentStateFrom,
     DeploymentStatusBarPort,
     DocumentChangeEvent,
     DocumentPort,
@@ -42,7 +48,9 @@ import {
     notifiedErrorToastText,
     NotifierPort,
     PickerPort,
+    RawDeploymentState,
     ScriptLanguage,
+    SearchPrompt,
     SecretStorePort,
     SettingChange,
     StatusBarPort,
@@ -423,8 +431,8 @@ export class RpcNotifier implements NotifierPort {
 /**
  * Sends each status slot's view to the host, which shows every slot in its own
  * `StatusBarWidget`. The core decides *what* a slot shows; the host only places
- * it. The widget-shaped methods keep one RPC each until their callers show
- * their slot through {@link StatusBarPort}.
+ * it. The widget-shaped methods have no core caller left; they keep one RPC
+ * each until they are removed together with their Kotlin handlers.
  */
 export class RpcStatusBar implements StatusBarPort, LegacyStatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}
@@ -599,128 +607,41 @@ export class RpcTokenPrompt implements TokenPromptPort {
     }
 }
 
-/** Snapshot of the non-secret deployment-form state the host persists across sessions. */
-export interface DeploymentStateSnapshot {
-    endpoint: string;
-    tenantId: string;
-    authType: AuthTypePayload;
-    tokenEndpoint: string;
-    audience: string;
-    activeTargetName: string;
-    ledger: Record<string, DeployedRevision>;
-}
-
-/** Render-safe defaults before the host's first seed arrives. */
-const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
-    endpoint: "",
-    tenantId: "",
-    authType: "none",
-    tokenEndpoint: "",
-    audience: "",
-    activeTargetName: "",
-    ledger: {},
-};
-
 /**
  * RPC-backed {@link DeploymentStatePort} with a local mirror.
  *
- * The port's getters are **synchronous** (`getEndpoint(): string`, …), so the
- * bridge cannot await an RPC per read. Mirroring the {@link BridgeSettings}
- * pattern: the host seeds a snapshot once on startup (`deploymentState/seed`);
- * getters read the mirror.
+ * `load()` is synchronous, so the bridge cannot await an RPC per read.
+ * Mirroring the {@link BridgeSettings} pattern: the host seeds what it stored
+ * once on startup (`deploymentState/seed`) and `load()` reads the mirror, which
+ * the core normalises.
  *
- * Ownership is single-writer: the in-process **snapshot is authoritative** for
- * reads, and the host is a persisted replica reconciled on the next re-seed. The
- * `save*` methods update the snapshot optimistically (so in-process reads and
- * the form UX stay correct), then send an **acknowledged** request to persist.
- * A persist failure rejects so the core decides what it means. The snapshot is
- * deliberately *not* rolled back on failure — reverting mid-session would
- * surface stale form values; the next seed reconciles.
- * Secrets are out of scope here — they ride {@link RpcSecretStore} / PasswordSafe.
+ * Ownership is single-writer: the in-process **mirror is authoritative** for
+ * reads, and the host is a persisted replica reconciled on the next re-seed.
+ * `save` applies the patch to the mirror optimistically (so in-process reads and
+ * the form UX stay correct), then sends it as one **acknowledged**
+ * `deploymentState/save` request. A persist failure rejects so the core decides
+ * what it means. The mirror is deliberately *not* rolled back on failure —
+ * reverting mid-session would surface stale form values; the next seed
+ * reconciles. Secrets are out of scope here — they ride {@link RpcSecretStore} /
+ * PasswordSafe.
  */
 export class RpcDeploymentState implements DeploymentStatePort {
-    private snapshot: DeploymentStateSnapshot = { ...EMPTY_DEPLOYMENT_STATE };
+    private state: DeploymentState = DEFAULT_DEPLOYMENT_STATE;
 
     constructor(private readonly rpc: Rpc) {}
 
-    /** Replaces the mirror from the host's seed (sent once on startup / after persist). */
-    seed(next: Partial<DeploymentStateSnapshot>): void {
-        this.snapshot = { ...this.snapshot, ...next };
+    /** Replaces the mirror with what the host stored (sent on startup / respawn). */
+    seed(stored: RawDeploymentState): void {
+        this.state = deploymentStateFrom(stored);
     }
 
-    getEndpoint(): string {
-        return this.snapshot.endpoint;
+    load(): DeploymentState {
+        return this.state;
     }
 
-    getTenantId(): string {
-        return this.snapshot.tenantId;
-    }
-
-    getAuthType(): AuthTypePayload {
-        return this.snapshot.authType;
-    }
-
-    getTokenEndpoint(): string {
-        return this.snapshot.tokenEndpoint;
-    }
-
-    getAudience(): string {
-        return this.snapshot.audience;
-    }
-
-    async saveAuthType(authType: AuthTypePayload): Promise<void> {
-        this.snapshot = { ...this.snapshot, authType };
-        await this.rpc.request(METHODS.deploymentStateSaveAuthType, { authType });
-    }
-
-    async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
-        this.snapshot = { ...this.snapshot, tokenEndpoint, audience };
-        await this.rpc.request(METHODS.deploymentStateSaveOAuth2Config, {
-            tokenEndpoint,
-            audience,
-        });
-    }
-
-    async save(endpoint: string, tenantId: string): Promise<void> {
-        this.snapshot = { ...this.snapshot, endpoint, tenantId };
-        await this.rpc.request(METHODS.deploymentStateSave, { endpoint, tenantId });
-    }
-
-    getActiveTargetName(): string {
-        return this.snapshot.activeTargetName;
-    }
-
-    async saveActiveTargetName(name: string): Promise<void> {
-        this.snapshot = { ...this.snapshot, activeTargetName: name };
-        await this.rpc.request(METHODS.deploymentStateSaveActiveTarget, { name });
-    }
-
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
-        return this.snapshot.ledger[ledgerKey];
-    }
-
-    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
-        this.snapshot = {
-            ...this.snapshot,
-            ledger: { ...this.snapshot.ledger, [ledgerKey]: revision },
-        };
-        await this.rpc.request(METHODS.deploymentStateSaveDeployedRevision, {
-            ledgerKey,
-            revision,
-        });
-    }
-
-    listLedgerKeys(): string[] {
-        return Object.keys(this.snapshot.ledger);
-    }
-
-    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
-        const ledger = { ...this.snapshot.ledger };
-        for (const key of ledgerKeys) {
-            delete ledger[key];
-        }
-        this.snapshot = { ...this.snapshot, ledger };
-        await this.rpc.request(METHODS.deploymentStateDeleteDeployedRevisions, { ledgerKeys });
+    async save(patch: DeploymentStatePatch): Promise<void> {
+        this.state = applyDeploymentStatePatch(this.state, patch);
+        await this.rpc.request(METHODS.deploymentStateSave, { patch });
     }
 }
 
@@ -757,6 +678,41 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
             opts,
         )) as PickerShowResult | null;
         return result?.selected ?? null;
+    }
+
+    async choose<V>(prompt: ChoicePrompt<V>): Promise<V | undefined> {
+        const [index] = (await this.show(pickerShowParams(prompt, false))) ?? [];
+        return index === undefined ? undefined : valueAt(prompt, index);
+    }
+
+    async chooseMany<V>(prompt: ChoicePrompt<V>): Promise<readonly V[]> {
+        const selected = await this.show(pickerShowParams(prompt, true));
+        return selected?.map((index) => valueAt(prompt, index)) ?? [];
+    }
+
+    /** A cancelled round trip resolves to `false`: silence is never consent. */
+    async confirm(request: ConfirmRequest): Promise<boolean> {
+        const result = (await this.rpc.request(METHODS.confirmShow, {
+            title: request.title,
+            confirmLabel: request.confirmLabel,
+            details: [...request.details],
+        } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
+        return result?.confirmed === true;
+    }
+
+    async searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }> {
+        // The host can't render a busy list, so the search keeps its status-bar spinner.
+        const title = search.searchingPlaceholder;
+        this.rpc.notify(METHODS.notifierProgressStart, { title });
+        let outcome: R;
+        try {
+            outcome = await search.search();
+        } finally {
+            this.rpc.notify(METHODS.notifierProgressEnd, { title });
+        }
+
+        const choices = search.choices(outcome);
+        return { outcome, chosen: choices && (await this.choose(choices)) };
     }
 
     async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
@@ -947,4 +903,25 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
         });
         return { outcome, chosen: selected === null ? undefined : sorted[selected[0]] };
     }
+}
+
+// IntelliJ's list popup shows no icons, so a choice travels without one.
+function pickerShowParams<V>(prompt: ChoicePrompt<V>, canPickMany: boolean): PickerShowParams {
+    return {
+        title: prompt.title,
+        placeholder: prompt.placeholder,
+        canPickMany,
+        items: prompt.items.map((item) => ({
+            label: item.label,
+            description: item.path ?? item.description,
+        })),
+    };
+}
+
+function valueAt<V>(prompt: ChoicePrompt<V>, index: number): V {
+    const item = prompt.items[index];
+    if (!item) {
+        throw new Error(`picker/show chose index ${index} of prompt "${prompt.id}"`);
+    }
+    return item.value;
 }

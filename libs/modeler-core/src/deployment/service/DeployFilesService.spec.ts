@@ -41,20 +41,15 @@ function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }
             return [];
         }),
     };
-    const deploymentStatusService = {
-        refreshFocused: vi.fn(async () => void calls.push("refreshStatus")),
-    };
     const pickWorkspaceFiles = host.picker.pickWorkspaceFiles.bind(host.picker);
     vi.spyOn(host.picker, "pickWorkspaceFiles").mockImplementation((options) => {
         calls.push("pickFiles");
         return pickWorkspaceFiles(options);
     });
-    const afterTargetPicker = vi.fn(async () => void calls.push("afterTargetPicker"));
 
     const service = new DeployFilesService(
         deploymentTargetService as never,
         deploymentService as never,
-        deploymentStatusService as never,
         host.picker,
         host.notifier,
     );
@@ -66,8 +61,6 @@ function createService(answers: PickerAnswers = { workspaceFiles: PICKED_FILES }
         credentials,
         deploymentTargetService,
         deploymentService,
-        deploymentStatusService,
-        afterTargetPicker,
     };
 }
 
@@ -75,7 +68,7 @@ describe("DeployFilesService.deployFiles", () => {
     it("deploys the picked BPMN/DMN files to the active target", async () => {
         const c = createService();
 
-        await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
+        await c.service.deployFiles(DOCUMENT_DIR);
 
         expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith(DOCUMENT_DIR);
         expect(c.host.picker.prompts).toEqual([
@@ -107,20 +100,14 @@ describe("DeployFilesService.deployFiles", () => {
             .mockResolvedValueOnce(AD_HOC)
             .mockResolvedValueOnce(devDestination);
 
-        await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
+        await c.service.deployFiles(DOCUMENT_DIR);
 
         expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith(DOCUMENT_DIR);
         expect(c.deploymentTargetService.getActiveDestination).toHaveBeenNthCalledWith(
             2,
             DOCUMENT_DIR,
         );
-        expect(c.calls).toEqual([
-            "switchTarget",
-            "refreshStatus",
-            "afterTargetPicker",
-            "pickFiles",
-            "deploy",
-        ]);
+        expect(c.calls).toEqual(["switchTarget", "pickFiles", "deploy"]);
         expect(c.deploymentService.deployFiles).toHaveBeenCalledWith(
             PICKED_FILES,
             devDestination,
@@ -133,9 +120,9 @@ describe("DeployFilesService.deployFiles", () => {
         const c = createService();
         c.deploymentTargetService.getActiveDestination.mockResolvedValue(AD_HOC);
 
-        await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
+        await c.service.deployFiles(DOCUMENT_DIR);
 
-        expect(c.calls).toEqual(["switchTarget", "refreshStatus", "afterTargetPicker"]);
+        expect(c.calls).toEqual(["switchTarget"]);
         expect(c.host.picker.prompts).toEqual([]);
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
     });
@@ -143,10 +130,9 @@ describe("DeployFilesService.deployFiles", () => {
     it("skips the target picker when a target is already active", async () => {
         const c = createService();
 
-        await c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker);
+        await c.service.deployFiles(DOCUMENT_DIR);
 
         expect(c.deploymentTargetService.switchActiveTarget).not.toHaveBeenCalled();
-        expect(c.afterTargetPicker).not.toHaveBeenCalled();
     });
 
     it("deploys nothing when the file picker is dismissed", async () => {
@@ -156,23 +142,20 @@ describe("DeployFilesService.deployFiles", () => {
 
         expect(c.deploymentTargetService.getCredentials).not.toHaveBeenCalled();
         expect(c.deploymentService.deployFiles).not.toHaveBeenCalled();
-        expect(c.deploymentStatusService.refreshFocused).not.toHaveBeenCalled();
     });
 
-    it("deploys nothing and leaves the status alone when the secret store cannot be read", async () => {
+    it("deploys nothing when the secret store cannot be read", async () => {
         const c = createService();
         const unavailable = new Error("The OS keyring is not available.");
         c.deploymentTargetService.getCredentials.mockRejectedValue(unavailable);
 
-        await expect(c.service.deployFiles(DOCUMENT_DIR, c.afterTargetPicker)).rejects.toBe(
-            unavailable,
-        );
+        await expect(c.service.deployFiles(DOCUMENT_DIR)).rejects.toBe(unavailable);
 
         expect(c.calls).toEqual(["pickFiles"]);
         expect(c.host.notifier.progressTitles).toEqual([]);
     });
 
-    it("works without a host hook or a focused document", async () => {
+    it("works without a focused document", async () => {
         const c = createService();
         c.deploymentTargetService.getActiveDestination
             .mockResolvedValueOnce(AD_HOC)

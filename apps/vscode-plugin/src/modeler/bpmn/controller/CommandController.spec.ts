@@ -74,8 +74,12 @@ vi.mock("vscode", () => ({
 }));
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { FOCUS_BPMN_DIAGRAM_MESSAGE, getLatestVersion } from "@miragon/bpmn-modeler-core";
-import { createTestHost, PickerAnswers } from "@miragon/bpmn-modeler-core/testing";
+import {
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
+    getLatestVersion,
+    newModelEnginePrompt,
+} from "@miragon/bpmn-modeler-core";
+import { createTestHost, PromptAnswers } from "@miragon/bpmn-modeler-core/testing";
 
 import { CommandController } from "./CommandController";
 
@@ -84,8 +88,8 @@ import { CommandController } from "./CommandController";
  * and active. The document flush reports that editor's session as safe, so a
  * test can replace the session to exercise the stale-session guard.
  */
-function createController(answers: PickerAnswers = {}) {
-    const host = createTestHost({ answers });
+function createController(promptAnswers: PromptAnswers = {}) {
+    const host = createTestHost({ promptAnswers });
     const editor = host.openEditor("/work/diagram.bpmn");
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
@@ -470,6 +474,7 @@ describe("CommandController.newBpmnModel", () => {
 
         await controller.newBpmnModel();
 
+        expect(fsWriteFileMock).toHaveBeenCalledOnce();
         const [uriArg, bufferArg] = fsWriteFileMock.mock.calls[0];
         expect(uriArg).toBe(target);
         const xml = (bufferArg as Buffer).toString();
@@ -490,6 +495,7 @@ describe("CommandController.newBpmnModel", () => {
 
         await controller.newBpmnModel();
 
+        expect(fsWriteFileMock).toHaveBeenCalledOnce();
         const xml = (fsWriteFileMock.mock.calls[0][1] as Buffer).toString();
         expect(xml).not.toContain("modeler:executionPlatform");
         expect(xml).toContain('isExecutable="false"');
@@ -505,7 +511,7 @@ describe("CommandController.newBpmnModel", () => {
         showSaveDialogMock.mockResolvedValue(fakeUri("/work/new-diagram.bpmn"));
 
         await expect(controller.newBpmnModel()).resolves.toBeUndefined();
-        expect(picker.prompts.map((prompt) => prompt.method)).toEqual(["pickNewModelEngine"]);
+        expect(picker.prompts).toEqual([{ method: "choose", args: [newModelEnginePrompt()] }]);
         expect(fsWriteFileMock).not.toHaveBeenCalled();
         expect(executeCommandMock).not.toHaveBeenCalled();
     });

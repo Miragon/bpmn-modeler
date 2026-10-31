@@ -88,6 +88,12 @@ describe("DeploymentDestination", () => {
             adHoc: "ad-hoc",
         },
         {
+            property: "connection the deployment status names",
+            of: (d) => d.statusConnection,
+            named: { kind: "named", name: "prod" },
+            adHoc: { kind: "formValues" },
+        },
+        {
             property: "connection the approval prompt names",
             of: (d) => d.connectionLabel,
             named: 'target "prod"',
@@ -127,6 +133,15 @@ describe("DeploymentDestination", () => {
             adHoc: adHocValue,
         });
     });
+
+    it.each(["", "  "])(
+        "names no connection in the deployment status while the ad-hoc endpoint is %j",
+        (endpoint) => {
+            expect(new AdHocDestination(endpoint, "acme").statusConnection).toEqual({
+                kind: "none",
+            });
+        },
+    );
 
     it("keeps a named target's credentials under its approval slot", () => {
         expect(named.secretSlot).toBe(PROD_SLOT);

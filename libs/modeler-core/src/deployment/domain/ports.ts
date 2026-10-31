@@ -8,8 +8,8 @@
  */
 
 import { AuthConfig, DeploymentConfig, DeploymentResult } from "./deployment";
-import { DeployedRevision, DeploymentFreshness } from "./deploymentLedger";
-import { TargetAuthType } from "./deploymentTarget";
+import { DeploymentFreshness } from "./deploymentLedger";
+import { DeploymentState, DeploymentStatePatch } from "./deploymentState";
 import { EngineDeploymentSnapshot } from "./deploymentVerification";
 import { StartInstanceConfig, StartInstanceResult } from "./startInstance";
 
@@ -94,7 +94,11 @@ export interface DeploymentPickerPort {
     }): Promise<"switch" | "verify" | undefined>;
 }
 
-/** The active-target status-bar item, beside the cross-cutting `StatusBarPort`. */
+/**
+ * The widget-shaped deployment status methods. The core shows the deployment
+ * target slot through `StatusBarPort`, so this stays only until the hosts drop
+ * it together with `LegacyStatusBarPort`.
+ */
 export interface DeploymentStatusBarPort {
     /**
      * `undefined` name renders "No deployment target"; a name renders the active
@@ -136,33 +140,12 @@ export interface SecretStorePort {
 }
 
 /**
- * Persists non-secret deployment-form state (endpoint, tenant, auth type, …)
- * across sessions so the form can be pre-filled on next use.
+ * Persists the non-secret {@link DeploymentState} across sessions. The host
+ * stores what a save writes; the core owns the defaults and the shape.
  */
 export interface DeploymentStatePort {
-    getEndpoint(): string;
-    getTenantId(): string;
-    getAuthType(): TargetAuthType;
-    saveAuthType(authType: TargetAuthType): Promise<void>;
-    getTokenEndpoint(): string;
-    getAudience(): string;
-    saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void>;
-    save(endpoint: string, tenantId: string): Promise<void>;
-    /**
-     * The persisted active deployment-target name, or `""` for ad-hoc mode.
-     * Synchronous so it can ride the initial webview seed.
-     */
-    getActiveTargetName(): string;
-    saveActiveTargetName(name: string): Promise<void>;
-    /**
-     * The recorded revision last deployed under `ledgerKey`, or `undefined` when
-     * this machine has no record. Synchronous so freshness can be
-     * resolved during the initial status-bar render.
-     */
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
-    saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
-    /** Every recorded ledger key. Synchronous, like the getters. */
-    listLedgerKeys(): string[];
-    /** Removes the given ledger slots (target delete/rename, engine says "not deployed"). */
-    deleteDeployedRevisions(ledgerKeys: string[]): Promise<void>;
+    /** Synchronous, so the initial webview seed and status render can read it. */
+    load(): DeploymentState;
+    /** Writes only what `patch` names. */
+    save(patch: DeploymentStatePatch): Promise<void>;
 }

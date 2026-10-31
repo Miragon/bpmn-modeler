@@ -14,7 +14,7 @@ import {
     EMPTY_DMN_DIAGRAM,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     FORM_VIEW_TYPE,
-    UserCancelledError,
+    newModelEnginePrompt,
 } from "@miragon/bpmn-modeler-core";
 import {
     lintingEnabled,
@@ -205,19 +205,12 @@ export class CommandController {
                 return; // dialog dismissed — silent no-op
             }
 
-            let doc: BpmnDocument;
-            try {
-                const choice = await this.picker.pickNewModelEngine(
-                    "Select the execution platform.",
-                );
-                doc = BpmnDocument.forNewModel(choice);
-            } catch (error) {
-                if (error instanceof UserCancelledError) {
-                    return; // no file created
-                }
-                throw error;
+            const engine = await this.picker.choose(newModelEnginePrompt());
+            if (engine === undefined) {
+                return; // no file created
             }
 
+            const doc = BpmnDocument.forNewModel(engine);
             await workspace.fs.writeFile(target, Buffer.from(doc.xml));
             await commands.executeCommand("vscode.openWith", target, BPMN_VIEW_TYPE);
         });

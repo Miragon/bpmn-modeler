@@ -108,6 +108,38 @@ describe("WebviewMessageRouter", () => {
         });
     });
 
+    it("handles or ignores every type a table lists, as the table says", () => {
+        const router = WebviewMessageRouter.fromTable({
+            ShowInfoCommand: [() => undefined],
+            GetDiagramAsSVGCommand: { ignored: "the export request reads the reply itself" },
+        });
+
+        expect(router.routeOf("ShowInfoCommand")).toEqual({ kind: "handled" });
+        expect(router.routeOf("GetDiagramAsSVGCommand")).toEqual({
+            kind: "ignored",
+            reason: "the export request reads the reply itself",
+        });
+        expect(router.routeOf("RequestFocusCommand")).toEqual({ kind: "unrouted" });
+    });
+
+    it("runs a table entry's handlers in the order it lists them", async () => {
+        const calls: string[] = [];
+        const router = WebviewMessageRouter.fromTable({
+            ShowInfoCommand: [
+                (message) => {
+                    calls.push(`first ${message.message}`);
+                },
+                (_message, editorId) => {
+                    calls.push(`second ${editorId}`);
+                },
+            ],
+        });
+
+        await router.dispatch(new ShowInfoCommand("hello"), "id");
+
+        expect(calls).toEqual(["first hello", "second id"]);
+    });
+
     it("refuses a handler for a command it ignores", () => {
         const router = new WebviewMessageRouter().ignore("ShowInfoCommand", "no notifications");
 

@@ -15,7 +15,9 @@
  * `createBridge` is a pure composition root: it builds the shared collaborators
  * once ({@link buildSharedDeps}) and lets each `composition/*Feature.ts` module
  * wire its own services and register its own slice of the protocol. Each
- * Host→Core method group is implemented by the matching feature module.
+ * Host→Core method group is implemented by the matching feature module. The
+ * BPMN editor's webview commands and session participants are the core
+ * `BpmnEditorFeature`'s, so the bridge routes them exactly as VS Code does.
  *
  * The full RPC surface — method names, direction, and param/result shapes — is
  * the single source of truth in `protocol/descriptor.ts` (with `METHODS.*`
@@ -33,16 +35,13 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+
 import { Rpc } from "./rpc";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as marketplaceFeature from "./composition/marketplaceFeature";
-import * as templatesSettingsFeature from "./composition/templatesSettingsFeature";
-import * as clipboardFeature from "./composition/clipboardFeature";
-import * as navigationFeature from "./composition/navigationFeature";
-import * as definitionSearchFeature from "./composition/definitionSearchFeature";
-import * as codeLinkFeature from "./composition/codeLinkFeature";
-import * as bpmnlintFeature from "./composition/bpmnlintFeature";
+import * as bpmnEditorFeature from "./composition/bpmnEditorFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as editorSessionFeature from "./composition/editorSessionFeature";
 import * as commandsFeature from "./composition/commandsFeature";
@@ -64,20 +63,21 @@ export interface BridgeOptions {
 
 /**
  * Constructs the bridge: the shared collaborators, then every per-feature wiring
- * module. Handles flow forward (diff's `rebroadcastLanguage` into the
- * templates/settings feature); session participants flow into the editor-session
- * feature's lifecycle.
+ * module. Handles flow forward: diff's `rebroadcastLanguage`, the marketplace
+ * cache, the script editor and the deployment status into the BPMN editor, whose
+ * router and participants the editor-session feature's lifecycle runs.
  *
  * @param write Emits one framed JSON line (caller appends the newline + flushes).
  * @param log   Diagnostic sink (stderr in production; a spy in tests). Kept off
  *              the RPC `write` so it can never corrupt the stdout frame stream.
- * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine`.
+ * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
+ *   and the BPMN editor's routes, which the coverage spec reads.
  */
 export function createBridge(
     write: (line: string) => void,
     log: (message: string) => void = () => {},
     options: BridgeOptions = {},
-): { rpc: Rpc } {
+): { rpc: Rpc; editorRoutes: Pick<WebviewMessageRouter, "routeOf"> } {
     const deps = buildSharedDeps(write, log);
 
     const homeDir = options.homeDir ?? homedir();
@@ -85,38 +85,27 @@ export function createBridge(
         options.marketplaceCacheRoot ?? join(homeDir, ".miragon-bpmn-modeler", "marketplaces");
 
     const diff = diffFeature.register(deps);
-    // The marketplace service must exist before templates so its cache merges into
-    // element-template discovery; its add/update handlers are registered last (they
-    // need the templates service to refresh open editors).
+    // The marketplace service must exist before the BPMN editor so its cache merges
+    // into element-template discovery; its add/update handlers are registered last
+    // (they need the templates service to refresh open editors).
     const marketplace = marketplaceFeature.register(deps, { cacheRoot, homeDir });
-    const templates = templatesSettingsFeature.register(deps, {
-        onSettingsApplied: diff.rebroadcastLanguage,
-        marketplaceSvc: marketplace.marketplaceSvc,
-    });
-    clipboardFeature.register(deps);
-    const navigation = navigationFeature.register(deps);
-    const definitionSearch = definitionSearchFeature.register(deps);
-    const codeLink = codeLinkFeature.register(deps);
-    const bpmnlint = bpmnlintFeature.register(deps);
     const script = scriptFeature.register(deps);
     const deployment = deploymentFeature.register(deps);
-    const editorSession = editorSessionFeature.register(deps, [
-        ...navigation.participants,
-        ...definitionSearch.participants,
-        ...templates.participants,
-        ...bpmnlint.participants,
-        ...deployment.participants,
-        ...script.participants,
-        ...codeLink.participants,
-    ]);
-    // Portable modeler commands (change engine version, migrate all). Registered
-    // after the editor-session feature so it can reuse that feature's bpmnService.
-    commandsFeature.register(deps, { bpmnService: editorSession.bpmnService });
+    const editor = bpmnEditorFeature.register(deps, {
+        onSettingsApplied: diff.rebroadcastLanguage,
+        templateProvider: marketplace.marketplaceSvc,
+        scriptEditor: script.editorContribution,
+        deploymentStatus: deployment.statusParticipant,
+    });
+    editorSessionFeature.register(deps, editor);
+    // Portable modeler commands (change engine version, layout, migrate all) reuse
+    // the editor's services.
+    commandsFeature.register(deps, { bpmnService: editor.bpmnService, layout: editor.layout });
     marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
-        templatesSvc: templates.templatesSvc,
+        templatesSvc: editor.templates,
         homeDir,
     });
 
-    return { rpc: deps.rpc };
+    return { rpc: deps.rpc, editorRoutes: editor.router };
 }

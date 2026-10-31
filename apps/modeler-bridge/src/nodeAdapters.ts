@@ -43,6 +43,7 @@ import {
     globToRegExp,
     isWithinRoot,
     joinWorkspacePath,
+    LintingPreferencePort,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
     normalizeSettings,
@@ -482,7 +483,7 @@ export class NodeWorkspace implements WorkspacePort {
  * `BpmnSettingsBroadcaster` and the templates reload branch expect, which is what
  * lets the unmodified core react identically on both hosts.
  */
-export class BridgeSettings implements SettingsPort {
+export class BridgeSettings implements SettingsPort, LintingPreferencePort {
     // Render-safe before the host's first snapshot, which a host may leave out of register.
     private snapshot: ModelerSettingsSnapshot = normalizeSettings({});
     private lintingEnabled = DEFAULT_LINTING_ENABLED;

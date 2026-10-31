@@ -142,7 +142,7 @@ narrowed channel would fit a helper that posts any message.
 
 ### Receiving Messages
 
-**Host receives Commands:** the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`, registered in `composition/editorFeature.ts`:
+**Host receives Commands:** the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`. VS Code registers the DMN and Form routers one handler at a time in `composition/editorFeature.ts`:
 ```typescript
 // handler factory (libs/modeler-core/src/editorSession/infrastructure/documentMessageHandlers.ts),
 // shared by the BPMN, DMN and Form editors
@@ -154,14 +154,16 @@ export function syncDocumentHandler(service: ModelerDocumentService): MessageHan
 
 // wiring (composition/editorFeature.ts)
 const router = new WebviewMessageRouter()
-  .on('SyncDocumentCommand', syncDocumentHandler(bpmnService))
-  .on('GetClipboardCommand', getClipboardHandler(clipboardMediator))
-  .on('SetClipboardCommand', setClipboardHandler(clipboardMediator));
+  .on('GetDmnFileCommand', displayDocumentHandler(dmnService, notifier, 'Dmn modeler is ready'))
+  .on('SyncDocumentCommand', syncDocumentHandler(dmnService))
+  .on('DocumentFlushedCommand', documentFlushedHandler(flushSvc));
 
 // dispatch (EditorSessionLifecycle) — bracketed by received/processed log lines
 editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(message, id));
 ```
 Adding a webview command is "register one more handler", with no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
+
+The BPMN editor's router comes from a table instead: the core `BpmnEditorFeature` (`libs/modeler-core/src/modeler/bpmn/`) passes `WebviewMessageRouter.fromTable` a `CommandTable<BpmnEditorCommandType>`, whose entry per command is its handlers in run order or `{ ignored: reason }`, so a new BPMN editor command does not compile until it has one. Another feature's commands arrive as its `EditorContribution`; a host capability that is absent from `BpmnEditorHostExtensions` turns its commands into ignored entries, and the three document commands are handled or ignored together. Both hosts build this feature in their `composition/bpmnEditorFeature.ts`, and each pins the routes it gets in a coverage spec (`apps/vscode-plugin/src/composition/bpmnEditorFeature.spec.ts`, `apps/modeler-bridge/src/bridge.editor.spec.ts`).
 
 **Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript
