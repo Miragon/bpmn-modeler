@@ -1,14 +1,4 @@
-import {
-    Disposable,
-    Range,
-    Tab,
-    TabInputCustom,
-    TextDocument,
-    WebviewPanel,
-    window,
-    workspace,
-    WorkspaceEdit,
-} from "vscode";
+import { Disposable, Range, TextDocument, WebviewPanel, workspace, WorkspaceEdit } from "vscode";
 
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
@@ -146,27 +136,11 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     /**
-     * Theia creates every panel active and visible and may never correct that
-     * for a restored background tab, so a panel also needs its group to show
-     * its tab. A panel without a custom-editor tab (a diff) keeps its own state.
+     * Theia can report a hidden tab's panel as active (a restored background tab
+     * it made its active widget), so only a visible panel counts as active.
      */
     isActive(): boolean {
-        return this.panel.active && this.panel.visible && this.isTabShown();
-    }
-
-    private isTabShown(): boolean {
-        const tabs = window.tabGroups.all
-            .flatMap((group) => group.tabs)
-            .filter((tab) => this.isOwnTab(tab));
-        return tabs.length === 0 || tabs.some((tab) => tab.isActive);
-    }
-
-    private isOwnTab(tab: Tab): boolean {
-        return (
-            tab.input instanceof TabInputCustom &&
-            tab.input.viewType === this.viewType &&
-            tab.input.uri.toString() === this.document.uri.toString()
-        );
+        return this.panel.active && this.panel.visible;
     }
 
     addSubscription(subscription: EditorSubscription): void {
@@ -189,36 +163,8 @@ export class VsCodeEditorHandle implements EditorHandle {
         return this.panel.onDidDispose(() => callback());
     }
 
-    /**
-     * A tab change reports only a flip of {@link isActive}, since tabs change on
-     * every edit. The tab listeners are global and must end with the panel,
-     * whose state throws once it is disposed.
-     */
     onDidChangeActive(callback: (active: boolean) => void): EditorSubscription {
-        let reportedActive = this.isActive();
-        const report = () => {
-            reportedActive = this.isActive();
-            callback(reportedActive);
-        };
-        const reportFlip = () => {
-            if (this.isActive() !== reportedActive) report();
-        };
-        const tabSubscriptions = [
-            window.tabGroups.onDidChangeTabs(reportFlip),
-            window.tabGroups.onDidChangeTabGroups(reportFlip),
-        ];
-        const disposeTabSubscriptions = () =>
-            tabSubscriptions.forEach((subscription) => subscription.dispose());
-        const subscriptions = [
-            this.panel.onDidChangeViewState(report),
-            this.panel.onDidDispose(disposeTabSubscriptions),
-        ];
-        return {
-            dispose: () => {
-                subscriptions.forEach((subscription) => subscription.dispose());
-                disposeTabSubscriptions();
-            },
-        };
+        return this.panel.onDidChangeViewState(() => callback(this.isActive()));
     }
 
     /**

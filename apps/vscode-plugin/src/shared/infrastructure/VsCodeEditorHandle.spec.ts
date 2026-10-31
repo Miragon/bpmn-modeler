@@ -11,40 +11,7 @@ const isWritableFileSystemMock = vi.fn<(scheme: string) => boolean | undefined>(
 // args lets us assert the edit targets the full document range.
 const replaceMock = vi.fn();
 
-interface FakeTab {
-    input: unknown;
-    isActive: boolean;
-}
-
-// The editor tabs of one group; `isActive` marks the tab the group shows.
-const editorTabs = vi.hoisted(() => ({
-    tabs: [] as FakeTab[],
-    tabListeners: new Set<() => void>(),
-    groupListeners: new Set<() => void>(),
-}));
-
 vi.mock("vscode", () => ({
-    window: {
-        tabGroups: {
-            get all() {
-                return [{ tabs: editorTabs.tabs }];
-            },
-            onDidChangeTabs: (listener: () => void) => {
-                editorTabs.tabListeners.add(listener);
-                return { dispose: () => editorTabs.tabListeners.delete(listener) };
-            },
-            onDidChangeTabGroups: (listener: () => void) => {
-                editorTabs.groupListeners.add(listener);
-                return { dispose: () => editorTabs.groupListeners.delete(listener) };
-            },
-        },
-    },
-    TabInputCustom: class {
-        constructor(
-            readonly uri: { toString: () => string },
-            readonly viewType: string,
-        ) {}
-    },
     workspace: {
         applyEdit: (...args: unknown[]) => applyEditMock(...args),
         fs: { isWritableFileSystem: (scheme: string) => isWritableFileSystemMock(scheme) },
@@ -73,7 +40,7 @@ vi.mock("./bootstrapWebview", () => ({
     bootstrapWebview: vi.fn(() => nextPanel),
 }));
 
-import { TabInputCustom, workspace } from "vscode";
+import { workspace } from "vscode";
 
 import { EditorSessionStore, SettingChange } from "@miragon/bpmn-modeler-core";
 
@@ -87,7 +54,6 @@ interface FakePanel {
     webview: { postMessage: ReturnType<typeof vi.fn> };
     dispose: ReturnType<typeof vi.fn>;
     onDidChangeViewState: ReturnType<typeof vi.fn>;
-    onDidDispose: ReturnType<typeof vi.fn>;
 }
 
 function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
@@ -98,25 +64,8 @@ function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
         webview: { postMessage: vi.fn().mockResolvedValue(true) },
         dispose: vi.fn(),
         onDidChangeViewState: vi.fn(() => ({ dispose: vi.fn() })),
-        onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
         ...overrides,
     };
-}
-
-function editorTab(documentUri: string, isActive: boolean, viewType = "bpmn"): FakeTab {
-    return {
-        input: new TabInputCustom({ toString: () => documentUri } as never, viewType),
-        isActive,
-    };
-}
-
-function showTabs(...tabs: FakeTab[]): void {
-    editorTabs.tabs = tabs;
-}
-
-function changeTabs(...tabs: FakeTab[]): void {
-    showTabs(...tabs);
-    editorTabs.tabListeners.forEach((listener) => listener());
 }
 
 interface FakeDocument {
@@ -162,9 +111,6 @@ function createHandle(panel: FakePanel, document: FakeDocument): VsCodeEditorHan
 
 beforeEach(() => {
     vi.clearAllMocks();
-    editorTabs.tabs = [];
-    editorTabs.tabListeners.clear();
-    editorTabs.groupListeners.clear();
 });
 
 function makeSchemeDocument(scheme: string, overrides: Partial<FakeDocument> = {}): FakeDocument {
@@ -393,29 +339,6 @@ describe("VsCodeEditorHandle.isActive", () => {
 
         expect(handle.isActive()).toBe(reported === "active");
     });
-
-    // Theia creates every panel active and visible and may never correct that
-    // for a restored background tab.
-    it("reports an active, visible panel as not active while its group shows another tab", () => {
-        showTabs(editorTab("file:///repo/1.bpmn", true), editorTab("file:/a.bpmn", false));
-        const handle = createHandle(makePanel({ active: true, visible: true }), makeDocument());
-
-        expect(handle.isActive()).toBe(false);
-    });
-
-    it("reports an active, visible panel as active while its group shows its tab", () => {
-        showTabs(editorTab("file:///repo/1.bpmn", false), editorTab("file:/a.bpmn", true));
-        const handle = createHandle(makePanel({ active: true, visible: true }), makeDocument());
-
-        expect(handle.isActive()).toBe(true);
-    });
-
-    it("ignores a hidden tab of another editor type on the same document", () => {
-        showTabs(editorTab("file:/a.bpmn", false, "bpmn-modeler.dmn"));
-        const handle = createHandle(makePanel({ active: true, visible: true }), makeDocument());
-
-        expect(handle.isActive()).toBe(true);
-    });
 });
 
 describe("VsCodeEditorHandle.onDidChangeActive", () => {
@@ -447,51 +370,6 @@ describe("VsCodeEditorHandle.onDidChangeActive", () => {
         expect(activeChanged.mock.calls).toEqual([[false]]);
     });
 
-    it("reports the panel's focus state when its group starts or stops showing its tab", () => {
-        showTabs(editorTab("file:/a.bpmn", true));
-        const activeChanged = vi.fn();
-        createHandle(makePanel({ active: true, visible: true }), makeDocument()).onDidChangeActive(
-            activeChanged,
-        );
-
-        changeTabs(editorTab("file:/a.bpmn", false), editorTab("file:///repo/1.bpmn", true));
-        changeTabs(editorTab("file:/a.bpmn", true), editorTab("file:///repo/1.bpmn", false));
-
-        expect(activeChanged.mock.calls).toEqual([[false], [true]]);
-    });
-
-    it("stays silent on a tab change that leaves the panel's focus state alone", () => {
-        showTabs(editorTab("file:/a.bpmn", true));
-        const activeChanged = vi.fn();
-        createHandle(makePanel({ active: true, visible: true }), makeDocument()).onDidChangeActive(
-            activeChanged,
-        );
-
-        changeTabs(editorTab("file:/a.bpmn", true), editorTab("file:///repo/1.bpmn", false));
-
-        expect(activeChanged).not.toHaveBeenCalled();
-    });
-
-    it("stops listening to tab changes once its panel is disposed", () => {
-        const panel = makePanel({ active: true, visible: true });
-        createHandle(panel, makeDocument()).onDidChangeActive(vi.fn());
-
-        const panelDisposed = panel.onDidDispose.mock.calls[0][0] as () => void;
-        panelDisposed();
-
-        expect(editorTabs.tabListeners.size).toBe(0);
-        expect(editorTabs.groupListeners.size).toBe(0);
-    });
-
-    it("stops listening to tab changes once the subscription is disposed", () => {
-        const subscription = createHandle(makePanel(), makeDocument()).onDidChangeActive(vi.fn());
-
-        subscription.dispose();
-
-        expect(editorTabs.tabListeners.size).toBe(0);
-        expect(editorTabs.groupListeners.size).toBe(0);
-    });
-
     // Theia creates every panel active and visible, then reports a restored
     // background tab as its active widget while the tab stays hidden.
     it("hands the command target back to the visible diagram when a hidden tab reports active", () => {
@@ -510,75 +388,32 @@ describe("VsCodeEditorHandle.onDidChangeActive", () => {
         expect(store.isFocused("file:///repo/3.bpmn")).toBe(false);
     });
 
-    describe("after a restart of the standalone app, with 1.bpmn shown and 3.bpmn behind it", () => {
-        const shown = "file:///repo/1.bpmn";
-        const behind = "file:///repo/3.bpmn";
-
-        // Theia creates every panel active and visible, whatever tab it restores.
-        function restore(store: EditorSessionStore): {
-            shownPanel: FakePanel;
-            behindPanel: FakePanel;
-        } {
-            const shownPanel = makePanel({ active: true, visible: true });
-            const behindPanel = makePanel({ active: true, visible: true });
-            store.register(createSessionHandle(shown, shownPanel));
-            store.subscribeToTabChangeEvent(shown);
-            store.register(createSessionHandle(behind, behindPanel));
-            store.subscribeToTabChangeEvent(behind);
-            return { shownPanel, behindPanel };
-        }
-
-        it("keeps the command target on 1.bpmn when Theia reports no view state", () => {
-            showTabs(editorTab(shown, true), editorTab(behind, false));
+    // Theia reports every changed panel in one pass, in creation order, so the
+    // visible diagram can blur before the hidden tab reports. The handle cannot
+    // tell the core which diagram is visible, so the target stays hidden.
+    it.fails(
+        "hands the command target to the visible diagram when it blurs before the hidden tab reports",
+        () => {
             const store = new EditorSessionStore(() => undefined);
-            restore(store);
+            const visiblePanel = makePanel({ active: true, visible: true });
+            const hiddenPanel = makePanel({ active: true, visible: true });
+            store.register(createSessionHandle("file:///repo/1.bpmn", visiblePanel));
+            store.subscribeToTabChangeEvent("file:///repo/1.bpmn");
+            store.register(createSessionHandle("file:///repo/3.bpmn", hiddenPanel));
+            store.subscribeToTabChangeEvent("file:///repo/3.bpmn");
 
-            expect(store.getActiveEditorId()).toBe(shown);
-            expect(store.getFocusedEditorId()).toBe(shown);
-        });
+            visiblePanel.active = false;
+            viewStateListener(visiblePanel)();
+            hiddenPanel.visible = false;
+            viewStateListener(hiddenPanel)();
 
-        it("keeps the command target on 1.bpmn when it blurs before 3.bpmn reports hidden", () => {
-            showTabs(editorTab(shown, true), editorTab(behind, false));
-            const store = new EditorSessionStore(() => undefined);
-            const { shownPanel, behindPanel } = restore(store);
-
-            shownPanel.active = false;
-            viewStateListener(shownPanel)();
-            behindPanel.visible = false;
-            viewStateListener(behindPanel)();
-
-            expect(store.getActiveEditorId()).toBe(shown);
-        });
-
-        it("hands the command target to 1.bpmn once the tab model arrives", () => {
-            const store = new EditorSessionStore(() => undefined);
-            restore(store);
-
-            showTabs(editorTab(shown, true), editorTab(behind, false));
-            editorTabs.groupListeners.forEach((listener) => listener());
-
-            expect(store.getActiveEditorId()).toBe(shown);
-            expect(store.isFocused(behind)).toBe(false);
-        });
-
-        it("hands the command target to 3.bpmn once the user shows its tab", () => {
-            showTabs(editorTab(shown, true), editorTab(behind, false));
-            const store = new EditorSessionStore(() => undefined);
-            restore(store);
-
-            changeTabs(editorTab(shown, false), editorTab(behind, true));
-
-            expect(store.getActiveEditorId()).toBe(behind);
-            expect(store.getFocusedEditorId()).toBe(behind);
-        });
-    });
+            expect(store.getActiveEditorId()).toBe("file:///repo/1.bpmn");
+        },
+    );
 
     function createSessionHandle(editorId: string, panel: FakePanel): VsCodeEditorHandle {
         nextPanel = panel;
-        const document = makeDocument({
-            uri: { scheme: "file", path: editorId, fsPath: editorId, toString: () => editorId },
-        });
-        return VsCodeEditorHandle.create("bpmn", editorId, panel as never, document as never);
+        return VsCodeEditorHandle.create("bpmn", editorId, panel as never, makeDocument() as never);
     }
 });
 
