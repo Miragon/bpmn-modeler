@@ -716,6 +716,80 @@ describe("DeploymentTargetService.saveTarget", () => {
             password: "p",
         });
     });
+
+    describe("when a rename fails part-way", () => {
+        const old = target("old", { authType: "basic" });
+        const OLD_APPROVALS = ["http://localhost:8080"];
+        const failure = new Error("secret store unavailable");
+
+        async function serviceWithOldTarget() {
+            const c = serviceWithTargetsFile(fileWith(old));
+            await seedOldTarget(c);
+            await c.host.secrets.saveApprovedDestinations(slot("old"), OLD_APPROVALS);
+            return c;
+        }
+
+        function renameOldToNew(c: ReturnType<typeof createService>) {
+            return c.service.saveTarget(
+                { ...toTargetPayload(old), name: "new" },
+                { authType: "basic", username: "new-user", password: "new-pass" },
+                "old",
+                DOC_DIR,
+            );
+        }
+
+        it.each<{ step: string; fail: (c: ReturnType<typeof createService>) => void }>([
+            {
+                step: "storing the renamed target's credentials",
+                fail: (c) => vi.spyOn(c.host.secrets, "saveBasicAuth").mockRejectedValue(failure),
+            },
+            {
+                step: "saving its approved destinations",
+                fail: (c) =>
+                    vi.spyOn(c.host.secrets, "saveApprovedDestinations").mockRejectedValue(failure),
+            },
+            {
+                step: "writing the targets file",
+                fail: (c) => vi.spyOn(c.host.workspace, "writeFile").mockRejectedValue(failure),
+            },
+        ])(
+            "keeps the old name in the targets file and no secret under the new one when $step fails",
+            async ({ fail }) => {
+                const c = await serviceWithOldTarget();
+                fail(c);
+
+                await expect(renameOldToNew(c)).rejects.toThrow(failure);
+
+                expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith(old));
+                await expectOldTargetUntouched(c);
+                await expect(c.host.secrets.getApprovedDestinations(slot("old"))).resolves.toEqual(
+                    OLD_APPROVALS,
+                );
+                await expect(c.host.secrets.getBasicAuth(slot("new"))).resolves.toBeUndefined();
+                await expect(c.host.secrets.getApprovedDestinations(slot("new"))).resolves.toEqual(
+                    [],
+                );
+            },
+        );
+
+        it("deletes the old slot of a renamed target when saving the active target name fails", async () => {
+            const c = await serviceWithOldTarget();
+            c.host.deploymentState.failSaves(
+                (patch) => patch.activeTargetName !== undefined,
+                failure,
+            );
+
+            await expect(renameOldToNew(c)).rejects.toThrow(failure);
+
+            expect(writtenTarget(c, "new")).toBeDefined();
+            await expect(c.host.secrets.getBasicAuth(slot("new"))).resolves.toEqual({
+                username: "new-user",
+                password: "new-pass",
+            });
+            await expect(c.host.secrets.getBasicAuth(slot("old"))).resolves.toBeUndefined();
+            await expect(c.host.secrets.getApprovedDestinations(slot("old"))).resolves.toEqual([]);
+        });
+    });
 });
 
 describe("DeploymentTargetService.createTarget", () => {

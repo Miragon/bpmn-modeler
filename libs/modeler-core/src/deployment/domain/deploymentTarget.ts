@@ -417,6 +417,7 @@ export class TargetCreated {
     readonly retiredSlotName = undefined;
     /** A stale slot under the new name must not lend its approvals. */
     readonly approvalsInheritedFrom = undefined;
+    readonly newSlotName: string | undefined = undefined;
 
     constructor(
         readonly targets: readonly DeploymentTarget[],
@@ -428,6 +429,7 @@ export class TargetSaved {
     readonly kind = "saved" as const;
     readonly retiredTarget = undefined;
     readonly retiredSlotName = undefined;
+    readonly newSlotName = undefined;
 
     constructor(
         readonly targets: readonly DeploymentTarget[],
@@ -447,6 +449,7 @@ export class TargetSaved {
  */
 export class TargetRenamed {
     readonly kind = "renamed" as const;
+    readonly newSlotName: string | undefined = undefined;
 
     constructor(
         readonly targets: readonly DeploymentTarget[],
@@ -472,6 +475,7 @@ export class TargetRenamed {
 export class TargetRemoved {
     readonly kind = "removed" as const;
     readonly approvalsInheritedFrom = undefined;
+    readonly newSlotName = undefined;
 
     constructor(
         readonly targets: readonly DeploymentTarget[],
