@@ -55,6 +55,7 @@ export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 export type {
     CleanupItem,
     CleanupOutcome,
+    CleanupStatus,
     CleanupKind,
     LayoutDiagnostic,
     LayoutErrorCode,

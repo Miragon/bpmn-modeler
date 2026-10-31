@@ -699,7 +699,7 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 `setFavouriteBpmnElements`, `onCommandStackChanged`, `onFormatted`, and
 `destroy` — each **signature-identical** to its `BpmnModelerHandle`
 counterpart, so a modeler handle narrows to a designer handle with no adapter.
-The outcome types `LayoutOutcome` and `CleanupOutcome` are exported from `/design` too.
+The outcome types `LayoutOutcome`, `CleanupOutcome` and `CleanupStatus` are exported from `/design` too.
 `captureViewState` / `applyViewState` (see
 [View state](#view-state-capture--restore)) carry the user's plane, viewbox, and selection across a
 mode switch. `getService` is typed against `CoreDesignerServices`, which equals the full
