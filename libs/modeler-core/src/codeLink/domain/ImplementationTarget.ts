@@ -140,6 +140,9 @@ class ClassTarget extends ImplementationTarget {
     }
 }
 
+/** Navigate searches the bean annotation only in these files, so the map links no other. */
+const BEAN_ANNOTATION_FILES = JVM_SOURCE_FILES;
+
 /**
  * Delegate / expression bindings name a bean, not a file. The capitalised bean
  * id is the first guess at the class file; the fallback is a Spring/CDI
@@ -160,7 +163,7 @@ class BeanTarget extends ImplementationTarget {
     }
 
     protected get contentSearch(): ContentSearch {
-        return { files: JVM_SOURCE_FILES, pattern: beanAnnotationPattern(this.bean) };
+        return { files: BEAN_ANNOTATION_FILES, pattern: beanAnnotationPattern(this.bean) };
     }
 
     matchesFileName(absolutePath: string): boolean {
@@ -171,18 +174,13 @@ class BeanTarget extends ImplementationTarget {
         return (
             this.matchesFileName(absolutePath) ||
             (content !== undefined &&
-                this.searchesContentOf(absolutePath) &&
+                BEAN_ANNOTATION_FILES.includes(absolutePath) &&
                 contentDeclaresBean(content, this.bean))
         );
     }
 
     isDeclaredIn(absolutePath: string, facts: SourceFileFacts): boolean {
-        return this.searchesContentOf(absolutePath) && facts.declaresBean(this.bean);
-    }
-
-    /** Navigate searches the annotation only in these files, so the map links no other. */
-    private searchesContentOf(absolutePath: string): boolean {
-        return this.contentSearch.files.includes(absolutePath);
+        return facts.declaresBean(this.bean) && BEAN_ANNOTATION_FILES.includes(absolutePath);
     }
 }
 
