@@ -284,6 +284,25 @@ describe("CodeLinkMapService — live linking", () => {
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
     });
 
+    it("keeps a link when the saved file cannot be read", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        vi.spyOn(host.workspace, "readFile").mockRejectedValueOnce(
+            new Error("EBUSY: resource busy or locked"),
+        );
+
+        await service.onSourceFileChanged(worker, "changed", ROOT);
+
+        expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
+        expect(host.notifier.logged("debug")).toEqual([
+            expect.stringContaining(`${worker}: EBUSY: resource busy or locked`),
+        ]);
+    });
+
     it("does not push when a changed file is irrelevant to the map", async () => {
         const { service, editor } = createService({
             resolveMap: { "com.example.A": ["/work/proj/src/A.java"] },

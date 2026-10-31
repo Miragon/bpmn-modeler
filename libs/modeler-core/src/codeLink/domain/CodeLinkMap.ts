@@ -28,6 +28,7 @@ export interface SyncPlan {
 
 export type SourceFileChange =
     | { readonly kind: "written"; readonly path: string; readonly content: string | undefined }
+    | { readonly kind: "unreadable"; readonly path: string }
     | { readonly kind: "deleted"; readonly path: string };
 
 /**

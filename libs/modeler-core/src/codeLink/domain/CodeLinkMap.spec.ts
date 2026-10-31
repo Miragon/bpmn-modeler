@@ -56,6 +56,10 @@ function deleted(path: string): SourceFileChange {
     return { kind: "deleted", path };
 }
 
+function unreadable(path: string): SourceFileChange {
+    return { kind: "unreadable", path };
+}
+
 describe("CodeLinkMap.admits", () => {
     it.each<{ name: string; entry: ImplementationEntry; admitted: boolean }>([
         { name: "a complete entry", entry: pay, admitted: true },
@@ -362,11 +366,18 @@ describe("CodeLinkMap.applyFileChange", () => {
             changed: true,
         },
         {
-            name: "unlinks a written file whose content could not be read",
+            name: "keeps a link when the written file cannot be read",
             held: [linked(pay, WORKER)],
-            change: written(WORKER, undefined),
-            links: [linked(pay)],
-            changed: true,
+            change: unreadable(WORKER),
+            links: [linked(pay, WORKER)],
+            changed: false,
+        },
+        {
+            name: "does not link a written file that cannot be read",
+            held: [linked(charge)],
+            change: unreadable(CHARGE_CLASS),
+            links: [linked(charge)],
+            changed: false,
         },
         {
             name: "leaves the map unchanged for a written file no activity cares about",
