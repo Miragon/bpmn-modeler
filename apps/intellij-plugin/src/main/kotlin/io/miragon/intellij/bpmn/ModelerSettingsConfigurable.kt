@@ -188,6 +188,8 @@ class ModelerSettingsConfigurable : Configurable {
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
             scriptingSpin = scriptingSpin,
+            // Read on apply: the page shows no lint field and must not undo the editor's toggle.
+            lintingEnabled = ModelerSettingsStore.getInstance().current().lintingEnabled,
             marketplaces = parseMarketplaces(marketplacesText),
         )
 

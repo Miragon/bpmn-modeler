@@ -11,9 +11,10 @@
  * pins the method set, directions, and per-method key sets against the snapshot.
  *
  * Adding a method = add a {@link METHODS} entry + a {@link PROTOCOL} entry +
- * refresh `protocol.json`; the contract test fails until all three agree. A
- * Core→Host method also needs its Kotlin handler: the IntelliJ
- * `ProtocolHandlerCoverageTest` reads `protocol.json` and fails until one exists.
+ * refresh `protocol.json`; the contract test fails until all three agree. The
+ * IntelliJ `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host
+ * method needs its Kotlin handler, a Host→Core method a Kotlin sender, both
+ * must use the param keys listed here, and a Kotlin reply the result keys.
  */
 
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
@@ -70,6 +71,7 @@ import {
     ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
+    SettingsSetLintingEnabledParams,
     StatusBarUpdateParams,
     TokenPromptShowParams,
     TokenPromptShowResult,
@@ -166,6 +168,7 @@ export const METHODS = {
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
+    settingsSetLintingEnabled: "settings/setLintingEnabled",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -613,6 +616,13 @@ export const PROTOCOL = [
             prompt: "github.com denied access; enter a personal access token.",
         } satisfies TokenPromptShowParams,
         resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
+    },
+    {
+        method: METHODS.settingsSetLintingEnabled,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

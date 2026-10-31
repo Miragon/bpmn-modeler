@@ -27,26 +27,13 @@ beforeEach(() => {
 });
 
 describe("VsCodeLintingPreference", () => {
-    it("writes a changed choice to the user settings and reports the change", async () => {
+    it("writes the choice to the user settings", async () => {
         settings.set("linting.enabled", true);
 
-        const changed = await new VsCodeLintingPreference().setLintingEnabled(false);
+        await new VsCodeLintingPreference().setLintingEnabled(false);
 
-        expect(changed).toBe(true);
         expect(writes).toEqual([
             { key: "linting.enabled", value: false, target: ConfigurationTarget.Global },
         ]);
     });
-
-    it.each([true, false])(
-        "keeps a stored choice of %s and reports it unchanged, so the editor re-sends the lint state",
-        async (stored) => {
-            settings.set("linting.enabled", stored);
-
-            const changed = await new VsCodeLintingPreference().setLintingEnabled(stored);
-
-            expect(changed).toBe(false);
-            expect(writes).toEqual([]);
-        },
-    );
 });

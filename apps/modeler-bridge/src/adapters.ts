@@ -30,6 +30,7 @@ import {
     EditorHandle,
     EditorSubscription,
     errorLogText,
+    LintingPreferencePort,
     notifiedErrorLogText,
     notifiedErrorToastText,
     NotifierPort,
@@ -62,6 +63,7 @@ import {
     SecretApprovedDestinations,
     SecretGetApprovedDestinationsParams,
     SecretSaveApprovedDestinationsParams,
+    SettingsSetLintingEnabledParams,
     StatusBarUpdateParams,
     TokenPromptShowParams,
     TokenPromptShowResult,
@@ -544,6 +546,20 @@ export class RpcTokenPrompt implements TokenPromptPort {
             prompt: prompt.prompt,
         } satisfies TokenPromptShowParams)) as TokenPromptShowResult | null;
         return result?.token ?? undefined;
+    }
+}
+
+/**
+ * The host stores the user's lint choice and pushes it back in the settings
+ * snapshot; the bridge never flips its copy.
+ */
+export class RpcLintingPreference implements LintingPreferencePort {
+    constructor(private readonly rpc: Rpc) {}
+
+    async setLintingEnabled(enabled: boolean): Promise<void> {
+        await this.rpc.request(METHODS.settingsSetLintingEnabled, {
+            enabled,
+        } satisfies SettingsSetLintingEnabledParams);
     }
 }
 

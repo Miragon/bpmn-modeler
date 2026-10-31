@@ -52,7 +52,6 @@ import {
 } from "./modeler/form/controller/FormValuesController";
 import {
     BPMN_VIEW_TYPE,
-    DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
     DMN_VIEW_TYPE,
     FORM_VIEW_TYPE,
@@ -260,9 +259,7 @@ describe("package.json ↔ code contract", () => {
                 .map(([key, property]) => [settingsValueName(key), property.default]),
         );
 
-        expect({ ...DEFAULT_MODELER_SETTINGS, lintingEnabled: DEFAULT_LINTING_ENABLED }).toEqual(
-            manifestDefaults,
-        );
+        expect(DEFAULT_MODELER_SETTINGS).toEqual(manifestDefaults);
         expect(new InMemorySettings().values).toEqual(manifestDefaults);
     });
 

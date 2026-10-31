@@ -2,9 +2,19 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
 
-/** Handles one decoded core→host RPC frame, addressed by its `method` string. */
+/**
+ * Handles one decoded core→host RPC frame, addressed by its `method` string.
+ * [read] takes every param the frame carries before anything acts on them, so
+ * the protocol coverage test can see the keys a handler reads without running
+ * the action.
+ */
 internal fun interface RpcHandler {
-    fun handle(params: JsonObject, id: Int?)
+    fun read(params: RpcParams): RpcAction
+}
+
+/** What one core→host frame asks the host to do; [id] is null for a notification. */
+internal fun interface RpcAction {
+    fun run(id: Int?)
 }
 
 /**
@@ -27,10 +37,15 @@ internal class RpcHandlerRegistry {
 
     fun registeredMethods(): Set<String> = handlers.keys.toSet()
 
+    fun handler(method: String): RpcHandler? = handlers[method]
+
     /** @return false when no handler is registered (caller logs the debug line). */
     fun dispatch(method: String, params: JsonObject, id: Int?): Boolean {
         val handler = handlers[method] ?: return false
-        handler.handle(params, id)
+        val frameParams = JsonRpcParams(params)
+        val action = handler.read(frameParams)
+        frameParams.seal()
+        action.run(id)
         return true
     }
 }

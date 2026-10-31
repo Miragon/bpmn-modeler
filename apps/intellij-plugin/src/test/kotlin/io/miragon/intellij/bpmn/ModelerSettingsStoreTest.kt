@@ -102,11 +102,19 @@ class ModelerSettingsStoreTest {
                 "favouriteBpmnElements",
                 "language",
                 "scriptingSpin",
+                "lintingEnabled",
                 "marketplaces",
             ),
             snapshot.keys.toList(),
         )
         assertEquals(listOf("https://app", "https://project"), snapshot["marketplaces"])
+    }
+
+    @Test
+    fun `the RPC snapshot carries the lint choice stored for the user`() {
+        appProperties.setValue("${NAMESPACE}linting.enabled", false, true)
+
+        assertEquals(false, store.snapshotMap(projectFixture.get())["lintingEnabled"])
     }
 
     /** A row of the core's `settingsNormalization.cases.json`; every key left out of `normalized` reads its default. */
@@ -129,6 +137,7 @@ class ModelerSettingsStoreTest {
                 "defaultMode",
                 "language",
                 "scripting.spin",
+                "linting.enabled",
             ).map { NAMESPACE + it }
 
         private val GSON = Gson()
@@ -143,7 +152,7 @@ class ModelerSettingsStoreTest {
                 )
             }
 
-        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names; IntelliJ has no lint setting. */
+        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names. */
         private fun manifestDefaults(): JsonObject {
             val properties =
                 readJson("miragon.vscodeManifest")
@@ -154,7 +163,6 @@ class ModelerSettingsStoreTest {
                 properties.entrySet()
                     .filter { (key, _) -> key.startsWith(NAMESPACE) }
                     .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
-                    .filter { (name, _) -> name != "lintingEnabled" }
                     .forEach { (name, default) -> add(name, default) }
             }
         }

@@ -320,10 +320,11 @@ closed target goes back to the open editor that held it before, and to the
 newest remaining editor only when none did, until the host reports the next
 focused one. The bridge treats `session/register` as the focused tab, so
 it marks the handle active before registering it, and it derives `isActive()`
-from the target. On IntelliJ the two agree with each other but not always
-with the selected tab: after a bridge respawn the host re-registers every
-session without replaying `session/setActive`, so the session registered last
-counts as focused. Theia sets a webview's `active` from
+from the target. After a bridge respawn the IntelliJ host re-registers every
+session, then sends `session/setActive` for the first selected tab that is a
+diagram, the focused window's first, so the session registered last does not
+keep the target. With no diagram tab selected, it does.
+Theia sets a webview's `active` from
 `shell.activeWidget`, so in the standalone app focusing a sidebar view such as
 the deployment sidebar blurs the editor, and the shared items hide while the
 sidebar has focus. VS Code keeps the panel active.
@@ -531,11 +532,18 @@ Update its committed snapshot when the private wire contract changes; the
 [contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
-reads that snapshot and registers the production `BridgeRouters`: each
-core→host method needs exactly one Kotlin handler, and a handler for a method
-the core no longer sends fails it. It compares method names, not parameter
-keys. The snapshot is an input of the Gradle test task and of the IntelliJ CI
-path filter, so a TypeScript-only protocol change runs the test.
+reads that snapshot and registers the production `BridgeRouters`: each core→host
+method needs exactly one Kotlin handler, and a handler for a method the core no
+longer sends fails it. It also compares parameter and result keys. Each
+host→core sender runs once, and its frame must carry the keys the snapshot lists.
+Each core→host handler reads its params before it acts, through `RpcParams`, so
+the test lets every handler read without acting and fails on a key the snapshot
+does not list. The registry seals the params once that read returns, so a handler
+that reads in its action fails at once instead of hiding the key. A reply can only
+carry an `RpcResult` class, whose property names are its keys; the test replies
+once with each request's result class and compares its keys with the snapshot's.
+The snapshot is an input of the Gradle test task and of the IntelliJ CI path
+filter, so a TypeScript-only protocol change runs the test.
 
 ### Process lifecycle
 
@@ -546,12 +554,12 @@ creation also remains off the UI thread when an editor needs it directly.
 
 On exit, the supervisor retries with backoff and limits repeated rapid crashes;
 a stable run resets that budget. Recovery re-registers live sessions from the
-authoritative IntelliJ Documents, replays render requests, and re-seeds
-deployment state. A tab that closes while recovery builds its register frame
+authoritative IntelliJ Documents, replays render requests, focuses the
+selected diagram tab again, and re-seeds deployment state. A tab that closes while recovery builds its register frame
 gets a second `session/dispose` after that frame, so the new bridge keeps no
-session for it. Accepted gap: if the same file registers again inside that
-window, the new bridge can end with no session for the new tab until it
-reopens or the next recovery runs. Stdin EOF terminates the bridge; project
+session for it. If the same file registers again inside that window, recovery
+then sends the new tab's `session/register` again, so the last frame for the
+editor id belongs to the open tab. Stdin EOF terminates the bridge; project
 disposal and shutdown cleanup prevent orphan processes.
 
 The replayed render re-imports the Document, and a sync the restart window
@@ -650,6 +658,17 @@ shows the values without the bridge.
 `settingsNormalization.cases.json` beside the rule holds the rows all three
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
 the Kotlin test also compares its defaults with the manifest's.
+
+The lint choice is a snapshot setting like the others, but the IntelliJ
+Settings page has no field for it: the editor's lint toggle and the BPMNlint
+widget drive it. The bridge never changes its copy. It reports a changed
+choice to the host over `settings/setLintingEnabled`; the host stores it per
+user in `PropertiesComponent` (application level) and pushes the snapshot to
+every running bridge before it acks. The choice therefore holds across bridge
+respawns, IDE restarts and open projects, as VS Code's User setting does. The
+core compares the page's choice with the stored one on every host: an equal
+choice is not stored, and the core pushes the lint state to the page again
+instead, so a page out of step catches up.
 
 The deployment state is one `DeploymentState` snapshot in the core's
 [`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):

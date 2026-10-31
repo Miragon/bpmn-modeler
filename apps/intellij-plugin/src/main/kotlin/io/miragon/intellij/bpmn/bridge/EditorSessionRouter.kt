@@ -5,12 +5,15 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.stream.JsonToken
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileDocumentManagerListener
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -36,11 +39,14 @@ import java.util.concurrent.atomic.AtomicReference
  *   tests step time deterministically instead of waiting on the shared pool.
  * @param readDocumentText Reads the content a `session/register` frame seeds.
  *   Injectable so tests can close a tab while its register frame is built.
+ * @param selectedEditorIds The editor ids of the tabs selected in the editor
+ *   windows, the focused window's first. Injectable because tests open no tabs.
  */
 internal class EditorSessionRouter(
     private val deps: BridgeDeps,
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
     private val readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
+    private val selectedEditorIds: () -> List<String> = { selectedEditorIdsOf(deps.project) },
 ) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
 
@@ -146,44 +152,24 @@ internal class EditorSessionRouter(
         )
 
         deps.handlers
-            .on("editor/postMessage") { params, _ ->
-                val editorId = params.get("editorId").asString
-                val entry = sessions[editorId] ?: return@on
-                if (!matchesSession(params, entry)) return@on
-                val message = params.getAsJsonObject("message")
-                val query = message.takeIf { it.get("type")?.asStringOrNull() == BPMN_FILE_QUERY_TYPE }
-                val delivered = query?.get("content")?.asStringOrNull()
-                val deliveredRevision =
-                    query?.get("documentRevision")
-                        ?.takeIf { !it.isJsonNull }
-                        ?.asLong
-                if (deliveredRevision != null) {
-                    if (deliveredRevision < entry.documentRevision.get()) return@on
-                }
-                entry.session.postToWebview(deps.gson.toJson(message))
-                if (query != null) {
-                    entry.takeRenderLock()?.let { entry.session.postToWebview(releaseFlushQuery(it)) }
-                    val expected = hostUpdatesAwaitingWebview[editorId]
-                    if (
-                        expected != null &&
-                        (
-                            deliveredRevision?.let { it >= expected.revision } == true ||
-                                (
-                                    deliveredRevision == null &&
-                                        delivered != null &&
-                                        StringUtil.equals(
-                                            StringUtil.convertLineSeparators(expected.content),
-                                            StringUtil.convertLineSeparators(delivered),
-                                        )
-                                )
-                        )
-                    ) {
-                        hostUpdatesAwaitingWebview.remove(editorId, expected)
-                    }
-                }
+            .on("editor/postMessage") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                val message = params.jsonObject("message")
+                RpcAction { deliverToWebview(editorId, sessionId, message) }
             }
-            .on("document/write") { params, id -> handleWrite(params, id) }
-            .on("document/save") { params, id -> handleSave(params, id) }
+            .on("document/write") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                val writtenContent = params.string("content")
+                val expectedDocumentRevision = params.optionalLong("expectedDocumentRevision")
+                RpcAction { id -> handleWrite(editorId, sessionId, writtenContent, expectedDocumentRevision, id) }
+            }
+            .on("document/save") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                RpcAction { id -> handleSave(editorId, sessionId, id) }
+            }
     }
 
     // ── host → core ────────────────────────────────────────────────────────────
@@ -439,8 +425,13 @@ internal class EditorSessionRouter(
      * locked until a render reaches it.
      *
      * A replayed render does not make the page ask for the lint config again,
-     * so `GetBpmnlintConfigCommand` is replayed too: a new bridge starts with
-     * linting on and the page would otherwise show the old bridge's toggle.
+     * so `GetBpmnlintConfigCommand` is replayed too: a new bridge holds no lint
+     * state for the page, and the stored lint choice may have changed while the
+     * bridge was down.
+     *
+     * Ends with `session/setActive` for the first selected tab that is a
+     * diagram, the focused window's first. With no diagram tab selected, the
+     * session replayed last keeps the command target.
      *
      * Waits up to [PAGE_FLUSH_TIMEOUT_MS] for the pages' replies; off the EDT it
      * then also waits until the EDT has written any export, which an open modal
@@ -454,15 +445,35 @@ internal class EditorSessionRouter(
             if (sessions[entry.session.editorId] !== entry) return@forEach
             // Armed before the replay goes out, so its render cannot overtake the hold.
             flushesByEntry[entry]?.let(::holdUntilRendered)
-            sendRegister(entry)
-            // A tab closed while the frame was built may have sent its dispose ahead of the register.
-            if (sessions[entry.session.editorId] !== entry) {
-                sendDispose(entry)
-                return@forEach
-            }
+            if (!reregisterCurrentOwner(entry)) return@forEach
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
+        focusSelectedEditor()
+    }
+
+    /**
+     * Returns whether [entry] still owns its editor id. A tab closed or reopened
+     * while a register frame was built sent its own frames ahead of it, and the
+     * bridge keeps whichever register comes last, so the owner's register or a
+     * dispose must follow.
+     */
+    private fun reregisterCurrentOwner(entry: SessionEntry): Boolean {
+        var registered = entry
+        while (true) {
+            sendRegister(registered)
+            val owner = sessions[registered.session.editorId]
+            if (owner === registered) return registered === entry
+            sendDispose(registered)
+            registered = owner ?: return false
+        }
+    }
+
+    // The bridge takes every register for the focused tab, so the session replayed last would keep the command target.
+    private fun focusSelectedEditor() {
+        // A disposed project has no sessions left, and its FileEditorManager can no longer be asked.
+        if (sessions.isEmpty()) return
+        selectedEditorIds().firstOrNull(sessions::containsKey)?.let(::setActiveEditor)
     }
 
     fun clear() {
@@ -479,10 +490,43 @@ internal class EditorSessionRouter(
 
     // ── core → host ────────────────────────────────────────────────────────────
 
-    private fun matchesSession(params: JsonObject, entry: SessionEntry): Boolean {
-        val sessionId = params.get("sessionId")?.takeIf { !it.isJsonNull }?.asLong
-        return sessionId == null || sessionId == entry.sessionId
+    private fun deliverToWebview(editorId: String, sessionId: Long?, message: JsonObject) {
+        val entry = sessions[editorId] ?: return
+        if (!matchesSession(sessionId, entry)) return
+        val query = message.takeIf { it.get("type")?.asStringOrNull() == BPMN_FILE_QUERY_TYPE }
+        val delivered = query?.get("content")?.asStringOrNull()
+        val deliveredRevision =
+            query?.get("documentRevision")
+                ?.takeIf { !it.isJsonNull }
+                ?.asLong
+        if (deliveredRevision != null) {
+            if (deliveredRevision < entry.documentRevision.get()) return
+        }
+        entry.session.postToWebview(deps.gson.toJson(message))
+        if (query != null) {
+            entry.takeRenderLock()?.let { entry.session.postToWebview(releaseFlushQuery(it)) }
+            val expected = hostUpdatesAwaitingWebview[editorId]
+            if (
+                expected != null &&
+                (
+                    deliveredRevision?.let { it >= expected.revision } == true ||
+                        (
+                            deliveredRevision == null &&
+                                delivered != null &&
+                                StringUtil.equals(
+                                    StringUtil.convertLineSeparators(expected.content),
+                                    StringUtil.convertLineSeparators(delivered),
+                                )
+                        )
+                )
+            ) {
+                hostUpdatesAwaitingWebview.remove(editorId, expected)
+            }
+        }
     }
+
+    private fun matchesSession(sessionId: Long?, entry: SessionEntry): Boolean =
+        sessionId == null || sessionId == entry.sessionId
 
     /**
      * Writes core-supplied XML into the in-memory Document on the EDT, then replies
@@ -494,17 +538,17 @@ internal class EditorSessionRouter(
      * so a write of content a page flush already put into the Document reports
      * one too: the core never heard of that flush.
      */
-    private fun handleWrite(params: JsonObject, id: Int?) {
-        val editorId = params.get("editorId").asString
-        val writtenContent = params.get("content").asString
+    private fun handleWrite(
+        editorId: String,
+        sessionId: Long?,
+        writtenContent: String,
+        expectedDocumentRevision: Long?,
+        id: Int?,
+    ) {
         val content = StringUtil.convertLineSeparators(writtenContent)
-        val expectedDocumentRevision =
-            params.get("expectedDocumentRevision")
-                ?.takeIf { !it.isJsonNull }
-                ?.asLong
         val entry = sessions[editorId]
-        if (entry == null || !matchesSession(params, entry)) {
-            id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
+        if (entry == null || !matchesSession(sessionId, entry)) {
+            id?.let { deps.channel.reply(it, DocumentWriteResult(changed = false, accepted = false)) }
             return
         }
         deps.channel.replyFromEdt(id, "document/write") {
@@ -514,7 +558,7 @@ internal class EditorSessionRouter(
                 (expectedDocumentRevision != null &&
                     expectedDocumentRevision != entry.documentRevision.get())
             ) {
-                return@replyFromEdt mapOf("changed" to false, "accepted" to false)
+                return@replyFromEdt DocumentWriteResult(changed = false, accepted = false)
             }
             var changed = false
             val session = entry.session
@@ -544,26 +588,26 @@ internal class EditorSessionRouter(
         }
     }
 
-    private fun writeResult(changed: Boolean, writtenContent: String, normalizedContent: String): Map<String, Any> {
-        val result = linkedMapOf<String, Any>("changed" to changed, "accepted" to true)
-        if (changed && normalizedContent != writtenContent) result["normalizedContent"] = normalizedContent
-        return result
-    }
+    private fun writeResult(changed: Boolean, writtenContent: String, normalizedContent: String) =
+        DocumentWriteResult(
+            changed = changed,
+            accepted = true,
+            normalizedContent = normalizedContent.takeIf { changed && it != writtenContent },
+        )
 
-    private fun handleSave(params: JsonObject, id: Int?) {
-        val editorId = params.get("editorId").asString
+    private fun handleSave(editorId: String, sessionId: Long?, id: Int?) {
         val entry = sessions[editorId]
         deps.channel.replyFromEdt(id, "document/save") {
             val liveSession =
                 entry?.session?.takeIf {
-                    sessions[editorId] === entry && matchesSession(params, entry) && !it.project.isDisposed
+                    sessions[editorId] === entry && matchesSession(sessionId, entry) && !it.project.isDisposed
                 }
             val documentManager = FileDocumentManager.getInstance()
             val document = liveSession?.let { documentManager.getDocument(it.file) }
             // A veto, a memory/disk conflict or a write error leaves the Document
             // unsaved without throwing.
             if (document != null) documentManager.saveDocument(document)
-            mapOf("saved" to (document != null && !documentManager.isDocumentUnsaved(document)))
+            DocumentSaveResult(saved = document != null && !documentManager.isDocumentUnsaved(document))
         }
     }
 
@@ -860,6 +904,22 @@ internal fun readDocumentTextInReadAction(file: VirtualFile): String =
     ApplicationManager.getApplication().runReadAction(
         Computable { FileDocumentManager.getInstance().getDocument(file)?.text.orEmpty() },
     )
+
+/**
+ * The editor ids of the files selected in [project]'s editor windows, the focused window's first.
+ * Read on the EDT: elsewhere the platform lists the main window's first.
+ */
+internal fun selectedEditorIdsOf(project: Project): List<String> {
+    val readSelection = {
+        if (project.isDisposed) emptyList() else FileEditorManager.getInstance(project).selectedFiles.map { it.url }
+    }
+    val application = ApplicationManager.getApplication()
+    if (application.isDispatchThread) return readSelection()
+    var selected = emptyList<String>()
+    // Only a read, so an open modal dialog need not delay the crash recovery.
+    application.invokeAndWait({ selected = readSelection() }, ModalityState.any())
+    return selected
+}
 
 /** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
 internal data class DocumentFlushedReply(

@@ -3,6 +3,7 @@ import { EditorSessionDocuments } from "../editorSession/service/EditorSessionDo
 import { EditorSessionLifecycle } from "../editorSession/service/EditorSessionLifecycle";
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { WebviewMessageRouter } from "../editorSession/service/WebviewMessageRouter";
+import { ModelerSettingsSnapshot } from "../kernel/domain/modelerSettings";
 import { DocumentChangeStream, FakeEditorHandle } from "./FakeEditorHandle";
 import {
     InMemorySecretStore,
@@ -15,7 +16,7 @@ import {
     InMemoryPropertiesPanelState,
     RecordingDiagnostics,
 } from "./inMemoryHostSurfaces";
-import { InMemorySettings, SettingsValues } from "./InMemorySettings";
+import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { RecordingNotifier } from "./RecordingNotifier";
 import { RecordingStatusBar } from "./RecordingStatusBar";
@@ -24,7 +25,7 @@ import { PromptAnswers, ScriptedPicker } from "./ScriptedPicker";
 export interface TestHostOptions {
     folders?: string[];
     files?: Record<string, string>;
-    settings?: Partial<SettingsValues>;
+    settings?: Partial<ModelerSettingsSnapshot>;
     promptAnswers?: PromptAnswers;
     tokenAnswers?: Record<string, string>;
 }

@@ -180,7 +180,7 @@ class RpcChannelTest {
         val channel = rpcChannel { method, _, id ->
             when (method) {
                 "boom" -> throw RuntimeException("handler blew up")
-                "echo" -> channelRef!!.reply(id!!, "ok")
+                "echo" -> channelRef!!.reply(id!!, ClipboardReadResult("ok"))
             }
         }
         channelRef = channel
@@ -196,7 +196,7 @@ class RpcChannelTest {
 
         val okReply = parse(fake.nextFrame())
         assertEquals(9, okReply.get("id").asInt)
-        assertEquals("ok", okReply.get("result").asString)
+        assertEquals("ok", okReply.getAsJsonObject("result").get("text").asString)
     }
 
     private fun attachedChannel(): Pair<RpcChannel, FakeProcess> {
@@ -207,6 +207,9 @@ class RpcChannelTest {
     }
 
     private val runInline: (Runnable) -> Unit = { it.run() }
+
+    /** Gson refuses to write NaN, so replying with this result fails. */
+    private class UnserialisableResult(val ratio: Double) : RpcResult
 
     @Test
     fun `a request answered from the EDT gets an error reply when the EDT work throws`() {
@@ -259,7 +262,7 @@ class RpcChannelTest {
         val (channel, fake) = attachedChannel()
 
         channel.replyFromEdt(id = 11, method = "document/write", runOnEdt = runInline) {
-            mapOf("ratio" to Double.NaN)
+            UnserialisableResult(Double.NaN)
         }
 
         val reply = parse(fake.nextFrame())
@@ -274,7 +277,7 @@ class RpcChannelTest {
         val edtQueue = mutableListOf<Runnable>()
 
         channel.replyFromEdt(id = 6, method = "document/save", runOnEdt = { edtQueue += it }) {
-            mapOf("saved" to true)
+            DocumentSaveResult(saved = true)
         }
         assertEquals(1, edtQueue.size, "the work is handed to the EDT")
         fake.expectNoFrame()
@@ -293,7 +296,7 @@ class RpcChannelTest {
 
         channel.replyFromEdt(id = null, method = "document/write", runOnEdt = runInline) {
             workRan = true
-            mapOf("changed" to true)
+            DocumentWriteResult(changed = true, accepted = true)
         }
 
         assertTrue(workRan)
@@ -321,15 +324,15 @@ class RpcChannelTest {
 
         channel.replyLaterFromEdt(id = 8, method = "picker/show", runOnEdt = runInline) { reply ->
             pendingReply = reply
-            reply.result("first")
+            reply.result(PickerShowResult(listOf(1)))
             throw IllegalStateException("after answering")
         }
-        pendingReply?.result("second")
+        pendingReply?.result(PickerShowResult(listOf(2)))
         pendingReply?.error("late")
 
         val reply = parse(fake.nextFrame())
         assertEquals(8, reply.get("id").asInt)
-        assertEquals("first", reply.get("result").asString)
+        assertEquals(listOf(1), reply.getAsJsonObject("result").getAsJsonArray("selected").map { it.asInt })
         fake.expectNoFrame()
     }
 

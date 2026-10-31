@@ -433,6 +433,14 @@
         ]
     },
     {
+        "method": "settings/setLintingEnabled",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "enabled"
+        ]
+    },
+    {
         "method": "editor/postMessage",
         "direction": "coreToHost",
         "kind": "notification",

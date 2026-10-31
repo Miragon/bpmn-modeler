@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
     ChoicePrompt,
-    DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
     DeploymentStatePatch,
     LocateResult,
@@ -25,6 +24,7 @@ import {
     RpcDeploymentState,
     RpcDocumentPort,
     RpcEditorHandle,
+    RpcLintingPreference,
     RpcNotifier,
     RpcPicker,
     RpcSecretStore,
@@ -357,7 +357,6 @@ describe("BridgeSettings", () => {
         const settings = new BridgeSettings();
 
         expect(readSettingsSnapshot(settings)).toEqual(DEFAULT_MODELER_SETTINGS);
-        expect(settings.getLintingEnabled()).toBe(DEFAULT_LINTING_ENABLED);
     });
 
     it.each([...SHARED_SETTINGS_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
@@ -446,37 +445,39 @@ describe("BridgeSettings", () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { toggles: [true], changed: [false], changes: 0, enabled: true },
-        { toggles: [false], changed: [true], changes: 1, enabled: false },
-        { toggles: [false, false], changed: [true, false], changes: 1, enabled: false },
-        { toggles: [false, true], changed: [true, true], changes: 2, enabled: true },
-    ])(
-        "reports the linting toggles $toggles as $changes linting.enabled change(s)",
-        ({ toggles, changed, changes, enabled }) => {
-            const settings = new BridgeSettings();
-            const events: SettingChange[] = [];
-            settings.onDidChange((event) => events.push(event));
-
-            const results = toggles.map((toggle) => settings.setLintingEnabled(toggle));
-
-            expect(results).toEqual(changed);
-            expect(settings.getLintingEnabled()).toBe(enabled);
-            expect(events).toHaveLength(changes);
-            for (const event of events) {
-                expect(event.affects("linting.enabled")).toBe(true);
-                expect(event.affects("language")).toBe(false);
-            }
-        },
-    );
-
-    it("keeps the linting toggle when the host pushes a settings snapshot", () => {
+    it("reports linting.enabled when the host pushes it", () => {
         const settings = new BridgeSettings();
-        settings.setLintingEnabled(false);
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
 
-        settings.apply({ language: "de", configFolder: ".config" });
+        settings.apply({ lintingEnabled: false });
 
         expect(settings.getLintingEnabled()).toBe(false);
+        expect(events.map((event) => event.affects("linting.enabled"))).toEqual([true]);
+    });
+});
+
+describe("RpcLintingPreference", () => {
+    it("asks the host to store the choice and settles on its ack", async () => {
+        const { frames, rpc, answerLast } = harness();
+
+        const stored = new RpcLintingPreference(rpc).setLintingEnabled(false);
+        expect(last(frames)).toMatchObject({
+            method: "settings/setLintingEnabled",
+            params: { enabled: false },
+        });
+        await answerLast(null);
+
+        await expect(stored).resolves.toBeUndefined();
+    });
+
+    it("rejects when the host fails to store the choice", async () => {
+        const { frames, rpc } = harness();
+        const stored = new RpcLintingPreference(rpc).setLintingEnabled(false);
+
+        await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "store failed" }));
+
+        await expect(stored).rejects.toThrow("store failed");
     });
 });
 

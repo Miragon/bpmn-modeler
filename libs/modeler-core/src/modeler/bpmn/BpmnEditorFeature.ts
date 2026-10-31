@@ -215,7 +215,13 @@ export class BpmnEditorFeature {
             GetBpmnlintConfigCommand: [getBpmnlintConfigHandler(lintConfig)],
             UpdateLintResultsCommand: [updateLintResultsHandler(lintConfig)],
             SetLintingEnabledCommand: extensions.lintingPreference
-                ? [setLintingEnabledHandler(extensions.lintingPreference, lintConfig)]
+                ? [
+                      setLintingEnabledHandler(
+                          extensions.lintingPreference,
+                          ports.settings,
+                          lintConfig,
+                      ),
+                  ]
                 : { ignored: "the host has no linting switch" },
             GetBpmnModelerSettingCommand: [
                 getBpmnModelerSettingHandler(settingsBroadcaster),
