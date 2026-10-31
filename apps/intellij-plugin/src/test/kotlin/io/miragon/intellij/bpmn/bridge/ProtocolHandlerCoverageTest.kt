@@ -18,9 +18,11 @@ import org.junit.jupiter.api.Test
  * A second handler for the same method already throws in [RpcHandlerRegistry.on],
  * so together the host has exactly one handler per core→host method.
  *
- * It also pins the param keys. Each host→core sender runs once and its frame
- * must carry the keys the descriptor lists; each core→host handler reads its
- * params once and may read only the keys the descriptor lists.
+ * It also pins the param and result keys. Each host→core sender runs once and
+ * its frame must carry the keys the descriptor lists; each core→host handler
+ * reads its params once and may read only the keys the descriptor lists; and
+ * the result each core→host request is answered with must carry the keys the
+ * descriptor lists.
  */
 @TestApplication
 class ProtocolHandlerCoverageTest {
@@ -61,6 +63,11 @@ class ProtocolHandlerCoverageTest {
     }
 
     @Test
+    fun `answers every core-to-host request with the descriptor's result keys`() {
+        assertEquals(emptyList<String>(), descriptor.coreToHostResultDrift(resultKeysByMethod()))
+    }
+
+    @Test
     fun `reports a host-to-core key the descriptor renamed`() {
         val renamed = descriptorWithParamKeys("deployment/switchTarget", "projectRoot")
 
@@ -85,6 +92,23 @@ class ProtocolHandlerCoverageTest {
             listOf("notifier/showInfo reads [message], the descriptor lists [text]"),
             renamed.coreToHostReadDrift(keysReadByHandlers()),
         )
+    }
+
+    @Test
+    fun `reports a core-to-host result key the descriptor renamed`() {
+        val renamed = descriptorWithResultKeys("confirm/show", "accepted")
+
+        assertEquals(
+            listOf("confirm/show replies [confirmed], the descriptor lists [accepted]"),
+            renamed.coreToHostResultDrift(resultKeysByMethod()),
+        )
+    }
+
+    @Test
+    fun `reports a core-to-host request no result answers`() {
+        val added = descriptorWithResultKeys("secretStore/delete", "deleted")
+
+        assertEquals(listOf("no result answers secretStore/delete"), added.coreToHostResultDrift(resultKeysByMethod()))
     }
 
     private fun registeredMethods(): Set<String> = registeredRouters().first.handlers.registeredMethods()
@@ -154,12 +178,45 @@ class ProtocolHandlerCoverageTest {
         }
     }
 
+    /**
+     * Replies once with the result class each core→host request's handler
+     * answers with, every optional key set, and returns the keys of each
+     * reply's result by the request it answers.
+     */
+    private fun resultKeysByMethod(): Map<String, Set<String>> {
+        val wired = wireChannel().also { this.wired = it }
+        val resultsByMethod =
+            linkedMapOf<String, RpcResult>(
+                "document/write" to DocumentWriteResult(changed = true, accepted = true, normalizedContent = "<x/>"),
+                "document/save" to DocumentSaveResult(saved = true),
+                "picker/show" to PickerShowResult(selected = listOf(0)),
+                "confirm/show" to ConfirmShowResult(confirmed = true),
+                "clipboard/read" to ClipboardReadResult(text = "copied"),
+                "secretStore/getBasicAuth" to BasicAuthCredentials(username = "demo", password = "secret"),
+                "secretStore/getOAuth2" to OAuth2Credentials(clientId = "client", clientSecret = "secret"),
+                "secretStore/getApprovedDestinations" to SecretApprovedDestinations(listOf("https://a.example")),
+                "tokenStore/get" to TokenStoreGetResult(token = "ghp_stored"),
+                "tokenPrompt/show" to TokenPromptShowResult(token = "ghp_typed"),
+            )
+        return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
+            wired.channel.reply(requestId, entry.value)
+            entry.key to replyResultKeys(wired.fake.nextFrame())
+        }
+    }
+
     /** A scratch copy of the committed descriptor whose [method] lists [paramKeys] instead. */
-    private fun descriptorWithParamKeys(method: String, vararg paramKeys: String): ProtocolDescriptor {
+    private fun descriptorWithParamKeys(method: String, vararg paramKeys: String): ProtocolDescriptor =
+        descriptorWithKeys(method, "paramKeys", paramKeys)
+
+    /** A scratch copy of the committed descriptor whose [method] lists [resultKeys] as its result. */
+    private fun descriptorWithResultKeys(method: String, vararg resultKeys: String): ProtocolDescriptor =
+        descriptorWithKeys(method, "resultKeys", resultKeys)
+
+    private fun descriptorWithKeys(method: String, field: String, keys: Array<out String>): ProtocolDescriptor {
         val entries = committedEntries()
         entries.map { it.asJsonObject }
             .single { it.get("method").asString == method }
-            .add("paramKeys", JsonArray().apply { paramKeys.forEach(::add) })
+            .add(field, JsonArray().apply { keys.forEach(::add) })
         return ProtocolDescriptor.parse(entries.toString())
     }
 

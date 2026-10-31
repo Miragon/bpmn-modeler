@@ -534,12 +534,14 @@ descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
 reads that snapshot and registers the production `BridgeRouters`: each core→host
 method needs exactly one Kotlin handler, and a handler for a method the core no
-longer sends fails it. It also compares parameter keys. Each host→core sender
-runs once, and its frame must carry the keys the snapshot lists. Each core→host
-handler reads its params before it acts, through `RpcParams`, so the test lets
-every handler read without acting and fails on a key the snapshot does not list.
-The registry seals the params once that read returns, so a handler that reads in
-its action fails at once instead of hiding the key. Reply keys are not compared.
+longer sends fails it. It also compares parameter and result keys. Each
+host→core sender runs once, and its frame must carry the keys the snapshot lists.
+Each core→host handler reads its params before it acts, through `RpcParams`, so
+the test lets every handler read without acting and fails on a key the snapshot
+does not list. The registry seals the params once that read returns, so a handler
+that reads in its action fails at once instead of hiding the key. A reply can only
+carry an `RpcResult` class, whose property names are its keys; the test replies
+once with each request's result class and compares its keys with the snapshot's.
 The snapshot is an input of the Gradle test task and of the IntelliJ CI path
 filter, so a TypeScript-only protocol change runs the test.
 

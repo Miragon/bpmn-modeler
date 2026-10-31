@@ -47,7 +47,8 @@ against the checked-in `protocol.json`. The IntelliJ host's
 `ProtocolHandlerCoverageTest` reads the same file and fails when a core → host
 method has no Kotlin handler, or a Kotlin handler serves no core → host method.
 It also fails when a host → core frame carries other keys than the file lists,
-or a core → host handler reads a key the file does not list.
+a core → host handler reads a key the file does not list, or the result a
+core → host request is answered with carries other keys than the file lists.
 
 The **synchronous-read mismatch** — `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` synchronously, impossible over async RPC — is solved

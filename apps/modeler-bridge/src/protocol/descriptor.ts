@@ -13,8 +13,8 @@
  * Adding a method = add a {@link METHODS} entry + a {@link PROTOCOL} entry +
  * refresh `protocol.json`; the contract test fails until all three agree. The
  * IntelliJ `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host
- * method needs its Kotlin handler, a Host→Core method a Kotlin sender, and both
- * must use the param keys listed here.
+ * method needs its Kotlin handler, a Host→Core method a Kotlin sender, both
+ * must use the param keys listed here, and a Kotlin reply the result keys.
  */
 
 import { Command, Query } from "@miragon/bpmn-modeler-shared";

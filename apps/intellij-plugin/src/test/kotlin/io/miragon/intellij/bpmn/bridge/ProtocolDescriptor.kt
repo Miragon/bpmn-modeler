@@ -14,6 +14,10 @@ internal data class SentFrame(val method: String, val paramKeys: Set<String>) {
     }
 }
 
+/** The top-level keys of the result in one reply frame the host wrote. */
+internal fun replyResultKeys(line: String): Set<String> =
+    JsonParser.parseString(line).asJsonObject.getAsJsonObject("result").keySet().toSet()
+
 /**
  * The bridge's committed protocol descriptor (`protocol.json`) and the checks
  * that hold the Kotlin host to it. Each check returns one line per mismatch, so
@@ -22,7 +26,8 @@ internal data class SentFrame(val method: String, val paramKeys: Set<String>) {
 internal class ProtocolDescriptor private constructor(
     private val methods: Map<String, DescriptorMethod>,
 ) {
-    private class DescriptorMethod(val direction: String, val paramKeys: Set<String>)
+    /** [resultKeys] is null for a method without a result. */
+    private class DescriptorMethod(val direction: String, val paramKeys: Set<String>, val resultKeys: Set<String>?)
 
     fun hostToCoreMethods(): Set<String> = methodsIn(HOST_TO_CORE)
 
@@ -62,6 +67,25 @@ internal class ProtocolDescriptor private constructor(
             }
         }
 
+    /**
+     * Compares the results the host replies with, keyed by the core→host
+     * request each answers, with the descriptor's result keys.
+     */
+    fun coreToHostResultDrift(resultKeysByMethod: Map<String, Set<String>>): List<String> {
+        val requestsWithResult = methods.filterValues { it.direction == CORE_TO_HOST && it.resultKeys != null }
+        val resultDrift =
+            resultKeysByMethod.toSortedMap().mapNotNull { (method, keys) ->
+                val listed = requestsWithResult[method]?.resultKeys
+                when {
+                    listed == null -> "$method has no result in the descriptor"
+                    keys != listed -> "$method replies ${keys.sorted()}, the descriptor lists ${listed.sorted()}"
+                    else -> null
+                }
+            }
+        val unanswered = (requestsWithResult.keys - resultKeysByMethod.keys).sorted().map { "no result answers $it" }
+        return resultDrift + unanswered
+    }
+
     private fun methodsIn(direction: String): Set<String> =
         methods.filterValues { it.direction == direction }.keys
 
@@ -89,6 +113,7 @@ internal class ProtocolDescriptor private constructor(
                             DescriptorMethod(
                                 direction = entry.get("direction").asString,
                                 paramKeys = entry.getAsJsonArray("paramKeys").map { it.asString }.toSet(),
+                                resultKeys = entry.getAsJsonArray("resultKeys")?.map { it.asString }?.toSet(),
                             )
                     },
             )
