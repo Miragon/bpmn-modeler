@@ -123,9 +123,17 @@ export class MarketplaceCache {
             `${sourceDir}/${SLOT_RECORD}`,
             formatSourceSlotRecord(record),
         );
+        await this.deleteOtherGenerations(sourceDir, generationDir);
+    }
+
+    /**
+     * Best-effort: the record already serves the new generation, a leftover one
+     * is never served, and the next replace of the slot deletes it again.
+     */
+    private async deleteOtherGenerations(sourceDir: string, generationDir: string): Promise<void> {
         for (const directory of await this.listSubdirectories(sourceDir)) {
             if (directory !== generationDir) {
-                await this.workspace.deleteDirectory(directory);
+                await this.workspace.deleteDirectory(directory).catch(() => undefined);
             }
         }
     }
