@@ -153,7 +153,7 @@ export class RpcEditorHandle implements EditorHandle {
     readonly id: string;
 
     private receiveCallback?: (message: Command) => void;
-    private readonly disposeCallbacks: Array<() => void> = [];
+    private readonly disposeCallbacks = new Set<() => void>();
     private readonly activeCallbacks = new Set<(active: boolean) => void>();
     private readonly subscriptions: EditorSubscription[] = [];
     private active = false;
@@ -255,8 +255,8 @@ export class RpcEditorHandle implements EditorHandle {
     }
 
     onDidDispose(callback: () => void): EditorSubscription {
-        this.disposeCallbacks.push(callback);
-        return { dispose: () => {} };
+        this.disposeCallbacks.add(callback);
+        return { dispose: () => this.disposeCallbacks.delete(callback) };
     }
 
     onDidChangeActive(callback: (active: boolean) => void): EditorSubscription {
