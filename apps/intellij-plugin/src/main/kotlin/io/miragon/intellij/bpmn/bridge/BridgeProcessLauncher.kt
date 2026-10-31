@@ -22,9 +22,10 @@ internal fun interface BridgeProcessLauncher {
  * segmented by [projectKey] so each project gets its own cache. A prune therefore
  * only ever evicts the current project's slots — a marketplace registered only in
  * another project (marketplaces can be project-scoped) is never deleted by an
- * Update/Remove here. Windows on the *same* project still share one cache;
- * concurrent updates worst-case overwrite the same deterministic per-file paths,
- * which the core's per-file JSON-parse guard tolerates, so no locking is needed.
+ * Update/Remove here. Windows on the *same* project still share one cache, with
+ * no cross-window locking: a slot's record names its files only once they are
+ * complete, but the core orders the writes of one process only, so two windows
+ * updating one slot at once can leave it incomplete until the next update.
  *
  * @param projectKey Stable per-project cache segment ([Project.getLocationHash]).
  */
