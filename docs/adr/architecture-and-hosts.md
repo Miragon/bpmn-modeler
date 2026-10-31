@@ -567,7 +567,7 @@ keeps explicit local mirrors with these ownership rules:
 | --- | --- | --- |
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
-| Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Bridge snapshot during the process lifetime; host persists the patches for the next seed |
+| Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -609,17 +609,19 @@ store only what a patch names: VS Code writes the patched workspace-state
 keys, and IntelliJ seeds the bridge with the keys it has stored, without
 defaults, and applies each patch in the one `deploymentState/save` handler.
 
-The bridge applies a patch to its snapshot and awaits the acknowledged host
-persistence. Failures reject, as they do on VS Code, but are not rolled back:
-rolling back would show stale values mid-session, and the next seed reconciles
-with the persisted host state. Whether a failed write fails the operation is
-the core's decision, not the adapter's: an engine-accepted deploy stays
-deployed (see [deployment](deployment.md#saved-target-execution)).
+The bridge sends a patch as an acknowledged host request and applies it to
+its snapshot only once the host accepted it, onto the snapshot as it is then,
+so an overlapping save is kept. A rejected write rejects, as it does on
+VS Code, and leaves the snapshot as it was: a read never shows a value the
+host did not store, so the freshness indicator does not show a revision the
+host never recorded. Whether a failed write fails the operation is the core's
+decision, not the adapter's: an engine-accepted deploy stays deployed (see
+[deployment](deployment.md#saved-target-execution)).
 
 A new synchronous port must specify its seed, respawn replay, writer, update
 direction and any echo handling. Keep these explicit rather than forcing a
 generic mirror abstraction across keyed documents, event-producing settings,
-and optimistic deployment state.
+and patched deployment state.
 
 ### Document causation and session identity
 

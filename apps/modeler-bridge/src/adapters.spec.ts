@@ -612,6 +612,20 @@ describe("RpcDeploymentState", () => {
         await expect(pending).rejects.toThrow("disk full");
         expect(state.load()).toEqual(stored);
     });
+
+    it("keeps both of two overlapping saves the host accepted", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const state = new RpcDeploymentState(rpc);
+
+        const first = state.save({ ledger: { put: { [DEV_ROW]: revision } } });
+        const firstId = last(frames).id;
+        const second = state.save({ ledger: { put: { [PROD_ROW]: revision } } });
+        await rpc.handleLine(JSON.stringify({ id: firstId, result: null }));
+        await answerLast(null);
+        await Promise.all([first, second]);
+
+        expect(state.load().ledger).toEqual({ [DEV_ROW]: revision, [PROD_ROW]: revision });
+    });
 });
 
 describe("RpcNotifier", () => {
