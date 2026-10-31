@@ -15,8 +15,8 @@ function template(repoPath: string, content = "{}"): FetchedTemplateFile {
     return { contentType: "element-templates", repoPath, content };
 }
 
-function slotRecord(source: string, generation: number): string {
-    return formatSourceSlotRecord({ source, generation });
+function slotRecord(sourceIdentity: string, generation: number): string {
+    return formatSourceSlotRecord({ sourceIdentity, generation });
 }
 
 async function servedContents(cache: MarketplaceCache, workspace: InMemoryWorkspace) {
@@ -111,7 +111,9 @@ describe("MarketplaceCache.replaceSource", () => {
         ).rejects.toThrow("disk full");
 
         expect(await servedContents(cache, workspace)).toEqual(["old a"]);
-        expect(await cache.cachedSlots("acme")).toEqual([{ sourceIndex: 0, source: SOURCE }]);
+        expect(await cache.cachedSlots("acme")).toEqual([
+            { sourceIndex: 0, sourceIdentity: SOURCE },
+        ]);
     });
 
     it("does not serve the files a failed replace left behind", async () => {
@@ -152,8 +154,8 @@ describe("MarketplaceCache.cachedSlots", () => {
         await cache.replaceSource("globex", 1, SOURCE, [template("c.json")]);
 
         expect(await cache.cachedSlots("acme")).toEqual([
-            { sourceIndex: 0, source: SOURCE },
-            { sourceIndex: 2, source: OTHER_SOURCE },
+            { sourceIndex: 0, sourceIdentity: SOURCE },
+            { sourceIndex: 2, sourceIdentity: OTHER_SOURCE },
         ]);
     });
 
@@ -167,19 +169,21 @@ describe("MarketplaceCache.cachedSlots", () => {
         const cache = new MarketplaceCache("/cache", workspace);
 
         expect(await cache.cachedSlots("acme")).toEqual([
-            { sourceIndex: 0, source: undefined },
-            { sourceIndex: 2, source: undefined },
+            { sourceIndex: 0, sourceIdentity: undefined },
+            { sourceIndex: 2, sourceIdentity: undefined },
         ]);
     });
 
     it("names no source for a slot whose record is torn", async () => {
         const workspace = createWorkspace({
-            "/cache/acme/0/slot.json": '{"source":"sou',
+            "/cache/acme/0/slot.json": '{"sourceIdentity":"sou',
             "/cache/acme/0/1/element-templates/a.json": "{}",
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.cachedSlots("acme")).toEqual([{ sourceIndex: 0, source: undefined }]);
+        expect(await cache.cachedSlots("acme")).toEqual([
+            { sourceIndex: 0, sourceIdentity: undefined },
+        ]);
     });
 
     it("returns [] for a marketplace with nothing cached", async () => {

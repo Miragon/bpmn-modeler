@@ -6,27 +6,27 @@ export interface FetchedTemplateFile {
     readonly content: string;
 }
 
-/** `source` is the `sourceIdentity` of the source listed at `sourceIndex`. */
+/** `sourceIdentity` is that of the source listed at `sourceIndex`. */
 export type SourceFetchOutcome =
     | {
           readonly kind: "fetched";
           readonly sourceIndex: number;
-          readonly source: string;
+          readonly sourceIdentity: string;
           readonly files: readonly FetchedTemplateFile[];
       }
-    | { readonly kind: "failed"; readonly sourceIndex: number; readonly source: string };
+    | { readonly kind: "failed"; readonly sourceIndex: number; readonly sourceIdentity: string };
 
-/** `source` is `undefined` for a slot cached before slots recorded their source. */
+/** `sourceIdentity` is `undefined` for a slot cached before slots recorded their source. */
 export interface CachedSourceSlot {
     readonly sourceIndex: number;
-    readonly source: string | undefined;
+    readonly sourceIdentity: string | undefined;
 }
 
 export type SourceSlotAction =
     | {
           readonly kind: "replace";
           readonly sourceIndex: number;
-          readonly source: string;
+          readonly sourceIdentity: string;
           readonly files: readonly FetchedTemplateFile[];
       }
     | { readonly kind: "keep"; readonly sourceIndex: number }
@@ -44,8 +44,8 @@ export function planSourceCacheRefresh(
     cachedSlots: readonly CachedSourceSlot[],
     outcomes: readonly SourceFetchOutcome[],
 ): SourceSlotAction[] {
-    const cachedSourceAt = new Map(
-        cachedSlots.map(({ sourceIndex, source }) => [sourceIndex, source]),
+    const cachedIdentityAt = new Map(
+        cachedSlots.map(({ sourceIndex, sourceIdentity }) => [sourceIndex, sourceIdentity]),
     );
     const listedSourceIndexes = new Set(outcomes.map((outcome) => outcome.sourceIndex));
     const removals = cachedSlots
@@ -57,7 +57,7 @@ export function planSourceCacheRefresh(
         }));
     return [
         ...outcomes.flatMap((outcome) =>
-            slotActionsFor(outcome, cachedSourceAt.get(outcome.sourceIndex)),
+            slotActionsFor(outcome, cachedIdentityAt.get(outcome.sourceIndex)),
         ),
         ...removals,
     ];
@@ -69,11 +69,11 @@ export function planSourceCacheRefresh(
  */
 function slotActionsFor(
     outcome: SourceFetchOutcome,
-    cachedSource: string | undefined,
+    cachedIdentity: string | undefined,
 ): SourceSlotAction[] {
-    const { sourceIndex } = outcome;
+    const { sourceIndex, sourceIdentity } = outcome;
     const emptyOtherSource: SourceSlotAction[] =
-        cachedSource !== undefined && cachedSource !== outcome.source
+        cachedIdentity !== undefined && cachedIdentity !== sourceIdentity
             ? [{ kind: "remove", sourceIndex, reason: "otherSource" }]
             : [];
     if (outcome.kind === "failed") {
@@ -81,7 +81,7 @@ function slotActionsFor(
     }
     return [
         ...emptyOtherSource,
-        { kind: "replace", sourceIndex, source: outcome.source, files: outcome.files },
+        { kind: "replace", sourceIndex, sourceIdentity, files: outcome.files },
     ];
 }
 
@@ -91,32 +91,32 @@ function slotActionsFor(
  * record, so the files the record names are always complete.
  */
 export interface SourceSlotRecord {
-    readonly source: string;
+    readonly sourceIdentity: string;
     readonly generation: number;
 }
 
 /** `undefined` for text that holds no record, such as a torn write. */
 export function parseSourceSlotRecord(text: string): SourceSlotRecord | undefined {
-    let value: { source?: unknown; generation?: unknown } | null;
+    let value: { sourceIdentity?: unknown; generation?: unknown } | null;
     try {
         value = JSON.parse(text);
     } catch {
         return undefined;
     }
-    const { source, generation } = value ?? {};
-    return typeof source === "string" && Number.isSafeInteger(generation)
-        ? { source, generation: generation as number }
+    const { sourceIdentity, generation } = value ?? {};
+    return typeof sourceIdentity === "string" && Number.isSafeInteger(generation)
+        ? { sourceIdentity, generation: generation as number }
         : undefined;
 }
 
-export function formatSourceSlotRecord({ source, generation }: SourceSlotRecord): string {
-    return JSON.stringify({ source, generation });
+export function formatSourceSlotRecord({ sourceIdentity, generation }: SourceSlotRecord): string {
+    return JSON.stringify({ sourceIdentity, generation });
 }
 
 /** Never the live generation, so its files stay served until the new record is written. */
 export function nextSourceSlotRecord(
     current: SourceSlotRecord | undefined,
-    source: string,
+    sourceIdentity: string,
 ): SourceSlotRecord {
-    return { source, generation: (current?.generation ?? 0) + 1 };
+    return { sourceIdentity, generation: (current?.generation ?? 0) + 1 };
 }

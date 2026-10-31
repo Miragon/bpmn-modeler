@@ -223,7 +223,7 @@ export class TemplateMarketplaceService {
         const outcomes: SourceFetchOutcome[] = [];
         const sourceFailures: SourceFailure[] = [];
         for (let index = 0; index < sources.length; index++) {
-            const source = sourceIdentity(
+            const identity = sourceIdentity(
                 sourceConfig(sources[index], registration.location, this.homeDir),
             );
             try {
@@ -233,10 +233,15 @@ export class TemplateMarketplaceService {
                     index,
                     tokenSession,
                 );
-                outcomes.push({ kind: "fetched", sourceIndex: index, source, files });
+                outcomes.push({
+                    kind: "fetched",
+                    sourceIndex: index,
+                    sourceIdentity: identity,
+                    files,
+                });
             } catch (error) {
                 this.warnSkippedSource(registration, error);
-                outcomes.push({ kind: "failed", sourceIndex: index, source });
+                outcomes.push({ kind: "failed", sourceIndex: index, sourceIdentity: identity });
                 sourceFailures.push(this.sourceFailure(registration, sources[index], error));
             }
         }
@@ -278,7 +283,7 @@ export class TemplateMarketplaceService {
                 await this.cache.replaceSource(
                     registration.id,
                     action.sourceIndex,
-                    action.source,
+                    action.sourceIdentity,
                     action.files,
                 );
                 for (const { repoPath, contentType } of action.files) {

@@ -54,14 +54,14 @@ export class MarketplaceCache {
             const name = sourceDir.slice(marketplaceDir.length + 1);
             if (/^\d+$/.test(name)) {
                 const record = await this.readSlotRecord(sourceDir);
-                slots.push({ sourceIndex: Number(name), source: record?.source });
+                slots.push({ sourceIndex: Number(name), sourceIdentity: record?.sourceIdentity });
             }
         }
         return slots;
     }
 
     /**
-     * Swaps the slot's files for `files` and records `source` as their owner;
+     * Swaps the slot's files for `files` and records `sourceIdentity` as their owner;
      * each `repoPath` is reproduced verbatim under its content type so distinct
      * upstream files stay distinct on disk. The files go into a new generation
      * that the record names only once every write succeeded, so a failed write
@@ -76,7 +76,7 @@ export class MarketplaceCache {
     async replaceSource(
         marketplaceId: string,
         sourceIndex: number,
-        source: string,
+        sourceIdentity: string,
         files: readonly FetchedTemplateFile[],
     ): Promise<void> {
         for (const { repoPath } of files) {
@@ -85,7 +85,7 @@ export class MarketplaceCache {
             }
         }
         const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
-        const record = nextSourceSlotRecord(await this.readSlotRecord(sourceDir), source);
+        const record = nextSourceSlotRecord(await this.readSlotRecord(sourceDir), sourceIdentity);
         const generationDir = `${sourceDir}/${record.generation}`;
         // A replace that failed before its record was written left this generation behind.
         await this.workspace.deleteDirectory(generationDir);
