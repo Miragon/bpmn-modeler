@@ -68,7 +68,7 @@ When the document content changes (external edit, git checkout, etc.):
 ### Webview → Extension Host (Sync)
 
 When the user edits the diagram in the webview:
-1. `commandStack.changed` fires in bpmn-js
+1. `commandStack.changed` fires in bpmn-js and reaches the webview through the handle's `onCommandStackChanged`
 2. Webview exports current XML, sends `SyncDocumentCommand` to extension host
 3. The editor's `WebviewMessageRouter` dispatches it to `syncDocumentHandler`, which calls `service.sync(editorId, content)`
 4. Service acquires echo-prevention guard, writes XML to document via `EditorSessionDocuments`

@@ -31,6 +31,7 @@ import type {
     DesignerOptions,
 } from "./design/publicApi";
 import type {
+    LayoutOutcome,
     ModelNavigationPort as ModelNavigationPortFromRoot,
     ModelReference as ModelReferenceFromRoot,
     ReferenceKind as ReferenceKindFromRoot,
@@ -340,6 +341,27 @@ void _viewerHasNoEditing;
 
 const _modelerSatisfiesDesignerHandle = (m: BpmnModelerHandle): BpmnDesignerHandle => m;
 void _modelerSatisfiesDesignerHandle;
+
+const _editableSubscriptions = (m: BpmnModelerHandle, d: BpmnDesignerHandle) => {
+    const unsubscribers: (() => void)[] = [
+        m.onCommandStackChanged(() => undefined),
+        d.onCommandStackChanged(() => undefined),
+        m.onFormatted(({ status, code, message, diagnostics }: LayoutOutcome) => {
+            void [status, code, message, diagnostics];
+        }),
+        d.onFormatted((outcome: LayoutOutcome) => void outcome.status),
+    ];
+    void unsubscribers;
+};
+void _editableSubscriptions;
+
+const _viewerHasNoEditableSubscriptions = (v: BpmnViewerHandle) => {
+    // @ts-expect-error — the readonly viewer has no command stack to observe.
+    void v.onCommandStackChanged;
+    // @ts-expect-error — the readonly viewer cannot format.
+    void v.onFormatted;
+};
+void _viewerHasNoEditableSubscriptions;
 
 const _liveFavourites = (m: BpmnModelerHandle, d: BpmnDesignerHandle) => {
     const favourites: readonly string[] = ["bpmn:UserTask"];

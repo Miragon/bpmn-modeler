@@ -1,6 +1,7 @@
 import type Modeling from "bpmn-js/lib/features/modeling/Modeling";
 import type EventBus from "diagram-js/lib/core/EventBus";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { LayoutEngine } from "@miragon/bpmn-modeler-layout";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { MESSY_LANES_BOUNDARY_SUBPROCESS } from "../../../libs/bpmn-layout/src/__fixtures__/integrationDiagrams";
@@ -21,11 +22,14 @@ import {
 /**
  * The host-command contract the modeler and the designer both expose (import
  * fit, export, format, cleanup, import errors, theme, lint pushes, debounced
- * save, favourites). Both run the real bpmn-js modeling stack, so the contract
+ * save, favourites, command-stack and format notifications). Both run the real bpmn-js modeling stack, so the contract
  * runs in the browser project against each surface.
  */
 
-type SharedOptions = Pick<DesignerOptions, "linting" | "onContentSaved" | "favouriteBpmnElements">;
+type SharedOptions = Pick<
+    DesignerOptions,
+    "linting" | "onContentSaved" | "favouriteBpmnElements" | "additionalModules"
+>;
 
 type LabelTarget = Parameters<Modeling["updateLabel"]>[0];
 
@@ -62,6 +66,20 @@ const LINT_RESULTS = {
         { id: "StartEvent_1", message: "Element is missing label/name", category: "warn" },
     ],
 };
+
+const FAILING_LAYOUT_ENGINE: LayoutEngine = {
+    computeLayout: () => Promise.reject(new Error("engine down")),
+};
+
+function renameTask(surface: BpmnDesignerHandle, name: string): void {
+    const task = surface.getService("elementRegistry").get("Task_1") as LabelTarget;
+    surface.getService("modeling").updateLabel(task, name);
+}
+
+function pressCanvasKey(surface: BpmnDesignerHandle, key: string): void {
+    const canvasSvg = surface.getService("canvas").getContainer().querySelector("svg")!;
+    canvasSvg.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+}
 
 function lintCompleted(surface: BpmnDesignerHandle): Promise<void> {
     return new Promise((resolve) =>
@@ -192,6 +210,107 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         expect(diagramGeometry(handle)).toEqual(messyGeometry);
     });
 
+    it("fires onCommandStackChanged for every edit, undo and redo, but not for an import", async () => {
+        const handle = await open();
+        const changed = vi.fn();
+        handle.onCommandStackChanged(changed);
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        expect(changed).not.toHaveBeenCalled();
+
+        renameTask(handle, "Renamed");
+        handle.getService("commandStack").undo();
+        handle.getService("commandStack").redo();
+
+        expect(changed).toHaveBeenCalledTimes(3);
+    });
+
+    it("stops firing onCommandStackChanged once the listener is removed", async () => {
+        const handle = await open();
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        const changed = vi.fn();
+        const unsubscribe = handle.onCommandStackChanged(changed);
+
+        unsubscribe();
+        renameTask(handle, "Renamed");
+
+        expect(changed).not.toHaveBeenCalled();
+    });
+
+    it("keeps notifying later listeners whatever an earlier listener returns", async () => {
+        const handle = await open();
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        const later = vi.fn();
+        handle.onCommandStackChanged(() => true);
+        handle.onCommandStackChanged(later);
+
+        renameTask(handle, "Renamed");
+
+        expect(later).toHaveBeenCalledOnce();
+    });
+
+    it("fires a typed onFormatted with the outcome formatDiagram resolves", async () => {
+        const handle = await open();
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        handle.onFormatted(formatted);
+
+        const outcome = await handle.formatDiagram();
+
+        expect(formatted).toHaveBeenCalledOnce();
+        expect(formatted.mock.calls[0][0]).toStrictEqual(outcome);
+    });
+
+    it("fires onFormatted with the failure code and message of a failed format", async () => {
+        const handle = await open({
+            linting: false,
+            additionalModules: [{ layoutEngine: ["value", FAILING_LAYOUT_ENGINE] }],
+        });
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        handle.onFormatted(formatted);
+
+        await handle.formatDiagram();
+
+        expect(formatted.mock.calls).toStrictEqual([
+            [{ status: "failed", code: "ENGINE_FAILED", message: "engine down", diagnostics: [] }],
+        ]);
+    });
+
+    it("fires onFormatted for a format the canvas shortcut started", async () => {
+        const handle = await open();
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        handle.onFormatted(formatted);
+
+        pressCanvasKey(handle, "l");
+
+        await vi.waitFor(() => expect(formatted).toHaveBeenCalledOnce());
+        expect(formatted.mock.calls[0][0]).toStrictEqual({
+            status: "formatted",
+            diagnostics: expect.any(Array),
+        });
+    });
+
+    it("stops firing onFormatted once the listener is removed", async () => {
+        const handle = await open();
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        const unsubscribe = handle.onFormatted(formatted);
+
+        unsubscribe();
+        await handle.formatDiagram();
+
+        expect(formatted).not.toHaveBeenCalled();
+    });
+
+    it("rejects a subscription on a destroyed surface with NoModelerError", async () => {
+        const handle = await open();
+        handle.destroy();
+
+        expect(() => handle.onCommandStackChanged(vi.fn())).toThrow(NoModelerError);
+        expect(() => handle.onFormatted(vi.fn())).toThrow(NoModelerError);
+    });
+
     it("reports diagram garbage, removes it on apply, and then reads clean", async () => {
         const handle = await open();
         await handle.loadDiagram(DIAGRAM_WITH_REAL_GARBAGE);
@@ -294,9 +413,7 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         const handle = await open({ linting: false, onContentSaved });
         await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
 
-        const modeling = handle.getService("modeling");
-        const task = handle.getService("elementRegistry").get("Task_1") as LabelTarget;
-        modeling.updateLabel(task, "Renamed");
+        renameTask(handle, "Renamed");
 
         await vi.waitFor(() => expect(onContentSaved).toHaveBeenCalledOnce());
         expect(onContentSaved.mock.calls[0][0].xml).toContain('name="Renamed"');

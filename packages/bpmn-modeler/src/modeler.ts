@@ -51,6 +51,8 @@ import {
     createSurfaceLintHandle,
     formatSurfaceDiagram,
     installClipboardSupport,
+    subscribeCommandStackChanged,
+    subscribeFormatted,
 } from "./editableSurface";
 import { createReporter, type SurfaceReporter } from "./reporting";
 import { SurfaceCore } from "./surfaceCore";
@@ -348,9 +350,14 @@ export class BpmnModeler {
         this.core.releaseManagers();
     }
 
-    /** @internal Use onContentSaved for debounced content notifications. */
-    onCommandStackChanged(cb: () => void): () => void {
-        return subscribe(this.getService("eventBus"), "commandStack.changed", cb);
+    /** @see BpmnModelerHandle.onCommandStackChanged */
+    onCommandStackChanged(listener: () => void): () => void {
+        return subscribeCommandStackChanged(this.core, listener);
+    }
+
+    /** @see BpmnModelerHandle.onFormatted */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
+        return subscribeFormatted(this.core, listener);
     }
 
     /**

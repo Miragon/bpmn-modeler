@@ -120,11 +120,11 @@ export interface ClipboardOptions {
 
 /**
  * Outbound content notification. Debounced and owned by the package (300ms,
- * 1000ms maxWait), because every consumer needs exactly that debounce; raw
- * `commandStack.changed` stays reachable through the
- * {@link BpmnModelerHandle.getService} escape hatch for the rare consumer that
- * wants it un-debounced. A failing save (export or `onContentSaved`) is reported
- * through {@link ModelerOptions.onError}, not by rejecting the debounced run.
+ * 1000ms maxWait), because every consumer needs exactly that debounce;
+ * {@link BpmnModelerHandle.onCommandStackChanged} reports each change
+ * undebounced for the rare consumer that wants it. A failing save (export or
+ * `onContentSaved`) is reported through {@link ModelerOptions.onError}, not by
+ * rejecting the debounced run.
  */
 export interface ContentSavedEvent {
     readonly xml: string;
@@ -364,6 +364,25 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
      * `onWarning` when the instance was created without a lint module.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
+
+    // ── Events (outbound notifications) ─────────────────────────────────────
+    /**
+     * Subscribe to every command-stack change, undebounced: each executed,
+     * undone or redone edit. An import resets the stack without a
+     * notification. The listener's return value is ignored. Returns a function
+     * that removes the listener; `destroy()` removes it too. For the debounced
+     * XML, use {@link ModelerOptions.onContentSaved}.
+     */
+    onCommandStackChanged(listener: () => void): () => void;
+
+    /**
+     * Subscribe to the outcome of every format attempt, failures included:
+     * {@link formatDiagram} as well as the palette entry and the canvas
+     * shortcut, whose outcome reaches no caller otherwise. The listener
+     * receives the same {@link LayoutOutcome} `formatDiagram` resolves.
+     * Returns a function that removes the listener.
+     */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
 
     // ── Core services + escape hatch ─────────────────────────────────────────
     /**
