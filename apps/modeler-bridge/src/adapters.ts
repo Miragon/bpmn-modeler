@@ -63,25 +63,13 @@ import {
     SecretApprovedDestinations,
     SecretGetApprovedDestinationsParams,
     SecretSaveApprovedDestinationsParams,
+    SessionMeta,
     SettingsSetLintingEnabledParams,
     StatusBarUpdateParams,
     TokenPromptShowParams,
     TokenPromptShowResult,
     TokenStoreGetResult,
 } from "./protocol/types";
-
-/** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
-export interface SessionMeta {
-    editorId: string;
-    /** Exact host editor generation for rejecting same-URI stale traffic. */
-    sessionId?: number;
-    uriString: string;
-    path: string;
-    fsPath: string;
-    scheme: string;
-    /** Host-provided workspace root, used to seed element-template discovery. */
-    workspaceRoot?: string;
-}
 
 /**
  * Local mirror of every open document's text + identity, seeded by the host on

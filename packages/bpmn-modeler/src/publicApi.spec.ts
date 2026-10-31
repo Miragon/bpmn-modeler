@@ -3,13 +3,13 @@ import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import { BpmnModeler } from "./modeler";
 import { BpmnViewer } from "./viewer/viewer";
 import { BpmnDesigner } from "./design/designer";
-import type { CreateModelerOptions } from "./createModeler";
 import type {
     BpmnModelerHandle,
     ClipboardOptions,
     ContentSavedEvent,
     CoreModelerServices,
     CreateModeler,
+    CreateModelerOptions,
     LintingOptions,
     LintModule,
     ModelerMode,
