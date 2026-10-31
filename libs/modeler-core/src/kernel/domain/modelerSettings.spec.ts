@@ -60,8 +60,12 @@ describe("normalizeSettings", () => {
         expect(normalizeSettings({})).toEqual(DEFAULT_MODELER_SETTINGS);
     });
 
+    it("reads lintingEnabled from the snapshot", () => {
+        expect(normalizeSettings({ lintingEnabled: false }).lintingEnabled).toBe(false);
+    });
+
     it("drops a key the snapshot does not hold", () => {
-        const raw: Record<string, unknown> = { lintingEnabled: false };
+        const raw: Record<string, unknown> = { propertiesPanelVisible: false };
 
         expect(normalizeSettings(raw)).toEqual(DEFAULT_MODELER_SETTINGS);
     });
@@ -82,6 +86,7 @@ describe("settingKeyOf", () => {
     it.each<{ key: keyof ModelerSettingsSnapshot; settingKey: SettingKey }>([
         { key: "language", settingKey: "language" },
         { key: "scriptingSpin", settingKey: "scripting.spin" },
+        { key: "lintingEnabled", settingKey: "linting.enabled" },
     ])("names $key by the key VS Code stores it under", ({ key, settingKey }) => {
         expect(settingKeyOf(key)).toBe(settingKey);
     });
@@ -146,6 +151,7 @@ describe("changedSettingKeys", () => {
         { next: { favouriteBpmnElements: ["bpmn:Task"] }, changed: "favouriteBpmnElements" },
         { next: { language: "de" }, changed: "language" },
         { next: { scriptingSpin: false }, changed: "scripting.spin" },
+        { next: { lintingEnabled: false }, changed: "linting.enabled" },
         { next: { marketplaces: ["https://github.com/acme/templates"] }, changed: "marketplaces" },
     ])(
         "names a changed value by the key VS Code stores it under: $changed",

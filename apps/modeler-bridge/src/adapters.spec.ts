@@ -446,6 +446,17 @@ describe("BridgeSettings", () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
+    it("reports linting.enabled when the host pushes it", () => {
+        const settings = new BridgeSettings();
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
+
+        settings.apply({ lintingEnabled: false });
+
+        expect(settings.getLintingEnabled()).toBe(false);
+        expect(events.map((event) => event.affects("linting.enabled"))).toEqual([true]);
+    });
+
     it.each([
         { toggles: [true], changed: [false], changes: 0, enabled: true },
         { toggles: [false], changed: [true], changes: 1, enabled: false },
