@@ -7,7 +7,6 @@ import {
     FileNotFound,
     isHiddenEditorError,
     NoWorkspaceFolderFoundError,
-    UserCancelledError,
 } from "../kernel/domain/errors";
 import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
 import { createTestHost } from "./createTestHost";
@@ -146,49 +145,6 @@ describe("InMemorySettings", () => {
     });
 });
 
-describe("ScriptedPicker", () => {
-    it("dismisses unanswered prompts with each prompt's own cancel convention", async () => {
-        const picker = new ScriptedPicker();
-
-        await expect(picker.pickNewModelEngine("Engine")).rejects.toThrow(UserCancelledError);
-        await expect(picker.pickEngineVersion("c7", ["7.22"])).rejects.toThrow(UserCancelledError);
-        await expect(picker.pickMigrationScope(1, 1)).rejects.toThrow(UserCancelledError);
-        await expect(
-            picker.pickWorkspaceFiles({ glob: "**/*.bpmn", placeholder: "Pick" }),
-        ).resolves.toEqual([]);
-        await expect(picker.pickPayloadFile(["/a.json"])).resolves.toBeNull();
-        await expect(picker.pickScriptLanguage("groovy")).resolves.toBeUndefined();
-        await expect(
-            picker.confirmDestructive({ title: "Delete", confirmLabel: "Delete", details: [] }),
-        ).resolves.toBe(false);
-        await expect(picker.pickDeploymentTarget(["dev"])).resolves.toBeUndefined();
-        await expect(
-            picker.pickDeploymentStatusAction({ canVerify: true }),
-        ).resolves.toBeUndefined();
-        expect(picker.prompts.map((prompt) => prompt.method)).toHaveLength(9);
-    });
-
-    it("returns scripted answers and offers the located-file choice only on a multi-match", async () => {
-        const picker = new ScriptedPicker({ engineVersion: "8.7.0", locatedFile: "/b.bpmn" });
-        const prompts = { searchingPlaceholder: "Searching", pickPlaceholder: "Pick" };
-
-        await expect(picker.pickEngineVersion("c8", ["8.7.0"])).resolves.toBe("8.7.0");
-        const single = await picker.searchAndPickLocatedFile(prompts, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn"],
-            readFailures: [],
-        }));
-        const multi = await picker.searchAndPickLocatedFile(prompts, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn", "/b.bpmn"],
-            readFailures: [],
-        }));
-
-        expect(single.chosen).toBeUndefined();
-        expect(multi.chosen).toBe("/b.bpmn");
-    });
-});
-
 describe("ScriptedPicker answers by prompt id", () => {
     const engines: ChoicePrompt<string> = {
         id: "engine",
@@ -261,7 +217,7 @@ describe("ScriptedPicker answers by prompt id", () => {
     });
 
     it("chooses nothing when the search outcome leaves no choice", async () => {
-        const picker = new ScriptedPicker({}, { locatedFile: "/w/a.bpmn" });
+        const picker = new ScriptedPicker({ locatedFile: "/w/a.bpmn" });
 
         await expect(picker.searchAndChoose(locate(["/w/a.bpmn"]))).resolves.toEqual({
             outcome: ["/w/a.bpmn"],
@@ -296,7 +252,7 @@ describe("ScriptedPicker answers by prompt id", () => {
             (picker: ScriptedPicker) => picker.searchAndChoose(locate(["/w/a.bpmn", "/w/b.bpmn"])),
         ],
     ])("rejects %s", async (_case, promptAnswers, ask) => {
-        await expect(ask(new ScriptedPicker({}, promptAnswers))).rejects.toThrow(
+        await expect(ask(new ScriptedPicker(promptAnswers))).rejects.toThrow(
             /not an answer to prompt "\w+"/,
         );
     });

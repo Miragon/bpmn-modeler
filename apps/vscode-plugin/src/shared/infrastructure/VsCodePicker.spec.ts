@@ -7,7 +7,6 @@ const asRelativePathMock = vi.fn();
 interface FakeQuickPickItem {
     label: string;
     description?: string;
-    path?: string;
     value?: unknown;
 }
 
@@ -103,21 +102,9 @@ vi.mock("./extensionContext", () => ({
     setContext: vi.fn(),
 }));
 
-import {
-    ChoicePrompt,
-    LocateResult,
-    SearchPrompt,
-    UserCancelledError,
-} from "@miragon/bpmn-modeler-core";
+import { ChoicePrompt, LocateResult, SearchPrompt } from "@miragon/bpmn-modeler-core";
 
 import { VsCodePicker } from "./VsCodePicker";
-import type { VsCodeWorkspace } from "./VsCodeWorkspace";
-
-function stubWorkspace(findFilesResult: string[] = []): VsCodeWorkspace {
-    return {
-        findFiles: vi.fn().mockResolvedValue(findFilesResult),
-    } as unknown as VsCodeWorkspace;
-}
 
 interface ShownItem {
     label: string;
@@ -125,10 +112,8 @@ interface ShownItem {
 }
 
 function acceptQuickPickItemStartingWith(labelPrefix: string): void {
-    showQuickPickMock.mockImplementation(async (items: (ShownItem | string)[]) =>
-        items.find((item) =>
-            (typeof item === "string" ? item : item.label).startsWith(labelPrefix),
-        ),
+    showQuickPickMock.mockImplementation(async (items: ShownItem[]) =>
+        items.find((item) => item.label.startsWith(labelPrefix)),
     );
 }
 
@@ -140,10 +125,6 @@ function shownItems(): ShownItem[] {
     return showQuickPickMock.mock.calls[0][0];
 }
 
-function shownPlaceholder(): string {
-    return showQuickPickMock.mock.calls[0][1].placeHolder;
-}
-
 beforeEach(() => {
     showQuickPickMock.mockReset();
     showWarningMessageMock.mockReset();
@@ -153,427 +134,6 @@ beforeEach(() => {
     asRelativePathMock.mockReset();
     asRelativePathMock.mockImplementation((uri: { path: string }) => uri.path.replace(/^\//, ""));
     vi.useRealTimers();
-});
-
-const LOCATE_PROMPTS = {
-    searchingPlaceholder: "Searching…",
-    pickPlaceholder: "Select the file to open",
-};
-
-describe("VsCodePicker.searchAndPickLocatedFile", () => {
-    it("returns the untouched outcome and the picked path for multiple matches", async () => {
-        pickBehavior = { action: "accept", index: 0 };
-        const sut = new VsCodePicker(stubWorkspace());
-        const outcome: LocateResult = {
-            kind: "matches",
-            paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn"],
-            readFailures: [],
-        };
-
-        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => outcome);
-
-        // Outcome passes through untouched so the service can branch on it.
-        expect(result.outcome).toBe(outcome);
-        expect(result.chosen).toBe("/repo/lib/a.bpmn");
-    });
-
-    it("reveals the list busy=false with sorted basename/relative items for multiple matches", async () => {
-        pickBehavior = { action: "accept", index: 0 };
-        const sut = new VsCodePicker(stubWorkspace());
-
-        await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
-            kind: "matches",
-            paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn", "/repo/src/m.bpmn"],
-            readFailures: [],
-        }));
-
-        const qp = lastQuickPick();
-        expect(qp.show).toHaveBeenCalled();
-        expect(qp.busy).toBe(false);
-        expect(qp.placeholder).toBe("Select the file to open");
-        // Sorted by workspace-relative description so nearby files surface first.
-        expect(qp.items.map((i) => i.path)).toEqual([
-            "/repo/lib/a.bpmn",
-            "/repo/src/m.bpmn",
-            "/repo/src/z.bpmn",
-        ]);
-        expect(qp.items[0].label).toBe("a.bpmn");
-        expect(qp.items[0].description).toBe("repo/lib/a.bpmn");
-        expect(qp.dispose).toHaveBeenCalled();
-    });
-
-    it("returns chosen=undefined when the user dismisses the populated list", async () => {
-        pickBehavior = { action: "hide" };
-        const sut = new VsCodePicker(stubWorkspace());
-
-        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn", "/b.bpmn"],
-            readFailures: [],
-        }));
-
-        expect(result.chosen).toBeUndefined();
-        expect(lastQuickPick().dispose).toHaveBeenCalled();
-    });
-
-    it("never reveals a list for a single match and leaves chosen undefined", async () => {
-        const sut = new VsCodePicker(stubWorkspace());
-
-        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn"],
-            readFailures: [],
-        }));
-
-        const qp = lastQuickPick();
-        expect(result.chosen).toBeUndefined();
-        expect(qp.items).toEqual([]);
-        expect(qp.hide).toHaveBeenCalled();
-        expect(qp.dispose).toHaveBeenCalled();
-    });
-
-    it("never reveals a list for zero matches or a non-matches outcome", async () => {
-        const sut = new VsCodePicker(stubWorkspace());
-
-        const empty = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
-            kind: "matches",
-            paths: [],
-            readFailures: [],
-        }));
-        const noScope = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
-            kind: "no-search-scope",
-        }));
-
-        expect(empty.chosen).toBeUndefined();
-        expect(noScope.chosen).toBeUndefined();
-    });
-
-    it("reveals a busy list only after the ~150 ms delay while the search runs", async () => {
-        vi.useFakeTimers();
-        let resolveSearch!: (r: LocateResult) => void;
-        const search = () => new Promise<LocateResult>((res) => (resolveSearch = res));
-        const sut = new VsCodePicker(stubWorkspace());
-
-        const pending = sut.searchAndPickLocatedFile(LOCATE_PROMPTS, search);
-        const qp = lastQuickPick();
-
-        // Before the delay elapses the list stays hidden.
-        await vi.advanceTimersByTimeAsync(149);
-        expect(qp.show).not.toHaveBeenCalled();
-
-        await vi.advanceTimersByTimeAsync(1);
-        expect(qp.show).toHaveBeenCalled();
-        expect(qp.busy).toBe(true);
-        expect(qp.placeholder).toBe("Searching…");
-
-        // A single-match result then hides the spinner without populating items.
-        resolveSearch({ kind: "matches", paths: ["/a.bpmn"], readFailures: [] });
-        await pending;
-        expect(qp.hide).toHaveBeenCalled();
-    });
-
-    it("does not flash the list when the search resolves before the reveal delay", async () => {
-        vi.useFakeTimers();
-        const sut = new VsCodePicker(stubWorkspace());
-
-        // Search resolves before the 150 ms timer, so the list never shows.
-        const result = await sut.searchAndPickLocatedFile(LOCATE_PROMPTS, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn"],
-            readFailures: [],
-        }));
-
-        const qp = lastQuickPick();
-        expect(qp.show).not.toHaveBeenCalled();
-        expect(qp.dispose).toHaveBeenCalled();
-        expect(result.chosen).toBeUndefined();
-    });
-});
-
-describe("VsCodePicker.pickWorkspaceFiles", () => {
-    it("returns the file paths of the chosen items", async () => {
-        showQuickPickMock.mockImplementation((items: { filePath: string }[]) =>
-            Promise.resolve([items[0], items[1]]),
-        );
-        const workspace = stubWorkspace(["/a.form", "/b.dmn", "/c.json"]);
-        const sut = new VsCodePicker(workspace);
-
-        const result = await sut.pickWorkspaceFiles({
-            glob: "**/*.{form,json,dmn}",
-            placeholder: "pick",
-        });
-
-        expect(result).toEqual(["/a.form", "/b.dmn"]);
-    });
-
-    it("returns [] when the user dismisses the picker", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-        const sut = new VsCodePicker(stubWorkspace(["/a.form"]));
-
-        const result = await sut.pickWorkspaceFiles({
-            glob: "**/*.form",
-            placeholder: "pick",
-        });
-
-        expect(result).toEqual([]);
-    });
-
-    it("forwards glob, exclude and limit to the workspace search", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-        const workspace = stubWorkspace([]);
-        const sut = new VsCodePicker(workspace);
-
-        await sut.pickWorkspaceFiles({
-            glob: "**/*.{form,json,dmn}",
-            exclude: "**/element-templates/**",
-            placeholder: "pick",
-            limit: 20,
-        });
-
-        expect(workspace.findFiles).toHaveBeenCalledWith(
-            "**/*.{form,json,dmn}",
-            "**/element-templates/**",
-            20,
-        );
-    });
-
-    it("passes the placeholder and multi-select option to the picker", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-        const sut = new VsCodePicker(stubWorkspace(["/a.form"]));
-
-        await sut.pickWorkspaceFiles({
-            glob: "**/*.form",
-            placeholder: "Select files",
-        });
-
-        const options = showQuickPickMock.mock.calls[0][1] as {
-            placeHolder: string;
-            canPickMany: boolean;
-            matchOnDescription: boolean;
-        };
-        expect(options.placeHolder).toBe("Select files");
-        expect(options.canPickMany).toBe(true);
-        expect(options.matchOnDescription).toBe(true);
-    });
-
-    it("builds items with basename label and absolute-path description", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-        const sut = new VsCodePicker(stubWorkspace(["/repo/src/order.form"]));
-
-        await sut.pickWorkspaceFiles({
-            glob: "**/*.form",
-            placeholder: "pick",
-        });
-
-        const items = showQuickPickMock.mock.calls[0][0] as {
-            label: string;
-            description: string;
-            filePath: string;
-        }[];
-        expect(items).toHaveLength(1);
-        expect(items[0].label).toBe("order.form");
-        expect(items[0].description).toBe("/repo/src/order.form");
-        expect(items[0].filePath).toBe("/repo/src/order.form");
-    });
-});
-
-describe("VsCodePicker cancel conventions", () => {
-    const picker = () => new VsCodePicker(stubWorkspace());
-
-    it("throws UserCancelledError when a required choice is dismissed", async () => {
-        dismissQuickPick();
-
-        await expect(picker().pickNewModelEngine("Engine")).rejects.toBeInstanceOf(
-            UserCancelledError,
-        );
-        await expect(picker().pickMigrationScope(1, 1)).rejects.toBeInstanceOf(UserCancelledError);
-        await expect(picker().pickEngineVersion("c8", ["8.7"])).rejects.toBeInstanceOf(
-            UserCancelledError,
-        );
-    });
-
-    it("resolves to an empty result when an optional choice is dismissed", async () => {
-        dismissQuickPick();
-
-        await expect(picker().pickPayloadFile(["/payloads/order.json"])).resolves.toBeNull();
-        await expect(picker().pickScriptLanguage("groovy")).resolves.toBeUndefined();
-        await expect(picker().pickDeploymentTarget(["dev"])).resolves.toBeUndefined();
-        await expect(
-            picker().pickDeploymentStatusAction({ targetName: "dev", canVerify: true }),
-        ).resolves.toBeUndefined();
-    });
-});
-
-describe("VsCodePicker.pickNewModelEngine", () => {
-    it("returns the id of the chosen engine", async () => {
-        acceptQuickPickItemStartingWith("Engine-neutral");
-
-        await expect(new VsCodePicker(stubWorkspace()).pickNewModelEngine("Engine")).resolves.toBe(
-            "neutral",
-        );
-    });
-});
-
-describe("VsCodePicker.pickMigrationScope", () => {
-    it.each([
-        ["Camunda 7", "c7"],
-        ["Camunda 8", "c8"],
-        ["Both", "both"],
-    ])("maps the %s entry to the %s scope", async (labelPrefix, scope) => {
-        acceptQuickPickItemStartingWith(labelPrefix);
-
-        await expect(new VsCodePicker(stubWorkspace()).pickMigrationScope(1, 2)).resolves.toBe(
-            scope,
-        );
-    });
-
-    it("counts the diagrams per engine in singular and plural", async () => {
-        acceptQuickPickItemStartingWith("Both");
-
-        await new VsCodePicker(stubWorkspace()).pickMigrationScope(1, 0);
-
-        expect(shownItems()).toEqual([
-            "Camunda 7 only (1 diagram)",
-            "Camunda 8 only (0 diagrams)",
-            "Both (1 diagram)",
-        ]);
-    });
-});
-
-describe("VsCodePicker.pickPayloadFile", () => {
-    it("returns the chosen payload's path and file name", async () => {
-        acceptQuickPickItemStartingWith("invoice.json");
-
-        await expect(
-            new VsCodePicker(stubWorkspace()).pickPayloadFile([
-                "/payloads/order.json",
-                "/payloads/invoice.json",
-            ]),
-        ).resolves.toEqual({ filePath: "/payloads/invoice.json", label: "invoice.json" });
-    });
-});
-
-describe("VsCodePicker.pickScriptLanguage", () => {
-    it("offers every supported language with its file extension", async () => {
-        acceptQuickPickItemStartingWith("Python");
-
-        const format = await new VsCodePicker(stubWorkspace()).pickScriptLanguage("");
-
-        expect(format).toBe("python");
-        expect(shownItems()).toEqual([
-            expect.objectContaining({ label: "Javascript", description: ".js" }),
-            expect.objectContaining({ label: "Groovy", description: ".groovy" }),
-            expect.objectContaining({ label: "Python", description: ".py" }),
-            expect.objectContaining({ label: "Ruby", description: ".rb" }),
-        ]);
-    });
-
-    it("pins the diagram's current language first, ignoring case and whitespace", async () => {
-        acceptQuickPickItemStartingWith("Groovy");
-
-        await new VsCodePicker(stubWorkspace()).pickScriptLanguage(" Groovy ");
-
-        expect(shownItems()[0].label).toBe("Groovy");
-    });
-});
-
-describe("VsCodePicker.pickDeploymentTarget", () => {
-    it("offers ad-hoc mode above the saved targets", async () => {
-        acceptQuickPickItemStartingWith("(none");
-
-        const picked = await new VsCodePicker(stubWorkspace()).pickDeploymentTarget([
-            "dev",
-            "prod",
-        ]);
-
-        expect(picked).toBe("");
-        expect(shownItems().map((item) => item.label)).toEqual([
-            "(none — use form values)",
-            "dev",
-            "prod",
-        ]);
-    });
-
-    it("returns the name of a chosen target", async () => {
-        acceptQuickPickItemStartingWith("prod");
-
-        await expect(
-            new VsCodePicker(stubWorkspace()).pickDeploymentTarget(["dev", "prod"]),
-        ).resolves.toBe("prod");
-    });
-});
-
-describe("VsCodePicker.pickDeploymentStatusAction", () => {
-    it("offers verification only for a target that supports it", async () => {
-        acceptQuickPickItemStartingWith("$(cloud)");
-
-        const action = await new VsCodePicker(stubWorkspace()).pickDeploymentStatusAction({
-            targetName: "dev",
-            canVerify: true,
-        });
-
-        expect(action).toBe("verify");
-        expect(shownPlaceholder()).toBe('Deployment target "dev"');
-        expect(shownItems().map((item) => item.label)).toEqual([
-            "$(arrow-swap) Switch deployment target…",
-            "$(cloud) Verify on dev",
-        ]);
-    });
-
-    it("offers only switching when no target is selected", async () => {
-        acceptQuickPickItemStartingWith("$(arrow-swap)");
-
-        const action = await new VsCodePicker(stubWorkspace()).pickDeploymentStatusAction({
-            canVerify: false,
-        });
-
-        expect(action).toBe("switch");
-        expect(shownPlaceholder()).toBe("No deployment target selected");
-        expect(shownItems()).toHaveLength(1);
-    });
-});
-
-describe("VsCodePicker.confirmDestructive", () => {
-    const details = (count: number) =>
-        Array.from({ length: count }, (_, index) => `target-${index + 1}`);
-
-    it("asks in a modal dialog and confirms only with the confirm button", async () => {
-        const picker = new VsCodePicker(stubWorkspace());
-        const options = { title: "Delete target?", confirmLabel: "Delete", details: ["dev"] };
-
-        showWarningMessageMock.mockResolvedValueOnce("Delete");
-        await expect(picker.confirmDestructive(options)).resolves.toBe(true);
-        showWarningMessageMock.mockResolvedValueOnce(undefined);
-        await expect(picker.confirmDestructive(options)).resolves.toBe(false);
-
-        expect(showWarningMessageMock).toHaveBeenCalledWith(
-            "Delete target?",
-            { modal: true, detail: "dev" },
-            "Delete",
-        );
-    });
-
-    it("lists up to twelve details in full", async () => {
-        await new VsCodePicker(stubWorkspace()).confirmDestructive({
-            title: "Remove?",
-            confirmLabel: "Remove",
-            details: details(12),
-        });
-
-        expect(showWarningMessageMock.mock.calls[0][1].detail).toBe(details(12).join("\n"));
-    });
-
-    it("summarises details beyond the twelfth", async () => {
-        await new VsCodePicker(stubWorkspace()).confirmDestructive({
-            title: "Remove?",
-            confirmLabel: "Remove",
-            details: details(14),
-        });
-
-        expect(showWarningMessageMock.mock.calls[0][1].detail).toBe(
-            [...details(12), "…and 2 more"].join("\n"),
-        );
-    });
 });
 
 describe("VsCodePicker generic prompts", () => {
@@ -600,7 +160,7 @@ describe("VsCodePicker generic prompts", () => {
         it("shows the prompt's title, placeholder and items and filters on descriptions too", async () => {
             dismissQuickPick();
 
-            await new VsCodePicker(stubWorkspace()).choose(engines);
+            await new VsCodePicker().choose(engines);
 
             expect(showQuickPickMock).toHaveBeenCalledWith(
                 [
@@ -621,7 +181,7 @@ describe("VsCodePicker generic prompts", () => {
         it("shows a file's path relative to the workspace in place of a description", async () => {
             dismissQuickPick();
 
-            await new VsCodePicker(stubWorkspace()).choose({
+            await new VsCodePicker().choose({
                 id: "payloadFile",
                 placeholder: "Select a payload file",
                 items: [
@@ -643,7 +203,7 @@ describe("VsCodePicker generic prompts", () => {
         it("puts each icon's codicon before its label", async () => {
             dismissQuickPick();
 
-            await new VsCodePicker(stubWorkspace()).choose({
+            await new VsCodePicker().choose({
                 id: "deploymentStatusAction",
                 placeholder: 'Deployment target "dev"',
                 items: [
@@ -664,7 +224,7 @@ describe("VsCodePicker generic prompts", () => {
         it("returns the chosen item's value, also when it is empty", async () => {
             acceptQuickPickItemStartingWith("(none");
 
-            const chosen = await new VsCodePicker(stubWorkspace()).choose({
+            const chosen = await new VsCodePicker().choose({
                 id: "deploymentTarget",
                 placeholder: "Select the active deployment target",
                 items: [
@@ -679,9 +239,7 @@ describe("VsCodePicker generic prompts", () => {
         it("resolves undefined on dismissal", async () => {
             dismissQuickPick();
 
-            await expect(
-                new VsCodePicker(stubWorkspace()).choose(engines),
-            ).resolves.toBeUndefined();
+            await expect(new VsCodePicker().choose(engines)).resolves.toBeUndefined();
         });
     });
 
@@ -692,7 +250,7 @@ describe("VsCodePicker generic prompts", () => {
                 items[2],
             ]);
 
-            const chosen = await new VsCodePicker(stubWorkspace()).chooseMany(forms);
+            const chosen = await new VsCodePicker().chooseMany(forms);
 
             expect(chosen).toEqual(["/repo/a.form", "/repo/c.json"]);
             expect(shownItems().map((item) => item.description)).toEqual([
@@ -710,7 +268,7 @@ describe("VsCodePicker generic prompts", () => {
         it("resolves [] on dismissal", async () => {
             dismissQuickPick();
 
-            await expect(new VsCodePicker(stubWorkspace()).chooseMany(forms)).resolves.toEqual([]);
+            await expect(new VsCodePicker().chooseMany(forms)).resolves.toEqual([]);
         });
     });
 
@@ -723,7 +281,7 @@ describe("VsCodePicker generic prompts", () => {
         });
 
         it("asks in a modal dialog and confirms only with the confirm button", async () => {
-            const picker = new VsCodePicker(stubWorkspace());
+            const picker = new VsCodePicker();
 
             showWarningMessageMock.mockResolvedValueOnce("Delete");
             await expect(picker.confirm(request(["dev"]))).resolves.toBe(true);
@@ -740,7 +298,7 @@ describe("VsCodePicker generic prompts", () => {
         it("lists the details as given, since the core has summarised them", async () => {
             const details = Array.from({ length: 14 }, (_, index) => `target-${index + 1}`);
 
-            await new VsCodePicker(stubWorkspace()).confirm(request(details));
+            await new VsCodePicker().confirm(request(details));
 
             expect(showWarningMessageMock).toHaveBeenCalledWith(
                 "Delete target?",
@@ -779,9 +337,7 @@ describe("VsCodePicker generic prompts", () => {
             pickBehavior = { action: "accept", index: 1 };
             const outcome = matches(["/repo/lib/a.bpmn", "/repo/src/b.bpmn"]);
 
-            const result = await new VsCodePicker(stubWorkspace()).searchAndChoose(
-                locate(async () => outcome),
-            );
+            const result = await new VsCodePicker().searchAndChoose(locate(async () => outcome));
 
             expect(result.outcome).toBe(outcome);
             expect(result.chosen).toBe("/repo/src/b.bpmn");
@@ -790,7 +346,7 @@ describe("VsCodePicker generic prompts", () => {
         it("reveals the choice the outcome leaves, in the prompt's order", async () => {
             pickBehavior = { action: "accept", index: 0 };
 
-            await new VsCodePicker(stubWorkspace()).searchAndChoose(
+            await new VsCodePicker().searchAndChoose(
                 locate(async () => matches(["/repo/src/z.bpmn", "/repo/lib/a.bpmn"])),
             );
 
@@ -810,7 +366,7 @@ describe("VsCodePicker generic prompts", () => {
         it("resolves chosen=undefined when the user dismisses the list", async () => {
             pickBehavior = { action: "hide" };
 
-            const result = await new VsCodePicker(stubWorkspace()).searchAndChoose(
+            const result = await new VsCodePicker().searchAndChoose(
                 locate(async () => matches(["/a.bpmn", "/b.bpmn"])),
             );
 
@@ -819,7 +375,7 @@ describe("VsCodePicker generic prompts", () => {
         });
 
         it("never opens a list when the outcome leaves no choice", async () => {
-            const result = await new VsCodePicker(stubWorkspace()).searchAndChoose(
+            const result = await new VsCodePicker().searchAndChoose(
                 locate(async () => matches(["/a.bpmn"])),
             );
 
@@ -833,7 +389,7 @@ describe("VsCodePicker generic prompts", () => {
         it("reveals a busy list only after ~150 ms while the search runs", async () => {
             vi.useFakeTimers();
             let finishSearch!: (outcome: LocateResult) => void;
-            const pending = new VsCodePicker(stubWorkspace()).searchAndChoose(
+            const pending = new VsCodePicker().searchAndChoose(
                 locate(() => new Promise<LocateResult>((resolve) => (finishSearch = resolve))),
             );
             const qp = lastQuickPick();
@@ -854,9 +410,7 @@ describe("VsCodePicker generic prompts", () => {
         it("does not flash the list when the search finishes before the reveal delay", async () => {
             vi.useFakeTimers();
 
-            await new VsCodePicker(stubWorkspace()).searchAndChoose(
-                locate(async () => matches(["/a.bpmn"])),
-            );
+            await new VsCodePicker().searchAndChoose(locate(async () => matches(["/a.bpmn"])));
 
             expect(lastQuickPick().show).not.toHaveBeenCalled();
             expect(lastQuickPick().dispose).toHaveBeenCalled();
@@ -866,7 +420,7 @@ describe("VsCodePicker generic prompts", () => {
             vi.useFakeTimers();
 
             await expect(
-                new VsCodePicker(stubWorkspace()).searchAndChoose(
+                new VsCodePicker().searchAndChoose(
                     locate(async () => {
                         throw new Error("scan failed");
                     }),

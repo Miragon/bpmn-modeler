@@ -111,7 +111,6 @@ export * from "./codeLink/CodeLinkFeature";
 
 // ── migration ────────────────────────────────────────────────────────────────
 export * from "./migration/domain/MigrationPlan";
-export * from "./migration/domain/ports";
 export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────
