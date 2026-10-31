@@ -970,6 +970,23 @@ describe("TemplateMarketplaceService cache retention", () => {
         ]);
     });
 
+    it("does not serve the files of another source after the sources were reordered", async () => {
+        const { service, upstream, workspace, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            { one: ["one/a.json"], two: ["two/b.json"] },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "two" }, { path: "one" }];
+        upstream.unreachablePaths.add("two");
+        await service.updateAll();
+
+        const servedPaths = await cachedTemplatePaths();
+        expect(await Promise.all(servedPaths.map((path) => workspace.readFile(path)))).toEqual([
+            '{"from":"one/a.json"}',
+        ]);
+    });
+
     it("keeps a source's last good templates when its fetch fails", async () => {
         const { service, upstream, notifier, cachedTemplatePaths } = changingMarketplace(
             [{ path: "one" }, { path: "two" }],

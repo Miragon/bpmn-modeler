@@ -68,6 +68,10 @@ export function describeSourceConfig(config: RepositorySourceConfig): string {
     return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
 }
 
+export function sourceIdentity(_config: RepositorySourceConfig): string {
+    return "";
+}
+
 function configAt(location: MarketplaceLocation, path: string): RepositorySourceConfig {
     return location.kind === "local"
         ? { kind: "local", rootDir: location.rootDir, path }

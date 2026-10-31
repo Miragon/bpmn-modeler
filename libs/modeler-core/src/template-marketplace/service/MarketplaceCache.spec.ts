@@ -41,6 +41,33 @@ describe("MarketplaceCache.replaceSource", () => {
         );
     });
 
+    it("keeps the old files when a write fails", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+        await cache.replaceSource("acme", 0, [
+            { contentType: "element-templates", repoPath: "a.json", content: "old a" },
+        ]);
+        const writeFile = workspace.writeFile.bind(workspace);
+        vi.spyOn(workspace, "writeFile").mockImplementation(async (path, content) => {
+            if (path.endsWith("/b.json")) {
+                throw new Error("disk full");
+            }
+            await writeFile(path, content);
+        });
+
+        await expect(
+            cache.replaceSource("acme", 0, [
+                { contentType: "element-templates", repoPath: "a.json", content: "new a" },
+                { contentType: "element-templates", repoPath: "b.json", content: "new b" },
+            ]),
+        ).rejects.toThrow("disk full");
+
+        const servedPaths = await cache.getCachedTemplatePaths();
+        expect(await Promise.all(servedPaths.map((path) => workspace.readFile(path)))).toEqual([
+            "old a",
+        ]);
+    });
+
     it.each([
         ["a parent-traversal path", "../../../settings.json"],
         ["an absolute posix path", "/etc/passwd"],

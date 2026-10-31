@@ -21,6 +21,7 @@ import {
     describeSourceConfig,
     manifestConfig,
     sourceConfig,
+    sourceIdentity,
 } from "../domain/sourceConfig";
 import { includedFiles } from "../domain/sourceInclude";
 import {
@@ -222,6 +223,9 @@ export class TemplateMarketplaceService {
         const outcomes: SourceFetchOutcome[] = [];
         const sourceFailures: SourceFailure[] = [];
         for (let index = 0; index < sources.length; index++) {
+            const source = sourceIdentity(
+                sourceConfig(sources[index], registration.location, this.homeDir),
+            );
             try {
                 const files = await this.fetchSourceFiles(
                     registration,
@@ -229,15 +233,18 @@ export class TemplateMarketplaceService {
                     index,
                     tokenSession,
                 );
-                outcomes.push({ kind: "fetched", sourceIndex: index, files });
+                outcomes.push({ kind: "fetched", sourceIndex: index, source, files });
             } catch (error) {
                 this.warnSkippedSource(registration, error);
-                outcomes.push({ kind: "failed", sourceIndex: index });
+                outcomes.push({ kind: "failed", sourceIndex: index, source });
                 sourceFailures.push(this.sourceFailure(registration, sources[index], error));
             }
         }
         const actions = planSourceCacheRefresh(
-            await this.cache.sourceIndexes(registration.id),
+            (await this.cache.sourceIndexes(registration.id)).map((sourceIndex) => ({
+                sourceIndex,
+                source: undefined,
+            })),
             outcomes,
         );
         let cached = 0;
