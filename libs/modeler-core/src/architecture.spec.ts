@@ -2,7 +2,6 @@ import {
     buildImportGraph,
     exceptionsWithoutIssue,
     filesReaching,
-    findImportCycles,
     isHostModule,
     readSourceTree,
     staleExceptions,
@@ -442,10 +441,6 @@ describe("modeler-core architecture", () => {
                 describeViolation,
             ),
         ).toEqual([]);
-    });
-
-    it("has no import cycles", () => {
-        expect(findImportCycles(graph.edges).map((cycle) => cycle.join(", "))).toEqual([]);
     });
 
     it("lists no exception the code no longer needs", () => {

@@ -53,10 +53,15 @@ describe("readSourceTree", () => {
         ]);
     });
 
-    it("skips further directories on top of the defaults", () => {
+    it("skips the given directories instead of the defaults", () => {
         expect(
-            readSourceTree(root, { skipDirs: ["lib", "feature"] }).map(({ path }) => path),
-        ).toEqual(["index.ts"]);
+            readSourceTree(root, { skipDirs: ["lib", "feature", "dist"] }).map(({ path }) => path),
+        ).toEqual([
+            "__fixtures__/sample.ts",
+            "coverage/report.ts",
+            "index.ts",
+            "node_modules/dep/index.ts",
+        ]);
     });
 
     it("reads other extensions on request", () => {

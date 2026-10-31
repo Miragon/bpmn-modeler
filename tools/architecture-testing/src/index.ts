@@ -13,3 +13,12 @@ export type { ModuleImport } from "./moduleImports";
 export { requireMatches } from "./requireMatches";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";
+export {
+    describeDependency,
+    instability,
+    unstableDependencies,
+    workspaceDependencies,
+} from "./stability";
+export type { Stability, WorkspaceDependency } from "./stability";
+export { readWorkspaces, workspaceOfSpecifier } from "./workspaces";
+export type { Workspace } from "./workspaces";

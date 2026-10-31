@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface SourceFile {
@@ -10,7 +10,7 @@ export interface SourceFile {
 export interface SourceTreeOptions {
     readonly extensions?: readonly string[];
     readonly includeSpecs?: boolean;
-    /** Directory names skipped on top of the defaults. */
+    /** Directory names to skip; replaces the defaults. */
     readonly skipDirs?: readonly string[];
 }
 
@@ -20,7 +20,7 @@ const SPEC_FILE = /\.(spec|test)\.[cm]?[jt]sx?$/;
 
 export function readSourceTree(root: string, options: SourceTreeOptions = {}): SourceFile[] {
     const extensions = options.extensions ?? DEFAULT_EXTENSIONS;
-    const skipDirs = new Set([...DEFAULT_SKIP_DIRS, ...(options.skipDirs ?? [])]);
+    const skipDirs = new Set(options.skipDirs ?? DEFAULT_SKIP_DIRS);
     const isIncluded = (name: string): boolean =>
         extensions.some((extension) => name.endsWith(extension)) &&
         !name.endsWith(".d.ts") &&
@@ -28,6 +28,21 @@ export function readSourceTree(root: string, options: SourceTreeOptions = {}): S
     return listFiles(root, "", skipDirs, isIncluded)
         .sort()
         .map((path) => ({ path, text: readFileSync(join(root, path), "utf8") }));
+}
+
+export function readTextFile(path: string): string {
+    return readFileSync(path, "utf8");
+}
+
+export function pathExists(path: string): boolean {
+    return existsSync(path);
+}
+
+export function listDirectories(path: string): string[] {
+    return readdirSync(path, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map(({ name }) => name)
+        .sort();
 }
 
 function listFiles(

@@ -184,8 +184,11 @@ without a bound, since a cold first open can outlast any backstop.
 Enforcement lives in the [core architecture tests](../../libs/modeler-core/src/architecture.spec.ts),
 [VS Code architecture tests](../../apps/vscode-plugin/src/architecture.spec.ts),
 [BPMN package tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
-[DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts), and
-[ESLint boundary rules](../../eslint.config.cjs).
+[DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts),
+the [repo-level tests](../../tools/repo-checks/src/architecture.spec.ts) (no
+import cycles and stable dependencies in every workspace), and
+[ESLint boundary rules](../../eslint.config.cjs). The specs share one
+[engine](engineering-practices.md#architecture-tests).
 
 ### Host integrations
 

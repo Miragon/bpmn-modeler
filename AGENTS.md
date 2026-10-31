@@ -125,6 +125,11 @@ libs/
   standalone-extension/  # Theia frontend extension consumed by
                          # `apps/standalone/` (Miragon themes, splash,
                          # hidden built-in views)
+tools/
+  architecture-testing/  # Dev-only engine every architecture.spec.ts reads
+                         # sources through (imports, graph, cycles, exceptions)
+  repo-checks/           # Rules over every workspace: no import cycles,
+                         # stable dependencies
 ```
 
 The standalone Electron app is composed of the Theia shell (`apps/standalone/`)
@@ -139,9 +144,10 @@ build → package plugin → bundle → start chain.
 
 - **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
 - **Webviews**: Vite — `apps/{bpmn,dmn,form,deployment}-webview/vite.config.mts`
-- **Tests**: Vitest — root `vitest.config.ts` globs every `apps/*`, `libs/*` and
-  `packages/*` config into one multi-project run (the bpmn-modeler aggregator
-  config is swapped for its unit and browser projects). Each workspace config takes
+- **Tests**: Vitest — root `vitest.config.ts` globs every `apps/*`, `libs/*`,
+  `packages/*` and `tools/*` config into one multi-project run (the
+  bpmn-modeler aggregator config is swapped for its unit and browser
+  projects). Each workspace config takes
   its aliases (generated from `tsconfig.base.json` paths) and coverage preset
   from the root `vitest.shared.ts`, keeping its thresholds literal. CI runs one
   matrix leg per workspace listed in `.github/vitest-targets.json`;
@@ -168,6 +174,7 @@ Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
 - `@miragon/bpmn-modeler-code-link` → `libs/code-link`
 - `@miragon/bpmn-modeler-definition-search` → `libs/definition-search`
 - `@miragon/bpmn-modeler-inline-scripting` → `libs/inline-scripting`
+- `@miragon/architecture-testing` → `tools/architecture-testing`
 - Resolved by `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) and
   the generated `workspaceAliases` in `vitest.shared.ts` (Vitest)
 

@@ -1,7 +1,6 @@
 import {
     buildImportGraph,
     filesReaching,
-    findImportCycles,
     isHostModule,
     readClassDeclarations,
     readSourceTree,
@@ -16,8 +15,9 @@ import { describe, expect, it } from "vitest";
  *
  * All blocks are **regression locks that must stay green**: layer purity
  * (no inward layer reaches outward, no `vscode`/host modules leak into
- * `domain`/`service`), the no-cycle rule, and feature isolation (a feature may
- * reach a sibling only through its `index.ts` barrel).
+ * `domain`/`service`) and feature isolation (a feature may reach a sibling
+ * only through its `index.ts` barrel). Import cycles are banned for every
+ * workspace in `tools/repo-checks`.
  */
 const tree = readSourceTree(__dirname);
 const graph = buildImportGraph(tree);
@@ -91,13 +91,6 @@ describe("architecture", () => {
                 [...new Set(offenders)],
                 `take the core port instead of the concrete adapter:\n${offenders.join("\n")}`,
             ).toEqual([]);
-        });
-    });
-
-    // ─── B. No cycles — regression lock, must stay GREEN ─────────────────────
-    describe("no cycles (regression lock — green)", () => {
-        it("the source tree is free of import cycles", () => {
-            expect(findImportCycles(graph.edges).map((cycle) => cycle.join(", "))).toEqual([]);
         });
     });
 
