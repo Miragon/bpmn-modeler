@@ -11,6 +11,10 @@ export interface DocumentSyncSurface {
     exportDocument(): Promise<string>;
     /** Runs after each outbound sync was posted. */
     afterSync?(): void;
+    /** Whether the surface holds input it has not applied to the document yet. */
+    hasPendingInput?(): boolean;
+    /** Applies that input to the document now. */
+    flushPendingInput?(): void;
 }
 
 export interface WebviewDocumentSyncOptions {

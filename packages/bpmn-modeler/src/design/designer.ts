@@ -278,6 +278,16 @@ export class BpmnDesigner {
         return subscribeFormatted(this.core, listener);
     }
 
+    /** @internal See {@link PendingInputHandle.hasPendingInput}. */
+    hasPendingInput(): boolean {
+        return false;
+    }
+
+    /** @internal See {@link PendingInputHandle.flushPendingInput}. */
+    flushPendingInput(): void {
+        // Stub: applies nothing yet.
+    }
+
     /**
      * Tears the instance down: disposes every registered lifecycle resource (the
      * debounced export, canvas-size observer, focus features, theme controller,

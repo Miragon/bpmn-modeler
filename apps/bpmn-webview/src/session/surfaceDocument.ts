@@ -61,6 +61,8 @@ export function createSurfaceDocument(
                 surface.alignElementsToOrigin();
             }
         },
+        hasPendingInput: () => false,
+        flushPendingInput: () => {},
         // bpmn-js re-invokes `translate()` for rendered elements only on a re-import.
         refreshDiagram: async () => {
             const xml = await getSurface().exportDiagram();

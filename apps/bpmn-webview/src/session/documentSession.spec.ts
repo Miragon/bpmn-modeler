@@ -38,6 +38,8 @@ function makeSurface(overrides: Partial<SurfaceFake> = {}): SurfaceFake {
         importDocument: vi.fn(async (_content: string | undefined) => {}),
         exportDocument: vi.fn(async () => "<exported />"),
         afterSync: vi.fn(),
+        hasPendingInput: vi.fn(() => false),
+        flushPendingInput: vi.fn(),
         refreshDiagram: vi.fn(async () => {}),
         centerOnElement: vi.fn(),
         ...overrides,
@@ -709,6 +711,32 @@ describe("BpmnDocumentSession", () => {
                     token: 2,
                     status: "flushed",
                     content: "<exported />",
+                    documentRevision: 6,
+                }),
+            ]);
+        });
+
+        it("reports a pending panel input as a pending sync", async () => {
+            const context = setup();
+            await openSession(context, 6);
+            let panelInput: string | undefined = "<typed />";
+            context.surface.hasPendingInput.mockImplementation(() => panelInput !== undefined);
+            // Applying the panel value edits the diagram, as the panel's modeling command does.
+            context.surface.flushPendingInput.mockImplementation(() => {
+                if (panelInput === undefined) return;
+                context.surface.exportDocument.mockResolvedValue(panelInput);
+                panelInput = undefined;
+                context.session.scheduleSync();
+            });
+
+            expect(context.session.document.hasPendingSync()).toBe(true);
+            await context.session.handlers.FlushDocumentQuery(new FlushDocumentQuery(2));
+
+            expect(flushReplies(context.posted)).toEqual([
+                expect.objectContaining({
+                    token: 2,
+                    status: "flushed",
+                    content: "<typed />",
                     documentRevision: 6,
                 }),
             ]);

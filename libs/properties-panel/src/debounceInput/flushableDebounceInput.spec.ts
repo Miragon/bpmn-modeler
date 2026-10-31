@@ -1,0 +1,115 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createFlushableDebounceInput } from "./flushableDebounceInput";
+
+function nameEntry() {
+    const debounceInput = createFlushableDebounceInput();
+    const appliedNames: string[] = [];
+    const setName = debounceInput((name: string) => {
+        appliedNames.push(name);
+    });
+    return { debounceInput, setName, appliedNames };
+}
+
+describe("flushable debounceInput", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("runs a pending call when flushed", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+
+        setName("Approve invoice");
+        debounceInput.flush();
+
+        expect(appliedNames).toEqual(["Approve invoice"]);
+        expect(debounceInput.hasPending()).toBe(false);
+    });
+
+    it("reports a call as pending until its debounce runs it", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+
+        setName("Approve invoice");
+        expect(debounceInput.hasPending()).toBe(true);
+
+        vi.advanceTimersByTime(600);
+
+        expect(appliedNames).toEqual(["Approve invoice"]);
+        expect(debounceInput.hasPending()).toBe(false);
+    });
+
+    it("keeps the panel's 600 ms input delay", () => {
+        const { setName, appliedNames } = nameEntry();
+
+        setName("Approve invoice");
+        vi.advanceTimersByTime(599);
+        expect(appliedNames).toEqual([]);
+
+        vi.advanceTimersByTime(1);
+        expect(appliedNames).toEqual(["Approve invoice"]);
+    });
+
+    it("applies only the last value typed into an entry", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+
+        setName("Approve");
+        setName("Approve invoice");
+        debounceInput.flush();
+
+        expect(appliedNames).toEqual(["Approve invoice"]);
+    });
+
+    it("runs the pending call of every entry when flushed", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+        const appliedDocumentation: string[] = [];
+        const setDocumentation = debounceInput((text: string) => {
+            appliedDocumentation.push(text);
+        });
+
+        setName("Approve invoice");
+        setDocumentation("Checks the amount");
+        debounceInput.flush();
+
+        expect(appliedNames).toEqual(["Approve invoice"]);
+        expect(appliedDocumentation).toEqual(["Checks the amount"]);
+    });
+
+    it("stops reporting a call its entry cancelled", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+
+        setName("Approve invoice");
+        setName.cancel();
+        debounceInput.flush();
+        vi.advanceTimersByTime(600);
+
+        expect(debounceInput.hasPending()).toBe(false);
+        expect(appliedNames).toEqual([]);
+    });
+
+    it("stops reporting a call its entry flushed itself", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+
+        setName("Approve invoice");
+        setName.flush();
+
+        expect(debounceInput.hasPending()).toBe(false);
+        expect(appliedNames).toEqual(["Approve invoice"]);
+    });
+
+    it("keeps the pending calls of separate panels apart", () => {
+        const first = nameEntry();
+        const second = nameEntry();
+
+        first.setName("Approve invoice");
+        second.setName("Reject invoice");
+        first.debounceInput.flush();
+
+        expect(first.appliedNames).toEqual(["Approve invoice"]);
+        expect(second.appliedNames).toEqual([]);
+        expect(second.debounceInput.hasPending()).toBe(true);
+    });
+});

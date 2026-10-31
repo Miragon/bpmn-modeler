@@ -360,6 +360,16 @@ export class BpmnModeler {
         return subscribeFormatted(this.core, listener);
     }
 
+    /** @internal See {@link PendingInputHandle.hasPendingInput}. */
+    hasPendingInput(): boolean {
+        return false;
+    }
+
+    /** @internal See {@link PendingInputHandle.flushPendingInput}. */
+    flushPendingInput(): void {
+        // Stub: applies nothing yet.
+    }
+
     /**
      * Returns the live moddle definitions tree (`bpmn:Definitions` root) so
      * callers can walk the in-memory model — e.g. to extract process variables

@@ -18,6 +18,8 @@ import type { HostChannel } from "./hostChannel";
 /** The document I/O and view actions the session needs from whichever surface is live. */
 export interface BpmnDocumentSurface extends DocumentSyncSurface {
     afterSync(): void;
+    hasPendingInput(): boolean;
+    flushPendingInput(): void;
     refreshDiagram(): Promise<void>;
     centerOnElement(elementId: string): void;
 }
