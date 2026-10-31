@@ -425,8 +425,9 @@ internal class EditorSessionRouter(
      * locked until a render reaches it.
      *
      * A replayed render does not make the page ask for the lint config again,
-     * so `GetBpmnlintConfigCommand` is replayed too: a new bridge starts with
-     * linting on and the page would otherwise show the old bridge's toggle.
+     * so `GetBpmnlintConfigCommand` is replayed too: a new bridge holds no lint
+     * state for the page, and the stored lint choice may have changed while the
+     * bridge was down.
      *
      * Ends with `session/setActive` for the first selected tab that is a
      * diagram, the focused window's first. With no diagram tab selected, the
