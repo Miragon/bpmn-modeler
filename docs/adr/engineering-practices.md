@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-10-27
+- Last reviewed: 2026-10-31
 
 ## Context
 
@@ -17,6 +17,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Coverage gates](#coverage-gates)
 - [Mutation testing](#mutation-testing)
 - [CI test targets](#ci-test-targets)
+- [Architecture tests](#architecture-tests)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -251,6 +252,57 @@ manifests) gets none. Codecov statuses stay advisory, and
 path-filtered legs upload only what a commit touched. A manual
 `workflow_dispatch` run executes all targets to refresh those flags.
 
+### Architecture tests
+
+Every `architecture.spec.ts` reads its sources through one engine,
+[`tools/architecture-testing`](../../tools/architecture-testing/src/index.ts)
+(`@miragon/architecture-testing`). It reads imports from the TypeScript syntax
+tree, so comments, JSDoc `import()` and strings never count, and marks an
+import type-only where TypeScript would elide it. It resolves a relative import
+through a fixed suffix list (`.ts`, `.tsx`, `/index.ts`, `/index.tsx`, then the
+exact path) and maps a package import to a workspace by its package name. It
+also finds import cycles, host reach, implemented interfaces and comments. Only
+`sourceTree.ts` touches the file system; the rest are pure functions over
+source text. Each spec keeps its own classifier, since feature and layer layout
+differ per workspace.
+
+[`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts) holds
+the rules over every root workspace with a `src/`: no import cycle inside a
+workspace (type-only imports count), every relative import resolves (assets
+aside, so no edge drops silently out of the cycle rule), no cycle between
+workspaces, and no workspace depends on a less stable one. Instability is
+I = Ce / (Ca + Ce) over workspace dependencies, compared on integers.
+
+Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Layer
+and stability rules take `KnownException` entries that name the issue removing
+them, and a stale or unnamed entry fails the gate, so the lists only shrink. A
+rule scoped to a folder or file set fails when the scope matches nothing
+(`requireMatches`), so a renamed folder cannot make it pass vacuously; the VS
+Code host-isolation rule is exempt because its empty scope is the goal.
+
+The engine lives under `tools/`, not `libs/`: it is dev-only tooling that no
+host or webview ships.
+
+Alternatives considered:
+
+- **archunit** ran the VS Code spec before. It needed a Vitest matcher shim, a
+  warm-up for its graph build, a cwd-independent re-read of each file and
+  regexes for the specifiers it did not expose, and it carried 17 lockfile
+  entries. It is removed.
+- **dependency-cruiser** would catch nothing the engine misses here. A trial
+  run on `main` found 1,600 of 1,619 relative imports extensionless TypeScript
+  and the rest assets, and all 388 cross-workspace imports under `@miragon/*`
+  names equal to their package names, so resolution is a suffix list plus a
+  name lookup. Its TypeScript extractor reads the same forms; its baseline does
+  not fail on stale entries and cannot name an issue; it would add 12 packages
+  new to the lockfile; and it shares the engine's TypeScript `<7` API limit.
+  Revisit it when a rule needs reach through npm packages or `exports` maps,
+  which the built-graph checks (`check-design-pure-entry.mjs` and its
+  siblings) cover today.
+- **Sheriff** adds editor feedback through ESLint, but its tag and barrel rules
+  would either repeat the spec rules or move them out of Vitest, losing the
+  issue-named exceptions and the stale check.
+
 ### Private upstream APIs
 
 Confine access to undocumented upstream members behind small typed adapters.
@@ -369,7 +421,10 @@ maintenance problem unresolved.
 
 ## Consequences
 
-Coverage targets are floors that only rise when someone raises them. Adding a
+Coverage targets are floors that only rise when someone raises them.
+A new workspace falls under the repo-level cycle and stability rules without
+registration. The engine depends on the TypeScript 6 JS API, so moving to
+TypeScript 7 alone needs another parser for it. Adding a
 Vitest workspace means adding a registry entry; the guard makes forgetting it
 a lint failure rather than a silently untested workspace.
 Tests run in the environment capable of exposing the failure: browser layout in

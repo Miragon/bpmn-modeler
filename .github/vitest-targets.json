@@ -204,6 +204,20 @@
             ],
             "typecheck": "typecheck"
         },
+        "repo-checks": {
+            "dir": "tools/repo-checks",
+            "package": "@miragon/bpmn-modeler-repo-checks",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
+            "paths": [
+                "tools/repo-checks/**",
+                "tools/architecture-testing/**",
+                "{apps,libs,packages,tools}/*/src/**",
+                "{apps,libs,packages,tools}/*/package.json"
+            ],
+            "typecheck": "typecheck"
+        },
         "shared": {
             "dir": "libs/shared",
             "package": "@miragon/bpmn-modeler-shared",
