@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     CursorChangedCommand,
     DIFF_PANE_COMMAND_TYPES,
+    DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
     DiffReadyCommand,
     GetBpmnFileCommand,
     LogErrorCommand,
@@ -60,6 +61,9 @@ describe("createDiffPaneRouter", () => {
             "a host with every extension",
             { swapSides: async () => undefined, paneLog: new RecordingNotifier() },
             {
+                GetBpmnFileCommand: "handled",
+                GetBpmnModelerSettingCommand: "ignored",
+                GetPropertiesPanelStateCommand: "ignored",
                 DiffReadyCommand: "handled",
                 ViewportChangedCommand: "handled",
                 CursorChangedCommand: "handled",
@@ -71,6 +75,9 @@ describe("createDiffPaneRouter", () => {
             "a bare host",
             {},
             {
+                GetBpmnFileCommand: "handled",
+                GetBpmnModelerSettingCommand: "ignored",
+                GetPropertiesPanelStateCommand: "ignored",
                 DiffReadyCommand: "handled",
                 ViewportChangedCommand: "handled",
                 CursorChangedCommand: "handled",
@@ -78,11 +85,14 @@ describe("createDiffPaneRouter", () => {
                 LogErrorCommand: "ignored",
             },
         ],
-    ])("routes every diff-pane command for %s", (_host, extensions, expected) => {
+    ])("routes every command a diff pane posts for %s", (_host, extensions, expected) => {
         const { router } = diffPanes(extensions);
 
         const routes = Object.fromEntries(
-            DIFF_PANE_COMMAND_TYPES.map((type) => [type, router.routeOf(type).kind]),
+            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
+                type,
+                router.routeOf(type).kind,
+            ]),
         );
 
         expect(routes).toStrictEqual(expected);

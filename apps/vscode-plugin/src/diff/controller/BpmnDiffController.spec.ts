@@ -40,11 +40,22 @@ import { commands, workspace } from "vscode";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
-import { DIFF_PANE_COMMAND_TYPES, DiffPaneCommandType } from "@miragon/bpmn-modeler-shared";
+import {
+    DIFF_PANE_COMMAND_TYPES,
+    DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
+    DiffPaneCommandType,
+    DiffPaneHandshakeCommandType,
+} from "@miragon/bpmn-modeler-shared";
 import { BpmnDiffController } from "./BpmnDiffController";
 
 /** How VS Code serves each command its diff panes post. */
-const VSCODE_DIFF_COVERAGE: Record<DiffPaneCommandType, "handled" | "ignored"> = {
+const VSCODE_DIFF_COVERAGE: Record<
+    DiffPaneHandshakeCommandType | DiffPaneCommandType,
+    "handled" | "ignored"
+> = {
+    GetBpmnFileCommand: "handled",
+    GetBpmnModelerSettingCommand: "ignored",
+    GetPropertiesPanelStateCommand: "ignored",
     DiffReadyCommand: "handled",
     ViewportChangedCommand: "handled",
     CursorChangedCommand: "handled",
@@ -237,16 +248,13 @@ describe("BpmnDiffController routes", () => {
         const { controller } = createController();
 
         const coverage = Object.fromEntries(
-            DIFF_PANE_COMMAND_TYPES.map((type) => [type, controller.paneRoutes.routeOf(type).kind]),
+            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
+                type,
+                controller.paneRoutes.routeOf(type).kind,
+            ]),
         );
 
         expect(coverage).toEqual(VSCODE_DIFF_COVERAGE);
-    });
-
-    it("answer the file request the pane sends before it knows it is a diff pane", () => {
-        const { controller } = createController();
-
-        expect(controller.paneRoutes.routeOf("GetBpmnFileCommand")).toEqual({ kind: "handled" });
     });
 });
 

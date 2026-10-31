@@ -1,13 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DIFF_PANE_COMMAND_TYPES, DiffPaneCommandType } from "@miragon/bpmn-modeler-shared";
+import {
+    DIFF_PANE_COMMAND_TYPES,
+    DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
+    DiffPaneCommandType,
+    DiffPaneHandshakeCommandType,
+} from "@miragon/bpmn-modeler-shared";
 
 import { hostNotification, settle } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
 /** How the IntelliJ host serves each command its diff panes post. */
-const INTELLIJ_DIFF_COVERAGE: Record<DiffPaneCommandType, "handled" | "ignored"> = {
+const INTELLIJ_DIFF_COVERAGE: Record<
+    DiffPaneHandshakeCommandType | DiffPaneCommandType,
+    "handled" | "ignored"
+> = {
+    GetBpmnFileCommand: "handled",
+    GetBpmnModelerSettingCommand: "ignored",
+    GetPropertiesPanelStateCommand: "ignored",
     DiffReadyCommand: "handled",
     ViewportChangedCommand: "handled",
     CursorChangedCommand: "handled",
@@ -59,16 +70,13 @@ describe("the bridge's diff pane routes", () => {
         const { diffPaneRoutes } = createBridge(() => {});
 
         const coverage = Object.fromEntries(
-            DIFF_PANE_COMMAND_TYPES.map((type) => [type, diffPaneRoutes.routeOf(type).kind]),
+            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
+                type,
+                diffPaneRoutes.routeOf(type).kind,
+            ]),
         );
 
         expect(coverage).toEqual(INTELLIJ_DIFF_COVERAGE);
-    });
-
-    it("answer the file request the pane sends before it knows it is a diff pane", () => {
-        const { diffPaneRoutes } = createBridge(() => {});
-
-        expect(diffPaneRoutes.routeOf("GetBpmnFileCommand")).toEqual({ kind: "handled" });
     });
 });
 
