@@ -421,10 +421,11 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a DMN
-properties-panel value the panel has not passed to the modeler yet is not
-flushed; and a save of one Document (`saveDocument`), which neither Ctrl+S nor
-autosave makes, does not flush.
+write has not reached the EDT yet, lands after the save; a DMN or Form
+properties-panel value the panel has not passed to the editor yet (dmn-js
+debounces it for 600 ms, form-js for 300 ms) is not flushed; and a save of one
+Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
+flush.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and
