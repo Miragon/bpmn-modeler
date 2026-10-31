@@ -166,11 +166,13 @@ codes and labels, which `manifest.contract.spec.ts` holds to the shipped catalog
 `DocumentPort.getContent()` *synchronously* — impossible over async RPC. The host
 seeds a local `DocumentMirror` on `session/register` and keeps it current via
 `document/didChange`, so reads hit a cache. Same pattern for settings and
-deployment state. **Echo prevention is explicit-causation** (LSP-style): every
-`document/write` mints a per-editor revision echoed back as `causedBy`; a
-`didChange` whose `causedBy` matches a pending own write is dropped. The core's
-`ModelerSession` guard stays as a second line of defence. To add a new
-synchronous port, follow the checklist in `host-replicated-state.md`.
+deployment state. **The `document/write` reply is the causation signal**: the
+host sends no `document/didChange` echo for the bridge's own writes, so every
+`didChange` is external and re-renders, and `documentRevision` rejects a stale
+write. See the ADR's
+[Document causation and session identity](../../../docs/adr/architecture-and-hosts.md#document-causation-and-session-identity).
+To add a new synchronous port, follow
+[Host-replicated state](../../../docs/adr/architecture-and-hosts.md#host-replicated-state).
 
 ## plugin.xml extension points
 
