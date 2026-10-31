@@ -20,7 +20,7 @@ import { UserCancelledError } from "../kernel/domain/errors";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../editorSession/service/DocumentFlushService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
-import { createTestHost, PickerAnswers } from "../testing";
+import { createTestHost, PromptAnswers } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
 import {
@@ -29,6 +29,7 @@ import {
     DeploymentTargetIdentity,
     ledgerKeyFor,
 } from "./domain/deploymentLedger";
+import { deploymentStatusActionPrompt, deploymentTargetPrompt } from "./domain/deploymentPrompts";
 import { DeploymentTarget, serializeDeploymentTargets } from "./domain/deploymentTarget";
 import { NO_ENV_VARIABLES } from "./domain/envRef";
 import { HttpClient, HttpResponse } from "../kernel/domain/http";
@@ -77,7 +78,7 @@ class EngineWithoutDefinitions extends RecordingEngineHttp {
 }
 
 function createFeature(
-    answers: PickerAnswers = {},
+    promptAnswers: PromptAnswers = {},
     targets: DeploymentTarget[] = [target("dev"), target("prod")],
     extraFiles: Record<string, string> = {},
     http?: HttpClient,
@@ -85,7 +86,7 @@ function createFeature(
     const host = createTestHost({
         folders: ["/ws"],
         files: { [TARGETS_FILE]: serializeDeploymentTargets(targets), ...extraFiles },
-        answers,
+        promptAnswers,
     });
     const feature = new DeploymentFeature({
         store: host.store,
@@ -225,7 +226,7 @@ describe("DeploymentFeature panel target commands", () => {
     ])(
         "posts the $result result before the refreshed target list",
         async ({ command, refreshedNames }) => {
-            const { host, feature } = createFeature({ confirmDestructive: true });
+            const { host, feature } = createFeature({ deleteTarget: true });
             host.openEditor(ORDER_PROCESS);
             const { panel, posted } = attach(feature, false);
 
@@ -271,7 +272,7 @@ describe("DeploymentFeature panel target commands", () => {
             keptRows: ["dev", "prod"],
         },
     ])("$behaviour", async ({ command, keptRows }) => {
-        const { host, feature } = createFeature({ confirmDestructive: true });
+        const { host, feature } = createFeature({ deleteTarget: true });
         host.openEditor(ORDER_PROCESS);
         host.deploymentState.seed({
             ledger: Object.fromEntries(
@@ -361,7 +362,7 @@ describe("DeploymentFeature target picker before a deploy", () => {
             return postMultipart(...request);
         });
         const { host, feature } = createFeature(
-            { deploymentTarget: "dev", workspaceFiles: [ORDER_PROCESS] },
+            { deploymentTarget: "dev", deployableFiles: [ORDER_PROCESS] },
             [target("dev")],
             { [ORDER_PROCESS]: orderXml },
             http,
@@ -394,15 +395,21 @@ describe("DeploymentFeature.statusMenu", () => {
     });
 
     it("runs the verification for the verify action", async () => {
-        const { host, feature } = createFeature({ deploymentStatusAction: "verify" });
-        host.openEditor(ORDER_PROCESS);
+        const { host, feature } = createFeature(
+            { deploymentStatusAction: "verify" },
+            [target("dev")],
+            {},
+            new EngineWithoutDefinitions(),
+        );
+        host.deploymentState.seed({ activeTargetName: "dev" });
+        host.openEditor(ORDER_PROCESS, '<bpmn:process id="order-process"/>');
 
         await feature.statusMenu();
 
-        expect(host.notifier.infos).toEqual(["Select a named Camunda 7 target to verify against."]);
-        expect(host.picker.prompts.map((prompt) => prompt.method)).toEqual([
-            "pickDeploymentStatusAction",
+        expect(host.picker.prompts).toEqual([
+            { method: "choose", args: [deploymentStatusActionPrompt(target("dev"))] },
         ]);
+        expect(host.notifier.infos).toEqual(["Process 'order-process' is not deployed on dev."]);
     });
 
     it("does nothing when the menu is dismissed", async () => {
@@ -411,8 +418,8 @@ describe("DeploymentFeature.statusMenu", () => {
 
         await feature.statusMenu();
 
-        expect(host.picker.prompts.map((prompt) => prompt.method)).toEqual([
-            "pickDeploymentStatusAction",
+        expect(host.picker.prompts).toEqual([
+            { method: "choose", args: [deploymentStatusActionPrompt(undefined)] },
         ]);
         expect(host.deploymentState.load().activeTargetName).toBe("");
         expect(host.notifier.infos).toEqual([]);
@@ -446,7 +453,7 @@ describe("DeploymentFeature command failures", () => {
         );
         const orderXml = '<bpmn:process id="order-process"/>';
         const { host, feature } = createFeature(
-            { workspaceFiles: [ORDER_PROCESS] },
+            { deployableFiles: [ORDER_PROCESS] },
             [basicTarget],
             { [ORDER_PROCESS]: orderXml },
             http,
@@ -502,7 +509,7 @@ describe("DeploymentFeature.activeDocumentDir", () => {
         await feature.switchTarget();
 
         expect(host.picker.prompts).toEqual([
-            { method: "pickDeploymentTarget", args: [["dev", "prod"]] },
+            { method: "choose", args: [deploymentTargetPrompt(["dev", "prod"])] },
         ]);
         expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.errors).toEqual([]);
@@ -529,10 +536,10 @@ describe("DeploymentFeature with .env references", () => {
         "MIRAGON_PASSWORD=s3cret",
     ].join("\n");
 
-    function createReferencingFeature(confirmDestructive: boolean) {
+    function createReferencingFeature(approvesHost: boolean) {
         const http = new RecordingEngineHttp();
         const { host, feature } = createFeature(
-            { workspaceFiles: [ORDER_PROCESS], confirmDestructive },
+            { deployableFiles: [ORDER_PROCESS], credentialApproval: approvesHost },
             [referencingTarget],
             { "/ws/.env": dotEnv, [ORDER_PROCESS]: "<bpmn:definitions/>" },
             http,
@@ -555,9 +562,7 @@ describe("DeploymentFeature with .env references", () => {
         expect(http.deployments[0].headers.Authorization).toBe(
             `Basic ${Buffer.from("deployer:s3cret").toString("base64")}`,
         );
-        expect(
-            host.picker.prompts.filter(({ method }) => method === "confirmDestructive"),
-        ).toHaveLength(1);
+        expect(host.picker.prompts.filter(({ method }) => method === "confirm")).toHaveLength(1);
         await expect(host.secrets.getApprovedDestinations(`${TARGETS_FILE}::dev`)).resolves.toEqual(
             [ENGINE_ORIGIN],
         );
@@ -756,7 +761,7 @@ describe("DeploymentFeature status after a ledger write", () => {
         http = new RecordingEngineHttp(),
     }: FocusOptions = {}) {
         const { host, feature } = createFeature(
-            { workspaceFiles: [ORDER_PROCESS] },
+            { deployableFiles: [ORDER_PROCESS] },
             [target("dev")],
             { [ORDER_PROCESS]: ORDER_XML },
             http,

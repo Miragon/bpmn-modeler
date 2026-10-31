@@ -1,7 +1,5 @@
-import { posix } from "path";
-
+import { fileChoicesInWorkspaceOrder } from "./fileChoices";
 import { ChoicePrompt } from "./prompts";
-import { relativeToWorkspace } from "./rootContainment";
 
 /**
  * Outcome of searching the workspace's files; `Matches` holds what was found.
@@ -65,9 +63,9 @@ export function locatedFileChoices(
     if (located.kind !== "ambiguous") {
         return undefined;
     }
-    const items = located.paths
-        .map((path) => ({ path, workspacePath: relativeToWorkspace(path, workspaceFolders) }))
-        .sort((a, b) => a.workspacePath.localeCompare(b.workspacePath))
-        .map(({ path }) => ({ label: posix.basename(path), path, value: path }));
-    return { id: "locatedFile", placeholder, items };
+    return {
+        id: "locatedFile",
+        placeholder,
+        items: fileChoicesInWorkspaceOrder(located.paths, workspaceFolders),
+    };
 }

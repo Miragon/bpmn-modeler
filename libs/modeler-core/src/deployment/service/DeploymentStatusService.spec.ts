@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { StatusView } from "../../kernel/domain/statusView";
-import { createTestHost, PickerAnswers } from "../../testing";
+import { createTestHost, PromptAnswers } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import {
     AdHocDestination,
@@ -11,6 +11,7 @@ import {
 } from "../domain/deploymentDestination";
 import { DeploymentTarget, DeploymentTargets, TargetChange } from "../domain/deploymentTarget";
 import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
+import { deploymentStatusActionPrompt } from "../domain/deploymentPrompts";
 import {
     contentFingerprint,
     DeploymentFreshness,
@@ -95,7 +96,7 @@ function dotEnvContent(dotEnv: Record<string, string>): string {
 }
 
 interface ServiceOptions {
-    answers?: PickerAnswers;
+    promptAnswers?: PromptAnswers;
     /** Variables of each `.env`, keyed by its path. */
     dotEnvs?: Record<string, Record<string, string>>;
     filePath?: string;
@@ -111,11 +112,15 @@ const nestedProject = (dotEnvs: Record<string, Record<string, string>>): Service
     filePath: `${NESTED_PROJECT_DIR}/order-process.bpmn`,
 });
 
-function createService({ answers = {}, dotEnvs = {}, filePath = FILE_PATH }: ServiceOptions = {}) {
+function createService({
+    promptAnswers = {},
+    dotEnvs = {},
+    filePath = FILE_PATH,
+}: ServiceOptions = {}) {
     const files = Object.fromEntries(
         Object.entries(dotEnvs).map(([path, dotEnv]) => [path, dotEnvContent(dotEnv)]),
     );
-    const host = createTestHost({ answers, folders: ["/work"], files });
+    const host = createTestHost({ promptAnswers, folders: ["/work"], files });
     const editor = host.openEditor(filePath, "<a/>");
     editor.active = true;
     const deploymentTargetService = {
@@ -696,45 +701,44 @@ describe("DeploymentStatusService.ledgerIdentity", () => {
 
 describe("DeploymentStatusService.pickStatusBarAction", () => {
     it("offers verify for a named C7 target", async () => {
-        const c = createService({ answers: { deploymentStatusAction: "verify" } });
+        const c = createService({ promptAnswers: { deploymentStatusAction: "verify" } });
         c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
 
         await expect(c.service.pickStatusBarAction("/work")).resolves.toBe("verify");
 
+        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith("/work");
         expect(c.host.picker.prompts).toEqual([
-            {
-                method: "pickDeploymentStatusAction",
-                args: [{ targetName: "dev", canVerify: true }],
-            },
+            { method: "choose", args: [deploymentStatusActionPrompt(target("dev"))] },
         ]);
     });
 
     it("withholds verify without a named target", async () => {
         const c = createService();
 
-        await c.service.pickStatusBarAction();
+        await expect(c.service.pickStatusBarAction()).resolves.toBeUndefined();
 
         expect(c.host.picker.prompts).toEqual([
-            {
-                method: "pickDeploymentStatusAction",
-                args: [{ targetName: undefined, canVerify: false }],
-            },
+            { method: "choose", args: [deploymentStatusActionPrompt(undefined)] },
         ]);
     });
 
     it("withholds verify for a Camunda 8 target", async () => {
-        const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
-            new DeploymentTarget("cloud", "c8", "https://c8.example.com", "", "none", "", ""),
+        const c = createService({ promptAnswers: { deploymentStatusAction: "switch" } });
+        const cloud = new DeploymentTarget(
+            "cloud",
+            "c8",
+            "https://c8.example.com",
+            "",
+            "none",
+            "",
+            "",
         );
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(cloud);
 
-        await c.service.pickStatusBarAction();
+        await expect(c.service.pickStatusBarAction()).resolves.toBe("switch");
 
         expect(c.host.picker.prompts).toEqual([
-            {
-                method: "pickDeploymentStatusAction",
-                args: [{ targetName: "cloud", canVerify: false }],
-            },
+            { method: "choose", args: [deploymentStatusActionPrompt(cloud)] },
         ]);
     });
 });

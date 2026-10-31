@@ -36,7 +36,8 @@ import {
     DeploymentTargetsEvent,
     DeploymentTargetsListener,
 } from "../domain/deploymentTargetsEvent";
-import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { deleteTargetConfirmation, deploymentTargetPrompt } from "../domain/deploymentPrompts";
+import { DeploymentStatePort, SecretStorePort } from "../domain/ports";
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { storeCredentials } from "./storeCredentials";
 
@@ -59,7 +60,7 @@ export class DeploymentTargetService {
         private readonly workspace: WorkspacePort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly picker: PickerPort & DeploymentPickerPort,
+        private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 
@@ -277,11 +278,7 @@ export class DeploymentTargetService {
 
     /** @returns `undefined` when the user cancels or there is no targets file. */
     async deleteTarget(name: string, documentDir?: string): Promise<TargetEdit | undefined> {
-        const confirmed = await this.picker.confirmDestructive({
-            title: `Delete deployment target "${name}"?`,
-            confirmLabel: "Delete",
-            details: [`Target "${name}" and its stored credentials will be removed.`],
-        });
+        const confirmed = await this.picker.confirm(deleteTargetConfirmation(name));
         if (!confirmed) {
             return undefined;
         }
@@ -355,13 +352,10 @@ export class DeploymentTargetService {
         return activeName;
     }
 
-    /**
-     * Picker → persist → listeners. A dismissal is a no-op; the explicit
-     * "(none)" entry resolves to `""` (ad-hoc mode).
-     */
+    /** Picker → persist → listeners. A dismissal is a no-op; the form values entry is `""`. */
     async switchActiveTarget(documentDir?: string): Promise<void> {
         const names = (await this.listTargets(documentDir)).map((target) => target.name);
-        const picked = await this.picker.pickDeploymentTarget(names);
+        const picked = await this.picker.choose(deploymentTargetPrompt(names));
         if (picked === undefined) {
             return;
         }

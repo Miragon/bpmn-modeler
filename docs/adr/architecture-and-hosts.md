@@ -330,8 +330,10 @@ a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
 caller decides whether it cancels. `confirmation()` in
 `kernel/domain/affectedItems.ts` summarises a confirmation's details, and both
 hosts show every line. The core also orders a file list by the path VS Code
-shows for it (`relativeToWorkspace` in `kernel/domain/rootContainment.ts`), and
-both hosts keep the order a prompt gives, so they list the files alike. VS Code
+shows for it (`fileChoicesInWorkspaceOrder` in `kernel/domain/fileChoices.ts`,
+over `relativeToWorkspace`), and both hosts keep the order a prompt gives, so
+they list the files alike. Only the payload files stay nearest first, as their
+lookup finds them. VS Code
 shows a path relative to the workspace, filters on descriptions too, draws an
 icon as its codicon and reveals the busy list of a search after 150 ms. The
 bridge sends a choice over the existing `picker/show` request with the path as
@@ -339,15 +341,19 @@ its description and no icon, maps the chosen indices back to values, and
 brackets a search with status-bar progress, so neither the protocol nor Kotlin
 changes. The test kit's `ScriptedPicker` answers a prompt by its id and fails
 a test whose answer the prompt does not offer, so the prompts of one run carry
-distinct ids: each engine's version prompt has its own. Until each feature's prompts move to the core
-([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
-feature-shaped prompts remain: the other `PickerPort` methods and
-`DeploymentPickerPort`, whose text the adapters build. The new-model engine,
-engine-version, migration-scope, script-language and cleanup prompts and the
-choice among located files already come from the core, so
-`pickNewModelEngine`, `pickEngineVersion`, `pickScriptLanguage`,
-`searchAndPickLocatedFile` and `MigrationPickerPort` have no caller left; they
-are removed together with the other feature-shaped methods.
+distinct ids: each engine's version prompt has its own. The new-model engine,
+engine-version, migration-scope, script-language and cleanup prompts, the choice
+among located files and every deployment prompt
+(`deployment/domain/deploymentPrompts.ts`: the payload file, the active target,
+the status-bar menu, the files to deploy, the additional files, and the
+confirmations to delete a target and to approve a credential host) come from
+the core. The deployment services search the workspace through
+`WorkspacePort.findFiles` themselves and offer the found files through
+`chooseMany`. So the feature-shaped prompts, whose text the adapters build, have
+no caller left: `pickNewModelEngine`, `pickEngineVersion`, `pickScriptLanguage`,
+`pickWorkspaceFiles`, `searchAndPickLocatedFile` and `confirmDestructive` on
+`PickerPort`, `MigrationPickerPort` and `DeploymentPickerPort`. They are removed
+together ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)).
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked

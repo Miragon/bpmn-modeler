@@ -126,7 +126,7 @@ function createService({
     const host = createTestHost({
         folders: ["/work"],
         files: { [DOT_ENV_PATH]: dotEnvContent },
-        answers: { confirmDestructive: approveCredentialDestinations },
+        promptAnswers: { credentialApproval: approveCredentialDestinations },
     });
     const editor = host.openEditor(FILE_PATH, content);
     const deploymentTargetService = {
@@ -175,7 +175,7 @@ function approvedOrigins(c: ServiceContext): Promise<string[]> {
 }
 
 function credentialApprovalPrompts(c: ServiceContext) {
-    return c.host.picker.prompts.filter((prompt) => prompt.method === "confirmDestructive");
+    return c.host.picker.prompts.filter((prompt) => prompt.method === "confirm");
 }
 
 function expectNoDotEnvIo(c: ServiceContext): void {
