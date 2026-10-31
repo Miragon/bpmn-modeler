@@ -84,6 +84,35 @@ describe("MarketplaceCache.replaceSource", () => {
         );
     });
 
+    it("serves only the files of the later of two overlapping replaces", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+        await cache.replaceSource("acme", 0, SOURCE, [template("old.json", "old")]);
+
+        await Promise.all([
+            cache.replaceSource("acme", 0, SOURCE, [template("a.json", "a")]),
+            cache.replaceSource("acme", 0, OTHER_SOURCE, [template("b.json", "b")]),
+        ]);
+
+        expect(await servedContents(cache, workspace)).toEqual(["b"]);
+        expect(await cache.cachedSlots("acme")).toEqual([
+            { sourceIndex: 0, sourceIdentity: OTHER_SOURCE },
+        ]);
+    });
+
+    it("removes a slot only after the replace before it finished", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        await Promise.all([
+            cache.replaceSource("acme", 0, SOURCE, [template("a.json", "a")]),
+            cache.removeSource("acme", 0),
+        ]);
+
+        expect(await servedContents(cache, workspace)).toEqual([]);
+        expect(await cache.cachedSlots("acme")).toEqual([]);
+    });
+
     it("keeps the old files when a write fails", async () => {
         const workspace = createWorkspace();
         const cache = new MarketplaceCache("/cache", workspace);
