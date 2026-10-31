@@ -295,8 +295,11 @@ one pass in the order Theia created them. When the visible diagram reports
 inactive before the hidden tab reports, the visible one blurs first, the
 hidden tab's blur finds no session that reports focus, and the hidden tab
 keeps the target. `VsCodeEditorHandle.spec.ts` pins that case as an expected
-failure. Closing both cases needs the core to know which diagram is visible,
-for example from `window.tabGroups`.
+failure. The tab model does not close them: VS Code before 1.135 can leave a
+background tab marked active in `window.tabGroups`, and Theia's tab model can
+still be empty when restored panels register. Both cases stay open in #1972;
+the cause is Theia's view-state cache starting hidden while its panels start
+active and visible.
 In VS Code only one panel is active at a time, so the target ends on the panel
 VS Code activated whichever view-state event comes first, and the bridge blurs
 only sessions that no longer hold the target. A
