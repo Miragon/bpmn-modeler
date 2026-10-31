@@ -105,6 +105,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         host.picker,
         host.notifier,
         envResolver,
+        host.settings,
     );
 
     const service = new DeploymentService(

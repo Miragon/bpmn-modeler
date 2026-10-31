@@ -94,7 +94,11 @@ export interface DeploymentPickerPort {
     }): Promise<"switch" | "verify" | undefined>;
 }
 
-/** The active-target status-bar item, beside the cross-cutting `StatusBarPort`. */
+/**
+ * The widget-shaped deployment status methods. The core shows the deployment
+ * target slot through `StatusBarPort`, so this stays only until the hosts drop
+ * it together with `LegacyStatusBarPort`.
+ */
 export interface DeploymentStatusBarPort {
     /**
      * `undefined` name renders "No deployment target"; a name renders the active

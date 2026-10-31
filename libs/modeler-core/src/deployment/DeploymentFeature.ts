@@ -7,18 +7,14 @@ import {
     NotifierPort,
     PickerPort,
     SettingsPort,
+    StatusBarPort,
     WorkspacePort,
 } from "../kernel/domain/hostPorts";
 import { UserCancelledError } from "../kernel/domain/errors";
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
-import {
-    DeploymentPickerPort,
-    DeploymentStatePort,
-    DeploymentStatusBarPort,
-    SecretStorePort,
-} from "./domain/ports";
+import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "./domain/ports";
 import { HttpClient } from "../kernel/domain/http";
 import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
@@ -45,7 +41,7 @@ export interface DeploymentHostPorts {
     settings: SettingsPort;
     notifier: NotifierPort;
     picker: PickerPort & DeploymentPickerPort;
-    statusBar: DeploymentStatusBarPort;
+    statusBar: StatusBarPort;
     artifacts: ArtifactService;
     secrets: SecretStorePort;
     state: DeploymentStatePort;
@@ -118,6 +114,7 @@ export class DeploymentFeature {
             ports.picker,
             ports.notifier,
             envResolver,
+            ports.settings,
         );
         this.verification = new DeploymentVerificationService(
             ports.store,

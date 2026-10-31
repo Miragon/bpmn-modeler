@@ -302,6 +302,21 @@ refresh. Active target and ledger getters follow the
 [synchronous mirror contract](architecture-and-hosts.md#host-replicated-state)
 and are included in startup/restart seeds.
 
+The indicator names the connection its freshness refers to. Each destination
+answers it as its `statusConnection`: a named target gives its name, the ad-hoc
+destination gives the form values once a deploy has saved the form's endpoint,
+and no connection before that. A target name that no longer resolves falls back
+to the remembered ad-hoc destination, so it is labelled as the form values too.
+`deploymentStatusView` turns the connection, the freshness and the revision's
+times into the `deploymentTarget` slot's
+[status view](architecture-and-hosts.md#host-integrations):
+the label, the dot's tone and the tooltip for both hosts
+([view table](../../libs/modeler-core/src/deployment/domain/deploymentStatusView.spec.ts)).
+Without a connection it shows "No deployment target" with no freshness. The
+core formats the times with `Intl.DateTimeFormat` in the modeler language and
+the machine's time zone, so VS Code and IntelliJ show the same text; an
+unreadable stored time is shown as stored.
+
 ### Engine reconciliation
 
 Verification runs on demand through a command or the status-bar menu, never on

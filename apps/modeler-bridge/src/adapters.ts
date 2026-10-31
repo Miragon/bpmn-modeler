@@ -426,8 +426,8 @@ export class RpcNotifier implements NotifierPort {
 /**
  * Sends each status slot's view to the host, which shows every slot in its own
  * `StatusBarWidget`. The core decides *what* a slot shows; the host only places
- * it. The widget-shaped methods keep one RPC each until their callers show
- * their slot through {@link StatusBarPort}.
+ * it. The widget-shaped methods have no core caller left; they keep one RPC
+ * each until they are removed together with their Kotlin handlers.
  */
 export class RpcStatusBar implements StatusBarPort, LegacyStatusBarPort, DeploymentStatusBarPort {
     constructor(private readonly rpc: Rpc) {}

@@ -317,14 +317,12 @@ only the `dot` icon; the other icons are IntelliJ's own. The protocol snapshot h
 only top-level keys, so `HostUiRouterTest` pins the view fields and
 `StatusSlotPlacementTest` reads `statusView.ts` and fails when a slot, icon,
 tone or action has no Kotlin counterpart; at runtime the router logs and drops
-what it does not know. Until the deployment target's caller moves to the
-port ([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
-widget-shaped `DeploymentStatusBarPort` remains: VS Code builds its view in its
-adapter, the bridge forwards it as one RPC per widget method, and IntelliJ
-builds the same slot's view from them with its old labels. The
-element-template, engine-version and BPMNlint slots already show the core's
-views, so `LegacyStatusBarPort` and its RPCs have no caller left; they are
-removed together with `DeploymentStatusBarPort`.
+what it does not know. All four slots show the core's views, so the
+widget-shaped `LegacyStatusBarPort` and `DeploymentStatusBarPort` have no
+caller left. Their adapter methods, their `statusBar/*` RPCs and the Kotlin
+handlers that build a view from them with IntelliJ's old labels remain until
+they are removed together
+([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)).
 
 Prompts follow the same split. `PickerPort`'s `choose`, `chooseMany`, `confirm`
 and `searchAndChoose` take a prompt the core builds in full, typed in
