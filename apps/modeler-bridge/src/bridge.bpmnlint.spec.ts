@@ -479,11 +479,17 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         const beforeOff = frames.length;
         await toggleFromHost();
         await expect(
+            waitForFrame(frames, isLintChoiceReport, { fromIndex: beforeOff }),
+        ).resolves.toMatchObject({ params: { enabled: false } });
+        await expect(
             waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeOff }),
         ).resolves.toMatchObject({ params: { editorId } });
 
         const beforeOn = frames.length;
         await toggleFromHost();
+        await expect(
+            waitForFrame(frames, isLintChoiceReport, { fromIndex: beforeOn }),
+        ).resolves.toMatchObject({ params: { enabled: true } });
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
         ).resolves.toMatchObject({ params: { editorId } });
