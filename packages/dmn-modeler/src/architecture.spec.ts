@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readModuleImports, readSourceTree, requireMatches } from "@miragon/architecture-testing";
+import type { SourceFile } from "@miragon/architecture-testing";
 import { join, normalize } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
@@ -7,39 +8,10 @@ const PKG_SRC = __dirname;
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 const LIBS_ROOT = join(REPO_ROOT, "libs");
 
-function listSourceFiles(root: string): string[] {
-    const out: string[] = [];
-    const SKIP_DIRS = new Set(["node_modules", "dist", "lib", "coverage"]);
-    const walk = (absDir: string): void => {
-        for (const entry of readdirSync(absDir)) {
-            const abs = join(absDir, entry);
-            if (statSync(abs).isDirectory()) {
-                if (SKIP_DIRS.has(entry)) continue;
-                walk(abs);
-            } else if (
-                /\.tsx?$/.test(entry) &&
-                !entry.endsWith(".d.ts") &&
-                !/\.(spec|test)\.tsx?$/.test(entry)
-            ) {
-                out.push(abs);
-            }
-        }
-    };
-    walk(root);
-    return out;
-}
+const packageSources = readSourceTree(PKG_SRC);
 
-const SPECIFIER_PATTERNS: readonly RegExp[] = [
-    /\bfrom\s*["']([^"']+)["']/g,
-    /\bimport\s+["']([^"']+)["']/g,
-    /\bimport\s*\(\s*["']([^"']+)["']/g,
-    /\brequire\s*\(\s*["']([^"']+)["']/g,
-];
-
-function importedModules(content: string): string[] {
-    return SPECIFIER_PATTERNS.flatMap((pattern) =>
-        [...content.matchAll(pattern)].map((match) => match[1]),
-    );
+function importedModules({ path, text }: SourceFile): string[] {
+    return readModuleImports(path, text).map(({ specifier }) => specifier);
 }
 
 const PACKAGE_SELF = /^@miragon\/dmn-modeler(\/|$)/;
@@ -47,15 +19,15 @@ const PACKAGE_SELF = /^@miragon\/dmn-modeler(\/|$)/;
 describe("dmn-modeler import direction", () => {
     it("package source never names the protocol, the engine, or apps/", () => {
         const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            for (const spec of importedModules(readFileSync(file, "utf8"))) {
+        for (const file of packageSources) {
+            for (const spec of importedModules(file)) {
                 const forbidden =
                     spec === "@miragon/bpmn-modeler-shared" ||
                     spec === "@miragon/bpmn-modeler-core" ||
                     spec.startsWith("@miragon/bpmn-modeler-core/") ||
                     /(^|\/)apps\//.test(spec);
                 if (forbidden) {
-                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
@@ -69,12 +41,9 @@ describe("dmn-modeler import direction", () => {
     it("package TS source reads no VS Code `<body>` theme classes", () => {
         // Host chrome must be mapped to a theme mode outside the package.
         const VSCODE_CLASS = /vscode-(dark|light|high-contrast)/;
-        const offenders: string[] = [];
-        for (const file of listSourceFiles(PKG_SRC)) {
-            if (VSCODE_CLASS.test(readFileSync(file, "utf8"))) {
-                offenders.push(file.slice(PKG_SRC.length + 1));
-            }
-        }
+        const offenders = packageSources
+            .filter(({ text }) => VSCODE_CLASS.test(text))
+            .map(({ path }) => path);
         expect(
             offenders,
             `package TS source must not read VS Code body theme classes:\n${offenders.join("\n")}`,
@@ -82,15 +51,16 @@ describe("dmn-modeler import direction", () => {
     });
 
     it("every top-level dark-theme selector is scoped under data-dmn-theme", () => {
-        const DARK_DIR = join(PKG_SRC, "styles", "dark-theme");
+        const darkThemeStylesheets = requireMatches(
+            "dark-theme stylesheets",
+            readSourceTree(join(PKG_SRC, "styles", "dark-theme"), { extensions: [".css"] }),
+        );
         const offenders: string[] = [];
-        for (const entry of readdirSync(DARK_DIR)) {
-            if (!entry.endsWith(".css")) continue;
-            const root = postcss.parse(readFileSync(join(DARK_DIR, entry), "utf8"));
-            root.walkRules((rule) => {
+        for (const { path, text } of darkThemeStylesheets) {
+            postcss.parse(text).walkRules((rule) => {
                 if (rule.parent?.type !== "root") return; // nested rule: parent scopes it
                 if (!rule.selector.includes("data-dmn-theme")) {
-                    offenders.push(`${entry}: ${rule.selector}`);
+                    offenders.push(`${path}: ${rule.selector}`);
                 }
             });
         }
@@ -103,10 +73,10 @@ describe("dmn-modeler import direction", () => {
 
     it("no libs/* source imports @miragon/dmn-modeler", () => {
         const offenders: string[] = [];
-        for (const file of listSourceFiles(LIBS_ROOT)) {
-            for (const spec of importedModules(readFileSync(file, "utf8"))) {
+        for (const file of readSourceTree(LIBS_ROOT)) {
+            for (const spec of importedModules(file)) {
                 if (PACKAGE_SELF.test(spec)) {
-                    offenders.push(`${file.slice(LIBS_ROOT.length + 1)} → ${spec}`);
+                    offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }

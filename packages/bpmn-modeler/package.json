@@ -128,6 +128,7 @@
     },
     "devDependencies": {
         "@microsoft/api-extractor": "7.59.4",
+        "@miragon/architecture-testing": "workspace:*",
         "@miragon/bpmn-model-navigation": "workspace:*",
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
         "@miragon/bpmn-modeler-clipboard": "workspace:*",
