@@ -955,6 +955,32 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a file reopened while its re-register frame is built ends up registered in the bridge`() {
+        var whileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                whileRegisterFrameIsBuilt?.also { whileRegisterFrameIsBuilt = null }?.invoke()
+                readDocumentTextInReadAction(file)
+            }
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        whileRegisterFrameIsBuilt = {
+            f.router.disposeSession(page.session)
+            f.router.registerSession(CoreSession(page.session.editorId, page.session.file, page.session.project) {})
+        }
+
+        f.router.reregisterLiveSessions()
+
+        val sessionFrames = f.wired.fake.framesUntilQuiet().map(::parse).sessionFramesFor(page.session.editorId)
+        val reopenedSessionId =
+            sessionFrames.first { (method, sessionId) -> method == "session/register" && sessionId != page.sessionId }.second
+        assertEquals(
+            "session/register" to reopenedSessionId,
+            sessionFrames.lastOrNull(),
+            "the bridge keeps the last register for an id and drops a session on its own dispose: $sessionFrames",
+        )
+    }
+
+    @Test
     fun `a page closed before its replayed render gets no release`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -1126,6 +1152,13 @@ class EditorSessionRouterTest {
                 val params = frame.getAsJsonObject("params")
                 params.get("editorId").asString to params.get("sessionId").asLong
             }
+
+    /** The method and session id of each `session/register` and `session/dispose` for [editorId], in order. */
+    private fun List<JsonObject>.sessionFramesFor(editorId: String): List<Pair<String, Long>> =
+        filter { frame ->
+            frame.get("method").asString in SESSION_LIFECYCLE_METHODS &&
+                frame.getAsJsonObject("params").get("editorId").asString == editorId
+        }.map { frame -> frame.get("method").asString to frame.getAsJsonObject("params").get("sessionId").asLong }
 
     /** The register and replay frames each session got, in the order it got them. */
     private fun List<JsonObject>.bySession(): Map<Long, List<String>> =
@@ -1352,6 +1385,8 @@ class EditorSessionRouterTest {
         const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
 
         val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
+
+        val SESSION_LIFECYCLE_METHODS = setOf("session/register", "session/dispose")
 
         const val TEXT_TAB_EDITOR_ID = "file:///notes.txt"
     }
