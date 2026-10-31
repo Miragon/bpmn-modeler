@@ -13,10 +13,9 @@
  *  - request:      `{ "method": m, "params": p, "id": n }`   (reply expected)
  *  - response:     `{ "id": n, "result": r }` | `{ "id": n, "error": s }`
  *
- * Both peers are symmetric: either side may send notifications/requests. This
- * core issues requests only for the document port (write/save) and receives
- * notifications (session/webview lifecycle); the class supports the full matrix
- * so the same code serves the host side conceptually too.
+ * Either side may send notifications and requests. How long a request waits
+ * for its reply is the protocol descriptor's `replyWait` for its method, so this
+ * peer is bound to the bridge protocol.
  */
 
 import { replyDeadlineMs } from "./protocol/descriptor";
