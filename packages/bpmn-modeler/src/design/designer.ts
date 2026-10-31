@@ -266,6 +266,14 @@ export class BpmnDesigner {
         this.lintHandle.startInPageLinting(config, configToken);
     }
 
+    onCommandStackChanged(_listener: () => void): () => void {
+        return () => {};
+    }
+
+    onFormatted(_listener: (outcome: LayoutOutcome) => void): () => void {
+        return () => {};
+    }
+
     /**
      * Tears the instance down: disposes every registered lifecycle resource (the
      * debounced export, canvas-size observer, focus features, theme controller,

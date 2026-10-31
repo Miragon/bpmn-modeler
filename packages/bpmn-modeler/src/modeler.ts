@@ -353,6 +353,10 @@ export class BpmnModeler {
         return subscribe(this.getService("eventBus"), "commandStack.changed", cb);
     }
 
+    onFormatted(_listener: (outcome: LayoutOutcome) => void): () => void {
+        return () => {};
+    }
+
     /**
      * Returns the live moddle definitions tree (`bpmn:Definitions` root) so
      * callers can walk the in-memory model — e.g. to extract process variables

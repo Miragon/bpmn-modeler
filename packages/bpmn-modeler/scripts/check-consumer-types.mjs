@@ -13,7 +13,8 @@ import ts from "typescript";
 const PKG = "@miragon/bpmn-modeler";
 
 // One fixture per public entry, mirroring the documented README examples plus
-// typed handle use (exportDiagram, captureViewState/applyViewState).
+// typed handle use (exportDiagram, captureViewState/applyViewState, the
+// command-stack and format subscriptions).
 const CONSUMER_FIXTURES = {
     "modeler.ts": `
         import { createModeler, detectEngine } from "${PKG}";
@@ -30,6 +31,10 @@ const CONSUMER_FIXTURES = {
                 linting: false,
             });
             await modeler.loadDiagram(xml);
+            const stopChanges: () => void = modeler.onCommandStackChanged(() => undefined);
+            const stopFormats = modeler.onFormatted((outcome) => void outcome.status);
+            stopChanges();
+            stopFormats();
             const state = modeler.captureViewState();
             modeler.applyViewState(state);
             const exported: string = await modeler.exportDiagram();
@@ -51,6 +56,8 @@ const CONSUMER_FIXTURES = {
             });
             await designer.loadDiagram(xml);
             designer.getService("commandStack");
+            designer.onCommandStackChanged(() => undefined)();
+            designer.onFormatted((outcome) => void outcome.diagnostics)();
             designer.destroy();
         }
     `,

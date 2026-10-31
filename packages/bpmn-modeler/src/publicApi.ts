@@ -365,6 +365,25 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 
+    // ── Events (outbound notifications) ─────────────────────────────────────
+    /**
+     * Subscribe to every command-stack change, undebounced: each executed,
+     * undone or redone edit. An import resets the stack without a
+     * notification. The listener's return value is ignored. Returns a function
+     * that removes the listener; `destroy()` removes it too. For the debounced
+     * XML, use {@link ModelerOptions.onContentSaved}.
+     */
+    onCommandStackChanged(listener: () => void): () => void;
+
+    /**
+     * Subscribe to the outcome of every format attempt, failures included:
+     * {@link formatDiagram} as well as the palette entry and the canvas
+     * shortcut, whose outcome reaches no caller otherwise. The listener
+     * receives the same {@link LayoutOutcome} `formatDiagram` resolves.
+     * Returns a function that removes the listener.
+     */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
+
     // ── Core services + escape hatch ─────────────────────────────────────────
     /**
      * Resolve a core diagram-js/bpmn-js service by name. The {@link
