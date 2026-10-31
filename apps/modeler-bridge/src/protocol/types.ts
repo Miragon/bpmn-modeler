@@ -348,6 +348,15 @@ export interface TokenPromptShowResult {
     token: string;
 }
 
+/**
+ * `settings/setLintingEnabled` — the user's lint choice from the webview or the
+ * BPMNlint widget. The host stores it and pushes the new snapshot to every
+ * bridge before it acks an empty reply.
+ */
+export interface SettingsSetLintingEnabledParams {
+    enabled: boolean;
+}
+
 // ── Core → Host notifications ────────────────────────────────────────────────
 
 /** `editor/postMessage` — the core drives the host's editor browser. */

@@ -15,6 +15,8 @@ internal interface RpcParams {
 
     fun optionalLong(key: String): Long?
 
+    fun boolean(key: String): Boolean
+
     fun optionalBoolean(key: String): Boolean?
 
     fun jsonObject(key: String): JsonObject
@@ -35,6 +37,8 @@ internal class JsonRpcParams(private val params: JsonObject) : RpcParams {
     override fun optionalString(key: String): String? = present(key)?.asString
 
     override fun optionalLong(key: String): Long? = present(key)?.asLong
+
+    override fun boolean(key: String): Boolean = optionalBoolean(key) ?: missing(key)
 
     override fun optionalBoolean(key: String): Boolean? = present(key)?.asBoolean
 

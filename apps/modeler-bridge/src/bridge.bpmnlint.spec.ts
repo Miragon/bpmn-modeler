@@ -546,7 +546,9 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
 
     it("keeps linting off for an editor of the project opened after the toggle", async () => {
         const { rpc, frames, root, editorId } = await setupHostLinted();
+        const beforeToggle = frames.length;
         await toggleLinting(rpc, editorId, false);
+        await waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeToggle });
 
         const laterPath = join(root, "later.bpmn");
         await fs.writeFile(laterPath, BPMN_XML, "utf8");
@@ -561,7 +563,11 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await requestConfig(rpc, laterEditorId);
 
         await expect(
-            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeRequest }),
-        ).resolves.toMatchObject({ params: { editorId: laterEditorId } });
+            waitForFrame(
+                frames,
+                (frame) => isLintDisabledFrame(frame) && frame.params.editorId === laterEditorId,
+                { fromIndex: beforeRequest },
+            ),
+        ).resolves.toBeDefined();
     });
 });

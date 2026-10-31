@@ -15,6 +15,8 @@ internal class KeyRecordingParams : RpcParams {
 
     override fun optionalLong(key: String): Long? = read(key, 0L)
 
+    override fun boolean(key: String): Boolean = read(key, false)
+
     override fun optionalBoolean(key: String): Boolean? = read(key, false)
 
     override fun jsonObject(key: String): JsonObject = read(key, JsonObject())

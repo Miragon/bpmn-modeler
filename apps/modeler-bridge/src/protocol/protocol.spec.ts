@@ -149,6 +149,7 @@ describe("RPC protocol descriptor", () => {
                     "  tokenStore/get",
                     "  tokenStore/set",
                     "  tokenPrompt/show",
+                    "  settings/setLintingEnabled",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",

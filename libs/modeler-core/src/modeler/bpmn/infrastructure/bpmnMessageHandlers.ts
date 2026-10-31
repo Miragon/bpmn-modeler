@@ -96,8 +96,7 @@ export function setLintingEnabledHandler(
     lintSvc: BpmnLintConfigService,
 ): MessageHandler<SetLintingEnabledCommand> {
     return async (message, editorId) => {
-        // An unchanged value means the page is out of sync, e.g. still showing
-        // "Linting off" after a bridge respawn reset the toggle to on.
+        // An unchanged value means the page is out of step with the stored choice.
         if (!(await preference.setLintingEnabled(message.enabled))) {
             await lintSvc.setBpmnlintConfig(editorId);
         }

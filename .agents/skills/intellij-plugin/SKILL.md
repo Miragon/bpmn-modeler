@@ -130,7 +130,8 @@ in the bridge README):
 | core → host | `document/write`, `document/save` | `DocumentPort` |
 | core → host | `editor/postMessage` | Query/Command → webview |
 | core → host | `notifier/*`, `statusBar/update` | `Notifications.Bus`, one `StatusSlotWidget` per status slot |
-| host → core | `linting/toggle` | the BPMNlint widget's click flips the bridge's lint choice |
+| host → core | `linting/toggle` | the BPMNlint widget's click flips the user's lint choice |
+| core → host | `settings/setLintingEnabled` | `PropertiesComponent`; the host stores the lint choice and pushes the snapshot |
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
 

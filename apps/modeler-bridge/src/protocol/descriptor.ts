@@ -71,6 +71,7 @@ import {
     ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
+    SettingsSetLintingEnabledParams,
     StatusBarUpdateParams,
     TokenPromptShowParams,
     TokenPromptShowResult,
@@ -167,6 +168,7 @@ export const METHODS = {
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
+    settingsSetLintingEnabled: "settings/setLintingEnabled",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -614,6 +616,12 @@ export const PROTOCOL = [
             prompt: "github.com denied access; enter a personal access token.",
         } satisfies TokenPromptShowParams,
         resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
+    },
+    {
+        method: METHODS.settingsSetLintingEnabled,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

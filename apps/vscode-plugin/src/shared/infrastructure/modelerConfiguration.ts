@@ -1,6 +1,6 @@
 import { ConfigurationChangeEvent, ConfigurationTarget, Disposable, workspace } from "vscode";
 
-import { parseLintingEnabled, SettingChange, SettingKey } from "@miragon/bpmn-modeler-core";
+import { parseSetting, SettingChange, SettingKey } from "@miragon/bpmn-modeler-core";
 
 /** The section VS Code stores every modeler setting below. */
 export const MODELER_SETTINGS_SECTION = "miragon.bpmnModeler";
@@ -21,7 +21,7 @@ export function onDidChangeModelerSetting(listener: (change: SettingChange) => v
 }
 
 export function lintingEnabled(): boolean {
-    return parseLintingEnabled(modelerConfiguration().get("linting.enabled"));
+    return parseSetting("lintingEnabled", modelerConfiguration().get("linting.enabled"));
 }
 
 export function setLintingEnabled(enabled: boolean): Thenable<void> {

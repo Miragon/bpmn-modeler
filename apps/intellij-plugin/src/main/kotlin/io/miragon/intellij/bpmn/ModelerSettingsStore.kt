@@ -23,6 +23,8 @@ data class ModelerSettings(
     val favouriteBpmnElements: List<String>,
     val language: String,
     val scriptingSpin: Boolean,
+    /** The editor's lint toggle; the Settings page has no field for it. */
+    val lintingEnabled: Boolean,
     /** Pasted marketplace URLs / local paths (strings-only v1); fed to the core over RPC. */
     val marketplaces: List<String>,
 )
@@ -59,6 +61,7 @@ class ModelerSettingsStore {
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
+            lintingEnabled = props.getBoolean(LINTING_ENABLED, DEFAULT_LINTING_ENABLED),
             marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
         ).normalized()
 
@@ -75,6 +78,7 @@ class ModelerSettingsStore {
         props.setList(FAVOURITE_ELEMENTS, normalized.favouriteBpmnElements)
         props.setValue(LANGUAGE, normalized.language, DEFAULT_LANGUAGE)
         props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
+        props.setValue(LINTING_ENABLED, normalized.lintingEnabled, DEFAULT_LINTING_ENABLED)
         props.setList(MARKETPLACES, normalized.marketplaces)
     }
 
@@ -105,6 +109,7 @@ class ModelerSettingsStore {
             // `ModelerSettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
+            "lintingEnabled" to current.lintingEnabled,
             "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
         )
     }
@@ -173,6 +178,7 @@ class ModelerSettingsStore {
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
+        private const val LINTING_ENABLED = "miragon.bpmnModeler.linting.enabled"
         private const val MARKETPLACES = "miragon.bpmnModeler.marketplaces"
 
         // Defaults track apps/vscode-plugin/package.json; ModelerSettingsStoreTest compares them.
@@ -185,6 +191,7 @@ class ModelerSettingsStore {
         internal const val DEFAULT_DEFAULT_MODE = "implement"
         internal const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
+        private const val DEFAULT_LINTING_ENABLED = true
         private val DEFAULT_FAVOURITE_ELEMENTS =
             listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway")
     }

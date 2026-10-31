@@ -8,7 +8,7 @@ import {
     NavigationFeature,
 } from "@miragon/bpmn-modeler-core";
 
-import { RpcClipboard } from "../adapters";
+import { RpcClipboard, RpcLintingPreference } from "../adapters";
 import { METHODS } from "../protocol/descriptor";
 import { SettingsDidChangeParams } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
@@ -19,8 +19,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * code-link contribute from the core; the script editor and the deployment
  * status arrive from their bridge features. The host renders on
  * `document/didChange` because it owns the document revision, it keeps no
- * properties-panel visibility, and {@link BridgeSettings} holds the lint
- * toggle for the life of this process.
+ * properties-panel visibility, and it stores the lint choice that
+ * {@link RpcLintingPreference} reports.
  *
  * RPC (Host → Core): settings/didChange, linting/toggle (the status widget's
  * click).
@@ -43,6 +43,7 @@ export function register(
         picker: deps.picker,
         artifacts: deps.artifactSvc,
     };
+    const lintingPreference = new RpcLintingPreference(deps.rpc, deps.settings);
     const editor = new BpmnEditorFeature(
         {
             ...ports,
@@ -55,7 +56,7 @@ export function register(
         {
             rendering: "host-driven",
             documentSync: { flushes: deps.flushSvc, pendingEdits: deps.pendingEdits },
-            lintingPreference: deps.settings,
+            lintingPreference,
         },
         {
             navigation: new NavigationFeature(ports).editorContribution,
@@ -74,9 +75,9 @@ export function register(
         deps.settings.apply(params.settings);
         handles.onSettingsApplied();
     });
-    deps.rpc.on(METHODS.lintingToggle, () => {
-        deps.settings.setLintingEnabled(!deps.settings.getLintingEnabled());
-    });
+    deps.rpc.on(METHODS.lintingToggle, () =>
+        lintingPreference.setLintingEnabled(!deps.settings.getLintingEnabled()),
+    );
 
     return editor;
 }

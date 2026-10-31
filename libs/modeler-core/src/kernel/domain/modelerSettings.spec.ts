@@ -6,11 +6,9 @@ import { describe, expect, it } from "vitest";
 import { settingsNormalizationCases, TYPESCRIPT_ONLY_SETTINGS_CASES } from "../../testing";
 import {
     changedSettingKeys,
-    DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
     ModelerSettingsSnapshot,
     normalizeSettings,
-    parseLintingEnabled,
     SettingKey,
     settingKeyOf,
 } from "./modelerSettings";
@@ -68,17 +66,6 @@ describe("normalizeSettings", () => {
         const raw: Record<string, unknown> = { propertiesPanelVisible: false };
 
         expect(normalizeSettings(raw)).toEqual(DEFAULT_MODELER_SETTINGS);
-    });
-});
-
-describe("parseLintingEnabled", () => {
-    it.each([
-        { case: "an enabled flag", raw: true, enabled: true },
-        { case: "a disabled flag", raw: false, enabled: false },
-        { case: "no flag as the default", raw: undefined, enabled: DEFAULT_LINTING_ENABLED },
-        { case: "a text as the default", raw: "false", enabled: DEFAULT_LINTING_ENABLED },
-    ])("reads $case", ({ raw, enabled }) => {
-        expect(parseLintingEnabled(raw)).toBe(enabled);
     });
 });
 
