@@ -277,6 +277,14 @@ describe("BpmnDiffController message dispatch", () => {
         expect(diffService.forwardCursor).toHaveBeenCalledWith(expect.anything(), 3);
     });
 
+    it("logs a pane's error under the pane's file name", async () => {
+        const { notifier, send } = paneWithMessageHandler();
+
+        await send({ type: "LogErrorCommand", message: "import failed" });
+
+        expect(notifier.logged("error")).toEqual(["[webview:m.bpmn] import failed"]);
+    });
+
     it("ignores unknown command types", async () => {
         const { diffService, send } = paneWithMessageHandler();
 

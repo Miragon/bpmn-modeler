@@ -134,8 +134,10 @@ host.postMessage(command);
 The BPMN webview's bootstrap and session modules post through `HostChannel`
 (`apps/bpmn-webview/src/session/hostChannel.ts`), which takes only the commands
 in `BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`).
-`bootstrap` narrows its host to it once; only `DiffMode` gets the full
-`HostApi`. A new BPMN editor command goes into that list, or it does not compile.
+`bootstrap` narrows its host to it once. `DiffMode` posts through
+`DiffPaneChannel` (same file), which takes only `DIFF_PANE_COMMAND_TYPES`
+(`libs/shared/src/lib/diffPaneCommands.ts`). A new BPMN editor or diff-pane
+command goes into its list, or it does not compile.
 Declare a channel's `postMessage` as a property (`postMessage: (message: M) => void`),
 as `HostApi` does: a method signature compares its parameter bivariantly, so a
 narrowed channel would fit a helper that posts any message.
@@ -164,6 +166,8 @@ editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(m
 Adding a webview command is "register one more handler", with no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
 
 The BPMN editor's router comes from a table instead: the core `BpmnEditorFeature` (`libs/modeler-core/src/modeler/bpmn/`) passes `WebviewMessageRouter.fromTable` a `CommandTable<BpmnEditorCommandType>`, whose entry per command is its handlers in run order or `{ ignored: reason }`, so a new BPMN editor command does not compile until it has one. Another feature's commands arrive as its `EditorContribution`; a host capability that is absent from `BpmnEditorHostExtensions` turns its commands into ignored entries, and the three document commands are handled or ignored together. Both hosts build this feature in their `composition/bpmnEditorFeature.ts`, and each pins the routes it gets in a coverage spec (`apps/vscode-plugin/src/composition/bpmnEditorFeature.spec.ts`, `apps/modeler-bridge/src/bridge.editor.spec.ts`).
+
+Diff panes are not editor sessions. Both hosts route their commands through the core `createDiffPaneRouter` (`libs/modeler-core/src/diff/service/`), a `CommandTable<DiffPaneCommandType, DiffPaneHandle>` whose handlers get the pane instead of an editor id; an entry missing from `DiffPaneHostExtensions` (swap, pane log) turns its command into an ignored entry. Each host pins those routes in a coverage spec (`apps/vscode-plugin/src/diff/controller/BpmnDiffController.spec.ts`, `apps/modeler-bridge/src/diff.spec.ts`).
 
 **Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript

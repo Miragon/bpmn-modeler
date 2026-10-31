@@ -146,15 +146,26 @@ bootstrap nor a session module can post another surface's command or a query.
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
 `WebviewDocumentSync` takes a channel for exactly the three messages it posts,
-so handing it the BPMN channel proves they are on the list. Only the diff pane,
-which the bootstrap starts instead of the editor, still posts through the full
-`HostApi`. The diff pane, the DMN and Form editors and the deployment sidebar
-post their own commands, and a spec fails when a protocol command belongs to
-neither side. A host's router still dispatches an unrouted type as a no-op, but
-records a type it drops on purpose with `ignore(type, reason)`, once and with a
-non-blank reason. `routeOf(type)` reports a type as handled, ignored with that
-reason, or unrouted, and a type is never both handled and ignored, so a
-coverage spec can tell a deliberate drop from a missing route.
+so handing it the BPMN channel proves they are on the list. The diff pane,
+which the bootstrap starts instead of the editor, posts through its own
+`DiffPaneChannel`, typed to the closed `DIFF_PANE_COMMAND_TYPES`
+(`libs/shared/src/lib/diffPaneCommands.ts`), so it cannot post an editor
+command. Both hosts route a pane's commands through the core's
+`createDiffPaneRouter`, a `CommandTable` over that list whose handlers get the
+pane, plus the file request the page sends before it knows it is a diff pane.
+A `DiffPaneHostExtensions` entry a host leaves out makes its command ignored:
+VS Code supplies the swap and the pane log; the bridge supplies neither,
+because IntelliJ's diff viewer swaps the sides before it forwards a message and
+the bridge keeps no log of its diff panes. Each host pins these routes in a
+coverage spec, a `Record<DiffPaneCommandType, "handled" | "ignored">`, and the
+preview host's spec posts every command of both lists. The DMN and Form editors
+and the deployment sidebar post their own commands, and a spec fails when a
+protocol command belongs to none of the lists. A host's router still
+dispatches an unrouted type as a no-op, but records a type it drops on purpose
+with `ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
+reports a type as handled, ignored with that reason, or unrouted, and a type is
+never both handled and ignored, so a coverage spec can tell a deliberate drop
+from a missing route.
 
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while

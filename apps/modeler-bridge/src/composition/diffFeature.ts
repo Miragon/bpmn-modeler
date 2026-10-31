@@ -1,6 +1,13 @@
-import { BpmnDiffService, DiffPaneStore, DiffSession } from "@miragon/bpmn-modeler-core";
+import {
+    BpmnDiffService,
+    DiffPaneHandle,
+    DiffPaneStore,
+    DiffSession,
+    WebviewMessageRouter,
+    createDiffPaneRouter,
+} from "@miragon/bpmn-modeler-core";
 
-import { RpcDiffPaneHandle, dispatchDiffMessage } from "../diffAdapters";
+import { RpcDiffPaneHandle } from "../diffAdapters";
 import { METHODS } from "../protocol/descriptor";
 import { DiffDisposeParams, DiffOpenParams, DiffWebviewMessageParams } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
@@ -15,9 +22,14 @@ import { BridgeSharedDeps } from "./sharedDeps";
  *
  * RPC (Host → Core): diff/open, diff/webviewMessage, diff/dispose.
  */
-export function register(deps: BridgeSharedDeps): { rebroadcastLanguage: () => void } {
+export function register(deps: BridgeSharedDeps): {
+    rebroadcastLanguage: () => void;
+    paneRoutes: Pick<WebviewMessageRouter<DiffPaneHandle>, "routeOf">;
+} {
     const diffStore = new DiffPaneStore();
     const diffService = new BpmnDiffService(deps.notifier, deps.settings, diffStore);
+    // IntelliJ's diff viewer swaps the sides itself, so the swap never reaches the bridge.
+    const paneRouter = createDiffPaneRouter(diffService, {});
 
     // Diff panes route by `paneUri` (a diff has two browsers, indexed
     // independently of editor sessions); `diffSessions` maps each `diffId` to
@@ -61,7 +73,7 @@ export function register(deps: BridgeSharedDeps): { rebroadcastLanguage: () => v
     deps.rpc.on(METHODS.diffWebviewMessage, (params: DiffWebviewMessageParams) => {
         const handle = diffPanes.get(params.paneUri);
         if (handle) {
-            void dispatchDiffMessage(diffService, handle, params.message);
+            void paneRouter.dispatch(params.message, handle);
         }
     });
 
@@ -80,5 +92,8 @@ export function register(deps: BridgeSharedDeps): { rebroadcastLanguage: () => v
         deps.log(`diff disposed: ${params.diffId}`);
     });
 
-    return { rebroadcastLanguage: () => diffService.rebroadcastLanguage() };
+    return {
+        rebroadcastLanguage: () => diffService.rebroadcastLanguage(),
+        paneRoutes: paneRouter,
+    };
 }

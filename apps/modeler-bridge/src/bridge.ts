@@ -71,7 +71,8 @@ export interface BridgeOptions {
  * @param log   Diagnostic sink (stderr in production; a spy in tests). Kept off
  *              the RPC `write` so it can never corrupt the stdout frame stream.
  * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
- *   and the BPMN editor's routes, which the coverage spec reads.
+ *   and the routes of the BPMN editor and the diff panes, which the coverage
+ *   specs read.
  */
 export function createBridge(
     write: (line: string) => void,
@@ -114,6 +115,6 @@ export function createBridge(
     return {
         rpc: deps.rpc,
         editorRoutes: editor.router,
-        diffPaneRoutes: new WebviewMessageRouter(),
+        diffPaneRoutes: diff.paneRoutes,
     };
 }
