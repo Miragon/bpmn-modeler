@@ -216,6 +216,31 @@ describe("parentWorkspacePath", () => {
             path: "file:////server/share",
             parent: undefined,
         },
+        {
+            behaviour: "climbs to the share root of a UNC uri naming its server as authority",
+            path: "file://server/share/repo",
+            parent: "file://server/share",
+        },
+        {
+            behaviour: "has no parent above the share root of a UNC uri naming its server",
+            path: "file://server/share",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above the share root of a UNC uri with a trailing slash",
+            path: "file://server/share/",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs from a top-level folder to the root of a file:// uri",
+            path: "file:///repo",
+            parent: "file:///",
+        },
+        {
+            behaviour: "has no parent above the root of a file:// uri",
+            path: "file:///",
+            parent: undefined,
+        },
     ])("$behaviour", ({ path, parent }) => {
         expect(parentWorkspacePath(path)).toBe(parent);
     });

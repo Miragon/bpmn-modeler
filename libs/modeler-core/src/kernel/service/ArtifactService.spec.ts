@@ -213,6 +213,28 @@ describe("ArtifactService.getWorkspaceRoot", () => {
         );
     });
 
+    // VS Code spells a UNC document's editor id `file://server/share/…`.
+    it("finds a git repository at the share root of a UNC uri", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "file://server/share/.git": "directory",
+        });
+
+        await expect(service.getWorkspaceRoot("file://server/share/repo/processes")).resolves.toBe(
+            "file://server/share",
+        );
+    });
+
+    it("stops looking for a git root at the share root of a UNC uri", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "file://server/.git": "directory",
+            ".git": "file",
+        });
+
+        await expect(service.getWorkspaceRoot("file://server/share/repo/processes")).resolves.toBe(
+            "file://server/share/repo/processes",
+        );
+    });
+
     it("keeps URI-form document directories in URI form", async () => {
         const service = createServiceOutsideWorkspaceFolders({ "file:///repo/.git": "directory" });
 
@@ -477,6 +499,18 @@ describe("ArtifactService.createWatcher", () => {
         expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(
             "file:///loose/order.bpmn",
         );
+    });
+
+    it("watches from a UNC document's directory when only its server holds a git repository", async () => {
+        const { service, workspace } = createService({
+            files: { "file://server/.git/HEAD": "ref: refs/heads/main" },
+        });
+
+        await service.createWatcher("file://server/share/loose/order.bpmn", {
+            refreshElementTemplates: vi.fn(),
+        });
+
+        expect(workspace.watchers.map(({ root }) => root)).toEqual(["file://server/share/loose"]);
     });
 
     it("watches element templates when the config folder is empty", async () => {
