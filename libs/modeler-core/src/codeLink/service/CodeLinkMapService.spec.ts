@@ -265,7 +265,7 @@ describe("CodeLinkMapService — warm cache", () => {
             service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]),
         ).rejects.toThrow("listing failed");
 
-        await expect(service.onSourceFileChanged(worker, "changed", ROOT)).resolves.toBeUndefined();
+        await expect(service.onSourceFileChanged(worker, "change", ROOT)).resolves.toBeUndefined();
     });
 });
 
@@ -280,7 +280,7 @@ describe("CodeLinkMapService — live linking", () => {
         await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(true);
 
-        await service.onSourceFileChanged(worker, "deleted", ROOT);
+        await service.onSourceFileChanged(worker, "delete", ROOT);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
     });
 
@@ -295,7 +295,7 @@ describe("CodeLinkMapService — live linking", () => {
             new Error("EBUSY: resource busy or locked"),
         );
 
-        await service.onSourceFileChanged(worker, "changed", ROOT);
+        await service.onSourceFileChanged(worker, "change", ROOT);
 
         expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
         expect(host.notifier.logged("debug")).toEqual([
@@ -342,7 +342,7 @@ describe("CodeLinkMapService — live linking", () => {
         await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
         const pushesBefore = editor.posted.length;
 
-        await service.onSourceFileChanged("/work/proj/src/Unrelated.java", "changed", ROOT);
+        await service.onSourceFileChanged("/work/proj/src/Unrelated.java", "change", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
     });
@@ -352,7 +352,7 @@ describe("CodeLinkMapService — live linking", () => {
         await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
         const pushesBefore = editor.posted.length;
 
-        await service.onSourceFileChanged("/elsewhere/x.java", "changed", "/other-root");
+        await service.onSourceFileChanged("/elsewhere/x.java", "change", "/other-root");
 
         expect(editor.posted.length).toBe(pushesBefore);
     });
@@ -368,7 +368,7 @@ describe("CodeLinkMapService — live linking", () => {
         const pushesBefore = editor.posted.length;
 
         // Were the excluded dir not filtered, this match would link and push.
-        await service.onSourceFileChanged(excluded, "created", ROOT);
+        await service.onSourceFileChanged(excluded, "create", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
@@ -384,7 +384,7 @@ describe("CodeLinkMapService — live linking", () => {
         });
         await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
 
-        await service.onSourceFileChanged(worker, "created", root);
+        await service.onSourceFileChanged(worker, "create", root);
 
         expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
     });
@@ -416,8 +416,8 @@ describe("CodeLinkMapService — live linking", () => {
                 }),
         );
 
-        const first = service.onSourceFileChanged(worker, "changed", ROOT);
-        const second = service.onSourceFileChanged(worker, "changed", ROOT);
+        const first = service.onSourceFileChanged(worker, "change", ROOT);
+        const second = service.onSourceFileChanged(worker, "change", ROOT);
         await vi.advanceTimersByTimeAsync(200);
         await Promise.all([first, second]);
 
@@ -654,7 +654,7 @@ describe("CodeLinkMapService — lifecycle", () => {
             return Promise.resolve('@JobWorker(type = "pay")');
         });
 
-        await service.onSourceFileChanged(worker, "created", ROOT);
+        await service.onSourceFileChanged(worker, "create", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
     });

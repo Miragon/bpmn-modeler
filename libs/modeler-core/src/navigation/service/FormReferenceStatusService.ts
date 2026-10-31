@@ -1,13 +1,17 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
 import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
+import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { searchScopeKey, searchScopeRoots } from "../../kernel/domain/searchScope";
+import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
+import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
-import { resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
+import { findFilesBelow, resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
 import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const WATCH_DEBOUNCE_MS = 150;
+
+const isFormFile = (path: string) => path.endsWith(".form");
 
 interface EditorState {
     sourcePath: string;
@@ -15,6 +19,8 @@ interface EditorState {
     scopeKey: string;
     token: symbol;
     lastSignature?: string;
+    /** The forms the last refresh read an id from. */
+    formPaths: readonly string[];
 }
 
 interface RootState {
@@ -93,6 +99,7 @@ export class FormReferenceStatusService {
             roots: [],
             scopeKey: "",
             token: Symbol(editorId),
+            formPaths: [],
         };
         this.editors.set(editorId, editor);
         return editor;
@@ -105,14 +112,13 @@ export class FormReferenceStatusService {
             return;
         }
 
-        const changed = (path: string) => {
-            if (!isInsideExcludedDirBelow(path, root)) this.scheduleRefresh(root);
-        };
+        const changed = (event: WatcherEventKind) => (path: string) =>
+            this.onWatchedChange(root, event, path);
         try {
-            const watcher = this.workspace.createWatcher(root, "**/*.form", {
-                onChange: changed,
-                onCreate: changed,
-                onDelete: changed,
+            const watcher = this.workspace.createWatcher(root, EVERY_PATH_GLOB, {
+                onChange: changed("change"),
+                onCreate: changed("create"),
+                onDelete: changed("delete"),
             });
             this.roots.set(root, { editors: new Set([editorId]), watcher });
         } catch (error) {
@@ -131,6 +137,36 @@ export class FormReferenceStatusService {
             this.roots.delete(root);
             this.pendingRoots.delete(root);
         }
+    }
+
+    // Every refresh reads all forms, so a folder event triggers one only when
+    // the folder holds forms.
+    private onWatchedChange(root: string, event: WatcherEventKind, path: string): void {
+        switch (watchedChangeOf(event, path, root, isFormFile)) {
+            case "file":
+                this.scheduleRefresh(root);
+                break;
+            case "folderCreated":
+                void this.refreshIfFormsBelow(root, path);
+                break;
+            case "folderDeleted":
+                if (this.mayHaveReadFormsBelow(root, path)) this.scheduleRefresh(root);
+                break;
+        }
+    }
+
+    private async refreshIfFormsBelow(root: string, folder: string): Promise<void> {
+        const forms = await findFilesBelow(this.workspace, folder, isFormFile);
+        if (forms.length > 0) this.scheduleRefresh(root);
+    }
+
+    private mayHaveReadFormsBelow(root: string, folder: string): boolean {
+        return [...(this.roots.get(root)?.editors ?? [])].some(
+            (editorId) =>
+                // A running refresh may hold forms its editor's paths do not list yet.
+                this.refreshChains.has(editorId) ||
+                this.editors.get(editorId)?.formPaths.some((path) => isWithinRoot(path, folder)),
+        );
     }
 
     private scheduleRefresh(root: string): void {
@@ -171,9 +207,11 @@ export class FormReferenceStatusService {
         if (this.editors.get(editorId)?.token !== editor.token || this.disposed) return;
 
         let formIds: string[] = [];
+        editor.formPaths = [];
         if (result.kind === "matches") {
             result.readFailures.forEach((failure) => this.notifier.logWarning(failure));
             formIds = [...new Set(result.declarations.map(({ id }) => id))].sort();
+            editor.formPaths = result.declarations.map(({ path }) => path);
         } else if (result.kind === "all-unreadable") {
             result.failures.forEach((failure) => this.notifier.logWarning(failure));
         }

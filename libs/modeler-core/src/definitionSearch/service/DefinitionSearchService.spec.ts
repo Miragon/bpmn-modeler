@@ -131,6 +131,20 @@ describe("DefinitionSearchService", () => {
         expect((await search("message", "")).map(({ name }) => name)).toEqual(["ordered", "paid"]);
     });
 
+    it("reads the files of a folder replaced as a whole afresh", async () => {
+        const { host, search } = setup({
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+        });
+        await search("message", "");
+
+        await host.workspace.deleteDirectory("/work/models");
+        host.workspace.createDirectory("/work/models", {
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="placed" />'),
+        });
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["placed"]);
+    });
+
     it("serves repeated searches from the index", async () => {
         const { findFiles, readFile, search } = setup({
             "/work/a.bpmn": model('<bpmn:message id="M" name="x" />'),

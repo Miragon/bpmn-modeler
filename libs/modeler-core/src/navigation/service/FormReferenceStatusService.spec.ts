@@ -61,7 +61,7 @@ describe("FormReferenceStatusService", () => {
 
         await service.requestStatus(editor.id);
 
-        expect(watchers.map(({ root, glob }) => [root, glob])).toEqual([["/work", "**/*.form"]]);
+        expect(watchers.map(({ root, glob }) => [root, glob])).toEqual([["/work", "**/*"]]);
         expect(statuses(editor)).toEqual([new FormReferenceStatusQuery(["Form_A", "Form_B"])]);
     });
 
@@ -324,5 +324,52 @@ describe("FormReferenceStatusService — folders", () => {
         });
 
         await vi.waitFor(() => expect(lastFormIds(editor)).toEqual(["Form_A", "Form_C"]));
+    });
+
+    it("does not read the forms again for files and folders without forms", async () => {
+        const { service, host, editor } = setupWithForms({
+            "/work/c.form": form("Form_C"),
+            "/work/docs/readme.md": "",
+        });
+        await service.requestStatus(editor.id);
+        const findFiles = vi.spyOn(host.workspace, "findFiles");
+
+        await host.workspace.writeFile("/work/notes.txt", "");
+        host.workspace.deleteFile("/work/notes.txt");
+        await host.workspace.deleteDirectory("/work/docs");
+        host.workspace.createDirectory("/work/drafts", { "/work/drafts/plan.md": "" });
+        await vi.runAllTimersAsync();
+
+        expect(findFiles).not.toHaveBeenCalled();
+    });
+
+    it("reads the forms again for a folder deleted while a refresh reads it", async () => {
+        const { service, host, editor } = setupWithForms({ "/work/c.form": form("Form_C") });
+        await service.requestStatus(editor.id);
+        const readFile = host.workspace.readFile.bind(host.workspace);
+        let readStarted = false;
+        let finishRead!: () => void;
+        const readHangs = new Promise<void>((resolve) => (finishRead = resolve));
+        vi.spyOn(host.workspace, "readFile").mockImplementation(async (path) => {
+            const content = await readFile(path);
+            if (path === "/work/forms/a.form") {
+                readStarted = true;
+                await readHangs;
+            }
+            return content;
+        });
+
+        host.workspace.createDirectory("/work/forms", { "/work/forms/a.form": form("Form_A") });
+        await vi.waitFor(() => expect(readStarted).toBe(true));
+        await host.workspace.deleteDirectory("/work/forms");
+        finishRead();
+
+        await vi.waitFor(() =>
+            expect(statuses(editor).map(({ formIds }) => formIds)).toEqual([
+                ["Form_C"],
+                ["Form_A", "Form_C"],
+                ["Form_C"],
+            ]),
+        );
     });
 });

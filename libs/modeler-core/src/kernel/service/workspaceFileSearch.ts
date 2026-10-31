@@ -118,11 +118,6 @@ export async function findFilesInScope(
     return [...new Set(walked.flat())];
 }
 
-/**
- * Parallel BFS over the directory tree. All directories at one depth are read
- * concurrently via `Promise.all` — sequential per-directory awaits cost several
- * seconds on deep workspaces. Unreadable subdirectories are swallowed.
- */
 async function walkWorkspaceTree(
     ws: WorkspacePort,
     rootDir: string,
@@ -132,9 +127,28 @@ async function walkWorkspaceTree(
 ): Promise<string[]> {
     logger?.logInfo(`[search] ${reason}: walking ${rootDir}`);
     const startedAt = Date.now();
+    const out = await findFilesBelow(ws, rootDir, matchesWalkedFile);
+    logger?.logInfo(
+        `[search] ${reason} returned ${out.length} path(s) in ${Date.now() - startedAt}ms`,
+    );
+    return out;
+}
 
+/**
+ * The files below `directory` that `matchesWalkedFile` accepts, skipping
+ * {@link EXCLUDED_DIRS}; none when `directory` is not a readable directory.
+ *
+ * Parallel BFS over the directory tree. All directories at one depth are read
+ * concurrently via `Promise.all` — sequential per-directory awaits cost several
+ * seconds on deep workspaces. Unreadable subdirectories are swallowed.
+ */
+export async function findFilesBelow(
+    ws: WorkspacePort,
+    directory: string,
+    matchesWalkedFile: (absolutePath: string) => boolean,
+): Promise<string[]> {
     const out: string[] = [];
-    let level: string[] = [rootDir];
+    let level: string[] = [directory];
     while (level.length > 0) {
         const reads = await Promise.all(
             level.map((dir) =>
@@ -162,10 +176,6 @@ async function walkWorkspaceTree(
         }
         level = nextLevel;
     }
-
-    logger?.logInfo(
-        `[search] ${reason} returned ${out.length} path(s) in ${Date.now() - startedAt}ms`,
-    );
     return out;
 }
 
