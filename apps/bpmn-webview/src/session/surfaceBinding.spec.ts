@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LAYOUT_FORMATTED_EVENT } from "@miragon/bpmn-modeler-layout";
+import type { LayoutOutcome } from "@miragon/bpmn-modeler";
 import {
     type Command,
     isMessageOfType,
@@ -41,36 +41,41 @@ const postedOfType = <TType extends ProtocolMessageType>(
     type: TType,
 ) => posted.filter((message): message is MessageOfType<TType> => isMessageOfType(message, type));
 
-function createEventBus() {
-    const listeners = new Map<string, ((payload?: unknown) => void)[]>();
-    return {
-        on: vi.fn((event: string, listener: (payload?: unknown) => void) => {
-            listeners.set(event, [...(listeners.get(event) ?? []), listener]);
-        }),
-        fire: (event: string, payload?: unknown) =>
-            (listeners.get(event) ?? []).forEach((listener) => listener(payload)),
-    };
-}
-
-function fakeModeler() {
-    const eventBus = createEventBus();
+// The event bus stays reachable so a subscription by event name is observable.
+function fakeEditableSurface() {
+    const eventBus = { on: vi.fn() };
     const commandStackListeners: (() => void)[] = [];
-    let definitions: object = {};
-    const modeler = {
-        setMode: vi.fn(),
+    const formattedListeners: ((outcome: LayoutOutcome) => void)[] = [];
+    const surface = {
         newDiagram: vi.fn(),
         applyLintResults: vi.fn(),
         formatDiagram: vi.fn(),
-        getDefinitions: vi.fn(() => definitions),
         onCommandStackChanged: vi.fn((listener: () => void) => {
             commandStackListeners.push(listener);
+            return () => {};
+        }),
+        onFormatted: vi.fn((listener: (outcome: LayoutOutcome) => void) => {
+            formattedListeners.push(listener);
+            return () => {};
         }),
         getService: vi.fn(() => eventBus),
     };
     return {
-        modeler,
+        surface,
         eventBus,
         changeCommandStack: () => commandStackListeners.forEach((listener) => listener()),
+        announceFormatted: (outcome: LayoutOutcome) =>
+            formattedListeners.forEach((listener) => listener(outcome)),
+    };
+}
+
+function fakeModeler() {
+    const { surface, ...editable } = fakeEditableSurface();
+    let definitions: object = {};
+    const modeler = { ...surface, setMode: vi.fn(), getDefinitions: vi.fn(() => definitions) };
+    return {
+        ...editable,
+        modeler,
         setDefinitions: (next: object) => {
             definitions = next;
         },
@@ -78,15 +83,28 @@ function fakeModeler() {
 }
 
 function fakeDesigner() {
-    const eventBus = createEventBus();
-    const designer = {
-        newDiagram: vi.fn(),
-        applyLintResults: vi.fn(),
-        formatDiagram: vi.fn(),
-        getService: vi.fn(() => eventBus),
-    };
-    return { designer, eventBus };
+    const { surface, ...editable } = fakeEditableSurface();
+    return { ...editable, designer: surface };
 }
+
+const EDITABLE_SURFACES = [
+    {
+        surface: "modeler",
+        engine: "c8" as const,
+        fake: () => {
+            const { modeler, ...fake } = fakeModeler();
+            return { handle: modeler, ...fake };
+        },
+    },
+    {
+        surface: "designer",
+        engine: undefined,
+        fake: () => {
+            const { designer, ...fake } = fakeDesigner();
+            return { handle: designer, ...fake };
+        },
+    },
+];
 
 const fakeViewer = () => ({ loadDiagram: vi.fn(), getService: vi.fn() });
 
@@ -135,25 +153,55 @@ describe("createSurfaceBinder", () => {
     });
 
     describe("bindSurface", () => {
-        it("syncs every modeler command stack change to the host", () => {
-            const { session, binder } = binderFor({ engine: "c8" });
-            const { modeler, changeCommandStack } = fakeModeler();
+        it.each(EDITABLE_SURFACES)(
+            "syncs every command stack change of the $surface to the host",
+            ({ engine, fake }) => {
+                const { session, binder } = binderFor({ engine });
+                const { handle, changeCommandStack } = fake();
 
-            binder.bindSurface(asSurface(modeler));
-            changeCommandStack();
+                binder.bindSurface(asSurface(handle));
+                changeCommandStack();
 
-            expect(session.scheduleSync).toHaveBeenCalledOnce();
-        });
+                expect(session.scheduleSync).toHaveBeenCalledOnce();
+            },
+        );
 
-        it("syncs a designer command stack change, which only its event bus announces", () => {
-            const { session, binder } = binderFor({ engine: undefined });
-            const { designer, eventBus } = fakeDesigner();
+        it.each(EDITABLE_SURFACES)(
+            "reports every format outcome the $surface announces",
+            ({ engine, fake }) => {
+                const { host, binder } = binderFor({ engine });
+                const { handle, announceFormatted } = fake();
 
-            binder.bindSurface(asSurface(designer));
-            eventBus.fire("commandStack.changed");
+                binder.bindSurface(asSurface(handle));
+                announceFormatted({
+                    status: "failed",
+                    diagnostics: [{ message: "lane overlap", elementId: "Task_1" }],
+                    code: "ENGINE_FAILED",
+                    message: "could not lay out",
+                });
 
-            expect(session.scheduleSync).toHaveBeenCalledOnce();
-        });
+                expect(postedOfType(host.posted, "DiagramFormattedCommand")).toEqual([
+                    expect.objectContaining({
+                        status: "failed",
+                        diagnostics: [{ message: "lane overlap", elementId: "Task_1" }],
+                        code: "ENGINE_FAILED",
+                        message: "could not lay out",
+                    }),
+                ]);
+            },
+        );
+
+        it.each(EDITABLE_SURFACES)(
+            "subscribes to no event of the $surface by its event name",
+            ({ engine, fake }) => {
+                const { binder } = binderFor({ engine });
+                const { handle, eventBus } = fake();
+
+                binder.bindSurface(asSurface(handle));
+
+                expect(eventBus.on).not.toHaveBeenCalled();
+            },
+        );
 
         it("subscribes nothing on the readonly viewer", () => {
             const { host, session, binder } = binderFor();
@@ -165,28 +213,6 @@ describe("createSurfaceBinder", () => {
             expect(viewer.getService).not.toHaveBeenCalled();
             expect(session.scheduleSync).not.toHaveBeenCalled();
             expect(host.postMessage).not.toHaveBeenCalled();
-        });
-
-        it("reports every format outcome the surface announces", () => {
-            const { host, binder } = binderFor({ engine: undefined });
-            const { designer, eventBus } = fakeDesigner();
-
-            binder.bindSurface(asSurface(designer));
-            eventBus.fire(LAYOUT_FORMATTED_EVENT, {
-                status: "failed",
-                diagnostics: ["overlap"],
-                code: "LAYOUT_FAILED",
-                message: "could not lay out",
-            });
-
-            expect(postedOfType(host.posted, "DiagramFormattedCommand")).toEqual([
-                expect.objectContaining({
-                    status: "failed",
-                    diagnostics: ["overlap"],
-                    code: "LAYOUT_FAILED",
-                    message: "could not lay out",
-                }),
-            ]);
         });
 
         it("builds the state manager over the surface and the panel root", () => {
