@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-27
+- Last reviewed: 2026-10-30
 
 ## Context
 
@@ -73,6 +73,24 @@ Persist the active target name in non-secret host state. The sidebar and
 status-bar target picker use the same value. With no selected target, preserve
 the legacy unnamed connection behavior and write no target file until the user
 creates a target.
+
+Every successful target change publishes one `DeploymentTargetsEvent` through
+`DeploymentTargetService.onDidChange`: a create, save, rename or delete carries
+its `TargetEdit`, and a sidebar select or a picked switch carries the new
+active name. A rejected save, a cancelled delete or a dismissed picker
+publishes nothing. An edit stores the active name it implies without a second
+event. The service awaits the listeners in subscription order. The change is
+already made when they run, so a failing listener is logged and skipped, and
+the sidebar still reports the target as saved when the ledger prune after it
+fails. `DeploymentFeature` subscribes the status service once and each
+attached panel until it is disposed. The status service prunes a retired
+target's ledger rows and refreshes the indicator, and the panel pushes the
+target list, so no command does either by hand. A panel posts the result of
+its own target command before that push, because the form ends its reload
+lock on the first target list after a successful result. Overlapping
+commands push once, after the last result
+([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts),
+[feature tests](../../libs/modeler-core/src/deployment/DeploymentFeature.spec.ts)).
 
 A target name is resolved once per request, command or prefill into a
 `DeploymentDestination`: a blank name is the ad-hoc connection
@@ -296,9 +314,10 @@ it is saved. Additional sidebar files and Deploy Files… are deployed as saved.
 (record, adopt, forget, prune) ends by refreshing the indicator, so no caller
 refreshes after a deploy or a verification. It refreshes after a failed write
 too, because an ad-hoc deploy saves the connection the indicator reads just
-before its row. Target changes, editor focus and debounced document edits
-refresh it as well. The bridge listens to its document mirror for edit-time
-refresh. Active target and ledger getters follow the
+before its row. Target changes (through the
+[targets event](#targets-and-credentials)), editor focus and debounced
+document edits refresh it as well. The bridge listens to its document mirror
+for edit-time refresh. Active target and ledger getters follow the
 [synchronous mirror contract](architecture-and-hosts.md#host-replicated-state)
 and are included in startup/restart seeds.
 

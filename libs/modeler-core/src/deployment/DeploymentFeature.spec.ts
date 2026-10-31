@@ -12,6 +12,7 @@ import {
     FormDefaultsQuery,
     Query,
     SaveTargetCommand,
+    SelectTargetCommand,
     TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -284,6 +285,91 @@ describe("DeploymentFeature panel target commands", () => {
 
         expect([...host.deploymentState.ledger.keys()]).toEqual(keptRows.map(ledgerKeyOf));
     });
+
+    it("a ledger prune failure after a successful save still reports the target as saved", async () => {
+        const { host, feature } = createFeature();
+        host.openEditor(ORDER_PROCESS);
+        host.deploymentState.ledger.set(ledgerKeyOf("dev"), {
+            fingerprint: "f",
+            deployedAt: "2026-01-01T00:00:00.000Z",
+        });
+        vi.spyOn(host.deploymentState, "deleteDeployedRevisions").mockRejectedValue(
+            new Error("workspace state is read-only"),
+        );
+        const { panel, posted } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+        );
+
+        expect(
+            posted.filter(
+                (query) =>
+                    query instanceof TargetSavedQuery || query instanceof DeploymentTargetsQuery,
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                type: "TargetSavedQuery",
+                success: true,
+                message: 'Saved deployment target "staging".',
+            }),
+            expect.objectContaining({
+                type: "DeploymentTargetsQuery",
+                activeTargetName: "staging",
+            }),
+        ]);
+        expect(host.notifier.loggedErrors.map((error) => error.message)).toEqual([
+            "workspace state is read-only",
+        ]);
+    });
+
+    it("selecting a target in the panel pushes the target list once", async () => {
+        const { host, feature } = createFeature();
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant]);
+        const { panel, posted } = attach(feature, true);
+        await settle();
+        posted.length = 0;
+
+        await panel.handle(new SelectTargetCommand("prod"));
+        await settle();
+
+        expect(targetListsIn(posted)).toEqual([
+            expect.objectContaining({ activeTargetName: "prod", documentDir: "/ws/src" }),
+        ]);
+        expect(host.statusBar.views.deploymentTarget?.text).toBe("prod");
+    });
+});
+
+describe("DeploymentFeature target picker before a deploy", () => {
+    it.each([
+        { command: "Deploy Diagram", run: (feature: DeploymentFeature) => feature.deployActive() },
+        { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
+    ])("$command shows the picked target in the open panel, then deploys", async ({ run }) => {
+        const orderXml = '<bpmn:process id="order-process"/>';
+        const timeline: string[] = [];
+        const http = new RecordingEngineHttp();
+        const postMultipart = http.postMultipart.bind(http);
+        vi.spyOn(http, "postMultipart").mockImplementation((...request) => {
+            timeline.push("deploy");
+            return postMultipart(...request);
+        });
+        const { host, feature } = createFeature(
+            { deploymentTarget: "dev", workspaceFiles: [ORDER_PROCESS] },
+            [target("dev")],
+            { [ORDER_PROCESS]: orderXml },
+            http,
+        );
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: orderXml });
+        feature.attachPanel((message) => {
+            if (message instanceof DeploymentTargetsQuery) {
+                timeline.push(`panel shows "${message.activeTargetName}"`);
+            }
+        }, false);
+
+        await run(feature);
+
+        expect(timeline).toEqual(['panel shows "dev"', "deploy"]);
+    });
 });
 
 describe("DeploymentFeature.statusMenu", () => {
@@ -469,6 +555,36 @@ describe("DeploymentFeature with .env references", () => {
             [ENGINE_ORIGIN],
         );
         expect(host.notifier.transcript()).not.toContain("s3cret");
+    });
+
+    it("drops the rows an endpoint-ref target recorded under its resolved host when the panel renames it", async () => {
+        const { host, feature } = createReferencingFeature(true);
+        const resolvedRow = ledgerKeyFor(
+            DeploymentTargetIdentity.fromTarget(referencingTarget, (name) =>
+                name === "MIRAGON_ENGINE_URL" ? `${ENGINE_ORIGIN}/engine-rest` : undefined,
+            ),
+            ORDER_PROCESS,
+        );
+        host.deploymentState.ledger.set(resolvedRow, {
+            fingerprint: "f",
+            deployedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const { panel } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(
+                { ...toTargetPayload(referencingTarget), name: "staging" },
+                {
+                    authType: "basic",
+                    username: "${env:MIRAGON_USER}",
+                    password: "${env:MIRAGON_PASSWORD}",
+                },
+                "dev",
+            ),
+        );
+
+        expect(host.deploymentState.activeTargetName).toBe("staging");
+        expect([...host.deploymentState.ledger.keys()]).toEqual([]);
     });
 
     it("sends nothing when the user declines the host", async () => {

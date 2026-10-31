@@ -144,14 +144,12 @@ export class DeploymentFeature {
             ports.documents,
             this.targets,
             deployment,
-            this.status,
             ports.notifier,
             saveBeforeDeploy,
         );
         this.deployFilesService = new DeployFilesService(
             this.targets,
             deployment,
-            this.status,
             ports.picker,
             ports.notifier,
         );
@@ -162,12 +160,12 @@ export class DeploymentFeature {
                 deployment,
                 startInstance,
                 this.targets,
-                this.status,
                 saveBeforeDeploy,
                 ports.notifier,
                 post,
             );
         this.statusParticipant = new DeploymentStatusParticipant(this.status);
+        this.targets.onDidChange((event) => this.status.targetsChanged(event));
     }
 
     /**
@@ -182,6 +180,7 @@ export class DeploymentFeature {
         const activeEditorSubscription = this.ports.store.onDidChangeActiveEditor(() => {
             if (panelVisible) dispatcher.sendFormDefaults();
         });
+        const targetsSubscription = this.targets.onDidChange(() => dispatcher.targetsChanged());
         return {
             handle: (message) => dispatcher.handle(message),
             setVisible: (nowVisible) => {
@@ -191,6 +190,7 @@ export class DeploymentFeature {
             dispose: () => {
                 panelVisible = false;
                 activeEditorSubscription.dispose();
+                targetsSubscription.dispose();
                 if (this.openPanel === dispatcher) this.openPanel = undefined;
             },
         };
@@ -198,7 +198,7 @@ export class DeploymentFeature {
 
     /** QuickPick → persist → status bar → an open panel mirrors the new active target. */
     switchTarget(documentDir = this.activeDocumentDir()): Promise<void> {
-        return this.run(() => this.switchAndRefresh(documentDir));
+        return this.run(() => this.targets.switchActiveTarget(documentDir));
     }
 
     verify(documentDir = this.activeDocumentDir()): Promise<void> {
@@ -210,7 +210,7 @@ export class DeploymentFeature {
         return this.run(async () => {
             const action = await this.status.pickStatusBarAction(documentDir);
             if (action === "switch") {
-                await this.switchAndRefresh(documentDir);
+                await this.targets.switchActiveTarget(documentDir);
             } else if (action === "verify") {
                 await this.verification.verifyActive(documentDir);
             }
@@ -218,19 +218,12 @@ export class DeploymentFeature {
     }
 
     deployFiles(documentDir = this.activeDocumentDir()): Promise<void> {
-        return this.run(() =>
-            this.deployFilesService.deployFiles(documentDir, async () => {
-                await this.openPanel?.sendTargets();
-            }),
-        );
+        return this.run(() => this.deployFilesService.deployFiles(documentDir));
     }
 
     /** Saves and deploys the active diagram; the target picker may run first. */
     deployActive(documentDir = this.activeDocumentDir()): Promise<void> {
-        return this.run(async () => {
-            await this.deployActiveDiagram.deployActive(documentDir);
-            await this.openPanel?.sendTargets();
-        });
+        return this.run(() => this.deployActiveDiagram.deployActive(documentDir));
     }
 
     /** Directory of the active editor's document; commands also work with no diagram open. */
@@ -242,12 +235,6 @@ export class DeploymentFeature {
         } catch {
             return undefined;
         }
-    }
-
-    private async switchAndRefresh(documentDir: string | undefined): Promise<void> {
-        await this.targets.switchActiveTarget(documentDir);
-        await this.status.refreshFocused();
-        await this.openPanel?.sendTargets();
     }
 
     private async run(command: () => Promise<void>): Promise<void> {

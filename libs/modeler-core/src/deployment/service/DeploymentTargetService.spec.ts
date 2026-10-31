@@ -4,15 +4,17 @@ import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modele
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
-import { createTestHost, TestHostOptions } from "../../testing";
+import { createTestHost, PickerAnswers, TestHostOptions } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
 import {
     AdHocDestination,
     NamedDestination,
+    TargetEdit,
     TargetsLocation,
     UnknownTarget,
 } from "../domain/deploymentDestination";
+import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
 import {
     serializeDeploymentTargets,
     DeploymentTarget,
@@ -912,6 +914,164 @@ describe("DeploymentTargetService.switchActiveTarget", () => {
         await c.service.switchActiveTarget(DOC_DIR);
 
         expect(c.host.deploymentState.activeTargetName).toBe("dev");
+    });
+});
+
+describe("DeploymentTargetService.onDidChange", () => {
+    const noAuth: AuthConfigPayload = { authType: "none" };
+    const payloadOf = (name: string) => toTargetPayload(target(name));
+
+    const DEFAULT_ANSWERS: PickerAnswers = { confirmDestructive: true, deploymentTarget: "prod" };
+
+    /** `dev`, the active target, and `prod`; deletes are confirmed and the picker picks `prod`. */
+    function listeningService(answers: PickerAnswers = DEFAULT_ANSWERS) {
+        const c = createService({
+            files: { [FILE_PATH]: fileWith(target("dev"), target("prod")) },
+            answers,
+        });
+        c.artifactService.findConfigBaseDir.mockResolvedValue(WORKSPACE_ROOT);
+        c.host.deploymentState.activeTargetName = "dev";
+        const events: DeploymentTargetsEvent[] = [];
+        c.service.onDidChange((event) => void events.push(event));
+        return { ...c, events };
+    }
+
+    const targetsChanged = (edit: TargetEdit | undefined): DeploymentTargetsEvent => {
+        if (edit === undefined) throw new Error("the edit was not made");
+        return { kind: "targetsChanged", edit, documentDir: DOC_DIR };
+    };
+
+    it.each<{
+        mutation: string;
+        change: (service: DeploymentTargetService) => Promise<DeploymentTargetsEvent>;
+    }>([
+        {
+            mutation: "a create",
+            change: async (service) =>
+                targetsChanged(await service.createTarget(payloadOf("staging"), noAuth, DOC_DIR)),
+        },
+        {
+            mutation: "a save",
+            change: async (service) =>
+                targetsChanged(await service.saveTarget(payloadOf("dev"), noAuth, "dev", DOC_DIR)),
+        },
+        {
+            mutation: "a rename",
+            change: async (service) =>
+                targetsChanged(
+                    await service.saveTarget(payloadOf("staging"), noAuth, "dev", DOC_DIR),
+                ),
+        },
+        {
+            mutation: "a delete",
+            change: async (service) => targetsChanged(await service.deleteTarget("dev", DOC_DIR)),
+        },
+        {
+            mutation: "a picked switch",
+            change: async (service) => {
+                await service.switchActiveTarget(DOC_DIR);
+                return { kind: "activeTargetChanged", activeName: "prod" };
+            },
+        },
+        {
+            mutation: "a select",
+            change: async (service) => {
+                await service.setActiveTarget(" prod ");
+                return { kind: "activeTargetChanged", activeName: "prod" };
+            },
+        },
+    ])("notifies listeners once with the change after $mutation", async ({ change }) => {
+        const c = listeningService();
+
+        const expected = await change(c.service);
+
+        expect(c.events).toEqual([expected]);
+    });
+
+    it.each<{
+        mutation: string;
+        answers?: PickerAnswers;
+        attempt: (service: DeploymentTargetService) => Promise<unknown>;
+    }>([
+        {
+            mutation: "a rejected create",
+            attempt: (service) => service.createTarget(payloadOf("dev"), noAuth, DOC_DIR),
+        },
+        {
+            mutation: "a rejected rename",
+            attempt: (service) => service.saveTarget(payloadOf("prod"), noAuth, "dev", DOC_DIR),
+        },
+        {
+            mutation: "a cancelled delete",
+            answers: { confirmDestructive: false },
+            attempt: (service) => service.deleteTarget("dev", DOC_DIR),
+        },
+        {
+            mutation: "a dismissed picker",
+            answers: {},
+            attempt: (service) => service.switchActiveTarget(DOC_DIR),
+        },
+    ])("never notifies for $mutation", async ({ answers, attempt }) => {
+        const c = listeningService(answers);
+
+        await attempt(c.service).catch(() => undefined);
+
+        expect(c.events).toEqual([]);
+    });
+
+    it("notifies the listeners in subscription order, each after the previous one settled", async () => {
+        const c = createService();
+        const calls: string[] = [];
+        let settleFirst: () => void = () => undefined;
+        c.service.onDidChange(
+            () =>
+                new Promise<void>((resolve) => {
+                    calls.push("first notified");
+                    settleFirst = () => {
+                        calls.push("first settled");
+                        resolve();
+                    };
+                }),
+        );
+        c.service.onDidChange(() => void calls.push("second notified"));
+
+        const selecting = c.service.setActiveTarget("prod");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(calls).toEqual(["first notified"]);
+        settleFirst();
+        await selecting;
+
+        expect(calls).toEqual(["first notified", "first settled", "second notified"]);
+    });
+
+    it("logs a failing listener and still notifies the next one", async () => {
+        const c = createService();
+        const events: DeploymentTargetsEvent[] = [];
+        c.service.onDidChange(() => {
+            throw new Error("status bar is gone");
+        });
+        c.service.onDidChange(async () => {
+            throw new Error("panel is gone");
+        });
+        c.service.onDidChange((event) => void events.push(event));
+
+        await expect(c.service.setActiveTarget("prod")).resolves.toBeUndefined();
+
+        expect(events).toEqual([{ kind: "activeTargetChanged", activeName: "prod" }]);
+        expect(c.host.notifier.loggedErrors.map((error) => error.message)).toEqual([
+            "status bar is gone",
+            "panel is gone",
+        ]);
+    });
+
+    it("stops notifying a listener once its subscription is disposed", async () => {
+        const c = createService();
+        const events: DeploymentTargetsEvent[] = [];
+        c.service.onDidChange((event) => void events.push(event)).dispose();
+
+        await c.service.setActiveTarget("prod");
+
+        expect(events).toEqual([]);
     });
 });
 

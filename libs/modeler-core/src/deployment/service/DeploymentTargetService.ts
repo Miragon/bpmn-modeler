@@ -32,7 +32,12 @@ import {
     TargetsLocation,
     targetSecretSlot,
 } from "../domain/deploymentDestination";
+import {
+    DeploymentTargetsEvent,
+    DeploymentTargetsListener,
+} from "../domain/deploymentTargetsEvent";
 import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { storeCredentials } from "./storeCredentials";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
@@ -42,9 +47,12 @@ const TARGETS_FILE_NAME = "deployment-targets.json";
  * read, CRUD), the active target's persistence, and per-target credential
  * slots. Kept separate from {@link DeploymentService} (which owns the
  * REST call and the ad-hoc legacy path) so target lifecycle is its own concern.
- * The status bar is owned by `DeploymentStatusService`, not here.
+ * The status bar is owned by `DeploymentStatusService`, not here; it and the
+ * open panel follow the changes published through {@link onDidChange}.
  */
 export class DeploymentTargetService {
+    private readonly changeListeners = new Set<DeploymentTargetsListener>();
+
     constructor(
         private readonly artifactService: ArtifactService,
         private readonly settings: SettingsPort,
@@ -54,6 +62,23 @@ export class DeploymentTargetService {
         private readonly picker: PickerPort & DeploymentPickerPort,
         private readonly notifier: NotifierPort,
     ) {}
+
+    /** Once per successful target edit or switch, never for a rejected or cancelled one. */
+    onDidChange(listener: DeploymentTargetsListener): EditorSubscription {
+        this.changeListeners.add(listener);
+        return { dispose: () => this.changeListeners.delete(listener) };
+    }
+
+    /** The change is made by then, so a failing listener must not report it as failed. */
+    private async publish(event: DeploymentTargetsEvent): Promise<void> {
+        for (const listener of [...this.changeListeners]) {
+            try {
+                await listener(event);
+            } catch (error) {
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }
+        }
+    }
 
     /**
      * Resolves the targets file for `documentDir` (nearest existing one when a
@@ -210,11 +235,19 @@ export class DeploymentTargetService {
             current,
             location,
         );
-        await this.setActiveTarget(target.name);
+        await this.saveActiveTargetName(target.name);
         if (change.retiredSlotName !== undefined) {
             await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
         }
-        return new TargetEdit(change, location);
+        return this.publishEdit(new TargetEdit(change, location), documentDir);
+    }
+
+    private async publishEdit(
+        edit: TargetEdit,
+        documentDir: string | undefined,
+    ): Promise<TargetEdit> {
+        await this.publish({ kind: "targetsChanged", edit, documentDir });
+        return edit;
     }
 
     /**
@@ -266,9 +299,9 @@ export class DeploymentTargetService {
         await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
 
         if (this.deploymentState.getActiveTargetName() === change.name) {
-            await this.setActiveTarget("");
+            await this.saveActiveTargetName("");
         }
-        return new TargetEdit(change, location);
+        return this.publishEdit(new TargetEdit(change, location), documentDir);
     }
 
     /**
@@ -314,11 +347,19 @@ export class DeploymentTargetService {
     }
 
     async setActiveTarget(name: string): Promise<void> {
-        await this.deploymentState.saveActiveTargetName(name.trim());
+        const activeName = await this.saveActiveTargetName(name);
+        await this.publish({ kind: "activeTargetChanged", activeName });
+    }
+
+    /** A target edit publishes its own change, so it stores the active name without another one. */
+    private async saveActiveTargetName(name: string): Promise<string> {
+        const activeName = name.trim();
+        await this.deploymentState.saveActiveTargetName(activeName);
+        return activeName;
     }
 
     /**
-     * Picker → persist → status bar. A dismissal is a no-op; the explicit
+     * Picker → persist → listeners. A dismissal is a no-op; the explicit
      * "(none)" entry resolves to `""` (ad-hoc mode).
      */
     async switchActiveTarget(documentDir?: string): Promise<void> {

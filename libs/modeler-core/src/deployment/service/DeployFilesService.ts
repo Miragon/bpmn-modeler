@@ -1,6 +1,5 @@
 import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
 import { DeploymentService } from "./DeploymentService";
-import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
 
@@ -15,25 +14,18 @@ export class DeployFilesService {
     constructor(
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentService: DeploymentService,
-        private readonly deploymentStatusService: DeploymentStatusService,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 
     /**
      * With no active target the target picker runs first and the flow continues
-     * only if a target results. `afterTargetPicker` lets the host mirror the
-     * picker's outcome into an open deployment sidebar before files are chosen.
+     * only if a target results.
      */
-    async deployFiles(
-        documentDir: string | undefined,
-        afterTargetPicker?: () => Promise<void>,
-    ): Promise<void> {
+    async deployFiles(documentDir: string | undefined): Promise<void> {
         const destination = await resolveOrPickNamedDestination(
             this.deploymentTargetService,
-            this.deploymentStatusService,
             documentDir,
-            afterTargetPicker,
         );
         if (destination === undefined) {
             return;

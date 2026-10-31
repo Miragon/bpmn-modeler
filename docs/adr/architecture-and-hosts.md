@@ -248,9 +248,10 @@ path for the user, so a message names `c:\…` and not `/c:/…`.
 An editor's focus is its handle's `isActive()`, read through
 `EditorSessionStore.isFocused`. The status items every editor shares (engine
 version, bpmnlint, deployment) show an editor's state only if it is focused
-when the item is written. A ledger write or a command that refreshes the
-deployment item afterwards refreshes the focused editor (`refreshFocused`), not
-the editor it acted on. Each item's participant hides it on blur and close, and
+when the item is written. A ledger write or a
+[target change](deployment.md#targets-and-credentials) refreshes the
+deployment item for the focused editor (`refreshFocused`), not the editor it
+acted on. Each item's participant hides it on blur and close, and
 `StatusItemOwnership` decides only that hide. Only BPMN sessions run these
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
