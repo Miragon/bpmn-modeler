@@ -251,6 +251,36 @@ describe("parentWorkspacePath", () => {
             path: "file://C:",
             parent: undefined,
         },
+        {
+            behaviour: "climbs to the drive root of VS Code's /c:/ spelling",
+            path: "/c:/repo",
+            parent: "/c:",
+        },
+        {
+            behaviour: "has no parent above the drive root of VS Code's /c:/ spelling",
+            path: "/c:",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above a drive root with a trailing slash",
+            path: "/c:/",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above the drive root of a file:/// uri",
+            path: "file:///c:",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the drive root of a uri with an encoded colon",
+            path: "file:///c%3A/repo",
+            parent: "file:///c%3A",
+        },
+        {
+            behaviour: "has no parent above the drive root of a uri with an encoded colon",
+            path: "file:///c%3A",
+            parent: undefined,
+        },
     ])("$behaviour", ({ path, parent }) => {
         expect(parentWorkspacePath(path)).toBe(parent);
     });
