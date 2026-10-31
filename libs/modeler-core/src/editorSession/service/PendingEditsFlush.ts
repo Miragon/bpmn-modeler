@@ -6,7 +6,7 @@ import { DocumentFlushService } from "./DocumentFlushService";
 export type PendingEditsFlushResult =
     { status: "safe"; session: object } | { status: "unavailable" } | { status: "closed" };
 
-export type ModelerFileExtension = ".bpmn" | ".dmn" | ".form";
+export type ModelerFileExtension = ".bpmn" | ".dmn" | ".form" | ".json";
 
 export interface PendingEditsFlushOptions {
     destructive?: boolean;

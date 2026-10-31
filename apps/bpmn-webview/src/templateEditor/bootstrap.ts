@@ -13,6 +13,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
+import { TemplateDocumentSession } from "./documentSession";
 import { mountPreviewView } from "./previewView";
 import { readTemplateFile, type TemplateFileState } from "./templateFile";
 
@@ -21,9 +22,11 @@ type PreviewHost = Pick<HostApi<unknown, Command>, "postMessage">;
 type TemplateEditorHostMessages = {
     ElementTemplateFileQuery: MessageOfType<"ElementTemplateFileQuery">;
     LanguageQuery: MessageOfType<"LanguageQuery">;
+    FlushDocumentQuery: MessageOfType<"FlushDocumentQuery">;
+    ReleaseDocumentFlushQuery: MessageOfType<"ReleaseDocumentFlushQuery">;
 };
 
-// Long enough to skip the half-typed states between keystrokes.
+// Host edits arrive already debounced; this skips the half-typed states of the page's own.
 const EDIT_DEBOUNCE_MS = 300;
 
 /** Resolves to a disposer that stops listening to the host. */
@@ -41,12 +44,14 @@ export async function bootstrapTemplateEditor(host: PreviewHost): Promise<() => 
     });
     themeAdapter.setMode("automatic");
 
-    let content: string | undefined;
     let selected: string | undefined;
     let pendingUpdate: ReturnType<typeof setTimeout> | undefined;
+    const session = new TemplateDocumentSession(host, (_text, origin) =>
+        scheduleUpdate(origin === "host"),
+    );
 
     async function update(): Promise<void> {
-        const state = readTemplateFile(content ?? "", selected);
+        const state = readTemplateFile(session.text, selected);
         if (state.kind === "template" || state.kind === "unknownEngine") {
             selected = state.selected;
             view.showChoices(state.choices, state.selected);
@@ -88,17 +93,26 @@ export async function bootstrapTemplateEditor(host: PreviewHost): Promise<() => 
             if (query.locale) {
                 preview.setLocale(query.locale);
             }
-            const firstContent = content === undefined;
-            content = query.content;
-            scheduleUpdate(firstContent);
+            return session.receive(query);
         },
         LanguageQuery: (query) => preview.setLocale(query.locale),
+        FlushDocumentQuery: (query) => session.respondToFlush(query),
+        ReleaseDocumentFlushQuery: (query) => session.respondToFlush(query),
     });
     const onMessage = (event: MessageEvent<HostMessage>) => void route(event.data);
+    // A hidden webview is destroyed, so an edit still waiting must go out now.
+    const onVisibilityChange = () => {
+        if (document.visibilityState === "hidden") {
+            void session.flushPendingEdit();
+        }
+    };
     window.addEventListener("message", onMessage);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     host.postMessage(new GetElementTemplateFileCommand());
     return () => {
         window.removeEventListener("message", onMessage);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        session.dispose();
         clearTimeout(pendingUpdate);
         themeAdapter.dispose();
         preview.destroy();

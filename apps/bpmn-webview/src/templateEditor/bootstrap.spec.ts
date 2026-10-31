@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     type Command,
+    DocumentFlushedCommand,
     ElementTemplateFileQuery,
+    FlushDocumentQuery,
     GetElementTemplateFileCommand,
     LanguageQuery,
     LogErrorCommand,
@@ -97,23 +99,37 @@ describe("bootstrapTemplateEditor", () => {
         expect(messages()).toEqual([]);
     });
 
-    it("waits for typing to pause before showing an edit", async () => {
+    it("shows the host's edits once they pause", async () => {
         await start();
         receive(JSON.stringify(STATUS));
         await vi.advanceTimersByTimeAsync(0);
 
         receive(JSON.stringify({ ...STATUS, name: "Sta" }));
-        await vi.advanceTimersByTimeAsync(200);
+        await vi.advanceTimersByTimeAsync(50);
         receive(JSON.stringify(MAIL));
-        await vi.advanceTimersByTimeAsync(299);
+        await vi.advanceTimersByTimeAsync(99);
         expect(mocks.shown).toHaveLength(1);
 
-        await vi.advanceTimersByTimeAsync(1);
+        // The render waits on a few async steps after the debounce fires.
+        await vi.advanceTimersByTimeAsync(50);
         expect(mocks.shown).toEqual([
             { template: STATUS, engine: "c8" },
             { template: MAIL, engine: "c7" },
         ]);
         expect(text(".template-editor__engine")).toBe("Camunda 7");
+    });
+
+    it("answers the host's save with the document it shows", async () => {
+        await start();
+        receive(JSON.stringify(STATUS));
+        await vi.advanceTimersByTimeAsync(0);
+
+        window.dispatchEvent(
+            new MessageEvent("message", { data: new FlushDocumentQuery(3, false) }),
+        );
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(posted).toContainEqual(new DocumentFlushedCommand(3, undefined, "clean"));
     });
 
     it("keeps the chosen template of an array file across edits", async () => {
