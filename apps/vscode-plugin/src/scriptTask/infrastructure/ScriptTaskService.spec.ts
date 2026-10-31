@@ -1588,6 +1588,33 @@ describe("ScriptTaskService for a diagram on a UNC share", () => {
         expect(host.workspace.files.has(shareScriptPath(editor.id))).toBe(false);
     });
 
+    it("writes a model change to the script on the share when no buffer is open", async () => {
+        const { service, host, editor } = createServiceOnShare();
+        await openScript(service, editor.id);
+
+        await service.applyModelChange(editor.id, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "undone",
+        });
+
+        expect(host.workspace.files.get(shareScriptPath(editor.id))).toBe("undone");
+    });
+
+    it("writes back a script read from the share when its diagram closes", async () => {
+        const { service, host, editor, scriptXml } = createServiceOnShare();
+        await openScript(service, editor.id);
+        await host.workspace.writeFile(shareScriptPath(editor.id), "from-disk");
+
+        service.disposeEditor(editor.id);
+        await flushAsync();
+
+        expect(scriptXml.applyScriptContents).toHaveBeenCalledWith("<diagram-xml/>", [
+            { elementId: ELEMENT_ID, kind: KIND, listenerIndex: undefined, content: "from-disk" },
+        ]);
+    });
+
     it("adopts a script opened from the share", async () => {
         const { fireTabsChange, editor } = createServiceOnShare();
 

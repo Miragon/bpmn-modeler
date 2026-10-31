@@ -2,6 +2,7 @@ import { posix } from "path";
 
 const FILE_SCHEME = "file://";
 const UNC_ROOT = /^[\\/]{2}(?=[^\\/])/;
+const UNC_SHARE_ROOT = /^\/\/[^/]+\/[^/]+\/?$/;
 
 /**
  * The spelling of an absolute workspace path that hosts and the core exchange:
@@ -14,7 +15,15 @@ export function toWorkspacePath(path: string): string {
     return joinWorkspacePath(path);
 }
 
+/**
+ * The directory holding `path`, or `undefined` at a root: the filesystem root
+ * or the `//server/share` root of a UNC path. Above a share, `//server` names
+ * no folder and `/` names the current drive on Windows.
+ */
 export function parentWorkspacePath(path: string): string | undefined {
+    if (UNC_SHARE_ROOT.test(withoutFileScheme(path))) {
+        return undefined;
+    }
     const parent = posix.dirname(path);
     return parent === path ? undefined : parent;
 }
