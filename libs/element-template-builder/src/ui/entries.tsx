@@ -1,13 +1,14 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
-import { useError } from "@bpmn-io/properties-panel";
-
 import type { ConditionOperator, ConditionRow } from "../domain/conditions";
 import type { Diagnostic } from "../domain/diagnostics";
 
 export type Translate = (template: string, replacements?: Record<string, string>) => string;
 
-function ErrorText({ id }: { id: string }) {
-    const error: string | undefined = useError(id);
+/** Reads the entry's most severe message when it renders. */
+type ErrorOf = () => string | undefined;
+
+function ErrorText({ errorOf }: { errorOf?: ErrorOf }) {
+    const error = errorOf?.();
     return error ? <div class="bio-properties-panel-error">{error}</div> : null;
 }
 
@@ -20,11 +21,12 @@ export interface AppliesToEntryProps {
     onAdd: (value: string) => void;
     onRemove: (index: number) => void;
     translate: Translate;
+    errorOf?: ErrorOf;
 }
 
 /** The element types a template applies to, as removable chips plus a picker. */
 export function AppliesToEntry(props: AppliesToEntryProps) {
-    const { id, label, values, options, disabled, onAdd, onRemove, translate } = props;
+    const { id, label, values, options, disabled, onAdd, onRemove, translate, errorOf } = props;
     const addable = options.filter((option) => !values.includes(option));
     return (
         <div class="bio-properties-panel-entry etb-entry" data-entry-id={id}>
@@ -50,8 +52,8 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
                 aria-label={translate("Add an element type")}
                 disabled={disabled || addable.length === 0}
                 value=""
-                onChange={(event) => {
-                    const value = event.currentTarget.value;
+                onChange={(event: Event) => {
+                    const value = (event.currentTarget as HTMLInputElement).value;
                     if (value) {
                         onAdd(value);
                     }
@@ -64,7 +66,7 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
                     </option>
                 ))}
             </select>
-            <ErrorText id={id} />
+            <ErrorText errorOf={errorOf} />
         </div>
     );
 }
@@ -83,11 +85,12 @@ export interface ChoicesEntryProps {
     onChange: (index: number, key: "name" | "value", value: string) => void;
     onRemove: (index: number) => void;
     translate: Translate;
+    errorOf?: ErrorOf;
 }
 
 /** A Dropdown's choices: one row of name and value each. */
 export function ChoicesEntry(props: ChoicesEntryProps) {
-    const { id, label, choices, disabled, onAdd, onChange, onRemove, translate } = props;
+    const { id, label, choices, disabled, onAdd, onChange, onRemove, translate, errorOf } = props;
     return (
         <div class="bio-properties-panel-entry etb-entry" data-entry-id={id}>
             <label class="bio-properties-panel-label">{label}</label>
@@ -98,14 +101,22 @@ export function ChoicesEntry(props: ChoicesEntryProps) {
                         aria-label={translate("Choice name")}
                         value={choice.name}
                         disabled={disabled}
-                        onInput={(event) => onChange(index, "name", event.currentTarget.value)}
+                        onInput={(event: Event) =>
+                            onChange(index, "name", (event.currentTarget as HTMLInputElement).value)
+                        }
                     />
                     <input
                         class="bio-properties-panel-input"
                         aria-label={translate("Choice value")}
                         value={choice.value}
                         disabled={disabled}
-                        onInput={(event) => onChange(index, "value", event.currentTarget.value)}
+                        onInput={(event: Event) =>
+                            onChange(
+                                index,
+                                "value",
+                                (event.currentTarget as HTMLInputElement).value,
+                            )
+                        }
                     />
                     <button
                         type="button"
@@ -121,7 +132,7 @@ export function ChoicesEntry(props: ChoicesEntryProps) {
             <button type="button" class="etb-button" disabled={disabled} onClick={onAdd}>
                 {translate("Add choice")}
             </button>
-            <ErrorText id={id} />
+            <ErrorText errorOf={errorOf} />
         </div>
     );
 }
@@ -135,13 +146,14 @@ export interface ConditionEntryProps {
     disabled: boolean;
     onChange: (rows: ConditionRow[]) => void;
     translate: Translate;
+    errorOf?: ErrorOf;
 }
 
 const OPERATORS: readonly ConditionOperator[] = ["equals", "oneOf", "isActive", "isEmpty"];
 
 /** When the property shows: every row must match. */
 export function ConditionEntry(props: ConditionEntryProps) {
-    const { id, label, rows, properties, disabled, onChange, translate } = props;
+    const { id, label, rows, properties, disabled, onChange, translate, errorOf } = props;
     const update = (index: number, change: Partial<ConditionRow>) =>
         onChange(rows.map((row, at) => (at === index ? { ...row, ...change } : row)));
     const operatorLabels: Record<ConditionOperator, string> = {
@@ -160,7 +172,11 @@ export function ConditionEntry(props: ConditionEntryProps) {
                         aria-label={translate("Property")}
                         value={row.property}
                         disabled={disabled}
-                        onChange={(event) => update(index, { property: event.currentTarget.value })}
+                        onChange={(event: Event) =>
+                            update(index, {
+                                property: (event.currentTarget as HTMLInputElement).value,
+                            })
+                        }
                     >
                         {[...new Set([row.property, ...properties])].map((property) => (
                             <option value={property} key={property}>
@@ -173,9 +189,10 @@ export function ConditionEntry(props: ConditionEntryProps) {
                         aria-label={translate("Operator")}
                         value={row.operator}
                         disabled={disabled}
-                        onChange={(event) =>
+                        onChange={(event: Event) =>
                             update(index, {
-                                operator: event.currentTarget.value as ConditionOperator,
+                                operator: (event.currentTarget as HTMLInputElement)
+                                    .value as ConditionOperator,
                             })
                         }
                     >
@@ -191,8 +208,10 @@ export function ConditionEntry(props: ConditionEntryProps) {
                             aria-label={translate("Value")}
                             value={row.value === "false" ? "false" : "true"}
                             disabled={disabled}
-                            onChange={(event) =>
-                                update(index, { value: event.currentTarget.value })
+                            onChange={(event: Event) =>
+                                update(index, {
+                                    value: (event.currentTarget as HTMLInputElement).value,
+                                })
                             }
                         >
                             <option value="true">{translate("yes")}</option>
@@ -205,7 +224,11 @@ export function ConditionEntry(props: ConditionEntryProps) {
                             placeholder={row.operator === "oneOf" ? translate("a, b, c") : ""}
                             value={row.value}
                             disabled={disabled}
-                            onInput={(event) => update(index, { value: event.currentTarget.value })}
+                            onInput={(event: Event) =>
+                                update(index, {
+                                    value: (event.currentTarget as HTMLInputElement).value,
+                                })
+                            }
                         />
                     )}
                     <button
@@ -232,7 +255,7 @@ export function ConditionEntry(props: ConditionEntryProps) {
             >
                 {translate("Add condition")}
             </button>
-            <ErrorText id={id} />
+            <ErrorText errorOf={errorOf} />
         </div>
     );
 }
@@ -240,6 +263,8 @@ export function ConditionEntry(props: ConditionEntryProps) {
 export interface Problem extends Diagnostic {
     /** The entry showing the problem's value, if any. */
     entryId?: string;
+    /** The property or group the problem is about. */
+    where?: string;
 }
 
 export interface ProblemsEntryProps {
@@ -258,7 +283,12 @@ export function ProblemsEntry(props: ProblemsEntryProps) {
         <ul class="bio-properties-panel-entry etb-problems" data-entry-id={id}>
             {problems.map((problem, index) => (
                 <li class={`etb-problem etb-problem--${problem.severity}`} key={index}>
-                    <span class="etb-problem__message">{translate(problem.message)}</span>
+                    <span class="etb-problem__message">
+                        {problem.where ? (
+                            <span class="etb-problem__where">{problem.where}: </span>
+                        ) : null}
+                        {translate(problem.message)}
+                    </span>
                     {problem.entryId ? (
                         <button type="button" class="etb-link" onClick={() => onShow(problem)}>
                             {translate("Show")}

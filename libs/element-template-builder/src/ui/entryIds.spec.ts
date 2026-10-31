@@ -16,10 +16,16 @@ describe("entryIdOf", () => {
 });
 
 describe("diagnosticsByEntry", () => {
-    const known = new Set(["template-name", "property-0-condition", "property-0-binding-type"]);
+    const known = new Set([
+        "template-name",
+        "property-0-condition",
+        "property-0-binding-type",
+        "property-2-label",
+        "group-1-id",
+    ]);
 
     it("attaches a diagnostic to the nearest entry that shows its value", () => {
-        const { byEntry, unplaced } = diagnosticsByEntry(
+        const { byEntry, entryIds } = diagnosticsByEntry(
             [
                 { path: ["name"], severity: "error", message: "Name it" },
                 {
@@ -45,7 +51,26 @@ describe("diagnosticsByEntry", () => {
                 { severity: "error", message: "Also" },
             ],
         });
-        expect(unplaced).toEqual([]);
+        expect(entryIds).toEqual([
+            "template-name",
+            "property-0-condition",
+            "property-0-binding-type",
+            "property-0-binding-type",
+        ]);
+    });
+
+    it.each([
+        [["properties", 0, "binding"], "property-0-binding-type"],
+        [["properties", 2], "property-2-label"],
+        [["properties", 2, "constraints"], "property-2-label"],
+        [["groups", 1], "group-1-id"],
+    ])("lets the first entry stand for the whole object at %j", (path, id) => {
+        const diagnostic = { path, severity: "warning" as const, message: "Deprecated" };
+
+        expect(diagnosticsByEntry([diagnostic], known)).toEqual({
+            byEntry: { [id]: [{ severity: "warning", message: "Deprecated" }] },
+            entryIds: [id],
+        });
     });
 
     it("keeps what no entry shows for the summary", () => {
@@ -53,7 +78,7 @@ describe("diagnosticsByEntry", () => {
 
         expect(diagnosticsByEntry([diagnostic], known)).toEqual({
             byEntry: {},
-            unplaced: [diagnostic],
+            entryIds: [undefined],
         });
     });
 });

@@ -16,6 +16,7 @@ import {
     bindingSpecOf,
     catalogFor,
     feelSupport,
+    type BindingField,
     type BindingSpec,
     type EngineCatalog,
 } from "../catalog";
@@ -38,7 +39,7 @@ import {
     setField,
     updateChoice,
 } from "../domain/transforms";
-import { diagnosticsByEntry, entryIdOf } from "./entryIds";
+import { diagnosticsByEntry, entryIdOf, type EntryDiagnostic } from "./entryIds";
 import {
     AppliesToEntry,
     ChoicesEntry,
@@ -122,6 +123,8 @@ interface Context {
     edit: (edits: TemplateEdit[]) => void;
     translate: Translate;
     element: object;
+    /** The most severe message for an entry; known once every entry is built. */
+    errorOf: (id: string) => string | undefined;
 }
 
 /** The form over one template: its basics, its groups, its properties and what is wrong. */
@@ -129,6 +132,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
     const element = useRef({}).current;
     const eventBus = useMemo(() => new PanelEventBus(), []);
     const catalog = catalogFor(state.engine);
+    let byEntry: Record<string, EntryDiagnostic[]> = {};
     const ctx: Context = {
         template: state.template,
         catalog,
@@ -136,6 +140,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
         edit: onEdit,
         translate,
         element,
+        errorOf: (id) => mostSevere(byEntry[id])?.message,
     };
 
     const knownIds = new Set<string>();
@@ -144,13 +149,13 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
         groupsGroup(ctx, knownIds),
         propertiesGroup(ctx, knownIds),
     ];
-    const { byEntry, unplaced } = diagnosticsByEntry(state.diagnostics, knownIds);
+    const placed = diagnosticsByEntry(state.diagnostics, knownIds);
+    byEntry = placed.byEntry;
 
-    const problems: Problem[] = state.diagnostics.map((diagnostic) => ({
+    const problems: Problem[] = state.diagnostics.map((diagnostic, index) => ({
         ...diagnostic,
-        entryId: unplaced.includes(diagnostic)
-            ? undefined
-            : nearestEntry(diagnostic.path, knownIds),
+        entryId: placed.entryIds[index],
+        where: whereOf(diagnostic.path, state.template, translate),
     }));
     if (problems.length > 0) {
         groups.unshift({
@@ -213,6 +218,7 @@ function templateGroup(ctx: Context, ids: Set<string>) {
             options: catalog.elementTypes,
             disabled: !ctx.editable,
             translate,
+            errorOf: () => ctx.errorOf("template-appliesTo"),
             onAdd: (value: string) =>
                 ctx.edit([
                     {
@@ -275,11 +281,11 @@ function groupsGroup(ctx: Context, ids: Set<string>) {
         id: "groups",
         label: translate("Groups"),
         component: ListGroup,
-        add: ctx.editable ? () => ctx.edit(addGroup(template)) : undefined,
+        add: headerButton(ctx, () => addGroup(template)),
         items: groups.map((group, index) => ({
             id: `group-${index}`,
-            label: stringOf(group.label) || stringOf(group.id) || translate("Unnamed group"),
-            remove: ctx.editable ? () => ctx.edit(removeGroup(template, index)) : undefined,
+            label: groupTitle(group, translate),
+            remove: headerButton(ctx, () => removeGroup(template, index)),
             entries: [
                 {
                     ...textEntry(ctx, ids, ["groups", index, "id"], "Id"),
@@ -300,14 +306,11 @@ function propertiesGroup(ctx: Context, ids: Set<string>) {
         id: "properties",
         label: translate("Properties"),
         component: ListGroup,
-        add: ctx.editable ? () => ctx.edit(addProperty(template, ctx.catalog)) : undefined,
+        add: headerButton(ctx, () => addProperty(template, ctx.catalog)),
         items: properties.map((property, index) => ({
             id: `property-${index}`,
-            label:
-                stringOf(property.label) ||
-                stringOf(property.id) ||
-                translate("Unlabeled property"),
-            remove: ctx.editable ? () => ctx.edit(removeProperty(index)) : undefined,
+            label: propertyTitle(property, translate),
+            remove: headerButton(ctx, () => removeProperty(index)),
             autoFocusEntry: entryIdOf(["properties", index, "label"]),
             entries: propertyEntries(ctx, ids, properties, property, index),
         })),
@@ -436,6 +439,7 @@ function propertyEntries(
             ),
             disabled: !ctx.editable,
             translate,
+            errorOf: () => ctx.errorOf(entryIdOf(at("condition"))),
             onChange: (rows: Parameters<typeof conditionOf>[0]) =>
                 ctx.edit(setField(at("condition"), conditionOf(rows, typeOf), template)),
         });
@@ -451,7 +455,7 @@ function bindingFieldEntry(
     ids: Set<string>,
     index: number,
     binding: Json,
-    field: BindingSpec["fields"][number],
+    field: BindingField,
 ) {
     const path: JsonPath = ["properties", index, "binding", field.key];
     const change = (value: unknown) =>
@@ -534,6 +538,7 @@ function valueEntries(ctx: Context, ids: Set<string>, property: Json, index: num
                     choices,
                     disabled: !ctx.editable,
                     translate,
+                    errorOf: () => ctx.errorOf(entryIdOf(["properties", index, "choices"])),
                     onAdd: () => ctx.edit(addChoice(template, index)),
                     onChange: (choice: number, key: "name" | "value", next: string) =>
                         ctx.edit(updateChoice(index, choice, key, next)),
@@ -589,10 +594,15 @@ function feelEntries(
     return entries;
 }
 
+// Lengths and patterns check text; other types keep only those the JSON already sets.
+const TEXT_TYPES = ["String", "Text"];
+
 function constraintEntries(ctx: Context, ids: Set<string>, property: Json, index: number) {
     const { template, translate } = ctx;
     const constraints = objectOf(property.constraints);
     const at = (key: string): JsonPath => ["properties", index, "constraints", key];
+    const textual = TEXT_TYPES.includes(stringOf(property.type));
+    const offered = (key: string, forType: boolean) => forType || constraints[key] !== undefined;
     const pattern = constraints.pattern;
     const patternValue = typeof pattern === "string" ? pattern : stringOf(objectOf(pattern).value);
     const patternMessage = typeof pattern === "string" ? "" : stringOf(objectOf(pattern).message);
@@ -605,8 +615,9 @@ function constraintEntries(ctx: Context, ids: Set<string>, property: Json, index
                 value === "" ? undefined : message ? { value, message } : value,
             ),
         );
-    return [
-        {
+    const entries: object[] = [];
+    if (offered("notEmpty", property.type !== "Boolean")) {
+        entries.push({
             id: register(ids, at("notEmpty")),
             component: CheckboxEntry,
             label: translate("Required"),
@@ -615,32 +626,41 @@ function constraintEntries(ctx: Context, ids: Set<string>, property: Json, index
             getValue: () => constraints.notEmpty === true,
             setValue: (value: boolean) =>
                 ctx.edit(setConstraint(template, index, "notEmpty", value || undefined)),
-        },
-        {
+        });
+    }
+    if (offered("minLength", textual)) {
+        entries.push({
             ...numberEntry(ctx, ids, at("minLength"), "Minimum length"),
             setValue: lengthSetter(ctx, index, "minLength"),
-        },
-        {
+        });
+    }
+    if (offered("maxLength", textual)) {
+        entries.push({
             ...numberEntry(ctx, ids, at("maxLength"), "Maximum length"),
             setValue: lengthSetter(ctx, index, "maxLength"),
-        },
-        {
-            ...textEntry(ctx, ids, at("pattern"), "Pattern"),
-            getValue: () => patternValue,
-            setValue: (value: string) => setPattern(value, patternMessage),
-        },
-        {
-            ...textEntry(
-                ctx,
-                ids,
-                ["properties", index, "constraints", "patternMessage"],
-                "Message when the pattern does not match",
-            ),
-            getValue: () => patternMessage,
-            setValue: (message: string) => setPattern(patternValue, message),
-            disabled: !ctx.editable || patternValue === "",
-        },
-    ];
+        });
+    }
+    if (offered("pattern", textual)) {
+        entries.push(
+            {
+                ...textEntry(ctx, ids, at("pattern"), "Pattern"),
+                getValue: () => patternValue,
+                setValue: (value: string) => setPattern(value, patternMessage),
+            },
+            {
+                ...textEntry(
+                    ctx,
+                    ids,
+                    at("patternMessage"),
+                    "Message when the pattern does not match",
+                ),
+                getValue: () => patternMessage,
+                setValue: (message: string) => setPattern(patternValue, message),
+                disabled: !ctx.editable || patternValue === "",
+            },
+        );
+    }
+    return entries;
 }
 
 function lengthSetter(ctx: Context, index: number, key: string) {
@@ -731,14 +751,48 @@ function register(ids: Set<string>, path: JsonPath): string {
     return id;
 }
 
-function nearestEntry(path: JsonPath, ids: ReadonlySet<string>): string | undefined {
-    for (let length = path.length; length > 0; length--) {
-        const id = entryIdOf(path.slice(0, length));
-        if (ids.has(id)) {
-            return id;
-        }
+// The list's add and the item's remove button sit in headers whose click toggles them open.
+function headerButton(ctx: Context, edits: () => TemplateEdit[]) {
+    return ctx.editable
+        ? (event: Event) => {
+              event.stopPropagation();
+              ctx.edit(edits());
+          }
+        : undefined;
+}
+
+const BINDING_TARGET_KEYS = ["name", "key", "property", "target", "source"];
+
+/** A property's title in lists: its label, its id, or else its type and what it binds to. */
+function propertyTitle(property: Json, translate: Translate): string {
+    const binding = objectOf(property.binding);
+    const target =
+        BINDING_TARGET_KEYS.map((key) => stringOf(binding[key])).find(Boolean) ??
+        stringOf(binding.type);
+    return (
+        stringOf(property.label) ||
+        stringOf(property.id) ||
+        [stringOf(property.type), target].filter(Boolean).join(" · ") ||
+        translate("Unlabeled property")
+    );
+}
+
+function groupTitle(group: Json, translate: Translate): string {
+    return stringOf(group.label) || stringOf(group.id) || translate("Unnamed group");
+}
+
+/** The property or group a problem is about; template-wide problems need no name. */
+function whereOf(path: JsonPath, template: Json, translate: Translate): string | undefined {
+    const [list, index] = path;
+    if (typeof index !== "number") {
+        return undefined;
     }
-    return undefined;
+    if (list === "properties") {
+        return propertyTitle(objectOf(arrayOf(template.properties)[index]), translate);
+    }
+    return list === "groups"
+        ? groupTitle(objectOf(arrayOf(template.groups)[index]), translate)
+        : undefined;
 }
 
 function withCurrent(options: readonly string[], current: string): string[] {
@@ -781,4 +835,20 @@ function objectOf(value: unknown): Json {
     return typeof value === "object" && value !== null && !Array.isArray(value)
         ? (value as Json)
         : {};
+}
+
+const SEVERITY_RANK: Readonly<Record<EntryDiagnostic["severity"], number>> = {
+    error: 2,
+    warning: 1,
+    info: 0,
+};
+
+function mostSevere(
+    diagnostics: readonly EntryDiagnostic[] | undefined,
+): EntryDiagnostic | undefined {
+    return diagnostics?.reduce<EntryDiagnostic | undefined>(
+        (worst, next) =>
+            worst && SEVERITY_RANK[worst.severity] >= SEVERITY_RANK[next.severity] ? worst : next,
+        undefined,
+    );
 }
