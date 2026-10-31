@@ -555,15 +555,12 @@ export class RpcTokenPrompt implements TokenPromptPort {
  * once on startup (`deploymentState/seed`) and `load()` reads the mirror, which
  * the core normalises.
  *
- * Ownership is single-writer: the in-process **mirror is authoritative** for
- * reads, and the host is a persisted replica reconciled on the next re-seed.
- * `save` applies the patch to the mirror optimistically (so in-process reads and
- * the form UX stay correct), then sends it as one **acknowledged**
- * `deploymentState/save` request. A persist failure rejects so the core decides
- * what it means. The mirror is deliberately *not* rolled back on failure —
- * reverting mid-session would surface stale form values; the next seed
- * reconciles. Secrets are out of scope here — they ride {@link RpcSecretStore} /
- * PasswordSafe.
+ * The host is the writer of record: `save` sends the patch as one
+ * **acknowledged** `deploymentState/save` request and applies it to the mirror
+ * only once the host accepted it, so a read never shows a value the host did
+ * not store. A persist failure rejects, leaves the mirror as it was, and lets
+ * the core decide what it means. Secrets are out of scope here — they ride
+ * {@link RpcSecretStore} / PasswordSafe.
  */
 export class RpcDeploymentState implements DeploymentStatePort {
     private state: DeploymentState = DEFAULT_DEPLOYMENT_STATE;
@@ -580,8 +577,9 @@ export class RpcDeploymentState implements DeploymentStatePort {
     }
 
     async save(patch: DeploymentStatePatch): Promise<void> {
-        this.state = applyDeploymentStatePatch(this.state, patch);
         await this.rpc.request(METHODS.deploymentStateSave, { patch });
+        // Patched onto the state at acceptance, not at send, so an overlapping save is kept.
+        this.state = applyDeploymentStatePatch(this.state, patch);
     }
 }
 
