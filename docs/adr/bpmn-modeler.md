@@ -55,10 +55,11 @@ implementations through `void | Promise<void>`.
 The editable handles also take two subscriptions, `onCommandStackChanged` and
 `onFormatted`, each returning its unsubscribe function. They are handle methods
 rather than `on*` options because #1835 specifies them that way, matching the
-existing handle method `viewport.onViewportChanged`. Both deliver a plain
-payload instead of the diagram-js event, and ignore the listener's return
-value: a value returned to the event bus stops the event before later listeners
-see it. Hosts therefore need no event names (`commandStack.changed`,
+existing handle method `viewport.onViewportChanged`. `onFormatted` delivers a
+plain payload instead of the diagram-js event, `onCommandStackChanged` none at
+all, and both ignore the listener's return value: a value returned to the event
+bus stops the event before later listeners see it. Subscribing after `destroy()`
+throws `NoModelerError`, as every other member does. Hosts therefore need no event names (`commandStack.changed`,
 `layout.formatted`), which stay unstable internals.
 
 The navigation port's optional `isReferenceAvailable(reference)` is synchronous
