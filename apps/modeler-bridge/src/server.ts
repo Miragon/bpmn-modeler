@@ -33,7 +33,10 @@ process.stdin.on(
     "data",
     createStdinHandler(rpc, (text) => process.stderr.write(text)),
 );
-process.stdin.on("end", () => process.exit(0));
+process.stdin.on("end", () => {
+    rpc.handleEnd();
+    process.exit(0);
+});
 
 // stdin EOF is the normal teardown, but the host also sends SIGTERM (its
 // graceful `Process.destroy()` before a force-kill fallback). Exit promptly on

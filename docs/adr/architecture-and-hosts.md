@@ -544,11 +544,17 @@ The host answers every core request exactly once: with its result, or with an
 error when its handler throws, also when the handler runs on the EDT
 (`RpcChannel.replyFromEdt`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
-The bridge's `Rpc.request` has no deadline. Prompts wait on the user, a document
-write waits behind any open modal dialog, and a write that landed after a
-timeout would leave the document mirror stale, because only its reply updates
-the mirror. An unanswered request would therefore hold the core's per-editor
-queue until the editor reopens.
+How long the bridge's `Rpc.request` waits is data on each request in the
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts)
+(`replyWait`). Host work, such as a save, a clipboard read or a secret, fails
+after two minutes, so a reply the host never sends cannot hold the caller's
+per-editor queue; the caller's own error handling runs. The limit is generous
+because host work can queue behind a modal dialog or a keychain prompt. Prompts
+wait for the user. `document/write` and `deploymentState/save` have no deadline
+either: only their reply updates the bridge mirror, so giving up on a write the
+host still applies would leave the mirror behind the host. Such a request holds
+its caller's queue until the host answers, which a modal dialog can delay. When
+stdin ends, every outstanding request fails.
 
 Notifications and status indicators are native host UI backed by RPC ports.
 The core writes the text of every notification, including the error balloon

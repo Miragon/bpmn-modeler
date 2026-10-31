@@ -86,6 +86,30 @@ type Direction = "hostToCore" | "coreToHost";
 type Kind = "notification" | "request";
 
 /**
+ * How long the core waits for the host's reply to a request:
+ * - `prompt`: the host asks the user, who takes as long as they need.
+ * - `mirroredWrite`: the reply is the only update of a bridge mirror, so giving
+ *   up on a write the host still applies would leave the mirror behind it.
+ * - `hostWork`: fails after {@link HOST_WORK_REPLY_DEADLINE_MS}, so a reply the
+ *   host never sends cannot hold the caller's editor queue.
+ */
+type ReplyWait = "prompt" | "mirroredWrite" | "hostWork";
+
+interface ProtocolEntryShape {
+    readonly method: string;
+    readonly direction: Direction;
+    readonly paramsFixture: object;
+}
+
+type ProtocolEntry =
+    | (ProtocolEntryShape & { readonly kind: "notification" })
+    | (ProtocolEntryShape & {
+          readonly kind: "request";
+          readonly replyWait: ReplyWait;
+          readonly resultFixture?: object;
+      });
+
+/**
  * Ergonomic name constants for call-sites (`METHODS.sessionRegister`). Hand-kept
  * in lockstep with {@link PROTOCOL}: the contract test asserts the two method
  * sets are identical, so neither can gain a method the other lacks.
@@ -390,6 +414,7 @@ export const PROTOCOL = [
         method: METHODS.documentWrite,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "mirroredWrite",
         paramsFixture: {
             editorId: "e1",
             sessionId: 1,
@@ -406,6 +431,7 @@ export const PROTOCOL = [
         method: METHODS.documentSave,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: { editorId: "e1", sessionId: 1 } satisfies DocumentSaveParams,
         resultFixture: { saved: true } satisfies DocumentSaveResult,
     },
@@ -413,6 +439,7 @@ export const PROTOCOL = [
         method: METHODS.pickerShow,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "prompt",
         paramsFixture: {
             title: "Pick",
             placeholder: "Pick one",
@@ -425,6 +452,7 @@ export const PROTOCOL = [
         method: METHODS.confirmShow,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "prompt",
         paramsFixture: {
             title: "Remove 2 leftover item(s)?",
             confirmLabel: "Clean Up",
@@ -436,6 +464,7 @@ export const PROTOCOL = [
         method: METHODS.clipboardRead,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {} satisfies EmptyParams,
         resultFixture: { text: "copied" } satisfies ClipboardReadResult,
     },
@@ -443,6 +472,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveBasicAuth,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             username: "u",
             password: "p",
@@ -454,6 +484,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreGetBasicAuth,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretGetParams,
@@ -463,6 +494,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveOAuth2,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             clientId: "id",
             clientSecret: "secret",
@@ -473,6 +505,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreGetOAuth2,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretGetParams,
@@ -482,6 +515,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreGetApprovedDestinations,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretGetApprovedDestinationsParams,
@@ -491,6 +525,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveApprovedDestinations,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
             origins: ["https://engine.example"],
@@ -500,6 +535,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreDelete,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretDeleteParams,
@@ -511,6 +547,7 @@ export const PROTOCOL = [
         method: METHODS.deploymentStateSave,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "mirroredWrite",
         paramsFixture: {
             patch: {
                 endpoint: "https://engine",
@@ -540,6 +577,7 @@ export const PROTOCOL = [
         method: METHODS.marketplaceStateSave,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             location: "https://github.com/owner/repo",
             scope: "project",
@@ -549,6 +587,7 @@ export const PROTOCOL = [
         method: METHODS.tokenStoreGet,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: { host: "github.com" } satisfies TokenStoreGetParams,
         resultFixture: { token: "ghp_example" } satisfies TokenStoreGetResult,
     },
@@ -556,6 +595,7 @@ export const PROTOCOL = [
         method: METHODS.tokenStoreSet,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             host: "github.com",
             token: "ghp_example",
@@ -565,6 +605,7 @@ export const PROTOCOL = [
         method: METHODS.tokenPromptShow,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "prompt",
         paramsFixture: {
             title: "Personal Access Token for github.com",
             prompt: "github.com denied access; enter a personal access token.",
@@ -699,12 +740,20 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
     },
-] as const;
+] as const satisfies readonly ProtocolEntry[];
 
+/** Generous, because host work can queue behind a modal dialog or a keychain prompt. */
 export const HOST_WORK_REPLY_DEADLINE_MS = 120_000;
 
-export function replyDeadlineMs(_method: string): number | undefined {
-    return undefined;
+const HOST_WORK_REQUESTS: ReadonlySet<string> = new Set(
+    PROTOCOL.filter((entry) => "replyWait" in entry && entry.replyWait === "hostWork").map(
+        (entry) => entry.method,
+    ),
+);
+
+/** How long a request to `method` waits for its reply; `undefined` waits until the host answers. */
+export function replyDeadlineMs(method: string): number | undefined {
+    return HOST_WORK_REQUESTS.has(method) ? HOST_WORK_REPLY_DEADLINE_MS : undefined;
 }
 
 /** Language-neutral, per-method key contract — what the Kotlin host verifies against. */
