@@ -256,7 +256,9 @@ export class TemplateMarketplaceService {
             } catch (error) {
                 this.warnSkippedSource(registration, error);
                 // A rejected replace keeps the source's last-good files, so it
-                // brought nothing in; a failed removal concerns no listed source.
+                // brought nothing in. A failed removal is only logged: a replace
+                // after it still claims the slot, and without one the removed
+                // files stay served until the next update.
                 if (action.kind === "replace") {
                     sourceFailures.push(
                         this.sourceFailure(registration, sources[action.sourceIndex], error),
