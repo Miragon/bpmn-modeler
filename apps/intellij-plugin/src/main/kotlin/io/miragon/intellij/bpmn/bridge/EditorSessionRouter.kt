@@ -11,6 +11,8 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileDocumentManagerListener
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -36,11 +38,14 @@ import java.util.concurrent.atomic.AtomicReference
  *   tests step time deterministically instead of waiting on the shared pool.
  * @param readDocumentText Reads the content a `session/register` frame seeds.
  *   Injectable so tests can close a tab while its register frame is built.
+ * @param selectedEditorIds The editor ids of the tabs selected in the editor
+ *   windows, the focused window's first. Injectable because tests open no tabs.
  */
 internal class EditorSessionRouter(
     private val deps: BridgeDeps,
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
     private val readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
+    private val selectedEditorIds: () -> List<String> = { selectedEditorIdsOf(deps.project) },
 ) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
 
@@ -860,6 +865,10 @@ internal fun readDocumentTextInReadAction(file: VirtualFile): String =
     ApplicationManager.getApplication().runReadAction(
         Computable { FileDocumentManager.getInstance().getDocument(file)?.text.orEmpty() },
     )
+
+/** The editor ids of the files selected in [project]'s editor windows, the focused window's first. */
+internal fun selectedEditorIdsOf(project: Project): List<String> =
+    FileEditorManager.getInstance(project).selectedFiles.map { it.url }
 
 /** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
 internal data class DocumentFlushedReply(
