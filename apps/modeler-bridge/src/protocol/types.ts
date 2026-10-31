@@ -336,13 +336,13 @@ export interface TokenStoreSetParams {
 }
 
 /**
- * `tokenPrompt/show` — a modal PAT-entry dialog on the host. Result carries the
- * entered token, or `null` on decline/blank (never throws — a decline is per-run
- * data, not control flow).
+ * `tokenPrompt/show` — a modal password dialog with the core's title and prompt.
+ * Result carries the answer as typed, or `null` on cancel; the core judges a
+ * blank answer.
  */
 export interface TokenPromptShowParams {
-    host: string;
-    reason: string;
+    title: string;
+    prompt: string;
 }
 export interface TokenPromptShowResult {
     token: string;

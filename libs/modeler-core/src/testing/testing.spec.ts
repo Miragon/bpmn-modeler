@@ -9,6 +9,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
 import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
+import { tokenPromptFor } from "../template-marketplace/domain/tokenPrompt";
 import { createTestHost } from "./createTestHost";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
@@ -350,7 +351,7 @@ describe("createTestHost", () => {
         ).rejects.toSatisfy(isHiddenEditorError);
     });
 
-    it("keeps credentials per slot and treats a blank token answer as a decline", async () => {
+    it("keeps credentials per slot and answers a token prompt as typed", async () => {
         const host = createTestHost({ tokenAnswers: { "github.com": "  ", "gitlab.com": " t " } });
 
         await host.secrets.saveBasicAuth("ada", "secret", "targets.json::dev");
@@ -362,8 +363,15 @@ describe("createTestHost", () => {
             clientId: "client",
             clientSecret: "s3cret",
         });
-        await expect(host.tokenPrompt.promptForToken("github.com", "401")).resolves.toBeUndefined();
-        await expect(host.tokenPrompt.promptForToken("gitlab.com", "401")).resolves.toBe("t");
+        const promptFor = (tokenHost: string) => tokenPromptFor(tokenHost, "declaredPrivate");
+        await expect(host.tokenPrompt.promptForToken(promptFor("github.com"))).resolves.toBe("  ");
+        await expect(host.tokenPrompt.promptForToken(promptFor("gitlab.com"))).resolves.toBe(" t ");
+        await expect(
+            host.tokenPrompt.promptForToken(promptFor("gitea.com")),
+        ).resolves.toBeUndefined();
+        expect(host.tokenPrompt.prompts).toEqual(
+            ["github.com", "gitlab.com", "gitea.com"].map(promptFor),
+        );
     });
 
     it("keeps approved destinations per slot and drops them with the slot's credentials", async () => {

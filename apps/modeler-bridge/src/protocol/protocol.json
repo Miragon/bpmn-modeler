@@ -425,8 +425,8 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [
-            "host",
-            "reason"
+            "prompt",
+            "title"
         ],
         "resultKeys": [
             "token"

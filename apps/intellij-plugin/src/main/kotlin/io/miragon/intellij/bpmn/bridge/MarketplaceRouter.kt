@@ -23,9 +23,9 @@ internal class MarketplaceRouter(
     private val deps: BridgeDeps,
     // Seam for tests only: the real prompt is a modal password dialog, which is
     // EDT-only and not headless-stubbable, so a test injects a deterministic
-    // stand-in. Returns the entered token, or null on cancel.
-    private val passwordPrompt: (host: String, reason: String) -> String? = { host, reason ->
-        Messages.showPasswordDialog(deps.project, reason, "Personal Access Token for $host", null)
+    // stand-in. Returns the answer as typed, or null on cancel.
+    private val passwordPrompt: (title: String, prompt: String) -> String? = { title, prompt ->
+        Messages.showPasswordDialog(deps.project, prompt, title, null)
     },
 ) {
     private val tokenStore by lazy { IntellijMarketplaceTokenStore() }
@@ -75,19 +75,17 @@ internal class MarketplaceRouter(
     }
 
     /**
-     * Shows a modal password dialog on the EDT and replies with the entered token,
-     * or `null` on cancel / blank / a disposed project (mirrors `handlePick`). A
-     * blank entry maps to `null` core-side too, but guarding here keeps an empty
-     * token from ever being stored as a valid one.
+     * Shows the core's title and prompt in a modal password dialog on the EDT and
+     * replies with the answer as typed, or `null` on cancel or a disposed project
+     * (mirrors `handlePick`). The core judges a blank answer.
      */
     private fun handleTokenPrompt(params: JsonObject, id: Int?) {
         if (id == null) return
-        val host = params.get("host").asString
-        val reason = params.get("reason")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        val title = params.get("title").asString
+        val prompt = params.get("prompt").asString
         deps.channel.replyFromEdt(id, "tokenPrompt/show") {
             if (deps.project.isDisposed) return@replyFromEdt null
-            val token = passwordPrompt(host, reason)?.trim()
-            if (!token.isNullOrEmpty()) mapOf("token" to token) else null
+            passwordPrompt(title, prompt)?.let { mapOf("token" to it) }
         }
     }
 

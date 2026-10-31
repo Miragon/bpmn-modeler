@@ -29,6 +29,9 @@ class MarketplaceRouterTest {
 
     private val gson = Gson()
 
+    private val tokenPromptParams: JsonObject
+        get() = obj("title" to "Personal Access Token for github.com", "prompt" to "why")
+
     // Closed in teardown so the transport's daemon threads do not trip ThreadLeakTracker.
     private var wired: WiredBridge? = null
 
@@ -130,20 +133,21 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `tokenPrompt reply carries the granted token`() {
-        val (wired, _) = router(prompt = { _, _ -> "  ghp_granted  " })
-        wired.handlers.dispatch("tokenPrompt/show", obj("host" to "github.com", "reason" to "why"), 20)
+    fun `tokenPrompt shows the core's title and prompt and replies the answer as typed`() {
+        val shown = mutableListOf<Pair<String, String>>()
+        val (wired, _) = router(prompt = { title, prompt -> "  ghp_granted  ".also { shown += title to prompt } })
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 20)
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(20, reply.get("id").asInt)
-        // The host trims the entry before it ever reaches the core.
-        assertEquals("ghp_granted", reply.getAsJsonObject("result").get("token").asString)
+        assertEquals(listOf("Personal Access Token for github.com" to "why"), shown)
+        assertEquals("  ghp_granted  ", reply.getAsJsonObject("result").get("token").asString)
     }
 
     @Test
-    fun `tokenPrompt reply is null on decline`() {
+    fun `tokenPrompt reply is null on cancel`() {
         val (wired, _) = router(prompt = { _, _ -> null })
-        wired.handlers.dispatch("tokenPrompt/show", obj("host" to "github.com", "reason" to "why"), 21)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 21)
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(21, reply.get("id").asInt)
@@ -153,7 +157,7 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenPrompt answers with an error when the prompt throws`() {
         val (wired, _) = router(prompt = { _, _ -> throw IllegalStateException("dialog failed") })
-        wired.handlers.dispatch("tokenPrompt/show", obj("host" to "github.com", "reason" to "why"), 22)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 22)
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(22, reply.get("id").asInt)

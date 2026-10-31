@@ -29,6 +29,7 @@ import {
     RpcPicker,
     RpcSecretStore,
     RpcStatusBar,
+    RpcTokenPrompt,
     SessionMeta,
 } from "./adapters";
 import { BridgeSettings } from "./nodeAdapters";
@@ -779,6 +780,38 @@ describe("RpcSecretStore", () => {
         const getOauth = store.getOAuth2();
         await answerLast(null);
         await expect(getOauth).resolves.toBeUndefined();
+    });
+});
+
+describe("RpcTokenPrompt", () => {
+    const PROMPT = {
+        host: "github.com",
+        title: "Personal Access Token for github.com",
+        prompt: "why",
+        password: true,
+    } as const;
+
+    it("sends the core's title and prompt and returns the answer as typed", async () => {
+        const { frames, rpc, answerLast } = harness();
+
+        const pending = new RpcTokenPrompt(rpc).promptForToken(PROMPT);
+        expect(last(frames)).toEqual({
+            id: expect.any(Number),
+            method: "tokenPrompt/show",
+            params: { title: "Personal Access Token for github.com", prompt: "why" },
+        });
+        await answerLast({ token: "  tok " });
+
+        await expect(pending).resolves.toBe("  tok ");
+    });
+
+    it("resolves undefined when the dialog is cancelled", async () => {
+        const { rpc, answerLast } = harness();
+
+        const pending = new RpcTokenPrompt(rpc).promptForToken(PROMPT);
+        await answerLast(null);
+
+        await expect(pending).resolves.toBeUndefined();
     });
 });
 
