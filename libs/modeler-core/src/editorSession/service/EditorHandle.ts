@@ -22,7 +22,7 @@ export interface EditorHandle {
 
     /** `uri.toString()` — the canonical session key (scheme-qualified). */
     documentUriString(): string;
-    /** `uri.path` — POSIX-style path the rest of the core speaks. */
+    /** `uri.path` — POSIX-style path the rest of the core speaks; `//server/…` on a share. */
     documentPath(): string;
     /** `uri.fsPath` — OS-native path (differs from `path` on Windows). */
     documentFsPath(): string;

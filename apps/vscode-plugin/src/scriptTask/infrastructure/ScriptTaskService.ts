@@ -47,7 +47,7 @@ import {
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
 import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
-import { toUri } from "../../shared/infrastructure/uriPath";
+import { canonicalPath, toUri } from "../../shared/infrastructure/uriPath";
 
 /**
  * Tracks an open script document.
@@ -99,7 +99,7 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * buffer.
  */
 export class ScriptTaskService implements ScriptEditorPort {
-    // Open script documents keyed by canonical `uri.path`.
+    // Open script documents keyed by `uri.path`.
     private readonly openDocuments = new Map<string, OpenDocument>();
 
     // URI paths currently being written by us — used for echo prevention.
@@ -338,9 +338,9 @@ export class ScriptTaskService implements ScriptEditorPort {
         kind: ScriptKind,
     ): Promise<void> {
         await this.withWritingGuard(scriptUri.path, async () => {
-            await this.scriptFiles.writeFile(scriptUri.path, content);
+            await this.scriptFiles.writeFile(canonicalPath(scriptUri), content);
             if (lang.languageId === "javascript") {
-                await this.writeJsAmbientFiles(scriptUri.path, kind);
+                await this.writeJsAmbientFiles(canonicalPath(scriptUri), kind);
             }
         });
     }
@@ -380,12 +380,12 @@ export class ScriptTaskService implements ScriptEditorPort {
             return;
         }
 
-        const match = matchScriptFile(uri.path, this.editorStore.getEditorIds());
+        const match = matchScriptFile(canonicalPath(uri), this.editorStore.getEditorIds());
         if (!match) {
             return;
         }
 
-        if (!(await this.scriptFiles.adopt(match.editorId, uri.path))) {
+        if (!(await this.scriptFiles.adopt(match.editorId, canonicalPath(uri)))) {
             return;
         }
 
@@ -531,7 +531,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             this.broadcastOpenScripts(editorId);
             await this.saveIfDirty(entry.uri);
             await this.closeTabsFor(new Set([entry.uri.path]));
-            void this.scriptFiles.deleteScript(entry.uri.path);
+            void this.scriptFiles.deleteScript(canonicalPath(entry.uri));
             return;
         }
 
@@ -545,7 +545,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             // Tab open but document not yet materialised (or already
             // disposed): the file is the only copy to refresh.
             await this.withWritingGuard(entry.uri.path, () =>
-                this.scriptFiles.writeFile(entry.uri.path, content),
+                this.scriptFiles.writeFile(canonicalPath(entry.uri), content),
             );
             return;
         }
@@ -724,7 +724,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             return buffered;
         }
         try {
-            return await this.scriptFiles.readFile(entry.uri.path);
+            return await this.scriptFiles.readFile(canonicalPath(entry.uri));
         } catch {
             return undefined;
         }

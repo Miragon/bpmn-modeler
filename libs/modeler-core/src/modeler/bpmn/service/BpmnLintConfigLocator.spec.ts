@@ -117,4 +117,17 @@ describe("BpmnLintConfigLocator.createWatcher", () => {
         await workspace.writeFile("/work/proc/.bpmnlintrc", "{}");
         expect(target.setBpmnlintConfig).toHaveBeenCalledTimes(3);
     });
+
+    it("watches from a UNC document's directory when only its server holds a git repository", async () => {
+        const { locator, workspace } = createLocator(
+            { "file://server/.git/HEAD": "ref: refs/heads/main" },
+            [],
+        );
+
+        await locator.createWatcher("file://server/share/loose/order.bpmn", {
+            setBpmnlintConfig: vi.fn(),
+        });
+
+        expect(workspace.watchers.map(({ root }) => root)).toEqual(["file://server/share/loose"]);
+    });
 });

@@ -331,6 +331,42 @@ describe("DeploymentFeature panel target commands", () => {
         ]);
     });
 
+    it("pushes the renamed list after the failure when saving the active target name fails, so the form no longer edits the old name", async () => {
+        const { host, feature } = createFeature();
+        host.openEditor(ORDER_PROCESS);
+        host.deploymentState.seed({ activeTargetName: "dev" });
+        host.deploymentState.failSaves(
+            (patch) => patch.activeTargetName !== undefined,
+            new Error("deployment state is read-only"),
+        );
+        const { panel, posted } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+        );
+
+        expect(
+            posted.filter(
+                (query) =>
+                    query instanceof TargetSavedQuery || query instanceof DeploymentTargetsQuery,
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                type: "TargetSavedQuery",
+                success: false,
+                message: "deployment state is read-only",
+            }),
+            expect.objectContaining({
+                type: "DeploymentTargetsQuery",
+                targets: [
+                    expect.objectContaining({ name: "prod" }),
+                    expect.objectContaining({ name: "staging" }),
+                ],
+                activeTargetName: "",
+            }),
+        ]);
+    });
+
     it("selecting a target in the panel pushes the target list once", async () => {
         const { host, feature } = createFeature();
         await host.openSession(ORDER_PROCESS, [feature.statusParticipant]);

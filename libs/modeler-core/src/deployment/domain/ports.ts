@@ -75,8 +75,10 @@ export interface EngineInspectionPort {
  * PasswordSafe.
  */
 export interface SecretStorePort {
+    /** Replaces both halves of the slot's pair or neither, so a deploy never sends a mixed pair. */
     saveBasicAuth(username: string, password: string, slot?: string): Promise<void>;
     getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined>;
+    /** Replaces both halves of the slot's pair or neither, like {@link saveBasicAuth}. */
     saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void>;
     getOAuth2(slot?: string): Promise<{ clientId: string; clientSecret: string } | undefined>;
     /**

@@ -265,20 +265,41 @@ under the same id in the background leaves the target where it is. When the
 target's panel turns inactive, the target moves to the session that has
 reported focus longest without blurring since, if any. A host focuses one
 editor at a time, so focusing a session drops every other session's report,
-and a target the host focused keeps the target when it blurs. Theia creates
-every custom-editor panel with `active = true`, so in the standalone app a
-diagram that resolves behind the focused one takes the target, and hands it
-back when Theia blurs its panel. Theia does not always send that blur. It
-caches each panel's view state, compares new states against that cache, and
-drops an update for a panel that does not exist yet. A background tab restored
-behind the focused one therefore keeps reporting `active` until the user
+and a target the host focused keeps the target when it blurs. The VS Code
+handle counts a panel as active only while it is also visible
+(`panel.active && panel.visible`), for `isActive()` and for the state its
+view-state events report. Running the app with Theia 1.76 showed Theia
+restoring a hidden tab as its active widget and reporting that panel active
+after a restart. That run logged only `active`. Theia's source takes
+`visible` from the widget (`!widget.isHidden`), so the same report should
+mark the panel hidden; no restart run has confirmed that yet. The handle
+reports such a panel as a blur: the hidden tab neither takes the target nor
+counts as focused, and a target on it goes to the session that has reported
+focus longest, if any. VS Code reports an
+active panel as visible, so nothing changes there. Theia creates every
+custom-editor panel active and visible, so in the standalone app a diagram
+that resolves behind the focused one takes the target, and hands it back when
+Theia blurs its panel. Theia does not always send that blur. It caches each
+panel's view state, compares new states against that cache, and drops an
+update for a panel that does not exist yet. A background tab restored behind
+the focused one therefore keeps reporting active and visible until the user
 activates and leaves it, and `isFocused` and `getFocusedEditorId` report it
 focused. Such a panel can take the target through a blur hand-off only until
-the host focuses a session. Running the app with Theia 1.76 showed that stale
-tab after a restart. It also showed Theia restoring a hidden tab as its active
-widget and reporting that panel active, and the target follows that report
-like any other activation. So after a restart, commands can still act on a
-diagram the user does not see ([#1911](https://github.com/Miragon/bpmn-modeler/issues/1911)).
+the host focuses a session. When Theia sends no view-state update for the
+restored diagrams at all, the diagram registered last keeps the target, so
+after a restart commands can still act on a hidden tab until the user
+focuses a diagram. The visibility check cannot catch that case, because the
+panel never learns that it is hidden. The hand-off also depends on the order
+of Theia's reports, which, by Theia's source, covers every changed panel in
+one pass in the order Theia created them. When the visible diagram reports
+inactive before the hidden tab reports, the visible one blurs first, the
+hidden tab's blur finds no session that reports focus, and the hidden tab
+keeps the target. `VsCodeEditorHandle.spec.ts` pins that case as an expected
+failure. The tab model does not close them: VS Code before 1.135 can leave a
+background tab marked active in `window.tabGroups`, and Theia's tab model can
+still be empty when restored panels register. Both cases stay open in #1972;
+the cause is Theia's view-state cache starting hidden while its panels start
+active and visible.
 In VS Code only one panel is active at a time, so the target ends on the panel
 VS Code activated whichever view-state event comes first, and the bridge blurs
 only sessions that no longer hold the target. A

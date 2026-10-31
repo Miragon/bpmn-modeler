@@ -43,12 +43,17 @@ vi.mock("vscode", () => {
             readonly end: unknown,
         ) {}
     }
-    const fileUri = (path: string) => ({
-        scheme: "file",
-        path,
-        fsPath: path,
-        toString: () => `file://${path}`,
-    });
+    // Takes a UNC server as the authority, as VS Code's `Uri.file` does.
+    const fileUri = (path: string) => {
+        const [, authority = "", uriPath = path] = /^\/\/([^/]+)(\/.*)$/.exec(path) ?? [];
+        return {
+            scheme: "file",
+            authority,
+            path: uriPath,
+            fsPath: path,
+            toString: () => `file://${authority}${uriPath}`,
+        };
+    };
     return {
         TabInputText,
         WorkspaceEdit,
@@ -57,7 +62,10 @@ vi.mock("vscode", () => {
         Uri: {
             // `toUri` routes plain paths through `Uri.file`.
             file: fileUri,
-            parse: (value: string) => fileUri(value.replace(/^file:\/\//, "")),
+            parse: (value: string) => {
+                const [, authority, path] = /^file:\/\/([^/]*)(.*)$/.exec(value) ?? [];
+                return fileUri(authority ? `//${authority}${path}` : path);
+            },
         },
         languages: {
             setTextDocumentLanguage: (...args: unknown[]) => setTextDocumentLanguageMock(...args),
@@ -160,11 +168,14 @@ const STREAM_DEBOUNCE_MS = 300;
  * listener callbacks the subject hands to vscode so tests can fire document
  * and tab events directly.
  */
-function createService(promptAnswers: PromptAnswers = {}) {
+function createService(
+    promptAnswers: PromptAnswers = {},
+    { folder = "/repo", editorPath = EDITOR_PATH } = {},
+) {
     // The canonical editor is live so adoption's reverse hash→editor lookup
     // resolves an opened script to a session.
-    const host = createTestHost({ promptAnswers, folders: ["/repo"] });
-    const editor = host.openEditor(EDITOR_PATH);
+    const host = createTestHost({ promptAnswers, folders: [folder] });
+    const editor = host.openEditor(editorPath);
     const scriptFileStore = new ScriptFileStore(
         host.store,
         host.workspace,
@@ -1520,5 +1531,101 @@ describe("ScriptTaskService adoption", () => {
         expect(openDocumentsOf(service).has(scriptPath())).toBe(false);
         expect(lastBroadcastRefs(editor)).toEqual([]);
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
+    });
+});
+
+describe("ScriptTaskService for a diagram on a UNC share", () => {
+    function createServiceOnShare() {
+        return createService(
+            {},
+            { folder: "//server/share/repo", editorPath: "//server/share/repo/process.bpmn" },
+        );
+    }
+
+    function shareScriptPath(editorId: string): string {
+        const rel = new ScriptUri(
+            editorId,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            new ScriptLanguage("javascript").extension,
+        ).relativePath();
+        return `//server/share/repo/.camunda/tmp/scripting/${rel}`;
+    }
+
+    async function openScript(service: ScriptTaskService, editorId: string): Promise<void> {
+        await service.open(editorId, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "javascript",
+            content: "console.log(1)",
+        });
+    }
+
+    it("writes the script and its ambient files to the share", async () => {
+        const { service, host, editor } = createServiceOnShare();
+
+        await openScript(service, editor.id);
+
+        const path = shareScriptPath(editor.id);
+        expect(host.workspace.files.get(path)).toBe("console.log(1)");
+        expect(host.workspace.files.has(`${slugDirOf(path)}/camunda.d.ts`)).toBe(true);
+    });
+
+    it("deletes the script from the share when its element is deleted", async () => {
+        const { service, host, editor } = createServiceOnShare();
+        await openScript(service, editor.id);
+        await host.workspace.writeFile(shareScriptPath(editor.id), "console.log(1)");
+
+        await service.applyModelChange(editor.id, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: undefined,
+        });
+        await flushAsync();
+
+        expect(host.workspace.files.has(shareScriptPath(editor.id))).toBe(false);
+    });
+
+    it("writes a model change to the script on the share when no buffer is open", async () => {
+        const { service, host, editor } = createServiceOnShare();
+        await openScript(service, editor.id);
+
+        await service.applyModelChange(editor.id, {
+            elementId: ELEMENT_ID,
+            kind: KIND,
+            listenerIndex: undefined,
+            content: "undone",
+        });
+
+        expect(host.workspace.files.get(shareScriptPath(editor.id))).toBe("undone");
+    });
+
+    it("writes back a script read from the share when its diagram closes", async () => {
+        const { service, host, editor, scriptXml } = createServiceOnShare();
+        await openScript(service, editor.id);
+        await host.workspace.writeFile(shareScriptPath(editor.id), "from-disk");
+
+        service.disposeEditor(editor.id);
+        await flushAsync();
+
+        expect(scriptXml.applyScriptContents).toHaveBeenCalledWith("<diagram-xml/>", [
+            { elementId: ELEMENT_ID, kind: KIND, listenerIndex: undefined, content: "from-disk" },
+        ]);
+    });
+
+    it("adopts a script opened from the share", async () => {
+        const { fireTabsChange, editor } = createServiceOnShare();
+
+        fireTabsChange({ opened: [makeTab(shareScriptPath(editor.id))], closed: [], changed: [] });
+        await flushAsync();
+
+        expect(lastBroadcastRefs(editor)).toEqual([
+            expect.objectContaining({ elementId: ELEMENT_ID, kind: KIND }),
+        ]);
     });
 });

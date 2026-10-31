@@ -64,7 +64,10 @@ export class DeploymentTargetService {
         private readonly notifier: NotifierPort,
     ) {}
 
-    /** Once per successful target edit or switch, never for a rejected or cancelled one. */
+    /**
+     * Once per switch and per target edit that reached the file, even when a later
+     * step of it failed; never for a rejected or cancelled one.
+     */
     onDidChange(listener: DeploymentTargetsListener): EditorSubscription {
         this.changeListeners.add(listener);
         return { dispose: () => this.changeListeners.delete(listener) };
@@ -220,27 +223,72 @@ export class DeploymentTargetService {
         });
         const current = new DeploymentTargets(await this.readTargets(location));
         const change = apply(current, target);
-        await this.workspace.writeFile(
-            location.filePath,
-            serializeDeploymentTargets(change.targets),
-        );
 
-        // Refs are stored too: they overwrite any older literal, and a backend that
-        // reads an empty half back as null would drop the literal next to it.
+        // Once the file holds the new name nothing names the old slot again, so the
+        // secrets go first.
         const slot = targetSecretSlot(location, target.name);
-        await storeCredentials(this.secretStore, credentials, slot);
-        await this.approveTypedDestinations(
-            slot,
-            target,
-            change.approvalsInheritedFrom,
-            current,
-            location,
-        );
-        await this.saveActiveTargetName(target.name);
-        if (change.retiredSlotName !== undefined) {
-            await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
+        try {
+            // Refs are stored too: they overwrite any older literal, and a backend that
+            // reads an empty half back as null would drop the literal next to it.
+            await storeCredentials(this.secretStore, credentials, slot);
+            await this.approveTypedDestinations(
+                slot,
+                target,
+                change.approvalsInheritedFrom,
+                current,
+                location,
+            );
+            await this.workspace.writeFile(
+                location.filePath,
+                serializeDeploymentTargets(change.targets),
+            );
+        } catch (error) {
+            await this.cleanUpAfterFailure(() => this.deleteSlot(location, change.newSlotName));
+            throw error;
         }
-        return this.publishEdit(new TargetEdit(change, location), documentDir);
+
+        const edit = new TargetEdit(change, location);
+        try {
+            await this.activateWrittenTarget(target.name, change.retiredSlotName, location);
+        } finally {
+            // The file holds the edit even when a later step failed; a panel still
+            // showing the old name would send a retry as the same rename.
+            await this.publishEdit(edit, documentDir);
+        }
+        return edit;
+    }
+
+    /**
+     * Nothing names the retired slot once the file is written, so it goes even
+     * when saving the active name fails.
+     */
+    private async activateWrittenTarget(
+        name: string,
+        retiredSlotName: string | undefined,
+        location: TargetsLocation,
+    ): Promise<void> {
+        try {
+            await this.saveActiveTargetName(name);
+        } catch (error) {
+            await this.cleanUpAfterFailure(() => this.deleteSlot(location, retiredSlotName));
+            throw error;
+        }
+        await this.deleteSlot(location, retiredSlotName);
+    }
+
+    /** The edit's own failure is the one to report, so a cleanup failing after it is only logged. */
+    private async cleanUpAfterFailure(cleanUp: () => Promise<void>): Promise<void> {
+        try {
+            await cleanUp();
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+
+    private async deleteSlot(location: TargetsLocation, name: string | undefined): Promise<void> {
+        if (name !== undefined) {
+            await this.secretStore.delete(targetSecretSlot(location, name));
+        }
     }
 
     private async publishEdit(

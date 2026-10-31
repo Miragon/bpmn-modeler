@@ -21,8 +21,10 @@ export class Uri {
         return new Uri(parts.scheme, parts.authority ?? "", parts.path ?? "");
     }
 
+    /** Takes a UNC server as the authority, as VS Code does. */
     static file(path: string): Uri {
-        return new Uri("file", "", path);
+        const [, authority = "", uncPath = "/"] = /^\/\/([^/]+)(\/.*)?$/.exec(path) ?? [];
+        return authority ? new Uri("file", authority, uncPath) : new Uri("file", "", path);
     }
 
     static joinPath(base: Uri, ...pathSegments: string[]): Uri {
@@ -30,7 +32,9 @@ export class Uri {
     }
 
     get fsPath(): string {
-        return this.path;
+        return this.scheme === "file" && this.authority
+            ? `//${this.authority}${this.path}`
+            : this.path;
     }
 
     toString(): string {
