@@ -19,6 +19,7 @@ import {
     createHostThemeAdapter,
     GetElementTemplateFileCommand,
     type HostApi,
+    initResizer,
     LogErrorCommand,
     type MessageOfType,
     resolveHostThemeKind,
@@ -41,6 +42,9 @@ type TemplateEditorHostMessages = {
 // Host edits arrive already debounced; this skips the half-typed states of the page's own.
 const EDIT_DEBOUNCE_MS = 300;
 
+// Below this the builder needs the room, e.g. beside the JSON editor; the toggle opens the preview.
+const NARROW_EDITOR_WIDTH = 640;
+
 const translate = (template: string, replacements?: Record<string, string>) =>
     i18n.translate(template, replacements);
 
@@ -52,6 +56,14 @@ export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => v
         throw new Error("Template editor: missing #app");
     }
     const view = mountEditorView(root, translate);
+    const previewPane = initResizer({
+        getToggleLabel: (state) =>
+            translate(state === "collapsed" ? "Show preview" : "Hide preview"),
+        onLabelChange: (apply) => i18n.onChange(apply),
+    });
+    if (window.innerWidth < NARROW_EDITOR_WIDTH) {
+        previewPane.setVisible(false);
+    }
     const preview = await createTemplatePreview(view.previewPanel, {
         theme: resolveHostThemeKind(),
     });
@@ -182,6 +194,7 @@ export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => v
         session.dispose();
         clearTimeout(pendingCheck);
         themeAdapter.dispose();
+        previewPane.dispose();
         builder.destroy();
         preview.destroy();
     };

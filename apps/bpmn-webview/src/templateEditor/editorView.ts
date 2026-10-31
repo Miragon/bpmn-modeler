@@ -5,7 +5,7 @@ import type { TemplateChoice } from "./templateFile";
 
 type Translate = (template: string, replacements?: Record<string, string>) => string;
 
-/** The template editor's page: toolbar, messages, the preview on the left and the builder. */
+/** The template editor's page: toolbar, messages, the builder and the preview on the right. */
 export interface EditorView {
     readonly previewPanel: HTMLElement;
     readonly builderRoot: HTMLElement;
@@ -48,20 +48,22 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
     const choice = element("select", "template-editor__choice");
     choice.setAttribute("aria-label", translate("Template"));
     choice.hidden = true;
-    const previewToggle = element(
-        "button",
-        "template-editor__preview-toggle",
-        translate("Preview"),
-    );
-    previewToggle.type = "button";
-    previewToggle.setAttribute("aria-pressed", "true");
-    previewToggle.hidden = true;
     const messages = element("div", "template-editor__messages");
     messages.setAttribute("role", "status");
 
     const body = element("div", "template-editor__body");
-    const previewPanel = element("aside", "template-editor__preview");
-    previewPanel.setAttribute("aria-label", translate("Preview"));
+    // The ids and classes of the modelers' properties panel, so the shared resizer and its look apply.
+    const resizer = element("div", "panel-resizer");
+    resizer.id = "js-panel-resizer";
+    const previewPane = element("aside", "properties-panel-parent template-editor__preview");
+    previewPane.id = "js-properties-panel";
+    previewPane.setAttribute("aria-label", translate("Preview"));
+    const previewPanel = element("div", "template-editor__preview-mount");
+    const previewTitle = element("div", "template-editor__preview-title", translate("Preview"));
+    previewTitle.title = translate(
+        "The template as the properties panel shows it. Values entered here are not saved.",
+    );
+    previewPane.append(previewTitle, previewPanel);
     const main = element("main", "template-editor__main");
     const builderRoot = element("div", "template-editor__builder");
 
@@ -159,20 +161,15 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
         view.hidden = true;
     }
     main.append(builderRoot, wizard, engineChoice, placeholder);
-    body.append(previewPanel, main);
-    toolbar.append(engineBadge, choice, previewToggle);
+    body.append(main, resizer, previewPane);
+    toolbar.append(engineBadge, choice);
     // An empty toolbar would only be a stray line above the wizard.
     const fitToolbar = () => {
-        toolbar.hidden = engineBadge.hidden && choice.hidden && previewToggle.hidden;
+        toolbar.hidden = engineBadge.hidden && choice.hidden;
     };
     fitToolbar();
     container.append(toolbar, messages, body);
     root.replaceChildren(container);
-
-    previewToggle.addEventListener("click", () => {
-        const hidden = container.classList.toggle("template-editor--preview-hidden");
-        previewToggle.setAttribute("aria-pressed", String(!hidden));
-    });
 
     return {
         previewPanel,
@@ -200,8 +197,6 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
         },
         showPreview(available) {
             container.classList.toggle("template-editor--no-preview", !available);
-            previewToggle.hidden = !available;
-            fitToolbar();
         },
         showMain(shown) {
             const opensWizard = shown === "wizard" && wizard.hidden;
