@@ -1,0 +1,12 @@
+export { filesReaching, isHostModule } from "./hostReach";
+export { findImportCycles } from "./importCycles";
+export type { DirectedEdge } from "./importCycles";
+export { buildImportGraph, resolveRelativeImport, unresolvedRelativeImports } from "./importGraph";
+export type { ImportEdge, ImportGraph } from "./importGraph";
+export { exceptionsWithoutIssue, staleExceptions, unexcusedViolations } from "./knownExceptions";
+export type { KnownException, Violation } from "./knownExceptions";
+export { readModuleImports } from "./moduleImports";
+export type { ModuleImport } from "./moduleImports";
+export { requireMatches } from "./requireMatches";
+export { readSourceTree } from "./sourceTree";
+export type { SourceFile, SourceTreeOptions } from "./sourceTree";
