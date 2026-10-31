@@ -51,9 +51,14 @@ slots retain the legacy unnamed keys when absent; deletion/rename cleans up
 the target slot. Each auth type keeps its credential pair in one entry
 (PasswordSafe `Credentials` in IntelliJ, a JSON object in VS Code), so a failed
 write leaves the old pair whole. VS Code still reads a pair from the two keys
-earlier releases stored while that entry is missing, and the next save of the
-pair removes them. VS Code's delete tries every key of the slot before it
-reports the first failure. Never write secrets into the shared file; whole-value
+earlier releases stored while that entry is missing. A save removes those keys
+once the entry is stored; a failure to remove them does not fail the save,
+because the entry shadows them and the next save or the slot's delete removes
+them. Downgrading costs the pair: an earlier release reads only the two keys,
+so after the first save it finds no credentials for that target, and a pair it
+saves then stays shadowed by the entry after the next upgrade until the target
+is saved again. VS Code's delete tries every key of the slot before it reports
+the first failure. Never write secrets into the shared file; whole-value
 environment references (below) are the only credential values it may hold.
 
 Each edit of the file returns a `TargetChange` from `DeploymentTargets`
