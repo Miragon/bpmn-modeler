@@ -98,6 +98,13 @@ describe("ImplementationTarget", () => {
         {
             kind: "delegateExpression",
             reference: "${myBean}",
+            path: "/src/worker.ts",
+            content: '@Service("myBean")',
+            implemented: false,
+        },
+        {
+            kind: "delegateExpression",
+            reference: "${myBean}",
             path: "/src/Renamed.java",
             content: '@Service("other")',
             implemented: false,
