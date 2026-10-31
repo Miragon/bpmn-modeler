@@ -25,6 +25,7 @@ const commandsOfOtherSurfaces = [
     "GetDmnModelerSettingCommand",
     "GetFormFileCommand",
     "GetFormInputValuesCommand",
+    "GetElementTemplateFileCommand",
     "UpdateFormOutputValuesCommand",
     "RequestFormDefaultsCommand",
     "DeployCommand",
@@ -48,7 +49,7 @@ describe("BPMN_EDITOR_COMMAND_TYPES", () => {
         expect(listed.filter((type) => !protocolCommandTypes.includes(type))).toEqual([]);
     });
 
-    it("leaves out only the commands of the diff pane, the DMN and Form editors and the deployment sidebar", () => {
+    it("leaves out only the commands of the diff pane, the DMN and Form editors, the template preview and the deployment sidebar", () => {
         const listed: readonly string[] = BPMN_EDITOR_COMMAND_TYPES;
         const leftOut = protocolCommandTypes.filter((type) => !listed.includes(type));
 

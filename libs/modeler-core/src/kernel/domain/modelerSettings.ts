@@ -38,7 +38,9 @@ const SETTING_KEY_OF_SNAPSHOT_KEY = {
 
 /** A modeler setting as VS Code names it below `miragon.bpmnModeler`, on every host. */
 export type SettingKey =
-    (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot] | "linting.enabled";
+    | (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot]
+    | "linting.enabled"
+    | "elementTemplatePreview.openAutomatically";
 
 export function settingKeyOf(key: keyof ModelerSettingsSnapshot): SettingKey {
     return SETTING_KEY_OF_SNAPSHOT_KEY[key];
@@ -82,6 +84,9 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
 /** Outside the snapshot: IntelliJ has no lint setting, the bridge keeps the webview's toggle. */
 export const DEFAULT_LINTING_ENABLED = true;
 
+/** Outside the snapshot: only VS Code opens the template preview on its own. */
+export const DEFAULT_OPEN_TEMPLATE_PREVIEW = true;
+
 const COLOR_THEMES: readonly ColorThemeSetting[] = ["automatic", "light"];
 
 const SETTING_PARSERS: {
@@ -119,6 +124,10 @@ export function parseSetting<K extends keyof ModelerSettingsSnapshot>(
 
 export function parseLintingEnabled(raw: unknown): boolean {
     return booleanOr(raw, DEFAULT_LINTING_ENABLED);
+}
+
+export function parseOpenTemplatePreview(raw: unknown): boolean {
+    return booleanOr(raw, DEFAULT_OPEN_TEMPLATE_PREVIEW);
 }
 
 /** Every setting as a host must read it; keys the snapshot does not hold are dropped. */

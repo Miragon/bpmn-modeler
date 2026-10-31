@@ -8,6 +8,7 @@
  * - {@link BpmnFileQuery}                 — deliver BPMN XML and detected engine type for rendering
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
  * - {@link FormFileQuery}                 — deliver Camunda Form JSON for rendering
+ * - {@link ElementTemplateFileQuery}      — deliver element-template JSON for the preview
  * - {@link FormInputValuesQuery}          — deliver ephemeral form preview input data
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
  * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
@@ -27,6 +28,7 @@
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
  * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
  * - {@link GetFormFileCommand}                — webview is ready; request the form file
+ * - {@link GetElementTemplateFileCommand}     — preview is ready; request the template file
  * - {@link GetFormInputValuesCommand}         — request ephemeral form preview input data
  * - {@link UpdateFormOutputValuesCommand}     — publish current form preview output data
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
@@ -147,6 +149,21 @@ export class FormFileQuery extends Query<"FormFileQuery"> {
         super("FormFileQuery");
         this.content = content;
         this.documentRevision = documentRevision;
+    }
+}
+
+/** The raw text of an element-template file; the preview parses it, so a broken edit still arrives. */
+export class ElementTemplateFileQuery extends Query<"ElementTemplateFileQuery"> {
+    public readonly content: string;
+    public readonly documentRevision: number;
+    /** The configured UI locale, applied before the first render; later changes come as {@link LanguageQuery}. */
+    public readonly locale?: string;
+
+    constructor(content: string, documentRevision = 0, locale?: string) {
+        super("ElementTemplateFileQuery");
+        this.content = content;
+        this.documentRevision = documentRevision;
+        this.locale = locale;
     }
 }
 
@@ -497,6 +514,12 @@ export class GetDmnFileCommand extends Command<"GetDmnFileCommand"> {
 export class GetFormFileCommand extends Command<"GetFormFileCommand"> {
     constructor() {
         super("GetFormFileCommand");
+    }
+}
+
+export class GetElementTemplateFileCommand extends Command<"GetElementTemplateFileCommand"> {
+    constructor() {
+        super("GetElementTemplateFileCommand");
     }
 }
 

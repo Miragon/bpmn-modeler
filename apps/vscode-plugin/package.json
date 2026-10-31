@@ -92,7 +92,8 @@
     "main": "main.js",
     "activationEvents": [
         "onFileSystem:bpmn-form-input-values",
-        "onFileSystem:bpmn-form-output-values"
+        "onFileSystem:bpmn-form-output-values",
+        "workspaceContains:**/element-templates/**/*.json"
     ],
     "contributes": {
         "walkthroughs": [
@@ -225,6 +226,17 @@
                     }
                 ],
                 "priority": "default"
+            },
+            {
+                "id": "bpmn-modeler.elementTemplatePreview",
+                "viewType": "bpmn-modeler.elementTemplatePreview",
+                "displayName": "Element Template Preview",
+                "selector": [
+                    {
+                        "filenamePattern": "*.json"
+                    }
+                ],
+                "priority": "option"
             }
         ],
         "configurationDefaults": {
@@ -274,6 +286,12 @@
                 "title": "Toggle Form Output Values",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(output)"
+            },
+            {
+                "command": "bpmn-modeler.openElementTemplatePreview",
+                "title": "Open Element Template Preview",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(open-preview)"
             },
             {
                 "command": "bpmn-modeler.openLoggingConsole",
@@ -442,6 +460,10 @@
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
                 },
                 {
+                    "command": "bpmn-modeler.openElementTemplatePreview",
+                    "when": "resourceExtname == .json"
+                },
+                {
                     "command": "bpmn-modeler.openLoggingConsole",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
@@ -552,6 +574,11 @@
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
                 },
                 {
+                    "command": "bpmn-modeler.openElementTemplatePreview",
+                    "group": "navigation",
+                    "when": "resourceExtname == .json && !activeCustomEditorId && (bpmn-modeler.isElementTemplate || resourcePath =~ /element-templates/)"
+                },
+                {
                     "command": "bpmn-modeler.toggleTextEditor",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' || activeWebviewPanelId == 'bpmn-modeler.dmn' || activeWebviewPanelId == 'bpmn-modeler.form'"
@@ -600,6 +627,11 @@
                     "default": true,
                     "scope": "application",
                     "markdownDescription": "Run BPMN linting (in-canvas hints, Problems entries, and the status-bar badge). Turn this off if you only design processes and do not want automation/execution rules. You can also toggle it from the lint hint in the modeler or via the **BPMN: Toggle Linting** command."
+                },
+                "miragon.bpmnModeler.elementTemplatePreview.openAutomatically": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Open the element template preview beside a template's JSON editor the first time it is shown. A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in an `element-templates` folder. You can always open it with **Open Element Template Preview**."
                 },
                 "miragon.bpmnModeler.configFolder": {
                     "type": "string",

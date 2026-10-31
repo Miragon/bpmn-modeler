@@ -7,6 +7,7 @@ import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as bpmnEditorFeature from "./composition/bpmnEditorFeature";
 import * as editorFeature from "./composition/editorFeature";
+import * as elementTemplateFeature from "./composition/elementTemplateFeature";
 import * as compareFeature from "./composition/compareFeature";
 import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
@@ -27,10 +28,10 @@ export interface TestApi {
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available): diff → script → marketplace (service) →
  * deployment → BPMN editor → DMN and Form editors → marketplace (commands) →
- * compare → commands. Handles flow forward only: the BPMN editor routes into
- * diff's controller, the script editor's contribution, the marketplace service
- * and the deployment status; later features reuse handles the earlier ones
- * returned.
+ * template preview → compare → commands. Handles flow forward only: the BPMN
+ * editor routes into diff's controller, the script editor's contribution, the
+ * marketplace service and the deployment status; later features reuse handles
+ * the earlier ones returned.
  */
 export function activate(context: ExtensionContext): TestApi {
     setContext(context);
@@ -61,6 +62,7 @@ export function activate(context: ExtensionContext): TestApi {
         marketplaceSvc,
         templatesSvc: bpmnEditor.templates,
     });
+    elementTemplateFeature.register(context, deps);
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, {
         bpmnService: bpmnEditor.bpmnService,

@@ -1,8 +1,18 @@
 import { Uri, WebviewPanel } from "vscode";
 
 import { getContext } from "./extensionContext";
-import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import {
+    bpmnEditorUi,
+    dmnModelerHtml,
+    elementTemplatePreviewHtml,
+    formEditorHtml,
+} from "./WebviewHtml";
+import {
+    BPMN_VIEW_TYPE,
+    DMN_VIEW_TYPE,
+    ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+    FORM_VIEW_TYPE,
+} from "@miragon/bpmn-modeler-core";
 
 /**
  * Pure helper with no persistent state, so both `VsCodeEditorHandle` (editable
@@ -30,6 +40,8 @@ export function bootstrapWebview(
         webview.html = bpmnEditorUi(webview, extensionUri, initialPanelVisible);
     } else if (viewType === DMN_VIEW_TYPE) {
         webview.html = dmnModelerHtml(webview, extensionUri, initialPanelVisible);
+    } else if (viewType === ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE) {
+        webview.html = elementTemplatePreviewHtml(webview, extensionUri);
     } else {
         webview.html = formEditorHtml(webview, extensionUri);
     }
@@ -40,6 +52,7 @@ export function bootstrapWebview(
 function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {
     switch (viewType) {
         case BPMN_VIEW_TYPE:
+        case ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE:
             return [Uri.joinPath(extensionUri, "bpmn-webview")];
         case DMN_VIEW_TYPE:
             return [
