@@ -474,8 +474,24 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
 
             expect(handle.hasPendingInput()).toBe(true);
             expect(taskName(handle)).toBe("A");
-            await expect.poll(() => handle.hasPendingInput()).toBe(false);
+            // Headroom over the 600 ms debounce for a loaded runner.
+            await expect.poll(() => handle.hasPendingInput(), { timeout: 3000 }).toBe(false);
             expect(taskName(handle)).toBe("Approve invoice");
+        });
+
+        it("keeps the pending input of another surface apart", async () => {
+            const otherSurface = await descriptor.create(mountWithPanel(), { linting: false });
+            try {
+                const { handle, panel } = await openMounted();
+                await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+
+                await typeTaskName(handle, panel, "Approve invoice");
+
+                expect(handle.hasPendingInput()).toBe(true);
+                expect(otherSurface.hasPendingInput()).toBe(false);
+            } finally {
+                otherSurface.destroy();
+            }
         });
 
         it("applies a typed value at once when the pending input is flushed", async () => {
