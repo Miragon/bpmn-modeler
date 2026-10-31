@@ -9,7 +9,7 @@ import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery }
 export interface FlushSource {
     /** Whether the modeler has finished bootstrapping. */
     isReady(): boolean;
-    /** Whether a debounced sync is scheduled or in flight. */
+    /** Whether a debounced sync is scheduled or in flight, or input waits to reach the document. */
     hasPendingSync(): boolean;
     /** Whether host-authoritative content is waiting to finish importing. */
     hasPendingHostUpdate(): boolean;
@@ -25,7 +25,7 @@ export interface FlushSource {
     beginDestructiveFlush(): void;
     /** Restores interaction when the host declines the destructive action. */
     endDestructiveFlush(): void;
-    /** Exports the current full-document content. */
+    /** Exports the current full-document content, with any input still waiting applied. */
     exportContent(): Promise<string>;
 }
 

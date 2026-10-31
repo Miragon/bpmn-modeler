@@ -2,7 +2,12 @@ import { LogWarningCommand } from "@miragon/bpmn-modeler-shared";
 import { formatErrors } from "@miragon/bpmn-modeler-types";
 
 import type { WebviewStateManager } from "../state";
-import { isEditableHandle, isModelerHandle, type SurfaceHandle } from "../surface";
+import {
+    isEditableHandle,
+    isModelerHandle,
+    isPendingInputHandle,
+    type SurfaceHandle,
+} from "../surface";
 import type { BpmnDocumentSurface } from "./documentSession";
 import type { HostChannel } from "./hostChannel";
 
@@ -61,8 +66,16 @@ export function createSurfaceDocument(
                 surface.alignElementsToOrigin();
             }
         },
-        hasPendingInput: () => false,
-        flushPendingInput: () => {},
+        hasPendingInput: () => {
+            const surface = getSurface();
+            return isPendingInputHandle(surface) && surface.hasPendingInput();
+        },
+        flushPendingInput: () => {
+            const surface = getSurface();
+            if (isPendingInputHandle(surface)) {
+                surface.flushPendingInput();
+            }
+        },
         // bpmn-js re-invokes `translate()` for rendered elements only on a re-import.
         refreshDiagram: async () => {
             const xml = await getSurface().exportDiagram();

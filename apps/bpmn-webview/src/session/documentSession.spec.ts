@@ -78,6 +78,18 @@ function setup(surfaceOverrides: Partial<SurfaceFake> = {}) {
     return { session, surface, page, translator, posted };
 }
 
+// Applying the held value edits the diagram, as the panel's modeling command does.
+function holdPanelInput(context: ReturnType<typeof setup>, typed: string): void {
+    let panelInput: string | undefined = typed;
+    context.surface.hasPendingInput.mockImplementation(() => panelInput !== undefined);
+    context.surface.flushPendingInput.mockImplementation(() => {
+        if (panelInput === undefined) return;
+        context.surface.exportDocument.mockResolvedValue(panelInput);
+        panelInput = undefined;
+        context.session.scheduleSync();
+    });
+}
+
 const hostFile = (content: string, revision: number, engine: "c7" | "c8" | undefined = "c7") =>
     new BpmnFileQuery(content, engine, "modeler", revision);
 
@@ -671,6 +683,16 @@ describe("BpmnDocumentSession", () => {
             expect(context.session.document.hasPendingSync()).toBe(false);
         });
 
+        it("syncs no panel input the next surface's XML lacks before a destroy", async () => {
+            const context = setup();
+            await openSession(context);
+            holdPanelInput(context, "<typed />");
+
+            await context.session.flushBeforeSurfaceDestroy();
+
+            expect(syncCommands(context.posted)).toEqual([]);
+        });
+
         it("fires the scheduled sync only once when the page hides", async () => {
             const context = setup();
             await openSession(context);
@@ -719,15 +741,7 @@ describe("BpmnDocumentSession", () => {
         it("reports a pending panel input as a pending sync", async () => {
             const context = setup();
             await openSession(context, 6);
-            let panelInput: string | undefined = "<typed />";
-            context.surface.hasPendingInput.mockImplementation(() => panelInput !== undefined);
-            // Applying the panel value edits the diagram, as the panel's modeling command does.
-            context.surface.flushPendingInput.mockImplementation(() => {
-                if (panelInput === undefined) return;
-                context.surface.exportDocument.mockResolvedValue(panelInput);
-                panelInput = undefined;
-                context.session.scheduleSync();
-            });
+            holdPanelInput(context, "<typed />");
 
             expect(context.session.document.hasPendingSync()).toBe(true);
             await context.session.handlers.FlushDocumentQuery(new FlushDocumentQuery(2));

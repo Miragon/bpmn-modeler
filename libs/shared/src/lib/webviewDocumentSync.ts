@@ -124,6 +124,12 @@ export class WebviewDocumentSync implements FlushSource {
     }
 
     async flushPendingSync(): Promise<void> {
+        this.surface.flushPendingInput?.();
+        await this.flushScheduledSync();
+    }
+
+    /** Drains the scheduled sync and leaves input the surface still holds unapplied. */
+    async flushScheduledSync(): Promise<void> {
         while (this.debouncedSync.pending()) {
             await this.debouncedSync.flush();
         }
@@ -134,7 +140,7 @@ export class WebviewDocumentSync implements FlushSource {
     }
 
     hasPendingSync(): boolean {
-        return this.debouncedSync.pending();
+        return this.debouncedSync.pending() || (this.surface.hasPendingInput?.() ?? false);
     }
 
     hasPendingHostUpdate(): boolean {
@@ -161,7 +167,8 @@ export class WebviewDocumentSync implements FlushSource {
         this.flushLock.release();
     }
 
-    exportContent(): Promise<string> {
+    async exportContent(): Promise<string> {
+        this.surface.flushPendingInput?.();
         return this.surface.exportDocument();
     }
 

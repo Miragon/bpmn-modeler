@@ -280,12 +280,12 @@ export class BpmnDesigner {
 
     /** @internal See {@link PendingInputHandle.hasPendingInput}. */
     hasPendingInput(): boolean {
-        return false;
+        return this.core.hasPendingInput();
     }
 
     /** @internal See {@link PendingInputHandle.flushPendingInput}. */
     flushPendingInput(): void {
-        // Stub: applies nothing yet.
+        this.core.flushPendingInput();
     }
 
     /**

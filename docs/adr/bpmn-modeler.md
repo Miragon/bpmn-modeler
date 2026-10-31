@@ -523,6 +523,13 @@ callers and suppresses disposal-race errors. `onCommandStackChanged` reports
 each change undebounced to consumers that need it, such as the IDE webview's
 own document sync.
 
+Both editable surfaces replace the properties panel's `debounceInput` service
+with the repo's own from `libs/properties-panel`. It keeps the library's
+600 ms delay and tracks the input still waiting in it. The modeler and designer
+handles reach it through the internal `hasPendingInput()` and
+`flushPendingInput()` (`PendingInputHandle`), which the IDE webview's flush
+uses to apply a typed value before it exports. They are not public API yet.
+
 ## Consequences and enforcement
 
 The public facade, signatures and declared subpaths require compatibility

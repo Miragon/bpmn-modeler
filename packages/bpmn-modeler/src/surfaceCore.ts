@@ -1,5 +1,6 @@
 import type BaseViewer from "bpmn-js/lib/BaseViewer";
 import { type DisposableStore, NoModelerError, ThemeController } from "@miragon/bpmn-modeler-types";
+import type { FlushableDebounceInput } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
 
 import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
 import type { ThemeMode } from "./publicApi";
@@ -105,6 +106,16 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
         this.liveView().apply(state);
     }
 
+    /** `false` once destroyed: a torn-down panel holds no input. */
+    hasPendingInput(): boolean {
+        return this.panelInput()?.hasPending() ?? false;
+    }
+
+    /** A no-op once destroyed. */
+    flushPendingInput(): void {
+        this.panelInput()?.flush();
+    }
+
     /** Arms the one-time initial fit for the diagram that was just imported. */
     armInitialViewport(): void {
         this.liveView().diagramLoaded();
@@ -124,6 +135,10 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
             });
         }
         this.themeController.setMode(theme);
+    }
+
+    private panelInput(): FlushableDebounceInput | undefined {
+        return this.liveInstance?.get<FlushableDebounceInput>("debounceInput", false) ?? undefined;
     }
 
     private liveView(): SurfaceView {

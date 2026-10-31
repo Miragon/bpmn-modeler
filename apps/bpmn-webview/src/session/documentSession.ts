@@ -225,7 +225,9 @@ export class BpmnDocumentSession {
     }
 
     async flushBeforeSurfaceDestroy(): Promise<void> {
-        await this.document.flushPendingSync();
+        // The next surface's XML is exported before this runs, so applying the
+        // panel's input now would sync a value that surface does not load.
+        await this.document.flushScheduledSync();
         this.document.cancelPendingSync();
     }
 

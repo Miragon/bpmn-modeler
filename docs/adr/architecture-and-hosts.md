@@ -394,6 +394,11 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
+In the BPMN webview, a value that still waits in the properties panel's
+600 ms input debounce counts as such an edit. The panel's `debounceInput`
+service comes from `libs/properties-panel` and tracks its waiting calls; the
+flush applies them before it exports, so the persisted file holds the value
+the panel shows.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents
@@ -414,9 +419,9 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a properties-panel
-value the panel has not passed to the modeler yet is not flushed on either
-host; and a save of one Document (`saveDocument`), which neither Ctrl+S nor
+write has not reached the EDT yet, lands after the save; a DMN
+properties-panel value the panel has not passed to the modeler yet is not
+flushed; and a save of one Document (`saveDocument`), which neither Ctrl+S nor
 autosave makes, does not flush.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host

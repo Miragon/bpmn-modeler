@@ -4,7 +4,7 @@
  * (View) — plus the narrowing guards the webview uses to reach the methods only
  * some of them carry.
  */
-import type { BpmnModeler, BpmnModelerHandle } from "@miragon/bpmn-modeler";
+import type { BpmnModeler, BpmnModelerHandle, PendingInputHandle } from "@miragon/bpmn-modeler";
 import type { BpmnViewerHandle } from "@miragon/bpmn-modeler/viewer";
 import type { BpmnDesignerHandle } from "@miragon/bpmn-modeler/design";
 
@@ -28,6 +28,13 @@ export function isModelerHandle(handle: SurfaceHandle): handle is BpmnModeler {
 /** Narrows to an editable surface (modeler or designer); the viewer has no `newDiagram`. */
 export function isEditableHandle(handle: SurfaceHandle): handle is EditableSurfaceHandle {
     return "newDiagram" in handle;
+}
+
+/** Narrows to a surface whose properties panel takes typed input (modeler or designer). */
+export function isPendingInputHandle(
+    handle: SurfaceHandle,
+): handle is SurfaceHandle & PendingInputHandle {
+    return "hasPendingInput" in handle;
 }
 
 /**

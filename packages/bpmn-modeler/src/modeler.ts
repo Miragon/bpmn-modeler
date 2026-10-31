@@ -13,6 +13,7 @@ import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
+import { FlushableDebounceInputModule } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnlintConfig,
@@ -221,6 +222,8 @@ export class BpmnModeler {
             propertiesPanelRootModule,
             ModeFilterModule,
             CustomGroupsModule,
+            // After the upstream panel, so its `debounceInput` is the flushable one.
+            FlushableDebounceInputModule,
             ModeUiModule,
             DrilldownFitModule,
         ];
@@ -362,12 +365,12 @@ export class BpmnModeler {
 
     /** @internal See {@link PendingInputHandle.hasPendingInput}. */
     hasPendingInput(): boolean {
-        return false;
+        return this.core.hasPendingInput();
     }
 
     /** @internal See {@link PendingInputHandle.flushPendingInput}. */
     flushPendingInput(): void {
-        // Stub: applies nothing yet.
+        this.core.flushPendingInput();
     }
 
     /**
