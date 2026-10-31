@@ -12,18 +12,6 @@ export const C7_SCHEMA =
 export const C8_SCHEMA =
     "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
 
-/** jsdom has no IntersectionObserver; the panel uses it only for sticky headers. */
-export function stubIntersectionObserver(): void {
-    vi.stubGlobal(
-        "IntersectionObserver",
-        class {
-            observe = () => undefined;
-            unobserve = () => undefined;
-            disconnect = () => undefined;
-        },
-    );
-}
-
 /** A mounted builder plus DOM drivers for its entries. */
 export function mountBuilder() {
     const parent = document.createElement("div");
@@ -34,12 +22,17 @@ export function mountBuilder() {
     const entry = (id: string) => parent.querySelector(`[data-entry-id="${id}"]`);
     const control = (id: string) =>
         entry(id)?.querySelector("input, textarea, select") as HTMLInputElement | null;
+    const click = (element: Element | null | undefined) =>
+        act(() => {
+            (element as HTMLElement).click();
+        });
 
     return {
         parent,
         onEdit,
         entry,
         control,
+        click,
         show(
             template: Json,
             {
@@ -59,7 +52,7 @@ export function mountBuilder() {
                 field.dispatchEvent(new Event("input", { bubbles: true }));
             });
         },
-        // A browser fires both events on a select; the panel's own selects listen to `input`.
+        // A browser fires both events on a select.
         choose(target: string | Element, value: string) {
             const field = (
                 typeof target === "string" ? control(target) : target
@@ -70,15 +63,25 @@ export function mountBuilder() {
                 field.dispatchEvent(new Event("change", { bubbles: true }));
             });
         },
-        click(element: Element | null | undefined) {
-            act(() => {
-                (element as HTMLElement).click();
-            });
-        },
         buttonLabelled(text: string) {
             return [...parent.querySelectorAll("button")].find(
                 (button) => button.textContent === text,
             );
+        },
+        /** An icon button, found by what it says to assistive technology. */
+        action(label: string) {
+            return parent.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+        },
+        tab(label: string) {
+            click(
+                [...parent.querySelectorAll('[role="tab"]')].find((tab) =>
+                    tab.textContent?.startsWith(label),
+                ),
+            );
+        },
+        /** Selects the index's entry at `position`, counting what the index shows. */
+        pick(position: number) {
+            click(parent.querySelectorAll(".etb-index__item")[position]);
         },
         destroy() {
             act(() => handle.destroy());

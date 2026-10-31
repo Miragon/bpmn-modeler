@@ -1,13 +1,17 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { catalogFor } from "../catalog";
-import { addGroup, changePropertyType, removeGroup, renameGroup } from "../domain/transforms";
 import {
-    C8_SCHEMA,
-    mountBuilder,
-    stubIntersectionObserver,
-    type BuilderHarness,
-} from "./__fixtures__/builderHarness";
+    addGroup,
+    addProperty,
+    changePropertyType,
+    duplicateProperty,
+    moveProperty,
+    removeGroup,
+    removeProperty,
+    renameGroup,
+} from "../domain/transforms";
+import { C8_SCHEMA, mountBuilder, type BuilderHarness } from "./__fixtures__/builderHarness";
 
 type Json = Record<string, unknown>;
 
@@ -33,8 +37,6 @@ const input = (extra: Json = {}): Json => ({
 
 let builder: BuilderHarness;
 
-beforeAll(stubIntersectionObserver);
-
 beforeEach(() => {
     builder = mountBuilder();
 });
@@ -50,7 +52,7 @@ const lastEdits = () => {
     return calls[calls.length - 1]?.[0];
 };
 
-describe("the template group", () => {
+describe("the template tab", () => {
     it("adds and removes element types it applies to", () => {
         builder.show(template([], { appliesTo: ["bpmn:ServiceTask", "bpmn:SendTask"] }));
         const appliesTo = builder.entry("template-appliesTo")!;
@@ -102,10 +104,11 @@ describe("the template group", () => {
         builder.typeInto("template-version", "three");
         expect(builder.onEdit.mock.calls).toHaveLength(calls);
         expect(builder.entry("template-version")?.textContent).toContain("Enter a number.");
+        expect(builder.control("template-version")?.value).toBe("three");
     });
 });
 
-describe("the groups", () => {
+describe("the groups tab", () => {
     const grouped = () =>
         template([input({ group: "config" })], {
             groups: [{ id: "config", label: "Configuration" }],
@@ -114,43 +117,26 @@ describe("the groups", () => {
     it("adds, renames and removes groups", () => {
         const current = grouped();
         builder.show(current);
+        builder.tab("Groups");
 
-        builder.click(
-            builder.parent.querySelector(
-                '[data-group-id="group-groups"] .bio-properties-panel-add-entry',
-            ),
-        );
+        builder.click(builder.buttonLabelled("Add group"));
         expect(lastEdits()).toEqual(addGroup(current));
 
         builder.typeInto("group-0-id", "settings");
         expect(lastEdits()).toEqual(renameGroup(current, 0, "settings"));
 
-        builder.click(
-            builder.parent.querySelector(
-                '[data-group-id="group-groups"] .bio-properties-panel-remove-entry',
-            ),
-        );
+        builder.click(builder.action("Delete group"));
         expect(lastEdits()).toEqual(removeGroup(current, 0));
     });
 
-    it("keeps the lists and their items as they are when adding or removing", () => {
-        builder.show(template([input(), input({ label: "Second" })]));
-        const properties = '[data-group-id="group-properties"]';
+    it("explains groups while there are none", () => {
+        builder.show(template([input()]));
+        builder.tab("Groups");
 
-        builder.click(
-            builder.parent.querySelector(`${properties} .bio-properties-panel-add-entry`),
+        expect(builder.parent.querySelector(".etb-index__empty")?.textContent).toBe(
+            "No groups yet.",
         );
-        builder.click(
-            builder.parent.querySelector(
-                `${properties} [data-entry-id="property-0"] .bio-properties-panel-remove-entry`,
-            ),
-        );
-
-        expect(
-            builder.parent.querySelector(`${properties} > .bio-properties-panel-group-header`)
-                ?.classList,
-        ).toContain("open");
-        expect(builder.entry("property-0")?.classList).not.toContain("open");
+        expect(builder.parent.querySelector(".etb-empty")).not.toBeNull();
     });
 
     it("moves a property into a group", () => {
@@ -158,6 +144,73 @@ describe("the groups", () => {
 
         builder.choose("property-0-group", "");
         expect(lastEdits()).toEqual([{ kind: "remove", path: ["properties", 0, "group"] }]);
+    });
+});
+
+describe("the properties tab", () => {
+    const three = () => template([input(), input({ label: "Second" }), input({ label: "Third" })]);
+    const selected = () => builder.parent.querySelector(".etb-index__item--selected")?.textContent;
+
+    it("shows the property picked in the index", () => {
+        builder.show(three());
+
+        builder.pick(1);
+
+        expect(selected()).toBe("Second");
+        expect(builder.control("property-1-label")?.value).toBe("Second");
+        expect(builder.entry("property-0-label")).toBeNull();
+    });
+
+    it("adds a property and selects it, ready for its label", () => {
+        const current = three();
+        builder.show(current);
+
+        builder.click(builder.buttonLabelled("Add property"));
+        expect(lastEdits()).toEqual(addProperty(current, C8));
+        builder.show(template([...(current.properties as Json[]), input({ label: "New" })]));
+
+        expect(selected()).toBe("New");
+        const label = builder.control("property-3-label")!;
+        expect(document.activeElement).toBe(label);
+        expect([label.selectionStart, label.selectionEnd]).toEqual([0, "New".length]);
+    });
+
+    it.each([
+        ["Duplicate property", 0, (current: Json) => duplicateProperty(current, 0), 1],
+        ["Move down", 0, (current: Json) => moveProperty(current, 0, 1), 1],
+        ["Move up", 2, (current: Json) => moveProperty(current, 2, 1), 1],
+        ["Delete property", 2, () => removeProperty(2), 1],
+    ])("selects where %s leaves the property", (action, from, edits, to) => {
+        const current = three();
+        builder.show(current);
+        builder.pick(from);
+
+        builder.click(builder.action(action));
+
+        expect(lastEdits()).toEqual(edits(current));
+        expect(builder.parent.querySelectorAll(".etb-index__item")[to]?.classList).toContain(
+            "etb-index__item--selected",
+        );
+    });
+
+    it("cannot move the first property up or the last one down", () => {
+        builder.show(three());
+
+        expect(builder.action("Move up")?.disabled).toBe(true);
+        builder.pick(2);
+        expect(builder.action("Move down")?.disabled).toBe(true);
+    });
+
+    it("asks for a first property in an empty template", () => {
+        builder.show(template([]));
+        builder.tab("Properties");
+
+        expect(builder.parent.querySelector(".etb-index__empty")?.textContent).toBe(
+            "No properties yet.",
+        );
+        expect(builder.parent.querySelector(".etb-empty")?.textContent).toBe(
+            "Add a property for each field users fill in.",
+        );
     });
 });
 
@@ -342,6 +395,7 @@ describe("a property's options", () => {
                 input({ condition: { property: "mode", equals: "a" } }),
             ]),
         );
+        builder.pick(1);
         const condition = builder.entry("property-1-condition")!;
 
         builder.choose(condition.querySelectorAll("select")[1], "isActive");
@@ -377,33 +431,83 @@ describe("a property's options", () => {
 });
 
 describe("the problems", () => {
-    it("leads to the field a problem concerns", () => {
+    const chip = () => builder.parent.querySelector<HTMLButtonElement>(".etb-problems__chip");
+    const rows = () =>
+        Array.from(builder.parent.querySelectorAll(".etb-problem"), (row) => row.textContent);
+
+    it("sums them up in a chip like the modeler's lint summary, closed", () => {
         builder.show(template([input()]), {
             diagnostics: [
                 { path: ["properties", 0, "label"], severity: "warning", message: "Label it." },
+                { path: ["name"], severity: "error", message: "Name it." },
+                { path: ["id"], severity: "warning", message: "Shorter." },
                 { path: [], severity: "info", message: "Whole template." },
             ],
         });
 
-        builder.click(builder.buttonLabelled("Show"));
-
-        expect(builder.parent.textContent).toContain("Whole template.");
-        expect(builder.buttonLabelled("Show")).toBeDefined();
+        expect(chip()?.textContent).toBe("1 Errors, 2 Warnings");
+        expect(chip()?.classList).toContain("etb-problems__chip--error");
+        expect(chip()?.getAttribute("aria-expanded")).toBe("false");
+        expect(rows()).toEqual([]);
     });
 
-    it("names the property a problem is about and leads to it", () => {
+    it("says when there is nothing to fix", () => {
+        builder.show(template([input()]));
+
+        expect(chip()?.textContent).toBe("No Issues");
+        expect(chip()?.classList).toContain("etb-problems__chip--success");
+        expect(chip()?.disabled).toBe(true);
+    });
+
+    it("opens the list from the chip, errors first, and closes it again", () => {
+        builder.show(template([input()]), {
+            diagnostics: [
+                { path: [], severity: "info", message: "Whole template." },
+                { path: ["properties", 0, "label"], severity: "warning", message: "Label it." },
+                { path: ["name"], severity: "error", message: "Name it." },
+            ],
+        });
+
+        builder.click(chip());
+        expect(chip()?.getAttribute("aria-expanded")).toBe("true");
+        expect(rows()).toEqual(["Name it.Show", "In: Label it.Show", "Whole template."]);
+
+        builder.click(chip());
+        expect(rows()).toEqual([]);
+    });
+
+    it("leads from a problem to its field and stays open", () => {
         builder.show(template([input()]), {
             diagnostics: [{ path: ["properties", 0], severity: "warning", message: "Deprecated." }],
         });
+        builder.click(chip());
 
-        const problem = builder.parent.querySelector(".etb-problem");
-        expect(problem?.querySelector(".etb-problem__where")?.textContent).toBe("In: ");
-        expect(problem?.querySelector(".etb-link")).not.toBeNull();
+        builder.click(builder.buttonLabelled("Show"));
+
+        expect(rows()).toEqual(["In: Deprecated.Show"]);
         expect(builder.entry("property-0-label")?.textContent).toContain("Deprecated.");
     });
 });
 
-describe("the property list", () => {
+describe("showing a problem", () => {
+    it("opens the tab and the property it is about and focuses its field", () => {
+        builder.show(template([input(), input({ label: "Second" })]), {
+            diagnostics: [
+                { path: ["name"], severity: "error", message: "Name it." },
+                { path: ["properties", 1, "label"], severity: "warning", message: "Label it." },
+            ],
+        });
+        builder.click(builder.parent.querySelector(".etb-problems__chip"));
+
+        builder.click(builder.parent.querySelectorAll(".etb-problem .etb-link")[0]);
+        expect(document.activeElement).toBe(builder.control("template-name"));
+
+        builder.click(builder.parent.querySelectorAll(".etb-problem .etb-link")[1]);
+        expect(document.activeElement).toBe(builder.control("property-1-label"));
+    });
+});
+
+describe("the index", () => {
     it.each([
         [input(), "In"],
         [input({ label: undefined, id: "in-id" }), "in-id"],
@@ -416,11 +520,101 @@ describe("the property list", () => {
     ])("titles %j as %s", (property, title) => {
         builder.show(template([property]));
 
-        expect(
-            builder
-                .entry("property-0")
-                ?.querySelector(".bio-properties-panel-collapsible-entry-header-title")
-                ?.textContent,
-        ).toBe(title);
+        expect(builder.parent.querySelector(".etb-index__label")?.textContent).toBe(title);
+    });
+
+    it("marks a property with the worst of its problems", () => {
+        builder.show(template([input(), input({ label: "Second" })]), {
+            diagnostics: [
+                { path: ["properties", 1, "label"], severity: "warning", message: "Label it." },
+                { path: ["properties", 1, "type"], severity: "error", message: "Bad type." },
+            ],
+        });
+
+        const items = builder.parent.querySelectorAll(".etb-index__item");
+        expect(items[0].querySelector(".etb-icon")).toBeNull();
+        expect(items[1].querySelector(".etb-icon--error")).not.toBeNull();
+    });
+});
+
+describe("the settings", () => {
+    const title = (id: string) =>
+        builder.entry(id)?.querySelector(".etb-setting__title")?.textContent;
+
+    it("name what they belong to, as VS Code's settings do", () => {
+        builder.show(template([input()]));
+
+        expect(title("property-0-label")).toBe("In: Label");
+        builder.tab("Template");
+        expect(title("template-name")).toBe("Template: Name");
+    });
+
+    it("mark the values the JSON sets", () => {
+        builder.show(template([input()]));
+
+        expect(builder.entry("property-0-label")?.classList).toContain("etb-setting--modified");
+        expect(builder.entry("property-0-tooltip")?.classList).not.toContain(
+            "etb-setting--modified",
+        );
+    });
+});
+
+describe("the search", () => {
+    const search = (text: string) =>
+        builder.typeInto(builder.parent.querySelector("#etb-search")!, text);
+    const labels = () =>
+        Array.from(
+            builder.parent.querySelectorAll(".etb-index__label"),
+            (label) => label.textContent,
+        );
+
+    it("finds properties by label, id or what they bind to", () => {
+        builder.show(
+            template([
+                input({ label: "Host", binding: { type: "zeebe:input", name: "HOST_NAME" } }),
+                input({ label: "Port", id: "smtp-port" }),
+            ]),
+        );
+
+        search("host_n");
+        expect(labels()).toEqual(["Host"]);
+
+        search("SMTP");
+        expect(labels()).toEqual(["Port"]);
+
+        search("nothing like it");
+        expect(builder.parent.querySelector(".etb-index__empty")?.textContent).toBe(
+            "No properties match your search.",
+        );
+
+        builder.click(builder.action("Clear search"));
+        expect(labels()).toEqual(["Host", "Port"]);
+    });
+
+    it("narrows the template's settings to those that match", () => {
+        builder.show(template([]));
+
+        search("version");
+
+        expect(builder.entry("template-version")).not.toBeNull();
+        expect(builder.entry("template-name")).toBeNull();
+        expect(builder.parent.querySelector(".etb-section")?.textContent).toBe("General");
+    });
+});
+
+describe("the tabs", () => {
+    it("count what they list and show the worst problem in them", () => {
+        builder.show(template([input(), input()]), {
+            diagnostics: [{ path: ["name"], severity: "warning", message: "Name it." }],
+        });
+
+        const tabs = builder.parent.querySelectorAll('[role="tab"]');
+        expect(Array.from(tabs, (tab) => tab.textContent)).toEqual([
+            "Template",
+            "Groups0",
+            "Properties2",
+        ]);
+        expect(tabs[0].querySelector(".etb-icon--warning")).not.toBeNull();
+        expect(tabs[2].getAttribute("aria-selected")).toBe("true");
     });
 });

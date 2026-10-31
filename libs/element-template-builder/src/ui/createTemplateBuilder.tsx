@@ -2,7 +2,7 @@
 import { render } from "@bpmn-io/properties-panel/preact";
 
 import type { TemplateEdit } from "../domain/templateText";
-import type { Translate } from "./entries";
+import type { Translate } from "./settings";
 import { TemplateBuilder, type TemplateBuilderState } from "./TemplateBuilder";
 import "./builder.css";
 

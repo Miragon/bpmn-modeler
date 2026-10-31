@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { catalogFor } from "../catalog";
 import { addProperty, changeBindingType, fixRequirement } from "../domain/transforms";
@@ -6,7 +6,6 @@ import {
     C7_SCHEMA,
     C8_SCHEMA,
     mountBuilder,
-    stubIntersectionObserver,
     type BuilderHarness,
 } from "./__fixtures__/builderHarness";
 
@@ -30,8 +29,6 @@ const C8_TEMPLATE: Json = {
 
 let builder: BuilderHarness;
 
-beforeAll(stubIntersectionObserver);
-
 beforeEach(() => {
     builder = mountBuilder();
 });
@@ -43,6 +40,7 @@ afterEach(() => {
 describe("createTemplateBuilder", () => {
     it("turns typing into an edit of the template", () => {
         builder.show(C8_TEMPLATE);
+        builder.tab("Template");
 
         builder.typeInto("template-name", "Renamed");
 
@@ -53,6 +51,7 @@ describe("createTemplateBuilder", () => {
 
     it("switches a property to another binding", () => {
         builder.show(C8_TEMPLATE);
+        builder.pick(1);
 
         builder.choose("property-1-binding-type", "zeebe:taskHeader");
 
@@ -64,11 +63,7 @@ describe("createTemplateBuilder", () => {
     it("adds a property", () => {
         builder.show(C8_TEMPLATE);
 
-        builder.click(
-            builder.parent.querySelector(
-                '[data-group-id="group-properties"] .bio-properties-panel-add-entry',
-            ),
-        );
+        builder.click(builder.buttonLabelled("Add property"));
 
         expect(builder.onEdit).toHaveBeenLastCalledWith(addProperty(C8_TEMPLATE, catalogFor("c8")));
     });
@@ -90,6 +85,7 @@ describe("createTemplateBuilder", () => {
             ],
         });
 
+        builder.click(builder.parent.querySelector(".etb-problems__chip"));
         expect(builder.parent.textContent).toContain(
             "This binding needs a zeebe:userTask property.",
         );
@@ -106,6 +102,7 @@ describe("createTemplateBuilder", () => {
                 { path: ["name"], severity: "error", message: "Give the template a name." },
             ],
         });
+        builder.tab("Template");
 
         expect(builder.entry("template-name")?.textContent).toContain("Give the template a name.");
     });
@@ -113,15 +110,18 @@ describe("createTemplateBuilder", () => {
     it("lets nothing be edited while the JSON is broken", () => {
         builder.show(C8_TEMPLATE, { editable: false });
 
-        expect(builder.control("template-name")?.disabled).toBe(true);
         expect(builder.control("property-0-label")?.disabled).toBe(true);
-        expect(builder.parent.querySelector(".bio-properties-panel-add-entry")).toBeNull();
+        expect(builder.buttonLabelled("Add property")).toBeUndefined();
+        expect(builder.action("Delete property")).toBeNull();
+        builder.tab("Template");
+        expect(builder.control("template-name")?.disabled).toBe(true);
     });
 
     it("writes a condition on another property", () => {
         builder.show(C8_TEMPLATE);
+        builder.pick(1);
 
-        builder.click(builder.entry("property-1-condition")?.querySelector("button"));
+        builder.click(builder.buttonLabelled("Add condition"));
 
         expect(builder.onEdit).toHaveBeenLastCalledWith([
             {
@@ -157,6 +157,7 @@ describe("createTemplateBuilder", () => {
 
     it("names the keys it leaves to the JSON", () => {
         builder.show({ ...C8_TEMPLATE, icon: { contents: "data:," } });
+        builder.tab("Template");
 
         expect(builder.entry("template-json-only")?.textContent).toContain("icon");
     });

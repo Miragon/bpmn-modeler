@@ -1,36 +1,21 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
 import type { ConditionOperator, ConditionRow } from "../domain/conditions";
-import type { Diagnostic } from "../domain/diagnostics";
+import { Icon, SettingRow, type SettingProps, type Translate } from "./settings";
 
-export type Translate = (template: string, replacements?: Record<string, string>) => string;
-
-/** Reads the entry's most severe message when it renders. */
-type ErrorOf = () => string | undefined;
-
-function ErrorText({ errorOf }: { errorOf?: ErrorOf }) {
-    const error = errorOf?.();
-    return error ? <div class="bio-properties-panel-error">{error}</div> : null;
-}
-
-export interface AppliesToEntryProps {
-    id: string;
-    label: string;
+export interface AppliesToEntryProps extends SettingProps {
     values: readonly string[];
     options: readonly string[];
-    disabled: boolean;
     onAdd: (value: string) => void;
     onRemove: (index: number) => void;
     translate: Translate;
-    errorOf?: ErrorOf;
 }
 
 /** The element types a template applies to, as removable chips plus a picker. */
 export function AppliesToEntry(props: AppliesToEntryProps) {
-    const { id, label, values, options, disabled, onAdd, onRemove, translate, errorOf } = props;
+    const { values, options, disabled, onAdd, onRemove, translate } = props;
     const addable = options.filter((option) => !values.includes(option));
     return (
-        <div class="bio-properties-panel-entry etb-entry" data-entry-id={id}>
-            <label class="bio-properties-panel-label">{label}</label>
+        <SettingRow {...props}>
             <ul class="etb-chips">
                 {values.map((value, index) => (
                     <li class="etb-chip" key={value}>
@@ -39,21 +24,22 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
                             type="button"
                             class="etb-chip__remove"
                             title={translate("Remove {value}", { value })}
+                            aria-label={translate("Remove {value}", { value })}
                             disabled={disabled || values.length === 1}
                             onClick={() => onRemove(index)}
                         >
-                            ×
+                            <Icon name="close" />
                         </button>
                     </li>
                 ))}
             </ul>
             <select
-                class="bio-properties-panel-input"
+                class="etb-select"
                 aria-label={translate("Add an element type")}
                 disabled={disabled || addable.length === 0}
                 value=""
                 onChange={(event: Event) => {
-                    const value = (event.currentTarget as HTMLInputElement).value;
+                    const value = (event.currentTarget as HTMLSelectElement).value;
                     if (value) {
                         onAdd(value);
                     }
@@ -66,8 +52,7 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
                     </option>
                 ))}
             </select>
-            <ErrorText errorOf={errorOf} />
-        </div>
+        </SettingRow>
     );
 }
 
@@ -76,84 +61,92 @@ export interface Choice {
     value: string;
 }
 
-export interface ChoicesEntryProps {
-    id: string;
-    label: string;
+export interface ChoicesEntryProps extends SettingProps {
     choices: readonly Choice[];
-    disabled: boolean;
     onAdd: () => void;
     onChange: (index: number, key: "name" | "value", value: string) => void;
     onRemove: (index: number) => void;
     translate: Translate;
-    errorOf?: ErrorOf;
 }
 
 /** A Dropdown's choices: one row of name and value each. */
 export function ChoicesEntry(props: ChoicesEntryProps) {
-    const { id, label, choices, disabled, onAdd, onChange, onRemove, translate, errorOf } = props;
+    const { choices, disabled, onAdd, onChange, onRemove, translate } = props;
     return (
-        <div class="bio-properties-panel-entry etb-entry" data-entry-id={id}>
-            <label class="bio-properties-panel-label">{label}</label>
-            {choices.map((choice, index) => (
-                <div class="etb-row" key={index}>
-                    <input
-                        class="bio-properties-panel-input"
-                        aria-label={translate("Choice name")}
-                        value={choice.name}
-                        disabled={disabled}
-                        onInput={(event: Event) =>
-                            onChange(index, "name", (event.currentTarget as HTMLInputElement).value)
-                        }
-                    />
-                    <input
-                        class="bio-properties-panel-input"
-                        aria-label={translate("Choice value")}
-                        value={choice.value}
-                        disabled={disabled}
-                        onInput={(event: Event) =>
-                            onChange(
-                                index,
-                                "value",
-                                (event.currentTarget as HTMLInputElement).value,
-                            )
-                        }
-                    />
-                    <button
-                        type="button"
-                        class="etb-icon-button"
-                        title={translate("Remove choice")}
-                        disabled={disabled}
-                        onClick={() => onRemove(index)}
-                    >
-                        ×
-                    </button>
+        <SettingRow {...props}>
+            {choices.length > 0 ? (
+                <div class="etb-rows etb-rows--choices">
+                    <span class="etb-rows__head">{translate("Name")}</span>
+                    <span class="etb-rows__head">{translate("Value")}</span>
+                    <span />
+                    {choices.map((choice, index) => [
+                        <input
+                            key={`name-${index}`}
+                            class="etb-input"
+                            aria-label={translate("Choice name")}
+                            value={choice.name}
+                            disabled={disabled}
+                            onInput={(event: Event) =>
+                                onChange(
+                                    index,
+                                    "name",
+                                    (event.currentTarget as HTMLInputElement).value,
+                                )
+                            }
+                        />,
+                        <input
+                            key={`value-${index}`}
+                            class="etb-input etb-input--mono"
+                            aria-label={translate("Choice value")}
+                            value={choice.value}
+                            disabled={disabled}
+                            onInput={(event: Event) =>
+                                onChange(
+                                    index,
+                                    "value",
+                                    (event.currentTarget as HTMLInputElement).value,
+                                )
+                            }
+                        />,
+                        <button
+                            key={`remove-${index}`}
+                            type="button"
+                            class="etb-icon-button"
+                            title={translate("Remove choice")}
+                            aria-label={translate("Remove choice")}
+                            disabled={disabled}
+                            onClick={() => onRemove(index)}
+                        >
+                            <Icon name="trash" />
+                        </button>,
+                    ])}
                 </div>
-            ))}
-            <button type="button" class="etb-button" disabled={disabled} onClick={onAdd}>
+            ) : null}
+            <button
+                type="button"
+                class="etb-button etb-button--secondary"
+                disabled={disabled}
+                onClick={onAdd}
+            >
                 {translate("Add choice")}
             </button>
-            <ErrorText errorOf={errorOf} />
-        </div>
+        </SettingRow>
     );
 }
 
-export interface ConditionEntryProps {
-    id: string;
-    label: string;
+export interface ConditionEntryProps extends SettingProps {
     rows: readonly ConditionRow[];
     /** Ids of the properties a condition may depend on. */
     properties: readonly string[];
-    disabled: boolean;
     onChange: (rows: ConditionRow[]) => void;
     translate: Translate;
-    errorOf?: ErrorOf;
 }
 
 const OPERATORS: readonly ConditionOperator[] = ["equals", "oneOf", "isActive", "isEmpty"];
 
 /** When the property shows: every row must match. */
 export function ConditionEntry(props: ConditionEntryProps) {
-    const { id, label, rows, properties, disabled, onChange, translate, errorOf } = props;
+    const { rows, properties, disabled, onChange, translate } = props;
     const update = (index: number, change: Partial<ConditionRow>) =>
         onChange(rows.map((row, at) => (at === index ? { ...row, ...change } : row)));
     const operatorLabels: Record<ConditionOperator, string> = {
@@ -163,88 +156,95 @@ export function ConditionEntry(props: ConditionEntryProps) {
         isEmpty: translate("is empty"),
     };
     return (
-        <div class="bio-properties-panel-entry etb-entry" data-entry-id={id}>
-            <label class="bio-properties-panel-label">{label}</label>
-            {rows.map((row, index) => (
-                <div class="etb-row" key={index}>
-                    <select
-                        class="bio-properties-panel-input"
-                        aria-label={translate("Property")}
-                        value={row.property}
-                        disabled={disabled}
-                        onChange={(event: Event) =>
-                            update(index, {
-                                property: (event.currentTarget as HTMLInputElement).value,
-                            })
-                        }
-                    >
-                        {[...new Set([row.property, ...properties])].map((property) => (
-                            <option value={property} key={property}>
-                                {property || translate("Choose a property")}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        class="bio-properties-panel-input"
-                        aria-label={translate("Operator")}
-                        value={row.operator}
-                        disabled={disabled}
-                        onChange={(event: Event) =>
-                            update(index, {
-                                operator: (event.currentTarget as HTMLInputElement)
-                                    .value as ConditionOperator,
-                            })
-                        }
-                    >
-                        {OPERATORS.map((operator) => (
-                            <option value={operator} key={operator}>
-                                {operatorLabels[operator]}
-                            </option>
-                        ))}
-                    </select>
-                    {row.operator === "isActive" || row.operator === "isEmpty" ? (
+        <SettingRow {...props}>
+            {rows.length > 0 ? (
+                <div class="etb-rows etb-rows--conditions">
+                    {rows.map((row, index) => [
                         <select
-                            class="bio-properties-panel-input"
-                            aria-label={translate("Value")}
-                            value={row.value === "false" ? "false" : "true"}
+                            key={`property-${index}`}
+                            class="etb-select"
+                            aria-label={translate("Property")}
+                            value={row.property}
                             disabled={disabled}
                             onChange={(event: Event) =>
                                 update(index, {
-                                    value: (event.currentTarget as HTMLInputElement).value,
+                                    property: (event.currentTarget as HTMLSelectElement).value,
                                 })
                             }
                         >
-                            <option value="true">{translate("yes")}</option>
-                            <option value="false">{translate("no")}</option>
-                        </select>
-                    ) : (
-                        <input
-                            class="bio-properties-panel-input"
-                            aria-label={translate("Value")}
-                            placeholder={row.operator === "oneOf" ? translate("a, b, c") : ""}
-                            value={row.value}
+                            {[...new Set([row.property, ...properties])].map((property) => (
+                                <option value={property} key={property}>
+                                    {property || translate("Choose a property")}
+                                </option>
+                            ))}
+                        </select>,
+                        <select
+                            key={`operator-${index}`}
+                            class="etb-select"
+                            aria-label={translate("Operator")}
+                            value={row.operator}
                             disabled={disabled}
-                            onInput={(event: Event) =>
+                            onChange={(event: Event) =>
                                 update(index, {
-                                    value: (event.currentTarget as HTMLInputElement).value,
+                                    operator: (event.currentTarget as HTMLSelectElement)
+                                        .value as ConditionOperator,
                                 })
                             }
-                        />
-                    )}
-                    <button
-                        type="button"
-                        class="etb-icon-button"
-                        title={translate("Remove condition")}
-                        disabled={disabled}
-                        onClick={() => onChange(rows.filter((_, at) => at !== index))}
-                    >
-                        ×
-                    </button>
+                        >
+                            {OPERATORS.map((operator) => (
+                                <option value={operator} key={operator}>
+                                    {operatorLabels[operator]}
+                                </option>
+                            ))}
+                        </select>,
+                        row.operator === "isActive" || row.operator === "isEmpty" ? (
+                            <select
+                                key={`flag-${index}`}
+                                class="etb-select"
+                                aria-label={translate("Value")}
+                                value={row.value === "false" ? "false" : "true"}
+                                disabled={disabled}
+                                onChange={(event: Event) =>
+                                    update(index, {
+                                        value: (event.currentTarget as HTMLSelectElement).value,
+                                    })
+                                }
+                            >
+                                <option value="true">{translate("yes")}</option>
+                                <option value="false">{translate("no")}</option>
+                            </select>
+                        ) : (
+                            <input
+                                key={`value-${index}`}
+                                class="etb-input"
+                                aria-label={translate("Value")}
+                                placeholder={row.operator === "oneOf" ? translate("a, b, c") : ""}
+                                value={row.value}
+                                disabled={disabled}
+                                onInput={(event: Event) =>
+                                    update(index, {
+                                        value: (event.currentTarget as HTMLInputElement).value,
+                                    })
+                                }
+                            />
+                        ),
+                        <button
+                            key={`remove-${index}`}
+                            type="button"
+                            class="etb-icon-button"
+                            title={translate("Remove condition")}
+                            aria-label={translate("Remove condition")}
+                            disabled={disabled}
+                            onClick={() => onChange(rows.filter((_, at) => at !== index))}
+                        >
+                            <Icon name="trash" />
+                        </button>,
+                    ])}
                 </div>
-            ))}
+            ) : null}
             <button
                 type="button"
-                class="etb-button"
+                class="etb-button etb-button--secondary"
                 disabled={disabled}
                 onClick={() =>
                     onChange([
@@ -255,58 +255,7 @@ export function ConditionEntry(props: ConditionEntryProps) {
             >
                 {translate("Add condition")}
             </button>
-            <ErrorText errorOf={errorOf} />
-        </div>
-    );
-}
-
-export interface Problem extends Diagnostic {
-    /** The entry showing the problem's value, if any. */
-    entryId?: string;
-    /** The property or group the problem is about. */
-    where?: string;
-}
-
-export interface ProblemsEntryProps {
-    id: string;
-    problems: readonly Problem[];
-    disabled: boolean;
-    onFix: (problem: Problem) => void;
-    onShow: (problem: Problem) => void;
-    translate: Translate;
-}
-
-/** Everything the builder and the validator found, with a way to each and a fix where one exists. */
-export function ProblemsEntry(props: ProblemsEntryProps) {
-    const { id, problems, disabled, onFix, onShow, translate } = props;
-    return (
-        <ul class="bio-properties-panel-entry etb-problems" data-entry-id={id}>
-            {problems.map((problem, index) => (
-                <li class={`etb-problem etb-problem--${problem.severity}`} key={index}>
-                    <span class="etb-problem__message">
-                        {problem.where ? (
-                            <span class="etb-problem__where">{problem.where}: </span>
-                        ) : null}
-                        {translate(problem.message)}
-                    </span>
-                    {problem.entryId ? (
-                        <button type="button" class="etb-link" onClick={() => onShow(problem)}>
-                            {translate("Show")}
-                        </button>
-                    ) : null}
-                    {problem.fix ? (
-                        <button
-                            type="button"
-                            class="etb-button"
-                            disabled={disabled}
-                            onClick={() => onFix(problem)}
-                        >
-                            {translate(problem.fix.label)}
-                        </button>
-                    ) : null}
-                </li>
-            ))}
-        </ul>
+        </SettingRow>
     );
 }
 
@@ -321,8 +270,8 @@ export function JsonOnlyEntry({
     translate: Translate;
 }) {
     return (
-        <div class="bio-properties-panel-entry etb-json-only" data-entry-id={id}>
+        <p class="etb-note" data-entry-id={id}>
             {translate("Also set in the JSON: {keys}", { keys: keys.join(", ") })}
-        </div>
+        </p>
     );
 }
