@@ -20,7 +20,9 @@ export interface Engines {
  * user setting — matches Camunda Modeler, so templates gate on the same version
  * the file actually targets.
  */
-export function deriveEngines(platform: string | undefined, version: string | undefined): Engines {
+export function deriveEngines(definitionsAttributes: Readonly<Record<string, string>>): Engines {
+    const platform = definitionsAttributes["modeler:executionPlatform"];
+    const version = definitionsAttributes["modeler:executionPlatformVersion"];
     if (platform === "Camunda Cloud" && version) {
         return { camunda: version };
     }

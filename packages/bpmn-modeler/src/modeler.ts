@@ -619,11 +619,7 @@ export class BpmnModeler {
     // Read the engine profile from imported definitions to match template engine filtering.
     // C7 may omit the service; an empty profile clears any previous engine version.
     private applyEnginesFromDefinitions(): void {
-        const definitions = this.getModeler().getDefinitions();
-        const engines = deriveEngines(
-            definitions?.get("modeler:executionPlatform"),
-            definitions?.get("modeler:executionPlatformVersion"),
-        );
+        const engines = deriveEngines(this.getModeler().getDefinitions()?.$attrs ?? {});
         this.getModeler()
             .get<ElementTemplatesEngineService>("elementTemplates", false)
             ?.setEngines(engines);

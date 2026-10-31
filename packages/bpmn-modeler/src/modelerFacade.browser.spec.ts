@@ -5,7 +5,7 @@ import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
 import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
-import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
+import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML, START_EVENT_XML } from "./__fixtures__/bpmnXml";
 import { animationFrames, mountWithPanel, removeMounts, wait } from "./__fixtures__/surfaceMount";
 
 /**
@@ -23,6 +23,11 @@ const SCRIPT_TASK_MORPHED_XML = C7_SCRIPTS_XML.replace(
 const LEGACY_SCRIPT_FORMAT_XML = C7_SCRIPTS_XML.replace(
     '<bpmn:scriptTask id="ScriptTask_1" scriptFormat="groovy">',
     '<bpmn:scriptTask id="ScriptTask_1" camunda:scriptFormat="javascript">',
+);
+
+const C8_UNDER_CUSTOM_MODELER_PREFIX_XML = START_EVENT_XML.replace(
+    "<bpmn:definitions ",
+    '<bpmn:definitions xmlns:cm="http://camunda.org/schema/modeler/1.0" cm:executionPlatform="Camunda Cloud" cm:executionPlatformVersion="8.7.0" ',
 );
 
 const SERVICE_TASK_WITHOUT_JOB_TYPE_XML = FAR_FROM_ORIGIN_XML.replace(
@@ -397,6 +402,24 @@ describe("BpmnModeler element templates", () => {
         modeler.setElementTemplates([{ ...VALID_TEMPLATE, id: "com.example.review" }]);
 
         expect(templateIds(modeler)).toEqual(["com.example.review"]);
+        modeler.destroy();
+    });
+
+    it("gates templates on the engine version a diagram declares under any modeler prefix", async () => {
+        const { container, panel } = mountWithPanel();
+        const modeler = await createModeler(container, {
+            engine: "c8",
+            propertiesPanel: { parent: panel },
+            linting: false,
+        });
+
+        await modeler.loadDiagram(C8_UNDER_CUSTOM_MODELER_PREFIX_XML);
+
+        expect(
+            modeler
+                .getService<{ getEngines(): Record<string, string> }>("elementTemplates")
+                .getEngines(),
+        ).toMatchObject({ camunda: "8.7.0" });
         modeler.destroy();
     });
 
