@@ -14,7 +14,8 @@ import type {
  * modeler (the only handle the session may live-toggle). `exportShouldThrow`
  * makes `exportDiagram` reject so the export-failure path can be exercised.
  * Each surface exports `<xml id="<id>"/>`, so a `load` log entry names whose
- * export the surface received.
+ * export the surface received. `pendingInput` gives it a properties panel that
+ * holds that value until `flushPendingInput` adds it to the export.
  */
 function makeSurface(opts: {
     id: string;
@@ -24,10 +25,26 @@ function makeSurface(opts: {
     captureShouldThrow?: boolean;
     loadShouldThrow?: boolean;
     applyShouldThrow?: boolean;
+    pendingInput?: string;
     log: string[];
 }): BpmnModelerHandle {
     let mode = opts.initialMode ?? "implement";
+    let pendingInput = opts.pendingInput;
+    let appliedInput = "";
+    const panel =
+        opts.pendingInput === undefined
+            ? {}
+            : {
+                  hasPendingInput: () => pendingInput !== undefined,
+                  flushPendingInput: () => {
+                      if (pendingInput !== undefined) {
+                          appliedInput = ` name="${pendingInput}"`;
+                          pendingInput = undefined;
+                      }
+                  },
+              };
     const base = {
+        ...panel,
         id: opts.id,
         captureViewState: vi.fn(() => {
             if (opts.captureShouldThrow) {
@@ -39,7 +56,7 @@ function makeSurface(opts: {
             if (opts.exportShouldThrow) {
                 throw new Error("export boom");
             }
-            return `<xml id="${opts.id}"/>`;
+            return `<xml id="${opts.id}"${appliedInput}/>`;
         }),
         loadDiagram: vi.fn(async (xml: string) => {
             if (opts.loadShouldThrow) {
@@ -213,6 +230,27 @@ describe("createModeSession — transitions", () => {
         expect(session.getMode()).toBe("view");
         expect(onModeChanged).toHaveBeenCalledWith("view", "recreate");
         expect(log).toEqual(["modeler:destroy", 'view:load <xml id="modeler"/>']);
+    });
+
+    it("applies the panel's pending input before it exports the diagram for the next surface", async () => {
+        const session = await createModeSession({
+            container: container(),
+            engine,
+            surfaces: {
+                view: async () => makeSurface({ id: "view", hasSetMode: false, log }),
+                implement: async (ctx: ModelerSurfaceContext) =>
+                    makeSurface({
+                        id: "modeler",
+                        hasSetMode: true,
+                        initialMode: ctx.mode,
+                        pendingInput: "Typed name",
+                        log,
+                    }),
+            },
+            initialMode: "implement",
+        });
+        await session.requestMode("view");
+        expect(log).toEqual(["modeler:destroy", 'view:load <xml id="modeler" name="Typed name"/>']);
     });
 
     it("runs beforeDestroy before the destroy on a recreate", async () => {
