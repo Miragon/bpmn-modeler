@@ -333,8 +333,10 @@ a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
 caller decides whether it cancels. `confirmation()` in
 `kernel/domain/affectedItems.ts` summarises a confirmation's details, and both
 hosts show every line. The core also orders a file list by the path VS Code
-shows for it (`relativeToWorkspace` in `kernel/domain/rootContainment.ts`), and
-both hosts keep the order a prompt gives, so they list the files alike. VS Code
+shows for it (`fileChoicesInWorkspaceOrder` in `kernel/domain/fileChoices.ts`,
+over `relativeToWorkspace`), and both hosts keep the order a prompt gives, so
+they list the files alike. Only the payload files stay nearest first, as their
+lookup finds them. VS Code
 shows a path relative to the workspace, filters on descriptions too, draws an
 icon as its codicon and reveals the busy list of a search after 150 ms. The
 bridge sends a choice over the existing `picker/show` request with the path as
