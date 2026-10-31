@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-10-31
 
 ## Context
 
@@ -230,9 +230,18 @@ import a class that implements a port.
 The element-template editor is the main editor for template files: files in an
 `element-templates` folder open in it through a default editor association, as
 `*.form` files open in the Form editor, and any other `.json` file can be opened
-in it with **Open With…**. It shows the properties panel the template produces;
-the JSON stays one toggle away beside it, where the host's own JSON support
-(`$schema` IntelliSense, undo, diagnostics) applies. Its page is a second entry
+in it with **Open With…**. Its main area is the builder
+(`@miragon/bpmn-modeler-element-template-builder`), a form over the template laid
+out like VS Code's settings editor: a search, tabs for the template, its groups
+and its properties, an index and the chosen item's settings. Because it is shown
+inside the IDE, it is drawn with its own Preact components and coloured only by
+the `--vscode-*` theme tokens, so it follows light, dark and high-contrast
+themes; Light and Dark Modern values stand in where a host sets no tokens. The
+properties panel the template produces sits on the right as a preview, and what
+the official validator and the builder's own rules find docks under the form as
+a lint-style summary whose list opens upwards without covering a field. The JSON
+stays one toggle away beside it, where the host's own JSON support (`$schema`
+IntelliSense, undo, diagnostics) applies. Its page is a second entry
 of the BPMN webview bundle and parses the file itself: a host pushes the raw
 text with the configured locale (`ElementTemplateFileQuery`) and later language
 changes (`LanguageQuery`). That keeps an IntelliJ editor possible without a

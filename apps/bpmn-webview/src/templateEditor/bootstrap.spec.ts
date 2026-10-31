@@ -115,6 +115,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    vi.unstubAllGlobals();
     dispose?.();
     dispose = undefined;
     vi.useRealTimers();
@@ -314,18 +315,34 @@ describe("bootstrapTemplateEditor", () => {
         expect(messages()).toEqual(["Templates for bpmn:Process cannot be previewed yet."]);
     });
 
-    it("hides and shows the preview", async () => {
+    it("puts the preview to the right of the builder", async () => {
         await start();
-        const toggle = query(".template-editor__preview-toggle")!;
 
-        toggle.click();
-        expect(query(".template-editor")?.classList).toContain("template-editor--preview-hidden");
-        expect(toggle.getAttribute("aria-pressed")).toBe("false");
-
-        toggle.click();
-        expect(query(".template-editor")?.classList).not.toContain(
-            "template-editor--preview-hidden",
+        const columns = Array.from(query(".template-editor__body")!.children, (child) =>
+            child.querySelector(".template-editor__builder") ? "builder" : child.id,
         );
+        expect(columns).toEqual(["builder", "js-panel-resizer", "js-properties-panel"]);
+    });
+
+    it("hides and shows the preview from its divider", async () => {
+        await start();
+        const toggle = query(".panel-resizer-toggle")!;
+
+        toggle.click();
+        expect(query("#js-properties-panel")?.classList).toContain("collapsed");
+        expect(toggle.getAttribute("aria-label")).toBe("Show preview");
+
+        toggle.click();
+        expect(query("#js-properties-panel")?.classList).not.toContain("collapsed");
+        expect(toggle.getAttribute("aria-label")).toBe("Hide preview");
+    });
+
+    it("leaves a narrow editor to the builder until the preview is opened", async () => {
+        vi.stubGlobal("innerWidth", 500);
+
+        await start();
+
+        expect(query("#js-properties-panel")?.classList).toContain("collapsed");
     });
 
     it("answers the host's save with the document it shows", async () => {

@@ -37,8 +37,9 @@ html[data-bpmn-theme="dark"] .template-editor__engine {
     color: var(--vscode-badge-foreground, #fff);
 }
 
-html[data-bpmn-theme="dark"] .template-editor__preview-toggle[aria-pressed="true"] {
-    background: var(--vscode-inputOption-activeBackground, rgba(0, 127, 212, 0.4));
+html[data-bpmn-theme="dark"] .template-editor__preview-title {
+    border-color: var(--vscode-panel-border, #3c3c3c);
+    color: var(--vscode-descriptionForeground, #a0a0a0);
 }
 
 html[data-bpmn-theme="dark"] .template-editor__wizard select,
@@ -87,69 +88,70 @@ html[data-bpmn-theme="dark"] .template-editor__wizard input {
     overflow-wrap: anywhere;
 }
 
-.template-editor__preview-toggle {
-    padding: 1px 8px;
-    border: 1px solid var(--vscode-inputOption-activeBorder, transparent);
-    border-radius: 3px;
-    background: none;
-    color: inherit;
-    cursor: pointer;
-}
-
-.template-editor__preview-toggle[aria-pressed="true"] {
-    border-color: var(--vscode-inputOption-activeBorder, #007acc);
-    background: var(--vscode-inputOption-activeBackground, rgba(0, 144, 241, 0.2));
-}
-
-/* Right-aligned on its own when there is no template picker. */
-.template-editor__choice[hidden] + .template-editor__preview-toggle {
-    margin-left: auto;
-}
-
 .template-editor__body {
     display: flex;
     flex: 1;
     min-height: 0;
 }
 
-/* The rendered template on the left; drag its edge to resize. */
-.template-editor__preview {
-    flex: none;
-    width: clamp(200px, 36%, 340px);
-    min-width: 180px;
-    max-width: 70%;
+.template-editor__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
     overflow: auto;
-    resize: horizontal;
-    border-right: 1px solid var(--vscode-panel-border, #ccc);
-    user-select: none;
 }
 
-.template-editor--preview-hidden .template-editor__preview,
-.template-editor--no-preview .template-editor__preview {
+/* The rendered template on the right, sized like the modelers' properties panel until dragged. */
+.template-editor #js-properties-panel {
+    display: flex;
+    flex-direction: column;
+    width: clamp(280px, 36%, 440px);
+    max-width: calc(100% - 240px);
+    overflow: hidden;
+}
+
+.template-editor--no-preview .panel-resizer,
+.template-editor--no-preview #js-properties-panel {
     display: none;
 }
 
-/* The panels' own surface, so the builder column narrower than this area shows no edge. */
-.template-editor__main {
-    flex: 1;
-    min-width: 0;
-    overflow: auto;
+/* The panels' own surface, so the builder column narrower than its area shows no edge. */
+.template-editor__body {
     background: #fff;
 }
 
-html[data-bpmn-theme="dark"] .template-editor__main {
+html[data-bpmn-theme="dark"] .template-editor__body {
     background: var(--vscode-editorWidget-background, #282828);
 }
 
-/* Fields wider than this only make labels and values hard to read together. */
-.template-editor__builder {
-    max-width: 760px;
+/* Keeps the divider's toggle, which juts out to its left, off the builder and its scrollbar. */
+.template-editor .panel-resizer {
+    margin-left: 10px;
 }
 
-.template-editor__preview input,
-.template-editor__preview textarea,
-.template-editor__preview [contenteditable="true"] {
-    user-select: text;
+.template-editor__preview-title {
+    flex: none;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--vscode-panel-border, #e0e0e0);
+    color: var(--vscode-descriptionForeground, #616161);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.template-editor__preview-mount {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* The builder scrolls itself, so its problems can stay at the bottom. */
+.template-editor__builder {
+    flex: 1;
+    min-height: 0;
 }
 
 .template-editor__wizard,
@@ -157,7 +159,9 @@ html[data-bpmn-theme="dark"] .template-editor__main {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
     max-width: 440px;
+    margin: 6vh auto 0;
     padding: 24px;
 }
 
@@ -174,7 +178,9 @@ html[data-bpmn-theme="dark"] .template-editor__main {
 }
 
 .template-editor__placeholder {
+    margin-top: 6vh;
     padding: 24px;
+    text-align: center;
 }
 
 .template-editor__wizard-field {
@@ -185,7 +191,8 @@ html[data-bpmn-theme="dark"] .template-editor__main {
 
 .template-editor__wizard select,
 .template-editor__wizard input {
-    padding: 4px 6px;
+    height: 28px;
+    padding: 0 6px;
     border: 1px solid var(--vscode-input-border, #ccc);
     border-radius: 2px;
     color: var(--vscode-input-foreground, inherit);
@@ -202,7 +209,8 @@ html[data-bpmn-theme="dark"] .template-editor__main {
 .template-editor__wizard-create,
 .template-editor__engine-button {
     align-self: flex-start;
-    padding: 5px 14px;
+    min-height: 28px;
+    padding: 0 14px;
     border: none;
     border-radius: 2px;
     background: var(--vscode-button-background, #0062ff);
