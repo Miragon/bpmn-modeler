@@ -388,6 +388,29 @@ describe("VsCodeEditorHandle.onDidChangeActive", () => {
         expect(store.isFocused("file:///repo/3.bpmn")).toBe(false);
     });
 
+    // Theia reports every changed panel in one pass, in creation order, so the
+    // visible diagram can blur before the hidden tab reports. The handle cannot
+    // tell the core which diagram is visible, so the target stays hidden.
+    it.fails(
+        "hands the command target to the visible diagram when it blurs before the hidden tab reports",
+        () => {
+            const store = new EditorSessionStore(() => undefined);
+            const visiblePanel = makePanel({ active: true, visible: true });
+            const hiddenPanel = makePanel({ active: true, visible: true });
+            store.register(createSessionHandle("file:///repo/1.bpmn", visiblePanel));
+            store.subscribeToTabChangeEvent("file:///repo/1.bpmn");
+            store.register(createSessionHandle("file:///repo/3.bpmn", hiddenPanel));
+            store.subscribeToTabChangeEvent("file:///repo/3.bpmn");
+
+            visiblePanel.active = false;
+            viewStateListener(visiblePanel)();
+            hiddenPanel.visible = false;
+            viewStateListener(hiddenPanel)();
+
+            expect(store.getActiveEditorId()).toBe("file:///repo/1.bpmn");
+        },
+    );
+
     function createSessionHandle(editorId: string, panel: FakePanel): VsCodeEditorHandle {
         nextPanel = panel;
         return VsCodeEditorHandle.create("bpmn", editorId, panel as never, makeDocument() as never);
