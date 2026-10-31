@@ -227,10 +227,12 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle {
     onCommandStackChanged(listener: () => void): () => void;
 
     /**
-     * Subscribe to the outcome of every format attempt, failures included:
+     * Subscribe to the outcome of every format run, failures included:
      * {@link formatDiagram} as well as the palette entry and the canvas
      * shortcut. The listener receives the same {@link LayoutOutcome}
-     * `formatDiagram` resolves. Returns a function that removes the listener.
+     * `formatDiagram` resolves. A call made while a run is in flight joins
+     * that run and gets no extra notification. Returns a function that
+     * removes the listener.
      */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
 }

@@ -14,7 +14,7 @@ const PKG = "@miragon/bpmn-modeler";
 
 // One fixture per public entry, mirroring the documented README examples plus
 // typed handle use (exportDiagram, captureViewState/applyViewState, the
-// command-stack and format subscriptions).
+// command-stack and format subscriptions, the layout and cleanup outcomes).
 const CONSUMER_FIXTURES = {
     "modeler.ts": `
         import { createModeler, detectEngine } from "${PKG}";
@@ -44,6 +44,7 @@ const CONSUMER_FIXTURES = {
     `,
     "designer.ts": `
         import { createDesigner } from "${PKG}/design";
+        import type { CleanupOutcome, LayoutOutcome } from "${PKG}/design";
 
         export async function useDesigner(
             canvas: HTMLElement,
@@ -57,7 +58,10 @@ const CONSUMER_FIXTURES = {
             await designer.loadDiagram(xml);
             designer.getService("commandStack");
             designer.onCommandStackChanged(() => undefined)();
-            designer.onFormatted((outcome) => void outcome.diagnostics)();
+            designer.onFormatted((outcome: LayoutOutcome) => void outcome.diagnostics)();
+            const formatted: LayoutOutcome = await designer.formatDiagram();
+            const cleanup: CleanupOutcome = designer.cleanupDiagram();
+            void [formatted, cleanup];
             designer.destroy();
         }
     `,

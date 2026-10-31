@@ -20,10 +20,10 @@ import {
 } from "./__fixtures__/surfaceMount";
 
 /**
- * The host-command contract the modeler and the designer both expose (import
- * fit, export, format, cleanup, import errors, theme, lint pushes, debounced
- * save, favourites, command-stack and format notifications). Both run the real bpmn-js modeling stack, so the contract
- * runs in the browser project against each surface.
+ * The host-command contract the modeler and the designer both expose (import fit, export, format,
+ * cleanup, import errors, theme, lint pushes, debounced save, favourites, command-stack and format
+ * notifications). Both run the real bpmn-js modeling stack, so the contract runs in the browser
+ * project against each surface.
  */
 
 type SharedOptions = Pick<

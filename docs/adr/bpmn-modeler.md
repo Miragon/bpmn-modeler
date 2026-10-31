@@ -53,12 +53,12 @@ resolve a target or answer a query; action ports can accept asynchronous host
 implementations through `void | Promise<void>`.
 
 The editable handles also take two subscriptions, `onCommandStackChanged` and
-`onFormatted`, each returning its unsubscribe function. They are handle
-methods rather than options because a host binds them per surface after
-creation, and again on each surface a mode switch creates. Both deliver a plain
+`onFormatted`, each returning its unsubscribe function. They are handle methods
+rather than `on*` options because #1835 specifies them that way, matching the
+existing handle method `viewport.onViewportChanged`. Both deliver a plain
 payload instead of the diagram-js event, and ignore the listener's return
-value: a value returned to the event bus stops the event before later
-listeners see it. Hosts therefore need no event names (`commandStack.changed`,
+value: a value returned to the event bus stops the event before later listeners
+see it. Hosts therefore need no event names (`commandStack.changed`,
 `layout.formatted`), which stay unstable internals.
 
 The navigation port's optional `isReferenceAvailable(reference)` is synchronous

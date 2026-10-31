@@ -31,12 +31,20 @@ import type {
     DesignerOptions,
 } from "./design/publicApi";
 import type {
+    CleanupOutcome,
     LayoutOutcome,
     ModelNavigationPort as ModelNavigationPortFromRoot,
     ModelReference as ModelReferenceFromRoot,
     ReferenceKind as ReferenceKindFromRoot,
 } from "./index";
 import type {
+    CleanupItem as CleanupItemFromDesign,
+    CleanupKind as CleanupKindFromDesign,
+    CleanupOutcome as CleanupOutcomeFromDesign,
+    LayoutDiagnostic as LayoutDiagnosticFromDesign,
+    LayoutErrorCode as LayoutErrorCodeFromDesign,
+    LayoutOutcome as LayoutOutcomeFromDesign,
+    LayoutStatus as LayoutStatusFromDesign,
     ModelNavigationPort as ModelNavigationPortFromDesign,
     ModelReference as ModelReferenceFromDesign,
     ReferenceKind as ReferenceKindFromDesign,
@@ -362,6 +370,20 @@ const _viewerHasNoEditableSubscriptions = (v: BpmnViewerHandle) => {
     void v.onFormatted;
 };
 void _viewerHasNoEditableSubscriptions;
+
+const _designOnlyConsumerNamesOutcomeTypes = async (d: BpmnDesignerHandle) => {
+    const formatted: LayoutOutcomeFromDesign = await d.formatDiagram();
+    const status: LayoutStatusFromDesign = formatted.status;
+    const code: LayoutErrorCodeFromDesign | undefined = formatted.code;
+    const diagnostics: LayoutDiagnosticFromDesign[] = formatted.diagnostics;
+    const stopFormats = d.onFormatted((outcome: LayoutOutcomeFromDesign) => void outcome);
+    const cleanup: CleanupOutcomeFromDesign = d.cleanupDiagram();
+    const items: CleanupItemFromDesign[] = cleanup.items;
+    const kinds: CleanupKindFromDesign[] = items.map((item) => item.kind);
+    const rootOutcomes: [LayoutOutcome, CleanupOutcome] = [formatted, cleanup];
+    void [status, code, diagnostics, stopFormats, kinds, rootOutcomes];
+};
+void _designOnlyConsumerNamesOutcomeTypes;
 
 const _liveFavourites = (m: BpmnModelerHandle, d: BpmnDesignerHandle) => {
     const favourites: readonly string[] = ["bpmn:UserTask"];
