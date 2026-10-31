@@ -5,6 +5,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.stream.JsonToken
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.Logger
@@ -902,9 +903,21 @@ internal fun readDocumentTextInReadAction(file: VirtualFile): String =
         Computable { FileDocumentManager.getInstance().getDocument(file)?.text.orEmpty() },
     )
 
-/** The editor ids of the files selected in [project]'s editor windows, the focused window's first. */
-internal fun selectedEditorIdsOf(project: Project): List<String> =
-    FileEditorManager.getInstance(project).selectedFiles.map { it.url }
+/**
+ * The editor ids of the files selected in [project]'s editor windows, the focused window's first.
+ * Read on the EDT: elsewhere the platform lists the main window's first.
+ */
+internal fun selectedEditorIdsOf(project: Project): List<String> {
+    val readSelection = {
+        if (project.isDisposed) emptyList() else FileEditorManager.getInstance(project).selectedFiles.map { it.url }
+    }
+    val application = ApplicationManager.getApplication()
+    if (application.isDispatchThread) return readSelection()
+    var selected = emptyList<String>()
+    // Only a read, so an open modal dialog need not delay the crash recovery.
+    application.invokeAndWait({ selected = readSelection() }, ModalityState.any())
+    return selected
+}
 
 /** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
 internal data class DocumentFlushedReply(
