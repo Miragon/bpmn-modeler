@@ -320,10 +320,11 @@ closed target goes back to the open editor that held it before, and to the
 newest remaining editor only when none did, until the host reports the next
 focused one. The bridge treats `session/register` as the focused tab, so
 it marks the handle active before registering it, and it derives `isActive()`
-from the target. On IntelliJ the two agree with each other but not always
-with the selected tab: after a bridge respawn the host re-registers every
-session without replaying `session/setActive`, so the session registered last
-counts as focused. Theia sets a webview's `active` from
+from the target. After a bridge respawn the IntelliJ host re-registers every
+session, then sends `session/setActive` for the first selected tab that is a
+diagram, the focused window's first, so the session registered last does not
+keep the target. With no diagram tab selected, it does.
+Theia sets a webview's `active` from
 `shell.activeWidget`, so in the standalone app focusing a sidebar view such as
 the deployment sidebar blurs the editor, and the shared items hide while the
 sidebar has focus. VS Code keeps the panel active.
@@ -546,8 +547,8 @@ creation also remains off the UI thread when an editor needs it directly.
 
 On exit, the supervisor retries with backoff and limits repeated rapid crashes;
 a stable run resets that budget. Recovery re-registers live sessions from the
-authoritative IntelliJ Documents, replays render requests, and re-seeds
-deployment state. A tab that closes while recovery builds its register frame
+authoritative IntelliJ Documents, replays render requests, focuses the
+selected diagram tab again, and re-seeds deployment state. A tab that closes while recovery builds its register frame
 gets a second `session/dispose` after that frame, so the new bridge keeps no
 session for it. Accepted gap: if the same file registers again inside that
 window, the new bridge can end with no session for the new tab until it

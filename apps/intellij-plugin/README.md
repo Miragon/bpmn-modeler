@@ -69,7 +69,9 @@ flowchart TD
   received into it (the close flush), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
-  bridge's lint state. The page takes no edits until the render arrives, at
+  bridge's lint state. Last it sends `session/setActive` for the selected
+  diagram tab, so commands without an editor id keep acting on it and not on
+  the session re-registered last. The page takes no edits until the render arrives, at
   most 5 s after the replay; a crash recovery with an edit to write first waits
   for an open modal dialog to close. Tools ▸ Reload Modeler runs the same
   recovery against the running bridge. Like a tab close, recovery writes only

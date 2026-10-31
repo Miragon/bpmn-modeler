@@ -447,6 +447,10 @@ internal class EditorSessionRouter(
      * so `GetBpmnlintConfigCommand` is replayed too: a new bridge starts with
      * linting on and the page would otherwise show the old bridge's toggle.
      *
+     * Ends with `session/setActive` for the first selected tab that is a
+     * diagram, the focused window's first. With no diagram tab selected, the
+     * session replayed last keeps the command target.
+     *
      * Waits up to [PAGE_FLUSH_TIMEOUT_MS] for the pages' replies; off the EDT it
      * then also waits until the EDT has written any export, which an open modal
      * dialog delays.
@@ -468,6 +472,14 @@ internal class EditorSessionRouter(
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
+        focusSelectedEditor()
+    }
+
+    // The bridge takes every register for the focused tab, so the session replayed last would keep the command target.
+    private fun focusSelectedEditor() {
+        // A disposed project has no sessions left, and its FileEditorManager can no longer be asked.
+        if (sessions.isEmpty()) return
+        selectedEditorIds().firstOrNull(sessions::containsKey)?.let(::setActiveEditor)
     }
 
     fun clear() {
