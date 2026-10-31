@@ -22,6 +22,31 @@ html[data-bpmn-theme="dark"] .template-editor__messages {
     background: var(--vscode-inputValidation-warningBackground, #352a05);
 }
 
+html[data-bpmn-theme="dark"] .template-editor__lead,
+html[data-bpmn-theme="dark"] .template-editor__placeholder {
+    color: var(--vscode-descriptionForeground, #a0a0a0);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__choice {
+    background: var(--vscode-dropdown-background, #3c3c3c);
+    border-color: var(--vscode-dropdown-border, #555);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__engine {
+    background: var(--vscode-badge-background, #4d4d4d);
+    color: var(--vscode-badge-foreground, #fff);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__preview-toggle[aria-pressed="true"] {
+    background: var(--vscode-inputOption-activeBackground, rgba(0, 127, 212, 0.4));
+}
+
+html[data-bpmn-theme="dark"] .template-editor__wizard select,
+html[data-bpmn-theme="dark"] .template-editor__wizard input {
+    background: var(--vscode-input-background, #3c3c3c);
+    border-color: var(--vscode-input-border, #555);
+}
+
 .template-editor [hidden] {
     display: none !important;
 }
@@ -62,15 +87,131 @@ html[data-bpmn-theme="dark"] .template-editor__messages {
     overflow-wrap: anywhere;
 }
 
-.template-editor__panel {
+.template-editor__preview-toggle {
+    padding: 1px 8px;
+    border: 1px solid var(--vscode-inputOption-activeBorder, transparent);
+    border-radius: 3px;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.template-editor__preview-toggle[aria-pressed="true"] {
+    border-color: var(--vscode-inputOption-activeBorder, #007acc);
+    background: var(--vscode-inputOption-activeBackground, rgba(0, 144, 241, 0.2));
+}
+
+/* Right-aligned on its own when there is no template picker. */
+.template-editor__choice[hidden] + .template-editor__preview-toggle {
+    margin-left: auto;
+}
+
+.template-editor__body {
+    display: flex;
     flex: 1;
     min-height: 0;
+}
+
+/* The rendered template on the left; drag its edge to resize. */
+.template-editor__preview {
+    flex: none;
+    width: clamp(200px, 36%, 340px);
+    min-width: 180px;
+    max-width: 70%;
     overflow: auto;
+    resize: horizontal;
+    border-right: 1px solid var(--vscode-panel-border, #ccc);
     user-select: none;
 }
 
-.template-editor__panel input,
-.template-editor__panel textarea,
-.template-editor__panel [contenteditable="true"] {
+.template-editor--preview-hidden .template-editor__preview,
+.template-editor--no-preview .template-editor__preview {
+    display: none;
+}
+
+/* The panels' own surface, so the builder column narrower than this area shows no edge. */
+.template-editor__main {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    background: #fff;
+}
+
+html[data-bpmn-theme="dark"] .template-editor__main {
+    background: var(--vscode-editorWidget-background, #282828);
+}
+
+/* Fields wider than this only make labels and values hard to read together. */
+.template-editor__builder {
+    max-width: 760px;
+}
+
+.template-editor__preview input,
+.template-editor__preview textarea,
+.template-editor__preview [contenteditable="true"] {
     user-select: text;
+}
+
+.template-editor__wizard,
+.template-editor__engine-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 440px;
+    padding: 24px;
+}
+
+.template-editor__wizard-title {
+    margin: 0;
+    font-size: 1.3em;
+    font-weight: 600;
+}
+
+.template-editor__lead,
+.template-editor__placeholder {
+    margin: 0;
+    color: var(--vscode-descriptionForeground, #616161);
+}
+
+.template-editor__placeholder {
+    padding: 24px;
+}
+
+.template-editor__wizard-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.template-editor__wizard select,
+.template-editor__wizard input {
+    padding: 4px 6px;
+    border: 1px solid var(--vscode-input-border, #ccc);
+    border-radius: 2px;
+    color: var(--vscode-input-foreground, inherit);
+    background: var(--vscode-input-background, #fff);
+    font: inherit;
+}
+
+.template-editor__engine-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.template-editor__wizard-create,
+.template-editor__engine-button {
+    align-self: flex-start;
+    padding: 5px 14px;
+    border: none;
+    border-radius: 2px;
+    background: var(--vscode-button-background, #0062ff);
+    color: var(--vscode-button-foreground, #fff);
+    font: inherit;
+    cursor: pointer;
+}
+
+.template-editor__wizard-create:hover,
+.template-editor__engine-button:hover {
+    background: var(--vscode-button-hoverBackground, #0052d6);
 }

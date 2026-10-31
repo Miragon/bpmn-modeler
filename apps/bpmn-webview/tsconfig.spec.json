@@ -11,6 +11,7 @@
     "src/**/*.spec.ts",
     "src/**/*.d.ts",
     "../../packages/bpmn-modeler/src/types/*.d.ts",
-    "../../libs/properties-panel/src/types/bpmn-io-properties-panel.d.ts"
+    "../../libs/properties-panel/src/types/bpmn-io-properties-panel.d.ts",
+    "../../libs/element-template-builder/src/types/element-templates-validator.d.ts"
   ]
 }

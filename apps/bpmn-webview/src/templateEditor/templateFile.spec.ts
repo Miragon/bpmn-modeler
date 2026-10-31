@@ -42,7 +42,15 @@ describe("readTemplateFile", () => {
             engine: "c7",
             choices: [{ key: "mail@", label: "Mail task" }],
             selected: "mail@",
+            path: [],
         });
+    });
+
+    it("locates the selected template of an array file by its index in the file", () => {
+        const text = JSON.stringify([42, MAIL, STATUS_V1]);
+
+        expect(readTemplateFile(text, "status@1")).toMatchObject({ path: [2] });
+        expect(readTemplateFile(text)).toMatchObject({ path: [1] });
     });
 
     it("offers every template of an array file, labelled with its version", () => {
@@ -90,6 +98,7 @@ describe("readTemplateFile", () => {
             kind: "unknownEngine",
             choices: [{ key: "plain@", label: "Plain" }],
             selected: "plain@",
+            path: [],
         });
     });
 });
