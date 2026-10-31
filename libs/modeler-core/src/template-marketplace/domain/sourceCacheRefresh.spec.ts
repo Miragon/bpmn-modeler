@@ -3,9 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
     CachedSourceSlot,
     FetchedTemplateFile,
+    formatSourceSlotRecord,
+    nextSourceSlotRecord,
+    parseSourceSlotRecord,
     planSourceCacheRefresh,
     SourceFetchOutcome,
     SourceSlotAction,
+    SourceSlotRecord,
 } from "./sourceCacheRefresh";
 
 const template: FetchedTemplateFile = {
@@ -146,5 +150,103 @@ describe("planSourceCacheRefresh", () => {
         },
     ])("$behaviour", ({ cachedSlots, outcomes, expected }) => {
         expect(planSourceCacheRefresh(cachedSlots, outcomes)).toEqual(expected);
+    });
+});
+
+describe("parseSourceSlotRecord", () => {
+    it.each<{ behaviour: string; text: string; record: SourceSlotRecord | undefined }>([
+        {
+            behaviour: "reads the source and the generation",
+            text: '{"source":"source a","generation":3}',
+            record: { source: SOURCE_A, generation: 3 },
+        },
+        {
+            behaviour: "reads what formatSourceSlotRecord wrote",
+            text: formatSourceSlotRecord({ source: SOURCE_B, generation: 12 }),
+            record: { source: SOURCE_B, generation: 12 },
+        },
+        {
+            behaviour: "rejects a torn write",
+            text: '{"source":"sour',
+            record: undefined,
+        },
+        {
+            behaviour: "rejects an empty file",
+            text: "",
+            record: undefined,
+        },
+        {
+            behaviour: "rejects JSON that is no object",
+            text: "null",
+            record: undefined,
+        },
+        {
+            behaviour: "rejects a record without a source",
+            text: '{"generation":1}',
+            record: undefined,
+        },
+        {
+            behaviour: "rejects a source that is no string",
+            text: '{"source":7,"generation":1}',
+            record: undefined,
+        },
+        {
+            behaviour: "rejects a record without a generation",
+            text: '{"source":"source a"}',
+            record: undefined,
+        },
+        {
+            behaviour: "rejects a generation spelled as a string",
+            text: '{"source":"source a","generation":"1"}',
+            record: undefined,
+        },
+        {
+            behaviour: "rejects a fractional generation",
+            text: '{"source":"source a","generation":1.5}',
+            record: undefined,
+        },
+    ])("$behaviour", ({ text, record }) => {
+        expect(parseSourceSlotRecord(text)).toEqual(record);
+    });
+});
+
+describe("formatSourceSlotRecord", () => {
+    it("writes only the source and the generation", () => {
+        const recordWithExtras = { source: SOURCE_A, generation: 2, files: ["a.json"] };
+
+        expect(JSON.parse(formatSourceSlotRecord(recordWithExtras))).toEqual({
+            source: SOURCE_A,
+            generation: 2,
+        });
+    });
+});
+
+describe("nextSourceSlotRecord", () => {
+    it.each<{
+        behaviour: string;
+        current: SourceSlotRecord | undefined;
+        source: string;
+        next: SourceSlotRecord;
+    }>([
+        {
+            behaviour: "starts a slot without a record at generation 1",
+            current: undefined,
+            source: SOURCE_A,
+            next: { source: SOURCE_A, generation: 1 },
+        },
+        {
+            behaviour: "moves a slot to the generation after its live one",
+            current: { source: SOURCE_A, generation: 4 },
+            source: SOURCE_A,
+            next: { source: SOURCE_A, generation: 5 },
+        },
+        {
+            behaviour: "records the source that now fills the slot",
+            current: { source: SOURCE_B, generation: 1 },
+            source: SOURCE_A,
+            next: { source: SOURCE_A, generation: 2 },
+        },
+    ])("$behaviour", ({ current, source, next }) => {
+        expect(nextSourceSlotRecord(current, source)).toEqual(next);
     });
 });

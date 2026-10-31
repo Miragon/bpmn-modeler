@@ -241,10 +241,7 @@ export class TemplateMarketplaceService {
             }
         }
         const actions = planSourceCacheRefresh(
-            (await this.cache.sourceIndexes(registration.id)).map((sourceIndex) => ({
-                sourceIndex,
-                source: undefined,
-            })),
+            await this.cache.cachedSlots(registration.id),
             outcomes,
         );
         let cached = 0;
@@ -278,14 +275,23 @@ export class TemplateMarketplaceService {
         const slot = `${registration.id}/${action.sourceIndex}`;
         switch (action.kind) {
             case "replace":
-                await this.cache.replaceSource(registration.id, action.sourceIndex, action.files);
+                await this.cache.replaceSource(
+                    registration.id,
+                    action.sourceIndex,
+                    action.source,
+                    action.files,
+                );
                 for (const { repoPath, contentType } of action.files) {
                     this.notifier.logDebug(`Cached template: ${repoPath} → ${slot}/${contentType}`);
                 }
                 return action.files.length;
             case "remove":
                 await this.cache.removeSource(registration.id, action.sourceIndex);
-                this.notifier.logDebug(`Removed cached source no longer listed: ${slot}`);
+                this.notifier.logDebug(
+                    action.reason === "unlisted"
+                        ? `Removed cached source no longer listed: ${slot}`
+                        : `Removed cached files of another source: ${slot}`,
+                );
                 return 0;
             case "keep":
                 return 0;

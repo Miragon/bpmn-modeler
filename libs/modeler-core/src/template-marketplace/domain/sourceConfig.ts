@@ -68,8 +68,32 @@ export function describeSourceConfig(config: RepositorySourceConfig): string {
     return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
 }
 
-export function sourceIdentity(_config: RepositorySourceConfig): string {
-    return "";
+/**
+ * Where a source's files come from, so a cache slot tells its own source from
+ * one that took its index. Never reads `token`.
+ */
+export function sourceIdentity(config: RepositorySourceConfig): string {
+    switch (config.kind) {
+        case "github":
+            return JSON.stringify([
+                config.kind,
+                config.baseUrl,
+                config.owner,
+                config.repo,
+                config.ref,
+                config.path,
+            ]);
+        case "gitlab":
+            return JSON.stringify([
+                config.kind,
+                config.baseUrl,
+                config.projectPath,
+                config.ref,
+                config.path,
+            ]);
+        case "local":
+            return JSON.stringify([config.kind, config.rootDir, config.path]);
+    }
 }
 
 function configAt(location: MarketplaceLocation, path: string): RepositorySourceConfig {

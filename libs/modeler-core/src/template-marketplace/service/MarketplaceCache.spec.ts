@@ -1,23 +1,52 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryWorkspace } from "../../testing";
+import { FetchedTemplateFile, formatSourceSlotRecord } from "../domain/sourceCacheRefresh";
 import { MarketplaceCache } from "./MarketplaceCache";
+
+const SOURCE = "source a";
+const OTHER_SOURCE = "source b";
 
 function createWorkspace(files: Record<string, string> = {}) {
     return new InMemoryWorkspace([], files);
 }
 
+function template(repoPath: string, content = "{}"): FetchedTemplateFile {
+    return { contentType: "element-templates", repoPath, content };
+}
+
+function slotRecord(source: string, generation: number): string {
+    return formatSourceSlotRecord({ source, generation });
+}
+
+async function servedContents(cache: MarketplaceCache, workspace: InMemoryWorkspace) {
+    const servedPaths = await cache.getCachedTemplatePaths();
+    return Promise.all(servedPaths.map((path) => workspace.readFile(path)));
+}
+
+/** Lets every write through except those to a path ending in `failingSuffix`. */
+function failWritesTo(workspace: InMemoryWorkspace, failingSuffix: string) {
+    const writeFile = workspace.writeFile.bind(workspace);
+    return vi.spyOn(workspace, "writeFile").mockImplementation(async (path, content) => {
+        if (path.endsWith(failingSuffix)) {
+            throw new Error("disk full");
+        }
+        await writeFile(path, content);
+    });
+}
+
 describe("MarketplaceCache.replaceSource", () => {
-    it("writes each file under <root>/<id>/<index>/<contentType>/<path>", async () => {
+    it("writes each file under <root>/<id>/<index>/<generation>/<contentType>/<path>", async () => {
         const workspace = createWorkspace();
         const cache = new MarketplaceCache("/cache", workspace);
 
-        await cache.replaceSource("acme", 0, [
-            { contentType: "element-templates", repoPath: "templates/a.json", content: "{}" },
-        ]);
+        await cache.replaceSource("acme", 0, SOURCE, [template("templates/a.json")]);
 
         expect(workspace.files).toEqual(
-            new Map([["/cache/acme/0/element-templates/templates/a.json", "{}"]]),
+            new Map([
+                ["/cache/acme/0/1/element-templates/templates/a.json", "{}"],
+                ["/cache/acme/0/slot.json", slotRecord(SOURCE, 1)],
+            ]),
         );
     });
 
@@ -29,14 +58,28 @@ describe("MarketplaceCache.replaceSource", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        await cache.replaceSource("acme", 0, [
-            { contentType: "element-templates", repoPath: "a.json", content: "new a" },
-        ]);
+        await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "new a")]);
 
         expect(workspace.files).toEqual(
             new Map([
                 ["/cache/acme/1/element-templates/c.json", "sibling"],
-                ["/cache/acme/0/element-templates/a.json", "new a"],
+                ["/cache/acme/0/1/element-templates/a.json", "new a"],
+                ["/cache/acme/0/slot.json", slotRecord(SOURCE, 1)],
+            ]),
+        );
+    });
+
+    it("writes each replace into the next generation and drops the one before", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+        await cache.replaceSource("acme", 0, OTHER_SOURCE, [template("a.json", "first")]);
+
+        await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "second")]);
+
+        expect(workspace.files).toEqual(
+            new Map([
+                ["/cache/acme/0/2/element-templates/a.json", "second"],
+                ["/cache/acme/0/slot.json", slotRecord(SOURCE, 2)],
             ]),
         );
     });
@@ -44,51 +87,77 @@ describe("MarketplaceCache.replaceSource", () => {
     it("keeps the old files when a write fails", async () => {
         const workspace = createWorkspace();
         const cache = new MarketplaceCache("/cache", workspace);
-        await cache.replaceSource("acme", 0, [
-            { contentType: "element-templates", repoPath: "a.json", content: "old a" },
-        ]);
-        const writeFile = workspace.writeFile.bind(workspace);
-        vi.spyOn(workspace, "writeFile").mockImplementation(async (path, content) => {
-            if (path.endsWith("/b.json")) {
-                throw new Error("disk full");
-            }
-            await writeFile(path, content);
-        });
+        await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "old a")]);
+        failWritesTo(workspace, "/b.json");
 
         await expect(
-            cache.replaceSource("acme", 0, [
-                { contentType: "element-templates", repoPath: "a.json", content: "new a" },
-                { contentType: "element-templates", repoPath: "b.json", content: "new b" },
+            cache.replaceSource("acme", 0, SOURCE, [
+                template("a.json", "new a"),
+                template("b.json", "new b"),
             ]),
         ).rejects.toThrow("disk full");
 
-        const servedPaths = await cache.getCachedTemplatePaths();
-        expect(await Promise.all(servedPaths.map((path) => workspace.readFile(path)))).toEqual([
-            "old a",
-        ]);
+        expect(await servedContents(cache, workspace)).toEqual(["old a"]);
+    });
+
+    it("keeps the old files and their source when the slot record cannot be written", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+        await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "old a")]);
+        failWritesTo(workspace, "/slot.json");
+
+        await expect(
+            cache.replaceSource("acme", 0, OTHER_SOURCE, [template("a.json", "new a")]),
+        ).rejects.toThrow("disk full");
+
+        expect(await servedContents(cache, workspace)).toEqual(["old a"]);
+        expect(await cache.cachedSlots("acme")).toEqual([{ sourceIndex: 0, source: SOURCE }]);
+    });
+
+    it("does not serve the files a failed replace left behind", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+        const failingWrites = failWritesTo(workspace, "/b.json");
+        await expect(
+            cache.replaceSource("acme", 0, SOURCE, [template("a.json"), template("b.json")]),
+        ).rejects.toThrow("disk full");
+        failingWrites.mockRestore();
+
+        await cache.replaceSource("acme", 0, SOURCE, [template("c.json", "c")]);
+
+        expect(await servedContents(cache, workspace)).toEqual(["c"]);
     });
 
     it.each([
         ["a parent-traversal path", "../../../settings.json"],
         ["an absolute posix path", "/etc/passwd"],
         ["a backslash traversal path", "..\\..\\settings.json"],
-    ])("rejects %s before deleting anything", async (_label, unsafeRepoPath) => {
+    ])("rejects %s before writing anything", async (_label, unsafeRepoPath) => {
         const cachedFiles = { "/cache/acme/0/element-templates/a.json": "last good" };
         const workspace = createWorkspace(cachedFiles);
         const cache = new MarketplaceCache("/cache", workspace);
 
         await expect(
-            cache.replaceSource("acme", 0, [
-                { contentType: "element-templates", repoPath: "b.json", content: "{}" },
-                { contentType: "element-templates", repoPath: unsafeRepoPath, content: "{}" },
-            ]),
+            cache.replaceSource("acme", 0, SOURCE, [template("b.json"), template(unsafeRepoPath)]),
         ).rejects.toThrow(/unsafe template path/);
         expect(workspace.files).toEqual(new Map(Object.entries(cachedFiles)));
     });
 });
 
-describe("MarketplaceCache.sourceIndexes", () => {
-    it("lists the numeric source slots of one marketplace", async () => {
+describe("MarketplaceCache.cachedSlots", () => {
+    it("names the source each slot of one marketplace recorded", async () => {
+        const cache = new MarketplaceCache("/cache", createWorkspace());
+        await cache.replaceSource("acme", 0, SOURCE, [template("a.json")]);
+        await cache.replaceSource("acme", 2, OTHER_SOURCE, [template("b.json")]);
+        await cache.replaceSource("globex", 1, SOURCE, [template("c.json")]);
+
+        expect(await cache.cachedSlots("acme")).toEqual([
+            { sourceIndex: 0, source: SOURCE },
+            { sourceIndex: 2, source: OTHER_SOURCE },
+        ]);
+    });
+
+    it("lists the numeric slots cached before slots recorded their source", async () => {
         const workspace = createWorkspace({
             "/cache/acme/0/element-templates/a.json": "{}",
             "/cache/acme/2/element-templates/b.json": "{}",
@@ -97,13 +166,26 @@ describe("MarketplaceCache.sourceIndexes", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.sourceIndexes("acme")).toEqual([0, 2]);
+        expect(await cache.cachedSlots("acme")).toEqual([
+            { sourceIndex: 0, source: undefined },
+            { sourceIndex: 2, source: undefined },
+        ]);
+    });
+
+    it("names no source for a slot whose record is torn", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/slot.json": '{"source":"sou',
+            "/cache/acme/0/1/element-templates/a.json": "{}",
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.cachedSlots("acme")).toEqual([{ sourceIndex: 0, source: undefined }]);
     });
 
     it("returns [] for a marketplace with nothing cached", async () => {
         const cache = new MarketplaceCache("/cache", createWorkspace());
 
-        expect(await cache.sourceIndexes("acme")).toEqual([]);
+        expect(await cache.cachedSlots("acme")).toEqual([]);
     });
 });
 
@@ -168,6 +250,38 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         const cache = new MarketplaceCache("/cache", workspace);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([]);
+    });
+
+    it("serves the generation a slot record names", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/slot.json": slotRecord(SOURCE, 2),
+            "/cache/acme/0/1/element-templates/old.json": "{}",
+            "/cache/acme/0/2/element-templates/live.json": "{}",
+            "/cache/acme/0/3/element-templates/unfinished.json": "{}",
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([
+            "/cache/acme/0/2/element-templates/live.json",
+        ]);
+    });
+
+    it("serves no generation of a slot whose record is torn", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/slot.json": "",
+            "/cache/acme/0/1/element-templates/a.json": "{}",
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([]);
+    });
+
+    it("fails when a slot record cannot be read", async () => {
+        const workspace = createWorkspace({ "/cache/acme/0/slot.json": slotRecord(SOURCE, 1) });
+        vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("permission denied"));
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        await expect(cache.getCachedTemplatePaths()).rejects.toThrow("permission denied");
     });
 
     it("aggregates across marketplaces and source indexes", async () => {
