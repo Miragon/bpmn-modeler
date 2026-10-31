@@ -270,10 +270,12 @@ handle counts a panel as active only while it is also visible
 (`panel.active && panel.visible`), for `isActive()` and for the state its
 view-state events report. Running the app with Theia 1.76 showed Theia
 restoring a hidden tab as its active widget and reporting that panel active
-after a restart. Theia takes `visible` from the widget, so the same report
-marks the panel hidden, and the handle reports it as a blur: the hidden tab
-neither takes the target nor counts as focused, and a target on it goes to
-the session that has reported focus longest, if any. VS Code reports an
+after a restart. That run logged only `active`. Theia's source takes
+`visible` from the widget (`!widget.isHidden`), so the same report should
+mark the panel hidden; no restart run has confirmed that yet. The handle
+reports such a panel as a blur: the hidden tab neither takes the target nor
+counts as focused, and a target on it goes to the session that has reported
+focus longest, if any. VS Code reports an
 active panel as visible, so nothing changes there. Theia creates every
 custom-editor panel active and visible, so in the standalone app a diagram
 that resolves behind the focused one takes the target, and hands it back when
@@ -287,7 +289,14 @@ the host focuses a session. When Theia sends no view-state update for the
 restored diagrams at all, the diagram registered last keeps the target, so
 after a restart commands can still act on a hidden tab until the user
 focuses a diagram. The visibility check cannot catch that case, because the
-panel never learns that it is hidden.
+panel never learns that it is hidden. The hand-off also depends on the order
+of Theia's reports, which, by Theia's source, covers every changed panel in
+one pass in the order Theia created them. When the visible diagram reports
+inactive before the hidden tab reports, the visible one blurs first, the
+hidden tab's blur finds no session that reports focus, and the hidden tab
+keeps the target. `VsCodeEditorHandle.spec.ts` pins that case as an expected
+failure. Closing both cases needs the core to know which diagram is visible,
+for example from `window.tabGroups`.
 In VS Code only one panel is active at a time, so the target ends on the panel
 VS Code activated whichever view-state event comes first, and the bridge blurs
 only sessions that no longer hold the target. A
