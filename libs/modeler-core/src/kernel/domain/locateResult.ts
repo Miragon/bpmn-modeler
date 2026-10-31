@@ -1,3 +1,8 @@
+import { posix } from "path";
+
+import { ChoicePrompt } from "./prompts";
+import { relativeToWorkspace } from "./rootContainment";
+
 /**
  * Outcome of searching the workspace's files; `Matches` holds what was found.
  *
@@ -49,4 +54,20 @@ export function classifyLocateResult(result: LocateResult): LocatedFile {
         return { kind: "single", path: paths[0], readFailures };
     }
     return { kind: "ambiguous", paths, readFailures };
+}
+
+/** The pick only an ambiguous result leaves, nearby files first. */
+export function locatedFileChoices(
+    outcome: LocateResult,
+    { placeholder, workspaceFolders }: { placeholder: string; workspaceFolders: readonly string[] },
+): ChoicePrompt<string> | undefined {
+    const located = classifyLocateResult(outcome);
+    if (located.kind !== "ambiguous") {
+        return undefined;
+    }
+    const items = located.paths
+        .map((path) => ({ path, workspacePath: relativeToWorkspace(path, workspaceFolders) }))
+        .sort((a, b) => a.workspacePath.localeCompare(b.workspacePath))
+        .map(({ path }) => ({ label: posix.basename(path), path, value: path }));
+    return { id: "locatedFile", placeholder, items };
 }

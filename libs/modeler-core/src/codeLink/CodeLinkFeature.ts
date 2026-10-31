@@ -39,6 +39,7 @@ export class CodeLinkFeature {
             locator,
             ports.notifier,
             ports.picker,
+            ports.workspace,
         );
         this.codeLinkMap = new CodeLinkMapService(
             ports.store,

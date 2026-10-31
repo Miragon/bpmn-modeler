@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { openLocatedFile } from "../../kernel/service/openLocatedFile";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
@@ -18,6 +18,7 @@ export class ImplementationNavigationService {
         private readonly locator: ImplementationLocator,
         private readonly notifier: NotifierPort,
         private readonly picker: PickerPort,
+        private readonly workspace: WorkspacePort,
     ) {}
 
     async navigate(
@@ -39,7 +40,7 @@ export class ImplementationNavigationService {
                 notFoundMessage: (displayReference) =>
                     `${nothingImplements(displayReference)} in the workspace.`,
             },
-            { notifier: this.notifier, picker: this.picker },
+            { notifier: this.notifier, picker: this.picker, workspace: this.workspace },
         );
     }
 }
