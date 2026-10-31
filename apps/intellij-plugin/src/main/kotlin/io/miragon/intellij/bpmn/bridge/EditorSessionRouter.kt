@@ -151,44 +151,24 @@ internal class EditorSessionRouter(
         )
 
         deps.handlers
-            .on("editor/postMessage") { params, _ ->
-                val editorId = params.get("editorId").asString
-                val entry = sessions[editorId] ?: return@on
-                if (!matchesSession(params, entry)) return@on
-                val message = params.getAsJsonObject("message")
-                val query = message.takeIf { it.get("type")?.asStringOrNull() == BPMN_FILE_QUERY_TYPE }
-                val delivered = query?.get("content")?.asStringOrNull()
-                val deliveredRevision =
-                    query?.get("documentRevision")
-                        ?.takeIf { !it.isJsonNull }
-                        ?.asLong
-                if (deliveredRevision != null) {
-                    if (deliveredRevision < entry.documentRevision.get()) return@on
-                }
-                entry.session.postToWebview(deps.gson.toJson(message))
-                if (query != null) {
-                    entry.takeRenderLock()?.let { entry.session.postToWebview(releaseFlushQuery(it)) }
-                    val expected = hostUpdatesAwaitingWebview[editorId]
-                    if (
-                        expected != null &&
-                        (
-                            deliveredRevision?.let { it >= expected.revision } == true ||
-                                (
-                                    deliveredRevision == null &&
-                                        delivered != null &&
-                                        StringUtil.equals(
-                                            StringUtil.convertLineSeparators(expected.content),
-                                            StringUtil.convertLineSeparators(delivered),
-                                        )
-                                )
-                        )
-                    ) {
-                        hostUpdatesAwaitingWebview.remove(editorId, expected)
-                    }
-                }
+            .on("editor/postMessage") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                val message = params.jsonObject("message")
+                RpcAction { deliverToWebview(editorId, sessionId, message) }
             }
-            .on("document/write") { params, id -> handleWrite(params, id) }
-            .on("document/save") { params, id -> handleSave(params, id) }
+            .on("document/write") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                val writtenContent = params.string("content")
+                val expectedDocumentRevision = params.optionalLong("expectedDocumentRevision")
+                RpcAction { id -> handleWrite(editorId, sessionId, writtenContent, expectedDocumentRevision, id) }
+            }
+            .on("document/save") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                RpcAction { id -> handleSave(editorId, sessionId, id) }
+            }
     }
 
     // ── host → core ────────────────────────────────────────────────────────────
@@ -508,10 +488,43 @@ internal class EditorSessionRouter(
 
     // ── core → host ────────────────────────────────────────────────────────────
 
-    private fun matchesSession(params: JsonObject, entry: SessionEntry): Boolean {
-        val sessionId = params.get("sessionId")?.takeIf { !it.isJsonNull }?.asLong
-        return sessionId == null || sessionId == entry.sessionId
+    private fun deliverToWebview(editorId: String, sessionId: Long?, message: JsonObject) {
+        val entry = sessions[editorId] ?: return
+        if (!matchesSession(sessionId, entry)) return
+        val query = message.takeIf { it.get("type")?.asStringOrNull() == BPMN_FILE_QUERY_TYPE }
+        val delivered = query?.get("content")?.asStringOrNull()
+        val deliveredRevision =
+            query?.get("documentRevision")
+                ?.takeIf { !it.isJsonNull }
+                ?.asLong
+        if (deliveredRevision != null) {
+            if (deliveredRevision < entry.documentRevision.get()) return
+        }
+        entry.session.postToWebview(deps.gson.toJson(message))
+        if (query != null) {
+            entry.takeRenderLock()?.let { entry.session.postToWebview(releaseFlushQuery(it)) }
+            val expected = hostUpdatesAwaitingWebview[editorId]
+            if (
+                expected != null &&
+                (
+                    deliveredRevision?.let { it >= expected.revision } == true ||
+                        (
+                            deliveredRevision == null &&
+                                delivered != null &&
+                                StringUtil.equals(
+                                    StringUtil.convertLineSeparators(expected.content),
+                                    StringUtil.convertLineSeparators(delivered),
+                                )
+                        )
+                )
+            ) {
+                hostUpdatesAwaitingWebview.remove(editorId, expected)
+            }
+        }
     }
+
+    private fun matchesSession(sessionId: Long?, entry: SessionEntry): Boolean =
+        sessionId == null || sessionId == entry.sessionId
 
     /**
      * Writes core-supplied XML into the in-memory Document on the EDT, then replies
@@ -523,16 +536,16 @@ internal class EditorSessionRouter(
      * so a write of content a page flush already put into the Document reports
      * one too: the core never heard of that flush.
      */
-    private fun handleWrite(params: JsonObject, id: Int?) {
-        val editorId = params.get("editorId").asString
-        val writtenContent = params.get("content").asString
+    private fun handleWrite(
+        editorId: String,
+        sessionId: Long?,
+        writtenContent: String,
+        expectedDocumentRevision: Long?,
+        id: Int?,
+    ) {
         val content = StringUtil.convertLineSeparators(writtenContent)
-        val expectedDocumentRevision =
-            params.get("expectedDocumentRevision")
-                ?.takeIf { !it.isJsonNull }
-                ?.asLong
         val entry = sessions[editorId]
-        if (entry == null || !matchesSession(params, entry)) {
+        if (entry == null || !matchesSession(sessionId, entry)) {
             id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
             return
         }
@@ -579,13 +592,12 @@ internal class EditorSessionRouter(
         return result
     }
 
-    private fun handleSave(params: JsonObject, id: Int?) {
-        val editorId = params.get("editorId").asString
+    private fun handleSave(editorId: String, sessionId: Long?, id: Int?) {
         val entry = sessions[editorId]
         deps.channel.replyFromEdt(id, "document/save") {
             val liveSession =
                 entry?.session?.takeIf {
-                    sessions[editorId] === entry && matchesSession(params, entry) && !it.project.isDisposed
+                    sessions[editorId] === entry && matchesSession(sessionId, entry) && !it.project.isDisposed
                 }
             val documentManager = FileDocumentManager.getInstance()
             val document = liveSession?.let { documentManager.getDocument(it.file) }

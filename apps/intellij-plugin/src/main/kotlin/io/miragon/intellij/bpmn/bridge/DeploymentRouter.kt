@@ -21,18 +21,21 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
 
     fun register() {
         deps.handlers
-            .on("deployment/postMessage") { params, _ ->
-                val payload = deps.gson.toJson(params.get("message"))
-                deploymentSink?.invoke(payload)
+            .on("deployment/postMessage") { params ->
+                val message = params.element("message")
+                RpcAction { deploymentSink?.invoke(deps.gson.toJson(message)) }
             }
             // An acknowledged request (not a notification): the bridge awaits the
             // persist so a failure rejects the core's write instead of being
             // dropped silently. PropertiesComponent writes are thread-safe and
             // run on the reader thread here (same as the secretStore handlers);
             // the empty `reply` mirrors `secretStore/save*`.
-            .on("deploymentState/save") { params, id ->
-                deploymentState.applyPatch(params.getAsJsonObject("patch"))
-                id?.let { deps.channel.reply(it, null) }
+            .on("deploymentState/save") { params ->
+                val patch = params.jsonObject("patch")
+                RpcAction { id ->
+                    deploymentState.applyPatch(patch)
+                    id?.let { deps.channel.reply(it, null) }
+                }
             }
     }
 
