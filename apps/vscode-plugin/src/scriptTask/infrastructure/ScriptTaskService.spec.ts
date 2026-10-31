@@ -62,7 +62,10 @@ vi.mock("vscode", () => {
         Uri: {
             // `toUri` routes plain paths through `Uri.file`.
             file: fileUri,
-            parse: (value: string) => fileUri(value.replace(/^file:\/\//, "")),
+            parse: (value: string) => {
+                const [, authority, path] = /^file:\/\/([^/]*)(.*)$/.exec(value) ?? [];
+                return fileUri(authority ? `//${authority}${path}` : path);
+            },
         },
         languages: {
             setTextDocumentLanguage: (...args: unknown[]) => setTextDocumentLanguageMock(...args),
