@@ -48,7 +48,12 @@ Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing
 credentials in application-scoped IntelliJ PasswordSafe. Optional secret-store
 slots retain the legacy unnamed keys when absent; deletion/rename cleans up
-the target slot. Never write secrets into the shared file; whole-value
+the target slot. Each auth type keeps its credential pair in one entry
+(PasswordSafe `Credentials` in IntelliJ, a JSON object in VS Code), so a failed
+write leaves the old pair whole. VS Code still reads a pair from the two keys
+earlier releases stored while that entry is missing, and the next save of the
+pair removes them. VS Code's delete tries every key of the slot before it
+reports the first failure. Never write secrets into the shared file; whole-value
 environment references (below) are the only credential values it may hold.
 
 Each edit of the file returns a `TargetChange` from `DeploymentTargets`
