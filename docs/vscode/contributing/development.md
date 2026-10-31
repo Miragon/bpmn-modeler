@@ -265,8 +265,8 @@ CI runs one test job per affected workspace, each failing below the
 thresholds in its `vitest.config.ts` or on a type error, specs included (Vitest
 itself does not type-check). A new Vitest workspace must be added to
 `.github/vitest-targets.json` with a `typecheck` script that covers its specs;
-the lint job fails otherwise. Coverage reports
-are uploaded to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-modeler).
+the lint job fails otherwise. On a PR, each leg shows its coverage report in
+the job summary of the run.
 
 ### VS Code smoke test
 

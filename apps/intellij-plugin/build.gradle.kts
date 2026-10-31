@@ -115,11 +115,6 @@ tasks.test {
 
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
-    // Codecov ingests the XML; the HTML report is dead weight in CI.
-    reports {
-        xml.required.set(true)
-        html.required.set(false)
-    }
 }
 
 // About three points below the measured baseline, like the Vitest workspace thresholds.
