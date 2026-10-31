@@ -14,9 +14,7 @@ export interface Engines {
 /**
  * Derives the element-template engine profile from a diagram's execution
  * platform metadata on `bpmn:Definitions`, read under the prefix the diagram
- * binds to the modeler namespace. The bundled moddles do not register that
- * namespace, so moddle keeps the attributes in `$attrs` under the file's own
- * prefix.
+ * binds to the modeler namespace.
  *
  * Like the bundled library's own `getEnginesConfig` lint rule, only a
  * Camunda Cloud (C8) diagram carrying a version contributes a `camunda` engine.

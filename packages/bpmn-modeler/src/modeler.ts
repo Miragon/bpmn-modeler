@@ -62,6 +62,7 @@ import type { SelectionManager } from "./selection";
 import type { RootElementManager } from "./rootElement";
 import type { ViewState } from "./viewState";
 import { deriveEngines } from "./engines";
+import { executionPlatformAttributes } from "./executionPlatformAttributes";
 import { loadEngineStack } from "./engineStacks";
 import { initialDiagram } from "./initialDiagram";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
@@ -632,7 +633,8 @@ export class BpmnModeler {
     // Read the engine profile from imported definitions to match template engine filtering.
     // C7 may omit the service; an empty profile clears any previous engine version.
     private applyEnginesFromDefinitions(): void {
-        const engines = deriveEngines(this.getModeler().getDefinitions()?.$attrs ?? {});
+        const definitions = this.getModeler().getDefinitions();
+        const engines = deriveEngines(definitions ? executionPlatformAttributes(definitions) : {});
         this.getModeler()
             .get<ElementTemplatesEngineService>("elementTemplates", false)
             ?.setEngines(engines);
