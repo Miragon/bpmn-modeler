@@ -1,4 +1,4 @@
-import { DiffPaneCommandType } from "@miragon/bpmn-modeler-shared";
+import { DiffPaneCommandType, DiffPaneHandshakeCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
 import { WebviewMessageRouter } from "../../editorSession/service/WebviewMessageRouter";
@@ -25,27 +25,29 @@ export function createDiffPaneRouter(
     diffService: BpmnDiffService,
     { swapSides, paneLog }: DiffPaneHostExtensions,
 ): WebviewMessageRouter<DiffPaneHandle> {
-    return (
-        WebviewMessageRouter.fromTable<DiffPaneCommandType, DiffPaneHandle>({
-            DiffReadyCommand: [(_command, pane) => diffService.markReady(pane)],
-            ViewportChangedCommand: [
-                (command, pane) => diffService.forwardViewport(pane, command.viewport),
-            ],
-            CursorChangedCommand: [
-                (command, pane) => diffService.forwardCursor(pane, command.index),
-            ],
-            SwapCompareSidesCommand: swapSides
-                ? [(_command, pane) => swapSides(pane)]
-                : { ignored: "the host swaps the sides itself, before it forwards a message" },
-            LogErrorCommand: paneLog
-                ? [
-                      (command, pane) => {
-                          routeWebviewLogCommand(paneLog, command, basenameOfUriString(pane.uri));
-                      },
-                  ]
-                : { ignored: "the host keeps no log of its diff panes" },
-        })
-            // The page asks for its file before the reply names it a diff pane.
-            .on("GetBpmnFileCommand", (_command, pane) => diffService.sendViewerFile(pane))
-    );
+    return WebviewMessageRouter.fromTable<
+        DiffPaneHandshakeCommandType | DiffPaneCommandType,
+        DiffPaneHandle
+    >({
+        GetBpmnFileCommand: [(_command, pane) => diffService.sendViewerFile(pane)],
+        GetBpmnModelerSettingCommand: {
+            ignored: "a read-only diff pane applies no modeler settings",
+        },
+        GetPropertiesPanelStateCommand: { ignored: "a diff pane shows no properties panel" },
+        DiffReadyCommand: [(_command, pane) => diffService.markReady(pane)],
+        ViewportChangedCommand: [
+            (command, pane) => diffService.forwardViewport(pane, command.viewport),
+        ],
+        CursorChangedCommand: [(command, pane) => diffService.forwardCursor(pane, command.index)],
+        SwapCompareSidesCommand: swapSides
+            ? [(_command, pane) => swapSides(pane)]
+            : { ignored: "the host does not swap diff sides through the core" },
+        LogErrorCommand: paneLog
+            ? [
+                  (command, pane) => {
+                      routeWebviewLogCommand(paneLog, command, basenameOfUriString(pane.uri));
+                  },
+              ]
+            : { ignored: "the host keeps no log of its diff panes" },
+    });
 }

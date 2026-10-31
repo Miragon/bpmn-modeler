@@ -17,10 +17,9 @@ const protocolCommandTypes = Object.values<unknown>({ ...baseMessages, ...modele
     // The abstract LogMessageCommand fixes no type.
     .filter((type): type is string => type !== undefined);
 
-const editorCommandTypes: readonly string[] = BPMN_EDITOR_COMMAND_TYPES;
-
 const commandsOfOtherSurfaces = [
-    ...DIFF_PANE_COMMAND_TYPES.filter((type) => !editorCommandTypes.includes(type)),
+    // The editor logs its errors too.
+    ...DIFF_PANE_COMMAND_TYPES.filter((type) => type !== "LogErrorCommand"),
     "GetDmnFileCommand",
     "GetDmnModelerSettingCommand",
     "GetFormFileCommand",

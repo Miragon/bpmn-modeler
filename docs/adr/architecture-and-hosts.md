@@ -151,14 +151,16 @@ which the bootstrap starts instead of the editor, posts through its own
 `DiffPaneChannel`, typed to the closed `DIFF_PANE_COMMAND_TYPES`
 (`libs/shared/src/lib/diffPaneCommands.ts`), so it cannot post an editor
 command. Both hosts route a pane's commands through the core's
-`createDiffPaneRouter`, a `CommandTable` over that list whose handlers get the
-pane, plus the file request the page sends before it knows it is a diff pane.
-A `DiffPaneHostExtensions` entry a host leaves out makes its command ignored:
-VS Code supplies the swap and the pane log; the bridge supplies neither,
-because IntelliJ's diff viewer swaps the sides before it forwards a message and
-the bridge keeps no log of its diff panes. Each host pins these routes in a
-coverage spec, a `Record<DiffPaneCommandType, "handled" | "ignored">`, and the
-preview host's spec posts every command of both lists. The DMN and Form editors
+`createDiffPaneRouter`, a `CommandTable` whose handlers get the pane. The table
+covers that list and `DIFF_PANE_HANDSHAKE_COMMAND_TYPES`, the editor requests
+the page posts before it knows it is a diff pane: it answers the file request
+and ignores the settings and panel-state requests, which a read-only pane does
+not use. A `DiffPaneHostExtensions` entry a host leaves out makes its command
+ignored: VS Code supplies the swap and the pane log; the bridge supplies
+neither, because IntelliJ's diff viewer swaps the sides before it forwards a
+message and the bridge keeps no log of its diff panes. Each host pins these
+routes in a coverage spec, a `Record` over both lists, and the preview host's
+spec posts every command of the editor and diff-pane lists. The DMN and Form editors
 and the deployment sidebar post their own commands, and a spec fails when a
 protocol command belongs to none of the lists. A host's router still
 dispatches an unrouted type as a no-op, but records a type it drops on purpose
