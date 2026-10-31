@@ -56,6 +56,22 @@ describe("CreatedFolderWalks", () => {
         expect(found).toEqual([["/work/a/b/ship.bpmn"], ["/work/a/b/ship.bpmn"]]);
     });
 
+    it("hands on nothing when disposed during a walk", async () => {
+        const { walks, found, readDirectory } = setup();
+        let finishRead!: () => void;
+        readDirectory.mockImplementationOnce(
+            () => new Promise((resolve) => (finishRead = () => resolve([["x.bpmn", "file"]]))),
+        );
+        const pending = walks.add("/work/a");
+        await vi.runAllTimersAsync();
+
+        walks.dispose();
+        finishRead();
+        await pending;
+
+        expect(found).toEqual([]);
+    });
+
     it("walks nothing once disposed", async () => {
         const { walks, found, readDirectory } = setup();
         const pending = walks.add("/work/a");

@@ -57,6 +57,8 @@ export class CreatedFolderWalks {
         const found = await Promise.all(
             folders.map((folder) => findFilesBelow(this.workspace, folder, this.isWatchedFile)),
         );
-        await this.onFilesFound(found.flat());
+        if (!this.disposed) {
+            await this.onFilesFound(found.flat());
+        }
     }
 }
