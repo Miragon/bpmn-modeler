@@ -24,7 +24,7 @@ const INTELLIJ_DIFF_COVERAGE: Record<
     CursorChangedCommand: "handled",
     // IntelliJ's diff viewer swaps the sides itself and never forwards the command.
     SwapCompareSidesCommand: "ignored",
-    LogErrorCommand: "ignored",
+    LogErrorCommand: "handled",
 };
 
 /**
@@ -187,6 +187,26 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         ]);
         expect(sync[0].params.message.viewport).toMatchObject({ x: 1, y: 2, width: 3, height: 4 });
         expect(sync[1].params.message.index).toBe(5);
+    });
+
+    it("logs an error a pane reports to the host, tagged with its file", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+
+        await rpc.handleLine(
+            hostNotification("diff/webviewMessage", {
+                paneUri: BEFORE,
+                message: { type: "LogErrorCommand", message: "DiffViewer import failed" },
+            }),
+        );
+        await settle();
+
+        const errorLogs = frames
+            .filter((f) => f.method === "notifier/log" && f.params.level === "error")
+            .map((f) => f.params.message);
+        expect(errorLogs).toEqual([
+            expect.stringMatching(/^\[webview:proc\.bpmn.*\] DiffViewer import failed$/),
+        ]);
     });
 
     it("disposes both panes, after which stray pane messages are no-ops", async () => {
