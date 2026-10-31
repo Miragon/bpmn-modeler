@@ -119,18 +119,38 @@ describe("InMemoryWorkspace", () => {
         await ws.writeFile("/work/new.bpmn", "<new/>");
         await ws.writeFile("/work/order.bpmn", "<order2/>");
         await ws.writeFile("/work/forms/b.form", "{}");
-        await ws.deleteDirectory("/work/dist");
+        ws.deleteFile("/work/nested/inner.bpmn");
         watcher.dispose();
         ws.deleteFile("/work/order.bpmn");
 
         expect(events).toEqual([
             "create /work/new.bpmn",
             "change /work/order.bpmn",
-            "delete /work/dist/stale.bpmn",
+            "delete /work/nested/inner.bpmn",
         ]);
         expect(ws.watchers).toEqual([
             expect.objectContaining({ root: "/work", glob: "**/*.bpmn", disposed: true }),
         ]);
+    });
+
+    it("reports a directory created or deleted as a whole by one event for the directory", async () => {
+        const ws = workspace();
+        const events: string[] = [];
+        ws.createWatcher("/work", "**/*", {
+            onCreate: (path) => events.push(`create ${path}`),
+            onChange: (path) => events.push(`change ${path}`),
+            onDelete: (path) => events.push(`delete ${path}`),
+        });
+
+        ws.createDirectory("/work/moved", { "/work/moved/sub/a.bpmn": "<a/>" });
+        ws.createDirectory("/work/moved");
+        await ws.deleteDirectory("/work/dist");
+        await ws.deleteDirectory("/work/missing");
+
+        expect(events).toEqual(["create /work/moved", "delete /work/dist"]);
+        await expect(ws.readFile("/work/moved/sub/a.bpmn")).resolves.toBe("<a/>");
+        await expect(ws.readDirectory("/work/moved")).resolves.toEqual([["sub", "directory"]]);
+        await expect(ws.readFile("/work/dist/stale.bpmn")).rejects.toThrow(FileNotFound);
     });
 });
 

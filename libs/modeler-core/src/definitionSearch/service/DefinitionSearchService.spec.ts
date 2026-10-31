@@ -105,6 +105,32 @@ describe("DefinitionSearchService", () => {
         expect(findFiles).toHaveBeenCalledTimes(2);
     });
 
+    it("forgets the files of a folder deleted as one event", async () => {
+        const { host, search } = setup({
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+            "/work/models/sub/ship.bpmn": model('<bpmn:message id="M2" name="shipped" />'),
+            "/work/pay.bpmn": model('<bpmn:message id="M3" name="paid" />'),
+        });
+        await search("message", "");
+
+        await host.workspace.deleteDirectory("/work/models");
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["paid"]);
+    });
+
+    it("lists the files of a folder created as one event", async () => {
+        const { host, search } = setup({
+            "/work/pay.bpmn": model('<bpmn:message id="M3" name="paid" />'),
+        });
+        await search("message", "");
+
+        host.workspace.createDirectory("/work/models", {
+            "/work/models/sub/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+        });
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["ordered", "paid"]);
+    });
+
     it("serves repeated searches from the index", async () => {
         const { findFiles, readFile, search } = setup({
             "/work/a.bpmn": model('<bpmn:message id="M" name="x" />'),

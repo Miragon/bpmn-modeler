@@ -303,6 +303,37 @@ describe("CodeLinkMapService — live linking", () => {
         ]);
     });
 
+    it("unlinks the files of a folder deleted as one event", async () => {
+        const worker = "/work/proj/src/pay/Worker.java";
+        const { service, host, editor } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+
+        await host.workspace.deleteDirectory("/work/proj/src/pay");
+
+        await vi.waitFor(() =>
+            expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: false }),
+        );
+    });
+
+    it("links the files of a folder created as one event", async () => {
+        const worker = "/work/proj/src/pay/sub/Worker.java";
+        const { service, host, editor } = createService({
+            fileContents: { "/work/proj/src/Other.java": "class Other {}" },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+
+        host.workspace.createDirectory("/work/proj/src/pay", {
+            [worker]: '@JobWorker(type = "pay")',
+        });
+
+        await vi.waitFor(() =>
+            expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true }),
+        );
+    });
+
     it("does not push when a changed file is irrelevant to the map", async () => {
         const { service, editor } = createService({
             resolveMap: { "com.example.A": ["/work/proj/src/A.java"] },

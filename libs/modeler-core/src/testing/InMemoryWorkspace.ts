@@ -30,7 +30,9 @@ export interface WorkspaceWatcher {
  * file as on a disk.
  * File mutations, through the port or through {@link deleteFile}, notify the
  * live watchers whose root and glob match before they return, so a test drives
- * watcher-based behaviour by changing files.
+ * watcher-based behaviour by changing files. A directory created or deleted as
+ * a whole reports one event for the directory and none for its files, as VS
+ * Code reports a folder moved in or out.
  * `watchers` keeps every watcher ever created, disposed ones included, so a
  * test can check what was watched and fire an event no file change produces.
  * Folders can change later, as in a VS Code multi-root workspace; the port has
@@ -125,17 +127,27 @@ export class InMemoryWorkspace implements WorkspacePort {
 
     async deleteDirectory(path: string): Promise<void> {
         const directory = withoutFileScheme(path);
-        for (const known of [...this.directories]) {
-            if (isWithinRoot(known, directory)) this.directories.delete(known);
-        }
-        for (const filePath of [...this.files.keys()]) {
-            if (isWithinRoot(filePath, directory)) this.deleteFile(filePath);
-        }
+        const below = (known: string) => isWithinRoot(known, directory);
+        const existed = [...this.directories, ...this.files.keys()].some(below);
+        [...this.directories].filter(below).forEach((known) => this.directories.delete(known));
+        [...this.files.keys()].filter(below).forEach((filePath) => this.files.delete(filePath));
+        if (existed) this.notify(directory, "onDelete");
     }
 
-    /** Creates an empty directory, as another program would; the port cannot. */
-    createDirectory(path: string): void {
-        this.addDirectory(withoutFileScheme(path));
+    /**
+     * Creates a directory with `files` below it, as another program moving it
+     * in would; the port cannot. A directory that is new reports one create.
+     */
+    createDirectory(path: string, files: Readonly<Record<string, string>> = {}): void {
+        const directory = withoutFileScheme(path);
+        const isNew = !this.directories.has(directory);
+        this.addDirectory(directory);
+        for (const [file, content] of Object.entries(files)) {
+            const filePath = withoutFileScheme(file);
+            this.addDirectory(posix.dirname(filePath));
+            this.files.set(filePath, content);
+        }
+        if (isNew) this.notify(directory, "onCreate");
     }
 
     deleteFile(path: string): void {

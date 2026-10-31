@@ -421,6 +421,20 @@ describe("CodeLinkMap.applyFileChange", () => {
             links: [linked(pay, WORKER)],
             changed: false,
         },
+        {
+            name: "unlinks every file below a deleted folder",
+            held: [linked(pay, WORKER, CHARGE_CLASS), linked(charge, CHARGE_CLASS)],
+            change: deleted("/work/proj/src/main"),
+            links: [linked(pay, WORKER), linked(charge)],
+            changed: true,
+        },
+        {
+            name: "keeps a file of a sibling folder whose name starts like the deleted one",
+            held: [linked(charge, CHARGE_CLASS)],
+            change: deleted("/work/proj/src/ma"),
+            links: [linked(charge, CHARGE_CLASS)],
+            changed: false,
+        },
     ])("$name", ({ held, change, links, changed }) => {
         const result = mapOf(...held).applyFileChange(change);
 
