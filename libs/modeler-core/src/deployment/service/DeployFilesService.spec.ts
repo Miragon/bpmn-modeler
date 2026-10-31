@@ -3,24 +3,27 @@ import { describe, expect, it, vi } from "vitest";
 import { createTestHost, PromptAnswers } from "../../testing";
 import { BasicAuth } from "../domain/deployment";
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
-import { deployableFilesPrompt } from "../domain/deploymentPrompts";
+import { fileChoice } from "../../kernel/domain/fileChoices";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployFilesService } from "./DeployFilesService";
 
 const DOCUMENT_DIR = "/work/processes";
 const PICKED_FILES = ["/work/processes/order.bpmn", "/work/decisions/discount.dmn"];
-/** The workspace's BPMN and DMN files outside its dependencies, in the order found. */
+/** The BPMN and DMN files outside dependencies, ordered as VS Code shows their paths. */
 const DEPLOYABLE_FILES = [
-    "/work/processes/order.bpmn",
-    "/work/processes/invoice.bpmn",
     "/work/decisions/discount.dmn",
+    "/work/processes/invoice.bpmn",
+    "/work/processes/order.bpmn",
+    "/archive/zeta/legacy.bpmn",
 ];
+const WORKSPACE_FOLDERS = ["/work", "/archive/zeta"];
 const WORKSPACE_FILES = {
     "/work/processes/order.bpmn": "<definitions/>",
     "/work/processes/invoice.bpmn": "<definitions/>",
     "/work/forms/order.form": "{}",
     "/work/node_modules/library/process.bpmn": "<definitions/>",
     "/work/decisions/discount.dmn": "<definitions/>",
+    "/archive/zeta/legacy.bpmn": "<definitions/>",
 };
 
 const devTarget = new DeploymentTarget(
@@ -41,7 +44,11 @@ const devDestination = new NamedDestination(devTarget, {
 const AD_HOC = new AdHocDestination("http://localhost:8080/engine-rest", "");
 
 function createService(promptAnswers: PromptAnswers = { deployableFiles: PICKED_FILES }) {
-    const host = createTestHost({ folders: ["/work"], files: WORKSPACE_FILES, promptAnswers });
+    const host = createTestHost({
+        folders: WORKSPACE_FOLDERS,
+        files: WORKSPACE_FILES,
+        promptAnswers,
+    });
     const calls: string[] = [];
     const credentials = new BasicAuth("demo", "demo");
     const deploymentTargetService = {
@@ -87,7 +94,16 @@ describe("DeployFilesService.deployFiles", () => {
 
         expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith(DOCUMENT_DIR);
         expect(c.host.picker.prompts).toEqual([
-            { method: "chooseMany", args: [deployableFilesPrompt("dev", DEPLOYABLE_FILES)] },
+            {
+                method: "chooseMany",
+                args: [
+                    {
+                        id: "deployableFiles",
+                        placeholder: 'Select files to deploy to "dev"',
+                        items: DEPLOYABLE_FILES.map(fileChoice),
+                    },
+                ],
+            },
         ]);
         expect(c.deploymentTargetService.getCredentials).toHaveBeenCalledWith(devDestination);
         expect(c.host.notifier.progressTitles).toEqual(['Deploying 2 file(s) to "dev"']);

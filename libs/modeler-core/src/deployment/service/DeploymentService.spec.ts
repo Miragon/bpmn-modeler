@@ -13,6 +13,7 @@ import {
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { contentFingerprint } from "../domain/deploymentLedger";
 import { additionalFilesPrompt } from "../domain/deploymentPrompts";
+import { fileChoice } from "../../kernel/domain/fileChoices";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { CamundaEnginePort } from "../domain/ports";
@@ -365,10 +366,12 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         "/work/decisions/discount.dmn": "<definitions/>",
     };
 
-    it("offers the workspace's forms, JSON files and decisions and returns the chosen ones", async () => {
+    it("offers the workspace's forms, JSON files and decisions, ordered as VS Code shows them", async () => {
         const { service, host } = createService({
+            folders: ["/work", "/archive/zeta"],
             files: {
                 ...RESOURCES,
+                "/archive/zeta/legacy.form": "{}",
                 "/work/order.bpmn": "<definitions/>",
                 "/work/element-templates/task.json": "[]",
             },
@@ -381,7 +384,21 @@ describe("DeploymentService.selectAdditionalFiles", () => {
 
         expect(result).toEqual(["/work/forms/order.form", "/work/decisions/discount.dmn"]);
         expect(host.picker.prompts).toEqual([
-            { method: "chooseMany", args: [additionalFilesPrompt(Object.keys(RESOURCES))] },
+            {
+                method: "chooseMany",
+                args: [
+                    {
+                        id: "additionalFiles",
+                        placeholder: "Select additional files to include in the deployment",
+                        items: [
+                            "/work/decisions/discount.dmn",
+                            "/work/forms/order.form",
+                            "/work/payloads/vars.json",
+                            "/archive/zeta/legacy.form",
+                        ].map(fileChoice),
+                    },
+                ],
+            },
         ]);
     });
 
@@ -396,7 +413,12 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         expect(host.picker.prompts).toEqual([
             {
                 method: "chooseMany",
-                args: [additionalFilesPrompt(Object.keys(forms).slice(0, 20))],
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(forms).slice(0, 20),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
             },
         ]);
     });

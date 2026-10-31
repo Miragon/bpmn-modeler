@@ -151,7 +151,13 @@ export class DeploymentService {
             "**/element-templates/**",
             20,
         );
-        return [...(await this.picker.chooseMany(additionalFilesPrompt(found)))];
+        const chosen = await this.picker.chooseMany(
+            additionalFilesPrompt({
+                files: found,
+                workspaceFolders: this.vsWorkspace.getWorkspaceFolderPaths(),
+            }),
+        );
+        return [...chosen];
     }
 
     /**

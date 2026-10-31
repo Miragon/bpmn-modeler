@@ -17,7 +17,7 @@ describe("payloadFilePrompt", () => {
     it.each([
         { behaviour: "offers nothing when no payload was found", paths: [], items: [] },
         {
-            behaviour: "offers each payload by its file name, in the order found",
+            behaviour: "offers each payload by its file name, nearest first as found",
             paths: ["/work/sub/.camunda/payloads/order.json", "/work/.camunda/payloads/base.json"],
             items: [
                 fileChoice("/work/sub/.camunda/payloads/order.json", "order.json"),
@@ -97,45 +97,68 @@ describe("deploymentStatusActionPrompt", () => {
     });
 });
 
+/** Found in this order in the folders `/work` and `/archive/zeta`. */
+const FOUND_IN_TWO_FOLDERS = [
+    "/work/processes/order.bpmn",
+    "/archive/zeta/legacy.bpmn",
+    "/work/decisions/discount.dmn",
+];
+const TWO_FOLDERS = ["/work", "/archive/zeta"];
+/** As VS Code shows them: work/decisions/…, work/processes/…, zeta/legacy.bpmn. */
+const IN_WORKSPACE_ORDER = [
+    fileChoice("/work/decisions/discount.dmn", "discount.dmn"),
+    fileChoice("/work/processes/order.bpmn", "order.bpmn"),
+    fileChoice("/archive/zeta/legacy.bpmn", "legacy.bpmn"),
+];
+
 describe("deployableFilesPrompt", () => {
     it.each([
-        { behaviour: "offers nothing when no file was found", paths: [], items: [] },
         {
-            behaviour: "offers each file by its name, in the order found",
-            paths: ["/work/processes/order.bpmn", "/work/decisions/discount.dmn"],
-            items: [
-                fileChoice("/work/processes/order.bpmn", "order.bpmn"),
-                fileChoice("/work/decisions/discount.dmn", "discount.dmn"),
-            ],
+            behaviour: "offers nothing when no file was found",
+            files: [],
+            workspaceFolders: ["/work"],
+            items: [],
         },
-    ])("$behaviour", ({ paths, items }) => {
-        expect(deployableFilesPrompt("dev", paths)).toStrictEqual({
-            id: "deployableFiles",
-            placeholder: 'Select files to deploy to "dev"',
-            items,
-        });
+        {
+            behaviour: "offers each file by its name, ordered as VS Code shows the paths",
+            files: FOUND_IN_TWO_FOLDERS,
+            workspaceFolders: TWO_FOLDERS,
+            items: IN_WORKSPACE_ORDER,
+        },
+    ])("$behaviour", ({ files, workspaceFolders, items }) => {
+        expect(deployableFilesPrompt({ targetName: "dev", files, workspaceFolders })).toStrictEqual(
+            {
+                id: "deployableFiles",
+                placeholder: 'Select files to deploy to "dev"',
+                items,
+            },
+        );
     });
 
     it("names the target the files go to", () => {
-        expect(deployableFilesPrompt("prod", []).placeholder).toBe(
-            'Select files to deploy to "prod"',
-        );
+        expect(
+            deployableFilesPrompt({ targetName: "prod", files: [], workspaceFolders: [] })
+                .placeholder,
+        ).toBe('Select files to deploy to "prod"');
     });
 });
 
 describe("additionalFilesPrompt", () => {
     it.each([
-        { behaviour: "offers nothing when no file was found", paths: [], items: [] },
         {
-            behaviour: "offers each file by its name, in the order found",
-            paths: ["/work/forms/order.form", "/work/payloads/vars.json"],
-            items: [
-                fileChoice("/work/forms/order.form", "order.form"),
-                fileChoice("/work/payloads/vars.json", "vars.json"),
-            ],
+            behaviour: "offers nothing when no file was found",
+            files: [],
+            workspaceFolders: ["/work"],
+            items: [],
         },
-    ])("$behaviour", ({ paths, items }) => {
-        expect(additionalFilesPrompt(paths)).toStrictEqual({
+        {
+            behaviour: "offers each file by its name, ordered as VS Code shows the paths",
+            files: FOUND_IN_TWO_FOLDERS,
+            workspaceFolders: TWO_FOLDERS,
+            items: IN_WORKSPACE_ORDER,
+        },
+    ])("$behaviour", ({ files, workspaceFolders, items }) => {
+        expect(additionalFilesPrompt({ files, workspaceFolders })).toStrictEqual({
             id: "additionalFiles",
             placeholder: "Select additional files to include in the deployment",
             items,

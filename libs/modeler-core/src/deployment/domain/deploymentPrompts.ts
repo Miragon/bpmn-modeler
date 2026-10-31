@@ -46,22 +46,28 @@ export function deploymentStatusActionPrompt(
     };
 }
 
-export function deployableFilesPrompt(
-    targetName: string,
-    paths: readonly string[],
-): ChoicePrompt<string> {
+/** What a workspace search found, and the folders it searched. */
+export interface FoundFiles {
+    readonly files: readonly string[];
+    readonly workspaceFolders: readonly string[];
+}
+
+export function deployableFilesPrompt({
+    targetName,
+    files,
+}: FoundFiles & { readonly targetName: string }): ChoicePrompt<string> {
     return {
         id: "deployableFiles",
         placeholder: `Select files to deploy to "${targetName}"`,
-        items: paths.map(fileChoice),
+        items: files.map(fileChoice),
     };
 }
 
-export function additionalFilesPrompt(paths: readonly string[]): ChoicePrompt<string> {
+export function additionalFilesPrompt({ files }: FoundFiles): ChoicePrompt<string> {
     return {
         id: "additionalFiles",
         placeholder: "Select additional files to include in the deployment",
-        items: paths.map(fileChoice),
+        items: files.map(fileChoice),
     };
 }
 

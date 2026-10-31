@@ -38,7 +38,13 @@ export class DeployFilesService {
             DEPLOYABLE_FILES_GLOB,
             DEPENDENCY_FOLDERS_GLOB,
         );
-        const files = await this.picker.chooseMany(deployableFilesPrompt(target.name, found));
+        const files = await this.picker.chooseMany(
+            deployableFilesPrompt({
+                targetName: target.name,
+                files: found,
+                workspaceFolders: this.workspace.getWorkspaceFolderPaths(),
+            }),
+        );
         if (files.length === 0) {
             return;
         }
