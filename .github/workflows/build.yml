@@ -58,6 +58,7 @@ jobs:
               - 'packages/dmn-modeler/package.json'
               - 'apps/*/package.json'
               - 'libs/*/package.json'
+              - 'tools/*/package.json'
               - 'package.json'
               - 'yarn.config.cjs'
               - 'yarn.lock'

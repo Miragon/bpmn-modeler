@@ -3043,6 +3043,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@miragon/architecture-testing@workspace:*, @miragon/architecture-testing@workspace:tools/architecture-testing":
+  version: 0.0.0-use.local
+  resolution: "@miragon/architecture-testing@workspace:tools/architecture-testing"
+  dependencies:
+    "@types/node": "npm:26.6.5"
+    "@typescript/native": "npm:typescript@7.0.2"
+    "@vitest/coverage-v8": "npm:5.0.5"
+    typescript: "npm:@typescript/typescript6@6.0.2"
+    vite: "npm:8.3.4"
+    vitest: "npm:5.0.5"
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-model-navigation@workspace:*, @miragon/bpmn-model-navigation@workspace:libs/model-navigation":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-model-navigation@workspace:libs/model-navigation"
@@ -3136,6 +3149,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
   dependencies:
+    "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
