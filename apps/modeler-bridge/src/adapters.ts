@@ -41,6 +41,7 @@ import {
     StatusBarPort,
     StatusSlot,
     StatusView,
+    TokenPrompt,
     TokenPromptPort,
     TokenStorePort,
 } from "@miragon/bpmn-modeler-core";
@@ -62,6 +63,7 @@ import {
     SecretGetApprovedDestinationsParams,
     SecretSaveApprovedDestinationsParams,
     StatusBarUpdateParams,
+    TokenPromptShowParams,
     TokenPromptShowResult,
     TokenStoreGetResult,
 } from "./protocol/types";
@@ -532,22 +534,16 @@ export class RpcTokenStore implements TokenStorePort {
     }
 }
 
-/**
- * Routes the core's {@link TokenPromptPort} to a host modal PAT-entry dialog. A
- * `null` result (decline) — or a blank one — maps to `undefined`, the port's
- * "declined" signal that keeps a background `updateAll` running. The host already
- * blank-checks, but re-guarding here keeps the contract honest independently.
- */
+/** IntelliJ's password dialog always masks, so only the text travels. */
 export class RpcTokenPrompt implements TokenPromptPort {
     constructor(private readonly rpc: Rpc) {}
 
-    async promptForToken(host: string, reason: string): Promise<string | undefined> {
+    async promptForToken(prompt: TokenPrompt): Promise<string | undefined> {
         const result = (await this.rpc.request(METHODS.tokenPromptShow, {
-            host,
-            reason,
-        })) as TokenPromptShowResult | null;
-        const token = result?.token?.trim();
-        return token ? token : undefined;
+            title: prompt.title,
+            prompt: prompt.prompt,
+        } satisfies TokenPromptShowParams)) as TokenPromptShowResult | null;
+        return result?.token ?? undefined;
     }
 }
 

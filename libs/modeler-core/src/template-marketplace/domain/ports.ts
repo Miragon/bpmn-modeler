@@ -1,3 +1,5 @@
+import { TokenPrompt } from "./tokenPrompt";
+
 /**
  * Domain port abstracting a remote repository that hosts template files.
  *
@@ -138,11 +140,13 @@ export interface TokenStorePort {
 }
 
 /**
- * Returns a trimmed token, or `undefined` on decline (empty/whitespace counts as
- * decline). Never throws: a decline is per-run data, not control flow — a
- * background `updateAll` must keep going after one, unlike the engine prompts
- * of `PickerPort`, which throw on dismissal.
+ * Shows the core's {@link TokenPrompt} as a masked input. Never throws: a
+ * dismissal is per-run data, not control flow, so a background `updateAll`
+ * keeps going after one.
+ *
+ * @returns the answer as typed, or `undefined` on dismissal; the core judges a
+ * blank one.
  */
 export interface TokenPromptPort {
-    promptForToken(host: string, reason: string): Promise<string | undefined>;
+    promptForToken(prompt: TokenPrompt): Promise<string | undefined>;
 }

@@ -97,6 +97,14 @@ function scriptedFetch(...outcomes: (Error | "served")[]) {
     };
 }
 
+/** The masked input the session asks the host to show for `host`, its text matched by `prompt`. */
+const tokenPromptFor = (host: string, prompt: RegExp) => ({
+    host,
+    title: `Personal Access Token for ${host}`,
+    prompt: expect.stringMatching(prompt),
+    password: true,
+});
+
 /** `rejects.toThrow(regex)` also passes for an `undefined` rejection, so match the error itself. */
 const errorWithMessage = (pattern: RegExp) =>
     expect.objectContaining({ message: expect.stringMatching(pattern) });
@@ -212,9 +220,7 @@ describe("HostTokenSession.run", () => {
         await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).resolves.toBe("served");
 
         expect(privateRepo.attempts).toEqual([undefined, "granted"]);
-        expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/may be private/) },
-        ]);
+        expect(tokenPrompt.prompts).toEqual([tokenPromptFor("github.com", /may be private/)]);
         expect(tokens.tokens.get("github.com")).toBe("granted");
         expect(notifier.logs.some((entry) => entry.message.includes("granted"))).toBe(false);
     });
@@ -331,10 +337,7 @@ describe("HostTokenSession.run", () => {
 
         await session.run(GITHUB_MARKETPLACE, fakeFetch(only("new")).task);
 
-        expect(tokenPrompt.prompts).toContainEqual({
-            host: "github.com",
-            reason: expect.stringMatching(/was rejected/),
-        });
+        expect(tokenPrompt.prompts).toContainEqual(tokenPromptFor("github.com", /was rejected/));
         expect(tokens.tokens.get("github.com")).toBe("new");
     });
 
@@ -369,9 +372,7 @@ describe("HostTokenSession.run", () => {
         await expect(session.run(GITHUB_SOURCE_ONE, otherPrivateRepo.task)).resolves.toBe("served");
 
         expect(otherPrivateRepo.attempts).toEqual(["stored-tok", undefined, "new"]);
-        expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/was rejected/) },
-        ]);
+        expect(tokenPrompt.prompts).toEqual([tokenPromptFor("github.com", /was rejected/)]);
         expect(tokens.reads).toEqual(["github.com"]);
     });
 
@@ -406,7 +407,7 @@ describe("HostTokenSession.run", () => {
             ),
         ).rejects.toThrow(errorWithMessage(/can't access acme\/templates \(HTTP 401\)/));
         expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/was rejected \(HTTP 401\)/) },
+            tokenPromptFor("github.com", /was rejected \(HTTP 401\)/),
         ]);
     });
 
@@ -554,10 +555,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await session.ensureTokensForPrivateHosts(["github.com"]);
 
         expect(tokenPrompt.prompts).toEqual([
-            {
-                host: "github.com",
-                reason: expect.stringMatching(/hosts a private template source/),
-            },
+            tokenPromptFor("github.com", /hosts a private template source/),
         ]);
     });
 
@@ -586,9 +584,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await expect(session.run(GITHUB_SOURCE_ONE, privateRepo.task)).resolves.toBe("served");
 
         expect(privateRepo.attempts).toEqual(["stale", undefined, "new"]);
-        expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/was rejected/) },
-        ]);
+        expect(tokenPrompt.prompts).toEqual([tokenPromptFor("github.com", /was rejected/)]);
     });
 
     it("keys a self-hosted gitlab host's token so its baseUrl config carries it", async () => {
@@ -601,7 +597,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await session.run(SELF_HOSTED_GITLAB_PROJECT, privateProject.task);
 
         expect(tokenPrompt.prompts).toEqual([
-            { host: "gitlab.acme.com", reason: expect.any(String) },
+            tokenPromptFor("gitlab.acme.com", /hosts a private template source/),
         ]);
         expect(privateProject.attempts).toEqual(["granted"]);
     });

@@ -1,5 +1,6 @@
 import { SecretStorePort } from "../deployment/domain/ports";
 import { TokenPromptPort, TokenStorePort } from "../template-marketplace/domain/ports";
+import { TokenPrompt } from "../template-marketplace/domain/tokenPrompt";
 
 interface SlotCredentials {
     basicAuth?: { username: string; password: string };
@@ -69,12 +70,12 @@ export class InMemoryTokenStore implements TokenStorePort {
 
 /** Answers per host from `answers` as typed, like a host; an unanswered host is a dismissal. */
 export class ScriptedTokenPrompt implements TokenPromptPort {
-    readonly prompts: Array<{ host: string; reason: string }> = [];
+    readonly prompts: TokenPrompt[] = [];
 
     constructor(readonly answers: Record<string, string> = {}) {}
 
-    async promptForToken(host: string, reason: string): Promise<string | undefined> {
-        this.prompts.push({ host, reason });
-        return this.answers[host];
+    async promptForToken(prompt: TokenPrompt): Promise<string | undefined> {
+        this.prompts.push(prompt);
+        return this.answers[prompt.host];
     }
 }

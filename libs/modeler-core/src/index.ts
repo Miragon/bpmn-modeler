@@ -146,6 +146,7 @@ export * from "./deployment/infrastructure/camunda/MultipartBuilder";
 export * from "./template-marketplace/domain/fetchReport";
 export * from "./template-marketplace/domain/marketplace";
 export * from "./template-marketplace/domain/ports";
+export type { TokenPrompt } from "./template-marketplace/domain/tokenPrompt";
 export * from "./template-marketplace/infrastructure/GitHubSource";
 export * from "./template-marketplace/infrastructure/GitLabSource";
 export * from "./template-marketplace/infrastructure/LocalFileSource";

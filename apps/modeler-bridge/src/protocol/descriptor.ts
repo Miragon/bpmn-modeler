@@ -566,8 +566,8 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "request",
         paramsFixture: {
-            host: "github.com",
-            reason: "github.com denied access; enter a personal access token.",
+            title: "Personal Access Token for github.com",
+            prompt: "github.com denied access; enter a personal access token.",
         } satisfies TokenPromptShowParams,
         resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
     },

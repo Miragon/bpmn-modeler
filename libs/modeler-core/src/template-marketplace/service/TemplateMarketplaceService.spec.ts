@@ -729,7 +729,10 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/may be private/) },
+            expect.objectContaining({
+                host: "github.com",
+                prompt: expect.stringMatching(/may be private/),
+            }),
         ]);
         expect(tokens.tokens.get("github.com")).toBe("granted");
         expect(cachedPaths()).toEqual([

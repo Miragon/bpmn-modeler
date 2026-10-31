@@ -7,10 +7,12 @@ export interface TokenPrompt {
     readonly password: true;
 }
 
-export function tokenPrompt(host: string, _reason: string): TokenPrompt {
-    return { host, title: "", prompt: "", password: true };
+export function tokenPrompt(host: string, reason: string): TokenPrompt {
+    return { host, title: `Personal Access Token for ${host}`, prompt: reason, password: true };
 }
 
+/** A blank answer is no token: stored, it would suppress every later prompt and authenticate nothing. */
 export function enteredToken(answer: string | undefined): string | undefined {
-    return answer;
+    const token = answer?.trim();
+    return token ? token : undefined;
 }

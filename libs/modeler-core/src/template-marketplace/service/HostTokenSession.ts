@@ -7,6 +7,7 @@ import {
     TokenPromptPort,
     TokenStorePort,
 } from "../domain/ports";
+import { enteredToken, TokenPrompt, tokenPrompt } from "../domain/tokenPrompt";
 
 /**
  * The per-host personal access tokens of one user-initiated command. Within a
@@ -133,8 +134,7 @@ export class HostTokenSession {
                 throw this.accessFailure(denial, hadToken);
             }
             const fresh = await this.promptAndStore(
-                host,
-                AccessDenial.of(denial, { tokenTried: hadToken }).promptReason(),
+                tokenPrompt(host, AccessDenial.of(denial, { tokenTried: hadToken }).promptReason()),
             );
             if (fresh === undefined) {
                 throw this.accessFailure(denial, hadToken);
@@ -174,8 +174,10 @@ export class HostTokenSession {
         for (const host of hosts) {
             if ((await this.storedToken(host)) === undefined && this.claimPrompt(host)) {
                 await this.promptAndStore(
-                    host,
-                    `${host} hosts a private template source. Enter a personal access token to fetch it.`,
+                    tokenPrompt(
+                        host,
+                        `${host} hosts a private template source. Enter a personal access token to fetch it.`,
+                    ),
                 );
             }
         }
@@ -204,9 +206,10 @@ export class HostTokenSession {
      * fetches carry it on their first attempt. Only the host name reaches the
      * log — never the token value.
      */
-    private async promptAndStore(host: string, reason: string): Promise<string | undefined> {
+    private async promptAndStore(prompt: TokenPrompt): Promise<string | undefined> {
+        const { host } = prompt;
         this.notifier.logDebug(`Prompting for a ${host} access token`);
-        const token = await this.tokenPrompt.promptForToken(host, reason);
+        const token = enteredToken(await this.tokenPrompt.promptForToken(prompt));
         if (token !== undefined) {
             await this.tokens.setToken(host, token);
             this.hostTokens.set(host, token);
