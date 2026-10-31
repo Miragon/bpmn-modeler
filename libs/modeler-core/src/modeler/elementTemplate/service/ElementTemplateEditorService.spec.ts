@@ -65,4 +65,52 @@ describe("ElementTemplateEditorService", () => {
             "A problem occurred while trying to display the element template preview.\nchannel closed",
         ]);
     });
+
+    describe("writing an edit back", () => {
+        it("writes the template editor's text into the document", async () => {
+            const { service, editor } = createService(TEMPLATE);
+
+            expect(await service.sync(editor.id, '{"id":"edited"}', 0)).toBe(true);
+
+            expect(editor.content).toBe('{"id":"edited"}');
+        });
+
+        // The host reports the change while the write is still applying.
+        it("does not send its own write back to the template editor", async () => {
+            const { service, host, editor } = createService(TEMPLATE);
+            let finishWrite: (written: boolean) => void = () => {};
+            vi.spyOn(host.documents, "write").mockImplementationOnce(async (_id, content) => {
+                editor.content = content;
+                return new Promise<boolean>((resolve) => {
+                    finishWrite = resolve;
+                });
+            });
+
+            const syncing = service.sync(editor.id, '{"id":"edited"}', 0);
+            await Promise.resolve();
+            expect(await service.display(editor.id, true)).toBe(false);
+            finishWrite(true);
+            await syncing;
+
+            expect(editor.posted).toEqual([]);
+        });
+
+        it("refuses an edit made on an older version of the document", async () => {
+            const { service, editor } = createService(TEMPLATE);
+            await service.display(editor.id, true);
+
+            expect(await service.sync(editor.id, '{"id":"stale"}', 0)).toBe(false);
+            expect(editor.content).toBe(TEMPLATE);
+        });
+
+        it("reports a write that fails", async () => {
+            const { service, host, editor } = createService(TEMPLATE);
+            vi.spyOn(host.documents, "write").mockRejectedValueOnce(new Error("disk full"));
+
+            expect(await service.sync(editor.id, "{}", 0)).toBe(false);
+            expect(host.notifier.errors).toEqual([
+                "A problem occurred while trying to save the element template.\ndisk full",
+            ]);
+        });
+    });
 });

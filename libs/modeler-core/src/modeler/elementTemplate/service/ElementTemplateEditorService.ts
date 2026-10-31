@@ -4,15 +4,16 @@ import { isHiddenEditorError } from "../../../kernel/domain/errors";
 import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
 import {
     EditorDocumentSync,
-    RenderedDocumentService,
+    ModelerDocumentService,
 } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /**
- * Feeds an element-template file to its read-only preview. The text goes out
- * as it is, empty or broken, because the preview explains what it cannot show.
+ * Feeds an element-template file to its editor and writes the editor's edits
+ * back. The text goes out as it is, empty or broken, because the editor
+ * explains what it cannot show.
  */
-export class ElementTemplateEditorService implements RenderedDocumentService {
+export class ElementTemplateEditorService implements ModelerDocumentService {
     private readonly documents: EditorDocumentSync;
 
     constructor(
@@ -50,6 +51,18 @@ export class ElementTemplateEditorService implements RenderedDocumentService {
             }
             this.notifier.notifyError(
                 "A problem occurred while trying to display the element template preview.",
+                error as Error,
+            );
+            return false;
+        }
+    }
+
+    async sync(editorId: string, content: string, documentRevision?: number): Promise<boolean> {
+        try {
+            return await this.documents.sync(editorId, content, documentRevision);
+        } catch (error) {
+            this.notifier.notifyError(
+                "A problem occurred while trying to save the element template.",
                 error as Error,
             );
             return false;

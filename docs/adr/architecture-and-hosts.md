@@ -236,7 +236,14 @@ the JSON stays one toggle away beside it, where the host's own JSON support
 of the BPMN webview bundle and parses the file itself: a host pushes the raw
 text with the configured locale (`ElementTemplateFileQuery`) and later language
 changes (`LanguageQuery`). That keeps an IntelliJ editor possible without a
-bridge session. In VS Code its custom editor has `option` priority on `*.json`,
+bridge session. The page's own edits go back like a modeler's: `SyncDocumentCommand`
+with the document revision it was made on, a host revision that overtakes a
+pending edit wins, and a save flushes the pending edit first. Because the
+template store is not the modelers' store, it brings its own
+`DocumentFlushService`, `PendingEditsFlush` (serving `.json`) and save-flush
+controller. VS Code writes only the changed range of a document
+(`minimalReplacement`, never splitting a CRLF or a surrogate pair), so the JSON
+editor open beside keeps its cursor and undo restores one edit. In VS Code its custom editor has `option` priority on `*.json`,
 so it never takes other JSON files over, and its sessions live in their own
 `EditorSessionStore`: a template editor never becomes the target of modeler
 commands or counts towards `bpmn-modeler.openCustomEditors`. The extension also
