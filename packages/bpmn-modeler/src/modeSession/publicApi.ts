@@ -92,9 +92,10 @@ export interface ModeSessionOptions {
      */
     beforeDestroy?: () => void | Promise<void>;
     /**
-     * Fires when a switch fails — the export/capture/`beforeDestroy` path and the
-     * post-destroy path. Fires twice when the fallback surface itself also fails,
-     * after which the session holds no live surface until the next `requestMode`.
+     * Fires when a switch fails — applying the pending properties-panel input,
+     * capture, export or `beforeDestroy`, and the post-destroy path. Fires twice
+     * when the fallback surface itself also fails, after which the session holds
+     * no live surface until the next `requestMode`.
      */
     onError?: (error: unknown) => void;
 }

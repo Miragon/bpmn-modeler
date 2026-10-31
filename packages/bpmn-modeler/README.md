@@ -801,7 +801,7 @@ viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no chip
 | `onModeChanged`        | `(mode, transition) => void`       | Once per applied change; `transition` is `"toggle"` / `"recreate"` / `"fallback"`.         |
 | `onSwitchStateChanged` | `(busy: boolean) => void`          | Enters/leaves a recreate's handle-less window (drive `aria-busy` / `inert`).               |
 | `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate, once the outgoing surface's pending properties-panel input is applied and the diagram exported — flush pending host sync here. |
-| `onError`              | `(error: unknown) => void`         | A switch failed (capture/export/`beforeDestroy` and post-destroy paths). Fires **twice** when the fallback surface itself also fails, after which the session holds no live surface until the next `requestMode`. |
+| `onError`              | `(error: unknown) => void`         | A switch failed (applying the pending properties-panel input, capture, export or `beforeDestroy`, and the post-destroy path). Fires **twice** when the fallback surface itself also fails, after which the session holds no live surface until the next `requestMode`. |
 
 ### `ModeSession`
 
