@@ -145,6 +145,26 @@ describe("MarketplaceCache.replaceSource", () => {
         ]);
     });
 
+    it("completes a replace whose record is written when an old generation cannot be deleted", async () => {
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+        await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "old a")]);
+        const deleteDirectory = workspace.deleteDirectory.bind(workspace);
+        let deletions = 0;
+        vi.spyOn(workspace, "deleteDirectory").mockImplementation(async (path) => {
+            deletions++;
+            if (deletions > 1) {
+                throw new Error("EBUSY");
+            }
+            return deleteDirectory(path);
+        });
+
+        await expect(
+            cache.replaceSource("acme", 0, SOURCE, [template("a.json", "new a")]),
+        ).resolves.toBeUndefined();
+        expect(await servedContents(cache, workspace)).toEqual(["new a"]);
+    });
+
     it("does not serve the files a failed replace left behind", async () => {
         const workspace = createWorkspace();
         const cache = new MarketplaceCache("/cache", workspace);
