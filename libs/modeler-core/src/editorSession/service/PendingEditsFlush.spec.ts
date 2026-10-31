@@ -47,8 +47,9 @@ describe("PendingEditsFlush", () => {
             ".bpmn": new RecordingModeler(host),
             ".dmn": new RecordingModeler(host),
             ".form": new RecordingModeler(host),
+            ".json": new RecordingModeler(host),
         };
-        for (const extension of [".bpmn", ".dmn", ".form"] as const) {
+        for (const extension of [".bpmn", ".dmn", ".form", ".json"] as const) {
             pendingEdits.serve(extension, modelers[extension]);
         }
     });
@@ -108,6 +109,7 @@ describe("PendingEditsFlush", () => {
         ["/work/Decision.Dmn", ".dmn"],
         ["/work/form.form", ".form"],
         ["/work/Form.FORM", ".form"],
+        ["/work/template.json", ".json"],
     ])(
         "syncs flushed content for %s through the modeler served for %s files",
         async (path, extension) => {
