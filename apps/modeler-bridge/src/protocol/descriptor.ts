@@ -621,6 +621,7 @@ export const PROTOCOL = [
         method: METHODS.settingsSetLintingEnabled,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
     },
 

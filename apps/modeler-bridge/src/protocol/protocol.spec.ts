@@ -205,6 +205,7 @@ describe("RPC protocol descriptor", () => {
             METHODS.secretStoreDelete,
             METHODS.tokenStoreGet,
             METHODS.tokenStoreSet,
+            METHODS.settingsSetLintingEnabled,
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });
