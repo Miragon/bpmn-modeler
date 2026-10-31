@@ -21,14 +21,14 @@ export function mountPreviewView(root: HTMLElement): PreviewView {
         return node;
     };
 
-    const container = element("div", "template-preview");
-    const toolbar = element("div", "template-preview__toolbar");
-    const engineBadge = element("span", "template-preview__engine");
-    const choice = element("select", "template-preview__choice");
+    const container = element("div", "template-editor");
+    const toolbar = element("div", "template-editor__toolbar");
+    const engineBadge = element("span", "template-editor__engine");
+    const choice = element("select", "template-editor__choice");
     choice.setAttribute("aria-label", i18n.translate("Template"));
-    const messages = element("div", "template-preview__messages");
+    const messages = element("div", "template-editor__messages");
     messages.setAttribute("role", "status");
-    const panel = element("div", "template-preview__panel");
+    const panel = element("div", "template-editor__panel");
 
     toolbar.append(engineBadge, choice);
     container.append(toolbar, messages, panel);

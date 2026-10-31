@@ -10,7 +10,6 @@ Tune the modeler with settings under the `miragon.bpmnModeler` namespace. Edit t
 | `miragon.bpmnModeler.defaultMode` | `implement` | Mode a BPMN editor opens in when it has no remembered mode: `implement`, `design` or `view`. On an engine-neutral model, `implement` falls back to `design`. See [Editor modes](/vscode/features/modes). |
 | `miragon.bpmnModeler.language` | `en` | UI language as a locale code, for example `de`. [Language support](/vscode/features/language-support) lists every language. |
 | `miragon.bpmnModeler.colorTheme` | `automatic` | `automatic` follows the VS Code theme, `light` always uses the light canvas. |
-| `miragon.bpmnModeler.elementTemplatePreview.openAutomatically` | `true` | Open the [element template preview](/vscode/features/element-template-chooser#preview-a-template-while-you-write-it) beside a template's JSON editor the first time it is shown. |
 | `miragon.bpmnModeler.configFolder` | `.camunda` | Folder searched from each BPMN file up to the workspace root. Element templates live in `<configFolder>/element-templates/`. A blank value uses `.camunda`. |
 | `miragon.bpmnModeler.favouriteBpmnElements` | Service task, user task, call activity, exclusive gateway | BPMN types pinned at the top of the [append menu](/vscode/features/append-menu), max 6 (for example `bpmn:ServiceTask`). |
 | `miragon.bpmnModeler.alignToOrigin` | `false` | Move the diagram to the top-left origin when opening ([align-to-origin](https://github.com/bpmn-io/align-to-origin)). |

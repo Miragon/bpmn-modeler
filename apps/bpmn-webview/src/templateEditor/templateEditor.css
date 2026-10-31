@@ -1,7 +1,7 @@
-/* Scoped under .template-preview: both webview entries share one index.css. */
+/* Scoped under .template-editor: both webview entries share one index.css. */
 
 /* Fixed so host default body padding cannot shrink the page. */
-.template-preview {
+.template-editor {
     position: fixed;
     inset: 0;
     display: flex;
@@ -13,20 +13,20 @@
 }
 
 /* Fallbacks for a page without the host's --vscode-* variables. */
-html[data-bpmn-theme="dark"] .template-preview {
+html[data-bpmn-theme="dark"] .template-editor {
     background: var(--vscode-editor-background, #1e1e1e);
     color: var(--vscode-foreground, #ccc);
 }
 
-html[data-bpmn-theme="dark"] .template-preview__messages {
+html[data-bpmn-theme="dark"] .template-editor__messages {
     background: var(--vscode-inputValidation-warningBackground, #352a05);
 }
 
-.template-preview [hidden] {
+.template-editor [hidden] {
     display: none !important;
 }
 
-.template-preview__toolbar {
+.template-editor__toolbar {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -35,14 +35,14 @@ html[data-bpmn-theme="dark"] .template-preview__messages {
     border-bottom: 1px solid var(--vscode-panel-border, #ccc);
 }
 
-.template-preview__engine {
+.template-editor__engine {
     padding: 1px 8px;
     border-radius: 10px;
     background: var(--vscode-badge-background, #e0e0e0);
     color: var(--vscode-badge-foreground, #333);
 }
 
-.template-preview__choice {
+.template-editor__choice {
     min-width: 0;
     max-width: 60%;
     margin-left: auto;
@@ -51,26 +51,26 @@ html[data-bpmn-theme="dark"] .template-preview__messages {
     border: 1px solid var(--vscode-dropdown-border, #ccc);
 }
 
-.template-preview__messages {
+.template-editor__messages {
     padding: 6px 12px;
     background: var(--vscode-inputValidation-warningBackground, #fff8e1);
     border-bottom: 1px solid var(--vscode-inputValidation-warningBorder, #e0b400);
 }
 
-.template-preview__messages p {
+.template-editor__messages p {
     margin: 2px 0;
     overflow-wrap: anywhere;
 }
 
-.template-preview__panel {
+.template-editor__panel {
     flex: 1;
     min-height: 0;
     overflow: auto;
     user-select: none;
 }
 
-.template-preview__panel input,
-.template-preview__panel textarea,
-.template-preview__panel [contenteditable="true"] {
+.template-editor__panel input,
+.template-editor__panel textarea,
+.template-editor__panel [contenteditable="true"] {
     user-select: text;
 }

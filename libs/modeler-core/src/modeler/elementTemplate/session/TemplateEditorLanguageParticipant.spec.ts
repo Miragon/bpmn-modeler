@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import { LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost } from "../../../testing";
-import { PreviewLanguageParticipant } from "./PreviewLanguageParticipant";
+import { TemplateEditorLanguageParticipant } from "./TemplateEditorLanguageParticipant";
 
 async function openPreview() {
     const host = createTestHost();
     const editor = await host.openSession("/work/element-templates/status.json", [
-        new PreviewLanguageParticipant(host.store, host.settings, host.notifier),
+        new TemplateEditorLanguageParticipant(host.store, host.settings, host.notifier),
     ]);
     return { host, editor };
 }
 
-describe("PreviewLanguageParticipant", () => {
+describe("TemplateEditorLanguageParticipant", () => {
     it("sends the new language when it changes", async () => {
         const { host, editor } = await openPreview();
 

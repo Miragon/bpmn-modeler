@@ -19,4 +19,4 @@ export const DMN_VIEW_TYPE = "bpmn-modeler.dmn";
 export const FORM_VIEW_TYPE = "bpmn-modeler.form";
 
 // Custom-editor viewType for the element-template preview beside a `.json` file.
-export const ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE = "bpmn-modeler.elementTemplatePreview";
+export const ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE = "bpmn-modeler.elementTemplateEditor";

@@ -11,7 +11,7 @@ The desktop app runs the same extension, and the IntelliJ plugin shares the BPMN
   and element templates.
 - [Flow navigation](/vscode/features/flow-navigation): move along sequence flows with Tab, Shift+Tab and Enter.
 - [Element templates](/vscode/features/element-template-chooser): browse, preview and apply Camunda element
-  templates, and preview your own while you write them.
+  templates, and edit your own in the template editor.
 - [Template marketplace](/vscode/features/template-marketplace): load templates from shared GitHub or GitLab
   repositories or local folders.
 - [Forms](/vscode/features/form-editing): edit Camunda Forms (`.form`) and test them in a preview.

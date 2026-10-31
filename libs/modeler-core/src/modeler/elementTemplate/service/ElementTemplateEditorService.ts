@@ -12,7 +12,7 @@ import { EditorSessionStore } from "../../../editorSession/service/EditorSession
  * Feeds an element-template file to its read-only preview. The text goes out
  * as it is, empty or broken, because the preview explains what it cannot show.
  */
-export class ElementTemplatePreviewService implements RenderedDocumentService {
+export class ElementTemplateEditorService implements RenderedDocumentService {
     private readonly documents: EditorDocumentSync;
 
     constructor(

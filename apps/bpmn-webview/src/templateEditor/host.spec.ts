@@ -11,7 +11,7 @@ import {
 
 import c7Samples from "../__fixtures__/c7-samples.json";
 import c8Samples from "../__fixtures__/c8-samples.json";
-import { getPreviewHostApi } from "./host";
+import { getTemplateEditorHostApi } from "./host";
 
 function captureReplies(): Query[] {
     const replies: Query[] = [];
@@ -25,19 +25,19 @@ afterEach(() => {
     window.history.replaceState({}, "", "/");
 });
 
-describe("getPreviewHostApi", () => {
+describe("getTemplateEditorHostApi", () => {
     it("talks to the real host outside development", () => {
         vi.stubEnv("NODE_ENV", "production");
         vi.stubGlobal("acquireVsCodeApi", () => ({ postMessage: vi.fn() }));
 
-        expect(getPreviewHostApi()).toBeInstanceOf(HostApiImpl);
+        expect(getTemplateEditorHostApi()).toBeInstanceOf(HostApiImpl);
     });
 
     it("serves the C8 samples in development", () => {
         vi.stubEnv("NODE_ENV", "development");
         const replies = captureReplies();
 
-        getPreviewHostApi().postMessage(new GetElementTemplateFileCommand());
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
 
         expect(replies).toEqual([new ElementTemplateFileQuery(JSON.stringify(c8Samples, null, 2))]);
     });
@@ -47,7 +47,7 @@ describe("getPreviewHostApi", () => {
         window.history.replaceState({}, "", "/?engine=c7&lang=de");
         const replies = captureReplies();
 
-        getPreviewHostApi().postMessage(new GetElementTemplateFileCommand());
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
 
         expect(replies).toEqual([
             new ElementTemplateFileQuery(JSON.stringify(c7Samples, null, 2)),
@@ -60,7 +60,7 @@ describe("getPreviewHostApi", () => {
         const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
         const replies = captureReplies();
 
-        getPreviewHostApi().postMessage(new LogInfoCommand("hello"));
+        getTemplateEditorHostApi().postMessage(new LogInfoCommand("hello"));
 
         expect(replies).toEqual([]);
         expect(debug).toHaveBeenCalled();

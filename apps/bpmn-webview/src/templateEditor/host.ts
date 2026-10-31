@@ -16,7 +16,7 @@ declare const process: { env: { NODE_ENV: string } };
 
 type MessageType = Command | Query;
 
-export function getPreviewHostApi(): HostApi<unknown, MessageType> {
+export function getTemplateEditorHostApi(): HostApi<unknown, MessageType> {
     if (process.env.NODE_ENV === "development") {
         return new MockPreviewHost();
     }
