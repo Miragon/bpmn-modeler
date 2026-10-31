@@ -137,10 +137,14 @@ export class InMemoryWorkspace implements WorkspacePort {
     /**
      * Creates a directory with `files` below it, as another program moving it
      * in would; the port cannot. A directory that is new reports one create.
+     * Files for a directory that exists throw: a host reports each of them.
      */
     createDirectory(path: string, files: Readonly<Record<string, string>> = {}): void {
         const directory = withoutFileScheme(path);
         const isNew = !this.directories.has(directory);
+        if (!isNew && Object.keys(files).length > 0) {
+            throw new Error(`${directory} exists; write its new files one by one`);
+        }
         this.addDirectory(directory);
         for (const [file, content] of Object.entries(files)) {
             const filePath = withoutFileScheme(file);

@@ -152,6 +152,15 @@ describe("InMemoryWorkspace", () => {
         await expect(ws.readDirectory("/work/moved")).resolves.toEqual([["sub", "directory"]]);
         await expect(ws.readFile("/work/dist/stale.bpmn")).rejects.toThrow(FileNotFound);
     });
+
+    it("refuses files for a directory that exists, which no host reports as one create", () => {
+        const ws = workspace();
+
+        expect(() => ws.createDirectory("/work/dist", { "/work/dist/new.bpmn": "<new/>" })).toThrow(
+            "/work/dist exists",
+        );
+        expect(ws.files.has("/work/dist/new.bpmn")).toBe(false);
+    });
 });
 
 describe("InMemorySettings", () => {
