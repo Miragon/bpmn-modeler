@@ -6,7 +6,8 @@ import com.google.gson.JsonObject
 
 /**
  * The top-level params of one core→host frame, read by key. A required read of
- * an absent, null or wrongly typed value throws, naming the key.
+ * an absent or null value throws, naming the key; a primitive of another JSON
+ * type is coerced as Gson coerces it.
  */
 internal interface RpcParams {
     fun string(key: String): String
@@ -31,7 +32,18 @@ internal interface RpcParams {
     fun element(key: String): JsonElement?
 }
 
+/**
+ * [RpcParams] over the frame's JSON. Once [seal]ed every read throws, so a
+ * handler that reads in its [RpcAction] fails instead of hiding that key from
+ * the protocol coverage test, which runs only [RpcHandler.read].
+ */
 internal class JsonRpcParams(private val params: JsonObject) : RpcParams {
+    private var sealed = false
+
+    fun seal() {
+        sealed = true
+    }
+
     override fun string(key: String): String = optionalString(key) ?: missing(key)
 
     override fun optionalString(key: String): String? = present(key)?.asString
@@ -50,9 +62,14 @@ internal class JsonRpcParams(private val params: JsonObject) : RpcParams {
 
     override fun optionalJsonArray(key: String): JsonArray? = present(key)?.takeIf { it.isJsonArray }?.asJsonArray
 
-    override fun element(key: String): JsonElement? = params.get(key)
+    override fun element(key: String): JsonElement? = raw(key)
 
-    private fun present(key: String): JsonElement? = params.get(key)?.takeUnless { it.isJsonNull }
+    private fun present(key: String): JsonElement? = raw(key)?.takeUnless { it.isJsonNull }
+
+    private fun raw(key: String): JsonElement? {
+        check(!sealed) { "Param '$key' read after the handler's read step" }
+        return params.get(key)
+    }
 
     private fun missing(key: String): Nothing =
         throw IllegalArgumentException("Param '$key' is missing or not of the expected type")

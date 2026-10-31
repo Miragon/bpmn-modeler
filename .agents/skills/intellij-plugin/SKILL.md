@@ -143,8 +143,9 @@ core → host method therefore changes the descriptor, `protocol.json` and the
 Kotlin router in one PR. It also compares parameter keys: every host → core
 sender runs once and its frame must carry the descriptor's keys, and every
 core → host handler may read only the descriptor's keys. A handler reads its
-`RpcParams` and returns an `RpcAction`, so the test reads without acting; a new
-host → core method needs an entry in the test's sender table.
+`RpcParams` and returns an `RpcAction`, so the test reads without acting; a
+read inside the action throws. A new host → core method needs an entry in the
+test's sender table.
 The nested fields of `statusBar/update` are pinned by `HostUiRouterTest`, and
 `StatusSlotPlacementTest` reads the core's `statusView.ts` (passed in by Gradle)
 so a new slot, icon, tone or action fails until Kotlin knows it.

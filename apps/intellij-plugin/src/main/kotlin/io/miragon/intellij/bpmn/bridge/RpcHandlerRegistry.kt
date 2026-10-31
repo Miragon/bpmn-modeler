@@ -42,7 +42,10 @@ internal class RpcHandlerRegistry {
     /** @return false when no handler is registered (caller logs the debug line). */
     fun dispatch(method: String, params: JsonObject, id: Int?): Boolean {
         val handler = handlers[method] ?: return false
-        handler.read(JsonRpcParams(params)).run(id)
+        val frameParams = JsonRpcParams(params)
+        val action = handler.read(frameParams)
+        frameParams.seal()
+        action.run(id)
         return true
     }
 }

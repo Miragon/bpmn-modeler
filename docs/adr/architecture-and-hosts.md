@@ -538,7 +538,8 @@ longer sends fails it. It also compares parameter keys. Each host→core sender
 runs once, and its frame must carry the keys the snapshot lists. Each core→host
 handler reads its params before it acts, through `RpcParams`, so the test lets
 every handler read without acting and fails on a key the snapshot does not list.
-Reply keys are not compared. The snapshot is an input of the Gradle test task
+The registry seals the params once that read returns, so a handler that reads in
+its action fails at once instead of hiding the key. Reply keys are not compared. The snapshot is an input of the Gradle test task
 and of the IntelliJ CI path filter, so a TypeScript-only protocol change runs
 the test.
 
