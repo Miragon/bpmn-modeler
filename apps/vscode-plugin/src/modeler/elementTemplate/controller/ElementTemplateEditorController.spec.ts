@@ -7,7 +7,7 @@ const commandHandlers = new Map<string, (...args: unknown[]) => unknown>();
 // Hoisted with the mock factory, which subscribes to these lists as it runs.
 const vscode = vi.hoisted(() => ({
     activeTextEditor: undefined as unknown,
-    tabGroups: [] as { tabs: { input: unknown }[] }[],
+    tabGroups: [] as { tabs: { input: unknown }[]; activeTab?: { input: unknown } }[],
     activeTab: undefined as { input: unknown } | undefined,
     editorListeners: [] as ((editor: unknown) => void)[],
     documentListeners: [] as ((event: { document: unknown }) => void)[],
@@ -240,6 +240,24 @@ describe("ElementTemplateEditorController", () => {
             await run(TOGGLE_ELEMENT_TEMPLATE_JSON_CMD);
 
             expect(executeCommand).toHaveBeenCalledWith("vscode.openWith", uri, "default", -2);
+        });
+
+        it("finds the template editor shown in another group while the active one lags", async () => {
+            register();
+            const uri = uriOf("/work/status.json");
+            const editorTab = {
+                input: new TabInputCustom(uri as never, ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE),
+            };
+            const jsonTab = { input: new TabInputText(uri as never) };
+            vscode.activeTab = jsonTab;
+            vscode.tabGroups = [
+                { tabs: [editorTab], activeTab: editorTab },
+                { tabs: [jsonTab], activeTab: jsonTab },
+            ];
+
+            await run(TOGGLE_ELEMENT_TEMPLATE_JSON_CMD);
+
+            expect(closeTabs).toHaveBeenCalledWith([jsonTab]);
         });
 
         it("does nothing without a template editor", async () => {
