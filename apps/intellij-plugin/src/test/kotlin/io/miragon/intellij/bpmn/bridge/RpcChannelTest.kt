@@ -437,4 +437,58 @@ class RpcChannelTest {
         assertEquals("document/didChange", retained.get("method").asString)
         assertEquals("authoritative", retained.getAsJsonObject("params").get("content").asString)
     }
+
+    /** A core request as the host received it, answered through the channel that dispatched it. */
+    private class ReceivedRequest(val method: String, val answer: (RpcResult) -> Unit)
+
+    private fun answerableChannel(): Pair<RpcChannel, LinkedBlockingQueue<ReceivedRequest>> {
+        val received = LinkedBlockingQueue<ReceivedRequest>()
+        var channelRef: RpcChannel? = null
+        val channel =
+            rpcChannel { method, _, id ->
+                received.add(ReceivedRequest(method) { result -> channelRef!!.reply(id!!, result) })
+            }
+        channelRef = channel
+        return channel to received
+    }
+
+    @Test
+    fun `does not send a reply for a dead bridge to the next one`() {
+        val (channel, received) = answerableChannel()
+        val dead = fakeProcess()
+        channel.attach(dead.outputStream, dead.inputStream)
+        dead.emit("""{"method":"picker/show","params":{},"id":1}""")
+        val pickerOfDeadBridge = received.poll(2, TimeUnit.SECONDS)!!
+
+        dead.kill()
+        channel.detach()
+        val respawned = fakeProcess()
+        channel.attach(respawned.outputStream, respawned.inputStream)
+        respawned.emit("""{"method":"clipboard/read","params":{},"id":1}""")
+        val clipboardOfRespawnedBridge = received.poll(2, TimeUnit.SECONDS)!!
+
+        pickerOfDeadBridge.answer(PickerShowResult(listOf(0)))
+        clipboardOfRespawnedBridge.answer(ClipboardReadResult("fresh"))
+
+        assertEquals(listOf("""{"id":1,"result":{"text":"fresh"}}"""), respawned.framesUntilQuiet())
+    }
+
+    @Test
+    fun `drops a reply for a dead bridge instead of keeping it for the next one`() {
+        val (channel, received) = answerableChannel()
+        val dead = fakeProcess()
+        channel.attach(dead.outputStream, dead.inputStream)
+        dead.emit("""{"method":"document/write","params":{},"id":3}""")
+        val writeOfDeadBridge = received.poll(2, TimeUnit.SECONDS)!!
+
+        dead.kill()
+        channel.detach()
+        writeOfDeadBridge.answer(DocumentWriteResult(changed = true, accepted = true))
+        dead.expectNoFrame()
+
+        val respawned = fakeProcess()
+        channel.attach(respawned.outputStream, respawned.inputStream)
+
+        respawned.expectNoFrame(500)
+    }
 }
