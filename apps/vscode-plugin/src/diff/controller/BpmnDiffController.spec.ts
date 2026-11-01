@@ -40,7 +40,28 @@ import { commands, workspace } from "vscode";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
+import {
+    DIFF_PANE_COMMAND_TYPES,
+    DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
+    DiffPaneCommandType,
+    DiffPaneHandshakeCommandType,
+} from "@miragon/bpmn-modeler-shared";
 import { BpmnDiffController } from "./BpmnDiffController";
+
+/** How VS Code serves each command its diff panes post. */
+const VSCODE_DIFF_COVERAGE: Record<
+    DiffPaneHandshakeCommandType | DiffPaneCommandType,
+    "handled" | "ignored"
+> = {
+    GetBpmnFileCommand: "handled",
+    GetBpmnModelerSettingCommand: "ignored",
+    GetPropertiesPanelStateCommand: "ignored",
+    DiffReadyCommand: "handled",
+    ViewportChangedCommand: "handled",
+    CursorChangedCommand: "handled",
+    SwapCompareSidesCommand: "handled",
+    LogErrorCommand: "handled",
+};
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
 function uri(scheme: string, value: string) {
@@ -222,6 +243,21 @@ describe("BpmnDiffController.resolveDiffPane", () => {
     });
 });
 
+describe("BpmnDiffController routes", () => {
+    it("match the host's coverage table", () => {
+        const { controller } = createController();
+
+        const coverage = Object.fromEntries(
+            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
+                type,
+                controller.paneRoutes.routeOf(type).kind,
+            ]),
+        );
+
+        expect(coverage).toEqual(VSCODE_DIFF_COVERAGE);
+    });
+});
+
 describe("BpmnDiffController message dispatch", () => {
     /** Resolves a pane and returns the captured webview message handler. */
     function paneWithMessageHandler() {
@@ -247,6 +283,14 @@ describe("BpmnDiffController message dispatch", () => {
 
         await send({ type: "CursorChangedCommand", index: 3 });
         expect(diffService.forwardCursor).toHaveBeenCalledWith(expect.anything(), 3);
+    });
+
+    it("logs a pane's error under the pane's file name", async () => {
+        const { notifier, send } = paneWithMessageHandler();
+
+        await send({ type: "LogErrorCommand", message: "import failed" });
+
+        expect(notifier.logged("error")).toEqual(["[webview:m.bpmn] import failed"]);
     });
 
     it("ignores unknown command types", async () => {

@@ -15,7 +15,14 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { METHODS, PROTOCOL, protocolSnapshot, protocolTable } from "./descriptor";
+import {
+    HOST_WORK_REPLY_DEADLINE_MS,
+    METHODS,
+    PROTOCOL,
+    protocolSnapshot,
+    protocolTable,
+    replyDeadlineMs,
+} from "./descriptor";
 
 // `PROTOCOL` is `as const`, so the compiler already proves a request is never
 // Host→Core (its direction narrows to the literal `"coreToHost"`). Widen the
@@ -142,6 +149,7 @@ describe("RPC protocol descriptor", () => {
                     "  tokenStore/get",
                     "  tokenStore/set",
                     "  tokenPrompt/show",
+                    "  settings/setLintingEnabled",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",
@@ -155,13 +163,6 @@ describe("RPC protocol descriptor", () => {
                     "  notifier/progressStart",
                     "  notifier/progressEnd",
                     "  statusBar/update",
-                    "  statusBar/templatesLoading",
-                    "  statusBar/templatesReady",
-                    "  statusBar/templatesHide",
-                    "  statusBar/showEngineVersion",
-                    "  statusBar/hideEngineVersion",
-                    "  statusBar/showDeploymentTarget",
-                    "  statusBar/hideDeploymentTarget",
                     "  diff/postMessage",
                     "  deployment/postMessage",
                     "  script/open",
@@ -170,6 +171,43 @@ describe("RPC protocol descriptor", () => {
                     "  script/close",
                 ].join("\n"),
             );
+        });
+    });
+
+    describe("reply deadlines", () => {
+        it.each([METHODS.pickerShow, METHODS.confirmShow, METHODS.tokenPromptShow])(
+            "waits for the user to answer %s",
+            (method) => {
+                expect(replyDeadlineMs(method)).toBeUndefined();
+            },
+        );
+
+        it.each([
+            { method: METHODS.documentWrite, state: "the document mirror" },
+            { method: METHODS.deploymentStateSave, state: "the deployment-state mirror" },
+            { method: METHODS.marketplaceStateSave, state: "the fetched marketplace cache" },
+        ])(
+            "waits for the reply to $method, so $state stays in step with the host",
+            ({ method }) => {
+                expect(replyDeadlineMs(method)).toBeUndefined();
+            },
+        );
+
+        it.each([
+            METHODS.documentSave,
+            METHODS.clipboardRead,
+            METHODS.secretStoreSaveBasicAuth,
+            METHODS.secretStoreGetBasicAuth,
+            METHODS.secretStoreSaveOAuth2,
+            METHODS.secretStoreGetOAuth2,
+            METHODS.secretStoreGetApprovedDestinations,
+            METHODS.secretStoreSaveApprovedDestinations,
+            METHODS.secretStoreDelete,
+            METHODS.tokenStoreGet,
+            METHODS.tokenStoreSet,
+            METHODS.settingsSetLintingEnabled,
+        ])("gives up on %s after the host-work deadline", (method) => {
+            expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });
     });
 });

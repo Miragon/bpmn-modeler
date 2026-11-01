@@ -1,6 +1,7 @@
 import type Modeling from "bpmn-js/lib/features/modeling/Modeling";
 import type EventBus from "diagram-js/lib/core/EventBus";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { LayoutEngine } from "@miragon/bpmn-modeler-layout";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { MESSY_LANES_BOUNDARY_SUBPROCESS } from "../../../libs/bpmn-layout/src/__fixtures__/integrationDiagrams";
@@ -9,6 +10,7 @@ import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import { createDesigner } from "./design/createDesigner";
 import type { BpmnDesignerHandle, DesignerOptions } from "./design/publicApi";
+import type { PendingInputHandle } from "./surfaceHandle";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import {
     afterPaint,
@@ -19,13 +21,16 @@ import {
 } from "./__fixtures__/surfaceMount";
 
 /**
- * The host-command contract the modeler and the designer both expose (import
- * fit, export, format, cleanup, import errors, theme, lint pushes, debounced
- * save, favourites). Both run the real bpmn-js modeling stack, so the contract
+ * The host-command contract the modeler and the designer both expose (import fit, export, format,
+ * cleanup, import errors, theme, lint pushes, debounced save, favourites, command-stack and format
+ * notifications, pending panel input). Both run the real bpmn-js modeling stack, so the contract
  * runs in the browser project against each surface.
  */
 
-type SharedOptions = Pick<DesignerOptions, "linting" | "onContentSaved" | "favouriteBpmnElements">;
+type SharedOptions = Pick<
+    DesignerOptions,
+    "linting" | "onContentSaved" | "favouriteBpmnElements" | "additionalModules"
+>;
 
 type LabelTarget = Parameters<Modeling["updateLabel"]>[0];
 
@@ -34,9 +39,11 @@ interface PopupMenuService {
     close(): void;
 }
 
+type EditableSurface = BpmnDesignerHandle & PendingInputHandle;
+
 interface EditableSurfaceDescriptor {
     name: string;
-    create(mount: SurfaceMount, options: SharedOptions): Promise<BpmnDesignerHandle>;
+    create(mount: SurfaceMount, options: SharedOptions): Promise<EditableSurface>;
 }
 
 const EDITABLE_SURFACES: EditableSurfaceDescriptor[] = [
@@ -62,6 +69,20 @@ const LINT_RESULTS = {
         { id: "StartEvent_1", message: "Element is missing label/name", category: "warn" },
     ],
 };
+
+const FAILING_LAYOUT_ENGINE: LayoutEngine = {
+    computeLayout: () => Promise.reject(new Error("engine down")),
+};
+
+function renameTask(surface: BpmnDesignerHandle, name: string): void {
+    const task = surface.getService("elementRegistry").get("Task_1") as LabelTarget;
+    surface.getService("modeling").updateLabel(task, name);
+}
+
+function pressCanvasKey(surface: BpmnDesignerHandle, key: string): void {
+    const canvasSvg = surface.getService("canvas").getContainer().querySelector("svg")!;
+    canvasSvg.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+}
 
 function lintCompleted(surface: BpmnDesignerHandle): Promise<void> {
     return new Promise((resolve) =>
@@ -100,10 +121,23 @@ function diagramGeometry(surface: BpmnDesignerHandle) {
     );
 }
 
-describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor) => {
-    let surface: BpmnDesignerHandle | undefined;
+// Types into the panel's name field as a user would, leaving the value in the input debounce.
+async function typeTaskName(surface: EditableSurface, panel: HTMLElement, name: string) {
+    surface.selection.selectElementsByIds(["Task_1"]);
+    const nameField = () => panel.querySelector<HTMLTextAreaElement>("#bio-properties-panel-name");
+    await expect.poll(() => nameField()?.value).toBe("A");
+    nameField()!.value = name;
+    nameField()!.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
-    async function open(options: SharedOptions = { linting: false }): Promise<BpmnDesignerHandle> {
+function taskName(surface: EditableSurface): string | undefined {
+    return surface.getService("elementRegistry").get("Task_1")?.businessObject.name;
+}
+
+describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor) => {
+    let surface: EditableSurface | undefined;
+
+    async function open(options: SharedOptions = { linting: false }): Promise<EditableSurface> {
         return (await openMounted(options)).handle;
     }
 
@@ -190,6 +224,107 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         commandStack.undo();
         expect(commandStack.canUndo()).toBe(false);
         expect(diagramGeometry(handle)).toEqual(messyGeometry);
+    });
+
+    it("fires onCommandStackChanged for every edit, undo and redo, but not for an import", async () => {
+        const handle = await open();
+        const changed = vi.fn();
+        handle.onCommandStackChanged(changed);
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        expect(changed).not.toHaveBeenCalled();
+
+        renameTask(handle, "Renamed");
+        handle.getService("commandStack").undo();
+        handle.getService("commandStack").redo();
+
+        expect(changed).toHaveBeenCalledTimes(3);
+    });
+
+    it("stops firing onCommandStackChanged once the listener is removed", async () => {
+        const handle = await open();
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        const changed = vi.fn();
+        const unsubscribe = handle.onCommandStackChanged(changed);
+
+        unsubscribe();
+        renameTask(handle, "Renamed");
+
+        expect(changed).not.toHaveBeenCalled();
+    });
+
+    it("keeps notifying later listeners whatever an earlier listener returns", async () => {
+        const handle = await open();
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        const later = vi.fn();
+        handle.onCommandStackChanged(() => true);
+        handle.onCommandStackChanged(later);
+
+        renameTask(handle, "Renamed");
+
+        expect(later).toHaveBeenCalledOnce();
+    });
+
+    it("fires a typed onFormatted with the outcome formatDiagram resolves", async () => {
+        const handle = await open();
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        handle.onFormatted(formatted);
+
+        const outcome = await handle.formatDiagram();
+
+        expect(formatted).toHaveBeenCalledOnce();
+        expect(formatted.mock.calls[0][0]).toStrictEqual(outcome);
+    });
+
+    it("fires onFormatted with the failure code and message of a failed format", async () => {
+        const handle = await open({
+            linting: false,
+            additionalModules: [{ layoutEngine: ["value", FAILING_LAYOUT_ENGINE] }],
+        });
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        handle.onFormatted(formatted);
+
+        await handle.formatDiagram();
+
+        expect(formatted.mock.calls).toStrictEqual([
+            [{ status: "failed", code: "ENGINE_FAILED", message: "engine down", diagnostics: [] }],
+        ]);
+    });
+
+    it("fires onFormatted for a format the canvas shortcut started", async () => {
+        const handle = await open();
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        handle.onFormatted(formatted);
+
+        pressCanvasKey(handle, "l");
+
+        await vi.waitFor(() => expect(formatted).toHaveBeenCalledOnce());
+        expect(formatted.mock.calls[0][0]).toStrictEqual({
+            status: "formatted",
+            diagnostics: expect.any(Array),
+        });
+    });
+
+    it("stops firing onFormatted once the listener is removed", async () => {
+        const handle = await open();
+        await handle.loadDiagram(MESSY_LANES_BOUNDARY_SUBPROCESS);
+        const formatted = vi.fn();
+        const unsubscribe = handle.onFormatted(formatted);
+
+        unsubscribe();
+        await handle.formatDiagram();
+
+        expect(formatted).not.toHaveBeenCalled();
+    });
+
+    it("rejects a subscription on a destroyed surface with NoModelerError", async () => {
+        const handle = await open();
+        handle.destroy();
+
+        expect(() => handle.onCommandStackChanged(vi.fn())).toThrow(NoModelerError);
+        expect(() => handle.onFormatted(vi.fn())).toThrow(NoModelerError);
     });
 
     it("reports diagram garbage, removes it on apply, and then reads clean", async () => {
@@ -294,9 +429,7 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         const handle = await open({ linting: false, onContentSaved });
         await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
 
-        const modeling = handle.getService("modeling");
-        const task = handle.getService("elementRegistry").get("Task_1") as LabelTarget;
-        modeling.updateLabel(task, "Renamed");
+        renameTask(handle, "Renamed");
 
         await vi.waitFor(() => expect(onContentSaved).toHaveBeenCalledOnce());
         expect(onContentSaved.mock.calls[0][0].xml).toContain('name="Renamed"');
@@ -330,5 +463,54 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         handle.destroy();
 
         expect(() => handle.setFavouriteBpmnElements(["bpmn:UserTask"])).toThrow(NoModelerError);
+    });
+
+    describe("properties-panel input", () => {
+        it("holds a typed value until the input debounce applies it", async () => {
+            const { handle, panel } = await openMounted();
+            await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+
+            await typeTaskName(handle, panel, "Approve invoice");
+
+            expect(handle.hasPendingInput()).toBe(true);
+            expect(taskName(handle)).toBe("A");
+            // Headroom over the 600 ms debounce for a loaded runner.
+            await expect.poll(() => handle.hasPendingInput(), { timeout: 3000 }).toBe(false);
+            expect(taskName(handle)).toBe("Approve invoice");
+        });
+
+        it("keeps the pending input of another surface apart", async () => {
+            const otherSurface = await descriptor.create(mountWithPanel(), { linting: false });
+            try {
+                const { handle, panel } = await openMounted();
+                await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+
+                await typeTaskName(handle, panel, "Approve invoice");
+
+                expect(handle.hasPendingInput()).toBe(true);
+                expect(otherSurface.hasPendingInput()).toBe(false);
+            } finally {
+                otherSurface.destroy();
+            }
+        });
+
+        it("applies a typed value at once when the pending input is flushed", async () => {
+            const { handle, panel } = await openMounted();
+            await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+            await typeTaskName(handle, panel, "Approve invoice");
+
+            handle.flushPendingInput();
+
+            expect(handle.hasPendingInput()).toBe(false);
+            expect(await handle.exportDiagram()).toContain('name="Approve invoice"');
+        });
+
+        it("holds no input once destroyed", async () => {
+            const handle = await open();
+            handle.destroy();
+
+            expect(handle.hasPendingInput()).toBe(false);
+            expect(() => handle.flushPendingInput()).not.toThrow();
+        });
     });
 });

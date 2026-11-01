@@ -2,6 +2,9 @@ import { posix } from "path";
 
 const FILE_SCHEME = "file://";
 const UNC_ROOT = /^[\\/]{2}(?=[^\\/])/;
+const UNC_SHARE_ROOT = /^\/\/[^/]+\/[^/]+\/?$/;
+const WINDOWS_DRIVE = /^[A-Za-z]:/;
+const SLASHED_DRIVE_ROOT = /^\/[A-Za-z](:|%3A)\/?$/i;
 
 /**
  * The spelling of an absolute workspace path that hosts and the core exchange:
@@ -12,6 +15,29 @@ const UNC_ROOT = /^[\\/]{2}(?=[^\\/])/;
  */
 export function toWorkspacePath(path: string): string {
     return joinWorkspacePath(path);
+}
+
+/**
+ * The directory holding `path`, or `undefined` at a root: the filesystem root,
+ * a drive root (`file://C:`, `/c:`, `file:///c%3A`), or the share root of a
+ * UNC path, spelled `//server/share`, `file:////server/share` or
+ * `file://server/share`. Above a drive or share root, `/` names the current
+ * drive on Windows and a server names no folder.
+ */
+export function parentWorkspacePath(path: string): string | undefined {
+    const scheme = path.startsWith(FILE_SCHEME) ? FILE_SCHEME : "";
+    const schemeless = path.slice(scheme.length);
+    // VS Code puts a UNC server where IntelliJ puts a Windows drive.
+    const namesServer =
+        scheme !== "" && !schemeless.startsWith("/") && !WINDOWS_DRIVE.test(schemeless);
+    if (
+        SLASHED_DRIVE_ROOT.test(schemeless) ||
+        UNC_SHARE_ROOT.test(namesServer ? `//${schemeless}` : schemeless)
+    ) {
+        return undefined;
+    }
+    const parent = posix.dirname(schemeless);
+    return parent === schemeless || parent === "." ? undefined : scheme + parent;
 }
 
 /** The path a `file://` URI names, for the hosts that accept both spellings. */

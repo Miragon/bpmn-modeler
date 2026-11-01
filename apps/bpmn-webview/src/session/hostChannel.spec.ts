@@ -7,13 +7,19 @@ import type {
     HostApi,
     Query,
     RequestFocusCommand,
+    SyncDocumentCommand,
+    SyncViewportQuery,
     TakeFocusQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { WebviewState } from "../webviewState";
-import type { HostChannel } from "./hostChannel";
+import type { DiffPaneChannel, HostChannel } from "./hostChannel";
 
 type PostedMessage = Parameters<HostChannel["postMessage"]>[0];
+
+type PostedByDiffPane = Parameters<DiffPaneChannel["postMessage"]>[0];
+
+type AnyMessageChannel = Pick<HostApi<WebviewState, Command | Query>, "postMessage">;
 
 // Type-level spec: the `typecheck` script fails when an expectation breaks.
 describe("HostChannel", () => {
@@ -31,8 +37,25 @@ describe("HostChannel", () => {
     });
 
     it("cannot be handed to a helper that posts any message", () => {
-        type AnyMessageChannel = Pick<HostApi<WebviewState, Command | Query>, "postMessage">;
-
         expectTypeOf<HostChannel>().not.toExtend<AnyMessageChannel>();
+    });
+});
+
+describe("DiffPaneChannel", () => {
+    it("posts the diff pane's commands", () => {
+        expectTypeOf<DiffReadyCommand>().toExtend<PostedByDiffPane>();
+    });
+
+    it("rejects a command of the BPMN editor", () => {
+        expectTypeOf<SyncDocumentCommand>().not.toExtend<PostedByDiffPane>();
+        expectTypeOf<RequestFocusCommand>().not.toExtend<PostedByDiffPane>();
+    });
+
+    it("rejects a query, which only the host sends", () => {
+        expectTypeOf<SyncViewportQuery>().not.toExtend<PostedByDiffPane>();
+    });
+
+    it("cannot be handed to a helper that posts any message", () => {
+        expectTypeOf<DiffPaneChannel>().not.toExtend<AnyMessageChannel>();
     });
 });

@@ -102,7 +102,62 @@ describe("DefinitionSearchService", () => {
         host.workspace.deleteFile("/work/b.bpmn");
 
         expect((await search("message", "")).map(({ name }) => name)).toEqual(["after"]);
-        expect(findFiles).toHaveBeenCalledTimes(2);
+        expect(findFiles).toHaveBeenCalledTimes(1);
+    });
+
+    it("forgets the files of a folder deleted as one event", async () => {
+        const { host, search } = setup({
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+            "/work/models/sub/ship.bpmn": model('<bpmn:message id="M2" name="shipped" />'),
+            "/work/pay.bpmn": model('<bpmn:message id="M3" name="paid" />'),
+        });
+        await search("message", "");
+
+        await host.workspace.deleteDirectory("/work/models");
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["paid"]);
+    });
+
+    it("lists the files of a folder created as one event", async () => {
+        const { host, search } = setup({
+            "/work/pay.bpmn": model('<bpmn:message id="M3" name="paid" />'),
+        });
+        await search("message", "");
+
+        host.workspace.createDirectory("/work/models", {
+            "/work/models/sub/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+        });
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["ordered", "paid"]);
+    });
+
+    it("lists the files no more often after a deletion", async () => {
+        const { host, findFiles, search } = setup({
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+            "/work/pay.bpmn": model('<bpmn:message id="M3" name="paid" />'),
+            "/work/src/Worker.java": "",
+        });
+        await search("message", "");
+
+        host.workspace.deleteFile("/work/src/Worker.java");
+        await host.workspace.deleteDirectory("/work/models");
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["paid"]);
+        expect(findFiles).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads the files of a folder replaced as a whole afresh", async () => {
+        const { host, search } = setup({
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="ordered" />'),
+        });
+        await search("message", "");
+
+        await host.workspace.deleteDirectory("/work/models");
+        host.workspace.createDirectory("/work/models", {
+            "/work/models/order.bpmn": model('<bpmn:message id="M1" name="placed" />'),
+        });
+
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["placed"]);
     });
 
     it("serves repeated searches from the index", async () => {
@@ -127,6 +182,22 @@ describe("DefinitionSearchService", () => {
         expect(await answer("message", "")).toMatchObject({ definitions: [], failed: true });
         expect(host.notifier.logged("error")).toEqual([scanFailure.stack]);
         expect(await search("message", "")).toHaveLength(1);
+    });
+
+    it("lists again after a listing that failed while a file was deleted", async () => {
+        const { host, findFiles, answer, search } = setup({
+            "/work/a.bpmn": model('<bpmn:message id="M" name="x" />'),
+            "/work/b.bpmn": model('<bpmn:message id="M" name="y" />'),
+        });
+        let failListing!: (error: Error) => void;
+        findFiles.mockReturnValueOnce(new Promise((_, reject) => (failListing = reject)));
+        const failedSearch = answer("message", "");
+
+        host.workspace.deleteFile("/work/b.bpmn");
+        failListing(new Error("boom"));
+
+        expect(await failedSearch).toMatchObject({ definitions: [], failed: true });
+        expect((await search("message", "")).map(({ name }) => name)).toEqual(["x"]);
     });
 
     it("answers a malformed search as failed without touching the workspace", async () => {

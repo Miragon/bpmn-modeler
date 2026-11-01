@@ -1,6 +1,5 @@
 package io.miragon.intellij.bpmn.bridge
 
-import com.google.gson.JsonObject
 import com.intellij.openapi.ui.Messages
 import io.miragon.intellij.bpmn.CoreProcess
 import io.miragon.intellij.bpmn.IntellijMarketplaceTokenStore
@@ -23,19 +22,34 @@ internal class MarketplaceRouter(
     private val deps: BridgeDeps,
     // Seam for tests only: the real prompt is a modal password dialog, which is
     // EDT-only and not headless-stubbable, so a test injects a deterministic
-    // stand-in. Returns the entered token, or null on cancel.
-    private val passwordPrompt: (host: String, reason: String) -> String? = { host, reason ->
-        Messages.showPasswordDialog(deps.project, reason, "Personal Access Token for $host", null)
+    // stand-in. Returns the answer as typed, or null on cancel.
+    private val passwordPrompt: (title: String, prompt: String) -> String? = { title, prompt ->
+        Messages.showPasswordDialog(deps.project, prompt, title, null)
     },
 ) {
     private val tokenStore by lazy { IntellijMarketplaceTokenStore() }
 
     fun register() {
         deps.handlers
-            .on("marketplaceState/save") { params, id -> handleStateSave(params, id) }
-            .on("tokenStore/get") { params, id -> handleTokenGet(params, id) }
-            .on("tokenStore/set") { params, id -> handleTokenSet(params, id) }
-            .on("tokenPrompt/show") { params, id -> handleTokenPrompt(params, id) }
+            .on("marketplaceState/save") { params ->
+                val location = params.string("location")
+                val scope = params.optionalString("scope") ?: "project"
+                RpcAction { id -> handleStateSave(location, scope, id) }
+            }
+            .on("tokenStore/get") { params ->
+                val host = params.string("host")
+                RpcAction { id -> handleTokenGet(host, id) }
+            }
+            .on("tokenStore/set") { params ->
+                val host = params.string("host")
+                val token = params.string("token")
+                RpcAction { id -> handleTokenSet(host, token, id) }
+            }
+            .on("tokenPrompt/show") { params ->
+                val title = params.string("title")
+                val prompt = params.string("prompt")
+                RpcAction { id -> handleTokenPrompt(title, prompt, id) }
+            }
     }
 
     // ── core → host requests ──────────────────────────────────────────────────
@@ -51,9 +65,7 @@ internal class MarketplaceRouter(
      * - `"application"`: the "all my projects" list — persist app-wide and fan the
      *   fresh snapshot to *every* open window, since each one's merged list changed.
      */
-    private fun handleStateSave(params: JsonObject, id: Int?) {
-        val location = params.get("location").asString
-        val scope = params.get("scope")?.takeIf { !it.isJsonNull }?.asString ?: "project"
+    private fun handleStateSave(location: String, scope: String, id: Int?) {
         if (scope == "application") {
             ModelerSettingsStore.getInstance().addMarketplace(location)
             pushSettingsToRunningBridges()
@@ -64,30 +76,26 @@ internal class MarketplaceRouter(
         id?.let { deps.channel.reply(it, null) }
     }
 
-    private fun handleTokenGet(params: JsonObject, id: Int?) {
-        val token = tokenStore.getToken(params.get("host").asString)
-        id?.let { deps.channel.reply(it, if (token != null) mapOf("token" to token) else null) }
+    private fun handleTokenGet(host: String, id: Int?) {
+        val token = tokenStore.getToken(host)
+        id?.let { deps.channel.reply(it, token?.let(::TokenStoreGetResult)) }
     }
 
-    private fun handleTokenSet(params: JsonObject, id: Int?) {
-        tokenStore.setToken(params.get("host").asString, params.get("token").asString)
+    private fun handleTokenSet(host: String, token: String, id: Int?) {
+        tokenStore.setToken(host, token)
         id?.let { deps.channel.reply(it, null) }
     }
 
     /**
-     * Shows a modal password dialog on the EDT and replies with the entered token,
-     * or `null` on cancel / blank / a disposed project (mirrors `handlePick`). A
-     * blank entry maps to `null` core-side too, but guarding here keeps an empty
-     * token from ever being stored as a valid one.
+     * Shows the core's title and prompt in a modal password dialog on the EDT and
+     * replies with the answer as typed, or `null` on cancel or a disposed project
+     * (mirrors `handlePick`). The core judges a blank answer.
      */
-    private fun handleTokenPrompt(params: JsonObject, id: Int?) {
+    private fun handleTokenPrompt(title: String, prompt: String, id: Int?) {
         if (id == null) return
-        val host = params.get("host").asString
-        val reason = params.get("reason")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
         deps.channel.replyFromEdt(id, "tokenPrompt/show") {
             if (deps.project.isDisposed) return@replyFromEdt null
-            val token = passwordPrompt(host, reason)?.trim()
-            if (!token.isNullOrEmpty()) mapOf("token" to token) else null
+            passwordPrompt(title, prompt)?.let(::TokenPromptShowResult)
         }
     }
 

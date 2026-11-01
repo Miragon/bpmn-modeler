@@ -10,14 +10,13 @@
  * the contract any non-VS-Code host would have to satisfy. The concrete
  * `VsCode*` classes in `infrastructure/` `implements` these.
  *
- * Only cross-cutting ports live here, so `kernel/` names no feature. A port or
- * prompt one feature owns lives in that feature's `domain/ports.ts`.
+ * Only cross-cutting ports live here, so `kernel/` names no feature. A port one
+ * feature owns lives in that feature's `domain/ports.ts`, and the prompts it
+ * asks are built in its `domain/`.
  */
 
-import { Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { LocateResult } from "./locateResult";
-import { NewModelEngine } from "./newModelEngine";
 import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "./prompts";
 import { StatusSlot, StatusView } from "./statusView";
 
@@ -61,18 +60,10 @@ export interface NotifierPort extends LoggerPort {
     openDocument(absolutePath: string): Promise<void>;
 }
 
-/** The placeholders of a search-and-pick list: one while it is busy, one over the matches. */
-export interface LocatePrompts {
-    searchingPlaceholder: string;
-    pickPlaceholder: string;
-}
-
 /**
- * User choices and confirmations. The generic prompts carry everything the user
- * reads, built by the core; a host only renders them and reports the pick, and a
- * dismissal is an answer the caller handles. The other prompts are
- * feature-shaped: their adapters build the text and own the cancel-vs-throw
- * convention. They stay until their callers move to the generic ones.
+ * User choices and confirmations. Each prompt carries everything the user
+ * reads, built by the core; a host only renders it and reports the pick, and a
+ * dismissal is an answer the caller handles.
  */
 export interface PickerPort {
     /** @returns the chosen item's value, or `undefined` on dismissal. */
@@ -95,55 +86,6 @@ export interface PickerPort {
      * @returns `{ outcome, chosen }` — `chosen` set only when the user chose.
      */
     searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }>;
-
-    /**
-     * Prompts for the execution platform of a new model — Camunda 7/8 or the
-     * engine-neutral choice (Design mode).
-     * @throws {UserCancelledError} on dismissal.
-     */
-    pickNewModelEngine(placeHolder: string): Promise<NewModelEngine>;
-    /** @throws {UserCancelledError} on dismissal. */
-    pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string>;
-    /** @returns chosen absolute paths, or `[]` on dismissal. */
-    pickWorkspaceFiles(opts: {
-        glob: string;
-        exclude?: string | null;
-        placeholder: string;
-        limit?: number;
-    }): Promise<string[]>;
-    /** @returns the picked `scriptFormat`, or `undefined` on dismissal. */
-    pickScriptLanguage(currentFormat: string): Promise<string | undefined>;
-    /**
-     * Runs `search` behind a busy selection list so the spinner sits where the
-     * user is looking, not only in the status bar. Only a result that
-     * {@link import("./locateResult").classifyLocateResult} calls ambiguous
-     * reveals the list to pick from; the untouched `outcome` comes back either
-     * way, so the caller keeps the other cases and their messages.
-     *
-     * @returns `{ outcome, chosen }` — `chosen` set only on a pick among several matches.
-     */
-    searchAndPickLocatedFile(
-        prompts: LocatePrompts,
-        search: () => Promise<LocateResult>,
-    ): Promise<{ outcome: LocateResult; chosen?: string }>;
-
-    /**
-     * Confirms an irreversible-looking change before it happens, listing what
-     * it will affect.
-     *
-     * Modal by contract: the caller is about to delete model content on the
-     * user's behalf, and a dismissible toast is not consent. `details` must read
-     * as a list of what goes, not as prose. Callers pass the full list; the
-     * adapter shortens it with `summarizeAffectedItems` before the host
-     * renders it, so no item is dropped without being counted.
-     *
-     * @returns `true` only on explicit confirmation.
-     */
-    confirmDestructive(options: {
-        title: string;
-        confirmLabel: string;
-        details: string[];
-    }): Promise<boolean>;
 }
 
 /**
@@ -266,6 +208,12 @@ export interface WorkspacePort {
      * {@link import("./watcherEvents").coalesceWatcherEvents}; VS Code drops a
      * file created and removed within one burst.
      *
+     * A folder created or deleted as a whole, moved in or out for example, may
+     * arrive as one event for the folder and none for its files, as on VS Code;
+     * the bridge may report the files one by one instead. A consumer of some
+     * files therefore watches every path, as
+     * {@link import("./watchedFiles").watchedChangeOf} reads its events.
+     *
      * Returns a handle that disposes the watcher and its listeners in one call.
      */
     createWatcher(
@@ -307,13 +255,4 @@ export interface DocumentPort {
 export interface StatusBarPort {
     show(slot: StatusSlot, view: StatusView): void;
     hide(slot: StatusSlot): void;
-}
-
-/** The widget-shaped status methods, kept until every caller shows its slot through {@link StatusBarPort}. */
-export interface LegacyStatusBarPort {
-    showElementTemplatesLoading(): void;
-    showElementTemplatesReady(count: number): void;
-    hideElementTemplatesStatus(): void;
-    showEngineVersion(platform: Engine, version: string): void;
-    hideEngineVersion(): void;
 }

@@ -2,11 +2,11 @@ import { Command, MessageOfType, ProtocolCommandType } from "@miragon/bpmn-model
 
 /**
  * Handles a single webview command, narrowed to the command type it was
- * registered for, together with the originating editor id.
+ * registered for, together with its sender: the editor id, or the diff pane.
  */
-export type MessageHandler<TMessage extends Command = Command> = (
+export type MessageHandler<TMessage extends Command = Command, TSource = string> = (
     message: TMessage,
-    editorId: string,
+    source: TSource,
 ) => void | Promise<void>;
 
 export type MessageRoute =
@@ -15,13 +15,16 @@ export type MessageRoute =
     | { readonly kind: "unrouted" };
 
 /** A command's handlers in run order, or the reason its editor drops it. */
-export type CommandRoute<TType extends ProtocolCommandType> =
-    | readonly [MessageHandler<MessageOfType<TType>>, ...MessageHandler<MessageOfType<TType>>[]]
+export type CommandRoute<TType extends ProtocolCommandType, TSource = string> =
+    | readonly [
+          MessageHandler<MessageOfType<TType>, TSource>,
+          ...MessageHandler<MessageOfType<TType>, TSource>[],
+      ]
     | { readonly ignored: string };
 
 /** Routes for a closed set of command types: a type without an entry fails to compile. */
-export type CommandTable<TType extends ProtocolCommandType> = {
-    readonly [T in TType]: CommandRoute<T>;
+export type CommandTable<TType extends ProtocolCommandType, TSource = string> = {
+    readonly [T in TType]: CommandRoute<T, TSource>;
 };
 
 /**
@@ -36,17 +39,17 @@ export type CommandTable<TType extends ProtocolCommandType> = {
  * `GetBpmnModelerSettingCommand` fans out to settings broadcast plus a
  * script-task resync, and that order must be preserved.
  */
-export class WebviewMessageRouter {
-    private readonly handlers = new Map<string, MessageHandler<Command>[]>();
+export class WebviewMessageRouter<TSource = string> {
+    private readonly handlers = new Map<string, MessageHandler<Command, TSource>[]>();
 
     private readonly ignoredReasons = new Map<string, string>();
 
-    static fromTable<TType extends ProtocolCommandType>(
-        table: CommandTable<TType>,
-    ): WebviewMessageRouter {
-        const router = new WebviewMessageRouter();
+    static fromTable<TType extends ProtocolCommandType, TSource = string>(
+        table: CommandTable<TType, TSource>,
+    ): WebviewMessageRouter<TSource> {
+        const router = new WebviewMessageRouter<TSource>();
         for (const type of Object.keys(table) as TType[]) {
-            const route: CommandRoute<TType> = table[type];
+            const route: CommandRoute<TType, TSource> = table[type];
             if ("ignored" in route) {
                 router.ignore(type, route.ignored);
             } else {
@@ -62,14 +65,14 @@ export class WebviewMessageRouter {
      */
     on<TType extends ProtocolCommandType>(
         type: TType,
-        handler: MessageHandler<MessageOfType<TType>>,
+        handler: MessageHandler<MessageOfType<TType>, TSource>,
     ): this {
         const ignoredReason = this.ignoredReasons.get(type);
         if (ignoredReason !== undefined) {
             throw new Error(`${type} is ignored (${ignoredReason}), so it cannot be handled`);
         }
         // Sound because dispatch only hands a handler messages whose type it was registered for.
-        const untypedHandler = handler as MessageHandler<Command>;
+        const untypedHandler = handler as MessageHandler<Command, TSource>;
         const existing = this.handlers.get(type);
         if (existing) {
             existing.push(untypedHandler);
@@ -112,13 +115,13 @@ export class WebviewMessageRouter {
      * setLanguage → resync) stays in registration order. An ignored or unrouted
      * type is a silent no-op; {@link routeOf} tells the two apart.
      */
-    async dispatch(message: Command, editorId: string): Promise<void> {
+    async dispatch(message: Command, source: TSource): Promise<void> {
         const handlers = this.handlers.get(message.type);
         if (!handlers) {
             return;
         }
         for (const handler of handlers) {
-            await handler(message, editorId);
+            await handler(message, source);
         }
     }
 }

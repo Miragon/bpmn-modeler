@@ -17,6 +17,7 @@ import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ModelerMode } from "./mode";
 import type { BpmnSurfaceHandle } from "./surfaceHandle";
+import type { ThemeMode } from "./themeMode";
 
 export type { ModelerMode } from "./mode";
 export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
@@ -46,18 +47,7 @@ export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigRe
  * something happened.
  */
 
-/**
- * [B] Theme selection for a single instance. The modeler toggles a
- * `data-bpmn-theme` attribute on its container + panel parent (the authoritative
- * mechanism — dark rules are scoped under `[data-bpmn-theme="dark"]`, so two
- * instances on one page can hold different themes) and mirrors the choice onto a
- * legacy page-global `#theme-link` when the consumer still links one.
- * `"automatic"` follows the OS/browser `prefers-color-scheme` live;
- * `"light"`/`"dark"` force a fixed kind. A host that themes off its own chrome
- * (VS Code `<body>` classes) maps that signal to a forced mode in its adapter —
- * the package does not read host chrome.
- */
-export type ThemeMode = "light" | "dark" | "automatic";
+export type { ThemeMode } from "./themeMode";
 
 // A structural interface avoids API Extractor rollup failures on relative import() types.
 /**
@@ -120,11 +110,11 @@ export interface ClipboardOptions {
 
 /**
  * Outbound content notification. Debounced and owned by the package (300ms,
- * 1000ms maxWait), because every consumer needs exactly that debounce; raw
- * `commandStack.changed` stays reachable through the
- * {@link BpmnModelerHandle.getService} escape hatch for the rare consumer that
- * wants it un-debounced. A failing save (export or `onContentSaved`) is reported
- * through {@link ModelerOptions.onError}, not by rejecting the debounced run.
+ * 1000ms maxWait), because every consumer needs exactly that debounce;
+ * {@link BpmnModelerHandle.onCommandStackChanged} reports each change
+ * undebounced for the rare consumer that wants it. A failing save (export or
+ * `onContentSaved`) is reported through {@link ModelerOptions.onError}, not by
+ * rejecting the debounced run.
  */
 export interface ContentSavedEvent {
     readonly xml: string;
@@ -267,6 +257,13 @@ export interface ModelerOptions {
     onModeChanged?: (mode: ModelerMode) => void;
 }
 
+export interface CreateModelerOptions extends ModelerOptions {
+    /**
+     * @internal Opt in only for single-instance hosts; body-targeted Escape has no instance scope.
+     */
+    handleGlobalEscape?: boolean;
+}
+
 /**
  * The instance handle {@link createModeler} resolves to. The inherited
  * {@link BpmnSurfaceHandle} members are engine-intrinsic [A], except the
@@ -364,6 +361,28 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
      * `onWarning` when the instance was created without a lint module.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
+
+    // ── Events (outbound notifications) ─────────────────────────────────────
+    /**
+     * Subscribe to every command-stack change, undebounced: each executed,
+     * undone or redone edit. An import resets the stack without a
+     * notification. The listener's return value is ignored. Returns a function
+     * that removes the listener; `destroy()` removes it too, and subscribing
+     * after `destroy()` throws `NoModelerError`. For the debounced XML, use
+     * {@link ModelerOptions.onContentSaved}.
+     */
+    onCommandStackChanged(listener: () => void): () => void;
+
+    /**
+     * Subscribe to the outcome of every format run, failures included:
+     * {@link formatDiagram} as well as the palette entry and the canvas
+     * shortcut, whose outcome reaches no caller otherwise. The listener
+     * receives the same {@link LayoutOutcome} `formatDiagram` resolves. A
+     * call made while a run is in flight joins that run and gets no extra
+     * notification. Returns a function that removes the listener; subscribing
+     * after `destroy()` throws `NoModelerError`.
+     */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
 
     // ── Core services + escape hatch ─────────────────────────────────────────
     /**

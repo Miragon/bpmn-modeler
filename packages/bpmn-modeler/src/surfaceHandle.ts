@@ -1,10 +1,22 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
-import type { ThemeMode } from "./publicApi";
+import type { ThemeMode } from "./themeMode";
 import type { RootElementManager } from "./rootElement";
 import type { SelectionManager } from "./selection";
 import type { ViewState } from "./viewState";
 import type { ViewportManager } from "./viewport";
+
+/**
+ * @internal The editable surfaces' properties-panel input that still waits in
+ * the panel's 600 ms input debounce, so it is not in the diagram or an export.
+ */
+export interface PendingInputHandle {
+    /** Whether the properties panel holds such input; `false` once destroyed. */
+    hasPendingInput(): boolean;
+
+    /** Applies that input to the diagram now. A no-op once destroyed. */
+    flushPendingInput(): void;
+}
 
 /**
  * The members every BPMN surface handle shares — modeler, designer and viewer

@@ -1,11 +1,6 @@
 import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
-import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
-
 import {
-    DeploymentFreshness,
-    DeploymentStatusBarPort,
-    LegacyStatusBarPort,
     StatusAction,
     StatusBarPort,
     StatusIcon,
@@ -54,47 +49,7 @@ const ACTION_COMMANDS: Record<StatusAction, string> = {
     deploymentMenu: "bpmn-modeler.deploymentStatusMenu",
 };
 
-const DEPLOYMENT_FRESHNESS_TONES: Record<DeploymentFreshness, StatusTone> = {
-    deployed: "success",
-    changed: "attention",
-    superseded: "info",
-    unknown: "neutral",
-};
-
-function deploymentTooltip(
-    freshness: DeploymentFreshness,
-    deployedAt?: string,
-    verifiedAt?: string,
-): string {
-    const when = deployedAt ? new Date(deployedAt).toLocaleString() : undefined;
-    const verifiedSuffix = verifiedAt ? ` — verified ${new Date(verifiedAt).toLocaleString()}` : "";
-    switch (freshness) {
-        case "deployed":
-            return (
-                (when
-                    ? `Deployed — last deployed ${when}`
-                    : "Deployed — matches the last deployment") + verifiedSuffix
-            );
-        case "changed":
-            return (
-                (when
-                    ? `Undeployed changes — last deployed ${when}`
-                    : "Undeployed changes since the last deployment") + verifiedSuffix
-            );
-        case "superseded":
-            return (
-                (when
-                    ? `Deployed version differs from your diagram (deployed ${when})`
-                    : "Deployed version differs from your diagram") + verifiedSuffix
-            );
-        case "unknown":
-            return "Never deployed to this target from this machine — click to switch target";
-    }
-}
-
-export class VsCodeStatusBar
-    implements StatusBarPort, LegacyStatusBarPort, DeploymentStatusBarPort
-{
+export class VsCodeStatusBar implements StatusBarPort {
     private readonly items = new Map<StatusSlot, StatusBarItem>();
 
     private readonly pendingAutoHides = new Map<StatusSlot, ReturnType<typeof setTimeout>>();
@@ -120,60 +75,6 @@ export class VsCodeStatusBar
     hide(slot: StatusSlot): void {
         this.cancelPendingAutoHide(slot);
         this.items.get(slot)?.hide();
-    }
-
-    showElementTemplatesLoading(): void {
-        this.show("elementTemplates", {
-            text: "Loading element templates…",
-            icon: "loading",
-            tone: "neutral",
-        });
-    }
-
-    showElementTemplatesReady(count: number): void {
-        this.show("elementTemplates", {
-            text: `Element templates (${count})`,
-            icon: "check",
-            tone: "neutral",
-            transient: true,
-        });
-    }
-
-    hideElementTemplatesStatus(): void {
-        this.hide("elementTemplates");
-    }
-
-    showEngineVersion(platform: Engine, version: string): void {
-        this.show("engineVersion", {
-            text: `${ENGINE_LABEL[platform]} (${version})`,
-            icon: "engine",
-            tooltip: "Click to change engine version",
-            tone: "neutral",
-            action: "changeEngineVersion",
-        });
-    }
-
-    hideEngineVersion(): void {
-        this.hide("engineVersion");
-    }
-
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void {
-        this.show("deploymentTarget", {
-            text: name ?? "No deployment target",
-            icon: "dot",
-            tooltip: deploymentTooltip(freshness, deployedAt, verifiedAt),
-            tone: DEPLOYMENT_FRESHNESS_TONES[freshness],
-            action: "deploymentMenu",
-        });
-    }
-
-    hideDeploymentTarget(): void {
-        this.hide("deploymentTarget");
     }
 
     // Every show of a slot reuses its item, so a stale timer would hide what a later show put there.

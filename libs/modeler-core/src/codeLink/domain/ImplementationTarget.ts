@@ -112,7 +112,11 @@ export abstract class ImplementationTarget {
     abstract isImplementedBy(absolutePath: string, content?: string): boolean;
 
     /** The batched scan's check of a file whose name did not settle the target. */
-    abstract isDeclaredIn(facts: SourceFileFacts, content: string | undefined): boolean;
+    abstract isDeclaredIn(
+        absolutePath: string,
+        facts: SourceFileFacts,
+        content: string | undefined,
+    ): boolean;
 }
 
 /** `camunda:class` is a fully-qualified class name, so the file path alone decides. */
@@ -136,6 +140,9 @@ class ClassTarget extends ImplementationTarget {
     }
 }
 
+/** Navigate searches the bean annotation only in these files, so the map links no other. */
+const BEAN_ANNOTATION_FILES = JVM_SOURCE_FILES;
+
 /**
  * Delegate / expression bindings name a bean, not a file. The capitalised bean
  * id is the first guess at the class file; the fallback is a Spring/CDI
@@ -156,7 +163,7 @@ class BeanTarget extends ImplementationTarget {
     }
 
     protected get contentSearch(): ContentSearch {
-        return { files: JVM_SOURCE_FILES, pattern: beanAnnotationPattern(this.bean) };
+        return { files: BEAN_ANNOTATION_FILES, pattern: beanAnnotationPattern(this.bean) };
     }
 
     matchesFileName(absolutePath: string): boolean {
@@ -166,12 +173,14 @@ class BeanTarget extends ImplementationTarget {
     isImplementedBy(absolutePath: string, content?: string): boolean {
         return (
             this.matchesFileName(absolutePath) ||
-            (content !== undefined && contentDeclaresBean(content, this.bean))
+            (content !== undefined &&
+                BEAN_ANNOTATION_FILES.includes(absolutePath) &&
+                contentDeclaresBean(content, this.bean))
         );
     }
 
-    isDeclaredIn(facts: SourceFileFacts): boolean {
-        return facts.declaresBean(this.bean);
+    isDeclaredIn(absolutePath: string, facts: SourceFileFacts): boolean {
+        return facts.declaresBean(this.bean) && BEAN_ANNOTATION_FILES.includes(absolutePath);
     }
 }
 
@@ -200,7 +209,11 @@ class LiteralTarget extends ImplementationTarget {
         return content !== undefined && contentImplementsLiteral(content, this.reference);
     }
 
-    isDeclaredIn(facts: SourceFileFacts, content: string | undefined): boolean {
+    isDeclaredIn(
+        _absolutePath: string,
+        facts: SourceFileFacts,
+        content: string | undefined,
+    ): boolean {
         if (this.isDecidedByFacts) {
             return facts.implementsLiteral(this.reference);
         }

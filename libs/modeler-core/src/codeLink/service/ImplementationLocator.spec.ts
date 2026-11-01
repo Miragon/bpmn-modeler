@@ -529,4 +529,25 @@ describe("ImplementationLocator — navigation agrees with the code-link map", (
         });
         expect(linked.get("Task_1")).toEqual(["/loose/MyBean.java"]);
     });
+
+    it("resolveMany does not link a bean annotation in a file Navigate does not search", async () => {
+        const { locator } = createLocator({
+            files: {
+                "/src/PaymentService.java": '@Service("paymentBean") class PaymentService {}',
+                "/src/paymentWorker.ts": '@Service("paymentBean") export class PaymentWorker {}',
+            },
+        });
+
+        const navigated = await locator.resolve("${paymentBean}", "delegateExpression");
+        const linked = await locator.resolveMany([
+            { activityId: "Task_1", kind: "delegateExpression", reference: "${paymentBean}" },
+        ]);
+
+        expect(navigated).toEqual({
+            kind: "matches",
+            paths: ["/src/PaymentService.java"],
+            readFailures: [],
+        });
+        expect(linked.get("Task_1")).toEqual(["/src/PaymentService.java"]);
+    });
 });

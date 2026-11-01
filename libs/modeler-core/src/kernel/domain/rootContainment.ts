@@ -1,3 +1,5 @@
+import { posix } from "path";
+
 /**
  * `path` below the folder `root`: `""` for the root itself, `undefined` outside
  * it. Both must be spelled alike (see `toWorkspacePath`). A trailing slash is
@@ -15,6 +17,34 @@ export function relativeToRoot(path: string, root: string): string | undefined {
 
 export function isWithinRoot(path: string, root: string): boolean {
     return relativeToRoot(path, root) !== undefined;
+}
+
+/** The `paths` that no other of them holds, each once, in their first order. */
+export function outermostPaths(paths: readonly string[]): string[] {
+    const unique = [...new Set(paths)];
+    return unique.filter(
+        (path) => !unique.some((other) => other !== path && isWithinRoot(path, other)),
+    );
+}
+
+/**
+ * `path` as VS Code's `asRelativePath` spells it, so both hosts order a file
+ * list as VS Code shows it: below the innermost of `folders` holding it, led by
+ * that folder's name when several are open, and unchanged outside them all.
+ */
+export function relativeToWorkspace(path: string, folders: readonly string[]): string {
+    const innermost = folders
+        .flatMap((folder) => {
+            const belowFolder = relativeToRoot(path, folder);
+            return belowFolder === undefined ? [] : [{ folder, belowFolder }];
+        })
+        .sort((a, b) => a.belowFolder.length - b.belowFolder.length)[0];
+    if (!innermost) {
+        return path;
+    }
+    return folders.length > 1
+        ? `${posix.basename(innermost.folder)}/${innermost.belowFolder}`
+        : innermost.belowFolder;
 }
 
 function withTrailingSlash(path: string): string {

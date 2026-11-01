@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     types: [ opened, reopened, synchronize ]
-  # Runs every Vitest target with coverage, e.g. to refresh Codecov's carried-forward flags.
+  # Runs every Vitest target, not only the ones a commit touches.
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       intellij-plugin: ${{ steps.filter.outputs.intellij-plugin }}
-      intellij-plugin-src: ${{ steps.filter.outputs.intellij-plugin-src }}
       standalone: ${{ steps.filter.outputs.standalone }}
       dep-alignment: ${{ steps.filter.outputs.dep-alignment }}
       docs: ${{ steps.filter.outputs.docs }}
@@ -43,8 +42,6 @@ jobs:
               - 'apps/vscode-plugin/package.json'
               # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
               - 'libs/modeler-core/src/kernel/domain/statusView.ts'
-            intellij-plugin-src:
-              - 'apps/intellij-plugin/src/**'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
@@ -58,6 +55,7 @@ jobs:
               - 'packages/dmn-modeler/package.json'
               - 'apps/*/package.json'
               - 'libs/*/package.json'
+              - 'tools/*/package.json'
               - 'package.json'
               - 'yarn.config.cjs'
               - 'yarn.lock'
@@ -162,7 +160,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      pull-requests: write
+      # The coverage report lists the PR's changed files.
+      pull-requests: read
     strategy:
       fail-fast: false
       matrix:
@@ -188,26 +187,17 @@ jobs:
           PACKAGE: ${{ matrix.package }}
           SCRIPT: ${{ matrix.typecheck }}
         run: yarn workspace "$PACKAGE" run "$SCRIPT"
-      - name: Report coverage on the PR
+      - name: Report coverage in the job summary
         if: always() && github.event_name == 'pull_request' && matrix.report
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
         with:
+          # One PR comment per matrix leg buried the conversation.
+          comment-on: none
           working-directory: ${{ matrix.dir }}
           json-summary-path: ${{ github.workspace }}/coverage/${{ matrix.dir }}/coverage-summary.json
           json-final-path: ${{ github.workspace }}/coverage/${{ matrix.dir }}/coverage-final.json
           name: ${{ matrix.id }}
-      - name: Upload coverage to Codecov
-        if: matrix.report
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/${{ matrix.dir }}/lcov.info
-          disable_search: true
-          fail_ci_if_error: false
-          flags: ${{ matrix.id }}
-          name: ${{ matrix.id }}
-          verbose: true
 
   test-standalone:
     needs: detect-changes
@@ -241,16 +231,6 @@ jobs:
       - name: Run unit tests with coverage
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestReport --no-daemon
-      - name: Upload coverage to Codecov
-        if: needs.detect-changes.outputs.intellij-plugin-src == 'true'
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/intellij-plugin/build/reports/jacoco/test/jacocoTestReport.xml
-          fail_ci_if_error: false
-          flags: intellij-plugin
-          name: intellij-plugin
-          verbose: true
       - name: Enforce coverage floor
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestCoverageVerification --no-daemon

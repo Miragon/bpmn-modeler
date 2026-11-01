@@ -14,7 +14,7 @@ import { UserCancelledError } from "../kernel/domain/errors";
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
-import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "./domain/ports";
+import { DeploymentStatePort, SecretStorePort } from "./domain/ports";
 import { HttpClient } from "../kernel/domain/http";
 import { AuthHeaderResolver } from "./infrastructure/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "./infrastructure/camunda/Camunda7RestClient";
@@ -40,7 +40,7 @@ export interface DeploymentHostPorts {
     workspace: WorkspacePort;
     settings: SettingsPort;
     notifier: NotifierPort;
-    picker: PickerPort & DeploymentPickerPort;
+    picker: PickerPort;
     statusBar: StatusBarPort;
     artifacts: ArtifactService;
     secrets: SecretStorePort;
@@ -150,6 +150,7 @@ export class DeploymentFeature {
         this.deployFilesService = new DeployFilesService(
             this.targets,
             deployment,
+            ports.workspace,
             ports.picker,
             ports.notifier,
         );

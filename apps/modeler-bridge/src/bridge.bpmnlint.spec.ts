@@ -28,9 +28,14 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { RawModelerSettings } from "@miragon/bpmn-modeler-core";
+
 import {
+    hostNotification,
+    hostReply,
     isStatusSlotUpdate,
     registerParams,
+    settle,
     StatusSlotFrame,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
@@ -87,6 +92,9 @@ const isLintDisabledFrame = (frame: any): boolean =>
     frame.method === "editor/postMessage" &&
     frame.params?.message?.type === "BpmnLintDisabledQuery";
 
+const isLintChoiceReport = (frame: any): boolean =>
+    frame.method === "settings/setLintingEnabled" && frame.id != null;
+
 const isInPageResultsLog = (frame: any): boolean =>
     frame.method === "notifier/log" &&
     typeof frame.params?.message === "string" &&
@@ -110,21 +118,43 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         }
     });
 
-    async function setup(
+    /** Answers a reported lint choice as the IntelliJ host does: persist it, push the snapshot, ack. */
+    async function persistLintChoice(rpc: Rpc, report: any): Promise<void> {
+        await rpc.handleLine(
+            hostNotification("settings/didChange", {
+                settings: { lintingEnabled: report.params.enabled },
+            }),
+        );
+        await rpc.handleLine(hostReply(report.id, null));
+    }
+
+    async function setup({
         content = BPMN_XML,
-    ): Promise<{ rpc: Rpc; frames: any[]; root: string; editorId: string }> {
+        settings,
+        hostPersistsLintChoices = true,
+    }: {
+        content?: string;
+        settings?: RawModelerSettings;
+        hostPersistsLintChoices?: boolean;
+    } = {}): Promise<{ rpc: Rpc; frames: any[]; root: string; editorId: string }> {
         const root = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-lint-"));
         const sourcePath = join(root, "source.bpmn");
         await fs.writeFile(sourcePath, content, "utf8");
 
         const frames: any[] = [];
-        const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
+        const { rpc } = createBridge((line) => {
+            const frame = JSON.parse(line);
+            frames.push(frame);
+            if (hostPersistsLintChoices && isLintChoiceReport(frame)) {
+                setTimeout(() => void persistLintChoice(rpc, frame));
+            }
+        });
         const editorId = `file://${sourcePath}`;
 
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, sourcePath, content),
+                params: registerParams(editorId, root, sourcePath, content, { settings }),
             }),
         );
 
@@ -265,7 +295,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         // accepted and applied (the debug log confirms the round-trip). The
         // bridge has no Problems panel, and the status slot already shows the
         // default before the push, so the log is the only observable effect.
-        const { rpc, frames, editorId } = await setup(BPMN_XML_OVERSIZED);
+        const { rpc, frames, editorId } = await setup({ content: BPMN_XML_OVERSIZED });
 
         await requestConfig(rpc, editorId);
         await waitForFrame(frames, isInPageInstructionFrame);
@@ -449,11 +479,17 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         const beforeOff = frames.length;
         await toggleFromHost();
         await expect(
+            waitForFrame(frames, isLintChoiceReport, { fromIndex: beforeOff }),
+        ).resolves.toMatchObject({ params: { enabled: false } });
+        await expect(
             waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeOff }),
         ).resolves.toMatchObject({ params: { editorId } });
 
         const beforeOn = frames.length;
         await toggleFromHost();
+        await expect(
+            waitForFrame(frames, isLintChoiceReport, { fromIndex: beforeOn }),
+        ).resolves.toMatchObject({ params: { enabled: true } });
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeOn }),
         ).resolves.toMatchObject({ params: { editorId } });
@@ -475,7 +511,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     });
 
     it("re-lints when the webview asks for the linting state the bridge already has", async () => {
-        // A respawned bridge starts with linting on while the page still shows "Linting off".
+        // A page out of step with the host's choice asks for the state the bridge already has.
         ignoreFileChanges();
         const { rpc, frames, editorId } = await setupHostLinted();
 
@@ -485,11 +521,40 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await expect(
             waitForFrame(frames, isLintResultsFrame, { fromIndex: beforeEnable }),
         ).resolves.toMatchObject({ params: { editorId } });
+        expect(frames.slice(beforeEnable).find(isLintChoiceReport)).toBeUndefined();
+    });
+
+    it("reports the webview's linting choice to the host and waits for its snapshot", async () => {
+        const { rpc, frames, editorId } = await setup({ hostPersistsLintChoices: false });
+        await requestConfig(rpc, editorId);
+        await waitForFrame(frames, isInPageInstructionFrame);
+        const beforeToggle = frames.length;
+
+        await toggleLinting(rpc, editorId, false);
+
+        await expect(
+            waitForFrame(frames, isLintChoiceReport, { fromIndex: beforeToggle }),
+        ).resolves.toMatchObject({ params: { enabled: false } });
+        await settle();
+        expect(frames.slice(beforeToggle).find(isLintDisabledFrame)).toBeUndefined();
+    });
+
+    it("lints with the value the host registers with", async () => {
+        const { rpc, frames, editorId } = await setup({ settings: { lintingEnabled: false } });
+
+        await requestConfig(rpc, editorId);
+
+        await expect(waitForFrame(frames, isLintDisabledFrame)).resolves.toMatchObject({
+            params: { editorId },
+        });
+        expect(frames.find(isInPageInstructionFrame)).toBeUndefined();
     });
 
     it("keeps linting off for an editor of the project opened after the toggle", async () => {
         const { rpc, frames, root, editorId } = await setupHostLinted();
+        const beforeToggle = frames.length;
         await toggleLinting(rpc, editorId, false);
+        await waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeToggle });
 
         const laterPath = join(root, "later.bpmn");
         await fs.writeFile(laterPath, BPMN_XML, "utf8");
@@ -504,7 +569,11 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await requestConfig(rpc, laterEditorId);
 
         await expect(
-            waitForFrame(frames, isLintDisabledFrame, { fromIndex: beforeRequest }),
-        ).resolves.toMatchObject({ params: { editorId: laterEditorId } });
+            waitForFrame(
+                frames,
+                (frame) => isLintDisabledFrame(frame) && frame.params.editorId === laterEditorId,
+                { fromIndex: beforeRequest },
+            ),
+        ).resolves.toBeDefined();
     });
 });

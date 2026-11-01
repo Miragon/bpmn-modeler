@@ -6,7 +6,7 @@ import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { configFolderPath } from "../domain/configArtifacts";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
-import { joinWorkspacePath } from "../domain/workspacePath";
+import { joinWorkspacePath, parentWorkspacePath } from "../domain/workspacePath";
 
 /**
  * Implemented by {@link import("../../modeler/bpmn/service/BpmnElementTemplatesService").BpmnElementTemplatesService}
@@ -57,18 +57,14 @@ export class ArtifactService {
     }
 
     private async findGitRoot(startDir: string): Promise<string | undefined> {
-        let current = startDir;
-        while (true) {
+        let current: string | undefined = startDir;
+        while (current !== undefined) {
             if (await this.holdsGitEntry(current)) {
                 return current;
             }
-
-            const parent = posix.dirname(current);
-            if (parent === current) {
-                return undefined;
-            }
-            current = parent;
+            current = parentWorkspacePath(current);
         }
+        return undefined;
     }
 
     /**

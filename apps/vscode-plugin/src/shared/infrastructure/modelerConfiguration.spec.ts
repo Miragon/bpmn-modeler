@@ -21,7 +21,7 @@ vi.mock("vscode", () => ({
 
 import { ConfigurationTarget } from "vscode";
 
-import { DEFAULT_LINTING_ENABLED, SettingChange } from "@miragon/bpmn-modeler-core";
+import { DEFAULT_MODELER_SETTINGS, SettingChange } from "@miragon/bpmn-modeler-core";
 
 import {
     lintingEnabled,
@@ -41,8 +41,8 @@ describe("modelerConfiguration", () => {
     it.each([
         { stored: false, enabled: false },
         { stored: true, enabled: true },
-        { stored: undefined, enabled: DEFAULT_LINTING_ENABLED },
-        { stored: "off", enabled: DEFAULT_LINTING_ENABLED },
+        { stored: undefined, enabled: DEFAULT_MODELER_SETTINGS.lintingEnabled },
+        { stored: "off", enabled: DEFAULT_MODELER_SETTINGS.lintingEnabled },
     ])("reads a stored linting flag $stored as $enabled", ({ stored, enabled }) => {
         getMock.mockImplementation((key: string) => (key === "linting.enabled" ? stored : 0));
 

@@ -137,12 +137,26 @@ export interface TokenStorePort {
     setToken(host: string, token: string): Promise<void>;
 }
 
+/** A masked input the core builds in full; the host renders it and returns what was typed. */
+export interface TokenPrompt {
+    /**
+     * The host the token is for: the session stores the answer under it and the
+     * test kit answers by it; no host renders it.
+     */
+    readonly host: string;
+    readonly title: string;
+    readonly prompt: string;
+    readonly password: true;
+}
+
 /**
- * Returns a trimmed token, or `undefined` on decline (empty/whitespace counts as
- * decline). Never throws: a decline is per-run data, not control flow — a
- * background `updateAll` must keep going after one, unlike the engine prompts
- * of `PickerPort`, which throw on dismissal.
+ * Shows the core's {@link TokenPrompt} as a masked input. Never throws: a
+ * dismissal is per-run data, not control flow, so a background `updateAll`
+ * keeps going after one.
+ *
+ * @returns the answer as typed, or `undefined` on dismissal; the core judges a
+ * blank one.
  */
 export interface TokenPromptPort {
-    promptForToken(host: string, reason: string): Promise<string | undefined>;
+    promptForToken(prompt: TokenPrompt): Promise<string | undefined>;
 }

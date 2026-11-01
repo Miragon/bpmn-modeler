@@ -3,13 +3,13 @@ import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import { BpmnModeler } from "./modeler";
 import { BpmnViewer } from "./viewer/viewer";
 import { BpmnDesigner } from "./design/designer";
-import type { CreateModelerOptions } from "./createModeler";
 import type {
     BpmnModelerHandle,
     ClipboardOptions,
     ContentSavedEvent,
     CoreModelerServices,
     CreateModeler,
+    CreateModelerOptions,
     LintingOptions,
     LintModule,
     ModelerMode,
@@ -18,6 +18,7 @@ import type {
     ThemeMode,
 } from "./publicApi";
 import type { ViewState } from "./viewState";
+import type { PendingInputHandle } from "./surfaceHandle";
 import type {
     BpmnViewerHandle,
     CoreViewerServices,
@@ -31,11 +32,22 @@ import type {
     DesignerOptions,
 } from "./design/publicApi";
 import type {
+    CleanupOutcome,
+    CleanupStatus,
+    LayoutOutcome,
     ModelNavigationPort as ModelNavigationPortFromRoot,
     ModelReference as ModelReferenceFromRoot,
     ReferenceKind as ReferenceKindFromRoot,
 } from "./index";
 import type {
+    CleanupItem as CleanupItemFromDesign,
+    CleanupKind as CleanupKindFromDesign,
+    CleanupOutcome as CleanupOutcomeFromDesign,
+    CleanupStatus as CleanupStatusFromDesign,
+    LayoutDiagnostic as LayoutDiagnosticFromDesign,
+    LayoutErrorCode as LayoutErrorCodeFromDesign,
+    LayoutOutcome as LayoutOutcomeFromDesign,
+    LayoutStatus as LayoutStatusFromDesign,
     ModelNavigationPort as ModelNavigationPortFromDesign,
     ModelReference as ModelReferenceFromDesign,
     ReferenceKind as ReferenceKindFromDesign,
@@ -65,6 +77,12 @@ const _viewerConformance = (v: BpmnViewer): BpmnViewerHandle => v;
 void _viewerConformance;
 const _designerConformance = (d: BpmnDesigner): BpmnDesignerHandle => d;
 void _designerConformance;
+
+// The editable surfaces carry the internal pending-input members the IDE webview flushes.
+const _modelerPendingInput = (modeler: BpmnModeler): PendingInputHandle => modeler;
+void _modelerPendingInput;
+const _designerPendingInput = (designer: BpmnDesigner): PendingInputHandle => designer;
+void _designerPendingInput;
 
 const _viewState = {
     viewport: { x: 0, y: 0, width: 100, height: 100 },
@@ -340,6 +358,52 @@ void _viewerHasNoEditing;
 
 const _modelerSatisfiesDesignerHandle = (m: BpmnModelerHandle): BpmnDesignerHandle => m;
 void _modelerSatisfiesDesignerHandle;
+
+const _editableSubscriptions = (m: BpmnModelerHandle, d: BpmnDesignerHandle) => {
+    const unsubscribers: (() => void)[] = [
+        m.onCommandStackChanged(() => undefined),
+        d.onCommandStackChanged(() => undefined),
+        m.onFormatted(({ status, code, message, diagnostics }: LayoutOutcome) => {
+            void [status, code, message, diagnostics];
+        }),
+        d.onFormatted((outcome: LayoutOutcome) => void outcome.status),
+    ];
+    void unsubscribers;
+};
+void _editableSubscriptions;
+
+const _viewerHasNoEditableSubscriptions = (v: BpmnViewerHandle) => {
+    // @ts-expect-error — the readonly viewer has no command stack to observe.
+    void v.onCommandStackChanged;
+    // @ts-expect-error — the readonly viewer cannot format.
+    void v.onFormatted;
+};
+void _viewerHasNoEditableSubscriptions;
+
+const _designOnlyConsumerNamesOutcomeTypes = async (d: BpmnDesignerHandle) => {
+    const formatted: LayoutOutcomeFromDesign = await d.formatDiagram();
+    const status: LayoutStatusFromDesign = formatted.status;
+    const code: LayoutErrorCodeFromDesign | undefined = formatted.code;
+    const diagnostics: LayoutDiagnosticFromDesign[] = formatted.diagnostics;
+    const stopFormats = d.onFormatted((outcome: LayoutOutcomeFromDesign) => void outcome);
+    const cleanup: CleanupOutcomeFromDesign = d.cleanupDiagram();
+    const items: CleanupItemFromDesign[] = cleanup.items;
+    const kinds: CleanupKindFromDesign[] = items.map((item) => item.kind);
+    const cleanupStatus: CleanupStatusFromDesign = cleanup.status;
+    const rootOutcomes: [LayoutOutcome, CleanupOutcome] = [formatted, cleanup];
+    const rootCleanupStatus: CleanupStatus = cleanup.status;
+    void [
+        status,
+        code,
+        diagnostics,
+        stopFormats,
+        kinds,
+        cleanupStatus,
+        rootOutcomes,
+        rootCleanupStatus,
+    ];
+};
+void _designOnlyConsumerNamesOutcomeTypes;
 
 const _liveFavourites = (m: BpmnModelerHandle, d: BpmnDesignerHandle) => {
     const favourites: readonly string[] = ["bpmn:UserTask"];

@@ -1285,6 +1285,7 @@ describe("DeploymentTargets", () => {
                 readonly retiredTarget: DeploymentTarget | undefined;
                 readonly retiredSlotName: string | undefined;
                 readonly approvalsInheritedFrom: string | undefined;
+                readonly newSlotName: string | undefined;
             };
         }
 
@@ -1295,6 +1296,7 @@ describe("DeploymentTargets", () => {
             retiredTarget: undefined,
             retiredSlotName: undefined,
             approvalsInheritedFrom: undefined,
+            newSlotName: "staging",
         } as const;
         const savedOverDev = {
             kind: "saved",
@@ -1303,6 +1305,7 @@ describe("DeploymentTargets", () => {
             retiredTarget: undefined,
             retiredSlotName: undefined,
             approvalsInheritedFrom: "dev",
+            newSlotName: undefined,
         } as const;
         const renamedFromDev = {
             kind: "renamed",
@@ -1311,6 +1314,7 @@ describe("DeploymentTargets", () => {
             retiredTarget: dev,
             retiredSlotName: "dev",
             approvalsInheritedFrom: "dev",
+            newSlotName: "staging",
         } as const;
         const removedDev = {
             kind: "removed",
@@ -1319,6 +1323,7 @@ describe("DeploymentTargets", () => {
             retiredTarget: dev,
             retiredSlotName: "dev",
             approvalsInheritedFrom: undefined,
+            newSlotName: undefined,
         } as const;
 
         it.each<TargetChangeCase>([
@@ -1364,6 +1369,7 @@ describe("DeploymentTargets", () => {
                     retiredTarget: undefined,
                     retiredSlotName: "gone",
                     approvalsInheritedFrom: undefined,
+                    newSlotName: "staging",
                 },
             },
             {
@@ -1386,6 +1392,7 @@ describe("DeploymentTargets", () => {
                     retiredTarget: undefined,
                     retiredSlotName: "gone",
                     approvalsInheritedFrom: undefined,
+                    newSlotName: undefined,
                 },
             },
         ])("$behaviour", ({ edit, change }) => {
@@ -1396,6 +1403,7 @@ describe("DeploymentTargets", () => {
                 retiredTarget,
                 retiredSlotName,
                 approvalsInheritedFrom,
+                newSlotName,
             } = edit();
 
             expect({
@@ -1405,6 +1413,7 @@ describe("DeploymentTargets", () => {
                 retiredTarget,
                 retiredSlotName,
                 approvalsInheritedFrom,
+                newSlotName,
             }).toStrictEqual(change);
         });
     });

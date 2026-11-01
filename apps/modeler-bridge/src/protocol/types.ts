@@ -11,7 +11,6 @@
  */
 
 import {
-    DeploymentFreshness,
     DeploymentStatePatch,
     GlobalFunctionDef,
     MethodDef,
@@ -21,9 +20,20 @@ import {
     StatusView,
 } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
-import { DiffOrigin, Engine, VariableDef } from "@miragon/bpmn-modeler-types";
+import { DiffOrigin, VariableDef } from "@miragon/bpmn-modeler-types";
 
-import { SessionMeta } from "../adapters";
+/** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
+export interface SessionMeta {
+    editorId: string;
+    /** Exact host editor generation for rejecting same-URI stale traffic. */
+    sessionId?: number;
+    uriString: string;
+    path: string;
+    fsPath: string;
+    scheme: string;
+    /** Host-provided workspace root, used to seed element-template discovery. */
+    workspaceRoot?: string;
+}
 
 /**
  * `session/register` — the editor identity/meta plus the initial document
@@ -38,7 +48,7 @@ export interface RegisterParams extends SessionMeta {
     settings?: RawModelerSettings;
 }
 
-/** Empty-body notification/request (e.g. `clipboard/read`, `statusBar/templatesHide`). */
+/** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
 export type EmptyParams = Record<string, never>;
 
 // ── Host → Core notifications ────────────────────────────────────────────────
@@ -247,8 +257,8 @@ export interface PickerShowResult {
  * answer before deleting anything; requests only run core→host, which is the
  * direction needed here.
  *
- * `details` arrives already summarised by `summarizeAffectedItems`, so the
- * host renders it verbatim and never shortens it.
+ * `details` arrives as the core's `ConfirmRequest` holds it, already
+ * summarised, so the host renders it verbatim and never shortens it.
  */
 export interface ConfirmShowParams {
     title: string;
@@ -337,16 +347,25 @@ export interface TokenStoreSetParams {
 }
 
 /**
- * `tokenPrompt/show` — a modal PAT-entry dialog on the host. Result carries the
- * entered token, or `null` on decline/blank (never throws — a decline is per-run
- * data, not control flow).
+ * `tokenPrompt/show` — a modal password dialog with the core's title and prompt.
+ * Result carries the answer as typed, or `null` on cancel; the core judges a
+ * blank answer.
  */
 export interface TokenPromptShowParams {
-    host: string;
-    reason: string;
+    title: string;
+    prompt: string;
 }
 export interface TokenPromptShowResult {
     token: string;
+}
+
+/**
+ * `settings/setLintingEnabled` — the user's lint choice from the webview or the
+ * BPMNlint widget. The host stores it and pushes the new snapshot to every
+ * bridge before it acks an empty reply.
+ */
+export interface SettingsSetLintingEnabledParams {
+    enabled: boolean;
 }
 
 // ── Core → Host notifications ────────────────────────────────────────────────
@@ -393,17 +412,6 @@ export interface StatusBarUpdateParams {
     view: StatusView | null;
 }
 
-/** `statusBar/templatesReady` — element-template count for the status widget. */
-export interface StatusBarTemplatesReadyParams {
-    count: number;
-}
-
-/** `statusBar/showEngineVersion` — the resolved engine + version to display. */
-export interface StatusBarEngineVersionParams {
-    platform: Engine;
-    version: string;
-}
-
 /** `diff/postMessage` — the core drives one diff pane's host browser. */
 export interface DiffPostMessageParams {
     paneUri: string;
@@ -416,18 +424,6 @@ export interface DiffPostMessageParams {
  */
 export interface DeploymentSaveParams {
     patch: DeploymentStatePatch;
-}
-
-/**
- * `statusBar/showDeploymentTarget` — the active target name (or `null` for "no
- * target"), the freshness dot state, and the last-deploy / last-verify
- * timestamps (or `null`).
- */
-export interface StatusBarDeploymentTargetParams {
-    name: string | null;
-    freshness: DeploymentFreshness;
-    deployedAt: string | null;
-    verifiedAt: string | null;
 }
 
 /**

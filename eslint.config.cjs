@@ -140,6 +140,22 @@ module.exports = [
             "@typescript-eslint/no-require-imports": "off",
         },
     },
+    // A port adapter stubbed with `() => {}` passes every spec that never calls
+    // it, so an intended no-op here must say why in a comment. `basePath` keeps
+    // the repo-rooted globs matching when a nested workspace config spreads this.
+    {
+        basePath: __dirname,
+        files: [
+            "apps/vscode-plugin/src/**/infrastructure/**/*.ts",
+            "libs/modeler-core/src/**/infrastructure/**/*.ts",
+            "libs/modeler-core/src/testing/**/*.ts",
+            "apps/modeler-bridge/src/*[aA]dapters.ts",
+        ],
+        ignores: ["**/*.spec.ts"],
+        rules: {
+            "@typescript-eslint/no-empty-function": ["error", { allow: [] }],
+        },
+    },
     // Public-API barrel guardrail (BND-PUBLIC-API-BARREL): code must reach the
     // shared i18n library and the local overlay only through their package
     // entry points, never deep-import their `languages/**` internals. The

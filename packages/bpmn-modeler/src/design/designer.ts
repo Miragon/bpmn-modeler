@@ -33,6 +33,8 @@ import {
     createSurfaceLintHandle,
     formatSurfaceDiagram,
     installClipboardSupport,
+    subscribeCommandStackChanged,
+    subscribeFormatted,
 } from "../editableSurface";
 import { SurfaceCore } from "../surfaceCore";
 import { createReporter, type SurfaceReporter } from "../reporting";
@@ -264,6 +266,26 @@ export class BpmnDesigner {
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
         this.lintHandle.startInPageLinting(config, configToken);
+    }
+
+    /** @see BpmnDesignerHandle.onCommandStackChanged */
+    onCommandStackChanged(listener: () => void): () => void {
+        return subscribeCommandStackChanged(this.core, listener);
+    }
+
+    /** @see BpmnDesignerHandle.onFormatted */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
+        return subscribeFormatted(this.core, listener);
+    }
+
+    /** @internal See {@link PendingInputHandle.hasPendingInput}. */
+    hasPendingInput(): boolean {
+        return this.core.hasPendingInput();
+    }
+
+    /** @internal See {@link PendingInputHandle.flushPendingInput}. */
+    flushPendingInput(): void {
+        this.core.flushPendingInput();
     }
 
     /**

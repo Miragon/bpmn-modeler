@@ -18,10 +18,12 @@
                 "@miragon/bpmn-modeler-core",
                 "@miragon/bpmn-modeler-shared",
                 "@miragon/bpmn-modeler-types",
-                "@miragon/bpmn-modeler-i18n-extras"
+                "@miragon/bpmn-modeler-i18n-extras",
+                "@miragon/architecture-testing"
             ],
             "paths": [
                 "apps/vscode-plugin/**",
+                "tools/architecture-testing/**",
                 "libs/modeler-core/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
@@ -132,8 +134,12 @@
         "bpmn-modeler": {
             "dir": "packages/bpmn-modeler",
             "package": "@miragon/bpmn-modeler",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "packages/bpmn-modeler/**",
+                "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "scripts/perf/**",
                 "libs/modeler-types/**",
@@ -157,8 +163,12 @@
         "dmn-modeler": {
             "dir": "packages/dmn-modeler",
             "package": "@miragon/dmn-modeler",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "packages/dmn-modeler/**",
+                "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-i18n-extras/**"
@@ -171,15 +181,42 @@
             "focus": [
                 "bpmn-modeler",
                 "@miragon/bpmn-modeler-shared",
-                "@miragon/bpmn-modeler-types"
+                "@miragon/bpmn-modeler-types",
+                "@miragon/architecture-testing"
             ],
             "paths": [
                 "libs/modeler-core/**",
+                "tools/architecture-testing/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
                 "packages/bpmn-modeler/src/bpmnlint/**",
                 "scripts/perf/**"
+            ],
+            "typecheck": "typecheck"
+        },
+        "architecture-testing": {
+            "dir": "tools/architecture-testing",
+            "package": "@miragon/architecture-testing",
+            "focus": [
+                "bpmn-modeler"
+            ],
+            "paths": [
+                "tools/architecture-testing/**"
+            ],
+            "typecheck": "typecheck"
+        },
+        "repo-checks": {
+            "dir": "tools/repo-checks",
+            "package": "@miragon/bpmn-modeler-repo-checks",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
+            "paths": [
+                "tools/repo-checks/**",
+                "tools/architecture-testing/**",
+                "{apps,libs,packages,tools}/*/src/**",
+                "{apps,libs,packages,tools}/*/package.json"
             ],
             "typecheck": "typecheck"
         },

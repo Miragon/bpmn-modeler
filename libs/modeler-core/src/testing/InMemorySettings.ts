@@ -5,29 +5,17 @@ import {
     MarketplaceSettingsEntry,
     SettingsPort,
 } from "../kernel/domain/hostPorts";
-import {
-    DEFAULT_LINTING_ENABLED,
-    ModelerSettingsSnapshot,
-    normalizeSettings,
-} from "../kernel/domain/modelerSettings";
-
-export interface SettingsValues extends ModelerSettingsSnapshot {
-    lintingEnabled: boolean;
-}
+import { ModelerSettingsSnapshot, normalizeSettings } from "../kernel/domain/modelerSettings";
 
 /**
  * `values` is mutable so a test can change a setting between two reads. They
  * are not normalised, so a spec can hand the core a value no host would.
  */
 export class InMemorySettings implements SettingsPort {
-    readonly values: SettingsValues;
+    readonly values: ModelerSettingsSnapshot;
 
-    constructor(overrides: Partial<SettingsValues> = {}) {
-        this.values = {
-            ...normalizeSettings({}),
-            lintingEnabled: DEFAULT_LINTING_ENABLED,
-            ...overrides,
-        };
+    constructor(overrides: Partial<ModelerSettingsSnapshot> = {}) {
+        this.values = { ...normalizeSettings({}), ...overrides };
     }
 
     getAlignToOrigin(): boolean {

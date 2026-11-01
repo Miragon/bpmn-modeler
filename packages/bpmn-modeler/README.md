@@ -482,6 +482,8 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 |------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
 | `loadDiagram(xml)` / `exportDiagram()` / `getDiagramSvg()`                                     | Load / serialise the diagram; a load [fits it to view](#view-state-capture--restore). |
 | `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode; fits it to view like a load. |
+| `formatDiagram()`                                                                              | Lay the diagram out left to right as one undoable step; resolves a `LayoutOutcome`.   |
+| `cleanupDiagram({ apply? })`                                                                   | Report orphan DI and other leftovers as a `CleanupOutcome`; `apply` removes them.     |
 | `setElementTemplates(templates)`                                                               | Push a new template set (data, never a path).                                         |
 | `setSettings(settings)`                                                                        | Merge a partial settings update (`colorTheme` excluded — theme is host policy).       |
 | `setFavouriteBpmnElements(types)`                                                              | Replace the append/create-menu favourites live; same as `setSettings({ favouriteBpmnElements })`. Also on `BpmnDesignerHandle`. |
@@ -490,8 +492,17 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 | `setTheme(theme)`                                                                              | Switch the colour theme live; a no-op once destroyed.                                 |
 | `setMode(mode)` / `getMode()`                                                                  | Switch / read the design-implement mode live (fires `onModeChanged`).                 |
 | `applyLintResults(results)` / `applyLintingDisabled()` / `startInPageLinting(config?, token?)` | Host-driven lint state.                                                               |
+| `onCommandStackChanged(listener)`                                                              | Every executed, undone or redone edit, undebounced (see below).                       |
+| `onFormatted(listener)`                                                                        | The `LayoutOutcome` of every format run, failures included (see below).               |
 | `getService(name)`                                                                             | Reach a [core service](#core-services--escape-hatch) or the escape hatch.             |
 | `destroy()`                                                                                    | Tear the instance down. Idempotent; every other member except the no-op `setTheme` then throws `NoModelerError`, including host pushes. |
+
+`onCommandStackChanged` and `onFormatted` each return their unsubscribe function and ignore the
+listener's return value. An import resets the command stack without a call; for the debounced XML,
+use `onContentSaved`. `onFormatted` hands the listener the same plain `LayoutOutcome` that
+`formatDiagram()` resolves, whether `formatDiagram()`, the palette entry or the canvas shortcut
+started the run. A `formatDiagram()` call made while a run is in flight joins that run and gets no
+extra notification. Like every other member, subscribing after `destroy()` throws `NoModelerError`.
 
 ### Surviving design mode
 
@@ -681,12 +692,14 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 
 ### `BpmnDesignerHandle`
 
-`loadDiagram`, `exportDiagram`, `newDiagram`, `getDiagramSvg`, `viewport`,
-`selection`, `captureViewState`, `applyViewState`, `setTheme`, `getService`,
+`loadDiagram`, `exportDiagram`, `newDiagram`, `formatDiagram`,
+`cleanupDiagram`, `getDiagramSvg`, `viewport`, `selection`,
+`captureViewState`, `applyViewState`, `setTheme`, `getService`,
 `applyLintResults`, `applyLintingDisabled`, `startInPageLinting`,
-`setFavouriteBpmnElements`, and `destroy` — each **signature-identical** to its
-`BpmnModelerHandle` counterpart, so a modeler handle narrows to a designer
-handle with no adapter.
+`setFavouriteBpmnElements`, `onCommandStackChanged`, `onFormatted`, and
+`destroy` — each **signature-identical** to its `BpmnModelerHandle`
+counterpart, so a modeler handle narrows to a designer handle with no adapter.
+The outcome types `LayoutOutcome`, `CleanupOutcome` and `CleanupStatus` are exported from `/design` too.
 `captureViewState` / `applyViewState` (see
 [View state](#view-state-capture--restore)) carry the user's plane, viewbox, and selection across a
 mode switch. `getService` is typed against `CoreDesignerServices`, which equals the full
@@ -787,8 +800,8 @@ viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no chip
 | `onSurfaceCreated`     | `(handle, mode) => void`           | After each factory returns, before `loadDiagram` — rebind per-instance subscriptions here. |
 | `onModeChanged`        | `(mode, transition) => void`       | Once per applied change; `transition` is `"toggle"` / `"recreate"` / `"fallback"`.         |
 | `onSwitchStateChanged` | `(busy: boolean) => void`          | Enters/leaves a recreate's handle-less window (drive `aria-busy` / `inert`).               |
-| `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate — flush pending host sync here.                      |
-| `onError`              | `(error: unknown) => void`         | A switch failed (capture/export/`beforeDestroy` and post-destroy paths). Fires **twice** when the fallback surface itself also fails, after which the session holds no live surface until the next `requestMode`. |
+| `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate, once the outgoing surface's pending properties-panel input is applied and the diagram exported — flush pending host sync here. |
+| `onError`              | `(error: unknown) => void`         | A switch failed (applying the pending properties-panel input, capture, export or `beforeDestroy`, and the post-destroy path). Fires **twice** when the fallback surface itself also fails, after which the session holds no live surface until the next `requestMode`. |
 
 ### `ModeSession`
 

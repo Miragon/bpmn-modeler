@@ -60,7 +60,9 @@ targets or, for Camunda 7, verify against the engine.
 The settings live under **Settings ▸ Tools ▸ Miragon BPMN Modeler**: default mode, language, colour theme, config
 folder, Camunda 8 API version, align to origin, transaction boundaries, SPIN completion, the code-link map, favourite
 elements and template marketplaces. They mean the same as the [VS Code settings](/vscode/configuration). The language
-list offers every language under [Language support](/vscode/features/language-support).
+list offers every language under [Language support](/vscode/features/language-support). Linting has no field there:
+the lint toggle in the editor and the BPMNlint widget turn it on or off for all your projects, and the IDE keeps the
+choice across restarts.
 
 ## Next steps
 

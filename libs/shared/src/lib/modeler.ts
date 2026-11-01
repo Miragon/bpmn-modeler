@@ -604,8 +604,8 @@ export class SetPropertiesPanelStateCommand extends Command<"SetPropertiesPanelS
  * on the disabled chip. VS Code persists the choice to the
  * `miragon.bpmnModeler.linting.enabled` User setting (the single source of
  * truth), which re-lints and pushes the new state back down, so the webview
- * never flips its own overlays optimistically. The IntelliJ bridge has no such
- * setting and keeps the choice in memory for the project instead.
+ * never flips its own overlays optimistically. IntelliJ stores the choice per
+ * user as well and pushes it to the bridge in its settings snapshot.
  */
 export class SetLintingEnabledCommand extends Command<"SetLintingEnabledCommand"> {
     public readonly enabled: boolean;

@@ -172,6 +172,60 @@ describe("WebviewDocumentSync", () => {
         ]);
     });
 
+    describe("input the surface has not applied yet", () => {
+        // Applying the input edits the document, as a properties-panel value does through a modeling command.
+        function createSyncWithPendingInput() {
+            let documentContent = "<before/>";
+            let pendingInput: string | undefined = "<typed/>";
+            const context = createSync({
+                exportDocument: async () => documentContent,
+                hasPendingInput: () => pendingInput !== undefined,
+                flushPendingInput: () => {
+                    if (pendingInput === undefined) return;
+                    documentContent = pendingInput;
+                    pendingInput = undefined;
+                    context.sync.scheduleSync();
+                },
+            });
+            return context;
+        }
+
+        it("counts as a pending sync", () => {
+            const { sync } = createSyncWithPendingInput();
+
+            expect(sync.hasPendingSync()).toBe(true);
+        });
+
+        it("reaches the export of a save", async () => {
+            const { sync, posted } = createSyncWithPendingInput();
+
+            await sync.respondToFlush(new FlushDocumentQuery(3));
+
+            expect(posted).toEqual([new DocumentFlushedCommand(3, "<typed/>", "flushed", 0)]);
+            expect(sync.hasPendingSync()).toBe(true);
+        });
+
+        it("is synced before a destructive flush exports", async () => {
+            const { sync, posted } = createSyncWithPendingInput();
+
+            await sync.respondToFlush(new FlushDocumentQuery(4, true));
+
+            expect(posted).toEqual([
+                new SyncDocumentCommand("<typed/>", 0),
+                new DocumentFlushedCommand(4, "<typed/>", "flushed", 0),
+            ]);
+        });
+
+        it("is synced when the pending sync is drained", async () => {
+            const { sync, posted } = createSyncWithPendingInput();
+
+            await sync.flushPendingSync();
+
+            expect(posted).toEqual([new SyncDocumentCommand("<typed/>", 0)]);
+            expect(sync.hasPendingSync()).toBe(false);
+        });
+    });
+
     it("reports itself unavailable to a flush before the modeler is ready", async () => {
         const { sync, posted, setReady } = createSync();
         setReady(false);

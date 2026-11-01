@@ -1,4 +1,5 @@
-import { NotifierPort, PickerPort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { deployableFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
@@ -14,6 +15,7 @@ export class DeployFilesService {
     constructor(
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentService: DeploymentService,
+        private readonly workspace: WorkspacePort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
@@ -32,11 +34,17 @@ export class DeployFilesService {
         }
         const { target } = destination;
 
-        const files = await this.picker.pickWorkspaceFiles({
-            glob: DEPLOYABLE_FILES_GLOB,
-            exclude: DEPENDENCY_FOLDERS_GLOB,
-            placeholder: `Select files to deploy to "${target.name}"`,
-        });
+        const found = await this.workspace.findFiles(
+            DEPLOYABLE_FILES_GLOB,
+            DEPENDENCY_FOLDERS_GLOB,
+        );
+        const files = await this.picker.chooseMany(
+            deployableFilesPrompt({
+                targetName: target.name,
+                files: found,
+                workspaceFolders: this.workspace.getWorkspaceFolderPaths(),
+            }),
+        );
         if (files.length === 0) {
             return;
         }

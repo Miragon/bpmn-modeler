@@ -15,6 +15,7 @@ import {
     RememberedPart,
     rememberedPartLabel,
 } from "../domain/deploymentOutcome";
+import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { connectionPatch } from "../domain/deploymentState";
 import { EnvLookup } from "../domain/envRef";
 import { loggableHost } from "../../kernel/domain/http";
@@ -145,12 +146,18 @@ export class DeploymentService {
      *   user cancels or no files match.
      */
     async selectAdditionalFiles(): Promise<string[]> {
-        return this.picker.pickWorkspaceFiles({
-            glob: "**/*.{form,json,dmn}",
-            exclude: "**/element-templates/**",
-            placeholder: "Select additional files to include in the deployment",
-            limit: 20,
-        });
+        const found = await this.vsWorkspace.findFiles(
+            "**/*.{form,json,dmn}",
+            "**/element-templates/**",
+            20,
+        );
+        const chosen = await this.picker.chooseMany(
+            additionalFilesPrompt({
+                files: found,
+                workspaceFolders: this.vsWorkspace.getWorkspaceFolderPaths(),
+            }),
+        );
+        return [...chosen];
     }
 
     /**
@@ -234,7 +241,7 @@ export class DeploymentService {
      *   a target's endpoint and its variables always come from the same project.
      */
     async deployFiles(
-        paths: string[],
+        paths: readonly string[],
         destination: NamedDestination,
         auth: AuthConfig,
         documentDir: string | undefined,

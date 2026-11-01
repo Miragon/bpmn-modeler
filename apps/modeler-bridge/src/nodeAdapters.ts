@@ -36,14 +36,12 @@ import {
     changedSettingKeys,
     coalesceWatcherEvents,
     ColorThemeSetting,
-    DEFAULT_LINTING_ENABLED,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
     globToRegExp,
     isWithinRoot,
     joinWorkspacePath,
-    LintingPreferencePort,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
     normalizeSettings,
@@ -472,8 +470,8 @@ export class NodeWorkspace implements WorkspacePort {
 }
 
 /**
- * Mutable {@link SettingsPort} fed by the host over RPC and by the webview's lint
- * toggle, plus the change-event hub the core's settings subscriptions ride on.
+ * Mutable {@link SettingsPort} fed by the host over RPC, plus the change-event
+ * hub the core's settings subscriptions ride on.
  *
  * The VS Code host reads configuration synchronously and emits
  * `onDidChangeConfiguration`; out-of-process there is no such API, so the host
@@ -483,10 +481,9 @@ export class NodeWorkspace implements WorkspacePort {
  * `BpmnSettingsBroadcaster` and the templates reload branch expect, which is what
  * lets the unmodified core react identically on both hosts.
  */
-export class BridgeSettings implements SettingsPort, LintingPreferencePort {
+export class BridgeSettings implements SettingsPort {
     // Render-safe before the host's first snapshot, which a host may leave out of register.
     private snapshot: ModelerSettingsSnapshot = normalizeSettings({});
-    private lintingEnabled = DEFAULT_LINTING_ENABLED;
     private readonly listeners = new Set<(event: SettingChange) => void>();
 
     /**
@@ -500,22 +497,6 @@ export class BridgeSettings implements SettingsPort, LintingPreferencePort {
         const changed = changedSettingKeys(this.snapshot, next);
         this.snapshot = next;
         this.notify(changed);
-    }
-
-    /**
-     * The lint toggle of the webview and of the IntelliJ status widget. IntelliJ
-     * has no setting for it, so the choice lives as long as this bridge process:
-     * one project, until the IDE restarts or the bridge respawns.
-     *
-     * @returns whether the toggle changed the setting.
-     */
-    setLintingEnabled(enabled: boolean): boolean {
-        if (enabled === this.lintingEnabled) {
-            return false;
-        }
-        this.lintingEnabled = enabled;
-        this.notify(["linting.enabled"]);
-        return true;
     }
 
     /** Registers a settings-change listener; the returned subscription unregisters it. */
@@ -556,7 +537,7 @@ export class BridgeSettings implements SettingsPort, LintingPreferencePort {
         return this.snapshot.language;
     }
     getLintingEnabled(): boolean {
-        return this.lintingEnabled;
+        return this.snapshot.lintingEnabled;
     }
     /**
      * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the

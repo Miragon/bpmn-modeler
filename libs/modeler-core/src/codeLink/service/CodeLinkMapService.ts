@@ -8,19 +8,18 @@ import {
     configArtifactLocation,
     ConfigArtifactLocation,
 } from "../../kernel/domain/configArtifacts";
-import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
+import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { CreatedFolderWalks } from "../../kernel/service/CreatedFolderWalks";
 import { parseMapJson } from "../domain/codeLinkArtifact";
 import { CodeLink, CodeLinkMap, SourceFileChange } from "../domain/CodeLinkMap";
 import { SOURCE_FILES } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { SourceIndex } from "./SourceIndex";
-
-/** How a watched source file changed, as reported by the workspace watcher. */
-type SourceChangeKind = "created" | "changed" | "deleted";
 
 const CODE_LINK_AREA = "code-link";
 
@@ -51,6 +50,7 @@ interface EditorState {
 /** A workspace-root watcher shared by every diagram rooted there, ref-counted by editor. */
 interface SourceWatcher {
     handle: { dispose(): void };
+    createdFolders: CreatedFolderWalks;
     refCount: number;
 }
 
@@ -106,17 +106,12 @@ export class CodeLinkMapService {
      * Tests one changed source file against every open map rooted at `root`,
      * linking newly-implementing files and unlinking broken ones. O(changed
      * file): no workspace scan, just one (OS-cached) read of the file per
-     * affected editor, taken inside each editor's serialized tail.
+     * affected editor, taken inside each editor's serialized tail. A folder
+     * created as a whole is walked for its source files.
      */
-    async onSourceFileChanged(
-        path: string,
-        changeKind: SourceChangeKind,
-        root: string,
-    ): Promise<void> {
-        // The watcher glob carries no exclude, so a save under build output
-        // (`target/`, `build/`, `dist/`, generated sources) still reaches here.
-        // Skip it to match the batched scan, which already filters EXCLUDED_DIRS.
-        if (isInsideExcludedDirBelow(path, root)) {
+    async onSourceFileChanged(path: string, event: WatcherEventKind, root: string): Promise<void> {
+        const change = watchedChangeOf(event, path, root, SOURCE_FILES.includes);
+        if (change === "unrelated") {
             return;
         }
 
@@ -126,6 +121,9 @@ export class CodeLinkMapService {
         if (affected.length === 0) {
             return;
         }
+        if (change === "folderCreated") {
+            return this.watchers.get(root)?.createdFolders.add(path);
+        }
 
         // Queue synchronously and read fresh *inside* each editor's serialized
         // tail. Reading here (before queuing) let two rapid saves' reads resolve
@@ -133,7 +131,7 @@ export class CodeLinkMapService {
         // and wedge the map at a stale state. Reading at apply time keeps every
         // apply on current on-disk content, in event order.
         for (const [editorId, state] of affected) {
-            const apply = () => this.applyFileChange(editorId, state, path, changeKind);
+            const apply = () => this.applyFileChange(editorId, state, path, event);
             state.tail = state.tail.then(apply, apply);
         }
         await Promise.all(affected.map(([, state]) => state.tail));
@@ -156,6 +154,7 @@ export class CodeLinkMapService {
     dispose(): void {
         for (const watcher of this.watchers.values()) {
             watcher.handle.dispose();
+            watcher.createdFolders.dispose();
         }
         this.watchers.clear();
         this.states.clear();
@@ -216,9 +215,9 @@ export class CodeLinkMapService {
         editorId: string,
         state: EditorState,
         path: string,
-        changeKind: SourceChangeKind,
+        event: WatcherEventKind,
     ): Promise<void> {
-        const change = await this.readChange(path, changeKind);
+        const change = await this.readChange(path, event);
         if (this.isClosed(editorId, state)) {
             return;
         }
@@ -238,17 +237,17 @@ export class CodeLinkMapService {
      * reflects the file as of *this* event's turn — see onSourceFileChanged.
      * A delete carries no content. The read is OS-cached and cheap.
      */
-    private async readChange(
-        path: string,
-        changeKind: SourceChangeKind,
-    ): Promise<SourceFileChange> {
-        if (changeKind === "deleted") {
+    private async readChange(path: string, event: WatcherEventKind): Promise<SourceFileChange> {
+        if (event === "delete") {
             return { kind: "deleted", path };
         }
         try {
             return { kind: "written", path, content: await this.vsWorkspace.readFile(path) };
-        } catch {
-            return { kind: "written", path, content: undefined };
+        } catch (error) {
+            this.notifier.logDebug(
+                `[code-link] changed file unreadable, keeping its links ${path}: ${(error as Error).message}`,
+            );
+            return { kind: "unreadable", path };
         }
     }
 
@@ -355,12 +354,20 @@ export class CodeLinkMapService {
     private acquireWatcher(root: string): void {
         let watcher = this.watchers.get(root);
         if (!watcher) {
-            const handle = this.vsWorkspace.createWatcher(root, SOURCE_FILES.glob(), {
-                onCreate: (path) => void this.onSourceFileChanged(path, "created", root),
-                onChange: (path) => void this.onSourceFileChanged(path, "changed", root),
-                onDelete: (path) => void this.onSourceFileChanged(path, "deleted", root),
+            const handle = this.vsWorkspace.createWatcher(root, EVERY_PATH_GLOB, {
+                onCreate: (path) => void this.onSourceFileChanged(path, "create", root),
+                onChange: (path) => void this.onSourceFileChanged(path, "change", root),
+                onDelete: (path) => void this.onSourceFileChanged(path, "delete", root),
             });
-            watcher = { handle, refCount: 0 };
+            const createdFolders = new CreatedFolderWalks(
+                this.vsWorkspace,
+                SOURCE_FILES.includes,
+                (files) =>
+                    Promise.all(
+                        files.map((file) => this.onSourceFileChanged(file, "create", root)),
+                    ),
+            );
+            watcher = { handle, createdFolders, refCount: 0 };
             this.watchers.set(root, watcher);
         }
         watcher.refCount += 1;
@@ -374,6 +381,7 @@ export class CodeLinkMapService {
         watcher.refCount -= 1;
         if (watcher.refCount <= 0) {
             watcher.handle.dispose();
+            watcher.createdFolders.dispose();
             this.watchers.delete(root);
         }
     }

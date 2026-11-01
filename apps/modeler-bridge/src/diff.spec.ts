@@ -1,8 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+    DIFF_PANE_COMMAND_TYPES,
+    DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
+    DiffPaneCommandType,
+    DiffPaneHandshakeCommandType,
+} from "@miragon/bpmn-modeler-shared";
+
 import { hostNotification, settle } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
+
+/** How the IntelliJ host serves each command its diff panes post. */
+const INTELLIJ_DIFF_COVERAGE: Record<
+    DiffPaneHandshakeCommandType | DiffPaneCommandType,
+    "handled" | "ignored"
+> = {
+    GetBpmnFileCommand: "handled",
+    GetBpmnModelerSettingCommand: "ignored",
+    GetPropertiesPanelStateCommand: "ignored",
+    DiffReadyCommand: "handled",
+    ViewportChangedCommand: "handled",
+    CursorChangedCommand: "handled",
+    // IntelliJ's diff viewer swaps the sides itself and never forwards the command.
+    SwapCompareSidesCommand: "ignored",
+    LogErrorCommand: "handled",
+};
 
 /**
  * Drives the **diff** half of the bridge end-to-end: the real diff brain
@@ -41,6 +64,21 @@ function postsTo(frames: any[], paneUri: string): any[] {
         .filter((f) => f.method === "diff/postMessage" && f.params.paneUri === paneUri)
         .map((f) => f.params.message);
 }
+
+describe("the bridge's diff pane routes", () => {
+    it("match the host's coverage table", () => {
+        const { diffPaneRoutes } = createBridge(() => {});
+
+        const coverage = Object.fromEntries(
+            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
+                type,
+                diffPaneRoutes.routeOf(type).kind,
+            ]),
+        );
+
+        expect(coverage).toEqual(INTELLIJ_DIFF_COVERAGE);
+    });
+});
 
 describe("bridge diff (real diff brain over a fake transport)", () => {
     const BEFORE = "file:///proc.bpmn#d1-before";
@@ -149,6 +187,26 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         ]);
         expect(sync[0].params.message.viewport).toMatchObject({ x: 1, y: 2, width: 3, height: 4 });
         expect(sync[1].params.message.index).toBe(5);
+    });
+
+    it("logs an error a pane reports to the host, tagged with its file", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+
+        await rpc.handleLine(
+            hostNotification("diff/webviewMessage", {
+                paneUri: BEFORE,
+                message: { type: "LogErrorCommand", message: "DiffViewer import failed" },
+            }),
+        );
+        await settle();
+
+        const errorLogs = frames
+            .filter((f) => f.method === "notifier/log" && f.params.level === "error")
+            .map((f) => f.params.message);
+        expect(errorLogs).toEqual([
+            expect.stringMatching(/^\[webview:proc\.bpmn.*\] DiffViewer import failed$/),
+        ]);
     });
 
     it("disposes both panes, after which stray pane messages are no-ops", async () => {

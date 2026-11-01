@@ -45,6 +45,7 @@ import {
     WorkspaceDefinitionsQuery,
     type BpmnEditorCommandType,
     type Command,
+    type DiffPaneCommandType,
     type MessageOfType,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
@@ -61,7 +62,7 @@ vi.mock("@miragon/bpmn-modeler/diff", async (importOriginal) => {
 
 type Reply = { type: string } & Record<string, unknown>;
 
-// Keyed by the closed list, so a command added there cannot skip the preview check below.
+// Keyed by the closed lists, so a command added to one cannot skip the preview check below.
 const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Type> } = {
     SyncDocumentCommand: new SyncDocumentCommand("<edited />", 1),
     DocumentFlushedCommand: new DocumentFlushedCommand(1),
@@ -110,6 +111,14 @@ const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Typ
     UpdateScriptVariablesCommand: new UpdateScriptVariablesCommand([]),
     DiagramFormattedCommand: new DiagramFormattedCommand("formatted", []),
     CleanupReportCommand: new CleanupReportCommand({ status: "reported", items: [] }, false),
+};
+
+const DIFF_PANE_COMMANDS: { [Type in DiffPaneCommandType]: MessageOfType<Type> } = {
+    DiffReadyCommand: new DiffReadyCommand(),
+    ViewportChangedCommand: new ViewportChangedCommand({ x: 0, y: 0, width: 1, height: 1 }),
+    CursorChangedCommand: new CursorChangedCommand(0),
+    SwapCompareSidesCommand: new SwapCompareSidesCommand(),
+    LogErrorCommand: new LogErrorCommand("error"),
 };
 
 describe("getHostApi", () => {
@@ -301,19 +310,16 @@ describe("development preview host", () => {
         });
     });
 
-    it.each<Command>([
-        ...Object.values(BPMN_EDITOR_COMMANDS),
-        new DiffReadyCommand(),
-        new ViewportChangedCommand({ x: 0, y: 0, width: 1, height: 1 }),
-        new CursorChangedCommand(0),
-        new SwapCompareSidesCommand(),
-    ])("takes a $type from the webview without throwing", (command) => {
-        vi.spyOn(console, "warn").mockImplementation(() => undefined);
-        vi.spyOn(console, "error").mockImplementation(() => undefined);
-        const host = previewHost();
+    it.each<Command>(Object.values({ ...BPMN_EDITOR_COMMANDS, ...DIFF_PANE_COMMANDS }))(
+        "takes a $type from the webview without throwing",
+        (command) => {
+            vi.spyOn(console, "warn").mockImplementation(() => undefined);
+            vi.spyOn(console, "error").mockImplementation(() => undefined);
+            const host = previewHost();
 
-        expect(() => host.postMessage(command)).not.toThrow();
-    });
+            expect(() => host.postMessage(command)).not.toThrow();
+        },
+    );
 
     it.each<Query>([new LanguageQuery("de"), new TakeFocusQuery()])(
         "rejects a $type, which only the host sends",

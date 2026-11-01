@@ -405,7 +405,8 @@ export class DeploymentTarget {
 /**
  * What one edit of the targets file does, with the targets to write: the
  * services retire the slot and ledger rows it names and carry over the
- * approvals it names.
+ * approvals it names. Its `newSlotName` is a slot no saved target owns, so an
+ * edit that fails before the file names it empties it.
  */
 export type TargetChange = TargetCreated | TargetSaved | TargetRenamed | TargetRemoved;
 
@@ -422,12 +423,17 @@ export class TargetCreated {
         readonly targets: readonly DeploymentTarget[],
         readonly target: DeploymentTarget,
     ) {}
+
+    get newSlotName(): string {
+        return this.target.name;
+    }
 }
 
 export class TargetSaved {
     readonly kind = "saved" as const;
     readonly retiredTarget = undefined;
     readonly retiredSlotName = undefined;
+    readonly newSlotName = undefined;
 
     constructor(
         readonly targets: readonly DeploymentTarget[],
@@ -466,12 +472,17 @@ export class TargetRenamed {
     get approvalsInheritedFrom(): string | undefined {
         return this.before?.name;
     }
+
+    get newSlotName(): string {
+        return this.target.name;
+    }
 }
 
 /** `before` is undefined when the file no longer held the name; its slot is retired all the same. */
 export class TargetRemoved {
     readonly kind = "removed" as const;
     readonly approvalsInheritedFrom = undefined;
+    readonly newSlotName = undefined;
 
     constructor(
         readonly targets: readonly DeploymentTarget[],

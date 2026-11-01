@@ -130,7 +130,8 @@ in the bridge README):
 | core → host | `document/write`, `document/save` | `DocumentPort` |
 | core → host | `editor/postMessage` | Query/Command → webview |
 | core → host | `notifier/*`, `statusBar/update` | `Notifications.Bus`, one `StatusSlotWidget` per status slot |
-| host → core | `linting/toggle` | the BPMNlint widget's click flips the bridge's lint choice |
+| host → core | `linting/toggle` | the BPMNlint widget's click flips the user's lint choice |
+| core → host | `settings/setLintingEnabled` | `PropertiesComponent`; the host stores the lint choice and pushes the snapshot |
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
 
@@ -139,7 +140,14 @@ in the bridge README):
 `apps/modeler-bridge/src/protocol/protocol.json` has no Kotlin handler, or a
 handler serves a method the core no longer sends. Adding or removing a
 core → host method therefore changes the descriptor, `protocol.json` and the
-Kotlin router in one PR. The test compares method names, not parameter keys.
+Kotlin router in one PR. It also compares parameter and result keys: every
+host → core sender runs once and its frame must carry the descriptor's keys,
+and every core → host handler may read only the descriptor's keys. A handler
+reads its `RpcParams` and returns an `RpcAction`, so the test reads without
+acting; a read inside the action throws. A reply carries an `RpcResult` class
+from `RpcResults.kt`, and its property names must match the descriptor's
+`resultKeys`. A new host → core method needs an entry in the test's sender
+table, a new core → host request with a result one in its result table.
 The nested fields of `statusBar/update` are pinned by `HostUiRouterTest`, and
 `StatusSlotPlacementTest` reads the core's `statusView.ts` (passed in by Gradle)
 so a new slot, icon, tone or action fails until Kotlin knows it.
@@ -158,11 +166,13 @@ codes and labels, which `manifest.contract.spec.ts` holds to the shipped catalog
 `DocumentPort.getContent()` *synchronously* — impossible over async RPC. The host
 seeds a local `DocumentMirror` on `session/register` and keeps it current via
 `document/didChange`, so reads hit a cache. Same pattern for settings and
-deployment state. **Echo prevention is explicit-causation** (LSP-style): every
-`document/write` mints a per-editor revision echoed back as `causedBy`; a
-`didChange` whose `causedBy` matches a pending own write is dropped. The core's
-`ModelerSession` guard stays as a second line of defence. To add a new
-synchronous port, follow the checklist in `host-replicated-state.md`.
+deployment state. **The `document/write` reply is the causation signal**: the
+host sends no `document/didChange` echo for the bridge's own writes, so every
+`didChange` is external and re-renders, and `documentRevision` rejects a stale
+write. See the ADR's
+[Document causation and session identity](../../../docs/adr/architecture-and-hosts.md#document-causation-and-session-identity).
+To add a new synchronous port, follow
+[Host-replicated state](../../../docs/adr/architecture-and-hosts.md#host-replicated-state).
 
 ## plugin.xml extension points
 

@@ -8,7 +8,7 @@ const statMock = vi.fn();
 const deleteMock = vi.fn();
 const createFileSystemWatcherMock = vi.fn();
 const readDirectoryMock = vi.fn();
-let workspaceFolders: { uri: { path: string } }[] | undefined;
+let workspaceFolders: { uri: { scheme?: string; authority?: string; path: string } }[] | undefined;
 
 vi.mock("vscode", () => ({
     workspace: {
@@ -34,14 +34,20 @@ vi.mock("vscode", () => ({
             super(code);
         }
     },
+    // Both constructors take a UNC server as the authority, as VS Code does.
     Uri: {
-        file: (path: string) => ({ scheme: "file", path, fsPath: path }),
+        file: (path: string) => {
+            const unc = /^\/\/([^/]+)(\/.*)?$/.exec(path);
+            return unc
+                ? { scheme: "file", authority: unc[1], path: unc[2] ?? "/" }
+                : { scheme: "file", authority: "", path, fsPath: path };
+        },
         // Mirror VS Code's decode of a `file://` string so `toUri` can be shown
         // recovering `/c:/…` from the `%3A`-escaped drive colon.
-        parse: (value: string) => ({
-            scheme: "file",
-            path: decodeURIComponent(value.replace(/^file:\/\//, "")),
-        }),
+        parse: (value: string) => {
+            const [, authority, path] = /^file:\/\/([^/]*)(.*)$/.exec(value) ?? [];
+            return { scheme: "file", authority, path: decodeURIComponent(path) };
+        },
     },
     RelativePattern: class {
         constructor(
@@ -276,6 +282,70 @@ describe("VsCodeWorkspace.createWatcher", () => {
         changeCb({ path: "/C:/ws/.camunda/element-templates/x.json" });
 
         expect(onChange).toHaveBeenCalledWith("/c:/ws/.camunda/element-templates/x.json");
+    });
+});
+
+describe("VsCodeWorkspace on a UNC share", () => {
+    const shareFolderUri = { scheme: "file", authority: "server", path: "/share/ws" };
+
+    it("keeps the server of the workspace folder holding a document", () => {
+        getWorkspaceFolderMock.mockReturnValueOnce({ uri: shareFolderUri });
+
+        expect(
+            new VsCodeWorkspace().getWorkspaceFolderForDocument("//server/share/ws/a.bpmn"),
+        ).toBe("//server/share/ws");
+        expect(getWorkspaceFolderMock).toHaveBeenCalledWith(
+            expect.objectContaining({ authority: "server", path: "/share/ws/a.bpmn" }),
+        );
+    });
+
+    it("keeps the server of an open workspace folder", () => {
+        workspaceFolders = [{ uri: shareFolderUri }];
+
+        expect(new VsCodeWorkspace().getWorkspaceFolderPaths()).toEqual(["//server/share/ws"]);
+    });
+
+    it("keeps the server in the directory of a `file://`-form document", () => {
+        expect(
+            new VsCodeWorkspace().getDocumentDirectory("file://server/share/ws/proc/order.bpmn"),
+        ).toBe("//server/share/ws/proc");
+    });
+
+    it("keeps the server of the files it finds", async () => {
+        findFilesMock.mockResolvedValueOnce([
+            { scheme: "file", authority: "server", path: "/share/ws/a.bpmn" },
+        ]);
+
+        await expect(new VsCodeWorkspace().findFiles("**/*.bpmn")).resolves.toEqual([
+            "//server/share/ws/a.bpmn",
+        ]);
+    });
+
+    it("keeps the server of the paths its watcher reports", () => {
+        const onChange = vi.fn();
+        let reportChange: (uri: unknown) => void = () => undefined;
+        createFileSystemWatcherMock.mockReturnValueOnce({
+            onDidCreate: vi.fn(),
+            onDidChange: vi.fn((listener: (uri: unknown) => void) => {
+                reportChange = listener;
+                return { dispose: vi.fn() };
+            }),
+            onDidDelete: vi.fn(),
+            dispose: vi.fn(),
+        });
+
+        new VsCodeWorkspace().createWatcher("//server/share/ws", "**/*.json", { onChange });
+        reportChange({ scheme: "file", authority: "server", path: "/share/ws/x.json" });
+
+        expect(onChange).toHaveBeenCalledWith("//server/share/ws/x.json");
+    });
+
+    it("creates the parent directory of a file on the share", async () => {
+        await new VsCodeWorkspace().writeFile("//server/share/ws/.camunda/code-link/a.json", "{}");
+
+        expect(createDirectoryMock).toHaveBeenCalledWith(
+            expect.objectContaining({ authority: "server", path: "/share/ws/.camunda/code-link" }),
+        );
     });
 });
 

@@ -3,6 +3,7 @@ import { posix } from "path";
 import {
     DocumentPort,
     NotifierPort,
+    PickerPort,
     SettingsPort,
     StatusBarPort,
 } from "../../kernel/domain/hostPorts";
@@ -20,7 +21,8 @@ import { DeploymentDestination } from "../domain/deploymentDestination";
 import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
 import { deploymentStatusView, timestampFormatter } from "../domain/deploymentStatusView";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
-import { DeploymentPickerPort, DeploymentStatePort } from "../domain/ports";
+import { DeploymentStatusAction, deploymentStatusActionPrompt } from "../domain/deploymentPrompts";
+import { DeploymentStatePort } from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvValueResolver } from "./EnvValueResolver";
 
@@ -46,7 +48,7 @@ export class DeploymentStatusService {
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
         private readonly statusBar: StatusBarPort,
-        private readonly picker: DeploymentPickerPort,
+        private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
         private readonly envResolver: EnvValueResolver,
         private readonly settings: SettingsPort,
@@ -162,12 +164,9 @@ export class DeploymentStatusService {
      * The status-bar item's click menu, shared by both hosts: offers switching
      * the target and — for a named Camunda 7 target — engine verification.
      */
-    async pickStatusBarAction(documentDir?: string): Promise<"switch" | "verify" | undefined> {
+    async pickStatusBarAction(documentDir?: string): Promise<DeploymentStatusAction | undefined> {
         const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-        return this.picker.pickDeploymentStatusAction({
-            targetName: target?.name,
-            canVerify: target?.engine === "c7",
-        });
+        return this.picker.choose(deploymentStatusActionPrompt(target));
     }
 
     /**

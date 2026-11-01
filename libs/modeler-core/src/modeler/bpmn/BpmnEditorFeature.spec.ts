@@ -95,13 +95,8 @@ const BARE_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
 class RecordingLintingPreference {
     readonly choices: boolean[] = [];
 
-    constructor(private stored: boolean) {}
-
-    setLintingEnabled(enabled: boolean): boolean {
+    setLintingEnabled(enabled: boolean): void {
         this.choices.push(enabled);
-        const changed = enabled !== this.stored;
-        this.stored = enabled;
-        return changed;
     }
 }
 
@@ -164,7 +159,7 @@ function createFeature(
     const host = createTestHost({ folders: ["/work"] });
     const calls: string[] = [];
     const servedExtensions: string[] = [];
-    const lintingPreference = new RecordingLintingPreference(true);
+    const lintingPreference = new RecordingLintingPreference();
     const contributions = recordingContributions(calls, onScriptResync);
     const extensions: BpmnEditorHostExtensions =
         capabilities === "full"
@@ -350,8 +345,20 @@ describe("BpmnEditorFeature", () => {
 
         await feature.router.dispatch(new SetLintingEnabledCommand(true), editor.id);
 
-        expect(lintingPreference.choices).toEqual([true]);
+        expect(lintingPreference.choices).toEqual([]);
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(1);
+    });
+
+    it("compares the page's choice with the one the host stored", async () => {
+        const { host, feature, lintingPreference } = createFeature("full");
+        host.settings.values.lintingEnabled = false;
+        const editor = host.openEditor(DIAGRAM, C7_XML);
+
+        await feature.router.dispatch(new SetLintingEnabledCommand(false), editor.id);
+        await feature.router.dispatch(new SetLintingEnabledCommand(true), editor.id);
+
+        expect(lintingPreference.choices).toEqual([true]);
+        expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 
     it.each<{ capabilities: HostCapabilities; stored: boolean; visible: boolean }>([

@@ -39,7 +39,7 @@ vi.mock("./bootstrapWebview", () => ({
 
 import { workspace } from "vscode";
 
-import { SettingChange } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore, SettingChange } from "@miragon/bpmn-modeler-core";
 
 import { bootstrapWebview } from "./bootstrapWebview";
 import { VsCodeEditorHandle } from "./VsCodeEditorHandle";
@@ -66,7 +66,13 @@ function makePanel(overrides: Partial<FakePanel> = {}): FakePanel {
 }
 
 interface FakeDocument {
-    uri: { scheme: string; path: string; fsPath: string; toString: () => string };
+    uri: {
+        scheme: string;
+        authority?: string;
+        path: string;
+        fsPath: string;
+        toString: () => string;
+    };
     getText: () => string;
     positionAt: (offset: number) => { offset: number };
     lineCount: number;
@@ -289,6 +295,22 @@ describe("VsCodeEditorHandle.documentPath", () => {
 
         expect(createHandle(makePanel(), document).documentPath()).toBe("/c:/ws/order.bpmn");
     });
+
+    it("keeps the server of a document on a UNC share", () => {
+        const document = makeDocument({
+            uri: {
+                scheme: "file",
+                authority: "server",
+                path: "/share/ws/order.bpmn",
+                fsPath: "\\\\server\\share\\ws\\order.bpmn",
+                toString: () => "file://server/share/ws/order.bpmn",
+            },
+        });
+
+        expect(createHandle(makePanel(), document).documentPath()).toBe(
+            "//server/share/ws/order.bpmn",
+        );
+    });
 });
 
 describe("VsCodeEditorHandle.dispose", () => {
@@ -306,33 +328,104 @@ describe("VsCodeEditorHandle.dispose", () => {
     });
 });
 
+describe("VsCodeEditorHandle.isActive", () => {
+    it.each([
+        { state: "active and visible", active: true, visible: true, reported: "active" },
+        { state: "active but hidden", active: true, visible: false, reported: "not active" },
+        { state: "visible but inactive", active: false, visible: true, reported: "not active" },
+        { state: "inactive and hidden", active: false, visible: false, reported: "not active" },
+    ])("reports a panel that is $state as $reported", ({ active, visible, reported }) => {
+        const handle = createHandle(makePanel({ active, visible }), makeDocument());
+
+        expect(handle.isActive()).toBe(reported === "active");
+    });
+});
+
 describe("VsCodeEditorHandle.onDidChangeActive", () => {
+    function viewStateListener(panel: FakePanel): () => void {
+        return panel.onDidChangeViewState.mock.calls[0][0] as () => void;
+    }
+
     it("reports the panel's focus state on every view-state change", () => {
         const panel = makePanel();
         const activeChanged = vi.fn();
         createHandle(panel, makeDocument()).onDidChangeActive(activeChanged);
-        const viewStateChanged = panel.onDidChangeViewState.mock.calls[0][0] as () => void;
 
         panel.active = false;
-        viewStateChanged();
+        viewStateListener(panel)();
         panel.active = true;
-        viewStateChanged();
+        viewStateListener(panel)();
 
         expect(activeChanged.mock.calls).toEqual([[false], [true]]);
     });
+
+    it("reports a panel that stays active but turns hidden as blurred", () => {
+        const panel = makePanel({ active: true, visible: true });
+        const activeChanged = vi.fn();
+        createHandle(panel, makeDocument()).onDidChangeActive(activeChanged);
+
+        panel.visible = false;
+        viewStateListener(panel)();
+
+        expect(activeChanged.mock.calls).toEqual([[false]]);
+    });
+
+    // Theia creates every panel active and visible, then reports a restored
+    // background tab as its active widget while the tab stays hidden.
+    it("hands the command target back to the visible diagram when a hidden tab reports active", () => {
+        const store = new EditorSessionStore(() => undefined);
+        const visiblePanel = makePanel({ active: true, visible: true });
+        const hiddenPanel = makePanel({ active: true, visible: true });
+        store.register(createSessionHandle("file:///repo/1.bpmn", visiblePanel));
+        store.subscribeToTabChangeEvent("file:///repo/1.bpmn");
+        store.register(createSessionHandle("file:///repo/3.bpmn", hiddenPanel));
+        store.subscribeToTabChangeEvent("file:///repo/3.bpmn");
+
+        hiddenPanel.visible = false;
+        viewStateListener(hiddenPanel)();
+
+        expect(store.getActiveEditorId()).toBe("file:///repo/1.bpmn");
+        expect(store.isFocused("file:///repo/3.bpmn")).toBe(false);
+    });
+
+    // Theia reports every changed panel in one pass, in creation order, so the
+    // visible diagram can blur before the hidden tab reports. The handle cannot
+    // tell the core which diagram is visible, so the target stays hidden.
+    it.fails(
+        "hands the command target to the visible diagram when it blurs before the hidden tab reports",
+        () => {
+            const store = new EditorSessionStore(() => undefined);
+            const visiblePanel = makePanel({ active: true, visible: true });
+            const hiddenPanel = makePanel({ active: true, visible: true });
+            store.register(createSessionHandle("file:///repo/1.bpmn", visiblePanel));
+            store.subscribeToTabChangeEvent("file:///repo/1.bpmn");
+            store.register(createSessionHandle("file:///repo/3.bpmn", hiddenPanel));
+            store.subscribeToTabChangeEvent("file:///repo/3.bpmn");
+
+            visiblePanel.active = false;
+            viewStateListener(visiblePanel)();
+            hiddenPanel.visible = false;
+            viewStateListener(hiddenPanel)();
+
+            expect(store.getActiveEditorId()).toBe("file:///repo/1.bpmn");
+        },
+    );
+
+    function createSessionHandle(editorId: string, panel: FakePanel): VsCodeEditorHandle {
+        nextPanel = panel;
+        return VsCodeEditorHandle.create("bpmn", editorId, panel as never, makeDocument() as never);
+    }
 });
 
 describe("VsCodeEditorHandle.onDidChangeDocument", () => {
-    function emitTextDocumentChange(contentChanges: unknown[]) {
+    function emitTextDocumentChange(
+        contentChanges: unknown[],
+        uri: object = { path: "/ws/other.bpmn", toString: () => "file:///ws/other.bpmn" },
+    ) {
         const listener = vi.mocked(workspace.onDidChangeTextDocument).mock.calls[0][0] as (
             event: unknown,
         ) => void;
-        listener({
-            contentChanges,
-            document: {
-                uri: { path: "/ws/other.bpmn", toString: () => "file:///ws/other.bpmn" },
-            },
-        });
+        listener({ contentChanges, document: { uri } });
     }
 
     it("reports which document changed and whether its content did", () => {
@@ -347,6 +440,20 @@ describe("VsCodeEditorHandle.onDidChangeDocument", () => {
         expect(edit.documentPath()).toBe("/ws/other.bpmn");
         expect(edit.hasContentChanges()).toBe(true);
         expect(saveOnly.hasContentChanges()).toBe(false);
+    });
+
+    it("keeps the server in the path of a changed document on a UNC share", () => {
+        const received = vi.fn();
+        createHandle(makePanel(), makeDocument()).onDidChangeDocument(received);
+
+        emitTextDocumentChange([{ text: "x" }], {
+            scheme: "file",
+            authority: "server",
+            path: "/share/ws/other.bpmn",
+            toString: () => "file://server/share/ws/other.bpmn",
+        });
+
+        expect(received.mock.calls[0][0].documentPath()).toBe("//server/share/ws/other.bpmn");
     });
 });
 
