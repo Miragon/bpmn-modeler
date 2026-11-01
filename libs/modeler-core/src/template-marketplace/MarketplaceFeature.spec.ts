@@ -216,6 +216,146 @@ describe("MarketplaceCommands.remove", () => {
     });
 });
 
+function localMarketplaceFiles(root: string, templateId: string): Record<string, string> {
+    return {
+        [`${root}/marketplace.json`]: JSON.stringify({ sources: [{ path: "element-templates" }] }),
+        [`${root}/element-templates/${templateId}.json`]: JSON.stringify({
+            id: templateId,
+            name: templateId,
+            appliesTo: ["bpmn:Task"],
+            properties: [],
+        }),
+    };
+}
+
+function gate() {
+    let open!: () => void;
+    const opened = new Promise<void>((resolve) => {
+        open = resolve;
+    });
+    return { open, opened };
+}
+
+/** Real flows over an in-memory host: marketplace `/work/a` is registered, `/work/b` is not. */
+function commandsOverRealService() {
+    const host = createTestHost({
+        folders: ["/work"],
+        files: {
+            ...localMarketplaceFiles("/work/a", "a"),
+            ...localMarketplaceFiles("/work/b", "b"),
+        },
+        settings: { marketplaces: ["/work/a"] },
+    });
+    const service = createTemplateMarketplaceService({
+        workspace: host.workspace,
+        settings: host.settings,
+        notifier: host.notifier,
+        tokens: host.tokens,
+        tokenPrompt: host.tokenPrompt,
+        cacheRoot: "/cache",
+        homeDir: "/home/ada",
+    });
+    const commands = new MarketplaceCommands(
+        service,
+        { reloadMarketplaceTemplates: async () => {} },
+        host.notifier,
+        "/home/ada",
+    );
+    const holdRead = (path: string) => {
+        const held = gate();
+        const readFile = host.workspace.readFile.bind(host.workspace);
+        vi.spyOn(host.workspace, "readFile").mockImplementation(async (requested) => {
+            if (requested === path) await held.opened;
+            return readFile(requested);
+        });
+        return held;
+    };
+    const cachedTemplateNames = async () =>
+        (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort();
+    return {
+        commands,
+        marketplaces: host.settings.values.marketplaces,
+        holdRead,
+        cachedTemplateNames,
+    };
+}
+
+const letPendingWorkRun = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("MarketplaceCommands started while another one runs", () => {
+    it("keeps the cache of a marketplace added while an update runs", async () => {
+        const { commands, marketplaces, holdRead, cachedTemplateNames } = commandsOverRealService();
+        const updateFetchOfA = holdRead("/work/a/element-templates/a.json");
+
+        const update = commands.update();
+        await letPendingWorkRun();
+        const add = commands.add("/work/b", async (location) => {
+            marketplaces.push(location);
+        });
+        await letPendingWorkRun();
+        updateFetchOfA.open();
+        await Promise.all([update, add]);
+
+        expect(marketplaces).toEqual(["/work/a", "/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["a.json", "b.json"]);
+    });
+
+    it("keeps the cache of a marketplace being added while a removal prunes", async () => {
+        const { commands, marketplaces, cachedTemplateNames } = commandsOverRealService();
+        const persistOfB = gate();
+
+        const add = commands.add("/work/b", async (location) => {
+            await persistOfB.opened;
+            marketplaces.push(location);
+        });
+        await letPendingWorkRun();
+        const remove = commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+        await letPendingWorkRun();
+        persistOfB.open();
+        await Promise.all([add, remove]);
+
+        expect(marketplaces).toEqual(["/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
+    it("keeps the cache of a marketplace being added while another add fails", async () => {
+        const { commands, marketplaces, cachedTemplateNames } = commandsOverRealService();
+        const persistOfB = gate();
+
+        const add = commands.add("/work/b", async (location) => {
+            await persistOfB.opened;
+            marketplaces.push(location);
+        });
+        await letPendingWorkRun();
+        const failedAdd = commands.add("/work/missing", async () => {});
+        await letPendingWorkRun();
+        persistOfB.open();
+        await Promise.all([add, failedAdd]);
+
+        expect(marketplaces).toEqual(["/work/a", "/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
+    it("does not bring back the cache of a marketplace removed while an update fetches it", async () => {
+        const { commands, marketplaces, holdRead, cachedTemplateNames } = commandsOverRealService();
+        const updateFetchOfA = holdRead("/work/a/element-templates/a.json");
+
+        const update = commands.update();
+        await letPendingWorkRun();
+        const remove = commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+        await letPendingWorkRun();
+        updateFetchOfA.open();
+        await Promise.all([update, remove]);
+
+        expect(marketplaces).toEqual([]);
+        expect(await cachedTemplateNames()).toEqual([]);
+    });
+});
+
 describe("createTemplateMarketplaceService", () => {
     it("caches a local marketplace's templates under the host's cache root", async () => {
         const host = createTestHost({
