@@ -40,3 +40,7 @@ export function isInsideExcludedDirBelow(path: string, root: string): boolean {
     const judgedPath = relativeToRoot(path, root) ?? path;
     return judgedPath.split("/").some((segment) => EXCLUDED_DIRS.has(segment));
 }
+
+export function isExcludedDirBelow(_folder: string, _root: string): boolean {
+    return false;
+}

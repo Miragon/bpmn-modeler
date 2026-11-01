@@ -426,6 +426,31 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         ]);
     });
 
+    it("offers no file inside a dot-folder, such as the modeler's own config", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/.camunda/deployment-targets.json": "{}",
+                "/work/.camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/.vscode/settings.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
     it("offers at most 20 files and returns none when the user dismisses the list", async () => {
         const forms = Object.fromEntries(
             Array.from({ length: 21 }, (_, index) => [`/work/forms/form-${index}.form`, "{}"]),

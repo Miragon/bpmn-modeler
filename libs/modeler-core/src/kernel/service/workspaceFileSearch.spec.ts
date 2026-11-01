@@ -62,10 +62,27 @@ describe("findFilesInScope", () => {
         const exclude = findFiles.mock.calls[0]?.[1];
         expect(exclude).toEqual(expect.any(String));
         const excluded = globToRegExp(exclude as string);
-        for (const directory of EXCLUDED_DIRS) {
+        for (const directory of [...EXCLUDED_DIRS, ".history", ".camunda"]) {
             expect(excluded.test(`web/${directory}/pkg/a.bpmn`), directory).toBe(true);
         }
         expect(excluded.test("src/main/resources/a.bpmn")).toBe(false);
+    });
+
+    it("walks past dot-folders when findFiles finds nothing", async () => {
+        const { workspace } = createTestHost({
+            folders: ["/work"],
+            files: { "/work/order.bpmn": "", "/work/.history/order_1.bpmn": "" },
+        });
+        vi.spyOn(workspace, "findFiles").mockResolvedValue([]);
+
+        const found = await findFilesInScope(
+            workspace,
+            { kind: "workspace-folders", folders: ["/work"] },
+            "**/*.bpmn",
+            { matchesWalkedFile: (path) => path.endsWith(".bpmn") },
+        );
+
+        expect(found).toEqual(["/work/order.bpmn"]);
     });
 });
 

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { EXCLUDED_DIRS, excludedDirsGlob, isInsideExcludedDirBelow } from "./excludedDirs";
+import {
+    EXCLUDED_DIRS,
+    excludedDirsGlob,
+    isExcludedDirBelow,
+    isInsideExcludedDirBelow,
+} from "./excludedDirs";
 import { globToRegExp } from "./globToRegExp";
 
 describe("isInsideExcludedDirBelow", () => {
@@ -75,12 +80,46 @@ describe("isInsideExcludedDirBelow", () => {
         expect(isInsideExcludedDirBelow(path, root)).toBe(excluded);
     });
 
-    it.each(["node_modules", "dist", "build", "out", "target", "bin", "coverage", ".git"])(
-        "excludes a file inside %s below the root",
-        (directory) => {
-            expect(isInsideExcludedDirBelow(`/repo/${directory}/a.bpmn`, "/repo")).toBe(true);
+    it.each([
+        "node_modules",
+        "dist",
+        "build",
+        "out",
+        "target",
+        "bin",
+        "coverage",
+        ".git",
+        ".camunda",
+        ".history",
+    ])("excludes a file inside %s below the root", (directory) => {
+        expect(isInsideExcludedDirBelow(`/repo/${directory}/a.bpmn`, "/repo")).toBe(true);
+    });
+
+    it.each(["/repo/.order.bpmn", "/repo/forms/.order.form"])(
+        "keeps the dot-file %s, as only dot-folders are excluded",
+        (path) => {
+            expect(isInsideExcludedDirBelow(path, "/repo")).toBe(false);
         },
     );
+
+    it("keeps a file of a workspace below a dot-folder", () => {
+        expect(isInsideExcludedDirBelow("/home/u/.work/repo/a.bpmn", "/home/u/.work/repo")).toBe(
+            false,
+        );
+    });
+});
+
+describe("isExcludedDirBelow", () => {
+    it.each([
+        { folder: "/repo/node_modules", excluded: true },
+        { folder: "/repo/.history", excluded: true },
+        { folder: "/repo/web/.git/objects", excluded: true },
+        { folder: "/repo/models", excluded: false },
+        { folder: "/repo", excluded: false },
+        { folder: "/home/.work/repo", root: "/home/.work/repo", excluded: false },
+    ])("judges $folder excluded: $excluded", ({ folder, root = "/repo", excluded }) => {
+        expect(isExcludedDirBelow(folder, root)).toBe(excluded);
+    });
 });
 
 describe("excludedDirsGlob", () => {
@@ -92,6 +131,13 @@ describe("excludedDirsGlob", () => {
         { path: "builds/a.bpmn", excluded: false },
         { path: "src/my-build/a.bpmn", excluded: false },
         { path: "build.gradle", excluded: false },
+        { path: ".camunda/deployment-targets.json", excluded: true },
+        { path: ".camunda/code-link/src/order.bpmn.json", excluded: true },
+        { path: ".vscode/settings.json", excluded: true },
+        { path: "web/.history/forms/order_1.form", excluded: true },
+        { path: ".eslintrc.json", excluded: false },
+        { path: "forms/.order.form", excluded: false },
+        { path: "my.forms/order.form", excluded: false },
     ])("leaves out $path: $excluded", ({ path, excluded }) => {
         expect(globToRegExp(excludedDirsGlob()).test(path)).toBe(excluded);
     });

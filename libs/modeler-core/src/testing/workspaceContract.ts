@@ -259,6 +259,22 @@ export function describeWorkspaceContract(
                 ]);
             });
 
+            it("lists the files inside a dot-folder and dot-files, as VS Code does", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/order.bpmn`, "");
+                await workspace.writeFile(`${root}/.history/order_1.bpmn`, "");
+                await workspace.writeFile(`${root}/.draft.bpmn`, "");
+                fixture.openFolder(root);
+
+                const found = await workspace.findFiles("**/*.bpmn");
+
+                expect(found.sort()).toEqual([
+                    `${root}/.draft.bpmn`,
+                    `${root}/.history/order_1.bpmn`,
+                    `${root}/order.bpmn`,
+                ]);
+            });
+
             it("judges the exclude below each folder, so a folder inside another's build output keeps its files", async () => {
                 const { workspace, root } = fixture;
                 await workspace.writeFile(`${root}/proj/order.bpmn`, "");
