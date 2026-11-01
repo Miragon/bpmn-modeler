@@ -263,7 +263,8 @@ tree, so comments, JSDoc `import()` and strings never count, and marks an
 import type-only where TypeScript would elide it. It resolves a relative import
 through a fixed suffix list (`.ts`, `.tsx`, `/index.ts`, `/index.tsx`, then the
 exact path) and maps a package import to a workspace by its package name. It
-also finds import cycles, host reach, implemented interfaces and comments. Only
+also finds import cycles, host reach, implemented interfaces, port adapters
+outside their homes or imported from outside them, and comments. Only
 `sourceTree.ts` touches the file system; the rest are pure functions over
 source text. Each spec keeps its own classifier, since feature and layer layout
 differ per workspace.
