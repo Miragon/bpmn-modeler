@@ -734,7 +734,10 @@ chrome. The two overlap, so do **not** load both on a design-only page.
 `@miragon/bpmn-modeler/mode` is the View ↔ Design ↔ Implement session that owns the single live
 surface for a page and switches it between modes: a Design↔Implement change on a tagged model is a
 live `setMode` toggle (undo/selection/plane survive), anything else exports → destroys → recreates →
-restores the view state, with a post-destroy fallback so the page is never handle-less. It
+restores the view state, with a post-destroy fallback so the page is never handle-less. Before the
+destroy, a recreate delivers the outgoing surface's pending `onContentSaved` and waits for a returned
+promise, so an edit made just before the switch is saved; `session.destroy()` and a surface's own
+`destroy()` drop it. It
 value-imports **no** bpmn-js / Camunda code — **you inject the per-mode surface factories** — so it
 stays out of a viewer-only consumer's bundle.
 
@@ -800,7 +803,7 @@ viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no chip
 | `onSurfaceCreated`     | `(handle, mode) => void`           | After each factory returns, before `loadDiagram` — rebind per-instance subscriptions here. |
 | `onModeChanged`        | `(mode, transition) => void`       | Once per applied change; `transition` is `"toggle"` / `"recreate"` / `"fallback"`.         |
 | `onSwitchStateChanged` | `(busy: boolean) => void`          | Enters/leaves a recreate's handle-less window (drive `aria-busy` / `inert`).               |
-| `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate, once the outgoing surface's pending properties-panel input is applied and the diagram exported — flush pending host sync here. |
+| `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate, once the outgoing surface's pending properties-panel input is applied, the diagram exported and the surface's pending `onContentSaved` delivered — flush pending host sync here. |
 | `onError`              | `(error: unknown) => void`         | A switch failed (applying the pending properties-panel input, capture, export or `beforeDestroy`, and the post-destroy path). Fires **twice** when the fallback surface itself also fails, after which the session holds no live surface until the next `requestMode`. |
 
 ### `ModeSession`

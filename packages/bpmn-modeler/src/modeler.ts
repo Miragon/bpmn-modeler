@@ -132,6 +132,8 @@ export class BpmnModeler {
     // Reset on every init() so a re-entry starts from a clean disposal ledger.
     private store = new DisposableStore();
 
+    private deliverPendingContentSave: () => Promise<void> = () => Promise.resolve();
+
     /**
      * @param container The canvas host element (bpmn-js `container`).
      * @param options Per-instance config — see {@link CreateModelerOptions}.
@@ -285,7 +287,7 @@ export class BpmnModeler {
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
-            wireContentSaved({
+            this.deliverPendingContentSave = wireContentSaved({
                 store: this.store,
                 eventBus: this.core.service("eventBus"),
                 exportDiagram: () => this.exportDiagram(),
@@ -371,6 +373,11 @@ export class BpmnModeler {
     /** @internal See {@link PendingInputHandle.flushPendingInput}. */
     flushPendingInput(): void {
         this.core.flushPendingInput();
+    }
+
+    /** @internal See {@link PendingSaveHandle.flushContentSaved}. */
+    flushContentSaved(): Promise<void> {
+        return this.deliverPendingContentSave();
     }
 
     /**
