@@ -345,7 +345,7 @@ describe("fixRequirement", () => {
             fixRequirement(template, C8, {
                 kind: "binding",
                 binding: { type: "zeebe:userTask" },
-                label: "a zeebe:userTask property",
+                message: "This binding needs a zeebe:userTask property.",
             }),
         );
 

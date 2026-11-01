@@ -41,6 +41,7 @@ describe("schemaDiagnostics", () => {
                 severity: "error",
                 message:
                     'invalid property type "Bogus" for binding type "zeebe:input"; must be any of { String, Text, Hidden, Dropdown, Boolean, Number }',
+                verbatim: true,
             },
         ]);
     });
@@ -99,25 +100,29 @@ describe("ruleDiagnostics", () => {
             "a duplicate property id",
             c8Template([input({ id: "a" }), input({ id: "a" })]),
             ["properties", 1, "id"],
-            'Another property already has the id "a".',
+            'Another property already has the id "{id}".',
+            { id: "a" },
         ],
         [
             "a condition on a missing property",
             c8Template([input({ condition: { property: "nope", equals: "x" } })]),
             ["properties", 0, "condition", "property"],
-            'No property has the id "nope".',
+            'No property has the id "{id}".',
+            { id: "nope" },
         ],
         [
             "a condition on the property itself",
             c8Template([input({ id: "self", condition: { property: "self", equals: "x" } })]),
             ["properties", 0, "condition", "property"],
             "A property cannot depend on itself.",
+            undefined,
         ],
         [
             "a group that does not exist",
             c8Template([input({ group: "missing" })]),
             ["properties", 0, "group"],
-            'No group has the id "missing"; the property shows under "Custom properties".',
+            'No group has the id "{id}"; the property shows under "Custom properties".',
+            { id: "missing" },
         ],
         [
             "a Dropdown value that is not a choice",
@@ -126,6 +131,7 @@ describe("ruleDiagnostics", () => {
             ]),
             ["properties", 0, "value"],
             "The value must be one of the choices.",
+            undefined,
         ],
         [
             "a form with both a form id and a reference",
@@ -147,11 +153,15 @@ describe("ruleDiagnostics", () => {
             ),
             ["properties", 2, "binding", "property"],
             "A form is either a form id or an external reference, not both.",
+            undefined,
         ],
-    ])("reports %s", (_, template, path, message) => {
-        expect(ruleDiagnostics(template, C8)).toContainEqual(
-            expect.objectContaining({ path, message }),
+    ])("reports %s", (_, template, path, message, replacements) => {
+        const diagnostic = ruleDiagnostics(template, C8).find(
+            (candidate) => candidate.message === message,
         );
+
+        expect(diagnostic).toMatchObject({ path });
+        expect(diagnostic?.replacements).toEqual(replacements);
     });
 
     it("offers a fix for a binding's missing requirement", () => {
@@ -168,7 +178,8 @@ describe("ruleDiagnostics", () => {
         expect(diagnostics).toEqual([
             expect.objectContaining({
                 path: ["properties", 0, "binding", "type"],
-                message: "This binding needs the element type bpmn:UserTask.",
+                message: "This binding needs the element type {type}.",
+                replacements: { type: "bpmn:UserTask" },
                 fix: {
                     label: "Set the element type",
                     requirement: expect.objectContaining({ kind: "elementType" }),
@@ -177,6 +188,27 @@ describe("ruleDiagnostics", () => {
             expect.objectContaining({
                 message: "This binding needs a zeebe:userTask property.",
                 fix: { label: "Add it", requirement: expect.objectContaining({ kind: "binding" }) },
+            }),
+        ]);
+    });
+
+    it("names every element type a binding accepts, with their event definitions", () => {
+        const template = c8Template([
+            input({
+                type: "Hidden",
+                value: "m",
+                binding: { type: "bpmn:Message#property", name: "name" },
+            }),
+        ]);
+
+        expect(ruleDiagnostics(template, C8)).toEqual([
+            expect.objectContaining({
+                message: "This binding needs one of the element types {types}.",
+                replacements: {
+                    types: expect.stringContaining(
+                        "bpmn:IntermediateThrowEvent (bpmn:MessageEventDefinition), ",
+                    ),
+                },
             }),
         ]);
     });
@@ -211,8 +243,8 @@ describe("ruleDiagnostics", () => {
             {
                 path: ["properties", 0, "binding", "type"],
                 severity: "info",
-                message:
-                    "The builder does not edit zeebe:linkedResource bindings yet; edit this one in JSON.",
+                message: "The builder does not edit {binding} bindings yet; edit this one in JSON.",
+                replacements: { binding: "zeebe:linkedResource" },
             },
         ]);
     });

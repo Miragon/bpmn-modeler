@@ -155,8 +155,13 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
     const propertySettings = properties.map((property, index) =>
         propertyEntries(ctx, ids, properties, property, index),
     );
-    const placed = diagnosticsByEntry(state.diagnostics, ids);
-    const problems: Problem[] = state.diagnostics.map((diagnostic, index) => ({
+    const shown = state.diagnostics.map((diagnostic) =>
+        diagnostic.verbatim
+            ? diagnostic
+            : { ...diagnostic, message: translate(diagnostic.message, diagnostic.replacements) },
+    );
+    const placed = diagnosticsByEntry(shown, ids);
+    const problems: Problem[] = shown.map((diagnostic, index) => ({
         ...diagnostic,
         entryId: placed.entryIds[index],
         where: whereOf(diagnostic.path, template, translate),

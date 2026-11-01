@@ -21,7 +21,7 @@ const USER_TASK: Requirement = { kind: "elementType", oneOf: [{ value: "bpmn:Use
 const USER_TASK_BINDING: Requirement = {
     kind: "binding",
     binding: { type: "zeebe:userTask" },
-    label: "a zeebe:userTask property",
+    message: "This binding needs a zeebe:userTask property.",
 };
 
 /** Camunda 8 bindings the builder edits, the default for a new property first; `catalog.coverage.spec.ts` lists the rest. */
@@ -192,7 +192,7 @@ export const C8_CATALOG: EngineCatalog = {
                 {
                     kind: "binding",
                     binding: { type: "zeebe:calledElement", property: "processId" },
-                    label: "the called process id",
+                    message: "This binding needs the called process id.",
                 },
             ],
         },
@@ -217,12 +217,12 @@ export const C8_CATALOG: EngineCatalog = {
                 {
                     kind: "binding",
                     binding: { type: "zeebe:calledDecision", property: "decisionId" },
-                    label: "the decision id",
+                    message: "This binding needs the decision id.",
                 },
                 {
                     kind: "binding",
                     binding: { type: "zeebe:calledDecision", property: "resultVariable" },
-                    label: "the result variable",
+                    message: "This binding needs the result variable.",
                 },
             ],
         },
@@ -252,12 +252,12 @@ export const C8_CATALOG: EngineCatalog = {
                 {
                     kind: "binding",
                     binding: { type: "zeebe:script", property: "expression" },
-                    label: "the script expression",
+                    message: "This binding needs the script expression.",
                 },
                 {
                     kind: "binding",
                     binding: { type: "zeebe:script", property: "resultVariable" },
-                    label: "the result variable",
+                    message: "This binding needs the result variable.",
                 },
             ],
         },

@@ -72,7 +72,7 @@ describe("createTemplateBuilder", () => {
         const requirement = {
             kind: "binding" as const,
             binding: { type: "zeebe:userTask" },
-            label: "a zeebe:userTask property",
+            message: "This binding needs a zeebe:userTask property.",
         };
         builder.show(C8_TEMPLATE, {
             diagnostics: [
@@ -94,6 +94,47 @@ describe("createTemplateBuilder", () => {
         expect(builder.onEdit).toHaveBeenLastCalledWith(
             fixRequirement(C8_TEMPLATE, catalogFor("c8"), requirement),
         );
+    });
+
+    it("translates its own messages and shows the validator's as they are", () => {
+        const asked: string[] = [];
+        const german: Record<string, string> = {
+            'Another property already has the id "{id}".':
+                'Eine andere Eigenschaft hat bereits die ID "{id}".',
+        };
+        builder.destroy();
+        builder = mountBuilder({
+            translate: (text, replacements = {}) => {
+                asked.push(text);
+                return (german[text] ?? text).replace(/{(\w+)}/g, (_, key) => replacements[key]);
+            },
+        });
+        const validatorMessage = "must be any of { String, Text }";
+        builder.show(C8_TEMPLATE, {
+            diagnostics: [
+                {
+                    path: ["properties", 0, "id"],
+                    severity: "error",
+                    message: 'Another property already has the id "{id}".',
+                    replacements: { id: "mode" },
+                },
+                {
+                    path: ["properties", 1, "type"],
+                    severity: "error",
+                    message: validatorMessage,
+                    verbatim: true,
+                },
+            ],
+        });
+
+        expect(builder.entry("property-0-id")?.textContent).toContain(
+            'Eine andere Eigenschaft hat bereits die ID "mode".',
+        );
+        builder.click(builder.parent.querySelector(".etb-problems__chip"));
+        const listed = builder.parent.querySelector(".etb-problems__list")?.textContent;
+        expect(listed).toContain('Eine andere Eigenschaft hat bereits die ID "mode".');
+        expect(listed).toContain(validatorMessage);
+        expect(asked).not.toContain(validatorMessage);
     });
 
     it("shows a diagnostic at the field it concerns", () => {

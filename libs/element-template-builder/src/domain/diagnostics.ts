@@ -19,7 +19,11 @@ type Json = Record<string, unknown>;
 export interface Diagnostic {
     path: JsonPath;
     severity: "error" | "warning" | "info";
+    /** A text to translate, its `{placeholders}` filled from `replacements`. */
     message: string;
+    replacements?: Record<string, string>;
+    /** The validator's own English text, which no translation knows. */
+    verbatim?: true;
     /** A requirement the builder can meet in one step. */
     fix?: { label: string; requirement: Requirement };
 }
@@ -49,7 +53,7 @@ export function schemaDiagnostics(engine: Engine, template: unknown): Diagnostic
         const key = `${JSON.stringify(path)} ${error.message}`;
         if (!seen.has(key)) {
             seen.add(key);
-            diagnostics.push({ path, severity, message: error.message });
+            diagnostics.push({ path, severity, message: error.message, verbatim: true });
         }
     }
     return diagnostics;
@@ -75,14 +79,16 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
             diagnostics.push({
                 path: at("binding", "type"),
                 severity: "info",
-                message: `The builder does not edit ${binding.type} bindings yet; edit this one in JSON.`,
+                message: "The builder does not edit {binding} bindings yet; edit this one in JSON.",
+                replacements: { binding: binding.type },
             });
         }
         if (typeof property.id === "string" && ids.indexOf(property.id) < index) {
             diagnostics.push({
                 path: at("id"),
                 severity: "error",
-                message: `Another property already has the id "${property.id}".`,
+                message: 'Another property already has the id "{id}".',
+                replacements: { id: property.id },
             });
         }
         for (const { condition, path } of conditionsOf(property.condition)) {
@@ -100,7 +106,8 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
                 diagnostics.push({
                     path: at("condition", ...path, "property"),
                     severity: "error",
-                    message: `No property has the id "${target}".`,
+                    message: 'No property has the id "{id}".',
+                    replacements: { id: target },
                 });
             }
         }
@@ -108,7 +115,9 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
             diagnostics.push({
                 path: at("group"),
                 severity: "warning",
-                message: `No group has the id "${property.group}"; the property shows under "Custom properties".`,
+                message:
+                    'No group has the id "{id}"; the property shows under "Custom properties".',
+                replacements: { id: property.group },
             });
         }
         if (property.type === "Dropdown" && property.value !== undefined) {
@@ -142,19 +151,23 @@ function requirementDiagnostic(path: JsonPath, requirement: Requirement): Diagno
         return {
             path,
             severity: "error",
-            message: `This binding needs ${requirement.label}.`,
+            message: requirement.message,
             fix: { label: "Add it", requirement },
         };
     }
     const choices = requirement.oneOf.map(describeElementType);
-    const needed =
-        choices.length === 1
-            ? `the element type ${choices[0]}`
-            : `one of the element types ${choices.join(", ")}`;
     return {
         path,
         severity: "error",
-        message: `This binding needs ${needed}.`,
+        ...(choices.length === 1
+            ? {
+                  message: "This binding needs the element type {type}.",
+                  replacements: { type: choices[0] },
+              }
+            : {
+                  message: "This binding needs one of the element types {types}.",
+                  replacements: { types: choices.join(", ") },
+              }),
         fix: { label: "Set the element type", requirement },
     };
 }
@@ -178,7 +191,7 @@ function meets(template: Json, properties: unknown[], requirement: Requirement):
 }
 
 function describeElementType(choice: ElementTypeChoice): string {
-    return choice.eventDefinition ? `${choice.value} with ${choice.eventDefinition}` : choice.value;
+    return choice.eventDefinition ? `${choice.value} (${choice.eventDefinition})` : choice.value;
 }
 
 /** A condition and its path inside `condition`: itself, or each of `allMatch`. */
