@@ -286,7 +286,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                         ? translate("No groups yet.")
                         : translate("No groups match your search.")
                 }
-                addLabel={translate("Add group")}
+                addLabel={translate("Add Group")}
                 onAdd={
                     editable
                         ? () => {
@@ -358,7 +358,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                         ? translate("No properties yet.")
                         : translate("No properties match your search.")
                 }
-                addLabel={translate("Add property")}
+                addLabel={translate("Add Property")}
                 onAdd={
                     editable
                         ? () => {
@@ -815,7 +815,7 @@ function propertyEntries(
                 description: "The kind of field users see.",
                 value: type,
                 options: withCurrent(types, type).map(
-                    (candidate) => [candidate, translate(candidate)] as const,
+                    (candidate) => [candidate, candidate] as const,
                 ),
                 onChange: (value) => ctx.edit(changePropertyType(template, catalog, index, value)),
             }),

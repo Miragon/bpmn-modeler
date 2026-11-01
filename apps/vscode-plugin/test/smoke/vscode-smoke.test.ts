@@ -378,7 +378,7 @@ describe("the packaged extension in a real VS Code", () => {
             .locator("input, textarea")
             .fill("Written by the smoke test");
         await webview.getByRole("tab", { name: /^Properties/ }).click();
-        await webview.getByRole("button", { name: "Add property" }).click();
+        await webview.getByRole("button", { name: "Add Property" }).click();
         const label = webview.locator('[data-entry-id="property-0-label"] input');
         await expect.poll(() => label.inputValue(), { timeout: TIMEOUT_MS }).toBe("New property");
         await label.fill("Order number");

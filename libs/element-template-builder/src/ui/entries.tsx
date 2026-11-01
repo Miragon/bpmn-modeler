@@ -128,7 +128,7 @@ export function ChoicesEntry(props: ChoicesEntryProps) {
                 disabled={disabled}
                 onClick={onAdd}
             >
-                {translate("Add choice")}
+                {translate("Add Choice")}
             </button>
         </SettingRow>
     );
@@ -150,10 +150,10 @@ export function ConditionEntry(props: ConditionEntryProps) {
     const update = (index: number, change: Partial<ConditionRow>) =>
         onChange(rows.map((row, at) => (at === index ? { ...row, ...change } : row)));
     const operatorLabels: Record<ConditionOperator, string> = {
-        equals: translate("equals"),
-        oneOf: translate("is one of"),
-        isActive: translate("is shown"),
-        isEmpty: translate("is empty"),
+        equals: translate("Equals"),
+        oneOf: translate("Is one of"),
+        isActive: translate("Is shown"),
+        isEmpty: translate("Is empty"),
     };
     return (
         <SettingRow {...props}>
@@ -210,8 +210,8 @@ export function ConditionEntry(props: ConditionEntryProps) {
                                     })
                                 }
                             >
-                                <option value="true">{translate("yes")}</option>
-                                <option value="false">{translate("no")}</option>
+                                <option value="true">{translate("Yes")}</option>
+                                <option value="false">{translate("No")}</option>
                             </select>
                         ) : (
                             <input
@@ -253,7 +253,7 @@ export function ConditionEntry(props: ConditionEntryProps) {
                     ])
                 }
             >
-                {translate("Add condition")}
+                {translate("Add Condition")}
             </button>
         </SettingRow>
     );

@@ -40,11 +40,11 @@ The **preview** on the right shows the properties panel the template produces. D
 
 **Properties** are the fields users fill in:
 
-- **Add property**, and the buttons next to a property's name to move it up or down, duplicate it or delete it.
+- **Add Property**, and the buttons next to a property's name to move it up or down, duplicate it or delete it.
 - **Binding** decides where the value is written, for example an input mapping, a task header or a BPMN attribute. The binding's own fields follow, and switching the binding removes only what the new one does not allow.
 - **Type** is the kind of field users see: String, Text, Boolean, Number, Dropdown or Hidden. A Dropdown gets its **Choices** here.
 - **Value** is what new elements start with; for a Hidden property it is always written.
-- Options such as **Editable**, **Required**, minimum and maximum length, a **Pattern** with its message and a **Placeholder**. On Camunda 8 also **FEEL**, **Optional**, **Tooltip**, the property's **Id** and **Show only when**: conditions on other properties (*equals*, *is one of*, *is shown*, *is empty*) that must all hold for the field to show.
+- Options such as **Editable**, **Required**, minimum and maximum length, a **Pattern** with its message and a **Placeholder**. On Camunda 8 also **FEEL**, **Optional**, **Tooltip**, the property's **Id** and **Show only when**: conditions on other properties (*Equals*, *Is one of*, *Is shown*, *Is empty*) that must all hold for the field to show.
 
 Keys the editor does not have a field for stay as they are; a note under the property names them. A property with a binding the editor does not edit yet keeps its binding and can be edited in the JSON.
 

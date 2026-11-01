@@ -60,11 +60,18 @@ const norm = (s) =>
         .trim()
         .replace(/[.\s]+$/, "");
 
-// The needed-key set is the union of the BPMN and DMN harvests: the C7 modeler
-// (harvest-drain.js) and the dmn-js views (harvest-drain-dmn.js) request
-// disjoint strings, and both must survive pruning.
+// The needed-key set is the union of the harvests: the C7 modeler
+// (harvest-drain.js), the dmn-js views (harvest-drain-dmn.js) and the element
+// template editor (harvest-drain-template-editor.js) request mostly disjoint
+// strings, and all must survive pruning.
 const readKeys = (file) => JSON.parse(readFileSync(join(HERE, file), "utf8")).keys;
-const harvested = [...new Set([...readKeys("harvested.json"), ...readKeys("harvested-dmn.json")])];
+const harvested = [
+    ...new Set([
+        ...readKeys("harvested.json"),
+        ...readKeys("harvested-dmn.json"),
+        ...readKeys("harvested-template-editor.json"),
+    ]),
+];
 const harvestedByNorm = new Set(harvested.map(norm));
 const sharedByNorm = new Set(Object.keys(shared.en).map(norm));
 

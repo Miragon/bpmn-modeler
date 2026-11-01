@@ -227,7 +227,17 @@
     gap: 10px;
     width: 200px;
     padding: 10px 8px 16px 20px;
-    overflow-y: auto;
+    overflow: hidden auto;
+}
+
+/* A longer translation wraps instead of pushing the index wider than its column. */
+.etb-builder .etb-index > .etb-button {
+    max-width: 100%;
+    height: auto;
+    min-height: 26px;
+    padding-block: 3px;
+    white-space: normal;
+    text-align: start;
 }
 
 .etb-builder .etb-index__list {

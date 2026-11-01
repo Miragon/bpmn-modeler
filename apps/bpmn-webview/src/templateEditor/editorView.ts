@@ -18,6 +18,8 @@ export interface EditorView {
     onSelect(listener: (key: string) => void): void;
     onCreate(listener: (engine: Engine, elementType: string, name: string) => void): void;
     onChooseEngine(listener: (engine: Engine) => void): void;
+    /** Sets the page's own texts again, in the language now chosen. */
+    relabel(): void;
 }
 
 /** The builder, the new-template wizard, the engine choice, or a note while nothing can be built. */
@@ -41,12 +43,19 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
         return node;
     };
 
+    const relabels: (() => void)[] = [];
+    // The language usually arrives after the page is built, so each text can be set again.
+    const label = (apply: () => void) => {
+        apply();
+        relabels.push(apply);
+    };
+
     const container = element("div", "template-editor");
     const toolbar = element("div", "template-editor__toolbar");
     const engineBadge = element("span", "template-editor__engine");
     engineBadge.hidden = true;
     const choice = element("select", "template-editor__choice");
-    choice.setAttribute("aria-label", translate("Template"));
+    label(() => choice.setAttribute("aria-label", translate("Template")));
     choice.hidden = true;
     const messages = element("div", "template-editor__messages");
     messages.setAttribute("role", "status");
@@ -57,28 +66,28 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
     resizer.id = "js-panel-resizer";
     const previewPane = element("aside", "properties-panel-parent template-editor__preview");
     previewPane.id = "js-properties-panel";
-    previewPane.setAttribute("aria-label", translate("Preview"));
+    label(() => previewPane.setAttribute("aria-label", translate("Preview")));
     const previewPanel = element("div", "template-editor__preview-mount");
-    const previewTitle = element("div", "template-editor__preview-title", translate("Preview"));
-    previewTitle.title = translate(
-        "The template as the properties panel shows it. Values entered here are not saved.",
-    );
+    const previewTitle = element("div", "template-editor__preview-title");
+    label(() => {
+        previewTitle.textContent = translate("Preview");
+        previewTitle.title = translate(
+            "The template as the properties panel shows it. Values entered here are not saved.",
+        );
+    });
     previewPane.append(previewTitle, previewPanel);
     const main = element("main", "template-editor__main");
     const builderRoot = element("div", "template-editor__builder");
 
     const wizard = element("form", "template-editor__wizard");
-    const wizardTitle = element(
-        "h2",
-        "template-editor__wizard-title",
-        translate("Create an element template"),
-    );
-    const wizardLead = element(
-        "p",
-        "template-editor__lead",
-        translate(
-            "Pick the engine and the element the template is for. You can change both later.",
-        ),
+    const wizardTitle = element("h2", "template-editor__wizard-title");
+    label(() => (wizardTitle.textContent = translate("Create an element template")));
+    const wizardLead = element("p", "template-editor__lead");
+    label(
+        () =>
+            (wizardLead.textContent = translate(
+                "Pick the engine and the element the template is for. You can change both later.",
+            )),
     );
     const engineSelect = element("select", "template-editor__wizard-engine");
     for (const engine of ENGINES) {
@@ -89,24 +98,23 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
     const elementTypeSelect = element("select", "template-editor__wizard-element-type");
     const nameInput = element("input", "template-editor__wizard-name");
     nameInput.required = true;
-    nameInput.placeholder = translate("For example: Send mail");
-    const createButton = element(
-        "button",
-        "template-editor__wizard-create",
-        translate("Create template"),
-    );
+    label(() => (nameInput.placeholder = translate("For example: Send mail")));
+    const createButton = element("button", "template-editor__wizard-create");
+    label(() => (createButton.textContent = translate("Create template")));
     createButton.type = "submit";
-    const labelled = (text: string, field: HTMLElement) => {
-        const label = element("label", "template-editor__wizard-field");
-        label.append(element("span", "", text), field);
-        return label;
+    const labelled = (key: string, field: HTMLElement) => {
+        const caption = element("span", "");
+        label(() => (caption.textContent = translate(key)));
+        const wrapper = element("label", "template-editor__wizard-field");
+        wrapper.append(caption, field);
+        return wrapper;
     };
     wizard.append(
         wizardTitle,
         wizardLead,
-        labelled(translate("Engine"), engineSelect),
-        labelled(translate("Applies to"), elementTypeSelect),
-        labelled(translate("Name"), nameInput),
+        labelled("Engine", engineSelect),
+        labelled("Applies to", elementTypeSelect),
+        labelled("Name", nameInput),
         createButton,
     );
     const fillElementTypes = () => {
@@ -135,25 +143,22 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
             return button;
         }),
     );
-    engineChoice.append(
-        element(
-            "h2",
-            "template-editor__wizard-title",
-            translate("Which engine is this template for?"),
-        ),
-        element(
-            "p",
-            "template-editor__lead",
-            translate(
+    const engineTitle = element("h2", "template-editor__wizard-title");
+    label(() => (engineTitle.textContent = translate("Which engine is this template for?")));
+    const engineLead = element("p", "template-editor__lead");
+    label(
+        () =>
+            (engineLead.textContent = translate(
                 'The engine decides which bindings the template can use. Your choice is saved as its "$schema".',
-            ),
-        ),
-        engineButtons,
+            )),
     );
-    const placeholder = element(
-        "p",
-        "template-editor__placeholder",
-        translate("The builder opens once the file holds a valid element template."),
+    engineChoice.append(engineTitle, engineLead, engineButtons);
+    const placeholder = element("p", "template-editor__placeholder");
+    label(
+        () =>
+            (placeholder.textContent = translate(
+                "The builder opens once the file holds a valid element template.",
+            )),
     );
 
     // Nothing shows until the first file arrives.
@@ -219,6 +224,9 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
                     listener(engineSelect.value as Engine, elementTypeSelect.value, name);
                 }
             });
+        },
+        relabel() {
+            relabels.forEach((apply) => apply());
         },
         onChooseEngine(listener) {
             engineChoice.addEventListener("click", (event) => {

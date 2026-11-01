@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     setLocale: vi.fn(),
     builderStates: [] as TemplateBuilderState[],
     onEdit: undefined as ((edits: TemplateEdit[]) => void) | undefined,
+    translate: undefined as ((text: string) => string) | undefined,
 }));
 
 vi.mock("@miragon/bpmn-modeler", () => ({
@@ -44,9 +45,13 @@ vi.mock("@miragon/bpmn-modeler-element-template-builder", async (importOriginal)
     ...(await importOriginal<typeof import("@miragon/bpmn-modeler-element-template-builder")>()),
     createTemplateBuilder: (
         _parent: HTMLElement,
-        { onEdit }: { onEdit: (edits: TemplateEdit[]) => void },
+        {
+            onEdit,
+            translate,
+        }: { onEdit: (edits: TemplateEdit[]) => void; translate: (text: string) => string },
     ) => {
         mocks.onEdit = onEdit;
+        mocks.translate = translate;
         return {
             show: (state: TemplateBuilderState) => mocks.builderStates.push(state),
             destroy: vi.fn(),
@@ -55,6 +60,8 @@ vi.mock("@miragon/bpmn-modeler-element-template-builder", async (importOriginal)
 }));
 
 vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({ extras: {} }));
+
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { bootstrapTemplateEditor } from "./bootstrap";
 
@@ -118,6 +125,7 @@ afterEach(() => {
     vi.unstubAllGlobals();
     dispose?.();
     dispose = undefined;
+    i18n.setLanguage("en");
     vi.useRealTimers();
 });
 
@@ -380,6 +388,27 @@ describe("bootstrapTemplateEditor", () => {
         expect(mocks.setLocale.mock.calls).toEqual([["de"], ["fr"]]);
     });
 
+    it("relabels the page and the builder when the language changes", async () => {
+        await start();
+        receive(JSON.stringify([STATUS, MAIL]));
+        await vi.advanceTimersByTimeAsync(0);
+        const shown = mocks.builderStates.length;
+
+        i18n.setLanguage("de");
+
+        expect(choice().getAttribute("aria-label")).toBe("Vorlage");
+        expect(mocks.builderStates.length).toBeGreaterThan(shown);
+    });
+
+    it("shows nothing before the first file, even when its language comes first", async () => {
+        await start();
+
+        i18n.setLanguage("de");
+
+        expect(query(".template-editor__wizard")?.hidden).toBe(true);
+        expect(mocks.builderStates).toEqual([]);
+    });
+
     it("follows the host's dark theme", async () => {
         await start();
         expect(mocks.setTheme).toHaveBeenLastCalledWith("light");
@@ -388,6 +417,22 @@ describe("bootstrapTemplateEditor", () => {
         await vi.advanceTimersByTimeAsync(0);
 
         expect(mocks.setTheme).toHaveBeenLastCalledWith("dark");
+    });
+
+    it("hands every text it translates, the builder's too, to the page's recorder", async () => {
+        const translated: string[] = [];
+        dispose = await bootstrapTemplateEditor(
+            { postMessage: (message) => posted.push(message) },
+            { onTranslate: (text) => translated.push(text) },
+        );
+
+        receive("{");
+        await vi.advanceTimersByTimeAsync(0);
+        mocks.translate?.("Add Property");
+
+        expect(translated).toEqual(
+            expect.arrayContaining(["Preview", "The JSON is invalid: {message}", "Add Property"]),
+        );
     });
 
     it("needs the #app root", async () => {

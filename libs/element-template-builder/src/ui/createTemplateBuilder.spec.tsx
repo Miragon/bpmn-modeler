@@ -63,7 +63,7 @@ describe("createTemplateBuilder", () => {
     it("adds a property", () => {
         builder.show(C8_TEMPLATE);
 
-        builder.click(builder.buttonLabelled("Add property"));
+        builder.click(builder.buttonLabelled("Add Property"));
 
         expect(builder.onEdit).toHaveBeenLastCalledWith(addProperty(C8_TEMPLATE, catalogFor("c8")));
     });
@@ -152,7 +152,7 @@ describe("createTemplateBuilder", () => {
         builder.show(C8_TEMPLATE, { editable: false });
 
         expect(builder.control("property-0-label")?.disabled).toBe(true);
-        expect(builder.buttonLabelled("Add property")).toBeUndefined();
+        expect(builder.buttonLabelled("Add Property")).toBeUndefined();
         expect(builder.action("Delete property")).toBeNull();
         builder.tab("Template");
         expect(builder.control("template-name")?.disabled).toBe(true);
@@ -162,7 +162,7 @@ describe("createTemplateBuilder", () => {
         builder.show(C8_TEMPLATE);
         builder.pick(1);
 
-        builder.click(builder.buttonLabelled("Add condition"));
+        builder.click(builder.buttonLabelled("Add Condition"));
 
         expect(builder.onEdit).toHaveBeenLastCalledWith([
             {

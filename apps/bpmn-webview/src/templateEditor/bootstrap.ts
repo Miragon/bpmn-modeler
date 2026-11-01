@@ -31,6 +31,7 @@ import { type EditorMain, mountEditorView } from "./editorView";
 import { readTemplateFile, type TemplateFileState } from "./templateFile";
 
 type EditorHost = Pick<HostApi<unknown, Command>, "postMessage">;
+type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 type TemplateEditorHostMessages = {
     ElementTemplateFileQuery: MessageOfType<"ElementTemplateFileQuery">;
@@ -45,11 +46,20 @@ const EDIT_DEBOUNCE_MS = 300;
 // Below this the builder needs the room, e.g. beside the JSON editor; the toggle opens the preview.
 const NARROW_EDITOR_WIDTH = 640;
 
-const translate = (template: string, replacements?: Record<string, string>) =>
-    i18n.translate(template, replacements);
+export interface TemplateEditorOptions {
+    /** Sees every text the page translates; the dev page records them for the i18n overlay. */
+    onTranslate?: (template: string) => void;
+}
 
 /** Resolves to a disposer that stops listening to the host. */
-export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => void> {
+export async function bootstrapTemplateEditor(
+    host: EditorHost,
+    { onTranslate }: TemplateEditorOptions = {},
+): Promise<() => void> {
+    const translate: Translate = (template, replacements) => {
+        onTranslate?.(template);
+        return i18n.translate(template, replacements);
+    };
     i18n.extend(i18nExtras);
     const root = document.getElementById("app");
     if (!root) {
@@ -81,6 +91,13 @@ export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => v
     let pendingCheck: ReturnType<typeof setTimeout> | undefined;
 
     const session = new TemplateDocumentSession(host, (_text, origin) => refresh(origin));
+    const stopRelabelling = i18n.onChange(() => {
+        view.relabel();
+        // The first file brings the language just before its text; it renders itself.
+        if (session.hasDocument) {
+            refresh("select");
+        }
+    });
     const builder = createTemplateBuilder(view.builderRoot, {
         translate,
         onEdit: (edits: TemplateEdit[]) => {
@@ -109,7 +126,7 @@ export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => v
         view.showPreview(main === "builder");
         if (state.kind !== "template") {
             view.showEngine(undefined);
-            view.showMessages(messagesFor(state));
+            view.showMessages(messagesFor(state, translate));
             if (lastShown) {
                 builder.show({ ...lastShown, editable: false });
             }
@@ -189,6 +206,7 @@ export async function bootstrapTemplateEditor(host: EditorHost): Promise<() => v
     document.addEventListener("visibilitychange", onVisibilityChange);
     host.postMessage(new GetElementTemplateFileCommand());
     return () => {
+        stopRelabelling();
         window.removeEventListener("message", onMessage);
         document.removeEventListener("visibilitychange", onVisibilityChange);
         session.dispose();
@@ -214,7 +232,10 @@ function mainFor(state: TemplateFileState, shownBefore: boolean): EditorMain {
     }
 }
 
-function messagesFor(state: Exclude<TemplateFileState, { kind: "template" }>): string[] {
+function messagesFor(
+    state: Exclude<TemplateFileState, { kind: "template" }>,
+    translate: Translate,
+): string[] {
     switch (state.kind) {
         case "empty":
             return [];
