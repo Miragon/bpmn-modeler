@@ -32,13 +32,19 @@ const { watchSpy, closeSpy, chokidarListeners, readdirSpy, fsEvents, statSpy } =
 
 vi.mock("chokidar", () => ({ watch: watchSpy }));
 
-// A UNC root cannot be read on the macOS/Linux CI, so `fs.readdir` is stubbed;
-// the macOS recursive watch is stubbed so its events play on every OS.
+// A UNC root cannot be read or resolved on the macOS/Linux CI, so `fs.readdir`
+// and `fs.realpath` are stubbed; the macOS recursive watch is stubbed so its
+// events play on every OS.
 vi.mock("node:fs", async (importOriginal) => {
     const actual = await importOriginal<typeof import("node:fs")>();
     return {
         ...actual,
-        promises: { ...actual.promises, readdir: readdirSpy, stat: statSpy },
+        promises: {
+            ...actual.promises,
+            readdir: readdirSpy,
+            realpath: async (path: string) => path,
+            stat: statSpy,
+        },
         watch: (_root: string, _options: unknown, listener: typeof fsEvents.listener) => {
             fsEvents.listener = listener;
             return { close: closeSpy };
@@ -163,6 +169,7 @@ describe("NodeWorkspace path spelling", () => {
         const entry = (name: string, isFolder: boolean) => ({
             name,
             isDirectory: () => isFolder,
+            isSymbolicLink: () => false,
         });
         readdirSpy.mockImplementation(async (path: string) =>
             path.endsWith(`/${folder}`) ? [entry(file, false)] : [entry(folder, true)],

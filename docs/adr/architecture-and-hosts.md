@@ -400,12 +400,18 @@ file's path below its workspace folder. VS Code hands it to ripgrep, and the
 bridge walks with `readdir` and never reads a folder the exclude covers whole
 (`coveredFolderRegExp`), so both hosts prune the same folders and list the
 same files; `testing/workspaceContract.ts` runs the same rows against the
-bridge adapter and the in-memory workspace. The core's fs-walk fallback and
-`watchedChangeOf` skip the same folders, so a live update agrees with the
-listing. Dot-folders are left out on every host because VS Code's ripgrep
-searched them and the bridge's former `fs.glob` did not; none of these
-listings needs a file in one, as element templates, targets, payloads and
-code-link maps are read by path. The pickers offer every match with no cap.
+bridge adapter and the in-memory workspace. On both hosts `findFiles` follows
+a symlinked folder, as ripgrep does under VS Code's default
+`search.followSymlinks`. The bridge prunes an excluded name before it follows
+a link, so a `node_modules` link is never read, does not follow a link back
+to a folder the walk came through, and skips a link it cannot resolve. These
+rows run in `nodeAdapters.spec.ts` only, as the in-memory workspace has no
+links. The core's fs-walk fallback and `watchedChangeOf` skip the same
+folders, so a live update agrees with the listing. Dot-folders are left out on
+every host because VS Code's ripgrep searched them and the bridge's former
+`fs.glob` did not; none of these listings needs a file in one, as element
+templates, targets, payloads and code-link maps are read by path. The pickers
+offer every match with no cap.
 
 One prompt stays outside `PickerPort`: the template marketplace asks for a
 personal access token in a masked input, which a chooser cannot show. Its port

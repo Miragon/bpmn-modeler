@@ -447,7 +447,7 @@ export class NodeWorkspace implements WorkspacePort {
      * `VsCodeWorkspace.findFiles`: `exclude` drops matches.
      *
      * Walks with `readdir` rather than `fs.glob`: under Bun, `fs.glob` reads
-     * every folder an exclude covers and follows symlinked folders.
+     * every folder an exclude covers.
      */
     async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
         const included = globToRegExp(pattern);
@@ -471,51 +471,103 @@ export class NodeWorkspace implements WorkspacePort {
     }
 }
 
-// A folder can also vanish between its parent's listing and its own.
-const UNREADABLE_FOLDER_CODES = new Set(["EACCES", "EPERM", "ENOENT", "ENOTDIR"]);
+// A folder can vanish between its parent's listing and its own; a link can
+// dangle or point at itself.
+const UNREADABLE_CODES = new Set(["EACCES", "EPERM", "ENOENT", "ENOTDIR", "ELOOP"]);
 
-async function entriesOrNoneIfUnreadable(folder: string): Promise<Dirent[]> {
+async function noneIfUnreadable<T>(read: () => Promise<T>, none: T): Promise<T> {
     try {
-        return await fs.readdir(folder, { withFileTypes: true });
+        return await read();
     } catch (error) {
-        if (UNREADABLE_FOLDER_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
-            return [];
+        if (UNREADABLE_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+            return none;
         }
         throw error;
     }
 }
 
+interface WalkedFolder {
+    readonly relative: string;
+    readonly real: string;
+    readonly parent?: WalkedFolder;
+}
+
+type WalkStep =
+    | { readonly kind: "file"; readonly relative: string }
+    | { readonly kind: "folder"; readonly folder: WalkedFolder }
+    | { readonly kind: "skip" };
+
+const SKIP: WalkStep = { kind: "skip" };
+
 /**
  * The `/`-separated paths below `rootDir` of all but its folders, reading each
- * level's folders in parallel and skipping one it cannot read. A symlink
- * counts as a file, so a symlinked folder is never entered.
+ * level's folders in parallel and skipping one it cannot read. Follows a
+ * symlinked folder, as VS Code does, unless the walk is already inside it.
  */
 async function listFilesBelow(
     rootDir: string,
     skipsFolder: (relativeFolder: string) => boolean,
 ): Promise<string[]> {
+    const rootReal = await noneIfUnreadable(() => fs.realpath(rootDir), undefined);
+    if (rootReal === undefined) return [];
     const files: string[] = [];
-    let level = [""];
+    let level: WalkedFolder[] = [{ relative: "", real: rootReal }];
     while (level.length > 0) {
-        const listings = await Promise.all(
-            level.map(async (folder) => ({
-                folder,
-                entries: await entriesOrNoneIfUnreadable(joinWorkspacePath(rootDir, folder)),
-            })),
+        const steps = await Promise.all(
+            level.map((folder) => walkFolder(rootDir, folder, skipsFolder)),
         );
         level = [];
-        for (const { folder, entries } of listings) {
-            for (const entry of entries) {
-                const relative = folder === "" ? entry.name : `${folder}/${entry.name}`;
-                if (!entry.isDirectory()) {
-                    files.push(relative);
-                } else if (!skipsFolder(relative)) {
-                    level.push(relative);
-                }
-            }
+        for (const step of steps.flat()) {
+            if (step.kind === "file") files.push(step.relative);
+            else if (step.kind === "folder") level.push(step.folder);
         }
     }
     return files;
+}
+
+async function walkFolder(
+    rootDir: string,
+    folder: WalkedFolder,
+    skipsFolder: (relativeFolder: string) => boolean,
+): Promise<WalkStep[]> {
+    const path = joinWorkspacePath(rootDir, folder.relative);
+    const entries = await noneIfUnreadable(
+        () => fs.readdir(path, { withFileTypes: true }),
+        [] as Dirent[],
+    );
+    return Promise.all(entries.map((entry) => walkEntry(rootDir, folder, entry, skipsFolder)));
+}
+
+async function walkEntry(
+    rootDir: string,
+    parent: WalkedFolder,
+    entry: Dirent,
+    skipsFolder: (relativeFolder: string) => boolean,
+): Promise<WalkStep> {
+    const relative = parent.relative === "" ? entry.name : `${parent.relative}/${entry.name}`;
+    const path = joinWorkspacePath(rootDir, relative);
+    const isLink = entry.isSymbolicLink();
+    const target = isLink ? await noneIfUnreadable(() => fs.stat(path), undefined) : entry;
+    if (target === undefined) return SKIP;
+    if (!target.isDirectory()) return { kind: "file", relative };
+    if (skipsFolder(relative)) return SKIP;
+    if (!isLink) {
+        return {
+            kind: "folder",
+            folder: { relative, real: join(parent.real, entry.name), parent },
+        };
+    }
+    const real = await noneIfUnreadable(() => fs.realpath(path), undefined);
+    // A link back to a folder the walk came through would loop; ripgrep stops there too.
+    if (real === undefined || isOnPathTo(parent, real)) return SKIP;
+    return { kind: "folder", folder: { relative, real, parent } };
+}
+
+function isOnPathTo(folder: WalkedFolder, real: string): boolean {
+    for (let current: WalkedFolder | undefined = folder; current; current = current.parent) {
+        if (current.real === real) return true;
+    }
+    return false;
 }
 
 /**
