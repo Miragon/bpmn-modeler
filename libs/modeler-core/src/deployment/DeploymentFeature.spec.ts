@@ -480,19 +480,20 @@ describe("DeploymentFeature command failures", () => {
         expect(host.notifier.errors).toEqual(["Deployment command failed\ntargets file is locked"]);
     });
 
+    const basicTarget = new DeploymentTarget(
+        "dev",
+        "c7",
+        "http://localhost:8080/engine-rest",
+        "",
+        "basic",
+        "",
+        "",
+    );
+    const orderXml = '<bpmn:process id="order-process"/>';
+
     /** The order process, focused, with an active basic-auth target; Deploy Files picks two files. */
     async function focusOnABasicAuthTarget() {
         const http = new RecordingEngineHttp();
-        const basicTarget = new DeploymentTarget(
-            "dev",
-            "c7",
-            "http://localhost:8080/engine-rest",
-            "",
-            "basic",
-            "",
-            "",
-        );
-        const orderXml = '<bpmn:process id="order-process"/>';
         const { host, feature } = createFeature(
             { deployableFiles: [ORDER_PROCESS, INVOICE_PROCESS] },
             [basicTarget],
@@ -554,6 +555,43 @@ describe("DeploymentFeature command failures", () => {
         expect(http.deployments).toEqual([]);
         expect(host.notifier.transcript()).toBe("");
     });
+
+    /** No active target yet: the picker answers "dev", then the keychain read for it rejects. */
+    async function pickABasicAuthTargetWhileTheSecretStoreRejects(rejection: Error) {
+        const http = new RecordingEngineHttp();
+        const { host, feature } = createFeature(
+            { deploymentTarget: "dev" },
+            [basicTarget],
+            { [ORDER_PROCESS]: orderXml },
+            http,
+        );
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: orderXml });
+        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(rejection);
+        const { posted } = attach(feature, true);
+        return { host, feature, http, posted };
+    }
+
+    it.each([
+        { failure: "the user cancels the keychain prompt", rejection: new UserCancelledError() },
+        {
+            failure: "the secret store cannot be read",
+            rejection: new Error("The OS keyring is not available."),
+        },
+    ])(
+        "shows the target Deploy Diagram picked in the open panel when $failure afterwards",
+        async ({ rejection }) => {
+            const { host, feature, http, posted } =
+                await pickABasicAuthTargetWhileTheSecretStoreRejects(rejection);
+
+            await feature.deployActive();
+
+            expect(http.deployments).toEqual([]);
+            expect(targetListsIn(posted).at(-1)).toEqual(
+                expect.objectContaining({ activeTargetName: "dev", documentDir: "/ws/src" }),
+            );
+            expect(host.statusBar.views.deploymentTarget?.text).toBe("dev");
+        },
+    );
 
     it.each([
         { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
