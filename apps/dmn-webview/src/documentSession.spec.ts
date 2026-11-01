@@ -94,7 +94,9 @@ describe("DmnDocumentSession input an editor still holds", () => {
 
         await context.session.respondToFlush(new FlushDocumentQuery(4));
 
-        expect(flushReplies(context.posted)).toEqual([new DocumentFlushedCommand(4)]);
+        expect(flushReplies(context.posted)).toEqual([
+            new DocumentFlushedCommand(4, undefined, "clean", 6),
+        ]);
         expect(context.modeler.flushPendingInput).not.toHaveBeenCalled();
     });
 

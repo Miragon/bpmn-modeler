@@ -459,6 +459,20 @@ Accepted residual: a sync the page posted before the host asked, whose core
 write has not reached the EDT yet, lands after the save; and a save of one
 Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
 flush.
+Before the standalone app shuts down or moves a diagram into or out of a
+secondary window (which reloads the webview), the Theia frontend in
+`libs/standalone-extension` flushes the page into Theia's text model itself,
+past the core. Every `clean` and `host-updated` reply carries the revision the
+page represents; the core and IntelliJ read a reply's revision only on a
+`flushed` export, so the field is additive. The frontend writes a `flushed`
+export, and nothing for `host-updated`. For `clean` or `unavailable` it falls
+back to the last sync it saw, once the text model has not taken it within
+500 ms, unless the reply's revision is newer than the sync's: the page has
+then imported an outside change newer than the document its sync was made
+against, and the host document already holds it. `decideFlushWrite` holds this rule. Accepted residual: a
+`flushed` export that races a host update still on its way to the page is
+written without a revision check; only a flush through the core's
+`PendingEditsFlush` would close that.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and
