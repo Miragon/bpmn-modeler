@@ -37,6 +37,14 @@ const ESCALATING_CONFIG = {
 };
 const ESCALATING_RAW = JSON.stringify(ESCALATING_CONFIG);
 
+// A literal, not the view function, so a changed failure text fails here too.
+const FAILED_VIEW = {
+    text: "BPMNlint: failed",
+    icon: "warning",
+    tooltip: "The .bpmnlintrc could not be read, or the lint run failed. See the log for details.",
+    tone: "warning",
+};
+
 type LintOutcome = { results: LintResults; unresolved: string[] };
 
 /** Lets a fire-and-forget host lint settle before assertions. */
@@ -143,7 +151,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(msg.results).toEqual(RESULTS);
     });
 
-    it("logs and falls back to null without throwing on malformed JSON", async () => {
+    it("logs, shows the failure and falls back to null without throwing on malformed JSON", async () => {
         const { service, host, editor } = createService({ config: "{ not json" });
         host.diagnostics.publish(editor.id, XML, STALE_RESULTS);
 
@@ -153,21 +161,21 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         expect(host.notifier.logged("error")).toEqual([
             expect.stringContaining("Failed to lint against .bpmnlintrc"),
         ]);
-        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "noConfig" }));
+        expect(host.statusBar.views.bpmnlint).toEqual(FAILED_VIEW);
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
         expect(service.getLintMode(editor.id)).toBe("external");
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toBeNull();
     });
 
-    it("falls back to null when the host lint fails", async () => {
+    it("shows the failure and falls back to null when the host lint fails", async () => {
         const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
         lintRunner.lint.mockRejectedValue(new Error("plugin crashed"));
 
         await service.setBpmnlintConfig(editor.id);
 
         expect(host.notifier.logged("error")).toEqual([expect.stringContaining("plugin crashed")]);
-        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "noConfig" }));
+        expect(host.statusBar.views.bpmnlint).toEqual(FAILED_VIEW);
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toBeNull();
     });
