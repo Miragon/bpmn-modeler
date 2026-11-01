@@ -365,6 +365,27 @@ describe("MarketplaceCommands started while another one runs", () => {
         expect(marketplaces).toEqual([]);
         expect(await cachedTemplateNames()).toEqual([]);
     });
+
+    it("shows the progress of a removal that waits for an update", async () => {
+        const { commands, marketplaces, notifier, holdRead } = commandsOverRealService();
+        const updateFetchOfA = holdRead("/work/a/element-templates/a.json");
+
+        const update = commands.update();
+        await letPendingWorkRun();
+        const remove = commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+        await letPendingWorkRun();
+
+        expect(notifier.progressTitles).toEqual([
+            "Updating marketplaces…",
+            "Removing marketplace(s)…",
+        ]);
+        expect(marketplaces).toEqual(["/work/a"]);
+
+        updateFetchOfA.open();
+        await Promise.all([update, remove]);
+    });
 });
 
 describe("MarketplaceCommands when a cached marketplace cannot be deleted", () => {
