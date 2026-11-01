@@ -214,7 +214,10 @@
                 "tools/repo-checks/**",
                 "tools/architecture-testing/**",
                 "{apps,libs,packages,tools}/*/src/**",
-                "{apps,libs,packages,tools}/*/package.json"
+                "{apps,libs,packages,tools}/*/package.json",
+                ".github/workflows/sync-release-markers.yml",
+                "packages/bpmn-modeler/inlined-libraries.json",
+                "packages/dmn-modeler/vite.config.mts"
             ],
             "typecheck": "typecheck"
         },

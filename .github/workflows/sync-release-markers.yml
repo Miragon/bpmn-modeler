@@ -3,7 +3,7 @@ name: Sync release markers
 # release-please routes each commit by its changed file paths, and only the root
 # component can watch multiple paths. The root slot belongs to the publishable
 # @miragon/bpmn-modeler package ("." minus exclude-paths — the package plus the
-# 10 libs it inlines). The two hosts and the DMN package are single-path
+# libs it inlines). The two hosts and the DMN package are single-path
 # components that *bundle* sources living outside their own path — a coupling no
 # manifest records. This workflow closes that gap: when a feat/fix lands on a
 # bundled path, it commits ONE marker commit (touching the marker file of every
@@ -65,6 +65,7 @@ on:
       - 'libs/bpmn-clipboard/**'
       - 'libs/bpmn-diff/**'
       - 'libs/bpmn-i18n-extras/**'
+      - 'libs/bpmn-layout/**'
       - 'libs/code-link/**'
       - 'libs/definition-search/**'
       - 'libs/element-template-chooser/**'
@@ -73,6 +74,7 @@ on:
       - 'libs/model-navigation/**'
       - 'libs/modeler-core/**'
       - 'libs/modeler-types/**'
+      - 'libs/properties-panel/**'
       - 'libs/shared/**'
       - 'libs/standalone-extension/**'
   workflow_dispatch: {}
@@ -108,9 +110,11 @@ jobs:
 
           SHORT_SHA="${SHA:0:7}"
 
-          # The npm-package sphere: packages/bpmn-modeler plus the 11 libs it
-          # inlines (vite.config.mts INLINED_LIBS). Bundled by both hosts.
-          SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|code-link|definition-search|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types)/'
+          # The npm-package sphere: packages/bpmn-modeler plus every lib it
+          # inlines (packages/bpmn-modeler/inlined-libraries.json; the
+          # repo-checks releaseMarkers spec keeps the two in step). Bundled by
+          # both hosts.
+          SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|bpmn-layout|code-link|definition-search|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types|properties-panel)/'
 
           VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
           IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
@@ -120,7 +124,8 @@ jobs:
           IJ_MARKER="apps/intellij-plugin/BUNDLED_WEBVIEW"
 
           # The DMN package inlines only libs/modeler-types and
-          # libs/bpmn-i18n-extras; a change to either bumps its release line
+          # libs/bpmn-i18n-extras (vite.config.mts INLINED_LIB_SRC, kept in step
+          # by the same spec); a change to either bumps its release line
           # via BUNDLED_LIBS. IntelliJ ships no DMN editor, so DMN is not in
           # IJ_RELEVANT; vscode bundles the DMN webview (which inlines the
           # package), so packages/dmn-modeler IS in VSC_RELEVANT above.
