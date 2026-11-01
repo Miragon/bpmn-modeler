@@ -13,6 +13,8 @@ import {
     Query,
     SaveTargetCommand,
     SelectTargetCommand,
+    StartInstanceCommand,
+    StartInstanceResultQuery,
     TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -20,7 +22,7 @@ import { UserCancelledError } from "../kernel/domain/errors";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../editorSession/service/DocumentFlushService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
-import { createTestHost, PromptAnswers } from "../testing";
+import { createTestHost, PromptAnswers, RecordingNotifier } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
 import {
@@ -37,12 +39,14 @@ import { DeploymentTargetService, toTargetPayload } from "./service/DeploymentTa
 
 const TARGETS_FILE = "/ws/.camunda/deployment-targets.json";
 const ORDER_PROCESS = "/ws/src/order-process.bpmn";
+const INVOICE_PROCESS = "/ws/src/invoice.bpmn";
 
 const target = (name: string): DeploymentTarget =>
     new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
 
 class RecordingEngineHttp implements HttpClient {
     readonly deployments: { url: string; headers: Record<string, string>; body: string }[] = [];
+    readonly instanceStarts: string[] = [];
 
     async postMultipart(
         url: string,
@@ -62,8 +66,9 @@ class RecordingEngineHttp implements HttpClient {
         throw new Error("unexpected request");
     }
 
-    postJson(): Promise<HttpResponse> {
-        throw new Error("unexpected request");
+    async postJson(url: string): Promise<HttpResponse> {
+        this.instanceStarts.push(url);
+        return { status: 200, body: JSON.stringify({ id: "instance-1" }) };
     }
 
     postForm(): Promise<HttpResponse> {
@@ -475,8 +480,8 @@ describe("DeploymentFeature command failures", () => {
         expect(host.notifier.errors).toEqual(["Deployment command failed\ntargets file is locked"]);
     });
 
-    /** The order process, focused, with a basic-auth target whose credentials cannot be read. */
-    async function focusWhileTheSecretStoreRejects(rejection: Error) {
+    /** The order process, focused, with an active basic-auth target; Deploy Files picks two files. */
+    async function focusOnABasicAuthTarget() {
         const http = new RecordingEngineHttp();
         const basicTarget = new DeploymentTarget(
             "dev",
@@ -489,15 +494,37 @@ describe("DeploymentFeature command failures", () => {
         );
         const orderXml = '<bpmn:process id="order-process"/>';
         const { host, feature } = createFeature(
-            { deployableFiles: [ORDER_PROCESS] },
+            { deployableFiles: [ORDER_PROCESS, INVOICE_PROCESS] },
             [basicTarget],
-            { [ORDER_PROCESS]: orderXml },
+            { [ORDER_PROCESS]: orderXml, [INVOICE_PROCESS]: '<bpmn:process id="invoice"/>' },
             http,
         );
         host.deploymentState.seed({ activeTargetName: "dev" });
         await host.openSession(ORDER_PROCESS, [], { content: orderXml });
-        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(rejection);
         return { host, feature, http };
+    }
+
+    async function focusWhileTheSecretStoreRejects(rejection: Error) {
+        const focused = await focusOnABasicAuthTarget();
+        vi.spyOn(focused.host.secrets, "getBasicAuth").mockRejectedValue(rejection);
+        return focused;
+    }
+
+    /** The credentials are stored, but the user cancels the keychain read of the approved hosts. */
+    async function focusWhileTheApprovalReadIsCancelled() {
+        const focused = await focusOnABasicAuthTarget();
+        await focused.host.secrets.saveBasicAuth("deployer", "s3cret", `${TARGETS_FILE}::dev`);
+        const approvalReads = vi
+            .spyOn(focused.host.secrets, "getApprovedDestinations")
+            .mockRejectedValue(new UserCancelledError());
+        return { ...focused, approvalReads };
+    }
+
+    function expectNothingReported(notifier: RecordingNotifier): void {
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([]);
+        expect(notifier.logged("error")).toEqual([]);
     }
 
     it("reports a secret store that cannot be read and sends nothing to the engine", async () => {
@@ -527,6 +554,75 @@ describe("DeploymentFeature command failures", () => {
         expect(http.deployments).toEqual([]);
         expect(host.notifier.transcript()).toBe("");
     });
+
+    it.each([
+        { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
+        { command: "Deploy Diagram", run: (feature: DeploymentFeature) => feature.deployActive() },
+    ])(
+        "ends $command quietly when the user cancels the keychain read of the approved hosts",
+        async ({ run }) => {
+            const { host, feature, http, approvalReads } =
+                await focusWhileTheApprovalReadIsCancelled();
+
+            await expect(run(feature)).resolves.toBeUndefined();
+
+            expect(approvalReads).toHaveBeenCalledOnce();
+            expect(http.deployments).toEqual([]);
+            expectNothingReported(host.notifier);
+        },
+    );
+
+    const storedBasicAuth = {
+        authType: "basic" as const,
+        username: "deployer",
+        password: "s3cret",
+    };
+
+    it.each([
+        {
+            command: "the panel's Deploy",
+            message: new DeployCommand({
+                deploymentName: "order-process",
+                tenantId: "",
+                endpoint: "http://localhost:8080/engine-rest",
+                engine: "c7",
+                mainFilePath: ORDER_PROCESS,
+                additionalFilePaths: [],
+                auth: storedBasicAuth,
+                targetName: "dev",
+            }),
+            reply: DeploymentResultQuery,
+        },
+        {
+            command: "the panel's Start Instance",
+            message: new StartInstanceCommand({
+                processDefinitionKey: "order-process",
+                endpoint: "http://localhost:8080/engine-rest",
+                engine: "c7",
+                auth: storedBasicAuth,
+                payloadFilePath: "",
+                targetName: "dev",
+            }),
+            reply: StartInstanceResultQuery,
+        },
+    ])(
+        "ends $command quietly when the user cancels the keychain read of the approved hosts, and frees the form",
+        async ({ message, reply }) => {
+            const { host, feature, http, approvalReads } =
+                await focusWhileTheApprovalReadIsCancelled();
+            const { panel, posted } = attach(feature, false);
+
+            await panel.handle(message);
+
+            expect(approvalReads).toHaveBeenCalledOnce();
+            expect(http.deployments).toEqual([]);
+            expect(http.instanceStarts).toEqual([]);
+            expect(posted.filter((query) => query instanceof reply)).toEqual([
+                expect.objectContaining({ success: false, cancelled: true }),
+            ]);
+            expectNothingReported(host.notifier);
+        },
+    );
 });
 
 describe("DeploymentFeature.activeDocumentDir", () => {

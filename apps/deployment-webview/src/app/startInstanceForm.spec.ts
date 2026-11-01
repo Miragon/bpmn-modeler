@@ -99,6 +99,20 @@ describe("StartInstanceForm", () => {
         expect(banner().textContent).toBe("Engine refused");
     });
 
+    it("clears the progress without a result banner when the host reports the start cancelled", () => {
+        const { form } = setup();
+        typeKey("Order_Process");
+        startButton().click();
+
+        form.showResult(
+            new StartInstanceResultQuery(false, "Instance start cancelled.", undefined, true),
+        );
+
+        expect(startButton().disabled).toBe(false);
+        expect(banner().style.display).toBe("none");
+        expect(banner().textContent).toBe("");
+    });
+
     it("keeps the button locked while starting even when the target becomes ready", () => {
         const { form } = setup();
         typeKey("Order_Process");
