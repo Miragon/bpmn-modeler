@@ -13,11 +13,10 @@ import com.intellij.openapi.project.Project
  * counterpart of VS Code's `VsCodeDeploymentState` (which uses `workspaceState`,
  * i.e. per-project — matched here by the *project*-scoped [PropertiesComponent]).
  *
- * Keys mirror the VS Code constants 1:1 so the persisted shape stays comparable
- * across hosts. The stored values cross the RPC boundary as the bridge's
- * `deploymentState/seed` param, and [applyPatch] backs `deploymentState/save`.
- * The core owns the defaults and the shape, so nothing here fills in a missing
- * value. Secrets are out of scope — they live in [IntellijSecretStore] / PasswordSafe.
+ * The stored values cross the RPC boundary as the bridge's `deploymentState/seed`
+ * param, and [applyPatch] backs `deploymentState/save`. The core owns the defaults
+ * and the shape, so nothing here fills in a missing value. Secrets are out of
+ * scope — they live in [IntellijSecretStore] / PasswordSafe.
  */
 @Service(Service.Level.PROJECT)
 class IntellijDeploymentState(private val project: Project) {
@@ -57,7 +56,7 @@ class IntellijDeploymentState(private val project: Project) {
         fun getInstance(project: Project): IntellijDeploymentState =
             project.getService(IntellijDeploymentState::class.java)
 
-        // Mirror the VS Code `bpmn-modeler.deployment.*` workspaceState keys.
+        // Renaming a key forgets the value earlier releases stored under it.
         private val FIELD_KEYS =
             linkedMapOf(
                 "endpoint" to "bpmn-modeler.deployment.endpoint",

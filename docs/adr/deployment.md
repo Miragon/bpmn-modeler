@@ -323,7 +323,7 @@ connections, not what this machine deployed.
 | With `${env:…}` refs | the resolved host / tenant is stored as `env:<fingerprint>` — a `.env` switch to another engine changes the key, yet no resolved value is ever persisted |
 | Ledger key | `<destination-identity>::<filePath>` |
 | Revision | `fingerprint`, `deployedAt`, optional `deploymentId`, `origin`, `verifiedAt` |
-| Host state key | `bpmn-modeler.deployment.ledger` in VS Code workspace state / IntelliJ PropertiesComponent |
+| Host state key | the `ledger` field of `bpmn-modeler.deployment.state` in VS Code workspace state / `bpmn-modeler.deployment.ledger` in IntelliJ PropertiesComponent |
 
 Fingerprints normalize line endings and concatenate two independently seeded
 32-bit FNV-1a hashes as a 16-digit hex value. This is a portable content-change

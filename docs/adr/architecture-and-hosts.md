@@ -739,10 +739,16 @@ the ad-hoc connection, the active target and the freshness ledger.
 ledger rows it puts and removes, so a deploy's connection or a prune's rows
 travel as one write. The core owns the defaults and the shape:
 `deploymentStateFrom` reads a missing value or one of the wrong type as the
-default and drops a ledger row that is not a revision, on both hosts. Hosts
-store only what a patch names: VS Code writes the patched workspace-state
-keys, and IntelliJ seeds the bridge with the keys it has stored, without
-defaults, and applies each patch in the one `deploymentState/save` handler.
+default and drops a ledger row that is not a revision, on both hosts. A host
+stores a save all or nothing. VS Code keeps the whole snapshot under the one
+workspace-state key `bpmn-modeler.deployment.state`, because an update of one
+`Memento` key is its only atomic write; a key per field, written one after
+another, kept the keys written before a rejected write and so stored a
+connection in part. It reads the per-field keys earlier releases wrote until
+the first save, and leaves them in place, so a downgraded release reads the
+state as it was at the upgrade. IntelliJ seeds the bridge with the keys it has
+stored, without defaults, and applies each patch in the one
+`deploymentState/save` handler.
 
 The bridge sends a patch as an acknowledged host request and applies it to
 its snapshot only once the host accepted it, onto the snapshot as it is then,

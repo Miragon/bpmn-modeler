@@ -96,17 +96,50 @@ describe("VsCodeDeploymentState", () => {
         expect(new VsCodeDeploymentState(memento).load()).toEqual(SAVED);
     });
 
-    it("writes only the keys a patch names", async () => {
+    it("keeps the fields a patch leaves out", async () => {
         const memento = new InMemoryMemento();
-        const state = new VsCodeDeploymentState(memento);
+        const { ledger, ...fields } = SAVED;
+        await new VsCodeDeploymentState(memento).save({ ...fields, ledger: { put: ledger } });
 
-        await state.save({ endpoint: "https://engine/api", activeTargetName: "" });
+        await new VsCodeDeploymentState(memento).save({
+            endpoint: "https://other/api",
+            activeTargetName: "",
+        });
 
-        expect(memento.keys()).toEqual([
-            "bpmn-modeler.deployment.endpoint",
-            "bpmn-modeler.deployment.activeTargetName",
-        ]);
-        expect(memento.get("bpmn-modeler.deployment.activeTargetName")).toBe("");
+        expect(new VsCodeDeploymentState(memento).load()).toEqual({
+            ...SAVED,
+            endpoint: "https://other/api",
+            activeTargetName: "",
+        });
+    });
+
+    it("carries the keys earlier releases wrote into the first save", async () => {
+        const memento = new InMemoryMemento();
+        await memento.update("bpmn-modeler.deployment.endpoint", "https://engine/api");
+        await memento.update("bpmn-modeler.deployment.tenantId", "tenant-1");
+        await memento.update(LEDGER_KEY, { "target:dev::/a.bpmn": revision("f1") });
+
+        await new VsCodeDeploymentState(memento).save({ activeTargetName: "dev" });
+
+        expect(new VsCodeDeploymentState(memento).load()).toMatchObject({
+            endpoint: "https://engine/api",
+            tenantId: "tenant-1",
+            activeTargetName: "dev",
+            ledger: { "target:dev::/a.bpmn": revision("f1") },
+        });
+    });
+
+    it("reads no key an earlier release wrote once a save has stored the state", async () => {
+        const memento = new InMemoryMemento();
+        await new VsCodeDeploymentState(memento).save({ endpoint: "https://engine/api" });
+
+        await memento.update("bpmn-modeler.deployment.endpoint", "https://older/api");
+        await memento.update("bpmn-modeler.deployment.authType", "basic");
+
+        expect(new VsCodeDeploymentState(memento).load()).toMatchObject({
+            endpoint: "https://engine/api",
+            authType: "none",
+        });
     });
 
     it("adds a ledger row without dropping the others and overwrites the same key", async () => {

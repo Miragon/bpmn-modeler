@@ -100,8 +100,10 @@ export interface DeploymentStatePort {
     /** Synchronous, so the initial webview seed and status render can read it. */
     load(): DeploymentState;
     /**
-     * Writes only what `patch` names. `load()` is guaranteed to show the patch
-     * only once this resolves; until then a host may still return the old state.
+     * Writes only what `patch` names, and all of it or none of it, so a rejected
+     * save never leaves a connection stored in part. `load()` is guaranteed to
+     * show the patch only once this resolves; until then a host may still return
+     * the old state.
      */
     save(patch: DeploymentStatePatch): Promise<void>;
 }
