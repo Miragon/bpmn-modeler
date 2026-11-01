@@ -29,7 +29,7 @@
  */
 
 import { watch } from "chokidar";
-import { promises as fs, watch as watchFs } from "node:fs";
+import { Dirent, promises as fs, watch as watchFs } from "node:fs";
 import { join, posix, relative } from "node:path";
 
 import {
@@ -475,10 +475,25 @@ export class NodeWorkspace implements WorkspacePort {
     }
 }
 
+// A folder can also vanish between its parent's listing and its own.
+const UNREADABLE_FOLDER_CODES = new Set(["EACCES", "EPERM", "ENOENT", "ENOTDIR"]);
+
+async function entriesOrNoneIfUnreadable(folder: string): Promise<Dirent[]> {
+    try {
+        return await fs.readdir(folder, { withFileTypes: true });
+    } catch (error) {
+        if (UNREADABLE_FOLDER_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+            return [];
+        }
+        throw error;
+    }
+}
+
 /**
  * The `/`-separated paths below `rootDir` of all but its folders, reading each
- * level's folders in parallel. A symlink counts as a file, so a symlinked
- * folder is never entered; dot-entries stay unlisted, as `fs.glob` leaves them.
+ * level's folders in parallel and skipping one it cannot read. A symlink
+ * counts as a file, so a symlinked folder is never entered; dot-entries stay
+ * unlisted, as `fs.glob` leaves them.
  */
 async function listFilesBelow(
     rootDir: string,
@@ -490,9 +505,7 @@ async function listFilesBelow(
         const listings = await Promise.all(
             level.map(async (folder) => ({
                 folder,
-                entries: await fs.readdir(joinWorkspacePath(rootDir, folder), {
-                    withFileTypes: true,
-                }),
+                entries: await entriesOrNoneIfUnreadable(joinWorkspacePath(rootDir, folder)),
             })),
         );
         level = [];
