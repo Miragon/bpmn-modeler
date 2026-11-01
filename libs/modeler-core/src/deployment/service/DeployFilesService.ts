@@ -1,3 +1,4 @@
+import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
 import { deployableFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentService } from "./DeploymentService";
@@ -5,7 +6,6 @@ import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
 
 const DEPLOYABLE_FILES_GLOB = "**/*.{bpmn,dmn}";
-const DEPENDENCY_FOLDERS_GLOB = "**/node_modules/**";
 
 /**
  * Deploys a multi-select set of workspace BPMN/DMN files to the active target —
@@ -34,10 +34,7 @@ export class DeployFilesService {
         }
         const { target } = destination;
 
-        const found = await this.workspace.findFiles(
-            DEPLOYABLE_FILES_GLOB,
-            DEPENDENCY_FOLDERS_GLOB,
-        );
+        const found = await this.workspace.findFiles(DEPLOYABLE_FILES_GLOB, excludedDirsGlob());
         const files = await this.picker.chooseMany(
             deployableFilesPrompt({
                 targetName: target.name,

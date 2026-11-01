@@ -389,6 +389,30 @@ the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
 
+The core also decides which folders a workspace listing leaves out.
+`excludedDirsGlob` (`kernel/domain/excludedDirs.ts`) builds one exclude glob
+from `EXCLUDED_DIRS` (`node_modules` and build output) and every folder whose
+name starts with a dot, and every listing passes it to `findFiles`: the
+definition index, code-link, Navigate, both deployment pickers and Migrate
+All. A caller adds its own folders to the same brace group, as the additional
+files add `element-templates` and the config folder. The exclude matches a
+file's path below its workspace folder. VS Code hands it to ripgrep, and the
+bridge walks with `readdir` and never reads a folder the exclude covers whole
+(`coveredFolderRegExp`), so both hosts prune the same folders and list the
+same files; `testing/workspaceContract.ts` runs the same rows against the
+bridge adapter and the in-memory workspace. On both hosts `findFiles` follows
+a symlinked folder, as ripgrep does under VS Code's default
+`search.followSymlinks`. The bridge prunes an excluded name before it follows
+a link, so a `node_modules` link is never read, does not follow a link back
+to a folder the walk came through, and skips a link it cannot resolve. These
+rows run in `nodeAdapters.spec.ts` only, as the in-memory workspace has no
+links. The core's fs-walk fallback and `watchedChangeOf` skip the same
+folders, so a live update agrees with the listing. Dot-folders are left out on
+every host because VS Code's ripgrep searched them and the bridge's former
+`fs.glob` did not; none of these listings needs a file in one, as element
+templates, targets, payloads and code-link maps are read by path. The pickers
+offer every match with no cap.
+
 One prompt stays outside `PickerPort`: the template marketplace asks for a
 personal access token in a masked input, which a chooser cannot show. Its port
 follows the same split. `TokenPromptPort.promptForToken` takes a `TokenPrompt`
@@ -852,6 +876,18 @@ a cached result must equal an uncached run.
   isolate failing session hooks. Feature modules in the core cost a little
   indirection — a host reads its surface mapping, not the flow — in exchange for
   one place per fix.
+- The core filtered listings after the host returned them. That kept the
+  rule in one place but let every host read `node_modules` and build output
+  first: Bun's `fs.glob` spent 206-273 ms per listing on this repository,
+  a pruned walk 3-5 ms. Handing the host the exclude costs a stricter port
+  contract: an adapter that ignores the exclude, or matches it against
+  absolute paths, lists those folders again. The workspace contract checks
+  the bridge and the in-memory workspace; `VsCodeWorkspace` only forwards to
+  VS Code.
+- The additional files picker capped its listing at 20, and each host cut the
+  list before the core sorted it, so the hosts offered different files. The
+  pickers offer every match instead, at the cost of reading every match of
+  `**/*.{form,json,dmn}` on a large workspace.
 - `BpmnEditorFeature` could import the features whose commands it routes, if a
   composition folder were exempt from the cross-feature rule. That exception
   would never shrink, so the features hand their handlers and participants to

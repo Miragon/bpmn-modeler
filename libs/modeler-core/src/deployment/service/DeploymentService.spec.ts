@@ -121,6 +121,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         deploymentStatus,
         envResolver,
         credentialApproval,
+        host.settings,
     );
 
     return {
@@ -402,25 +403,100 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         ]);
     });
 
-    it("offers at most 20 files and returns none when the user dismisses the list", async () => {
-        const forms = Object.fromEntries(
-            Array.from({ length: 21 }, (_, index) => [`/work/forms/form-${index}.form`, "{}"]),
-        );
-        const { service, host } = createService({ files: forms });
+    it("offers no file inside node_modules or build output", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/node_modules/left-pad/package.json": "{}",
+                "/work/target/classes/discount.dmn": "<definitions/>",
+            },
+        });
 
-        await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
+        await service.selectAdditionalFiles();
 
         expect(host.picker.prompts).toEqual([
             {
                 method: "chooseMany",
                 args: [
                     additionalFilesPrompt({
-                        files: Object.keys(forms).slice(0, 20),
+                        files: Object.keys(RESOURCES),
                         workspaceFolders: ["/work"],
                     }),
                 ],
             },
         ]);
+    });
+
+    it("offers no file inside a dot-folder, such as the modeler's own config", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/.camunda/deployment-targets.json": "{}",
+                "/work/.camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/.vscode/settings.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers no file inside the modeler's config folder when its name has no dot", async () => {
+        const { service, host } = createService({
+            settings: { configFolder: "camunda" },
+            files: {
+                ...RESOURCES,
+                "/work/camunda/deployment-targets.json": "{}",
+                "/work/camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/processes/camunda/payloads/start.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers every matching file in workspace order, the one found last first, and returns none when the user dismisses the list", async () => {
+        const foundLast = "/work/forms/a.form";
+        const forms = {
+            ...Object.fromEntries(
+                Array.from({ length: 20 }, (_, index) => [`/work/forms/z-${index}.form`, "{}"]),
+            ),
+            [foundLast]: "{}",
+        };
+        const { service, host } = createService({ files: forms });
+
+        await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
+
+        const offered = additionalFilesPrompt({
+            files: Object.keys(forms),
+            workspaceFolders: ["/work"],
+        });
+        expect(offered.items).toHaveLength(21);
+        expect(offered.items[0]).toEqual(fileChoice(foundLast));
+        expect(host.picker.prompts).toEqual([{ method: "chooseMany", args: [offered] }]);
     });
 });
 

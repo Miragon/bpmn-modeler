@@ -1,6 +1,7 @@
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { notifiedErrorLogText } from "../../kernel/domain/errorLogText";
 import { FileNotFound } from "../../kernel/domain/errors";
+import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { engineVersionPrompt } from "../../kernel/domain/engineVersions";
 import {
     enginesIn,
@@ -62,7 +63,7 @@ export class BpmnMigrationService {
 
     async migrateAllDiagrams(): Promise<boolean> {
         try {
-            const paths = await this.vsWorkspace.findFiles("**/*.bpmn");
+            const paths = await this.vsWorkspace.findFiles("**/*.bpmn", excludedDirsGlob());
             if (paths.length === 0) {
                 this.notifier.showInfo("No BPMN files found in the workspace.");
                 return false;

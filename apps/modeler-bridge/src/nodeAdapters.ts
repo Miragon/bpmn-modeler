@@ -30,13 +30,14 @@
  */
 
 import { watch } from "chokidar";
-import { promises as fs, watch as watchFs } from "node:fs";
-import { join, posix, relative, sep } from "node:path";
+import { Dirent, promises as fs, watch as watchFs } from "node:fs";
+import { join, posix, relative } from "node:path";
 
 import {
     changedSettingKeys,
     coalesceWatcherEvents,
     ColorThemeSetting,
+    coveredFolderRegExp,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
@@ -442,32 +443,132 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Globs `pattern` across every registered workspace root, returning absolute
-     * paths. Mirrors `VsCodeWorkspace.findFiles` for the picker's workspace-file
-     * prompt: `exclude` drops matches, `limit` caps the result count.
+     * The absolute paths of the files below the registered workspace roots
+     * whose path below their root matches `pattern`. Mirrors
+     * `VsCodeWorkspace.findFiles`: `exclude` drops matches.
      *
-     * `fs.glob` is the Node/Bun built-in (no extra dependency); excluded paths
-     * are filtered via {@link globToRegExp} for cross-runtime stability.
+     * Walks with `readdir` rather than `fs.glob`: under Bun, `fs.glob` reads
+     * every folder an exclude covers.
      */
-    async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
-        const excludeRe = exclude ? globToRegExp(exclude) : undefined;
+    async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
+        const included = globToRegExp(pattern);
+        const excluded = exclude ? globToRegExp(exclude) : undefined;
+        const coveredFolder = exclude ? coveredFolderRegExp(exclude) : undefined;
         const results: string[] = [];
         for (const root of this.roots.keys()) {
-            const cwd = withoutFileScheme(root);
-            for await (const match of fs.glob(pattern, { cwd })) {
-                // fs.glob yields the OS separator; the exclude glob expects `/`.
-                const relative = match.split(sep).join("/");
-                if (excludeRe?.test(relative)) {
+            const rootDir = withoutFileScheme(root);
+            const files = await listFilesBelow(
+                rootDir,
+                (folder) => coveredFolder?.test(folder) ?? false,
+            );
+            for (const relative of files) {
+                if (!included.test(relative) || excluded?.test(relative)) {
                     continue;
                 }
-                results.push(joinWorkspacePath(cwd, relative));
-                if (limit !== undefined && results.length >= limit) {
-                    return results;
-                }
+                results.push(joinWorkspacePath(rootDir, relative));
             }
         }
         return results;
     }
+}
+
+// A folder can vanish between its parent's listing and its own; a link can
+// dangle or point at itself.
+const UNREADABLE_CODES = new Set(["EACCES", "EPERM", "ENOENT", "ENOTDIR", "ELOOP"]);
+
+async function noneIfUnreadable<T>(read: () => Promise<T>, none: T): Promise<T> {
+    try {
+        return await read();
+    } catch (error) {
+        if (UNREADABLE_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+            return none;
+        }
+        throw error;
+    }
+}
+
+interface WalkedFolder {
+    readonly relative: string;
+    readonly real: string;
+    readonly parent?: WalkedFolder;
+}
+
+type WalkStep =
+    | { readonly kind: "file"; readonly relative: string }
+    | { readonly kind: "folder"; readonly folder: WalkedFolder }
+    | { readonly kind: "skip" };
+
+const SKIP: WalkStep = { kind: "skip" };
+
+/**
+ * The `/`-separated paths below `rootDir` of all but its folders, reading each
+ * level's folders in parallel and skipping one it cannot read. Follows a
+ * symlinked folder, as VS Code does, unless the walk is already inside it.
+ */
+async function listFilesBelow(
+    rootDir: string,
+    skipsFolder: (relativeFolder: string) => boolean,
+): Promise<string[]> {
+    const rootReal = await noneIfUnreadable(() => fs.realpath(rootDir), undefined);
+    if (rootReal === undefined) return [];
+    const files: string[] = [];
+    let level: WalkedFolder[] = [{ relative: "", real: rootReal }];
+    while (level.length > 0) {
+        const steps = await Promise.all(
+            level.map((folder) => walkFolder(rootDir, folder, skipsFolder)),
+        );
+        level = [];
+        for (const step of steps.flat()) {
+            if (step.kind === "file") files.push(step.relative);
+            else if (step.kind === "folder") level.push(step.folder);
+        }
+    }
+    return files;
+}
+
+async function walkFolder(
+    rootDir: string,
+    folder: WalkedFolder,
+    skipsFolder: (relativeFolder: string) => boolean,
+): Promise<WalkStep[]> {
+    const path = joinWorkspacePath(rootDir, folder.relative);
+    const entries = await noneIfUnreadable(
+        () => fs.readdir(path, { withFileTypes: true }),
+        [] as Dirent[],
+    );
+    return Promise.all(entries.map((entry) => walkEntry(rootDir, folder, entry, skipsFolder)));
+}
+
+async function walkEntry(
+    rootDir: string,
+    parent: WalkedFolder,
+    entry: Dirent,
+    skipsFolder: (relativeFolder: string) => boolean,
+): Promise<WalkStep> {
+    const relative = parent.relative === "" ? entry.name : `${parent.relative}/${entry.name}`;
+    const path = joinWorkspacePath(rootDir, relative);
+    const isLink = entry.isSymbolicLink();
+    const target = isLink ? await noneIfUnreadable(() => fs.stat(path), undefined) : entry;
+    if (target === undefined) return SKIP;
+    if (!target.isDirectory()) return { kind: "file", relative };
+    if (skipsFolder(relative)) return SKIP;
+    if (!isLink) {
+        return {
+            kind: "folder",
+            folder: { relative, real: join(parent.real, entry.name), parent },
+        };
+    }
+    const real = await noneIfUnreadable(() => fs.realpath(path), undefined);
+    // A link back to a folder the walk came through would loop; ripgrep stops there too.
+    if (real === undefined || isOnPathTo(parent, real)) return SKIP;
+    return { kind: "folder", folder: { relative, real, parent } };
+}
+
+function isOnPathTo(folder: WalkedFolder, real: string): boolean {
+    for (let current: WalkedFolder | undefined = folder; current; current = current.parent) {
+        if (current.real === real) return true;
+    }
+    return false;
 }
 
 /**

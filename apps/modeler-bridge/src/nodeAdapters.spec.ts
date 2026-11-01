@@ -37,8 +37,8 @@ import { BridgeSettings, NodeWorkspace } from "./nodeAdapters";
 
 /**
  * `findFiles` is the picker's one filesystem-backed prompt. These exercise its
- * real `fs.glob` behaviour against a temp tree — brace globs, the `exclude`
- * predicate, and the result cap — since no host (VS Code mock) is involved.
+ * real walk against a temp tree — brace globs and the `exclude` predicate —
+ * since no host (VS Code mock) is involved.
  */
 describe("NodeWorkspace.findFiles", () => {
     let root: string;
@@ -46,8 +46,6 @@ describe("NodeWorkspace.findFiles", () => {
     beforeAll(async () => {
         root = await fs.mkdtemp(join(tmpdir(), "modeler-find-"));
         await fs.mkdir(join(root, "forms"), { recursive: true });
-        // A non-dot directory so the `**/element-templates/**` exclude is actually
-        // exercised — fs.glob skips dot-directories by default.
         await fs.mkdir(join(root, "config/element-templates"), { recursive: true });
         await fs.writeFile(join(root, "forms/a.form"), "{}");
         await fs.writeFile(join(root, "forms/b.json"), "{}");
@@ -80,13 +78,178 @@ describe("NodeWorkspace.findFiles", () => {
         expect(found).toEqual([join(root, "forms/b.json")]);
     });
 
-    it("respects the result limit", async () => {
-        const found = await workspace().findFiles("**/*.{form,json}", null, 1);
-        expect(found).toHaveLength(1);
-    });
-
     it("returns [] when no root is registered", async () => {
         expect(await new NodeWorkspace().findFiles("**/*.json")).toEqual([]);
+    });
+});
+
+describe("NodeWorkspace.findFiles below excluded folders", () => {
+    let root: string;
+
+    beforeAll(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-find-prune-"));
+        for (const dir of ["src", "node_modules/pkg", "dist", "target/classes"]) {
+            await fs.mkdir(join(root, dir), { recursive: true });
+            await fs.writeFile(join(root, dir, "p.bpmn"), "<definitions/>");
+        }
+    });
+
+    afterAll(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    function workspace(): NodeWorkspace {
+        const ws = new NodeWorkspace();
+        ws.registerRoot(root);
+        return ws;
+    }
+
+    it("reads no folder its exclude covers", async () => {
+        const readdir = vi.spyOn(fs, "readdir");
+        onTestFinished(() => readdir.mockRestore());
+
+        const found = await workspace().findFiles("**/*.bpmn", "**/{node_modules,dist,target}/**");
+
+        expect(found).toEqual([join(root, "src/p.bpmn")]);
+        const readFolders = readdir.mock.calls.map(([path]) => String(path));
+        expect(readFolders).toContain(join(root, "src"));
+        expect(readFolders.filter((path) => /node_modules|dist|target/.test(path))).toEqual([]);
+    });
+});
+
+describe("NodeWorkspace.findFiles through symlinks", () => {
+    let root: string;
+    let outside: string;
+
+    beforeAll(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-find-links-"));
+        outside = await fs.mkdtemp(join(tmpdir(), "modeler-find-links-outside-"));
+        for (const dir of ["shared", "pkg", "locked/inner"]) {
+            await fs.mkdir(join(outside, dir), { recursive: true });
+        }
+        await fs.writeFile(join(outside, "shared/b.bpmn"), "<definitions/>");
+        await fs.writeFile(join(outside, "pkg/p.bpmn"), "<definitions/>");
+        await fs.writeFile(join(outside, "locked/inner/x.bpmn"), "<definitions/>");
+        for (const dir of ["src/broken", "web"]) {
+            await fs.mkdir(join(root, dir), { recursive: true });
+        }
+        await fs.writeFile(join(root, "src/a.bpmn"), "<definitions/>");
+        await fs.symlink(join(outside, "shared"), join(root, "src/linked"), "dir");
+        await fs.symlink(join(outside, "shared/b.bpmn"), join(root, "src/c.bpmn"), "file");
+        await fs.symlink(join(outside, "pkg"), join(root, "web/node_modules"), "dir");
+        await fs.symlink(root, join(root, "src/loop"), "dir");
+        await fs.symlink(join(outside, "missing.bpmn"), join(root, "src/broken/gone.bpmn"));
+        await fs.symlink(join(outside, "locked/inner"), join(root, "src/broken/locked"), "dir");
+        await fs.symlink("self", join(root, "src/broken/self"));
+        await fs.chmod(join(outside, "locked"), 0o000);
+    });
+
+    afterAll(async () => {
+        await fs.chmod(join(outside, "locked"), 0o755);
+        await fs.rm(root, { recursive: true, force: true });
+        await fs.rm(outside, { recursive: true, force: true });
+    });
+
+    function workspace(): NodeWorkspace {
+        const ws = new NodeWorkspace();
+        ws.registerRoot(root);
+        return ws;
+    }
+
+    it("lists the files behind a symlinked folder, as VS Code does", async () => {
+        const found = await workspace().findFiles("**/linked/*.bpmn");
+
+        expect(found).toEqual([join(root, "src/linked/b.bpmn")]);
+    });
+
+    it("lists a symlinked file under its own path", async () => {
+        const found = await workspace().findFiles("**/c.bpmn");
+
+        expect(found).toEqual([join(root, "src/c.bpmn")]);
+    });
+
+    it("does not read a symlinked folder its exclude covers", async () => {
+        const readdir = vi.spyOn(fs, "readdir");
+        onTestFinished(() => readdir.mockRestore());
+
+        const found = await workspace().findFiles("**/*.bpmn", "**/node_modules/**");
+
+        expect(found.filter((path) => path.includes("node_modules"))).toEqual([]);
+        const readFolders = readdir.mock.calls.map(([path]) => String(path));
+        expect(readFolders).toContain(join(root, "src/linked"));
+        expect(readFolders).not.toContain(join(root, "web/node_modules"));
+        expect(readFolders).not.toContain(join(outside, "pkg"));
+    });
+
+    it("lists each file once through a symlink to an enclosing folder", async () => {
+        const found = await workspace().findFiles("**/a.bpmn");
+
+        expect(found).toEqual([join(root, "src/a.bpmn")]);
+    });
+
+    it("skips a symlink that dangles, points at itself or at a target it cannot read", async () => {
+        const found = await workspace().findFiles("src/broken/**");
+
+        expect(found).toEqual([]);
+    });
+});
+
+describe("NodeWorkspace.findFiles beside a folder it cannot read", () => {
+    let root: string;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-find-unreadable-"));
+        for (const dir of ["src", "pgdata", "node_modules/x", "locked"]) {
+            await fs.mkdir(join(root, dir), { recursive: true });
+        }
+        await fs.writeFile(join(root, "src/p.bpmn"), "<definitions/>");
+    });
+
+    afterEach(async () => {
+        await fs.chmod(join(root, "pgdata"), 0o755);
+        await fs.chmod(join(root, "node_modules/x"), 0o755);
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    function workspace(...roots: string[]): NodeWorkspace {
+        const ws = new NodeWorkspace();
+        roots.forEach((path) => ws.registerRoot(path));
+        return ws;
+    }
+
+    it("lists the rest of the workspace when a folder denies reading it", async () => {
+        await fs.chmod(join(root, "pgdata"), 0o000);
+        await fs.chmod(join(root, "node_modules/x"), 0o000);
+
+        await expect(workspace(root).findFiles("**/*.bpmn")).resolves.toEqual([
+            join(root, "src/p.bpmn"),
+        ]);
+    });
+
+    it("lists the rest of the workspace when the system forbids reading a folder", async () => {
+        const locked = join(root, "locked");
+        const forbidden = Object.assign(new Error(`EPERM: operation not permitted`), {
+            code: "EPERM",
+        });
+        const readdir = fs.readdir.bind(fs);
+        const readdirForbiddingLocked = ((path: string, options: never) =>
+            path === locked
+                ? Promise.reject(forbidden)
+                : readdir(path, options)) as typeof fs.readdir;
+        const spy = vi.spyOn(fs, "readdir").mockImplementation(readdirForbiddingLocked);
+        onTestFinished(() => spy.mockRestore());
+
+        await expect(workspace(root).findFiles("**/*.bpmn")).resolves.toEqual([
+            join(root, "src/p.bpmn"),
+        ]);
+    });
+
+    it("lists the other roots when one root is gone", async () => {
+        const gone = join(root, "gone");
+
+        await expect(workspace(gone, root).findFiles("**/*.bpmn")).resolves.toEqual([
+            join(root, "src/p.bpmn"),
+        ]);
     });
 });
 

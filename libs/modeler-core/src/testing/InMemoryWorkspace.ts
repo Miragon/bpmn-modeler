@@ -159,7 +159,7 @@ export class InMemoryWorkspace implements WorkspacePort {
         if (this.files.delete(filePath)) this.notify(filePath, "onDelete");
     }
 
-    async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
+    async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
         const include = globToRegExp(pattern);
         const excluded = exclude ? globToRegExp(exclude) : undefined;
         const found: string[] = [];
@@ -169,7 +169,6 @@ export class InMemoryWorkspace implements WorkspacePort {
                 const relative = relativeToRoot(filePath, folderPath);
                 if (!relative || !include.test(relative) || excluded?.test(relative)) continue;
                 found.push(filePath);
-                if (limit !== undefined && found.length >= limit) return found;
             }
         }
         return found;

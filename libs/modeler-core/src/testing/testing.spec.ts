@@ -37,7 +37,7 @@ describe("InMemoryWorkspace", () => {
         );
     });
 
-    it("finds files in the folders by glob, honouring exclude and limit", async () => {
+    it("finds files in the folders by glob, honouring exclude", async () => {
         const ws = new InMemoryWorkspace(["/work"], {
             "/work/order.bpmn": "",
             "/work/dist/stale.bpmn": "",
@@ -52,7 +52,6 @@ describe("InMemoryWorkspace", () => {
         await expect(ws.findFiles("**/*.bpmn", "**/dist/**")).resolves.toEqual([
             "/work/order.bpmn",
         ]);
-        await expect(ws.findFiles("**/*.{bpmn,form}", null, 1)).resolves.toHaveLength(1);
     });
 
     it("answers with the folders as they are after one is added or removed", async () => {
