@@ -101,19 +101,11 @@ For properties:
 
 ## Edit a template
 
-A `.json` file in an `element-templates` folder opens in the **Element Template Editor**. It shows the properties panel the template produces and updates as the template changes. To see or edit the JSON itself, click **Toggle JSON Editor** in the editor title: the JSON opens beside the template editor, with completion from the template's `$schema`. Click it again to hide the JSON.
-
-A template elsewhere, a `.json` file whose `$schema` names an element template schema, opens as plain JSON; click **Open in Element Template Editor** in its editor title, or use **Open With…**.
-
-- `$schema` decides the engine: `…/element-templates-json-schema/…` for Camunda 7, `…/zeebe-element-templates-json-schema/…` for Camunda 8. Without it, the editor reads the engine from `camunda:` or `zeebe:` bindings.
-- A file with several templates gets a picker to choose which one to show.
-- While the JSON is broken or the template is invalid, the editor says why and keeps showing the last template that worked.
-- Templates for a process or a sequence flow cannot be previewed yet.
-
-The template editor is available in VS Code and the desktop app.
+A `.json` file in an `element-templates` folder opens in the [element template editor](/vscode/features/element-template-editor): a form for every part of the template, the JSON one click away, and a live preview of the properties panel. **New Element Template** creates a new one in the right folder.
 
 ## Next steps
 
+- [Element template editor](/vscode/features/element-template-editor): build and edit templates in a form.
 - [Template marketplace](/vscode/features/template-marketplace): share templates across projects.
 - [Append menu](/vscode/features/append-menu): add a templated element as the next step.
 - [Configuration](/vscode/configuration): change the config folder.

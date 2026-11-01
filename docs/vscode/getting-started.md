@@ -20,6 +20,7 @@ Open any `.bpmn`, `.dmn` or `.form` file. The matching visual editor opens autom
 
 To start from scratch, run **New BPMN Model**, **New DMN Model** or **New Form** from the Command Palette; for BPMN pick
 **Camunda 7**, **Camunda 8** or [**Engine-neutral**](/vscode/features/modes#create-an-engine-neutral-file).
+**New Element Template** starts a template in the [element template editor](/vscode/features/element-template-editor).
 
 ## First steps
 
