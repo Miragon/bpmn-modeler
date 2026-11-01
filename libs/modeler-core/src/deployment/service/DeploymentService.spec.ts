@@ -451,25 +451,25 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         ]);
     });
 
-    it("offers at most 20 files and returns none when the user dismisses the list", async () => {
-        const forms = Object.fromEntries(
-            Array.from({ length: 21 }, (_, index) => [`/work/forms/form-${index}.form`, "{}"]),
-        );
+    it("offers every matching file in workspace order, the one found last first, and returns none when the user dismisses the list", async () => {
+        const foundLast = "/work/forms/a.form";
+        const forms = {
+            ...Object.fromEntries(
+                Array.from({ length: 20 }, (_, index) => [`/work/forms/z-${index}.form`, "{}"]),
+            ),
+            [foundLast]: "{}",
+        };
         const { service, host } = createService({ files: forms });
 
         await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
 
-        expect(host.picker.prompts).toEqual([
-            {
-                method: "chooseMany",
-                args: [
-                    additionalFilesPrompt({
-                        files: Object.keys(forms).slice(0, 20),
-                        workspaceFolders: ["/work"],
-                    }),
-                ],
-            },
-        ]);
+        const offered = additionalFilesPrompt({
+            files: Object.keys(forms),
+            workspaceFolders: ["/work"],
+        });
+        expect(offered.items).toHaveLength(21);
+        expect(offered.items[0]).toEqual(fileChoice(foundLast));
+        expect(host.picker.prompts).toEqual([{ method: "chooseMany", args: [offered] }]);
     });
 });
 
