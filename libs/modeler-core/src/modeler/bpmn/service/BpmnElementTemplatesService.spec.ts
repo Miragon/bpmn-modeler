@@ -137,6 +137,17 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         expect(postedNames(editor)).toEqual(["Good"]);
     });
 
+    it("loads an empty template file as no templates, without an error", async () => {
+        const { service, host, editor, addTemplate, fileContents } = createService();
+        addTemplate(ROOT_TEMPLATES, "ok.json", { name: "Good" });
+        fileContents.set(addTemplate(ROOT_TEMPLATES, "new-template.json", {}), "");
+
+        await service.setElementTemplates(editor.id);
+
+        expect(host.notifier.logged("error")).toEqual([]);
+        expect(postedNames(editor)).toEqual(["Good"]);
+    });
+
     it("does not log readiness info when there are no template files", async () => {
         const { service, host, editor } = createService();
 

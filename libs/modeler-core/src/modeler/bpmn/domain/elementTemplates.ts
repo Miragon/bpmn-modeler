@@ -1,4 +1,4 @@
-import type { ElementTemplate } from "@miragon/bpmn-modeler-types";
+import { type ElementTemplate, templatesOfFile } from "@miragon/bpmn-modeler-types";
 
 /** The templates parsed from one source: a template directory or the marketplace cache. */
 export interface ElementTemplateSource {
@@ -15,4 +15,9 @@ export function mergeElementTemplates(
     return sources
         .flatMap((source) => source.templates)
         .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+}
+
+/** A blank file holds no templates yet: "New Element Template" creates one empty. */
+export function templatesOfFileText(text: string): ElementTemplate[] {
+    return text.trim() === "" ? [] : templatesOfFile(JSON.parse(text));
 }
