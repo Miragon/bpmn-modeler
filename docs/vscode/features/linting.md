@@ -62,6 +62,7 @@ If a referenced rule or plugin is not installed, only that entry is skipped. The
 | `BPMNlint (default)` | No `.bpmnlintrc` found, the bundled default is in use. |
 | `BPMNlint: N rules skipped` | Some rules or plugins could not be resolved. |
 | `BPMNlint: off` | Linting is turned off. |
+| `BPMNlint: failed` | The `.bpmnlintrc` could not be read, or the lint run failed. The *bpmn.modeler* output channel (IntelliJ: `idea.log`) has the error. |
 
 ## Turn linting off
 

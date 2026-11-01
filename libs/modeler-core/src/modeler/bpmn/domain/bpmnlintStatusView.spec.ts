@@ -92,7 +92,7 @@ const cases: ViewCase[] = [
     },
     {
         name: "warns that linting failed and points to the log",
-        indicator: { state: "noConfig" },
+        indicator: { state: "failed" },
         view: {
             text: "BPMNlint: failed",
             icon: "warning",

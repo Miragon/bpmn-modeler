@@ -234,7 +234,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 this.applyFindings(editorId, action.findings);
                 return this.pushResults(editorId, action.findings.results);
             case "fail":
-                this.showStatusIfFocused(editorId, { state: "noConfig" });
+                this.showStatusIfFocused(editorId, { state: "failed" });
                 this.diagnostics.clear(editorId);
                 return this.pushResults(editorId, null);
         }
