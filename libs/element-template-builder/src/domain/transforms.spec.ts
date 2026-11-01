@@ -98,6 +98,10 @@ describe("properties", () => {
         expect((edited(template, addProperty(template, C8)).properties as Json[]).length).toBe(1);
     });
 
+    it("leaves a property moved onto itself where it is", () => {
+        expect(moveProperty(c8Template([input()]), 0, 0)).toEqual([]);
+    });
+
     it("removes, duplicates and moves properties", () => {
         const template = c8Template([input({ label: "A" }), input({ label: "B", id: "b" })]);
         const labels = (t: Json) => (t.properties as Json[]).map((p) => p.label);
@@ -164,6 +168,33 @@ describe("changeBindingType", () => {
     });
 });
 
+describe("a binding the catalog does not know", () => {
+    const linked = input({ binding: { type: "zeebe:linkedResource", linkName: "a" } });
+
+    it("is not switched to", () => {
+        expect(changeBindingType(c8Template([input()]), C8, 0, "zeebe:unknown")).toEqual([]);
+    });
+
+    it("keeps its other keys when one field changes", () => {
+        const template = c8Template([linked]);
+
+        const result = edited(template, changeBindingField(template, C8, 0, "linkName", "b"));
+
+        expect((result.properties as Json[])[0].binding).toEqual({
+            type: "zeebe:linkedResource",
+            linkName: "b",
+        });
+    });
+
+    it("changes only the type when the property's type changes", () => {
+        const template = c8Template([linked]);
+
+        const result = edited(template, changePropertyType(template, C8, 0, "Text"));
+
+        expect((result.properties as Json[])[0]).toEqual({ ...linked, type: "Text" });
+    });
+});
+
 describe("changeBindingField", () => {
     it("applies the rules of the variant it selects", () => {
         const template = c8Template([
@@ -225,6 +256,16 @@ describe("changePropertyType", () => {
             expect(property).not.toHaveProperty("placeholder");
             expect(property).not.toHaveProperty("feel");
         }
+    });
+
+    it("keeps a number and a Dropdown's choices", () => {
+        expect(typeChange({ type: "Hidden", value: 3 }, "Number")).toMatchObject({ value: 3 });
+        expect(
+            typeChange(
+                { type: "Hidden", value: "b", choices: ["junk", { name: "B", value: "b" }] },
+                "Dropdown",
+            ),
+        ).toMatchObject({ value: "b", choices: ["junk", { name: "B", value: "b" }] });
     });
 
     it("gives a Dropdown a first choice and selects it", () => {
@@ -301,6 +342,25 @@ describe("groups", () => {
     });
 });
 
+describe("entries that are not objects", () => {
+    it("are passed over by the edits around them", () => {
+        const template = c8Template(["junk" as unknown as Json, input()], {
+            groups: ["junk", { id: "group-3", label: "Taken" }],
+        });
+
+        const result = edited(template, [...addGroup(template), ...removeProperty(1)]);
+
+        expect(result.groups).toEqual([
+            "junk",
+            { id: "group-3", label: "Taken" },
+            { id: "group-3-2", label: "New group" },
+        ]);
+        expect(changePropertyType(template, C8, 5, "Text")).toEqual([
+            { kind: "set", path: ["properties", 5, "type"], value: "Text" },
+        ]);
+    });
+});
+
 describe("setConstraint", () => {
     it("adds a constraint and removes the object once it is empty", () => {
         const template = c8Template([input()]);
@@ -310,6 +370,14 @@ describe("setConstraint", () => {
 
         const cleared = edited(constrained, setConstraint(constrained, 0, "notEmpty", undefined));
         expect((cleared.properties as Json[])[0]).not.toHaveProperty("constraints");
+    });
+
+    it("keeps the other constraints when one is cleared", () => {
+        const template = c8Template([input({ constraints: { notEmpty: true, maxLength: 5 } })]);
+
+        const result = edited(template, setConstraint(template, 0, "maxLength", ""));
+
+        expect((result.properties as Json[])[0].constraints).toEqual({ notEmpty: true });
     });
 });
 
@@ -335,6 +403,37 @@ describe("fixRequirement", () => {
             eventDefinition: "bpmn:MessageEventDefinition",
         });
         expect(result.appliesTo).toEqual(["bpmn:ServiceTask", "bpmn:IntermediateThrowEvent"]);
+    });
+
+    it("does not repeat an element type the template already applies to", () => {
+        const template = c8Template([], { appliesTo: ["bpmn:UserTask"] });
+
+        const result = edited(
+            template,
+            fixRequirement(template, C8, {
+                kind: "elementType",
+                oneOf: [{ value: "bpmn:UserTask" }],
+            }),
+        );
+
+        expect(result.appliesTo).toEqual(["bpmn:UserTask"]);
+    });
+
+    it("adds a property with a binding the catalog does not know as it is named", () => {
+        const template = c8Template();
+
+        const result = edited(
+            template,
+            fixRequirement(template, C8, {
+                kind: "binding",
+                binding: { type: "zeebe:unknown", name: "x" },
+                message: "This binding needs x.",
+            }),
+        );
+
+        expect(result.properties).toEqual([
+            { type: "Hidden", value: "", binding: { type: "zeebe:unknown", name: "x" } },
+        ]);
     });
 
     it("adds the property a binding needs next to it", () => {

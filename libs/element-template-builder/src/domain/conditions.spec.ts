@@ -36,6 +36,11 @@ describe("conditionRows", () => {
                 { property: "enabled", operator: "equals", value: "true" },
             ],
         ],
+        [
+            "a comparison it cannot name yet",
+            { property: 7 },
+            [{ property: "", operator: "equals", value: "" }],
+        ],
     ])("reads %s", (_, condition, rows) => {
         expect(conditionRows(condition)).toEqual(rows);
     });
