@@ -10,7 +10,7 @@ function createLocator(files: Record<string, string> = {}, folders = ["/work"]) 
 
     const locator = new BpmnLintConfigLocator(workspace, settings, artifacts);
 
-    return { locator, workspace };
+    return { locator, workspace, settings };
 }
 
 describe("BpmnLintConfigLocator.findNearestConfig", () => {
@@ -96,11 +96,11 @@ describe("BpmnLintConfigLocator.readConfig", () => {
 });
 
 describe("BpmnLintConfigLocator.createWatcher", () => {
-    it("watches **/.bpmnlintrc from the workspace root and re-pushes on every change", async () => {
+    it("re-pushes the lint config on every change of a .bpmnlintrc its lookup reads", async () => {
         const { locator, workspace } = createLocator();
         const target = { setBpmnlintConfig: vi.fn().mockResolvedValue(true) };
 
-        const result = await locator.createWatcher("/work/proc/order.bpmn", target as never);
+        const result = await locator.createWatcher("/work/proc/order.bpmn", target);
 
         expect(result.disposables).toHaveLength(1);
         expect(result.errors).toEqual([]);
@@ -138,6 +138,30 @@ describe("BpmnLintConfigLocator.createWatcher", () => {
         workspace.createDirectory("/work/proc/.camunda", {
             "/work/proc/.camunda/.bpmnlintrc": "{}",
         });
+
+        expect(target.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(
+            "file:///work/proc/order.bpmn",
+        );
+    });
+
+    it("ignores a .bpmnlintrc beside the document's lookup chain", async () => {
+        const { locator, workspace } = createLocator({ "/work/other/.camunda/.bpmnlintrc": "{}" });
+        const target = { setBpmnlintConfig: vi.fn().mockResolvedValue(true) };
+        await locator.createWatcher("file:///work/proc/order.bpmn", target);
+
+        await workspace.writeFile("/work/other/.bpmnlintrc", "{}");
+        await workspace.deleteDirectory("/work/other/.camunda");
+
+        expect(target.setBpmnlintConfig).not.toHaveBeenCalled();
+    });
+
+    it("follows a config folder changed after the watcher started", async () => {
+        const { locator, workspace, settings } = createLocator();
+        const target = { setBpmnlintConfig: vi.fn().mockResolvedValue(true) };
+        await locator.createWatcher("file:///work/proc/order.bpmn", target);
+
+        settings.values.configFolder = ".config";
+        await workspace.writeFile("/work/.config/.bpmnlintrc", "{}");
 
         expect(target.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(
             "file:///work/proc/order.bpmn",

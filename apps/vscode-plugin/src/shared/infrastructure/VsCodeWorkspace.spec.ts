@@ -60,7 +60,13 @@ vi.mock("vscode", () => ({
 
 import { FileSystemError, FileType, workspace } from "vscode";
 
-import { DirectoryNotFound, FileNotFound } from "@miragon/bpmn-modeler-core";
+import {
+    ArtifactService,
+    BpmnLintConfigLocator,
+    DirectoryNotFound,
+    FileNotFound,
+} from "@miragon/bpmn-modeler-core";
+import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 const getWorkspaceFolderMock = workspace.getWorkspaceFolder as unknown as ReturnType<typeof vi.fn>;
@@ -464,4 +470,62 @@ describe("VsCodeWorkspace.writeFile", () => {
             writeFileMock.mock.invocationCallOrder[0],
         );
     });
+});
+
+describe("VsCodeWorkspace under the config watchers of a Windows document", () => {
+    const EDITOR_ID = "file:///c%3A/ws/proc/order.bpmn";
+
+    function reportDeletes(): (path: string) => void {
+        let reportDelete: (uri: unknown) => void = () => undefined;
+        createFileSystemWatcherMock.mockReturnValue({
+            onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidChange: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidDelete: vi.fn((listener: (uri: unknown) => void) => {
+                reportDelete = listener;
+                return { dispose: vi.fn() };
+            }),
+            dispose: vi.fn(),
+        });
+        return (path) => reportDelete({ scheme: "file", authority: "", path });
+    }
+
+    it.each([
+        {
+            watcher: "element-template",
+            arm: (workspace: VsCodeWorkspace, onLookupChange: () => void) =>
+                new ArtifactService(workspace, new InMemorySettings()).createWatcher(EDITOR_ID, {
+                    refreshElementTemplates: onLookupChange,
+                }),
+        },
+        {
+            watcher: ".bpmnlintrc",
+            arm: (workspace: VsCodeWorkspace, onLookupChange: () => void) => {
+                const settings = new InMemorySettings();
+                return new BpmnLintConfigLocator(
+                    workspace,
+                    settings,
+                    new ArtifactService(workspace, settings),
+                ).createWatcher(EDITOR_ID, {
+                    setBpmnlintConfig: async () => {
+                        onLookupChange();
+                        return true;
+                    },
+                });
+            },
+        },
+    ])(
+        "follows the $watcher lookup of a document whose URI escapes the drive colon",
+        async ({ arm }) => {
+            getWorkspaceFolderMock.mockReturnValue({ uri: { path: "/C:/ws" } });
+            const reportDelete = reportDeletes();
+            const onLookupChange = vi.fn();
+            await arm(new VsCodeWorkspace(), onLookupChange);
+
+            reportDelete("/C:/ws/other/.camunda");
+            expect(onLookupChange).not.toHaveBeenCalled();
+
+            reportDelete("/C:/ws/.camunda");
+            expect(onLookupChange).toHaveBeenCalledOnce();
+        },
+    );
 });

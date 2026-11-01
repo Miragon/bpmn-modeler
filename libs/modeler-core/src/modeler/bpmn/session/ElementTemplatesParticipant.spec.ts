@@ -44,17 +44,19 @@ describe("ElementTemplatesParticipant", () => {
         await settle();
 
         expect(refresh).toHaveBeenCalledWith(editor.id);
-        expect(host.workspace.watchers.map(({ glob, disposed }) => ({ glob, disposed }))).toEqual([
-            { glob: "**/.camunda/element-templates/**", disposed: true },
-            { glob: "**/.config/element-templates/**", disposed: false },
-        ]);
+        expect(host.workspace.watchers.map(({ disposed }) => disposed)).toEqual([true, false]);
+
+        refresh.mockClear();
+        await host.workspace.writeFile("/work/.camunda/element-templates/a.json", "[]");
+        expect(refresh).not.toHaveBeenCalled();
+        await host.workspace.writeFile("/work/.config/element-templates/a.json", "[]");
+        expect(refresh).toHaveBeenCalledExactlyOnceWith(editor.id);
     });
 
     it("disposes the watcher and releases the editor's templates when the session closes", async () => {
         const { host, participant, release } = createServices();
         const editor = await host.openSession(PATH, [participant]);
         const [watcher] = host.workspace.watchers;
-        expect(watcher.glob).toBe("**/.camunda/element-templates/**");
         expect(watcher.disposed).toBe(false);
 
         editor.dispose();

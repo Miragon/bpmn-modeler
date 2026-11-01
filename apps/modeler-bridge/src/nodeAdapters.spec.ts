@@ -242,12 +242,6 @@ describe("NodeWorkspace folder lookups", () => {
  * recursive `fs.watch`.
  */
 
-/**
- * The element-templates glob the adapter compiles to match changed paths
- * against — extension-less so a one-shot folder copy (which can surface only as
- * a directory-create event) still triggers a refresh. Kept in sync with
- * `ArtifactService.createWatcher`.
- */
 const PATTERN = "**/.camunda/element-templates/**";
 
 // chokidar needs a moment to arm its watchers; the adapter debounces ~50ms on

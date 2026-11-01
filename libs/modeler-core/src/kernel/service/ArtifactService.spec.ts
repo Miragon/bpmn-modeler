@@ -469,7 +469,7 @@ describe("ArtifactService.readFile", () => {
 describe("ArtifactService.createWatcher", () => {
     const EDITOR_ID = "file:///work/proc/order.bpmn";
 
-    it("watches the config glob from the workspace folder and refreshes the editor on every event", async () => {
+    it("refreshes the editor on every event below a templates folder of its lookup", async () => {
         const { service, workspace } = createService({ folders: ["/work"] });
         const target = { refreshElementTemplates: vi.fn() };
 
@@ -478,8 +478,6 @@ describe("ArtifactService.createWatcher", () => {
         expect(result.disposables).toHaveLength(1);
         expect(result.errors).toEqual([]);
 
-        // Each event must trigger a refresh keyed by the originating editor —
-        // including for a bare, extension-less path (the folder-copy case).
         await workspace.writeFile("/work/.camunda/element-templates/copied-folder", "");
         await workspace.writeFile("/work/.camunda/element-templates/x.json", "{}");
         await workspace.writeFile("/work/.camunda/element-templates/x.json", "[]");
@@ -573,6 +571,20 @@ describe("ArtifactService.createWatcher", () => {
         });
 
         expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("ignores a config folder beside the document's lookup chain", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/other/.camunda/element-templates/payment.json": "[]" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        await workspace.writeFile("/work/other/.camunda/element-templates/shipping.json", "[]");
+        await workspace.deleteDirectory("/work/other/.camunda");
+
+        expect(target.refreshElementTemplates).not.toHaveBeenCalled();
     });
 
     it("watches element templates when the config folder is empty", async () => {

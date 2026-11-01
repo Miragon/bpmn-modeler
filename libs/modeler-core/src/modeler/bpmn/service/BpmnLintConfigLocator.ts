@@ -1,9 +1,9 @@
-import { posix } from "path";
-
 import { ancestorsUpTo } from "../../../kernel/domain/ancestorsUpTo";
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
+import { changesConfigLookup } from "../../../kernel/domain/configLookup";
 import { DirectoryNotFound } from "../../../kernel/domain/errors";
 import { SettingsPort, WorkspacePort } from "../../../kernel/domain/hostPorts";
+import { EVERY_PATH_GLOB } from "../../../kernel/domain/watchedFiles";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService, WatcherResult } from "../../../kernel/service/ArtifactService";
 
@@ -57,19 +57,27 @@ export class BpmnLintConfigLocator {
         return this.vsWorkspace.readFile(path);
     }
 
-    /**
-     * Watches for `.bpmnlintrc` changes anywhere under the workspace root
-     * and re-pushes the config on create/change/delete.
-     */
+    /** Re-pushes the config on every change that can alter what {@link findNearestConfig} finds. */
     async createWatcher(editorId: string, target: BpmnlintChangeTarget): Promise<WatcherResult> {
-        const documentDir = posix.dirname(editorId);
-        const workspaceRoot = await this.artifacts.getWorkspaceRoot(documentDir);
+        const documentDirectory = this.vsWorkspace.getDocumentDirectory(editorId);
+        const workspaceRoot = await this.artifacts.getWorkspaceRoot(documentDirectory);
 
-        const pattern = `**/.bpmnlintrc`;
-        const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
-            onCreate: () => void target.setBpmnlintConfig(editorId),
-            onChange: () => void target.setBpmnlintConfig(editorId),
-            onDelete: () => void target.setBpmnlintConfig(editorId),
+        const rePushConfig = (path: string) => {
+            // Read on every event: the watcher outlives a change of the config folder.
+            const configFolder = this.vsSettings.getConfigFolder();
+            const lintConfigLookup = {
+                documentDirectory,
+                workspaceRoot,
+                entries: [".bpmnlintrc", configFolderPath("", configFolder, ".bpmnlintrc")],
+            };
+            if (changesConfigLookup(path, lintConfigLookup)) {
+                void target.setBpmnlintConfig(editorId);
+            }
+        };
+        const handle = this.vsWorkspace.createWatcher(workspaceRoot, EVERY_PATH_GLOB, {
+            onCreate: rePushConfig,
+            onChange: rePushConfig,
+            onDelete: rePushConfig,
         });
 
         return { disposables: [handle], errors: [] };
