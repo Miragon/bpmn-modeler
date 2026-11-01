@@ -75,16 +75,18 @@ deleting it.
 A save stores the slot's credentials and approvals before it writes the file.
 Once the file holds a new name, nothing names the old slot again, so a failure
 before that point leaves the file and the old slot as they were and empties the
-new slot. Once the file is written, a rename deletes the old slot even when
-saving the active name fails. The first failure is the one reported; a cleanup
-failing after it is only logged. A save of an existing target keeps what it
-stored in that target's slot when the file write fails, because the slot is
-still in use. That is a trade-off for one case: switching a stored literal to
-an environment reference leaves the reference in the slot while the file still
-lacks it, so the target sends an empty value until a save succeeds. Writing the
-file first would open the reverse case instead, a reference replaced by a
-literal while the secret store rejects writes, and a rejecting secret store is
-the likelier failure
+new slot. Once the file is written, a rename or a delete removes the retired
+slot even when saving or clearing the active name fails; a delete clears the
+active name first, so a failing secret store does not leave it naming the
+deleted target. The first failure is the one reported; a cleanup failing after
+it is only logged. A save of an existing target keeps what it stored in that
+target's slot when the file write fails, because the slot is still in use. That
+is a trade-off for one case: switching a stored literal to an environment
+reference leaves the reference in the slot while the file still lacks it, so
+the target sends an empty value until a save succeeds. Writing the file first
+would open the reverse case instead, a reference replaced by a literal while
+the secret store rejects writes, and a rejecting secret store is the likelier
+failure
 ([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts)).
 
 Creating and updating are separate operations so a target is never overwritten
@@ -103,20 +105,21 @@ creates a target.
 Every target change publishes one `DeploymentTargetsEvent` through
 `DeploymentTargetService.onDidChange`: a create, save, rename or delete carries
 its `TargetEdit`, and a sidebar select or a picked switch carries the new
-active name. A create, save or rename that wrote the file publishes even when
-saving the active name or deleting the old slot fails after it, so the panel
-reloads instead of sending a retry as the same rename. A rejected save, a
-cancelled delete or a dismissed picker publishes nothing. An edit stores the
-active name it implies without a second event. The service awaits the
-listeners in subscription order. The change is already made when they run, so
-a failing listener is logged and skipped, and the sidebar still reports the
-target as saved when the ledger prune after it fails. `DeploymentFeature`
-subscribes the status service once and each attached panel until it is
-disposed. The status service prunes a retired target's ledger rows and
-refreshes the indicator, and the panel pushes the target list, so no command
-does either by hand. A panel posts the result of its own target command before
-that push, because the form ends its reload lock on the first target list after
-a successful result. Overlapping commands push once, after the last result
+active name. A create, save, rename or delete that wrote the file publishes
+even when saving or clearing the active name or deleting the retired slot fails
+after it, so the panel reloads instead of offering a retry of the same edit. A
+rejected save, a cancelled delete or a dismissed picker publishes nothing. An
+edit stores the active name it implies without a second event. The service
+awaits the listeners in subscription order. The change is already made when
+they run, so a failing listener is logged and skipped, and the sidebar still
+reports the target as saved when the ledger prune after it fails.
+`DeploymentFeature` subscribes the status service once and each attached panel
+until it is disposed. The status service prunes a retired target's ledger rows
+and refreshes the indicator, and the panel pushes the target list, so no
+command does either by hand. A panel posts the result of its own target command
+before that push, because the form ends its reload lock on the first target
+list after a successful result. Overlapping commands push once, after the last
+result
 ([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts),
 [feature tests](../../libs/modeler-core/src/deployment/DeploymentFeature.spec.ts)).
 
