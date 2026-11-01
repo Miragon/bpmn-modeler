@@ -2,12 +2,12 @@
 
 The **public**, host-agnostic half of the modeler's shared code: domain/model
 types (engine, lint, settings, scripting, implementation, diff), browser
-utilities (canvas resize, text-editing-surface predicate) and the pure rules
-browser code and `@miragon/bpmn-modeler-core` both apply (script-surface
-addressing in `scriptSurface.ts`, workspace definitions, the XML comment and
-CDATA scan in `xmlMarkup.ts`, process-variable extraction in
-`processVariables.ts`). None of it depends on the webview ↔ host message
-protocol.
+utilities (canvas resize, text-editing-surface predicate, the flushable input
+debounce of the BPMN, DMN and Form editors) and the pure rules browser
+code and `@miragon/bpmn-modeler-core` both apply (script-surface addressing in
+`scriptSurface.ts`, workspace definitions, the XML comment and CDATA scan in
+`xmlMarkup.ts`, process-variable extraction in `processVariables.ts`). None of
+it depends on the webview ↔ host message protocol.
 
 This package draws a hard line so the modeler can ship as a publishable
 `@miragon/bpmn-modeler` npm package without dragging the host protocol along:

@@ -114,7 +114,9 @@ export interface ClipboardOptions {
  * {@link BpmnModelerHandle.onCommandStackChanged} reports each change
  * undebounced for the rare consumer that wants it. A failing save (export or
  * `onContentSaved`) is reported through {@link ModelerOptions.onError}, not by
- * rejecting the debounced run.
+ * rejecting the debounced run. `destroy()` drops a save still waiting in the
+ * debounce; a mode session's rebuilding switch delivers it before it destroys
+ * the surface.
  */
 export interface ContentSavedEvent {
     readonly xml: string;

@@ -113,6 +113,7 @@ describe("form webview bootstrap", () => {
 
         expect(mocks.dedicatedEditor).toHaveBeenCalledWith({
             container: document.getElementById("form-editor"),
+            additionalModules: [{ debounce: ["value", expect.any(Function)] }],
         });
         expect(mocks.dedicatedViewer).toHaveBeenCalledWith({
             container: document.getElementById("form-preview"),

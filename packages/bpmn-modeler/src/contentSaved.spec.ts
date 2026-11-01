@@ -185,6 +185,28 @@ describe("wireContentSaved", () => {
         expect(onContentSaved).toHaveBeenCalledWith({ xml: "<xml/>" });
     });
 
+    it("delivers the pending export once when flushed before the store is disposed", async () => {
+        const store = new DisposableStore();
+        const eventBus = fakeBus();
+        const onContentSaved = vi.fn();
+
+        const flushContentSaved = wireContentSaved({
+            store,
+            eventBus,
+            exportDiagram: vi.fn().mockResolvedValue("<xml/>"),
+            onContentSaved,
+            reporter: createReporter({}),
+        });
+
+        eventBus.fire("commandStack.changed");
+        await flushContentSaved();
+
+        expect(onContentSaved).toHaveBeenCalledExactlyOnceWith({ xml: "<xml/>" });
+        store.dispose();
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(onContentSaved).toHaveBeenCalledOnce();
+    });
+
     it("unsubscribes and cancels the pending export on store dispose", async () => {
         const store = new DisposableStore();
         const eventBus = fakeBus();

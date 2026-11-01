@@ -9,11 +9,17 @@ import {
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
-import type { DmnModelerHandle } from "@miragon/dmn-modeler";
+import type { DmnModelerHandle, DmnPendingInputHandle } from "@miragon/dmn-modeler";
 
 import type { WebviewState } from "./webviewState";
 
 type HostChannel = Pick<HostApi<WebviewState, Command | Query>, "postMessage">;
+
+function holdsPendingInput(
+    modeler: DmnModelerHandle | undefined,
+): modeler is DmnModelerHandle & DmnPendingInputHandle {
+    return modeler !== undefined && "hasPendingInput" in modeler;
+}
 
 /** The DMN webview's document lifecycle on top of the shared {@link WebviewDocumentSync}. */
 export class DmnDocumentSession {
@@ -35,6 +41,14 @@ export class DmnDocumentSession {
                     }
                 },
                 exportDocument: () => this.requireModeler().exportDiagram(),
+                hasPendingInput: () =>
+                    holdsPendingInput(this.attachedModeler) &&
+                    this.attachedModeler.hasPendingInput(),
+                flushPendingInput: () => {
+                    if (holdsPendingInput(this.attachedModeler)) {
+                        this.attachedModeler.flushPendingInput();
+                    }
+                },
             },
             flushLock: createInertLock(document.body),
             isReady: () => this.initialDocumentImported,

@@ -422,12 +422,21 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
-In the BPMN webview, a value that still waits in the properties panel's
-600 ms input debounce counts as such an edit. The panel's `debounceInput`
-service comes from `libs/properties-panel` and tracks its waiting calls; the
-flush applies them before it exports, so the persisted file holds the value
-the panel shows. A mode switch that rebuilds the surface applies them before
-it exports the diagram for the next surface, and the webview's `beforeDestroy`
+In the BPMN, DMN and Form webviews, a value that still waits in an editor's
+input debounce counts as such an edit: a BPMN or DMN properties panel's
+(600 ms), DMN text in the decision-table, literal-expression and
+boxed-expression editors (300 ms), and every form-js editor input (300 ms). The
+BPMN and DMN modeler packages and the Form webview replace those debounce
+services with the flushable one from `modeler-types`
+(`createFlushableDebounceInput`): it tracks its waiting calls, and a flush runs
+them and the calls they debounce in turn; a call that fails does not hold back
+the others. The webview's flush applies them before it exports, so the
+persisted file holds the value the editor shows. The BPMN surfaces register it
+as `debounceInput` through `libs/properties-panel`; the DMN modeler registers
+its own instances, one for the DRD panel and one for the other views; the Form
+webview registers one as form-js's `debounce` service, with form-js's 300 ms
+delay. A BPMN mode switch that rebuilds the surface applies them before it
+exports the diagram for the next surface, and the webview's `beforeDestroy`
 posts the sync they scheduled, so both the next surface and the document get
 the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
@@ -450,11 +459,23 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a DMN or Form
-properties-panel value the panel has not passed to the editor yet (dmn-js
-debounces it for 600 ms, form-js for 300 ms) is not flushed; and a save of one
+write has not reached the EDT yet, lands after the save; and a save of one
 Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
 flush.
+Before the standalone app shuts down or moves a diagram into or out of a
+secondary window (which reloads the webview), the Theia frontend in
+`libs/standalone-extension` flushes the page into Theia's text model itself,
+past the core. Every `clean` and `host-updated` reply carries the revision the
+page represents; the core and IntelliJ read a reply's revision only on a
+`flushed` export, so the field is additive. The frontend writes a `flushed`
+export, and nothing for `host-updated`. For `clean` or `unavailable` it falls
+back to the last sync it saw, once the text model has not taken it within
+500 ms, unless the reply's revision is newer than the sync's: the page has
+then imported an outside change newer than the document its sync was made
+against, and the host document already holds it. `decideFlushWrite` holds this rule. Accepted residual: a
+`flushed` export that races a host update still on its way to the page is
+written without a revision check; only a flush through the core's
+`PendingEditsFlush` would close that.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and

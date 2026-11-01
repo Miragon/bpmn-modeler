@@ -3343,6 +3343,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel"
   dependencies:
     "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.0.5"
     bpmn-js: "npm:18.31.0"

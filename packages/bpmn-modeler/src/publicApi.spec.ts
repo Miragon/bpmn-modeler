@@ -18,7 +18,7 @@ import type {
     ThemeMode,
 } from "./publicApi";
 import type { ViewState } from "./viewState";
-import type { PendingInputHandle } from "./surfaceHandle";
+import type { PendingInputHandle, PendingSaveHandle } from "./surfaceHandle";
 import type {
     BpmnViewerHandle,
     CoreViewerServices,
@@ -83,6 +83,11 @@ const _modelerPendingInput = (modeler: BpmnModeler): PendingInputHandle => model
 void _modelerPendingInput;
 const _designerPendingInput = (designer: BpmnDesigner): PendingInputHandle => designer;
 void _designerPendingInput;
+// A recreating mode switch delivers their pending content save before it destroys them.
+const _modelerPendingSave = (modeler: BpmnModeler): PendingSaveHandle => modeler;
+void _modelerPendingSave;
+const _designerPendingSave = (designer: BpmnDesigner): PendingSaveHandle => designer;
+void _designerPendingSave;
 
 const _viewState = {
     viewport: { x: 0, y: 0, width: 100, height: 100 },

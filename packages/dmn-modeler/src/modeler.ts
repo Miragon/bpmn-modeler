@@ -8,7 +8,9 @@ import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
 import {
+    createFlushableDebounceInput,
     DisposableStore,
+    type FlushableDebounceInput,
     installCanvasFocusIndicator,
     MutableDisposable,
     NoModelerError,
@@ -22,6 +24,7 @@ import type {
     DmnModelerHandle,
     DmnModelerOptions,
     DmnOperationResult,
+    DmnPendingInputHandle,
     DmnThemeMode,
     DmnView,
     DmnViewChangedEvent,
@@ -43,6 +46,12 @@ const DEFAULT_EXPRESSION_LANGUAGES = {
 const THEME_ATTRIBUTE = "data-dmn-theme";
 
 const DEFAULT_DATA_TYPES = ["string", "boolean", "integer", "long", "double", "date"];
+
+/** The delay of the `@bpmn-io/properties-panel` default the DRD panel's service replaces. */
+const PROPERTIES_PANEL_INPUT_DEBOUNCE_MS = 600;
+
+/** The delay of the `dmn-js-shared` default the other views' service replaces. */
+const VIEW_EDITOR_INPUT_DEBOUNCE_MS = 300;
 
 interface EventBus {
     on(event: string, callback: () => void): void;
@@ -85,11 +94,17 @@ interface ViewboxCanvas extends ResizableCanvas {
 }
 
 /** @internal */
-export class DmnModeler implements DmnModelerHandle {
+export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
     private readonly modeler: VendorDmnModeler;
     private readonly store = new DisposableStore();
     private readonly focusIndicator = new MutableDisposable();
     private readonly commandStackBinding = new MutableDisposable();
+    // Held here rather than read from the active viewer, so the handle sees the
+    // input of every view, not only the open one.
+    private readonly propertiesPanelInput = createFlushableDebounceInput(
+        PROPERTIES_PANEL_INPUT_DEBOUNCE_MS,
+    );
+    private readonly viewEditorInput = createFlushableDebounceInput(VIEW_EDITOR_INPUT_DEBOUNCE_MS);
     private activeEventBus?: EventBus;
     private themeController?: ThemeController;
 
@@ -114,24 +129,33 @@ export class DmnModeler implements DmnModelerHandle {
                     DmnPropertiesProviderModule,
                     CamundaPropertiesProviderModule,
                     DmnSimulationModule.decisionRequirementsDiagram,
+                    // After the panel, so its `debounceInput` is the flushable one.
+                    debounceInputModule(this.propertiesPanelInput),
                     ...(additionalModules.drd ?? []),
                 ],
             },
+            // dmn-js adds a view's own modules first, so these replace its `debounceInput`.
             decisionTable: {
                 additionalModules: [
                     TranslateModule,
                     DmnSimulationModule.decisionTable,
+                    debounceInputModule(this.viewEditorInput),
                     ...(additionalModules.decisionTable ?? []),
                 ],
             },
             literalExpression: {
                 additionalModules: [
                     TranslateModule,
+                    debounceInputModule(this.viewEditorInput),
                     ...(additionalModules.literalExpression ?? []),
                 ],
             },
             boxedExpression: {
-                additionalModules: [TranslateModule, ...(additionalModules.boxedExpression ?? [])],
+                additionalModules: [
+                    TranslateModule,
+                    debounceInputModule(this.viewEditorInput),
+                    ...(additionalModules.boxedExpression ?? []),
+                ],
             },
             common: {
                 expressionLanguages: options.expressionLanguages ?? DEFAULT_EXPRESSION_LANGUAGES,
@@ -272,6 +296,26 @@ export class DmnModeler implements DmnModelerHandle {
         return viewer.get<T>(name);
     }
 
+    /** @internal See {@link DmnPendingInputHandle.hasPendingInput}. */
+    hasPendingInput(): boolean {
+        return (
+            !this.store.isDisposed &&
+            (this.propertiesPanelInput.hasPending() || this.viewEditorInput.hasPending())
+        );
+    }
+
+    /** @internal See {@link DmnPendingInputHandle.flushPendingInput}. */
+    flushPendingInput(): void {
+        if (this.store.isDisposed) {
+            return;
+        }
+        try {
+            this.propertiesPanelInput.flush();
+        } finally {
+            this.viewEditorInput.flush();
+        }
+    }
+
     destroy(): void {
         this.store.dispose();
     }
@@ -368,6 +412,10 @@ export class DmnModeler implements DmnModelerHandle {
             throw new NoModelerError();
         }
     }
+}
+
+function debounceInputModule(debounceInput: FlushableDebounceInput) {
+    return { debounceInput: ["value", debounceInput] };
 }
 
 function enhanceOperationError(context: string, error: unknown): Error {

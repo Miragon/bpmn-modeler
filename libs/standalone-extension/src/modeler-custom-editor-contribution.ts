@@ -4,6 +4,12 @@ import type { CommandContribution, CommandRegistry } from "@theia/core/lib/commo
 import type { Disposable, Event } from "@theia/core/lib/common";
 import { inject, injectable } from "@theia/core/shared/inversify";
 import {
+    decideFlushWrite,
+    type FlushReply,
+    parseFlushReply,
+    type PendingSyncObservation,
+} from "./modeler-flush-reply";
+import {
     FLUSH_DOCUMENT_COMMAND,
     hasLiveModelerWebview,
     isModelerViewType,
@@ -46,13 +52,6 @@ interface ModelerCustomEditorWidget extends Widget {
     sendMessage?(message: unknown): void;
     viewType?: string;
 }
-
-interface DocumentFlushedReply {
-    readonly content?: string;
-}
-
-type PendingSyncObservation =
-    { readonly status: "failed" } | { readonly status: "synced"; readonly content: string };
 
 interface PendingSyncObserver {
     current(): PendingSyncObservation | undefined;
@@ -155,27 +154,23 @@ export class ModelerCustomEditorContribution
             if (!reply) {
                 return false;
             }
-            if (reply.content !== undefined) {
-                return this.applyFlushedContent(widget, reply.content);
-            }
 
-            const observation = pendingSync.current();
-            if (observation?.status === "failed") {
-                return false;
-            }
-            if (observation?.status === "synced") {
+            let decision = decideFlushWrite(reply, pendingSync.current());
+            if (decision.kind === "writeObservedSync") {
                 if (await this.waitForHostContent(widget, pendingSync)) {
                     return true;
                 }
-                const latestObservation = pendingSync.current();
-                if (latestObservation?.status === "failed") {
-                    return false;
-                }
-                if (latestObservation?.status === "synced") {
-                    return this.applyFlushedContent(widget, latestObservation.content);
-                }
+                decision = decideFlushWrite(reply, pendingSync.current());
             }
-            return true;
+            switch (decision.kind) {
+                case "syncFailed":
+                    return false;
+                case "keepHostDocument":
+                    return true;
+                case "writeExport":
+                case "writeObservedSync":
+                    return this.applyFlushedContent(widget, decision.content);
+            }
         } finally {
             pendingSync.dispose();
         }
@@ -217,7 +212,14 @@ export class ModelerCustomEditorContribution
                     return;
                 }
                 if (message.type === "SyncDocumentCommand" && typeof message.content === "string") {
-                    observation = { status: "synced", content: message.content };
+                    observation = {
+                        status: "synced",
+                        content: message.content,
+                        documentRevision:
+                            typeof message.documentRevision === "number"
+                                ? message.documentRevision
+                                : 0,
+                    };
                     scheduleDrain(Date.now() + SYNC_QUIET_MS);
                 } else if (
                     message.type === "LogErrorCommand" &&
@@ -244,9 +246,7 @@ export class ModelerCustomEditorContribution
         };
     }
 
-    private requestFlush(
-        widget: ModelerCustomEditorWidget,
-    ): Promise<DocumentFlushedReply | undefined> {
+    private requestFlush(widget: ModelerCustomEditorWidget): Promise<FlushReply | undefined> {
         const token = this.nextFlushToken--;
         return new Promise((resolve) => {
             const cleanup: {
@@ -254,7 +254,7 @@ export class ModelerCustomEditorContribution
                 timer?: ReturnType<typeof setTimeout>;
             } = {};
             let settled = false;
-            const settle = (reply?: DocumentFlushedReply): void => {
+            const settle = (reply?: FlushReply): void => {
                 if (settled) {
                     return;
                 }
@@ -276,17 +276,7 @@ export class ModelerCustomEditorContribution
                 if (message.token !== token) {
                     return;
                 }
-                if (
-                    message.content !== undefined &&
-                    message.content !== null &&
-                    typeof message.content !== "string"
-                ) {
-                    settle();
-                    return;
-                }
-                settle({
-                    content: typeof message.content === "string" ? message.content : undefined,
-                });
+                settle(parseFlushReply(message));
             });
             cleanup.timer = setTimeout(() => settle(), FLUSH_TIMEOUT_MS);
 

@@ -1,7 +1,7 @@
 # DMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -49,6 +49,30 @@ the same behavior from both packages. Teardown composes the shared
 idempotent; afterwards every member throws `NoModelerError` (async members
 reject with it), which the package exports, except `setTheme`, which becomes a
 no-op.
+
+The DRD properties panel's `debounceInput` service is the flushable one from
+`modeler-types`, with the panel library's 600 ms delay, registered after the
+panel module so it replaces the library's. The decision-table,
+literal-expression and boxed-expression views share a second instance with
+dmn-js's 300 ms delay, registered after the facade's other modules of each
+view, so annotations, names, descriptions and simple-mode popups are flushed
+too. The modeler holds both instances instead of reading them from the active
+viewer, so it sees the input of every view. The handle reaches them through the
+internal `hasPendingInput()` and `flushPendingInput()`
+(`DmnPendingInputHandle`), which answer `false` and do nothing once destroyed.
+The IDE webview's flush uses them to apply a typed value before it exports, as
+it does for the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle).
+They are not public API yet. The decision table also sends one UI-only call
+through the service: after a sheet scroll it shows the simple-mode button
+again 300 ms later. A save of an unedited table in that window answers
+`flushed` with dmn-js's serialization instead of `clean`, which the host
+writes only when it differs from the file. Not covered yet: dmn-js clears the
+view it leaves, so a value still waiting when the user switches views throws
+when it is applied, by a flush as by the dmn-js timer. The value reaches the
+model but schedules no sync, because the modeler listens only to the open
+view's command stack. A flush still applies the other waiting input and then
+rethrows, so the save gets an `unavailable` reply and goes ahead best-effort;
+the value reaches the document with the next sync the page posts.
 
 ### Themes
 

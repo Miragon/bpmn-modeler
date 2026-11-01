@@ -1,17 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { FlushableDebounceInput } from "@miragon/bpmn-modeler-types";
 
-import { createFlushableDebounceInput } from "./flushableDebounceInput";
+import { FlushableDebounceInputModule } from "./flushableDebounceInput";
 
-function nameEntry() {
-    const debounceInput = createFlushableDebounceInput();
-    const appliedNames: string[] = [];
-    const setName = debounceInput((name: string) => {
-        appliedNames.push(name);
-    });
-    return { debounceInput, setName, appliedNames };
+function panelDebounceInput(): FlushableDebounceInput {
+    const [, createService] = FlushableDebounceInputModule.debounceInput;
+    return (createService as () => FlushableDebounceInput)();
 }
 
-describe("flushable debounceInput", () => {
+describe("FlushableDebounceInputModule", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -20,96 +17,31 @@ describe("flushable debounceInput", () => {
         vi.useRealTimers();
     });
 
-    it("runs a pending call when flushed", () => {
-        const { debounceInput, setName, appliedNames } = nameEntry();
-
-        setName("Approve invoice");
-        debounceInput.flush();
-
-        expect(appliedNames).toEqual(["Approve invoice"]);
-        expect(debounceInput.hasPending()).toBe(false);
-    });
-
-    it("reports a call as pending until its debounce runs it", () => {
-        const { debounceInput, setName, appliedNames } = nameEntry();
-
-        setName("Approve invoice");
-        expect(debounceInput.hasPending()).toBe(true);
-
-        vi.advanceTimersByTime(600);
-
-        expect(appliedNames).toEqual(["Approve invoice"]);
-        expect(debounceInput.hasPending()).toBe(false);
-    });
-
-    it("keeps the panel's 600 ms input delay", () => {
-        const { setName, appliedNames } = nameEntry();
-
-        setName("Approve invoice");
-        vi.advanceTimersByTime(599);
-        expect(appliedNames).toEqual([]);
-
-        vi.advanceTimersByTime(1);
-        expect(appliedNames).toEqual(["Approve invoice"]);
-    });
-
-    it("applies only the last value typed into an entry", () => {
-        const { debounceInput, setName, appliedNames } = nameEntry();
-
-        setName("Approve");
-        setName("Approve invoice");
-        debounceInput.flush();
-
-        expect(appliedNames).toEqual(["Approve invoice"]);
-    });
-
-    it("runs the pending call of every entry when flushed", () => {
-        const { debounceInput, setName, appliedNames } = nameEntry();
-        const appliedDocumentation: string[] = [];
-        const setDocumentation = debounceInput((text: string) => {
-            appliedDocumentation.push(text);
+    it("keeps the panel's 600 ms input delay and reports the input waiting in it", () => {
+        const debounceInput = panelDebounceInput();
+        const appliedNames: string[] = [];
+        const setName = debounceInput((name: string) => {
+            appliedNames.push(name);
         });
 
         setName("Approve invoice");
-        setDocumentation("Checks the amount");
-        debounceInput.flush();
+        vi.advanceTimersByTime(599);
+        expect(debounceInput.hasPending()).toBe(true);
 
+        vi.advanceTimersByTime(1);
         expect(appliedNames).toEqual(["Approve invoice"]);
-        expect(appliedDocumentation).toEqual(["Checks the amount"]);
-    });
-
-    it("stops reporting a call its entry cancelled", () => {
-        const { debounceInput, setName, appliedNames } = nameEntry();
-
-        setName("Approve invoice");
-        setName.cancel();
-        debounceInput.flush();
-        vi.advanceTimersByTime(600);
-
         expect(debounceInput.hasPending()).toBe(false);
-        expect(appliedNames).toEqual([]);
     });
 
-    it("stops reporting a call its entry flushed itself", () => {
-        const { debounceInput, setName, appliedNames } = nameEntry();
+    it("gives each modeler its own service", () => {
+        // didi calls a factory once per injector; a value would be shared by every modeler.
+        expect(FlushableDebounceInputModule.debounceInput[0]).toBe("factory");
+        const firstModeler = panelDebounceInput();
+        const secondModeler = panelDebounceInput();
 
-        setName("Approve invoice");
-        setName.flush();
+        firstModeler(() => {})();
 
-        expect(debounceInput.hasPending()).toBe(false);
-        expect(appliedNames).toEqual(["Approve invoice"]);
-    });
-
-    it("keeps the pending calls of separate panels apart", () => {
-        const first = nameEntry();
-        const second = nameEntry();
-
-        first.setName("Approve invoice");
-        second.setName("Reject invoice");
-        first.debounceInput.flush();
-
-        expect(first.appliedNames).toEqual(["Approve invoice"]);
-        expect(second.appliedNames).toEqual([]);
-        expect(second.debounceInput.hasPending()).toBe(true);
+        expect(firstModeler.hasPending()).toBe(true);
+        expect(secondModeler.hasPending()).toBe(false);
     });
 });

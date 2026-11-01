@@ -29,6 +29,11 @@ export interface FormViewerLike {
     _getSubmitData(): Schema;
 }
 
+export interface PendingEditorInput {
+    hasPending(): boolean;
+    flush(): void;
+}
+
 export interface FormEditorElements {
     editor: HTMLElement;
     preview: HTMLElement;
@@ -65,6 +70,7 @@ export class FormEditorApp {
         private readonly formViewer: FormViewerLike,
         private readonly host: FormHost,
         private readonly elements: FormEditorElements,
+        private readonly editorInput: PendingEditorInput,
         initialMode: "edit" | "preview" = "edit",
     ) {
         this.formEditor.on("changed", () => this.syncChangedContent());
@@ -125,7 +131,7 @@ export class FormEditorApp {
     }
 
     hasPendingSync(): boolean {
-        return this.syncDeliveryTimer !== undefined;
+        return this.syncDeliveryTimer !== undefined || this.editorInput.hasPending();
     }
 
     hasPendingHostUpdate(): boolean {
@@ -150,6 +156,7 @@ export class FormEditorApp {
     }
 
     flushPendingSync(): Promise<void> {
+        this.editorInput.flush();
         if (this.hasPendingSync()) {
             this.cancelPendingSync();
             this.syncCurrentContent(true);
@@ -166,6 +173,7 @@ export class FormEditorApp {
     }
 
     async exportContent(): Promise<string> {
+        this.editorInput.flush();
         return this.currentContent();
     }
 
