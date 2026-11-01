@@ -106,6 +106,58 @@ describe("BpmnDocument.detectEngine", () => {
     it("returns undefined for an untagged model instead of throwing", () => {
         expect(new BpmnDocument(unknownXml).detectEngine()).toBeUndefined();
     });
+
+    it.each([
+        {
+            declaration: "a single-quoted xmlns:zeebe",
+            xml: diagram("xmlns:zeebe='http://camunda.org/schema/zeebe/1.0'"),
+            engine: "c8",
+        },
+        {
+            declaration: "the Camunda 7 namespace under another prefix",
+            xml: diagram('xmlns:c7="http://camunda.org/schema/1.0/bpmn"'),
+            engine: "c7",
+        },
+        {
+            declaration: "both engine namespaces",
+            xml: diagram(ZEEBE_NAMESPACE, CAMUNDA_NAMESPACE),
+            engine: "c7",
+        },
+    ])("detects $engine from a definitions root declaring $declaration", ({ xml, engine }) => {
+        expect(new BpmnDocument(xml).detectEngine()).toBe(engine);
+    });
+
+    it.each([
+        {
+            given: "an engine namespace in a comment that is the whole file",
+            xml: `<!-- ${CAMUNDA_NAMESPACE} -->`,
+        },
+        {
+            given: "an engine namespace on a root that is not definitions",
+            xml: `<foo ${ZEEBE_NAMESPACE}/>`,
+        },
+        {
+            given: "an engine namespace in a comment before an engine-neutral root",
+            xml: BpmnDocument.emptyEngineNeutral().xml.replace(
+                "<bpmn:definitions",
+                `<!-- copied from ${ZEEBE_NAMESPACE} -->\n<bpmn:definitions`,
+            ),
+        },
+        {
+            given: "an engine namespace on a child element of an engine-neutral root",
+            xml: diagramWith(`<bpmn:process id="Process_1" ${CAMUNDA_NAMESPACE} />`),
+        },
+        {
+            given: "an engine namespace as the target namespace",
+            xml: diagram('targetNamespace="http://camunda.org/schema/zeebe/1.0"'),
+        },
+        {
+            given: "the camunda prefix bound to another namespace",
+            xml: diagram('xmlns:camunda="http://activiti.org/bpmn"'),
+        },
+    ])("leaves $given undetected", ({ xml }) => {
+        expect(new BpmnDocument(xml).detectEngine()).toBeUndefined();
+    });
 });
 
 describe("BpmnDocument.emptyEngineNeutral", () => {

@@ -37,7 +37,7 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:modeler="http://camunda.org/schema/modeler/1.0">
 </bpmn:definitions>`;
 
-const c8WithoutDefinitionsRoot = `<?xml version="1.0" encoding="UTF-8"?>
+const zeebeNamespaceOnProcessRoot = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:process xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
   xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Process_1" />`;
 
@@ -402,32 +402,29 @@ describe("migrateAllDiagrams", () => {
         expect(result).toBe(true);
     });
 
-    it("skips a diagram without a definitions root and migrates the rest", async () => {
-        const { service, notifier, workspace } = createHost(
+    it("leaves a file without a definitions root undetected and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost(
             {
-                "/work/a.bpmn": c8Bpmn("8.5.0"),
-                "/work/b.bpmn": c8WithoutDefinitionsRoot,
-                "/work/c.bpmn": c8Bpmn("8.5.0"),
+                "/work/a.bpmn": c7Bpmn("7.20.0"),
+                "/work/b.bpmn": zeebeNamespaceOnProcessRoot,
+                "/work/c.bpmn": c7Bpmn("7.20.0"),
             },
-            { c8EngineVersion: "8.8.0" },
+            { c7EngineVersion: "7.24.0" },
         );
 
         const result = await service.migrateAllDiagrams();
 
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c7")] }]);
         expect(Object.fromEntries(workspace.files)).toEqual({
-            "/work/a.bpmn": c8Bpmn("8.8.0"),
-            "/work/b.bpmn": c8WithoutDefinitionsRoot,
-            "/work/c.bpmn": c8Bpmn("8.8.0"),
+            "/work/a.bpmn": c7Bpmn("7.24.0"),
+            "/work/b.bpmn": zeebeNamespaceOnProcessRoot,
+            "/work/c.bpmn": c7Bpmn("7.24.0"),
         });
         expect(notifier.errors).toEqual([]);
         expect(notifier.logged("warning")).toEqual([
-            expect.stringMatching(
-                /^Skipped a diagram that could not be migrated: \/work\/b\.bpmn: Error: The BPMN file does not contain a `definitions` root element\.\n/,
-            ),
+            "Skipped 1 file(s) with undetectable engine: /work/b.bpmn",
         ]);
-        expect(notifier.infos).toEqual([
-            "Updated 2 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
-        ]);
+        expect(notifier.infos).toEqual(["Updated 2 diagram(s) to Camunda 7 (7.24.0)."]);
         expect(result).toBe(true);
     });
 
