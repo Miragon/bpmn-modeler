@@ -20,6 +20,8 @@ import java.util.concurrent.Executor
  * @param parentDisposable The `CoreProcess` service — parent for the routers'
  *   message-bus subscriptions (the save flush, the script editor manager's listeners).
  * @param notifications Lazy host UI surface; constructed on first error/notifier.
+ * @param credentialStoreExecutor Runs every PasswordSafe request, see
+ *   [orderedCredentialStoreExecutor]; routers reach it only through [credentialStoreAction].
  */
 internal class BridgeDeps(
     val project: Project,
@@ -30,14 +32,15 @@ internal class BridgeDeps(
     val ensureStartedAsync: () -> Unit,
     val parentDisposable: Disposable,
     val notifications: Lazy<HostNotifications>,
+    private val credentialStoreExecutor: Executor,
 ) {
-    // A PasswordSafe read can wait for an OS keychain prompt, so it must hold
-    // neither the EDT nor the frames behind it on the reader thread. One thread
-    // keeps a save ahead of the read that follows it.
-    private val credentialStoreExecutor: Executor =
-        AppExecutorUtil.createBoundedApplicationPoolExecutor("modeler-credential-store", 1)
-
     /** The [RpcAction] for a request whose [work] calls PasswordSafe. */
     fun credentialStoreAction(method: String, work: () -> RpcResult?): RpcAction =
         RpcAction { requestId -> channel.replyFrom(credentialStoreExecutor, requestId, method, work) }
 }
+
+// A PasswordSafe read can wait for an OS keychain prompt, so it must hold
+// neither the EDT nor the frames behind it on the reader thread. One thread
+// keeps a save ahead of the read that follows it.
+internal fun orderedCredentialStoreExecutor(): Executor =
+    AppExecutorUtil.createBoundedApplicationPoolExecutor("modeler-credential-store", 1)

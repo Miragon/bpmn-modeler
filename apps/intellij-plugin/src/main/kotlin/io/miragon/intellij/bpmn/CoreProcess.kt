@@ -14,6 +14,7 @@ import io.miragon.intellij.bpmn.bridge.DefaultBridgeProcessLauncher
 import io.miragon.intellij.bpmn.bridge.ProcessSupervisor
 import io.miragon.intellij.bpmn.bridge.RpcChannel
 import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
+import io.miragon.intellij.bpmn.bridge.orderedCredentialStoreExecutor
 
 /**
  * Supervises the out-of-process modeler core and bridges it to the IntelliJ host
@@ -85,6 +86,7 @@ class CoreProcess(private val project: Project) : Disposable {
             ensureStartedAsync = { supervisor.ensureStartedAsync() },
             parentDisposable = this,
             notifications = notifications,
+            credentialStoreExecutor = orderedCredentialStoreExecutor(),
         )
     private val routers = BridgeRouters(deps)
 

@@ -86,6 +86,7 @@ internal fun bridgeDeps(
         ensureStartedAsync = {},
         parentDisposable = parentDisposable,
         notifications = notifications,
+        credentialStoreExecutor = orderedCredentialStoreExecutor(),
     )
 
 /**
