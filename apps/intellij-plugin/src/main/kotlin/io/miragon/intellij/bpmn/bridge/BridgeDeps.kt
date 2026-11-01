@@ -3,7 +3,9 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.HostNotifications
+import java.util.concurrent.Executor
 
 /**
  * Shared dependency bundle handed to every feature router (mirrors the TS
@@ -28,4 +30,14 @@ internal class BridgeDeps(
     val ensureStartedAsync: () -> Unit,
     val parentDisposable: Disposable,
     val notifications: Lazy<HostNotifications>,
-)
+) {
+    // A PasswordSafe read can wait for an OS keychain prompt, so it must hold
+    // neither the EDT nor the frames behind it on the reader thread. One thread
+    // keeps a save ahead of the read that follows it.
+    private val credentialStoreExecutor: Executor =
+        AppExecutorUtil.createBoundedApplicationPoolExecutor("modeler-credential-store", 1)
+
+    /** The [RpcAction] for a request whose [work] calls PasswordSafe. */
+    fun credentialStoreAction(method: String, work: () -> RpcResult?): RpcAction =
+        RpcAction { requestId -> channel.replyFrom(credentialStoreExecutor, requestId, method, work) }
+}

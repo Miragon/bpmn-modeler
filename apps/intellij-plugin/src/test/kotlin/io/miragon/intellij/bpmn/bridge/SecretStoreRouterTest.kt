@@ -3,6 +3,9 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.intellij.credentialStore.CredentialAttributes
+import com.intellij.credentialStore.CredentialStore
+import com.intellij.credentialStore.Credentials
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
@@ -139,6 +142,26 @@ class SecretStoreRouterTest {
             keychain.answerPrompt()
             val replyIds = List(2) { gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java).get("id").asInt }
             assertEquals(listOf(51, 52), replyIds, "secret requests are answered in the order they arrived")
+        }
+    }
+
+    @Test
+    fun `a failing secret read is answered with an error`() {
+        val wired = registeredRouter()
+        val lockedKeychain =
+            object : CredentialStore {
+                override fun get(attributes: CredentialAttributes): Credentials? =
+                    throw IllegalStateException("keychain locked")
+
+                override fun set(attributes: CredentialAttributes, credentials: Credentials?) = Unit
+            }
+
+        ReplacedPasswordSafeStore(lockedKeychain).use {
+            wired.fake.emit("""{"method":"secretStore/getBasicAuth","params":{"slot":"$SLOT"},"id":61}""")
+
+            val reply = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
+            assertEquals(61, reply.get("id").asInt)
+            assertEquals("keychain locked", reply.get("error").asString)
         }
     }
 

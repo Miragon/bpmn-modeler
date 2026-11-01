@@ -13,6 +13,7 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -99,19 +100,25 @@ internal class RpcChannel(
         enqueue(line, coalesceKey = null, reliable = true, replyTo = requestId)
 
     /**
-     * Runs [work] on the EDT and answers request [requestId] exactly once: with its
-     * result, or with an error when it throws. [onLine]'s catch cannot see work
-     * that hops to the EDT, and an unanswered request stalls the core's
+     * Runs [work] on [executor] and answers request [requestId] exactly once: with
+     * its result, or with an error when it throws. [onLine]'s catch cannot see work
+     * that leaves the reader thread, and an unanswered request stalls the core's
      * per-editor queue.
      */
+    fun replyFrom(
+        executor: Executor,
+        requestId: CoreRequestId?,
+        method: String,
+        work: () -> RpcResult?,
+    ) = executor.execute { answerOnce(PendingReply(this, requestId), method) { it.result(work()) } }
+
+    /** [replyFrom] the EDT. */
     fun replyFromEdt(
         requestId: CoreRequestId?,
         method: String,
         runOnEdt: (Runnable) -> Unit = invokeLaterOnEdt,
         work: () -> RpcResult?,
-    ) = runOnEdt(
-        Runnable { answerOnce(PendingReply(this, requestId), method) { it.result(work()) } },
-    )
+    ) = replyFrom(Executor(runOnEdt), requestId, method, work)
 
     /**
      * [replyFromEdt] for work that answers from a later callback, such as a popup
@@ -130,7 +137,7 @@ internal class RpcChannel(
         } catch (failure: Throwable) {
             reply.error(failure.message ?: "host handler failed")
             if (failure is ControlFlowException || failure !is Exception) throw failure
-            log.warn("Failed to handle core request ($method) on the EDT", failure)
+            log.warn("Failed to handle core request ($method) off the reader thread", failure)
         }
     }
 
@@ -246,10 +253,10 @@ internal class RpcChannel(
             message.get("id")?.takeIf { !it.isJsonNull }?.asInt?.let { CoreRequestId(it, generation) }
 
         // A malformed/unexpected frame (missing member, wrong type, a throwing
-        // handler such as a failing PasswordSafe call) must not escape: this runs
-        // on the daemon reader thread, and an escaped exception would kill the
-        // pump — core→host traffic stops forever, and once the stdout pipe fills
-        // the bridge wedges without exiting, so the crash supervisor never fires.
+        // handler) must not escape: this runs on the daemon reader thread, and an
+        // escaped exception would kill the pump — core→host traffic stops forever,
+        // and once the stdout pipe fills the bridge wedges without exiting, so the
+        // crash supervisor never fires.
         // If the frame was a request, also answer it: an unanswered request would
         // otherwise leak the core's awaiting promise.
         try {

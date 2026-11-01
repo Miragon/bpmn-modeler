@@ -13,10 +13,8 @@ import io.miragon.intellij.bpmn.pushSettingsToRunningBridges
  * ports) plus the outbound `marketplace/add` / `marketplace/update` /
  * `marketplace/remove` notifications the Tools-menu actions fire.
  *
- * The token get/set run inline on the reader thread — [PasswordSafe][
- * com.intellij.ide.passwordSafe.PasswordSafe] must not touch the EDT, exactly like
- * [SecretStoreRouter]. The token prompt is the opposite: a modal dialog that *must*
- * run on the EDT, so it is marshalled there (mirroring `HostUiRouter.handlePick`).
+ * The token prompt is a modal dialog that *must* run on the EDT, so it is
+ * marshalled there (mirroring `HostUiRouter.handlePick`).
  */
 internal class MarketplaceRouter(
     private val deps: BridgeDeps,
@@ -38,12 +36,17 @@ internal class MarketplaceRouter(
             }
             .on("tokenStore/get") { params ->
                 val host = params.string("host")
-                RpcAction { id -> handleTokenGet(host, id) }
+                deps.credentialStoreAction("tokenStore/get") {
+                    tokenStore.getToken(host)?.let(::TokenStoreGetResult)
+                }
             }
             .on("tokenStore/set") { params ->
                 val host = params.string("host")
                 val token = params.string("token")
-                RpcAction { id -> handleTokenSet(host, token, id) }
+                deps.credentialStoreAction("tokenStore/set") {
+                    tokenStore.setToken(host, token)
+                    null
+                }
             }
             .on("tokenPrompt/show") { params ->
                 val title = params.string("title")
@@ -73,16 +76,6 @@ internal class MarketplaceRouter(
             ProjectMarketplacesStore.getInstance(deps.project).add(location)
             deps.project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
         }
-        id?.let { deps.channel.reply(it, null) }
-    }
-
-    private fun handleTokenGet(host: String, id: CoreRequestId?) {
-        val token = tokenStore.getToken(host)
-        id?.let { deps.channel.reply(it, token?.let(::TokenStoreGetResult)) }
-    }
-
-    private fun handleTokenSet(host: String, token: String, id: CoreRequestId?) {
-        tokenStore.setToken(host, token)
         id?.let { deps.channel.reply(it, null) }
     }
 

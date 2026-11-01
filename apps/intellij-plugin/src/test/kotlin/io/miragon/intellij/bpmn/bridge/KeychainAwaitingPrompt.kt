@@ -11,6 +11,20 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+/** Serves PasswordSafe from [store] instead of the test application's own store until [close]. */
+internal class ReplacedPasswordSafeStore(store: CredentialStore) : AutoCloseable {
+    private val passwordSafe = PasswordSafe.instance as BasePasswordSafe
+    private val originalStore = passwordSafe.currentProvider
+
+    init {
+        passwordSafe.currentProvider = store
+    }
+
+    override fun close() {
+        passwordSafe.currentProvider = originalStore
+    }
+}
+
 /**
  * Stands in for an OS keychain that holds every PasswordSafe read until the user
  * answers its access prompt, as macOS does after an IDE update. Writes return at
@@ -18,13 +32,10 @@ import java.util.concurrent.TimeUnit
  * test application's own store back.
  */
 internal class KeychainAwaitingPrompt : AutoCloseable {
-    private val passwordSafe = PasswordSafe.instance as BasePasswordSafe
-    private val originalProvider = passwordSafe.currentProvider
     private val readStarted = CountDownLatch(1)
     private val promptAnswered = CountDownLatch(1)
-
-    init {
-        passwordSafe.currentProvider =
+    private val replacedStore =
+        ReplacedPasswordSafeStore(
             object : CredentialStore {
                 override fun get(attributes: CredentialAttributes): Credentials? {
                     readStarted.countDown()
@@ -33,8 +44,8 @@ internal class KeychainAwaitingPrompt : AutoCloseable {
                 }
 
                 override fun set(attributes: CredentialAttributes, credentials: Credentials?) = Unit
-            }
-    }
+            },
+        )
 
     fun awaitReadReachingKeychain() =
         assertTrue(readStarted.await(WAIT_SECONDS, TimeUnit.SECONDS), "the read must reach PasswordSafe")
@@ -43,7 +54,7 @@ internal class KeychainAwaitingPrompt : AutoCloseable {
 
     override fun close() {
         answerPrompt()
-        passwordSafe.currentProvider = originalProvider
+        replacedStore.close()
     }
 
     private companion object {
