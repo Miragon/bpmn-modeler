@@ -38,7 +38,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Format Diagram (`Ctrl+Alt+L`) | Lay out the focused diagram |
 | Clean Up Diagram | List leftovers in the diagram and remove them after you confirm |
 | Change Engine Version… | Change the engine version of the focused diagram |
-| Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project, except copies in `node_modules` or build output |
+| Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project, except copies in `node_modules`, build output or folders whose name starts with a dot |
 | Change Modeler Language… | Switch the modeler UI language |
 | Copy Diagram as SVG / Save Diagram as SVG… | Export the focused diagram as SVG |
 | Deploy Diagram / Deploy Files… | Deploy to the active target (see the **Miragon Deployment** tool window) |

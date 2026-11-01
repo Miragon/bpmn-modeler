@@ -7,10 +7,15 @@ import { escapeRegExpLiteral } from "./escapeRegExpLiteral";
  * Supports the operators the core's globs use: a double-star followed by a slash
  * (zero or more whole path segments, as ripgrep and `fs.glob` match it), a bare
  * double-star (anything, across segments), single `*` / `?` within one segment,
- * and `{a,b,c}` brace alternation — the code-link source glob (extensions
- * `{java,kt,…}`) needs the last one.
+ * and `{a,b,c}` brace alternation, each alternative a glob of its own as in
+ * VS Code and ripgrep (no nesting) — the code-link source glob (extensions
+ * `{java,kt,…}`) and the excluded folders (dot-folders as `.*`) need it.
  */
 export function globToRegExp(glob: string): RegExp {
+    return new RegExp(`^${globToRegExpSource(glob)}$`);
+}
+
+function globToRegExpSource(glob: string): string {
     let re = "";
     for (let i = 0; i < glob.length; i++) {
         const c = glob[i];
@@ -33,14 +38,14 @@ export function globToRegExp(glob: string): RegExp {
                 re += "\\{";
             } else {
                 const alternatives = glob.slice(i + 1, end).split(",");
-                re += `(?:${alternatives.map(escapeRegExpLiteral).join("|")})`;
+                re += `(?:${alternatives.map(globToRegExpSource).join("|")})`;
                 i = end;
             }
         } else {
             re += escapeRegExpLiteral(c);
         }
     }
-    return new RegExp(`^${re}$`);
+    return re;
 }
 
 const WHOLE_FOLDER_SUFFIX = "/**";

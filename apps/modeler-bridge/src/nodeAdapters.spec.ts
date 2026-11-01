@@ -37,8 +37,8 @@ import { BridgeSettings, NodeWorkspace } from "./nodeAdapters";
 
 /**
  * `findFiles` is the picker's one filesystem-backed prompt. These exercise its
- * real `fs.glob` behaviour against a temp tree — brace globs, the `exclude`
- * predicate, and the result cap — since no host (VS Code mock) is involved.
+ * real walk against a temp tree — brace globs, the `exclude` predicate, and
+ * the result cap — since no host (VS Code mock) is involved.
  */
 describe("NodeWorkspace.findFiles", () => {
     let root: string;
@@ -46,8 +46,6 @@ describe("NodeWorkspace.findFiles", () => {
     beforeAll(async () => {
         root = await fs.mkdtemp(join(tmpdir(), "modeler-find-"));
         await fs.mkdir(join(root, "forms"), { recursive: true });
-        // A non-dot directory so the `**/element-templates/**` exclude is actually
-        // exercised — fs.glob skips dot-directories by default.
         await fs.mkdir(join(root, "config/element-templates"), { recursive: true });
         await fs.writeFile(join(root, "forms/a.form"), "{}");
         await fs.writeFile(join(root, "forms/b.json"), "{}");

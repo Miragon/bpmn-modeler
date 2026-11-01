@@ -492,8 +492,7 @@ async function entriesOrNoneIfUnreadable(folder: string): Promise<Dirent[]> {
 /**
  * The `/`-separated paths below `rootDir` of all but its folders, reading each
  * level's folders in parallel and skipping one it cannot read. A symlink
- * counts as a file, so a symlinked folder is never entered; dot-entries stay
- * unlisted, as `fs.glob` leaves them.
+ * counts as a file, so a symlinked folder is never entered.
  */
 async function listFilesBelow(
     rootDir: string,
@@ -511,9 +510,6 @@ async function listFilesBelow(
         level = [];
         for (const { folder, entries } of listings) {
             for (const entry of entries) {
-                if (entry.name.startsWith(".")) {
-                    continue;
-                }
                 const relative = folder === "" ? entry.name : `${folder}/${entry.name}`;
                 if (!entry.isDirectory()) {
                     files.push(relative);

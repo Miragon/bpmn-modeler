@@ -1,6 +1,6 @@
 import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
-import { EXCLUDED_DIRS, excludedDirsGlob } from "../domain/excludedDirs";
+import { excludedDirsGlob, isExcludedDirName } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
 import { LocateResult, outcomeAfterReading, SearchOutcome } from "../domain/locateResult";
 import { SearchScope } from "../domain/searchScope";
@@ -61,12 +61,13 @@ export interface WorkspaceFileQuery extends FindFilesOptions {
 }
 
 /**
- * Finds workspace files matching `glob`, excluding build/output dirs, with an
+ * Finds workspace files matching `glob` outside the excluded folders, with an
  * fs-walk fallback for hosts where the bundled ripgrep is missing.
  *
  * Strategy, in order:
  *   1. `workspace.findFiles(glob)` — fast (ripgrep-backed); the host skips
- *      {@link EXCLUDED_DIRS} and, on VS Code, the user's `files.exclude`.
+ *      the folders {@link excludedDirsGlob} names and, on VS Code, the user's
+ *      `files.exclude`.
  *   2. fs-walk fallback — when (1) returns `[]` despite open folders, which
  *      happens in the unsigned electron-builder package where ripgrep is
  *      missing/unexecutable.
@@ -130,8 +131,9 @@ async function walkWorkspaceTree(
 }
 
 /**
- * The files below `directory` that `matchesWalkedFile` accepts, skipping
- * {@link EXCLUDED_DIRS}; none when `directory` is not a readable directory.
+ * The files below `directory` that `matchesWalkedFile` accepts, skipping the
+ * excluded folders ({@link isExcludedDirName}); none when `directory` is not a
+ * readable directory.
  *
  * Parallel BFS over the directory tree. All directories at one depth are read
  * concurrently via `Promise.all` — sequential per-directory awaits cost several
@@ -161,7 +163,7 @@ export async function findFilesBelow(
             for (const [name, type] of entries) {
                 const full = joinWorkspacePath(dir, name);
                 if (type === "directory") {
-                    if (!EXCLUDED_DIRS.has(name)) {
+                    if (!isExcludedDirName(name)) {
                         nextLevel.push(full);
                     }
                 } else if (matchesWalkedFile(full)) {

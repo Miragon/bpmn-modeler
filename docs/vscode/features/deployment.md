@@ -116,7 +116,7 @@ Freshness is recorded locally per target and file, not on the engine and not in 
 | **Miragon BPMN Modeler: Switch Deployment Target** | Pick the active target or ad-hoc form values. |
 | **Miragon BPMN Modeler: Verify Deployment on Engine** | Check the open diagram against a Camunda 7 engine. |
 
-The additional files of the **Deploy** tab and the files of **Deploy Files…** come from the whole workspace, except `node_modules`, build output (`dist`, `build`, `out`, `target`, `bin`, `coverage`) and version-control folders.
+The additional files of the **Deploy** tab and the files of **Deploy Files…** come from the whole workspace, except `node_modules`, build output (`dist`, `build`, `out`, `target`, `bin`, `coverage`) and folders whose name starts with a dot, such as `.camunda` with `deployment-targets.json` or `.vscode`.
 
 ## Payload files
 
