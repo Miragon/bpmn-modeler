@@ -338,6 +338,20 @@ describe("MarketplaceCommands started while another one runs", () => {
         expect(await cachedTemplateNames()).toEqual(["b.json"]);
     });
 
+    it("still runs a command started while a failing one runs", async () => {
+        const { commands, marketplaces, cachedTemplateNames } = commandsOverRealService();
+
+        await Promise.all([
+            commands.add("/work/missing", async () => {}),
+            commands.add("/work/b", async (location) => {
+                marketplaces.push(location);
+            }),
+        ]);
+
+        expect(marketplaces).toEqual(["/work/a", "/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
     it("does not bring back the cache of a marketplace removed while an update fetches it", async () => {
         const { commands, marketplaces, holdRead, cachedTemplateNames } = commandsOverRealService();
         const updateFetchOfA = holdRead("/work/a/element-templates/a.json");

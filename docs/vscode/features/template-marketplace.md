@@ -18,6 +18,8 @@ The marketplace is fetched and checked before it is saved, so a missing or broke
 | **Miragon BPMN Modeler: Update Marketplaces** | Fetch new and changed templates and drop the ones a source no longer serves. |
 | **Miragon BPMN Modeler: Remove Marketplace** | Unregister one or more marketplaces and drop their cached templates. |
 
+These commands run one at a time. A command you start while another one runs shows its progress and waits for it.
+
 ## The `marketplace.json` file
 
 A marketplace lists one or more sources. Every `.json` file under a source's `path` is loaded as a template unless `include` narrows it down.
