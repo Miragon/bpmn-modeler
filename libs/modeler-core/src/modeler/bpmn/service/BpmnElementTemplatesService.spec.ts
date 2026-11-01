@@ -346,6 +346,29 @@ describe("BpmnElementTemplatesService template cache", () => {
         expect(postedTemplates(secondEditor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
     });
 
+    it("passes a hidden editor by without an error; shown again, it gets the change", async () => {
+        vi.useFakeTimers();
+        const { service, host, editor, secondEditor, addTemplate, fileContents } = createService();
+        const file = addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
+        await service.setElementTemplates(editor.id);
+        await service.setElementTemplates(secondEditor.id);
+        secondEditor.hidden = true;
+        fileContents.set(file, JSON.stringify({ name: "Avocado" }));
+
+        service.refreshElementTemplates(editor.id);
+        service.refreshElementTemplates(secondEditor.id);
+        await vi.advanceTimersByTimeAsync(150);
+
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.logged("error")).toEqual([]);
+        expect(postedTemplates(editor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
+
+        // A webview shown again asks for its templates.
+        secondEditor.hidden = false;
+        await service.setElementTemplates(secondEditor.id);
+        expect(postedTemplates(secondEditor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
+    });
+
     it("re-reads only marketplace templates on a marketplace reload", async () => {
         const {
             service,
