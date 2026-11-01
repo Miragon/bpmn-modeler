@@ -196,7 +196,7 @@ VS Code runs the core in-process. The standalone app loads that extension in
 Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
 Its host also integrates diff, deployment and scripting; its visual editor does
-not currently provide DMN or Forms parity, nor the element-template preview.
+not currently provide DMN or Forms parity, nor the element-template editor.
 
 A feature both hosts offer is built once in the core from ports, not wired per
 host. `EditorSessionLifecycle` runs every editor session: it routes webview
@@ -243,38 +243,60 @@ on concrete adapters, so the in-memory test kit fits every one of them; the VS
 Code architecture test lets only the composition root and infrastructure
 import a class that implements a port.
 
-The element-template preview is a read-only editor opened beside a template's
-own JSON editor, so the host's JSON support (`$schema` IntelliSense, undo,
-diagnostics) stays in charge of editing. Its page is a second entry of the BPMN
-webview bundle and parses the file itself: a host pushes the raw text with the
-configured locale (`ElementTemplateFileQuery`) and later language changes
-(`LanguageQuery`), and nothing else, so no host needs a bridge session for it.
-IntelliJ answers the page itself: a template's JSON opens in a
-`TextEditorWithPreview` holding the IDE's JSON editor and the page, and the
-settings broadcast reaches the page over an application message-bus topic.
-Its provider builds the split editor directly, because the platform's provider
-base class is experimental API on the 2024.2 floor. In VS Code the preview is a
-custom editor with `option` priority on `*.json`, so it never takes JSON files
-over, and its sessions live
-in their own `EditorSessionStore`: a preview never becomes the target of
-modeler commands or counts towards `bpmn-modeler.openCustomEditors`. VS Code
-opens it on its own the first time a template file is shown, once per opened
-file so a preview the user closed stays closed, unless
-`elementTemplatePreview.openAutomatically` is off. Because that needs the
-extension running before any diagram is open, it also activates in workspaces
-that contain an `element-templates` folder. `isElementTemplateFile` in
-`modeler-types` is the one rule for what counts as a template file; the
-manifest's `when` clause repeats only its folder half, which needs no
-activation, and IntelliJ's editor provider keeps a Kotlin copy that runs the
-rule's `elementTemplateFile.cases.json` rows.
+The element-template editor is the main editor for template files in VS Code:
+files in an `element-templates` folder open in it through a default editor
+association, as `*.form` files open in the Form editor, and any other `.json`
+file can be opened in it with **Open With…**. Its main area is the builder
+(`@miragon/bpmn-modeler-element-template-builder`), a form over the template laid
+out like VS Code's settings editor: a search, tabs for the template, its groups
+and its properties, an index and the chosen item's settings. Because it is shown
+inside the IDE, it is drawn with its own Preact components and coloured only by
+the `--vscode-*` theme tokens, so it follows light, dark and high-contrast
+themes; Light and Dark Modern values stand in where a host sets no tokens. The
+properties panel the template produces sits on the right as a preview, and what
+the official validator and the builder's own rules find docks under the form as
+a lint-style summary whose list opens upwards without covering a field. The JSON
+stays one toggle away beside it, where the host's own JSON support (`$schema`
+IntelliSense, undo, diagnostics) applies. Its page is a second entry
+of the BPMN webview bundle and parses the file itself: a host pushes the raw
+text with the configured locale (`ElementTemplateFileQuery`) and later language
+changes (`LanguageQuery`), so no host needs a bridge session for it. The page's
+own edits go back like a modeler's: `SyncDocumentCommand`
+with the document revision it was made on, a host revision that overtakes a
+pending edit wins, and a save flushes the pending edit first. Because the
+template store is not the modelers' store, it brings its own
+`DocumentFlushService`, `PendingEditsFlush` (serving `.json`) and save-flush
+controller. VS Code writes only the changed range of a document
+(`minimalReplacement`, never splitting a CRLF or a surrogate pair), so the JSON
+editor open beside keeps its cursor and undo restores one edit. In VS Code its custom editor has `option` priority on `*.json`,
+so it never takes other JSON files over, and its sessions live in their own
+`EditorSessionStore`: a template editor never becomes the target of modeler
+commands or counts towards `bpmn-modeler.openCustomEditors`. The extension also
+activates in workspaces that contain an `element-templates` folder, so a JSON
+editor's title offers the template editor before any diagram is open.
+`isElementTemplateFile` in `modeler-types` is the one rule for what counts as
+a template file; the manifest's association and `when` clause repeat only its
+folder half, which needs no activation, and IntelliJ's editor provider keeps a
+Kotlin copy that runs the rule's `elementTemplateFile.cases.json` rows.
 
-A new template starts from `newElementTemplate` in the core's element template
-domain: a service task stub per engine whose `id`, `name` and task type come
-from the file name. VS Code writes it after a save dialog that suggests
-`<configFolder>/element-templates/` and the engine prompt. IntelliJ keeps a
-Kotlin copy of the stub, as it does for the DMN skeleton, because creating a
-file should not wait for a bridge; `newElementTemplate.cases.json` holds the
-rows both run.
+IntelliJ has no builder yet and shows the same page as a preview only: its
+shell marks `#app` with `data-view="preview"`, so the page leaves out the
+builder, the start form and the engine choice and never sends an edit. A
+template's JSON opens in a `TextEditorWithPreview` holding the IDE's JSON editor
+and the page, IntelliJ answers the page itself, and the settings broadcast
+reaches it over an application message-bus topic. Its provider builds the split
+editor directly, because the platform's provider base class is experimental API
+on the 2024.2 floor.
+
+A new template starts by host. VS Code's **New Element Template** writes an
+empty file into `<configFolder>/element-templates/` of a workspace folder and
+opens it in the template editor, whose start form asks for the engine, the
+element type and the name; until then the template loader reads the empty file
+as holding no templates. IntelliJ writes a service task stub from
+`newElementTemplate` in the core's element template domain, whose `id`, `name`
+and task type come from the file name. It keeps a Kotlin copy of the stub, as it
+does for the DMN skeleton, because creating a file should not wait for a
+bridge; `newElementTemplate.cases.json` holds the rows both run.
 
 Inline scripts still open and sync their tabs per host, behind the core
 `ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab

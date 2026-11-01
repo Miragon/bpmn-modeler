@@ -3,7 +3,16 @@ import { defineConfig } from "vitest/config";
 import { coveragePreset, workspaceAliases } from "../../vitest.shared";
 
 export default defineConfig({
-    resolve: { alias: workspaceAliases },
+    resolve: {
+        alias: [
+            ...workspaceAliases,
+            // As in vite.config.mts: the panel's vendored preact has no jsx-dev-runtime.
+            {
+                find: "@bpmn-io/properties-panel/preact/jsx-dev-runtime",
+                replacement: "@bpmn-io/properties-panel/preact/jsx-runtime",
+            },
+        ],
+    },
     test: {
         name: "bpmn-webview",
         environment: "jsdom",
@@ -15,7 +24,7 @@ export default defineConfig({
         coverage: {
             // Import-time entry wiring and a re-export barrel without logic of their own.
             ...coveragePreset(__dirname, {
-                exclude: ["src/main.ts", "src/templatePreview/main.ts", "src/index.ts"],
+                exclude: ["src/main.ts", "src/templateEditor/main.ts", "src/index.ts"],
             }),
             thresholds: { statements: 93, branches: 91, functions: 92, lines: 95 },
         },

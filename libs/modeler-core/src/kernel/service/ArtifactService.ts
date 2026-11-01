@@ -1,5 +1,7 @@
 import { posix } from "path";
 
+import { ELEMENT_TEMPLATES_FOLDER } from "@miragon/bpmn-modeler-types";
+
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { configFolderPath } from "../domain/configArtifacts";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
@@ -83,7 +85,12 @@ export class ArtifactService {
         workspaceRoot: string,
         configFolder: string,
     ): Promise<string[]> {
-        return this.collectSubDirs(documentDir, workspaceRoot, configFolder, "element-templates");
+        return this.collectSubDirs(
+            documentDir,
+            workspaceRoot,
+            configFolder,
+            ELEMENT_TEMPLATES_FOLDER,
+        );
     }
 
     /**
@@ -163,7 +170,7 @@ export class ArtifactService {
         );
         if (templateDirs.length === 0) {
             this.logger?.logDebug(
-                `No "${configFolder}/element-templates" directory found between ` +
+                `No "${configFolder}/${ELEMENT_TEMPLATES_FOLDER}" directory found between ` +
                     `${documentDir} and ${workspaceRoot}.`,
             );
         }
@@ -206,7 +213,7 @@ export class ArtifactService {
         // glob would filter out and the templates would stay stale until reopen.
         // Over-firing is harmless — the refresh re-scans from disk and applies
         // the `.json` filter itself.
-        const pattern = posix.join("**", configFolder, "element-templates", "**");
+        const pattern = posix.join("**", configFolder, ELEMENT_TEMPLATES_FOLDER, "**");
         const refreshTemplates = () => target.refreshElementTemplates(editorId);
         const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
             onCreate: refreshTemplates,

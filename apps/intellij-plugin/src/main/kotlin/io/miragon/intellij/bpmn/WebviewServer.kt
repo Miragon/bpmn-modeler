@@ -82,7 +82,7 @@ class WebviewServer : Disposable {
         return "${origin}/deployment.html"
     }
 
-    /** The element template preview: a second entry of the bpmn bundle, rendered into `#app`. */
+    /** The element template preview: the template editor entry of the bpmn bundle, without its builder. */
     fun templatePreviewUrl(): String {
         ensureStarted()
         return "${origin}/templatePreview.html"
@@ -191,7 +191,7 @@ class WebviewServer : Disposable {
         ).joinToString("\n")
     }
 
-    /** The preview shell, themed like [indexHtml]; the page builds its own DOM. */
+    /** The preview shell, themed like [indexHtml]; `data-view` asks the page for the preview alone. */
     private fun templatePreviewHtml(): String {
         val signal = service<IdeThemeSignal>()
         val themeKind = if (signal.isDark()) "dark" else "light"
@@ -207,8 +207,8 @@ class WebviewServer : Disposable {
             "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
             "<body class=\"${signal.bodyClass()}\">",
-            "  <div id=\"app\"></div>",
-            "  <script type=\"module\" src=\"/templatePreview.js\"></script>",
+            "  <div id=\"app\" data-view=\"preview\"></div>",
+            "  <script type=\"module\" src=\"/templateEditor.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")

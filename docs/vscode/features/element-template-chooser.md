@@ -99,27 +99,15 @@ For properties:
 }
 ```
 
-## Create a template
+## Edit a template
 
-Run **Miragon BPMN Modeler: New Element Template** from the Command Palette or **File ▸ New File…**, name the file and pick **Camunda 7** or **Camunda 8**. The save dialog opens in the template folder of the first workspace folder (`.camunda/element-templates/` unless `miragon.bpmnModeler.configFolder` names another folder), where the chooser finds the template.
+A `.json` file in an `element-templates` folder opens in the [element template editor](/vscode/features/element-template-editor): a form for every part of the template, the JSON one click away, and a live preview of the properties panel. **New Element Template** creates a new one in the right folder.
 
-The new file holds a service task template to build on. Its `id` and `name` come from the file name: `send-mail.json` becomes `send-mail` and **Send Mail**. The `id` is also the hidden external task topic (Camunda 7) or job type (Camunda 8), next to one required **Input** field. The JSON opens with the preview beside it.
-
-## Preview a template while you write it
-
-Open a template's `.json` file: the preview opens beside the JSON editor and shows the properties panel the template produces, updating as you type. The JSON editor stays the one you edit in, with completion from the template's `$schema`.
-
-A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in an `element-templates` folder. The preview opens on its own the first time such a file is shown; once you close it, it stays closed until you open the file again. To open it by hand, click **Open Element Template Preview** in the editor title or run it from the Command Palette. Turn the automatic opening off with `miragon.bpmnModeler.elementTemplatePreview.openAutomatically`.
-
-- `$schema` decides the engine: `…/element-templates-json-schema/…` for Camunda 7, `…/zeebe-element-templates-json-schema/…` for Camunda 8. Without it, the preview reads the engine from `camunda:` or `zeebe:` bindings.
-- A file with several templates gets a picker to choose which one to preview.
-- While the JSON is broken or the template is invalid, the preview says why and keeps showing the last template that worked.
-- Templates for a process or a sequence flow cannot be previewed yet.
-
-The preview is available in VS Code, the desktop app and [IntelliJ](/intellij/getting-started#element-templates), where a template opens split with its preview and **New Element Template…** sits in the project view under **New**.
+In [IntelliJ](/intellij/getting-started#element-templates), a template opens split with a preview of the properties panel beside its JSON, and **New Element Template…** sits in the project view under **New**.
 
 ## Next steps
 
+- [Element template editor](/vscode/features/element-template-editor): build and edit templates in a form.
 - [Template marketplace](/vscode/features/template-marketplace): share templates across projects.
 - [Append menu](/vscode/features/append-menu): add a templated element as the next step.
 - [Configuration](/vscode/configuration): change the config folder.

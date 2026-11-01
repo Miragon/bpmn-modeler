@@ -270,6 +270,23 @@ export class VsCodeSession {
             );
     }
 
+    /** What the extension wrote to its output channel, which VS Code keeps as a log file. */
+    async extensionLog(): Promise<string> {
+        const files = await readdir(this.logsDirectory, { recursive: true }).catch(
+            (): string[] => [],
+        );
+        const logs = await Promise.all(
+            files
+                .filter(
+                    (file) =>
+                        file.endsWith(".log") &&
+                        file.split(/[\\/]/).includes(this.options.extensionId),
+                )
+                .map((file) => readFile(join(this.logsDirectory, file), "utf8").catch(() => "")),
+        );
+        return logs.join("\n");
+    }
+
     /** CSS pixels, so a Retina Mac and a CI runner produce the same image size. */
     async screenshot(path: string): Promise<void> {
         await this.page.screenshot({ path, scale: "css" });

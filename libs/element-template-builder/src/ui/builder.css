@@ -1,0 +1,755 @@
+/*
+ * The builder takes its look from VS Code's settings editor and its colours from the --vscode-*
+ * theme tokens; the fallbacks are Light Modern and Dark Modern, for hosts that set no tokens.
+ */
+.etb-builder {
+    --etb-font: var(
+        --vscode-font-family,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif
+    );
+    --etb-font-size: var(--vscode-font-size, 13px);
+    --etb-mono: var(--vscode-editor-font-family, Menlo, Monaco, "Courier New", monospace);
+    --etb-fg: var(--vscode-foreground, #3b3b3b);
+    --etb-muted: var(--vscode-descriptionForeground, #6e6e6e);
+    --etb-bg: var(--vscode-editor-background, #ffffff);
+    --etb-border: var(--vscode-panel-border, #e5e5e5);
+    --etb-header-fg: var(--vscode-settings-headerForeground, #1f1f1f);
+    --etb-input-bg: var(--vscode-input-background, #ffffff);
+    --etb-input-fg: var(--vscode-input-foreground, #3b3b3b);
+    --etb-input-border: var(--vscode-input-border, #cecece);
+    --etb-placeholder: var(--vscode-input-placeholderForeground, #767676);
+    --etb-focus: var(--vscode-focusBorder, #005fb8);
+    --etb-button-bg: var(--vscode-button-background, #005fb8);
+    --etb-button-fg: var(--vscode-button-foreground, #ffffff);
+    --etb-button-hover: var(--vscode-button-hoverBackground, #0258a8);
+    --etb-button-border: var(--vscode-button-border, transparent);
+    --etb-secondary-bg: var(--vscode-button-secondaryBackground, #e5e5e5);
+    --etb-secondary-fg: var(--vscode-button-secondaryForeground, #3b3b3b);
+    --etb-secondary-hover: var(--vscode-button-secondaryHoverBackground, #cccccc);
+    --etb-link: var(--vscode-textLink-foreground, #005fb8);
+    --etb-hover: var(--vscode-list-hoverBackground, #f2f2f2);
+    --etb-selected-bg: var(--vscode-list-inactiveSelectionBackground, #e4e6f1);
+    --etb-selected-fg: var(--vscode-list-inactiveSelectionForeground, var(--etb-fg));
+    --etb-toolbar-hover: var(--vscode-toolbar-hoverBackground, rgba(184, 184, 184, 0.31));
+    --etb-badge-bg: var(--vscode-badge-background, #cccccc);
+    --etb-badge-fg: var(--vscode-badge-foreground, #3b3b3b);
+    --etb-modified: var(--vscode-settings-modifiedItemIndicator, rgba(187, 128, 9, 0.4));
+    --etb-row-hover: var(--vscode-settings-rowHoverBackground, rgba(242, 242, 242, 0.6));
+    --etb-row-focus: var(--vscode-settings-focusedRowBackground, rgba(242, 242, 242, 0.6));
+    --etb-row-focus-border: var(--vscode-settings-focusedRowBorder, var(--etb-focus));
+    --etb-checkbox-bg: var(--vscode-checkbox-background, #f8f8f8);
+    --etb-checkbox-border: var(--vscode-checkbox-border, #cecece);
+    --etb-error: var(--vscode-editorError-foreground, #e51400);
+    --etb-warning: var(--vscode-editorWarning-foreground, #bf8803);
+    --etb-info: var(--vscode-editorInfo-foreground, #1a85ff);
+    --etb-success: var(--vscode-testing-iconPassed, #388a34);
+    --etb-error-bg: var(--vscode-inputValidation-errorBackground, #f2dede);
+    --etb-error-border: var(--vscode-inputValidation-errorBorder, #be1100);
+    --etb-warning-bg: var(--vscode-inputValidation-warningBackground, #f6f5d2);
+    --etb-warning-border: var(--vscode-inputValidation-warningBorder, #b89500);
+    --etb-info-bg: var(--vscode-inputValidation-infoBackground, #d6ecf2);
+    --etb-info-border: var(--vscode-inputValidation-infoBorder, #007acc);
+    --etb-widget-bg: var(--vscode-editorWidget-background, #f8f8f8);
+    --etb-widget-border: var(--vscode-editorWidget-border, #c8c8c8);
+    --etb-shadow: var(--vscode-widget-shadow, rgba(0, 0, 0, 0.16));
+    --etb-contrast: var(--vscode-contrastBorder, transparent);
+    --etb-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23616161' d='M7.98 10.5 3.5 6.02l.7-.7 3.78 3.77 3.78-3.77.7.7z'/%3E%3C/svg%3E");
+    --etb-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%233b3b3b' d='M14.43 3.85 6 12.29 1.57 7.86l.71-.71L6 10.88l7.72-7.74z'/%3E%3C/svg%3E");
+
+    height: 100%;
+    container: etb / inline-size;
+    color: var(--etb-fg);
+    background: var(--etb-bg);
+    font-family: var(--etb-font);
+    font-size: var(--etb-font-size);
+    line-height: 1.4;
+}
+
+[data-bpmn-theme="dark"] .etb-builder {
+    --etb-fg: var(--vscode-foreground, #cccccc);
+    --etb-muted: var(--vscode-descriptionForeground, #9d9d9d);
+    --etb-bg: var(--vscode-editor-background, #1f1f1f);
+    --etb-border: var(--vscode-panel-border, #2b2b2b);
+    --etb-header-fg: var(--vscode-settings-headerForeground, #ffffff);
+    --etb-input-bg: var(--vscode-input-background, #313131);
+    --etb-input-fg: var(--vscode-input-foreground, #cccccc);
+    --etb-input-border: var(--vscode-input-border, #3c3c3c);
+    --etb-placeholder: var(--vscode-input-placeholderForeground, #989898);
+    --etb-focus: var(--vscode-focusBorder, #0078d4);
+    --etb-button-bg: var(--vscode-button-background, #0078d4);
+    --etb-button-hover: var(--vscode-button-hoverBackground, #026ec1);
+    --etb-secondary-bg: var(--vscode-button-secondaryBackground, #313131);
+    --etb-secondary-fg: var(--vscode-button-secondaryForeground, #cccccc);
+    --etb-secondary-hover: var(--vscode-button-secondaryHoverBackground, #3c3c3c);
+    --etb-link: var(--vscode-textLink-foreground, #4daafc);
+    --etb-hover: var(--vscode-list-hoverBackground, #2a2d2e);
+    --etb-selected-bg: var(--vscode-list-inactiveSelectionBackground, #37373d);
+    --etb-toolbar-hover: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+    --etb-badge-bg: var(--vscode-badge-background, #616161);
+    --etb-badge-fg: var(--vscode-badge-foreground, #f8f8f8);
+    --etb-row-hover: var(--vscode-settings-rowHoverBackground, rgba(42, 45, 46, 0.6));
+    --etb-row-focus: var(--vscode-settings-focusedRowBackground, rgba(42, 45, 46, 0.6));
+    --etb-checkbox-bg: var(--vscode-checkbox-background, #313131);
+    --etb-checkbox-border: var(--vscode-checkbox-border, #3c3c3c);
+    --etb-error: var(--vscode-editorError-foreground, #f14c4c);
+    --etb-warning: var(--vscode-editorWarning-foreground, #cca700);
+    --etb-info: var(--vscode-editorInfo-foreground, #3794ff);
+    --etb-success: var(--vscode-testing-iconPassed, #73c991);
+    --etb-error-bg: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+    --etb-error-border: var(--vscode-inputValidation-errorBorder, #be1100);
+    --etb-warning-bg: var(--vscode-inputValidation-warningBackground, #352a05);
+    --etb-warning-border: var(--vscode-inputValidation-warningBorder, #b89500);
+    --etb-info-bg: var(--vscode-inputValidation-infoBackground, #063b49);
+    --etb-info-border: var(--vscode-inputValidation-infoBorder, #007acc);
+    --etb-widget-bg: var(--vscode-editorWidget-background, #202020);
+    --etb-widget-border: var(--vscode-editorWidget-border, #454545);
+    --etb-shadow: var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+    --etb-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23c5c5c5' d='M7.98 10.5 3.5 6.02l.7-.7 3.78 3.77 3.78-3.77.7.7z'/%3E%3C/svg%3E");
+    --etb-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23cccccc' d='M14.43 3.85 6 12.29 1.57 7.86l.71-.71L6 10.88l7.72-7.74z'/%3E%3C/svg%3E");
+}
+
+.etb-builder *,
+.etb-builder *::before,
+.etb-builder *::after {
+    box-sizing: border-box;
+}
+
+.etb-builder .etb-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.etb-builder .etb-icon {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
+
+/* ---- Search and scope tabs ---- */
+.etb-builder .etb-header {
+    flex: none;
+    padding: 12px 20px 0;
+}
+
+.etb-builder .etb-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 4px 0 8px;
+    border: 1px solid var(--etb-input-border);
+    border-radius: 2px;
+    background: var(--etb-input-bg);
+    color: var(--etb-muted);
+}
+
+.etb-builder .etb-search:focus-within {
+    border-color: var(--etb-focus);
+    outline: 1px solid var(--etb-focus);
+    outline-offset: -1px;
+}
+
+.etb-builder .etb-search__input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: none;
+    color: var(--etb-input-fg);
+    font: inherit;
+}
+
+.etb-builder .etb-search__input::placeholder,
+.etb-builder .etb-input::placeholder {
+    color: var(--etb-placeholder);
+}
+
+.etb-builder .etb-tabs {
+    display: flex;
+    gap: 20px;
+    margin-top: 6px;
+    border-bottom: 1px solid var(--etb-border);
+}
+
+.etb-builder .etb-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    color: var(--etb-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+.etb-builder .etb-tab:hover,
+.etb-builder .etb-tab[aria-selected="true"] {
+    color: var(--etb-fg);
+}
+
+.etb-builder .etb-tab[aria-selected="true"] {
+    box-shadow: inset 0 -1px 0 var(--etb-focus);
+}
+
+.etb-builder .etb-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border: 1px solid var(--etb-contrast);
+    border-radius: 11px;
+    background: var(--etb-badge-bg);
+    color: var(--etb-badge-fg);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ---- Index and settings pane ---- */
+.etb-builder .etb-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.etb-builder .etb-index {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+    width: 200px;
+    padding: 10px 8px 16px 20px;
+    overflow: hidden auto;
+}
+
+/* A longer translation wraps instead of pushing the index wider than its column. */
+.etb-builder .etb-index > .etb-button {
+    max-width: 100%;
+    height: auto;
+    min-height: 26px;
+    padding-block: 3px;
+    white-space: normal;
+    text-align: start;
+}
+
+.etb-builder .etb-index__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.etb-builder .etb-index__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: none;
+    color: var(--etb-muted);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.etb-builder .etb-index__item:hover {
+    background: var(--etb-hover);
+    color: var(--etb-fg);
+}
+
+.etb-builder .etb-index__item--selected {
+    background: var(--etb-selected-bg);
+    color: var(--etb-selected-fg);
+    font-weight: 600;
+}
+
+.etb-builder .etb-index__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.etb-builder .etb-index__empty,
+.etb-builder .etb-empty {
+    margin: 0;
+    color: var(--etb-muted);
+}
+
+.etb-builder .etb-empty {
+    padding: 16px 0;
+}
+
+.etb-builder .etb-pane {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 20px 16px 8px;
+    overflow-y: auto;
+}
+
+.etb-builder .etb-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    min-height: 40px;
+    padding: 4px 14px 0;
+}
+
+.etb-builder .etb-heading__title {
+    margin: 0;
+    color: var(--etb-header-fg);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.etb-builder .etb-heading__meta {
+    color: var(--etb-muted);
+    font-family: var(--etb-mono);
+    font-size: 12px;
+}
+
+.etb-builder .etb-heading__actions {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.etb-builder .etb-section {
+    max-width: 760px;
+    margin: 18px 0 2px;
+    padding: 0 14px 4px;
+    border-bottom: 1px solid var(--etb-border);
+    color: var(--etb-header-fg);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ---- One setting ---- */
+.etb-builder .etb-setting {
+    position: relative;
+    max-width: 760px;
+    padding: 10px 14px 12px;
+    border: 1px solid transparent;
+}
+
+.etb-builder .etb-setting:hover {
+    background: var(--etb-row-hover);
+}
+
+.etb-builder .etb-setting:focus-within {
+    background: var(--etb-row-focus);
+    border-color: var(--etb-row-focus-border);
+}
+
+.etb-builder .etb-setting--modified::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    bottom: 14px;
+    left: 5px;
+    width: 2px;
+    background: var(--etb-modified);
+}
+
+.etb-builder .etb-setting__name {
+    font-weight: 600;
+}
+
+.etb-builder .etb-setting__description {
+    margin-top: 2px;
+    color: var(--etb-muted);
+}
+
+.etb-builder .etb-setting__control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.etb-builder .etb-input,
+.etb-builder .etb-select {
+    width: 100%;
+    max-width: 480px;
+    height: 26px;
+    padding: 0 6px;
+    border: 1px solid var(--etb-input-border);
+    border-radius: 2px;
+    background-color: var(--etb-input-bg);
+    color: var(--etb-input-fg);
+    font: inherit;
+}
+
+.etb-builder .etb-input--mono {
+    font-family: var(--etb-mono);
+    font-size: 12px;
+}
+
+.etb-builder .etb-input--area {
+    height: auto;
+    min-height: 46px;
+    max-height: 200px;
+    padding: 4px 6px;
+    field-sizing: content;
+    resize: vertical;
+}
+
+.etb-builder .etb-select {
+    padding-right: 24px;
+    appearance: none;
+    background-image: var(--etb-chevron);
+    background-position: right 4px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+}
+
+.etb-builder .etb-input:focus,
+.etb-builder .etb-select:focus,
+.etb-builder .etb-checkbox:focus-visible,
+.etb-builder button:focus-visible {
+    outline: 1px solid var(--etb-focus);
+    outline-offset: -1px;
+}
+
+.etb-builder .etb-input:disabled,
+.etb-builder .etb-select:disabled,
+.etb-builder .etb-checkbox:disabled,
+.etb-builder button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.etb-builder .etb-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.etb-builder .etb-checkbox {
+    display: inline-block;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1px solid var(--etb-checkbox-border);
+    border-radius: 3px;
+    background: var(--etb-checkbox-bg);
+    appearance: none;
+    cursor: pointer;
+}
+
+.etb-builder .etb-checkbox:checked {
+    background-image: var(--etb-check);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+}
+
+/* VS Code's input validation boxes, one per severity. */
+.etb-builder .etb-validation {
+    max-width: 480px;
+    margin-top: 6px;
+    padding: 3px 6px;
+    border: 1px solid;
+    font-size: 12px;
+}
+
+.etb-builder .etb-validation--error {
+    border-color: var(--etb-error-border);
+    background: var(--etb-error-bg);
+}
+
+.etb-builder .etb-validation--warning {
+    border-color: var(--etb-warning-border);
+    background: var(--etb-warning-bg);
+}
+
+.etb-builder .etb-validation--info {
+    border-color: var(--etb-info-border);
+    background: var(--etb-info-bg);
+}
+
+/* ---- Buttons ---- */
+.etb-builder .etb-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--etb-button-border);
+    border-radius: 2px;
+    background: var(--etb-button-bg);
+    color: var(--etb-button-fg);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.etb-builder .etb-button:hover:not(:disabled) {
+    background: var(--etb-button-hover);
+}
+
+.etb-builder .etb-button--secondary {
+    align-self: flex-start;
+    background: var(--etb-secondary-bg);
+    color: var(--etb-secondary-fg);
+}
+
+.etb-builder .etb-button--secondary:hover:not(:disabled) {
+    background: var(--etb-secondary-hover);
+}
+
+.etb-builder .etb-icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: none;
+    color: var(--etb-fg);
+    cursor: pointer;
+}
+
+.etb-builder .etb-icon-button:hover:not(:disabled) {
+    background: var(--etb-toolbar-hover);
+}
+
+/* ---- Composite settings ---- */
+.etb-builder .etb-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.etb-builder .etb-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 22px;
+    padding: 0 2px 0 8px;
+    border: 1px solid var(--etb-contrast);
+    border-radius: 3px;
+    background: var(--etb-badge-bg);
+    color: var(--etb-badge-fg);
+    font-family: var(--etb-mono);
+    font-size: 12px;
+}
+
+.etb-builder .etb-chip__remove {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.etb-builder .etb-chip__remove .etb-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.etb-builder .etb-rows {
+    display: grid;
+    gap: 4px 6px;
+    align-items: center;
+    width: 100%;
+    max-width: 560px;
+}
+
+.etb-builder .etb-rows--choices {
+    grid-template-columns: 1fr 1fr 24px;
+}
+
+.etb-builder .etb-rows--conditions {
+    grid-template-columns: 1fr 1fr 1fr 24px;
+}
+
+.etb-builder .etb-rows__head {
+    color: var(--etb-muted);
+    font-size: 12px;
+}
+
+.etb-builder .etb-note {
+    max-width: 760px;
+    margin: 12px 0 0;
+    padding: 0 14px;
+    color: var(--etb-muted);
+    font-style: italic;
+}
+
+/* Beside the preview or the JSON editor the builder gets narrow: the index shrinks, then wraps above. */
+@container etb (width < 640px) {
+    .etb-builder .etb-index {
+        width: 150px;
+    }
+}
+
+@container etb (width < 480px) {
+    .etb-builder .etb-body {
+        flex-direction: column;
+    }
+
+    .etb-builder .etb-index {
+        flex-flow: row wrap;
+        align-items: center;
+        gap: 4px;
+        width: auto;
+        max-height: 35%;
+        padding: 8px 20px;
+        border-bottom: 1px solid var(--etb-border);
+    }
+
+    .etb-builder .etb-index__list {
+        display: contents;
+    }
+
+    .etb-builder .etb-index__item {
+        width: auto;
+        max-width: 180px;
+        border-color: var(--etb-border);
+    }
+}
+
+/* ---- Problems: the lint-style chip, docked under the form; its list opens upwards ---- */
+.etb-builder .etb-problems {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 12px;
+}
+
+.etb-builder .etb-problems__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--etb-chip) 45%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--etb-chip) 14%, var(--etb-bg));
+    color: color-mix(in srgb, var(--etb-chip) 72%, var(--etb-fg));
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.etb-builder .etb-problems__chip:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
+.etb-builder .etb-problems__chip--success {
+    --etb-chip: var(--etb-success);
+}
+
+.etb-builder .etb-problems__chip--warning {
+    --etb-chip: var(--etb-warning);
+}
+
+.etb-builder .etb-problems__chip--error {
+    --etb-chip: var(--etb-error);
+}
+
+.etb-builder .etb-problems__chip .etb-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.etb-builder .etb-problems__list {
+    width: min(720px, 100%);
+    max-height: min(40vh, 320px);
+    margin: 0;
+    padding: 2px 0;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid var(--etb-widget-border);
+    border-radius: 4px;
+    background: var(--etb-widget-bg);
+    box-shadow: 0 0 8px 2px var(--etb-shadow);
+}
+
+.etb-builder .etb-problem {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 10px;
+}
+
+.etb-builder .etb-problem:hover {
+    background: var(--etb-hover);
+}
+
+.etb-builder .etb-problem .etb-icon {
+    position: relative;
+    top: 2px;
+    width: 14px;
+    height: 14px;
+}
+
+.etb-builder .etb-problem__message {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.etb-builder .etb-problem__where {
+    font-weight: 600;
+}
+
+.etb-builder .etb-link {
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--etb-link);
+    font: inherit;
+    cursor: pointer;
+}
+
+.etb-builder .etb-link:hover {
+    text-decoration: underline;
+}
+
+.etb-builder .etb-icon--error {
+    color: var(--etb-error);
+}
+
+.etb-builder .etb-icon--warning {
+    color: var(--etb-warning);
+}
+
+.etb-builder .etb-icon--info {
+    color: var(--etb-info);
+}
+
+.etb-builder .etb-icon--success {
+    color: var(--etb-success);
+}

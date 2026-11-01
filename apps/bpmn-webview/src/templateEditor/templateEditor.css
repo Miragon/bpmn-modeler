@@ -1,0 +1,237 @@
+/* Scoped under .template-editor: both webview entries share one index.css. */
+
+/* Fixed so host default body padding cannot shrink the page. */
+.template-editor {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--vscode-editor-background, #fff);
+    color: var(--vscode-foreground, #333);
+    font-family: var(--vscode-font-family, sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+}
+
+/* Fallbacks for a page without the host's --vscode-* variables. */
+html[data-bpmn-theme="dark"] .template-editor {
+    background: var(--vscode-editor-background, #1e1e1e);
+    color: var(--vscode-foreground, #ccc);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__messages {
+    background: var(--vscode-inputValidation-warningBackground, #352a05);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__lead,
+html[data-bpmn-theme="dark"] .template-editor__placeholder {
+    color: var(--vscode-descriptionForeground, #a0a0a0);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__choice {
+    background: var(--vscode-dropdown-background, #3c3c3c);
+    border-color: var(--vscode-dropdown-border, #555);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__engine {
+    background: var(--vscode-badge-background, #4d4d4d);
+    color: var(--vscode-badge-foreground, #fff);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__preview-title {
+    border-color: var(--vscode-panel-border, #3c3c3c);
+    color: var(--vscode-descriptionForeground, #a0a0a0);
+}
+
+html[data-bpmn-theme="dark"] .template-editor__wizard select,
+html[data-bpmn-theme="dark"] .template-editor__wizard input {
+    background: var(--vscode-input-background, #3c3c3c);
+    border-color: var(--vscode-input-border, #555);
+}
+
+.template-editor [hidden] {
+    display: none !important;
+}
+
+.template-editor__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--vscode-panel-border, #ccc);
+}
+
+.template-editor__engine {
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: var(--vscode-badge-background, #e0e0e0);
+    color: var(--vscode-badge-foreground, #333);
+}
+
+.template-editor__choice {
+    min-width: 0;
+    max-width: 60%;
+    margin-left: auto;
+    color: var(--vscode-dropdown-foreground, inherit);
+    background: var(--vscode-dropdown-background, inherit);
+    border: 1px solid var(--vscode-dropdown-border, #ccc);
+}
+
+.template-editor__messages {
+    padding: 6px 12px;
+    background: var(--vscode-inputValidation-warningBackground, #fff8e1);
+    border-bottom: 1px solid var(--vscode-inputValidation-warningBorder, #e0b400);
+}
+
+.template-editor__messages p {
+    margin: 2px 0;
+    overflow-wrap: anywhere;
+}
+
+.template-editor__body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.template-editor__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    overflow: auto;
+}
+
+/* The rendered template on the right, sized like the modelers' properties panel until dragged. */
+.template-editor #js-properties-panel {
+    display: flex;
+    flex-direction: column;
+    width: clamp(280px, 36%, 440px);
+    max-width: calc(100% - 240px);
+    overflow: hidden;
+}
+
+.template-editor--no-preview .panel-resizer,
+.template-editor--no-preview #js-properties-panel {
+    display: none;
+}
+
+/* A host without the builder shows the page as a preview only. */
+.template-editor--preview-only .template-editor__main,
+.template-editor--preview-only .panel-resizer {
+    display: none;
+}
+
+.template-editor--preview-only #js-properties-panel {
+    flex: 1;
+    width: auto;
+    max-width: none;
+}
+
+/* The panels' own surface, so the builder column narrower than its area shows no edge. */
+.template-editor__body {
+    background: #fff;
+}
+
+html[data-bpmn-theme="dark"] .template-editor__body {
+    background: var(--vscode-editorWidget-background, #282828);
+}
+
+/* Keeps the divider's toggle, which juts out to its left, off the builder and its scrollbar. */
+.template-editor .panel-resizer {
+    margin-left: 10px;
+}
+
+.template-editor__preview-title {
+    flex: none;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--vscode-panel-border, #e0e0e0);
+    color: var(--vscode-descriptionForeground, #616161);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.template-editor__preview-mount {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* The builder scrolls itself, so its problems can stay at the bottom. */
+.template-editor__builder {
+    flex: 1;
+    min-height: 0;
+}
+
+.template-editor__wizard,
+.template-editor__engine-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 440px;
+    margin: 6vh auto 0;
+    padding: 24px;
+}
+
+.template-editor__wizard-title {
+    margin: 0;
+    font-size: 1.3em;
+    font-weight: 600;
+}
+
+.template-editor__lead,
+.template-editor__placeholder {
+    margin: 0;
+    color: var(--vscode-descriptionForeground, #616161);
+}
+
+.template-editor__placeholder {
+    margin-top: 6vh;
+    padding: 24px;
+    text-align: center;
+}
+
+.template-editor__wizard-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.template-editor__wizard select,
+.template-editor__wizard input {
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid var(--vscode-input-border, #ccc);
+    border-radius: 2px;
+    color: var(--vscode-input-foreground, inherit);
+    background: var(--vscode-input-background, #fff);
+    font: inherit;
+}
+
+.template-editor__engine-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.template-editor__wizard-create,
+.template-editor__engine-button {
+    align-self: flex-start;
+    min-height: 28px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 2px;
+    background: var(--vscode-button-background, #0062ff);
+    color: var(--vscode-button-foreground, #fff);
+    font: inherit;
+    cursor: pointer;
+}
+
+.template-editor__wizard-create:hover,
+.template-editor__engine-button:hover {
+    background: var(--vscode-button-hoverBackground, #0052d6);
+}

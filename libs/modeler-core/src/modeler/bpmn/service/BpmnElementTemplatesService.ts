@@ -1,8 +1,8 @@
 import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
-import { templatesOfFile } from "@miragon/bpmn-modeler-types";
 
+import { isHiddenEditorError } from "../../../kernel/domain/errors";
 import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
@@ -11,6 +11,7 @@ import {
     ElementTemplateSource,
     EMPTY_TEMPLATE_SOURCE,
     mergeElementTemplates,
+    templatesOfFileText,
 } from "../domain/elementTemplates";
 import { elementTemplatesStatusView } from "../domain/elementTemplatesStatusView";
 import { TemplateLoadStatus } from "../domain/TemplateLoadStatus";
@@ -116,6 +117,11 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
                 );
                 return false;
             }
+            // Shown again, the webview restarts and asks for its templates itself.
+            if (isHiddenEditorError(error)) {
+                this.notifier.logDebug(`Element templates not sent to hidden editor: ${editorId}`);
+                return false;
+            }
             return this.handleError(error as Error);
         }
     }
@@ -199,7 +205,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         const templatesPerFile = await Promise.all(
             files.map(async (file) => {
                 try {
-                    return templatesOfFile(JSON.parse(await this.artifactSvc.readFile(file)));
+                    return templatesOfFileText(await this.artifactSvc.readFile(file));
                 } catch (error) {
                     this.notifier.logError(
                         new Error(

@@ -13,7 +13,9 @@ library's `Business key`), which the editor never requests anymore.
   `translate()`, captured with `harvest-drain.js`. Half the authoritative
   needed-key set.
 - **`harvested-dmn.json`** — every template the running dmn-js views passed to
-  `translate()`, captured with `harvest-drain-dmn.js`. The other half.
+  `translate()`, captured with `harvest-drain-dmn.js`.
+- **`harvested-template-editor.json`** — every text the element template editor
+  page passed to `translate()`, captured with `harvest-drain-template-editor.js`.
 - **`harvest-drain.js`** — the browser-side BPMN driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the
   properties panel across a broad set of C7 elements and implementation configs.
@@ -21,7 +23,12 @@ library's `Business key`), which the editor never requests anymore.
   dmn-js view (DRD, decision table, literal/boxed expression), exercising the
   palette, context pad, replace/create menus, the decision-table context menu and
   hit-policy control, and expanding the properties panel.
-- **`build-overlay.mjs`** — prunes the overlay against the **union** of both
+- **`harvest-drain-template-editor.js`** — the browser-side driver for the
+  element template editor's dev page. It walks every tab, index entry and
+  template of the file, the problems list, and switches one property through
+  every binding and type the builder offers. Its header lists the page states
+  (`?engine=c7`, `?file=problems`, …) to run it on.
+- **`build-overlay.mjs`** — prunes the overlay against the **union** of the
   harvests + the shared library. Keeps a key only when the shared library lacks
   it (exact or normalized) **and** a harvest recorded it — plus the `SOURCE_ONLY`
   allowlist for strings the harvest drivers structurally can't reach. Everything
@@ -45,6 +52,14 @@ corepack yarn workspace @miragon/dmn-modeler-webview serve
 
 # 2b. Same, with the DMN driver → harvested-dmn.json:
 #       (paste harvest-drain-dmn.js) ; await window.__harvestDrainDmn()
+#       JSON.stringify([...window.__harvested].sort())
+
+# 1c. Element template editor: the BPMN dev webview from 1a serves it at
+#     /template-editor.html; open each page state listed in the driver's header.
+
+# 2c. On each of them run the template editor driver, and merge the sets into
+#     harvested-template-editor.json:
+#       (paste harvest-drain-template-editor.js) ; await window.__harvestDrainTemplateEditor()
 #       JSON.stringify([...window.__harvested].sort())
 
 # 3. Prune (dry run, then write):

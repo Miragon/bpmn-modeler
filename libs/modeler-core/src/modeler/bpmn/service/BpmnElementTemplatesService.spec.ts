@@ -137,6 +137,17 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         expect(postedNames(editor)).toEqual(["Good"]);
     });
 
+    it("loads an empty template file as no templates, without an error", async () => {
+        const { service, host, editor, addTemplate, fileContents } = createService();
+        addTemplate(ROOT_TEMPLATES, "ok.json", { name: "Good" });
+        fileContents.set(addTemplate(ROOT_TEMPLATES, "new-template.json", {}), "");
+
+        await service.setElementTemplates(editor.id);
+
+        expect(host.notifier.logged("error")).toEqual([]);
+        expect(postedNames(editor)).toEqual(["Good"]);
+    });
+
     it("does not log readiness info when there are no template files", async () => {
         const { service, host, editor } = createService();
 
@@ -332,6 +343,29 @@ describe("BpmnElementTemplatesService template cache", () => {
 
         expect(artifactSvc.readFile.mock.calls.filter(([path]) => path === file)).toHaveLength(1);
         expect(postedTemplates(editor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
+        expect(postedTemplates(secondEditor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
+    });
+
+    it("passes a hidden editor by without an error; shown again, it gets the change", async () => {
+        vi.useFakeTimers();
+        const { service, host, editor, secondEditor, addTemplate, fileContents } = createService();
+        const file = addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
+        await service.setElementTemplates(editor.id);
+        await service.setElementTemplates(secondEditor.id);
+        secondEditor.hidden = true;
+        fileContents.set(file, JSON.stringify({ name: "Avocado" }));
+
+        service.refreshElementTemplates(editor.id);
+        service.refreshElementTemplates(secondEditor.id);
+        await vi.advanceTimersByTimeAsync(150);
+
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.logged("error")).toEqual([]);
+        expect(postedTemplates(editor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
+
+        // A webview shown again asks for its templates.
+        secondEditor.hidden = false;
+        await service.setElementTemplates(secondEditor.id);
         expect(postedTemplates(secondEditor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
     });
 

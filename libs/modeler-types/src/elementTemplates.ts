@@ -16,8 +16,9 @@ const C7_SCHEMA_PACKAGE = "element-templates-json-schema";
 // large data-URI icons out of a per-keystroke check.
 const TEXT_HEAD_LENGTH = 4096;
 const SCHEMA_PROPERTY = /"\$schema"\s*:\s*"[^"]*element-templates-json-schema[^"]*"/;
-// The `<configFolder>/element-templates/` convention the template loader reads.
-const TEMPLATE_FOLDER = /[\\/]element-templates[\\/]/;
+/** The folder below `<configFolder>` the template loader reads. */
+export const ELEMENT_TEMPLATES_FOLDER = "element-templates";
+const TEMPLATE_FOLDER = new RegExp(`[\\\\/]${ELEMENT_TEMPLATES_FOLDER}[\\\\/]`);
 
 /** A template file holds either a single template or an array of them. */
 export function templatesOfFile(parsedFile: unknown): ElementTemplate[] {
