@@ -591,8 +591,12 @@ before the last replay re-imports; and each replay clears the page's undo stack.
 
 An asynchronous writer drains a soft-bounded outbound queue so editor and JCEF
 threads never block on bridge stdin. Superseded document and host-state updates
-coalesce; authoritative document updates and RPC replies remain reliable across
-backpressure and writer replacement. Best-effort frames may be dropped.
+coalesce; authoritative document updates remain reliable across backpressure
+and writer replacement. Best-effort frames may be dropped. An RPC reply survives
+backpressure but not its process: a respawned bridge numbers its requests from 1
+again, so the host tags each request with the generation of the process that
+sent it and drops the reply once that process is detached, also when the reply
+is created after the respawn.
 
 The host answers every core request exactly once: with its result, or with an
 error when its handler throws, also when the handler runs on the EDT

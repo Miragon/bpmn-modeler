@@ -56,7 +56,8 @@ class CoreProcess(private val project: Project) : Disposable {
     private val notifications = lazy { HostNotifications(project) }
 
     private val handlers = RpcHandlerRegistry()
-    private val channel = RpcChannel { method, params, id -> handlers.dispatch(method, params, id) }
+    private val channel =
+        RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
     private val supervisor: ProcessSupervisor =
         ProcessSupervisor(
             channel = channel,

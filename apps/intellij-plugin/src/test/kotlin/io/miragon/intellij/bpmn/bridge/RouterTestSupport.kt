@@ -31,7 +31,11 @@ internal class WiredBridge(
     val fake: FakeProcess,
     val channel: RpcChannel,
     val handlers: RpcHandlerRegistry,
+    private val generation: Int,
 ) {
+    /** The id of a request [fake] sent, as the reader pump would dispatch it. */
+    fun requestId(value: Int): CoreRequestId = CoreRequestId(value, generation)
+
     /**
      * Tears down the transport so its daemon threads (the channel's writer and the
      * fake's stdin/stdout pumps) exit — otherwise `@TestApplication`'s
@@ -52,10 +56,10 @@ internal class WiredBridge(
  */
 internal fun wireChannel(): WiredBridge {
     val handlers = RpcHandlerRegistry()
-    val channel = RpcChannel { method, params, id -> handlers.dispatch(method, params, id) }
+    val channel = RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
     val fake = FakeProcess()
-    channel.attach(fake.outputStream, fake.inputStream)
-    return WiredBridge(fake, channel, handlers)
+    val generation = channel.attach(fake.outputStream, fake.inputStream)
+    return WiredBridge(fake, channel, handlers, generation)
 }
 
 /**

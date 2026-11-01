@@ -114,10 +114,10 @@ class MarketplaceRouterTest {
         val host = "github.com"
         val token = "ghp_test_${System.nanoTime()}"
 
-        wired.handlers.dispatch("tokenStore/set", obj("host" to host, "token" to token), 10)
+        wired.handlers.dispatch("tokenStore/set", obj("host" to host, "token" to token), wired.requestId(10))
         assertAck(wired, 10)
 
-        wired.handlers.dispatch("tokenStore/get", obj("host" to host), 11)
+        wired.handlers.dispatch("tokenStore/get", obj("host" to host), wired.requestId(11))
         val reply = parse(wired.fake.nextFrame())
         assertEquals(11, reply.get("id").asInt)
         assertEquals(token, reply.getAsJsonObject("result").get("token").asString)
@@ -126,7 +126,7 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenStore get replies null for an unknown host`() {
         val (wired, _) = router()
-        wired.handlers.dispatch("tokenStore/get", obj("host" to "unknown-${System.nanoTime()}.example"), 12)
+        wired.handlers.dispatch("tokenStore/get", obj("host" to "unknown-${System.nanoTime()}.example"), wired.requestId(12))
         val reply = parse(wired.fake.nextFrame())
         assertEquals(12, reply.get("id").asInt)
         assertNullResult(reply)
@@ -136,7 +136,7 @@ class MarketplaceRouterTest {
     fun `tokenPrompt shows the core's title and prompt and replies the answer as typed`() {
         val shown = mutableListOf<Pair<String, String>>()
         val (wired, _) = router(prompt = { title, prompt -> "  ghp_granted  ".also { shown += title to prompt } })
-        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 20)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, wired.requestId(20))
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(20, reply.get("id").asInt)
@@ -147,7 +147,7 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenPrompt reply is null on cancel`() {
         val (wired, _) = router(prompt = { _, _ -> null })
-        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 21)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, wired.requestId(21))
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(21, reply.get("id").asInt)
@@ -157,7 +157,7 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenPrompt answers with an error when the prompt throws`() {
         val (wired, _) = router(prompt = { _, _ -> throw IllegalStateException("dialog failed") })
-        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 22)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, wired.requestId(22))
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(22, reply.get("id").asInt)
@@ -281,7 +281,7 @@ class MarketplaceRouterTest {
     private fun dispatchSave(wired: WiredBridge, location: String, id: Int, scope: String? = null) {
         val params = obj("location" to location)
         if (scope != null) params.addProperty("scope", scope)
-        wired.handlers.dispatch("marketplaceState/save", params, id)
+        wired.handlers.dispatch("marketplaceState/save", params, wired.requestId(id))
         assertAck(wired, id)
     }
 

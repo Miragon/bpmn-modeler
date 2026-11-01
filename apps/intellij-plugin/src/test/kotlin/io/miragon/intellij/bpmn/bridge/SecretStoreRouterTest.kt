@@ -37,7 +37,7 @@ class SecretStoreRouterTest {
 
     private fun request(wired: WiredBridge, method: String, params: Map<String, Any?>): JsonElement? {
         val requestId = nextRequestId++
-        wired.handlers.dispatch(method, gson.toJsonTree(params).asJsonObject, requestId)
+        wired.handlers.dispatch(method, gson.toJsonTree(params).asJsonObject, wired.requestId(requestId))
         val reply = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
         assertEquals(requestId, reply.get("id").asInt, "$method must answer its own request id")
         return reply.get("result")?.takeUnless { it.isJsonNull }

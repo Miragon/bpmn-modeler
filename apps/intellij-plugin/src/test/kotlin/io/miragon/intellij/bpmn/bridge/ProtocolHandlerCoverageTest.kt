@@ -199,7 +199,7 @@ class ProtocolHandlerCoverageTest {
                 "tokenPrompt/show" to TokenPromptShowResult(token = "ghp_typed"),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
-            wired.channel.reply(requestId, entry.value)
+            wired.channel.reply(wired.requestId(requestId), entry.value)
             entry.key to replyResultKeys(wired.fake.nextFrame())
         }
     }

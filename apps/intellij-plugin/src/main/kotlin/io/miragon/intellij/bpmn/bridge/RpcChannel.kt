@@ -22,17 +22,18 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Outbound (host→core) frames are drained by a single writer thread so the EDT /
  * JCEF threads never block on the bridge's stdin. The deque also enables
- * coalescing, while authoritative document updates and RPC replies remain queued
- * until a live writer accepts them.
+ * coalescing, while authoritative document updates remain queued until a live
+ * writer accepts them. An RPC reply goes only to the process that sent its
+ * request and is dropped once that process is detached.
  *
- * **Locking.** [ioLock] guards the [writer] reference and every write/flush — the
+ * **Locking.** [ioLock] guards the [attached] process and every write/flush — the
  * writer half of the split lock. The supervisor's `stateLock`
  * guards process identity and is held across the paired [attach]/[detach] calls;
  * lock order is always `stateLock → ioLock`, and [writerLoop] only ever takes
  * [ioLock], so the split cannot deadlock.
  */
 internal class RpcChannel(
-    private val dispatch: (method: String, params: JsonObject, id: Int?) -> Unit,
+    private val dispatch: (method: String, params: JsonObject, requestId: CoreRequestId?) -> Unit,
 ) {
     private val log = Logger.getInstance(RpcChannel::class.java)
 
@@ -43,14 +44,25 @@ internal class RpcChannel(
      */
     val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
 
-    private data class OutFrame(val line: String, val coalesceKey: String?, val reliable: Boolean)
+    private data class OutFrame(
+        val line: String,
+        val coalesceKey: String?,
+        val reliable: Boolean,
+        val replyTo: CoreRequestId?,
+    ) {
+        fun isDeliverableTo(processGeneration: Int?): Boolean =
+            replyTo?.wasSentBy(processGeneration) ?: true
+    }
+
+    private class AttachedProcess(val writer: BufferedWriter, val generation: Int)
 
     private val outbound = ArrayDeque<OutFrame>()
     private val outboundMonitor = Object()
     private var writerThread: Thread? = null
 
     private val ioLock = Any()
-    private var writer: BufferedWriter? = null
+    private var attached: AttachedProcess? = null
+    private var lastGeneration = 0
 
     // Stops the writer loop. Set by close()/closeFromShutdownHook(); the supervisor
     // keeps its own `disposed` flag for the process-lifecycle half.
@@ -74,38 +86,43 @@ internal class RpcChannel(
      */
     fun notifyRaw(line: String, coalesceKey: String? = null) = enqueue(line, coalesceKey, false)
 
-    fun reply(id: Int, result: RpcResult?) =
-        enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null, true)
+    fun reply(requestId: CoreRequestId, result: RpcResult?) =
+        enqueueReply(requestId, gson.toJson(linkedMapOf("id" to requestId.value, "result" to result)))
 
     // The bridge's `rpc.ts` turns `{id, error}` into a rejected promise, so a
     // handler that throws still settles the core's awaiting request instead of
     // leaking it.
-    fun replyError(id: Int, message: String) =
-        enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null, true)
+    fun replyError(requestId: CoreRequestId, message: String) =
+        enqueueReply(requestId, gson.toJson(linkedMapOf("id" to requestId.value, "error" to message)))
+
+    private fun enqueueReply(requestId: CoreRequestId, line: String) =
+        enqueue(line, coalesceKey = null, reliable = true, replyTo = requestId)
 
     /**
-     * Runs [work] on the EDT and answers request [id] exactly once: with its
+     * Runs [work] on the EDT and answers request [requestId] exactly once: with its
      * result, or with an error when it throws. [onLine]'s catch cannot see work
      * that hops to the EDT, and an unanswered request stalls the core's
      * per-editor queue.
      */
     fun replyFromEdt(
-        id: Int?,
+        requestId: CoreRequestId?,
         method: String,
         runOnEdt: (Runnable) -> Unit = invokeLaterOnEdt,
         work: () -> RpcResult?,
-    ) = runOnEdt(Runnable { answerOnce(PendingReply(this, id), method) { it.result(work()) } })
+    ) = runOnEdt(
+        Runnable { answerOnce(PendingReply(this, requestId), method) { it.result(work()) } },
+    )
 
     /**
      * [replyFromEdt] for work that answers from a later callback, such as a popup
      * selection; a throw before that answer still answers with an error.
      */
     fun replyLaterFromEdt(
-        id: Int,
+        requestId: CoreRequestId,
         method: String,
         runOnEdt: (Runnable) -> Unit = invokeLaterOnEdt,
         work: (PendingReply) -> Unit,
-    ) = runOnEdt(Runnable { answerOnce(PendingReply(this, id), method, work) })
+    ) = runOnEdt(Runnable { answerOnce(PendingReply(this, requestId), method, work) })
 
     private fun answerOnce(reply: PendingReply, method: String, work: (PendingReply) -> Unit) {
         try {
@@ -117,7 +134,12 @@ internal class RpcChannel(
         }
     }
 
-    private fun enqueue(line: String, coalesceKey: String?, reliable: Boolean) {
+    private fun enqueue(
+        line: String,
+        coalesceKey: String?,
+        reliable: Boolean,
+        replyTo: CoreRequestId? = null,
+    ) {
         synchronized(outboundMonitor) {
             if (coalesceKey != null) {
                 val iterator = outbound.iterator()
@@ -143,7 +165,7 @@ internal class RpcChannel(
                     log.warn("Outbound bridge queue full ($OUTBOUND_CAPACITY); dropped oldest best-effort frame")
                 }
             }
-            outbound.addLast(OutFrame(line, coalesceKey, reliable))
+            outbound.addLast(OutFrame(line, coalesceKey, reliable, replyTo))
             outboundMonitor.notifyAll()
         }
     }
@@ -164,21 +186,25 @@ internal class RpcChannel(
                     while (outbound.isEmpty() && !closed.get()) outboundMonitor.wait()
                     if (closed.get()) return else outbound.removeFirst()
                 }
-            val target = synchronized(ioLock) { writer }
+            val target = synchronized(ioLock) { attached }
+            if (!frame.isDeliverableTo(target?.generation)) {
+                log.debug("Dropped a reply for a bridge process that is gone")
+                continue
+            }
             if (target == null) {
                 retryOrDrop(frame, "No bridge writer")
                 continue
             }
             try {
                 synchronized(ioLock) {
-                    target.write(frame.line)
-                    target.write("\n")
-                    target.flush()
+                    target.writer.write(frame.line)
+                    target.writer.write("\n")
+                    target.writer.flush()
                 }
             } catch (e: Exception) {
                 log.warn("Failed to write to bridge stdin", e)
                 synchronized(ioLock) {
-                    if (writer === target) writer = null
+                    if (attached === target) attached = null
                 }
                 retryOrDrop(frame, "Bridge write failed")
             }
@@ -201,8 +227,8 @@ internal class RpcChannel(
 
     // ── inbound ───────────────────────────────────────────────────────────────
 
-    /** Dispatches one line received from the core's stdout. */
-    private fun onLine(line: String) {
+    /** Dispatches one line received from the stdout of the process attached as [generation]. */
+    private fun onLine(line: String, generation: Int) {
         val message =
             try {
                 gson.fromJson(line, JsonObject::class.java)
@@ -216,7 +242,8 @@ internal class RpcChannel(
         // (i.e. a response) is never expected and is ignored.
         val method = message.get("method")?.takeIf { !it.isJsonNull }?.asString ?: return
         val params = message.getAsJsonObject("params")
-        val id = message.get("id")?.takeIf { !it.isJsonNull }?.asInt
+        val requestId =
+            message.get("id")?.takeIf { !it.isJsonNull }?.asInt?.let { CoreRequestId(it, generation) }
 
         // A malformed/unexpected frame (missing member, wrong type, a throwing
         // handler such as a failing PasswordSafe call) must not escape: this runs
@@ -226,28 +253,36 @@ internal class RpcChannel(
         // If the frame was a request, also answer it: an unanswered request would
         // otherwise leak the core's awaiting promise.
         try {
-            dispatch(method, params, id)
+            dispatch(method, params, requestId)
         } catch (e: Exception) {
             log.warn("Failed to handle core message ($method): ${redactFrameForLog(line, method)}", e)
-            id?.let { replyError(it, e.message ?: "host handler failed") }
+            requestId?.let { replyError(it, e.message ?: "host handler failed") }
         }
     }
 
     // ── attach / detach / shutdown ────────────────────────────────────────────
 
-    /** Wraps the new process's stdin and starts the writer thread (once) + stdout pump. */
-    fun attach(stdin: OutputStream, stdout: InputStream) {
-        synchronized(ioLock) {
-            writer = BufferedWriter(OutputStreamWriter(stdin, StandardCharsets.UTF_8))
-        }
+    /**
+     * Wraps the new process's stdin and starts the writer thread (once) + stdout pump.
+     *
+     * @return the generation of the attached process, which its requests carry.
+     */
+    fun attach(stdin: OutputStream, stdout: InputStream): Int {
+        val writer = BufferedWriter(OutputStreamWriter(stdin, StandardCharsets.UTF_8))
+        val process =
+            synchronized(ioLock) { AttachedProcess(writer, ++lastGeneration).also { attached = it } }
         synchronized(outboundMonitor) { outboundMonitor.notifyAll() }
-        pump(stdout, "modeler-bridge-reader") { onLine(it) }
+        pump(stdout, "modeler-bridge-reader") { onLine(it, process.generation) }
         ensureWriterThread()
+        return process.generation
     }
 
-    /** Drops the writer during a restart window; reliable queued frames wait for re-attach. */
+    /**
+     * Drops the writer during a restart window. Reliable notifications wait for
+     * re-attach; replies to the detached process are dropped.
+     */
     fun detach() {
-        synchronized(ioLock) { writer = null }
+        synchronized(ioLock) { attached = null }
     }
 
     /** Dispose path: stop the loop, wake the waiting writer, close stdin. */
@@ -255,8 +290,8 @@ internal class RpcChannel(
         closed.set(true)
         synchronized(outboundMonitor) { outboundMonitor.notifyAll() }
         synchronized(ioLock) {
-            runCatching { writer?.close() }
-            writer = null
+            runCatching { attached?.writer?.close() }
+            attached = null
         }
     }
 
@@ -267,7 +302,7 @@ internal class RpcChannel(
      */
     fun closeFromShutdownHook() {
         closed.set(true)
-        synchronized(ioLock) { runCatching { writer?.close() } }
+        synchronized(ioLock) { runCatching { attached?.writer?.close() } }
     }
 
     /** Reads [input] line by line on a daemon thread; also used for the bridge's stderr. */
@@ -294,18 +329,21 @@ private val invokeLaterOnEdt: (Runnable) -> Unit = { ApplicationManager.getAppli
  * ones are dropped, so a callback that answers and a throw that follows still
  * produce one reply.
  */
-internal class PendingReply(private val channel: RpcChannel, private val id: Int?) {
+internal class PendingReply(
+    private val channel: RpcChannel,
+    private val requestId: CoreRequestId?,
+) {
     private val answered = AtomicBoolean(false)
 
     fun result(value: RpcResult?) = answer { channel.reply(it, value) }
 
     fun error(message: String) = answer { channel.replyError(it, message) }
 
-    private fun answer(send: (Int) -> Unit) {
-        val requestId = id ?: return
+    private fun answer(send: (CoreRequestId) -> Unit) {
+        val request = requestId ?: return
         if (!answered.compareAndSet(false, true)) return
         try {
-            send(requestId)
+            send(request)
         } catch (failure: Throwable) {
             // Nothing was sent (e.g. an unserialisable result), so a later
             // error reply may still answer the request.

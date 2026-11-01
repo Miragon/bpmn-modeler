@@ -34,8 +34,9 @@ class RpcChannelTest {
         openFakes.forEach { it.close() }
     }
 
-    private fun rpcChannel(dispatch: (method: String, params: JsonObject, id: Int?) -> Unit): RpcChannel =
-        RpcChannel(dispatch).also { openChannels += it }
+    private fun rpcChannel(
+        dispatch: (method: String, params: JsonObject, requestId: CoreRequestId?) -> Unit,
+    ): RpcChannel = RpcChannel(dispatch).also { openChannels += it }
 
     private fun fakeProcess(): FakeProcess = FakeProcess().also { openFakes += it }
 
@@ -177,10 +178,10 @@ class RpcChannelTest {
     @Test
     fun `inbound request is always answered even when the handler throws`() {
         var channelRef: RpcChannel? = null
-        val channel = rpcChannel { method, _, id ->
+        val channel = rpcChannel { method, _, requestId ->
             when (method) {
                 "boom" -> throw RuntimeException("handler blew up")
-                "echo" -> channelRef!!.reply(id!!, ClipboardReadResult("ok"))
+                "echo" -> channelRef!!.reply(requestId!!, ClipboardReadResult("ok"))
             }
         }
         channelRef = channel
@@ -199,11 +200,13 @@ class RpcChannelTest {
         assertEquals("ok", okReply.getAsJsonObject("result").get("text").asString)
     }
 
-    private fun attachedChannel(): Pair<RpcChannel, FakeProcess> {
+    private data class AttachedChannel(val channel: RpcChannel, val fake: FakeProcess, val generation: Int)
+
+    private fun attachedChannel(): AttachedChannel {
         val fake = fakeProcess()
         val channel = rpcChannel { _, _, _ -> }
-        channel.attach(fake.outputStream, fake.inputStream)
-        return channel to fake
+        val generation = channel.attach(fake.outputStream, fake.inputStream)
+        return AttachedChannel(channel, fake, generation)
     }
 
     private val runInline: (Runnable) -> Unit = { it.run() }
@@ -213,9 +216,13 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets an error reply when the EDT work throws`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
-        channel.replyFromEdt(id = 5, method = "document/write", runOnEdt = runInline) {
+        channel.replyFromEdt(
+            requestId = CoreRequestId(5, generation),
+            method = "document/write",
+            runOnEdt = runInline,
+        ) {
             throw IllegalStateException("refused")
         }
 
@@ -227,10 +234,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets an error reply when the EDT work fails with an Error`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
         assertThrows(AssertionError::class.java) {
-            channel.replyFromEdt(id = 9, method = "document/write", runOnEdt = runInline) {
+            channel.replyFromEdt(
+                requestId = CoreRequestId(9, generation),
+                method = "document/write",
+                runOnEdt = runInline,
+            ) {
                 throw AssertionError("broken")
             }
         }
@@ -243,10 +254,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT rethrows a cancellation after answering it with an error`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
         assertThrows(ProcessCanceledException::class.java) {
-            channel.replyFromEdt(id = 10, method = "document/write", runOnEdt = runInline) {
+            channel.replyFromEdt(
+                requestId = CoreRequestId(10, generation),
+                method = "document/write",
+                runOnEdt = runInline,
+            ) {
                 throw ProcessCanceledException()
             }
         }
@@ -259,9 +274,13 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets an error reply when its result cannot be serialised`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
-        channel.replyFromEdt(id = 11, method = "document/write", runOnEdt = runInline) {
+        channel.replyFromEdt(
+            requestId = CoreRequestId(11, generation),
+            method = "document/write",
+            runOnEdt = runInline,
+        ) {
             UnserialisableResult(Double.NaN)
         }
 
@@ -273,10 +292,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets exactly one reply carrying the work's result`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
         val edtQueue = mutableListOf<Runnable>()
 
-        channel.replyFromEdt(id = 6, method = "document/save", runOnEdt = { edtQueue += it }) {
+        channel.replyFromEdt(
+            requestId = CoreRequestId(6, generation),
+            method = "document/save",
+            runOnEdt = { edtQueue += it },
+        ) {
             DocumentSaveResult(saved = true)
         }
         assertEquals(1, edtQueue.size, "the work is handed to the EDT")
@@ -294,7 +317,7 @@ class RpcChannelTest {
         val (channel, fake) = attachedChannel()
         var workRan = false
 
-        channel.replyFromEdt(id = null, method = "document/write", runOnEdt = runInline) {
+        channel.replyFromEdt(requestId = null, method = "document/write", runOnEdt = runInline) {
             workRan = true
             DocumentWriteResult(changed = true, accepted = true)
         }
@@ -305,9 +328,13 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered later from the EDT gets an error reply when the work throws before answering`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
-        channel.replyLaterFromEdt(id = 7, method = "picker/show", runOnEdt = runInline) {
+        channel.replyLaterFromEdt(
+            requestId = CoreRequestId(7, generation),
+            method = "picker/show",
+            runOnEdt = runInline,
+        ) {
             throw IllegalStateException("popup failed")
         }
 
@@ -319,10 +346,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered later from the EDT keeps its first answer`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
         var pendingReply: PendingReply? = null
 
-        channel.replyLaterFromEdt(id = 8, method = "picker/show", runOnEdt = runInline) { reply ->
+        channel.replyLaterFromEdt(
+            requestId = CoreRequestId(8, generation),
+            method = "picker/show",
+            runOnEdt = runInline,
+        ) { reply ->
             pendingReply = reply
             reply.result(PickerShowResult(listOf(1)))
             throw IllegalStateException("after answering")
@@ -445,8 +476,8 @@ class RpcChannelTest {
         val received = LinkedBlockingQueue<ReceivedRequest>()
         var channelRef: RpcChannel? = null
         val channel =
-            rpcChannel { method, _, id ->
-                received.add(ReceivedRequest(method) { result -> channelRef!!.reply(id!!, result) })
+            rpcChannel { method, _, requestId ->
+                received.add(ReceivedRequest(method) { channelRef!!.reply(requestId!!, it) })
             }
         channelRef = channel
         return channel to received

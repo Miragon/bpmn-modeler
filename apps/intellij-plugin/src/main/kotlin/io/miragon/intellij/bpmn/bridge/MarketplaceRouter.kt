@@ -65,7 +65,7 @@ internal class MarketplaceRouter(
      * - `"application"`: the "all my projects" list — persist app-wide and fan the
      *   fresh snapshot to *every* open window, since each one's merged list changed.
      */
-    private fun handleStateSave(location: String, scope: String, id: Int?) {
+    private fun handleStateSave(location: String, scope: String, id: CoreRequestId?) {
         if (scope == "application") {
             ModelerSettingsStore.getInstance().addMarketplace(location)
             pushSettingsToRunningBridges()
@@ -76,12 +76,12 @@ internal class MarketplaceRouter(
         id?.let { deps.channel.reply(it, null) }
     }
 
-    private fun handleTokenGet(host: String, id: Int?) {
+    private fun handleTokenGet(host: String, id: CoreRequestId?) {
         val token = tokenStore.getToken(host)
         id?.let { deps.channel.reply(it, token?.let(::TokenStoreGetResult)) }
     }
 
-    private fun handleTokenSet(host: String, token: String, id: Int?) {
+    private fun handleTokenSet(host: String, token: String, id: CoreRequestId?) {
         tokenStore.setToken(host, token)
         id?.let { deps.channel.reply(it, null) }
     }
@@ -91,7 +91,7 @@ internal class MarketplaceRouter(
      * replies with the answer as typed, or `null` on cancel or a disposed project
      * (mirrors `handlePick`). The core judges a blank answer.
      */
-    private fun handleTokenPrompt(title: String, prompt: String, id: Int?) {
+    private fun handleTokenPrompt(title: String, prompt: String, id: CoreRequestId?) {
         if (id == null) return
         deps.channel.replyFromEdt(id, "tokenPrompt/show") {
             if (deps.project.isDisposed) return@replyFromEdt null
