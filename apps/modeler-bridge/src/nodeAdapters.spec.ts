@@ -135,6 +135,65 @@ describe("NodeWorkspace.findFiles below excluded folders", () => {
     });
 });
 
+describe("NodeWorkspace.findFiles beside a folder it cannot read", () => {
+    let root: string;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-find-unreadable-"));
+        for (const dir of ["src", "pgdata", "node_modules/x", "locked"]) {
+            await fs.mkdir(join(root, dir), { recursive: true });
+        }
+        await fs.writeFile(join(root, "src/p.bpmn"), "<definitions/>");
+    });
+
+    afterEach(async () => {
+        await fs.chmod(join(root, "pgdata"), 0o755);
+        await fs.chmod(join(root, "node_modules/x"), 0o755);
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    function workspace(...roots: string[]): NodeWorkspace {
+        const ws = new NodeWorkspace();
+        roots.forEach((path) => ws.registerRoot(path));
+        return ws;
+    }
+
+    it("lists the rest of the workspace when a folder denies reading it", async () => {
+        await fs.chmod(join(root, "pgdata"), 0o000);
+        await fs.chmod(join(root, "node_modules/x"), 0o000);
+
+        await expect(workspace(root).findFiles("**/*.bpmn")).resolves.toEqual([
+            join(root, "src/p.bpmn"),
+        ]);
+    });
+
+    it("lists the rest of the workspace when the system forbids reading a folder", async () => {
+        const locked = join(root, "locked");
+        const forbidden = Object.assign(new Error(`EPERM: operation not permitted`), {
+            code: "EPERM",
+        });
+        const readdir = fs.readdir.bind(fs);
+        const readdirForbiddingLocked = ((path: string, options: never) =>
+            path === locked
+                ? Promise.reject(forbidden)
+                : readdir(path, options)) as typeof fs.readdir;
+        const spy = vi.spyOn(fs, "readdir").mockImplementation(readdirForbiddingLocked);
+        onTestFinished(() => spy.mockRestore());
+
+        await expect(workspace(root).findFiles("**/*.bpmn")).resolves.toEqual([
+            join(root, "src/p.bpmn"),
+        ]);
+    });
+
+    it("lists the other roots when one root is gone", async () => {
+        const gone = join(root, "gone");
+
+        await expect(workspace(gone, root).findFiles("**/*.bpmn")).resolves.toEqual([
+            join(root, "src/p.bpmn"),
+        ]);
+    });
+});
+
 /**
  * `deleteDirectory` backs the marketplace-cache prune. It must recursively
  * remove a slot and, crucially, tolerate a missing path (a slot a prior run
