@@ -217,7 +217,6 @@ describe("timestampFormatter", () => {
     ])(
         "formats a time in the modeler language %s and the time zone %s as a short date and time",
         (language, timeZone, formatted) => {
-            // @ts-expect-error the time zone parameter does not exist yet
             const format = timestampFormatter(language, timeZone);
 
             expect(withPlainSpaces(format(MIDDAY))).toBe(formatted);
@@ -230,9 +229,7 @@ describe("timestampFormatter", () => {
         (timeZone) => {
             const machineLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
 
-            // @ts-expect-error the time zone parameter does not exist yet
             expect(timestampFormatter("en_US", timeZone)(MIDDAY)).toBe(
-                // @ts-expect-error the time zone parameter does not exist yet
                 timestampFormatter(machineLocale, timeZone)(MIDDAY),
             );
         },
