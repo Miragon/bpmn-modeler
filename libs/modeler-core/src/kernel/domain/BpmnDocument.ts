@@ -46,6 +46,8 @@ const ENGINE_NAMESPACE: Record<
     c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
 };
 
+const ENGINES_BY_DETECTION_PRIORITY: readonly Engine[] = ["c7", "c8"];
+
 export class BpmnDocument {
     constructor(readonly xml: string) {}
 
@@ -137,21 +139,11 @@ export class BpmnDocument {
      * an engine-neutral (untagged) model — the caller owns the fallback policy.
      *
      * Delegates to the shared {@link detectEngine} helper for the spec-defined
-     * `modeler:*` signals, then falls back to namespace declarations
-     * (`xmlns:camunda` for C7, `xmlns:zeebe` for C8).
+     * `modeler:*` signals, then falls back to the engine namespace the
+     * `definitions` root binds: the Camunda 7 one for C7, else the Zeebe one for C8.
      */
     detectEngine(): DetectedEngine {
-        const detected = detectEngine(this.xml);
-        if (detected) {
-            return detected;
-        }
-
-        if (this.xml.match(/xmlns:camunda=".*"/)) {
-            return "c7";
-        } else if (this.xml.match(/xmlns:zeebe=".*"/)) {
-            return "c8";
-        }
-        return undefined;
+        return detectEngine(this.xml) ?? engineOfNamespaceOnDefinitionsRoot(this.xml);
     }
 
     /**
@@ -273,6 +265,15 @@ function bpmnElementName(xml: string, localName: string): string {
         }
     }
     return `bpmn:${localName}`;
+}
+
+function engineOfNamespaceOnDefinitionsRoot(xml: string): DetectedEngine {
+    const namespaceUris = (readDefinitionsStartTag(xml)?.attributes ?? [])
+        .filter(({ name }) => name.startsWith("xmlns:"))
+        .map(({ value }) => value);
+    return ENGINES_BY_DETECTION_PRIORITY.find((engine) =>
+        namespaceUris.includes(ENGINE_NAMESPACE[engine].uri),
+    );
 }
 
 function startTagsNamed(xml: string, qualifiedName: string): XmlStartTag[] {

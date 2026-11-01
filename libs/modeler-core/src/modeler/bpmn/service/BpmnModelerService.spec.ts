@@ -246,6 +246,65 @@ describe("BpmnModelerService.display", () => {
         expect(editor.saveCount).toBe(0);
         expect(editor.posted).toEqual([]);
     });
+
+    it("seeds a document a host change empties again during the prompt", async () => {
+        const { service, host, editor } = createService("");
+        const finishFirstPick = holdNextChoice(host);
+        const firstDisplay = service.display(editor.id);
+
+        editor.changeDocument("");
+        const finishSecondPick = holdNextChoice(host);
+        const secondDisplay = service.display(editor.id, true);
+        finishFirstPick("c7");
+        finishSecondPick("c8");
+
+        expect(await firstDisplay).toBe(false);
+        expect(await secondDisplay).toBe(true);
+        expect(host.picker.choose).toHaveBeenCalledTimes(2);
+        expect(new BpmnDocument(editor.content).detectEngine()).toBe("c8");
+        expect(editor.saveCount).toBe(1);
+    });
+
+    it("seeds a document the host empties again under a host-owned revision during the prompt", async () => {
+        const { service, host, editor } = createService("");
+        const finishFirstPick = holdNextChoice(host);
+        const firstDisplay = service.display(editor.id);
+
+        // A host that owns the revision advances it before it displays the change.
+        editor.changeDocument("");
+        host.store.setHostDocumentRevision(editor.id, 2);
+        const finishSecondPick = holdNextChoice(host);
+        const secondDisplay = service.display(editor.id);
+        finishFirstPick("c7");
+        finishSecondPick("c8");
+
+        expect(await firstDisplay).toBe(false);
+        expect(await secondDisplay).toBe(true);
+        expect(host.picker.choose).toHaveBeenCalledTimes(2);
+        expect(new BpmnDocument(editor.content).detectEngine()).toBe("c8");
+        expect(editor.saveCount).toBe(1);
+        expect(editor.postedOfType<BpmnFileQuery>("BpmnFileQuery")).toMatchObject([
+            { engine: "c8", documentRevision: 2 },
+        ]);
+    });
+
+    it("does not prompt again on a webview reload after a host change superseded the prompt", async () => {
+        const { service, host, editor } = createService("");
+        const finishFirstPick = holdNextChoice(host);
+        const firstDisplay = service.display(editor.id);
+        editor.changeDocument("");
+        host.store.setHostDocumentRevision(editor.id, 2);
+        const finishSecondPick = holdNextChoice(host);
+        const secondDisplay = service.display(editor.id);
+        finishFirstPick("c7");
+        expect(await firstDisplay).toBe(false);
+
+        expect(await service.display(editor.id)).toBe(false);
+        finishSecondPick("c8");
+
+        expect(await secondDisplay).toBe(true);
+        expect(host.picker.choose).toHaveBeenCalledTimes(2);
+    });
 });
 
 describe("BpmnModelerService.sync", () => {

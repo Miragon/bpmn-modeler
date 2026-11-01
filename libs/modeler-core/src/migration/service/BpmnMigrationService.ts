@@ -23,6 +23,15 @@ import {
 } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 
+/**
+ * Shows what the migration wrote into an open editor, where the host does not
+ * on its own. Expects an unguarded {@link DocumentPort.write}: a host that
+ * reports the change renders it from that report.
+ */
+export interface CoreWriteRenderer {
+    renderCoreWrite(editorId: string): Promise<void>;
+}
+
 interface CurrentDiagram {
     readonly document: BpmnDocument;
     readonly editorId: string | undefined;
@@ -48,6 +57,7 @@ export class BpmnMigrationService {
         private readonly vsWorkspace: WorkspacePort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
+        private readonly coreWriteRenderer: CoreWriteRenderer,
     ) {}
 
     async migrateAllDiagrams(): Promise<boolean> {
@@ -177,6 +187,7 @@ export class BpmnMigrationService {
                 );
                 return { kind: "skipped" };
             }
+            await this.coreWriteRenderer.renderCoreWrite(current.editorId);
         } else {
             await this.vsWorkspace.writeFile(path, diagramWrite.xml);
         }

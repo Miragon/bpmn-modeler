@@ -148,12 +148,14 @@ export class BpmnEditorFeature {
     readonly participants: readonly EditorSessionParticipant[];
 
     private readonly panel: BpmnPropertiesPanelService;
+    private readonly rendering: BpmnEditorHostExtensions["rendering"];
 
     constructor(
         private readonly ports: BpmnEditorHostPorts,
         extensions: BpmnEditorHostExtensions,
         contributions: BpmnEditorContributions,
     ) {
+        this.rendering = extensions.rendering;
         this.bpmnService = new BpmnModelerService(
             ports.store,
             ports.documents,
@@ -275,6 +277,20 @@ export class BpmnEditorFeature {
 
     initialPanelVisible(): boolean {
         return this.panel.getPersistedPanelVisibility();
+    }
+
+    /**
+     * Shows content the core wrote into an open editor through an unguarded
+     * {@link DocumentPort.write}. Only a `host-driven` host needs this: it reports
+     * no change for the core's own write. On the other hosts that change renders,
+     * which a guarded write would suppress.
+     */
+    async renderCoreWrite(editorId: string): Promise<void> {
+        if (this.rendering === "host-driven" && this.ports.store.hasEditor(editorId)) {
+            // The host did not advance its revision for this write; a local bump
+            // would make it reject every later sync from the page.
+            await this.bpmnService.display(editorId);
+        }
     }
 
     dispose(): void {

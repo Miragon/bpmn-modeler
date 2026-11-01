@@ -105,7 +105,11 @@ export function createBridge(
     editorSessionFeature.register(deps, editor);
     // Portable modeler commands (change engine version, layout, migrate all) reuse
     // the editor's services.
-    commandsFeature.register(deps, { bpmnService: editor.bpmnService, layout: editor.layout });
+    commandsFeature.register(deps, {
+        bpmnService: editor.bpmnService,
+        layout: editor.layout,
+        coreWriteRenderer: editor,
+    });
     marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
         templatesSvc: editor.templates,

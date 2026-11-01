@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
     BPMN_EDITOR_COMMAND_TYPES,
     BpmnEditorCommandType,
+    BpmnFileQuery,
     Command,
     GetBpmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
@@ -282,6 +283,48 @@ describe("BpmnEditorFeature", () => {
             expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(renders);
         },
     );
+
+    it.each<{ rendering: BpmnEditorHostExtensions["rendering"]; renderedRevision: number }>([
+        { rendering: "on-host-document-change", renderedRevision: 1 },
+        { rendering: "host-driven", renderedRevision: 0 },
+    ])(
+        "shows content the core wrote into an open editor once ($rendering)",
+        async ({ rendering, renderedRevision }) => {
+            const { host, feature } = createFeature("full", rendering);
+            const editor = await host.openSession(DIAGRAM, [...feature.participants], {
+                content: C7_XML,
+                router: feature.router,
+            });
+            const migratedXml = C7_XML.replace("7.22.0", "7.23.0");
+
+            await host.documents.write(editor.id, migratedXml);
+            await feature.renderCoreWrite(editor.id);
+            await settle();
+
+            expect(
+                editor
+                    .postedOfType<BpmnFileQuery>("BpmnFileQuery")
+                    .map(({ content, documentRevision }) => ({ content, documentRevision })),
+            ).toEqual([{ content: migratedXml, documentRevision: renderedRevision }]);
+        },
+    );
+
+    it("reports no error when the editor closed between the core's write and its render", async () => {
+        const { host, feature } = createFeature("full", "host-driven");
+        const editor = await host.openSession(DIAGRAM, [...feature.participants], {
+            content: C7_XML,
+            router: feature.router,
+        });
+        await host.documents.write(editor.id, C7_XML.replace("7.22.0", "7.23.0"));
+        const rendersBeforeClose = editor.postedOfType("BpmnFileQuery").length;
+
+        editor.dispose();
+        await feature.renderCoreWrite(editor.id);
+        await settle();
+
+        expect(host.notifier.errors).toEqual([]);
+        expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(rendersBeforeClose);
+    });
 
     it("runs each contributed handler for its command", async () => {
         const { host, feature, calls } = createFeature("full");

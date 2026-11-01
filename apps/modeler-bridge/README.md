@@ -68,8 +68,10 @@ accepts the write only while it is still current and reports the decision as
 The host reports only **external** document changes. The core's own
 `document/write` is acknowledged by its reply alone: an accepted, changed write
 updates the mirror (with `normalizedContent` when the host rewrote line
-separators) and never re-renders, so the full XML is not echoed back over the
-pipe. The core's `ModelerSession` guard stays wired as a second line of defence.
+separators), so the full XML is not echoed back over the pipe. The reply never
+re-renders; a command that writes content the page did not produce (Change
+Engine Version, Migrate All) renders it afterwards at the unchanged revision.
+The core's `ModelerSession` guard stays wired as a second line of defence.
 
 The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in

@@ -34,7 +34,6 @@ export class DmnModelerService {
                 content = await this.documents.initializeEmpty(
                     editorId,
                     snapshot,
-                    hostUpdated,
                     () => EMPTY_DMN_DIAGRAM,
                 );
                 if (content === undefined) return false;

@@ -2,6 +2,7 @@ import {
     BpmnLayoutService,
     BpmnMigrationService,
     BpmnModelerService,
+    CoreWriteRenderer,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
 } from "@miragon/bpmn-modeler-core";
 import { METHODS } from "../protocol/descriptor";
@@ -24,7 +25,11 @@ import { BridgeSharedDeps } from "./sharedDeps";
  */
 export function register(
     deps: BridgeSharedDeps,
-    handles: { bpmnService: BpmnModelerService; layout: BpmnLayoutService },
+    handles: {
+        bpmnService: BpmnModelerService;
+        layout: BpmnLayoutService;
+        coreWriteRenderer: CoreWriteRenderer;
+    },
 ): void {
     // Both services swallow their own errors (a dismissed prompt → silent, others →
     // a notifier balloon), so these handlers just await and never need a try/catch.
@@ -38,6 +43,7 @@ export function register(
         deps.nodeWorkspace,
         deps.picker,
         deps.notifier,
+        handles.coreWriteRenderer,
     );
     // Formatting and cleanup: the host fires them as notifications and the
     // outcome comes back over the webview channel, which the BPMN editor routes.
