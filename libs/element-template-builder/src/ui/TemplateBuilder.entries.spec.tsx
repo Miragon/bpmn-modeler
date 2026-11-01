@@ -618,3 +618,304 @@ describe("the tabs", () => {
         expect(tabs[2].getAttribute("aria-selected")).toBe("true");
     });
 });
+
+describe("a condition", () => {
+    const conditioned = (condition: Json) =>
+        template([
+            input({ id: "mode" }),
+            input({ id: "size", label: "Size", binding: { type: "zeebe:input", name: "s" } }),
+            {
+                label: "Third",
+                type: "String",
+                binding: { type: "zeebe:input", name: "t" },
+                condition,
+            },
+        ]);
+    const conditionEdit = () => (lastEdits() as { value: unknown }[])[0].value;
+
+    it("changes one row of several and keeps the others", () => {
+        builder.show(
+            conditioned({
+                allMatch: [
+                    { property: "mode", equals: "a" },
+                    { property: "size", isEmpty: false },
+                ],
+            }),
+        );
+        builder.pick(2);
+        const selects = builder.entry("property-2-condition")!.querySelectorAll("select");
+
+        expect(selects[4].value).toBe("false");
+        builder.choose(selects[4], "true");
+        expect(conditionEdit()).toEqual({
+            allMatch: [
+                { property: "mode", equals: "a" },
+                { property: "size", isEmpty: true },
+            ],
+        });
+
+        builder.choose(selects[0], "size");
+        expect(conditionEdit()).toEqual({
+            allMatch: [
+                { property: "size", equals: "a" },
+                { property: "size", isEmpty: false },
+            ],
+        });
+    });
+
+    it("asks for a list of values for is one of", () => {
+        builder.show(conditioned({ property: "mode", oneOf: ["a", "b"] }));
+        builder.pick(2);
+
+        const value = builder.entry("property-2-condition")!.querySelector("input")!;
+        expect(value.placeholder).toBe("a, b, c");
+        expect(value.value).toBe("a, b");
+    });
+
+    it("starts on no property when no other property can be chosen", () => {
+        builder.show(template([input()]));
+
+        builder.click(builder.buttonLabelled("Add condition"));
+        expect(conditionEdit()).toEqual({ property: "", equals: "" });
+
+        builder.show(template([input({ condition: { property: "", equals: "" } })]));
+        const property = builder.entry("property-0-condition")!.querySelector("select")!;
+        expect(property.options[0].textContent).toBe("Choose a property");
+    });
+});
+
+describe("clearing a value", () => {
+    it.each([
+        ["Required", "property-0-constraints-notEmpty", { constraints: { notEmpty: true } }],
+        ["Optional", "property-0-optional", { optional: true }],
+        ["Editable", "property-0-editable", { editable: false }],
+    ])("unchecking %s removes it from the JSON", (_, entryId, extra) => {
+        builder.show(template([input(extra)]));
+
+        builder.click(builder.control(entryId));
+
+        const [edit] = lastEdits() as { kind: string; path: unknown[] }[];
+        expect(edit.kind).toBe("remove");
+    });
+
+    it("removes an emptied length and an emptied number value", () => {
+        builder.show(
+            template([
+                input({ constraints: { notEmpty: true, maxLength: 5 } }),
+                {
+                    label: "Count",
+                    type: "Number",
+                    value: 2,
+                    binding: { type: "zeebe:input", name: "c" },
+                },
+            ]),
+        );
+
+        builder.typeInto("property-0-constraints-maxLength", "");
+        expect(lastEdits()).toEqual([
+            { kind: "remove", path: ["properties", 0, "constraints", "maxLength"] },
+        ]);
+
+        builder.pick(1);
+        builder.typeInto("property-1-value", "");
+        expect(lastEdits()).toEqual([{ kind: "remove", path: ["properties", 1, "value"] }]);
+    });
+
+    it("keeps a pattern with its message as an object", () => {
+        builder.show(
+            template([
+                input({ constraints: { pattern: { value: "^a", message: "Starts with a." } } }),
+            ]),
+        );
+
+        builder.typeInto("property-0-constraints-pattern", "^b");
+        expect(lastEdits()).toEqual([
+            {
+                kind: "set",
+                path: ["properties", 0, "constraints", "pattern"],
+                value: { value: "^b", message: "Starts with a." },
+            },
+        ]);
+    });
+});
+
+describe("a binding's fields", () => {
+    it("writes a text field", () => {
+        builder.show(template([input()]));
+
+        builder.typeInto("property-0-binding-name", "other");
+        expect(lastEdits()).toEqual([
+            { kind: "set", path: ["properties", 0, "binding", "name"], value: "other" },
+        ]);
+    });
+
+    it("removes an unchecked flag", () => {
+        builder.show(
+            {
+                name: "C7",
+                id: "c7",
+                appliesTo: ["bpmn:ServiceTask"],
+                properties: [
+                    {
+                        label: "F",
+                        type: "String",
+                        binding: { type: "camunda:field", name: "f", expression: true },
+                    },
+                ],
+            },
+            { engine: "c7" },
+        );
+
+        builder.click(builder.control("property-0-binding-expression"));
+        expect(lastEdits()).toEqual([
+            { kind: "remove", path: ["properties", 0, "binding", "expression"] },
+        ]);
+    });
+
+    it("shows a Dropdown choice without a name by its value", () => {
+        builder.show(
+            template([
+                input({
+                    type: "Dropdown",
+                    value: "b",
+                    choices: [{ name: "A", value: "a" }, { value: "b" }],
+                }),
+            ]),
+        );
+
+        const options = [...builder.control("property-0-value")!.querySelectorAll("option")];
+        expect(options.map((option) => option.textContent)).toContain("b");
+    });
+
+    it("renames a Dropdown choice", () => {
+        builder.show(
+            template([
+                input({ type: "Dropdown", value: "a", choices: [{ name: "A", value: "a" }] }),
+            ]),
+        );
+
+        builder.typeInto(
+            builder.entry("property-0-choices")!.querySelector('input[aria-label="Choice name"]')!,
+            "Alpha",
+        );
+        expect(lastEdits()).toEqual([
+            { kind: "set", path: ["properties", 0, "choices", 0, "name"], value: "Alpha" },
+        ]);
+    });
+});
+
+describe("groups in detail", () => {
+    const groups = () =>
+        template([input({ group: "plain" })], {
+            groups: [{ id: "plain" }, { id: "named", label: "Named" }, {}],
+        });
+
+    it("titles a group by its label, its id or as unnamed", () => {
+        builder.show(groups());
+        builder.tab("Groups");
+
+        expect(
+            [...builder.parent.querySelectorAll(".etb-index__label")].map(
+                (item) => item.textContent,
+            ),
+        ).toEqual(["plain", "Named", "Unnamed group"]);
+        builder.pick(1);
+        expect(builder.parent.querySelector(".etb-heading__title")?.textContent).toBe("Named");
+    });
+
+    it("offers a group without a label by its id", () => {
+        builder.show(groups());
+
+        const options = [...builder.control("property-0-group")!.querySelectorAll("option")];
+        expect(options.map((option) => option.textContent)).toEqual([
+            "Custom properties",
+            "plain",
+            "Named (named)",
+            "",
+        ]);
+    });
+
+    it("finds groups by label or id and offers no changes while read-only", () => {
+        builder.show(groups(), { editable: false });
+        builder.tab("Groups");
+        builder.typeInto(builder.parent.querySelector("#etb-search")!, "pla");
+
+        expect(
+            [...builder.parent.querySelectorAll(".etb-index__label")].map(
+                (item) => item.textContent,
+            ),
+        ).toEqual(["plain"]);
+        expect(builder.buttonLabelled("Add group")).toBeUndefined();
+        expect(builder.action("Delete group")).toBeNull();
+    });
+
+    it("opens a group's problem on the groups tab", () => {
+        builder.show(groups(), {
+            diagnostics: [
+                { path: ["groups", 1, "label"], severity: "error", message: "Label it." },
+            ],
+        });
+        builder.click(builder.parent.querySelector(".etb-problems__chip"));
+
+        expect(builder.parent.querySelector(".etb-problem__where")?.textContent).toBe("Named: ");
+        builder.click(builder.parent.querySelector(".etb-problem .etb-link"));
+        expect(document.activeElement).toBe(builder.control("group-1-label"));
+    });
+});
+
+describe("the template tab in detail", () => {
+    it("calls a template without a name untitled and says when no setting matches", () => {
+        builder.show(template([input()], { name: undefined }));
+        builder.tab("Template");
+
+        expect(builder.parent.querySelector(".etb-heading__title")?.textContent).toBe(
+            "Untitled template",
+        );
+        builder.typeInto(builder.parent.querySelector("#etb-search")!, "no-such-setting");
+        expect(builder.parent.querySelector(".etb-empty")?.textContent).toBe(
+            "No settings match your search.",
+        );
+    });
+
+    it("shows the event definition an event template creates", () => {
+        builder.show(
+            template([input()], {
+                appliesTo: ["bpmn:IntermediateCatchEvent"],
+                elementType: {
+                    value: "bpmn:IntermediateCatchEvent",
+                    eventDefinition: "bpmn:MessageEventDefinition",
+                },
+            }),
+        );
+        builder.tab("Template");
+
+        expect(builder.control("template-elementType-eventDefinition")?.value).toBe(
+            "bpmn:MessageEventDefinition",
+        );
+    });
+
+    it("focuses a select it leads a problem to without selecting text", () => {
+        builder.show(template([input()]), {
+            diagnostics: [
+                { path: ["properties", 0, "type"], severity: "error", message: "Retype." },
+            ],
+        });
+        builder.click(builder.parent.querySelector(".etb-problems__chip"));
+
+        builder.click(builder.parent.querySelector(".etb-problem .etb-link"));
+        expect(document.activeElement).toBe(builder.control("property-0-type"));
+    });
+
+    it("keeps a placeholder it has no replacement for, and names no owner of a list item", () => {
+        builder.show(template([input()]), {
+            diagnostics: [
+                { path: ["appliesTo", 0], severity: "warning", message: "Needs {thing}." },
+            ],
+        });
+        builder.click(builder.parent.querySelector(".etb-problems__chip"));
+
+        expect(builder.parent.querySelector(".etb-problem__message")?.textContent).toBe(
+            "Needs {thing}.",
+        );
+    });
+});

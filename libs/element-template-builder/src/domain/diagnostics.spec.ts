@@ -46,6 +46,18 @@ describe("schemaDiagnostics", () => {
         ]);
     });
 
+    it("reports the validator's deprecations as warnings", () => {
+        expect(schemaDiagnostics("c8", c8Template([input({ optional: true })]))).toEqual([
+            {
+                path: ["properties", 0],
+                severity: "warning",
+                message:
+                    "'optional' with 'zeebe:input' binding is deprecated; an empty input mapping (resolved to 'null') should be used for Camunda 8.8+",
+                verbatim: true,
+            },
+        ]);
+    });
+
     it("points a missing key at where it belongs", () => {
         const template = c8Template([input({ binding: { type: "zeebe:input" } })]);
 
@@ -162,6 +174,28 @@ describe("ruleDiagnostics", () => {
 
         expect(diagnostic).toMatchObject({ path });
         expect(diagnostic?.replacements).toEqual(replacements);
+    });
+
+    it("checks each comparison of allMatch and skips one without a property", () => {
+        const template = c8Template([
+            input({ id: "in" }),
+            input({
+                condition: {
+                    allMatch: [
+                        { equals: "x" },
+                        { property: "in", equals: "x" },
+                        { property: "gone", equals: "x" },
+                    ],
+                },
+            }),
+        ]);
+
+        expect(ruleDiagnostics(template, C8)).toEqual([
+            expect.objectContaining({
+                path: ["properties", 1, "condition", "allMatch", 2, "property"],
+                replacements: { id: "gone" },
+            }),
+        ]);
     });
 
     it("offers a fix for a binding's missing requirement", () => {
