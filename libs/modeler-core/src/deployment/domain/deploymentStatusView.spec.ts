@@ -205,21 +205,38 @@ describe("deploymentStatusView", () => {
 });
 
 describe("timestampFormatter", () => {
-    // Midday UTC, so the date stays the 17th from UTC−12 to UTC+11.
     const MIDDAY = "2026-09-17T12:00:00.000Z";
+    // ICU 72+ puts a narrow no-break space before AM/PM, older ICU a plain space.
+    const withPlainSpaces = (text: string) => text.replace(/\s/gu, " ");
 
     it.each([
-        ["en", "9/17/26"],
-        ["de", "17.09.26"],
-    ])("formats a time in the modeler language %s", (language, shortDate) => {
-        expect(timestampFormatter(language)(MIDDAY)).toContain(shortDate);
-    });
+        ["en", "UTC", "9/17/26, 12:00 PM"],
+        ["de", "UTC", "17.09.26, 12:00"],
+        ["en", "Pacific/Auckland", "9/18/26, 12:00 AM"],
+        ["de", "Pacific/Auckland", "18.09.26, 00:00"],
+    ])(
+        "formats a time in the modeler language %s and the time zone %s as a short date and time",
+        (language, timeZone, formatted) => {
+            // @ts-expect-error the time zone parameter does not exist yet
+            const format = timestampFormatter(language, timeZone);
 
-    it("formats in the machine's locale when the language is no locale tag", () => {
-        const machineLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
+            expect(withPlainSpaces(format(MIDDAY))).toBe(formatted);
+        },
+    );
 
-        expect(timestampFormatter("en_US")(MIDDAY)).toBe(timestampFormatter(machineLocale)(MIDDAY));
-    });
+    // Two zones, so a fallback that drops the zone fails whichever zone the machine is in.
+    it.each(["UTC", "Pacific/Auckland"])(
+        "formats in the machine's locale and the time zone %s when the language is no locale tag",
+        (timeZone) => {
+            const machineLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
+
+            // @ts-expect-error the time zone parameter does not exist yet
+            expect(timestampFormatter("en_US", timeZone)(MIDDAY)).toBe(
+                // @ts-expect-error the time zone parameter does not exist yet
+                timestampFormatter(machineLocale, timeZone)(MIDDAY),
+            );
+        },
+    );
 
     it("keeps a recorded time it cannot read as it was stored", () => {
         expect(timestampFormatter("en")("last Tuesday")).toBe("last Tuesday");
