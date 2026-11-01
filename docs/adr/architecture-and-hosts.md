@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -248,9 +248,14 @@ own JSON editor, so the host's JSON support (`$schema` IntelliSense, undo,
 diagnostics) stays in charge of editing. Its page is a second entry of the BPMN
 webview bundle and parses the file itself: a host pushes the raw text with the
 configured locale (`ElementTemplateFileQuery`) and later language changes
-(`LanguageQuery`), and nothing else. That keeps an IntelliJ preview possible
-without a bridge session. In VS Code it is a custom editor with `option`
-priority on `*.json`, so it never takes JSON files over, and its sessions live
+(`LanguageQuery`), and nothing else, so no host needs a bridge session for it.
+IntelliJ answers the page itself: a template's JSON opens in a
+`TextEditorWithPreview` holding the IDE's JSON editor and the page, and the
+settings broadcast reaches the page over an application message-bus topic.
+Its provider builds the split editor directly, because the platform's provider
+base class is experimental API on the 2024.2 floor. In VS Code the preview is a
+custom editor with `option` priority on `*.json`, so it never takes JSON files
+over, and its sessions live
 in their own `EditorSessionStore`: a preview never becomes the target of
 modeler commands or counts towards `bpmn-modeler.openCustomEditors`. VS Code
 opens it on its own the first time a template file is shown, once per opened
@@ -260,7 +265,16 @@ extension running before any diagram is open, it also activates in workspaces
 that contain an `element-templates` folder. `isElementTemplateFile` in
 `modeler-types` is the one rule for what counts as a template file; the
 manifest's `when` clause repeats only its folder half, which needs no
-activation.
+activation, and IntelliJ's editor provider keeps a Kotlin copy that runs the
+rule's `elementTemplateFile.cases.json` rows.
+
+A new template starts from `newElementTemplate` in the core's element template
+domain: a service task stub per engine whose `id`, `name` and task type come
+from the file name. VS Code writes it after a save dialog that suggests
+`<configFolder>/element-templates/` and the engine prompt. IntelliJ keeps a
+Kotlin copy of the stub, as it does for the DMN skeleton, because creating a
+file should not wait for a bridge; `newElementTemplate.cases.json` holds the
+rows both run.
 
 Inline scripts still open and sync their tabs per host, behind the core
 `ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab

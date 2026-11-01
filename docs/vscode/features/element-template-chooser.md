@@ -116,7 +116,7 @@ A template is a `.json` file whose `$schema` names an element template schema, o
 - While the JSON is broken or the template is invalid, the preview says why and keeps showing the last template that worked.
 - Templates for a process or a sequence flow cannot be previewed yet.
 
-The preview is available in VS Code and the desktop app.
+The preview is available in VS Code, the desktop app and [IntelliJ](/intellij/getting-started#element-templates), where a template opens split with its preview and **New Element Template…** sits in the project view under **New**.
 
 ## Next steps
 
