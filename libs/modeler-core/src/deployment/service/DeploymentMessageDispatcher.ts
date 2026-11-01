@@ -30,6 +30,7 @@ import {
 } from "../domain/deploymentDestination";
 import { TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
@@ -419,7 +420,8 @@ export class DeploymentMessageDispatcher {
 
     /**
      * Builds the start-instance config from the webview payload, runs the request,
-     * shows a notification, and sends the result back to the webview.
+     * shows a notification, and sends the result back to the webview. A cancelled
+     * prompt shows nothing; its reply only frees the form.
      *
      * @param configPayload Raw start-instance config from the webview form.
      */
@@ -469,6 +471,17 @@ export class DeploymentMessageDispatcher {
                 ),
             );
         } catch (error) {
+            if (error instanceof UserCancelledError) {
+                this.post(
+                    new StartInstanceResultQuery(
+                        false,
+                        "Instance start cancelled.",
+                        undefined,
+                        true,
+                    ),
+                );
+                return;
+            }
             const message =
                 error instanceof DeploymentTargetChangedError
                     ? error.message
@@ -481,7 +494,8 @@ export class DeploymentMessageDispatcher {
 
     /**
      * Saves only once the config is valid and the target admitted, so a request
-     * rejected for either leaves the file on disk untouched.
+     * rejected for either leaves the file on disk untouched. A cancelled prompt
+     * shows nothing; its reply only frees the form.
      *
      * @param configPayload Raw deployment config from the webview form.
      */
@@ -541,6 +555,12 @@ export class DeploymentMessageDispatcher {
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),
             );
         } catch (error) {
+            if (error instanceof UserCancelledError) {
+                this.post(
+                    new DeploymentResultQuery(false, "Deployment cancelled.", undefined, true),
+                );
+                return;
+            }
             const message =
                 error instanceof InvalidDeploymentConfigError ||
                 error instanceof DeploymentTargetChangedError

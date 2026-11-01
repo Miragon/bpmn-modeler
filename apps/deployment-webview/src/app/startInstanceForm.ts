@@ -79,6 +79,11 @@ export class StartInstanceForm {
     showResult(result: StartInstanceResultQuery): void {
         this.starting = false;
         this.updateButton();
+        if (result.cancelled) {
+            this.statusBanner.style.display = "none";
+            this.statusBanner.textContent = "";
+            return;
+        }
         this.statusBanner.className = result.success
             ? "status-banner success"
             : "status-banner error";

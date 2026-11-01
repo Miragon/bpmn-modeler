@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-31
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -222,7 +222,13 @@ deploy, start instance or verify sends either, the core resolves the request's
 destinations — `deployUrl`/`startInstanceUrl` (after `{processDefinitionKey}`
 substitution) or `endpoint`, plus the OAuth2 token endpoint — and
 `CredentialApprovalService` asks through the host's confirm dialog for any origin
-not yet approved; declining sends nothing. Destinations are computed from the resolved request, so a changed
+not yet approved; declining sends nothing and fails the request. A cancelled
+prompt, such as the keychain read of the approvals, is a dismissal instead: the
+services let `UserCancelledError` through, a command ends without a message,
+Deploy Files stops the whole batch because its one approval comes before any
+file is sent, and the sidebar's Deploy and Start Instance reply with a result
+marked `cancelled`, which ends the form's progress without a result banner.
+Destinations are computed from the resolved request, so a changed
 `.env` value is caught too, and a URL without a host is refused outright: what
 `https:` plus a conventional route would reach (WHATWG parsing skips the extra
 slashes and takes the route's first segment as the host) can't be checked.

@@ -353,6 +353,10 @@ export class DeploymentForm {
     }
 
     showResult(result: DeploymentResultQuery): void {
+        if (result.cancelled) {
+            this.reset();
+            return;
+        }
         this.deploying = false;
         this.updateReadiness();
         this.statusBanner.className = result.success
