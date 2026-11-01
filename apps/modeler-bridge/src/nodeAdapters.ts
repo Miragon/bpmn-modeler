@@ -444,13 +444,12 @@ export class NodeWorkspace implements WorkspacePort {
     /**
      * The absolute paths of the files below the registered workspace roots
      * whose path below their root matches `pattern`. Mirrors
-     * `VsCodeWorkspace.findFiles`: `exclude` drops matches, `limit` caps the
-     * result count.
+     * `VsCodeWorkspace.findFiles`: `exclude` drops matches.
      *
      * Walks with `readdir` rather than `fs.glob`: under Bun, `fs.glob` reads
      * every folder an exclude covers and follows symlinked folders.
      */
-    async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
+    async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
         const included = globToRegExp(pattern);
         const excluded = exclude ? globToRegExp(exclude) : undefined;
         const coveredFolder = exclude ? coveredFolderRegExp(exclude) : undefined;
@@ -466,9 +465,6 @@ export class NodeWorkspace implements WorkspacePort {
                     continue;
                 }
                 results.push(joinWorkspacePath(rootDir, relative));
-                if (limit !== undefined && results.length >= limit) {
-                    return results;
-                }
             }
         }
         return results;

@@ -148,8 +148,8 @@ export class VsCodeWorkspace implements WorkspacePort {
      * (`files.exclude` only), a glob string adds those patterns on top, and
      * `null` opts out of every default exclude.
      */
-    async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
-        const uris = await workspace.findFiles(pattern, exclude, limit);
+    async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
+        const uris = await workspace.findFiles(pattern, exclude);
         return uris.map((uri) => canonicalPath(uri));
     }
 

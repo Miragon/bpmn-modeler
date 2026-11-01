@@ -193,7 +193,7 @@ export interface WorkspacePort {
      * and `//server/share/repo/src/A.java` under a UNC root, never
      * `/server/share/…`, which Node's `fs` on Windows opens on the current drive.
      */
-    findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
+    findFiles(pattern: string, exclude?: string | null): Promise<string[]>;
     /**
      * Reports the changes below `rootPath` whose path relative to it matches
      * `glob`, as VS Code's `RelativePattern` matches. Handlers receive absolute

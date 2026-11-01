@@ -37,8 +37,8 @@ import { BridgeSettings, NodeWorkspace } from "./nodeAdapters";
 
 /**
  * `findFiles` is the picker's one filesystem-backed prompt. These exercise its
- * real walk against a temp tree — brace globs, the `exclude` predicate, and
- * the result cap — since no host (VS Code mock) is involved.
+ * real walk against a temp tree — brace globs and the `exclude` predicate —
+ * since no host (VS Code mock) is involved.
  */
 describe("NodeWorkspace.findFiles", () => {
     let root: string;
@@ -76,11 +76,6 @@ describe("NodeWorkspace.findFiles", () => {
     it("drops paths matching the exclude glob", async () => {
         const found = await workspace().findFiles("**/*.json", "**/element-templates/**");
         expect(found).toEqual([join(root, "forms/b.json")]);
-    });
-
-    it("respects the result limit", async () => {
-        const found = await workspace().findFiles("**/*.{form,json}", null, 1);
-        expect(found).toHaveLength(1);
     });
 
     it("returns [] when no root is registered", async () => {

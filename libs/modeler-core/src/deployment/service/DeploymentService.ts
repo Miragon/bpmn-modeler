@@ -151,7 +151,6 @@ export class DeploymentService {
         const found = await this.vsWorkspace.findFiles(
             "**/*.{form,json,dmn}",
             excludedDirsGlob("element-templates"),
-            20,
         );
         const chosen = await this.picker.chooseMany(
             additionalFilesPrompt({
