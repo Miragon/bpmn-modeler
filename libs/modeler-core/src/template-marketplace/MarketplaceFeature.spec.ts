@@ -255,12 +255,13 @@ function commandsOverRealService() {
         cacheRoot: "/cache",
         homeDir: "/home/ada",
     });
-    const commands = new MarketplaceCommands(
-        service,
-        { reloadMarketplaceTemplates: async () => {} },
-        host.notifier,
-        "/home/ada",
-    );
+    const templates = {
+        reloads: 0,
+        async reloadMarketplaceTemplates() {
+            this.reloads++;
+        },
+    };
+    const commands = new MarketplaceCommands(service, templates, host.notifier, "/home/ada");
     const holdRead = (path: string) => {
         const held = gate();
         const readFile = host.workspace.readFile.bind(host.workspace);
@@ -270,12 +271,23 @@ function commandsOverRealService() {
         });
         return held;
     };
+    const lockCachedMarketplaces = (error: Error) => {
+        const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
+        vi.spyOn(host.workspace, "deleteDirectory").mockImplementation(async (path) => {
+            if (/^\/cache\/[^/]+$/.test(path)) throw error;
+            return deleteDirectory(path);
+        });
+    };
     const cachedTemplateNames = async () =>
         (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort();
     return {
         commands,
         marketplaces: host.settings.values.marketplaces,
+        workspace: host.workspace,
+        notifier: host.notifier,
+        templates,
         holdRead,
+        lockCachedMarketplaces,
         cachedTemplateNames,
     };
 }
@@ -367,6 +379,41 @@ describe("MarketplaceCommands started while another one runs", () => {
 
         expect(marketplaces).toEqual([]);
         expect(await cachedTemplateNames()).toEqual([]);
+    });
+});
+
+describe("MarketplaceCommands when a cached marketplace cannot be deleted", () => {
+    const busy = new Error("EBUSY: resource busy or locked");
+
+    it("still reloads the open editors and reports the update", async () => {
+        const { commands, workspace, notifier, templates, lockCachedMarketplaces } =
+            commandsOverRealService();
+        await workspace.writeFile("/cache/gone/0/element-templates/gone.json", "{}");
+        lockCachedMarketplaces(busy);
+
+        await expect(commands.update()).resolves.toBeUndefined();
+
+        expect(templates.reloads).toBe(1);
+        expect(notifier.infos).toEqual(["Updated 1 marketplace(s)."]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.loggedErrors).toEqual([busy]);
+    });
+
+    it("reports the removal and reloads the open editors once the entries are unregistered", async () => {
+        const { commands, marketplaces, notifier, templates, lockCachedMarketplaces } =
+            commandsOverRealService();
+        await commands.update();
+        lockCachedMarketplaces(busy);
+
+        await commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+
+        expect(marketplaces).toEqual([]);
+        expect(templates.reloads).toBe(2);
+        expect(notifier.infos).toEqual(["Updated 1 marketplace(s).", "Removed 1 marketplace(s)."]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.loggedErrors).toEqual([busy]);
     });
 });
 
