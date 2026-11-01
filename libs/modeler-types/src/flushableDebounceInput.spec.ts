@@ -116,6 +116,21 @@ describe("flushable debounceInput", () => {
         expect(debounceInput.hasPending()).toBe(true);
     });
 
+    it("applies the other waiting input when one entry fails, then reports the failure", () => {
+        const { debounceInput, setName, appliedNames } = nameEntry();
+        const staleEntryFailure = new Error("the entry's view was cleared");
+        const setStaleAnnotation = debounceInput(() => {
+            throw staleEntryFailure;
+        });
+
+        setStaleAnnotation();
+        setName("Approve invoice");
+
+        expect(() => debounceInput.flush()).toThrow(staleEntryFailure);
+        expect(appliedNames).toEqual(["Approve invoice"]);
+        expect(debounceInput.hasPending()).toBe(false);
+    });
+
     it("stops reporting a call its entry cancelled", () => {
         const { debounceInput, setName, appliedNames } = nameEntry();
 

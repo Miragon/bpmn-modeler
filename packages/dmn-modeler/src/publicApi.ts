@@ -189,7 +189,10 @@ export interface DmnPendingInputHandle {
     /** Whether such input waits; `false` once destroyed. */
     hasPendingInput(): boolean;
 
-    /** Applies that input to the document now. A no-op once destroyed. */
+    /**
+     * Applies that input to the document now. A no-op once destroyed. Input that
+     * fails does not hold back the rest; its error is thrown once the rest is applied.
+     */
     flushPendingInput(): void;
 }
 

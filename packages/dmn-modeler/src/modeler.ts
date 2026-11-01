@@ -306,8 +306,12 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
 
     /** @internal See {@link DmnPendingInputHandle.flushPendingInput}. */
     flushPendingInput(): void {
-        if (!this.store.isDisposed) {
+        if (this.store.isDisposed) {
+            return;
+        }
+        try {
             this.propertiesPanelInput.flush();
+        } finally {
             this.viewEditorInput.flush();
         }
     }

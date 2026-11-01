@@ -584,6 +584,23 @@ describe("DmnModeler", () => {
             expect(second.hasPendingInput()).toBe(false);
         });
 
+        it("applies the view editors' input when the panel's input fails", () => {
+            const handle = createModeler();
+            const vendor = mocks.vendors[0];
+            const panelFailure = new Error("the panel's element was removed");
+            drdDebounceInput(vendor)(() => {
+                throw panelFailure;
+            })();
+            const applied = typeInto(
+                viewDebounceInput(vendor.options.decisionTable.additionalModules),
+                "Checks the amount",
+            );
+
+            expect(() => handle.flushPendingInput()).toThrow(panelFailure);
+            expect(applied).toEqual(["Checks the amount"]);
+            expect(handle.hasPendingInput()).toBe(false);
+        });
+
         it("is neither reported nor applied once the modeler is destroyed", () => {
             const handle = createModeler();
             const applied = typeInto(drdDebounceInput(mocks.vendors[0]), "Approve invoice");

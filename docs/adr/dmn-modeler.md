@@ -62,9 +62,17 @@ internal `hasPendingInput()` and `flushPendingInput()`
 (`DmnPendingInputHandle`), which answer `false` and do nothing once destroyed.
 The IDE webview's flush uses them to apply a typed value before it exports, as
 it does for the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle).
-They are not public API yet. Not covered yet: dmn-js clears the view it
-leaves, so a value still waiting when the user switches views throws when it is
-applied, by a flush as by the dmn-js timer, and misses that save.
+They are not public API yet. The decision table also sends one UI-only call
+through the service: after a sheet scroll it shows the simple-mode button
+again 300 ms later. A save of an unedited table in that window answers
+`flushed` with dmn-js's serialization instead of `clean`, which the host
+writes only when it differs from the file. Not covered yet: dmn-js clears the
+view it leaves, so a value still waiting when the user switches views throws
+when it is applied, by a flush as by the dmn-js timer. The value reaches the
+model but schedules no sync, because the modeler listens only to the open
+view's command stack. A flush still applies the other waiting input and then
+rethrows, so the save gets an `unavailable` reply and goes ahead best-effort;
+the value reaches the document with the next sync the page posts.
 
 ### Themes
 

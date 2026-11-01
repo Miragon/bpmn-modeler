@@ -425,17 +425,19 @@ In the BPMN, DMN and Form webviews, a value that still waits in an editor's
 input debounce counts as such an edit: a BPMN or DMN properties panel's
 (600 ms), DMN text in the decision-table, literal-expression and
 boxed-expression editors (300 ms), and every form-js editor input (300 ms). The
-webviews replace those debounce services with the flushable one from
-`modeler-types` (`createFlushableDebounceInput`): it tracks its waiting calls,
-and a flush runs them and the calls they debounce in turn. The webview's flush
-applies them before it exports, so the persisted file holds the value the
-editor shows. The BPMN surfaces register it as `debounceInput` through
-`libs/properties-panel`; the DMN modeler registers its own instances, one for
-the DRD panel and one for the other views; the Form webview registers one as
-form-js's `debounce` service, with form-js's 300 ms delay. A BPMN mode switch
-that rebuilds the surface applies them before it exports the diagram for the
-next surface, and the webview's `beforeDestroy` posts the sync they scheduled,
-so both the next surface and the document get the value.
+BPMN and DMN modeler packages and the Form webview replace those debounce
+services with the flushable one from `modeler-types`
+(`createFlushableDebounceInput`): it tracks its waiting calls, and a flush runs
+them and the calls they debounce in turn; a call that fails does not hold back
+the others. The webview's flush applies them before it exports, so the
+persisted file holds the value the editor shows. The BPMN surfaces register it
+as `debounceInput` through `libs/properties-panel`; the DMN modeler registers
+its own instances, one for the DRD panel and one for the other views; the Form
+webview registers one as form-js's `debounce` service, with form-js's 300 ms
+delay. A BPMN mode switch that rebuilds the surface applies them before it
+exports the diagram for the next surface, and the webview's `beforeDestroy`
+posts the sync they scheduled, so both the next surface and the document get
+the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents

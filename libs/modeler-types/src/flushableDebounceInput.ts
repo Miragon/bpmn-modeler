@@ -11,16 +11,20 @@ interface DebouncedInput<Args extends unknown[]> {
 }
 
 /**
- * A `debounceInput` service for the bpmn-io properties panels and the dmn-js
- * editors: debounces each input as the library default it replaces does, and
- * tracks the calls still waiting, so a save can apply them before it exports
- * the document.
+ * An editor's input debounce service (`debounceInput` in the bpmn-io
+ * properties panels and the dmn-js editors, `debounce` in form-js): debounces
+ * each input as the library default it replaces does, and tracks the calls
+ * still waiting, so a save can apply them before it exports the document.
  */
 export interface FlushableDebounceInput {
     <Args extends unknown[]>(apply: (...args: Args) => void): DebouncedInput<Args>;
     /** Whether an input still waits in its debounce. */
     hasPending(): boolean;
-    /** Runs every waiting call now, and the calls those runs debounce in turn. */
+    /**
+     * Runs every waiting call now, and the calls those runs debounce in turn.
+     * A failing call does not hold back the others; its error is rethrown
+     * once the rest have run.
+     */
     flush(): void;
 }
 
@@ -55,10 +59,18 @@ export function createFlushableDebounceInput(delayMs: number): FlushableDebounce
     return Object.assign(debounceInput, {
         hasPending: () => waiting.size > 0,
         flush: () => {
+            const failures: unknown[] = [];
             for (let pass = 0; pass < MAX_FLUSH_PASSES && waiting.size > 0; pass++) {
                 for (const input of [...waiting]) {
-                    input.flush();
+                    try {
+                        input.flush();
+                    } catch (failure) {
+                        failures.push(failure);
+                    }
                 }
+            }
+            if (failures.length > 0) {
+                throw failures[0];
             }
         },
     });

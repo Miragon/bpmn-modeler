@@ -124,6 +124,20 @@ describe("DmnModeler input a dmn-js view editor still holds in its debounce", ()
         },
     );
 
+    it("applies input typed in the next view when a value left in the previous one fails", async () => {
+        const handle = await openDecisions();
+        vi.useFakeTimers();
+        typeAnnotation("Checks the amount");
+        await openViewOfType(handle, "literalExpression");
+        const applied = typeIntoActiveView(handle, "typed");
+
+        expect(() => handle.flushPendingInput()).toThrow();
+
+        expect(applied).toEqual(["typed"]);
+        expect(handle.hasPendingInput()).toBe(false);
+        expect(await handle.exportDiagram()).toContain("Checks the amount");
+    });
+
     it("keeps the dmn-js 300 ms input delay", async () => {
         const handle = await openDecisions();
         vi.useFakeTimers();
