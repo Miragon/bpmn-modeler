@@ -1,0 +1,74 @@
+[
+    {
+        "name": "a JSON file naming the C7 schema",
+        "path": "/work/status.json",
+        "text": "{\n  \"$schema\": \"https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json\",\n  \"name\": \"T\"\n}",
+        "isTemplate": true
+    },
+    {
+        "name": "a JSON file naming the C8 schema",
+        "path": "/work/status.json",
+        "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+        "isTemplate": true
+    },
+    {
+        "name": "an array file with spaces around the colon",
+        "path": "/work/status.json",
+        "text": "[\n  {\n    \"$schema\" : \"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"\n  }\n]",
+        "isTemplate": true
+    },
+    {
+        "name": "any JSON file in an element-templates folder",
+        "path": "/work/.camunda/element-templates/x.json",
+        "text": "{}",
+        "isTemplate": true
+    },
+    {
+        "name": "a nested element-templates folder",
+        "path": "/work/element-templates/mail/mail.json",
+        "text": "",
+        "isTemplate": true
+    },
+    {
+        "name": "a Windows path",
+        "path": "C:\\work\\element-templates\\x.json",
+        "text": "{}",
+        "isTemplate": true
+    },
+    {
+        "name": "a JSON file without a template schema",
+        "path": "/work/package.json",
+        "text": "{\"name\":\"x\"}",
+        "isTemplate": false
+    },
+    {
+        "name": "an unrelated schema",
+        "path": "/work/package.json",
+        "text": "{\"$schema\":\"https://json.schemastore.org/package.json\"}",
+        "isTemplate": false
+    },
+    {
+        "name": "a template schema outside $schema",
+        "path": "/work/status.json",
+        "text": "{\"description\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+        "isTemplate": false
+    },
+    {
+        "name": "a non-JSON file naming a template schema",
+        "path": "/work/notes.md",
+        "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+        "isTemplate": false
+    },
+    {
+        "name": "a folder that only starts like element-templates",
+        "path": "/work/element-templates-old/x.json",
+        "text": "{}",
+        "isTemplate": false
+    },
+    {
+        "name": "a JSON file named like the folder",
+        "path": "/work/element-templates.json",
+        "text": "{}",
+        "isTemplate": false
+    }
+]
