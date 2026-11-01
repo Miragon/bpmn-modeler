@@ -301,6 +301,46 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             );
         });
 
+        it("reports no error when the open diagram closes right after the host accepts the migration", async () => {
+            const { rpc, frames, editorId, workspaceRoot, sourcePath } = await setup();
+            await rpc.handleLine(
+                hostNotification(
+                    "session/register",
+                    registerParams(editorId, workspaceRoot, sourcePath, BPMN_C7_XML, {
+                        sessionId: 1,
+                    }),
+                ),
+            );
+
+            const migration = rpc.handleLine(
+                hostNotification("migration/migrateAll", { workspaceRoot }),
+            );
+            const picker = await waitForFrame(frames, isPickerShow);
+            const pickedIndex = otherVersionIndex(picker);
+            const pickedVersion = picker.params.items[pickedIndex].label;
+            await rpc.handleLine(hostReply(picker.id, { selected: [pickedIndex] }));
+            const write = await waitForFrame(frames, (f) => f.method === "document/write");
+            const afterWrite = frames.length;
+            // One chunk from the host: the dispose lands before the migration resumes.
+            const acceptedWrite = rpc.handleLine(
+                hostReply(write.id, { changed: true, accepted: true }),
+            );
+            const dispose = rpc.handleLine(
+                hostNotification("session/dispose", { editorId, sessionId: 1 }),
+            );
+            await Promise.all([acceptedWrite, dispose, migration]);
+            await settle();
+
+            const framesAfterWrite = frames.slice(afterWrite);
+            expect(framesAfterWrite.filter((f) => f.method === "notifier/showError")).toEqual([]);
+            expect(postedQueries(framesAfterWrite, "BpmnFileQuery")).toEqual([]);
+            expect(
+                framesAfterWrite.some(
+                    isShowInfo(`Updated 1 diagram(s) to Camunda 7 (${pickedVersion}).`),
+                ),
+            ).toBe(true);
+        });
+
         it("writes and reports nothing when the user dismisses the version picker", async () => {
             const { rpc, frames, workspaceRoot, sourcePath } = await setup();
 

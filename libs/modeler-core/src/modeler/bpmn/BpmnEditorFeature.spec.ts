@@ -309,6 +309,23 @@ describe("BpmnEditorFeature", () => {
         },
     );
 
+    it("reports no error when the editor closed between the core's write and its render", async () => {
+        const { host, feature } = createFeature("full", "host-driven");
+        const editor = await host.openSession(DIAGRAM, [...feature.participants], {
+            content: C7_XML,
+            router: feature.router,
+        });
+        await host.documents.write(editor.id, C7_XML.replace("7.22.0", "7.23.0"));
+        const rendersBeforeClose = editor.postedOfType("BpmnFileQuery").length;
+
+        editor.dispose();
+        await feature.renderCoreWrite(editor.id);
+        await settle();
+
+        expect(host.notifier.errors).toEqual([]);
+        expect(editor.postedOfType("BpmnFileQuery")).toHaveLength(rendersBeforeClose);
+    });
+
     it("runs each contributed handler for its command", async () => {
         const { host, feature, calls } = createFeature("full");
         const editor = host.openEditor(DIAGRAM, C7_XML);
