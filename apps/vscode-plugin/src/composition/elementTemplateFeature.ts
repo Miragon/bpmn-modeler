@@ -15,6 +15,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { ElementTemplatePreviewController } from "../modeler/elementTemplate/controller/ElementTemplatePreviewController";
+import { NewElementTemplateController } from "../modeler/elementTemplate/controller/NewElementTemplateController";
 import { openTemplatePreviewAutomatically } from "../shared/infrastructure/modelerConfiguration";
 import { SharedDeps } from "./sharedDeps";
 
@@ -57,4 +58,5 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     new ElementTemplatePreviewController(deps.notifier, openTemplatePreviewAutomatically).register(
         context,
     );
+    new NewElementTemplateController(deps.picker, deps.vsSettings, deps.notifier).register(context);
 }

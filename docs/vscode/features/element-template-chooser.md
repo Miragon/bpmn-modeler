@@ -99,6 +99,12 @@ For properties:
 }
 ```
 
+## Create a template
+
+Run **Miragon BPMN Modeler: New Element Template** from the Command Palette or **File ▸ New File…**, name the file and pick **Camunda 7** or **Camunda 8**. The save dialog opens in the template folder of the first workspace folder (`.camunda/element-templates/` unless `miragon.bpmnModeler.configFolder` names another folder), where the chooser finds the template.
+
+The new file holds a service task template to build on. Its `id` and `name` come from the file name: `send-mail.json` becomes `send-mail` and **Send Mail**. The `id` is also the hidden external task topic (Camunda 7) or job type (Camunda 8), next to one required **Input** field. The JSON opens with the preview beside it.
+
 ## Preview a template while you write it
 
 Open a template's `.json` file: the preview opens beside the JSON editor and shows the properties panel the template produces, updating as you type. The JSON editor stays the one you edit in, with completion from the template's `$schema`.

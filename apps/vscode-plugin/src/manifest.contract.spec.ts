@@ -45,6 +45,7 @@ import {
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
 import { OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD } from "./modeler/elementTemplate/controller/ElementTemplatePreviewController";
+import { NEW_ELEMENT_TEMPLATE_CMD } from "./modeler/elementTemplate/controller/NewElementTemplateController";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -128,6 +129,7 @@ const CODE_COMMAND_IDS = [
     TOGGLE_FORM_INPUT_VALUES_CMD,
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
     OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD,
+    NEW_ELEMENT_TEMPLATE_CMD,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
