@@ -31,13 +31,13 @@ class HostNotifications(
 
     fun showError(message: String) = balloon(message, NotificationType.ERROR)
 
+    /** The core already tags a line a webview forwarded, so [message] is written as it came. */
     fun log(level: String?, message: String) {
-        val text = "[webview] $message"
         when (level) {
-            "error" -> log.warn(text)
-            "warn" -> log.warn(text)
-            "debug" -> log.debug(text)
-            else -> log.info(text)
+            "error" -> log.warn(message)
+            "warn" -> log.warn(message)
+            "debug" -> log.debug(message)
+            else -> log.info(message)
         }
     }
 
