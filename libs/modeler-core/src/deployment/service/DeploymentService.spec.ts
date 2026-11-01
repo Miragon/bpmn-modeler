@@ -451,6 +451,32 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         ]);
     });
 
+    it("offers no file inside the modeler's config folder when its name has no dot", async () => {
+        const { service, host } = createService({
+            settings: { configFolder: "camunda" },
+            files: {
+                ...RESOURCES,
+                "/work/camunda/deployment-targets.json": "{}",
+                "/work/camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/processes/camunda/payloads/start.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
     it("offers every matching file in workspace order, the one found last first, and returns none when the user dismisses the list", async () => {
         const foundLast = "/work/forms/a.form";
         const forms = {
