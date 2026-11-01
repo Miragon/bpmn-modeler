@@ -402,6 +402,30 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         ]);
     });
 
+    it("offers no file inside node_modules or build output", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/node_modules/left-pad/package.json": "{}",
+                "/work/target/classes/discount.dmn": "<definitions/>",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
     it("offers at most 20 files and returns none when the user dismisses the list", async () => {
         const forms = Object.fromEntries(
             Array.from({ length: 21 }, (_, index) => [`/work/forms/form-${index}.form`, "{}"]),

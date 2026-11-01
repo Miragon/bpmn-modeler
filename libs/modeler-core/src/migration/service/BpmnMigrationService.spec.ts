@@ -131,6 +131,21 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual(["Updated 2 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
+    it("migrates no copy of a diagram inside build output or node_modules", async () => {
+        const { service, writtenPaths } = createHost(
+            {
+                "/work/src/main/resources/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/target/classes/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/node_modules/pkg/fixture.bpmn": c8Bpmn("8.5.0"),
+            },
+            { c8EngineVersion: "8.8.0" },
+        );
+
+        await service.migrateAllDiagrams();
+
+        expect(writtenPaths).toEqual(["/work/src/main/resources/a.bpmn"]);
+    });
+
     it("should migrate C7-only workspace without scope picker", async () => {
         const { service, picker, workspace, writtenPaths } = createHost(
             { "/work/c7.bpmn": c7Bpmn("7.20.0") },

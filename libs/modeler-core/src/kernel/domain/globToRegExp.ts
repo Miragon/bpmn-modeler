@@ -42,3 +42,7 @@ export function globToRegExp(glob: string): RegExp {
     }
     return new RegExp(`^${re}$`);
 }
+
+export function coveredFolderRegExp(_glob: string): RegExp | undefined {
+    return undefined;
+}

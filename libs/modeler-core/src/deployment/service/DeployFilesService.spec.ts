@@ -9,7 +9,7 @@ import { DeployFilesService } from "./DeployFilesService";
 
 const DOCUMENT_DIR = "/work/processes";
 const PICKED_FILES = ["/work/processes/order.bpmn", "/work/decisions/discount.dmn"];
-/** The BPMN and DMN files outside dependencies, ordered as VS Code shows their paths. */
+/** The BPMN and DMN files outside dependencies and build output, ordered as VS Code shows their paths. */
 const DEPLOYABLE_FILES = [
     "/work/decisions/discount.dmn",
     "/work/processes/invoice.bpmn",
@@ -22,6 +22,7 @@ const WORKSPACE_FILES = {
     "/work/processes/invoice.bpmn": "<definitions/>",
     "/work/forms/order.form": "{}",
     "/work/node_modules/library/process.bpmn": "<definitions/>",
+    "/work/target/classes/order.bpmn": "<definitions/>",
     "/work/decisions/discount.dmn": "<definitions/>",
     "/archive/zeta/legacy.bpmn": "<definitions/>",
 };

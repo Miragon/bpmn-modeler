@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
+import { EXCLUDED_DIRS } from "../domain/excludedDirs";
+import { globToRegExp } from "../domain/globToRegExp";
 import { findFilesInScope, scanWorkspaceFiles } from "./workspaceFileSearch";
 
 function searchBpmnFiles(folders: string[], files: Record<string, string>) {
@@ -38,6 +40,32 @@ describe("findFilesInScope", () => {
 
         expect(await found).toEqual(["/home/u/web/order.bpmn", "/home/u/build/repo/invoice.bpmn"]);
         expect(walked()).toEqual([]);
+    });
+
+    // The host's exclude is what lets it skip reading these folders at all.
+    it("asks the host to leave out every excluded folder while it lists", async () => {
+        const { workspace } = createTestHost({
+            folders: ["/work"],
+            files: { "/work/a.bpmn": "" },
+        });
+        const findFiles = vi.spyOn(workspace, "findFiles");
+
+        await findFilesInScope(
+            workspace,
+            { kind: "workspace-folders", folders: ["/work"] },
+            "**/*.bpmn",
+            {
+                matchesWalkedFile: (path) => path.endsWith(".bpmn"),
+            },
+        );
+
+        const exclude = findFiles.mock.calls[0]?.[1];
+        expect(exclude).toEqual(expect.any(String));
+        const excluded = globToRegExp(exclude as string);
+        for (const directory of EXCLUDED_DIRS) {
+            expect(excluded.test(`web/${directory}/pkg/a.bpmn`), directory).toBe(true);
+        }
+        expect(excluded.test("src/main/resources/a.bpmn")).toBe(false);
     });
 });
 

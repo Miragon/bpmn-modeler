@@ -90,6 +90,51 @@ describe("NodeWorkspace.findFiles", () => {
     });
 });
 
+describe("NodeWorkspace.findFiles below excluded folders", () => {
+    let root: string;
+    let outside: string;
+
+    beforeAll(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-find-prune-"));
+        outside = await fs.mkdtemp(join(tmpdir(), "modeler-find-prune-outside-"));
+        for (const dir of ["src", "node_modules/pkg", "dist", "target/classes"]) {
+            await fs.mkdir(join(root, dir), { recursive: true });
+            await fs.writeFile(join(root, dir, "p.bpmn"), "<definitions/>");
+        }
+        await fs.writeFile(join(outside, "linked.bpmn"), "<definitions/>");
+        await fs.symlink(outside, join(root, "src/linked"), "dir");
+    });
+
+    afterAll(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+        await fs.rm(outside, { recursive: true, force: true });
+    });
+
+    function workspace(): NodeWorkspace {
+        const ws = new NodeWorkspace();
+        ws.registerRoot(root);
+        return ws;
+    }
+
+    it("reads no folder its exclude covers", async () => {
+        const readdir = vi.spyOn(fs, "readdir");
+        onTestFinished(() => readdir.mockRestore());
+
+        const found = await workspace().findFiles("**/*.bpmn", "**/{node_modules,dist,target}/**");
+
+        expect(found).toEqual([join(root, "src/p.bpmn")]);
+        const readFolders = readdir.mock.calls.map(([path]) => String(path));
+        expect(readFolders).toContain(join(root, "src"));
+        expect(readFolders.filter((path) => /node_modules|dist|target/.test(path))).toEqual([]);
+    });
+
+    it("does not follow a symlinked folder", async () => {
+        const found = await workspace().findFiles("**/linked.bpmn");
+
+        expect(found).toEqual([]);
+    });
+});
+
 /**
  * `deleteDirectory` backs the marketplace-cache prune. It must recursively
  * remove a slot and, crucially, tolerate a missing path (a slot a prior run

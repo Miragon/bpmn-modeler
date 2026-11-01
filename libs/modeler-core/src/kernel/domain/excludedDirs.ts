@@ -23,6 +23,10 @@ export const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
     ".hg",
 ]);
 
+export function excludedDirsGlob(..._additionalDirNames: string[]): string {
+    return "";
+}
+
 /**
  * True when an {@link EXCLUDED_DIRS} entry lies between `root` and `path`. The
  * directories above `root` do not count, so a checkout under `~/build/` keeps

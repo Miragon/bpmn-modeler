@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isInsideExcludedDirBelow, isInsideExcludedDirBelowEveryFolder } from "./excludedDirs";
+import {
+    EXCLUDED_DIRS,
+    excludedDirsGlob,
+    isInsideExcludedDirBelow,
+    isInsideExcludedDirBelowEveryFolder,
+} from "./excludedDirs";
+import { globToRegExp } from "./globToRegExp";
 
 describe("isInsideExcludedDirBelow", () => {
     it.each([
@@ -122,5 +128,34 @@ describe("isInsideExcludedDirBelowEveryFolder", () => {
         },
     ])("$behaviour", ({ path, folders, excluded }) => {
         expect(isInsideExcludedDirBelowEveryFolder(path, folders)).toBe(excluded);
+    });
+});
+
+describe("excludedDirsGlob", () => {
+    it.each([
+        { path: "node_modules/pkg/a.bpmn", excluded: true },
+        { path: "web/node_modules/pkg/a.bpmn", excluded: true },
+        { path: "target/classes/a.bpmn", excluded: true },
+        { path: "src/a.bpmn", excluded: false },
+        { path: "builds/a.bpmn", excluded: false },
+        { path: "src/my-build/a.bpmn", excluded: false },
+        { path: "build.gradle", excluded: false },
+    ])("leaves out $path: $excluded", ({ path, excluded }) => {
+        expect(globToRegExp(excludedDirsGlob()).test(path)).toBe(excluded);
+    });
+
+    it.each([...EXCLUDED_DIRS])("leaves out the files inside %s at any depth", (directory) => {
+        const excluded = globToRegExp(excludedDirsGlob());
+
+        expect(excluded.test(`${directory}/a.bpmn`)).toBe(true);
+        expect(excluded.test(`web/${directory}/pkg/a.bpmn`)).toBe(true);
+    });
+
+    it("leaves out a caller's own folders beside the excluded ones", () => {
+        const excluded = globToRegExp(excludedDirsGlob("element-templates"));
+
+        expect(excluded.test("config/element-templates/task.json")).toBe(true);
+        expect(excluded.test("node_modules/pkg/package.json")).toBe(true);
+        expect(excluded.test("payloads/vars.json")).toBe(false);
     });
 });

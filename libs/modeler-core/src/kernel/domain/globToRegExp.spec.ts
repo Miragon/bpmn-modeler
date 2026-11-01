@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { globToRegExp } from "./globToRegExp";
+import { coveredFolderRegExp, globToRegExp } from "./globToRegExp";
 
 describe("globToRegExp", () => {
     it("matches a leading double-star at the root and across directories", () => {
@@ -64,5 +64,24 @@ describe("globToRegExp", () => {
         ["**/.camunda/vars/order.bpmn.vars.json", "/work/.camunda/vars/order.bpmn.vars.json"],
     ])("matches the absolute path a file watcher reports for %s", (glob, absolutePath) => {
         expect(globToRegExp(glob).test(absolutePath)).toBe(true);
+    });
+});
+
+describe("coveredFolderRegExp", () => {
+    it.each([
+        { glob: "**/{node_modules,dist}/**", folder: "node_modules", covered: true },
+        { glob: "**/{node_modules,dist}/**", folder: "web/node_modules", covered: true },
+        { glob: "**/{node_modules,dist}/**", folder: "dist", covered: true },
+        { glob: "**/{node_modules,dist}/**", folder: "src", covered: false },
+        { glob: "**/{node_modules,dist}/**", folder: "node_modules_cache", covered: false },
+        { glob: "**/element-templates/**", folder: "config/element-templates", covered: true },
+        { glob: "src/**", folder: "src", covered: true },
+        { glob: "src/**", folder: "lib/src", covered: false },
+    ])("$glob covers the folder $folder: $covered", ({ glob, folder, covered }) => {
+        expect(coveredFolderRegExp(glob)?.test(folder) ?? false).toBe(covered);
+    });
+
+    it.each(["**/*.json", "**/node_modules"])("%s covers no folder as a whole", (glob) => {
+        expect(coveredFolderRegExp(glob)).toBeUndefined();
     });
 });
