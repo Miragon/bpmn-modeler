@@ -1,14 +1,12 @@
 /**
  * Domain-level abstractions for Camunda engine interaction and the host
- * facilities only deployment uses (secrets, form state, its prompts and its
- * status-bar item).
+ * facilities only deployment uses (secrets and form state).
  *
  * Decouples business logic from transport and protocol details so that
  * services can be tested with simple in-memory stubs.
  */
 
 import { AuthConfig, DeploymentConfig, DeploymentResult } from "./deployment";
-import { DeploymentFreshness } from "./deploymentLedger";
 import { DeploymentState, DeploymentStatePatch } from "./deploymentState";
 import { EngineDeploymentSnapshot } from "./deploymentVerification";
 import { StartInstanceConfig, StartInstanceResult } from "./startInstance";
@@ -67,53 +65,6 @@ export interface EngineInspectionPort {
     fetchLatestDefinition(request: DefinitionLookup): Promise<EngineDeploymentSnapshot | undefined>;
 }
 
-/** Deployment's own quick picks, beside the cross-cutting `PickerPort`. */
-export interface DeploymentPickerPort {
-    /** @returns the chosen payload, or `null` on dismissal. */
-    pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null>;
-
-    /**
-     * Prompts for the active deployment target. `names` are the saved targets;
-     * the picker also offers an explicit "(none — use form values)" entry for
-     * ad-hoc mode.
-     *
-     * @returns the chosen target name, `""` for the ad-hoc entry, or `undefined`
-     *   on dismissal (a no-op, mirroring the engine-version cancel convention).
-     */
-    pickDeploymentTarget(names: string[]): Promise<string | undefined>;
-
-    /**
-     * The status-bar item's click menu: switch the active target, or (for a
-     * Camunda 7 target) verify the ledger against the engine.
-     *
-     * @returns the chosen action, or `undefined` on dismissal (a no-op).
-     */
-    pickDeploymentStatusAction(opts: {
-        targetName?: string;
-        canVerify: boolean;
-    }): Promise<"switch" | "verify" | undefined>;
-}
-
-/**
- * The widget-shaped deployment status methods. The core shows the deployment
- * target slot through `StatusBarPort`, so this stays only until the hosts drop
- * it together with `LegacyStatusBarPort`.
- */
-export interface DeploymentStatusBarPort {
-    /**
-     * `undefined` name renders "No deployment target"; a name renders the active
-     * target. `freshness` drives the coloured dot; `deployedAt` / `verifiedAt`
-     * (ISO) enrich the tooltip when a revision was recorded / engine-verified.
-     */
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void;
-    hideDeploymentTarget(): void;
-}
-
 /**
  * Encrypted-at-rest storage for sensitive deployment credentials.
  *
@@ -124,8 +75,10 @@ export interface DeploymentStatusBarPort {
  * PasswordSafe.
  */
 export interface SecretStorePort {
+    /** Replaces both halves of the slot's pair or neither, so a deploy never sends a mixed pair. */
     saveBasicAuth(username: string, password: string, slot?: string): Promise<void>;
     getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined>;
+    /** Replaces both halves of the slot's pair or neither, like {@link saveBasicAuth}. */
     saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void>;
     getOAuth2(slot?: string): Promise<{ clientId: string; clientSecret: string } | undefined>;
     /**
@@ -146,6 +99,9 @@ export interface SecretStorePort {
 export interface DeploymentStatePort {
     /** Synchronous, so the initial webview seed and status render can read it. */
     load(): DeploymentState;
-    /** Writes only what `patch` names. */
+    /**
+     * Writes only what `patch` names. `load()` is guaranteed to show the patch
+     * only once this resolves; until then a host may still return the old state.
+     */
     save(patch: DeploymentStatePatch): Promise<void>;
 }

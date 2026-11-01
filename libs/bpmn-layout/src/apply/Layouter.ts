@@ -58,7 +58,8 @@ const INVALIDATING_EVENTS = ["commandStack.changed", "import.done", "diagram.cle
 export const LAYOUT_APPLY_COMMAND = "layout.apply";
 
 /**
- * Fired after every format attempt, successful or not.
+ * Fired once per format run, successful or not; a call that joins a run in
+ * flight adds no second event.
  *
  * Exists so the keyboard shortcut and a host-triggered command report through
  * one path: the host adapter subscribes once instead of threading the outcome

@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-10-31
 
 ## Context
 
@@ -48,18 +48,44 @@ Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing
 credentials in application-scoped IntelliJ PasswordSafe. Optional secret-store
 slots retain the legacy unnamed keys when absent; deletion/rename cleans up
-the target slot. Never write secrets into the shared file; whole-value
+the target slot. Each auth type keeps its credential pair in one entry
+(PasswordSafe `Credentials` in IntelliJ, a JSON object in VS Code), so a failed
+write leaves the old pair whole. VS Code still reads a pair from the two keys
+earlier releases stored while that entry is missing. A save removes those keys
+once the entry is stored; a failure to remove them does not fail the save,
+because the entry shadows them and the next save or the slot's delete removes
+them. Downgrading costs the pair: an earlier release reads only the two keys,
+so after the first save it finds no credentials for that target, and a pair it
+saves then stays shadowed by the entry after the next upgrade until the target
+is saved again. VS Code's delete tries every key of the slot before it reports
+the first failure. Never write secrets into the shared file; whole-value
 environment references (below) are the only credential values it may hold.
 
 Each edit of the file returns a `TargetChange` from `DeploymentTargets`
 (`created`, `saved`, `renamed` or `removed`, with the target it replaces or
 removes as `before`), the one place that decides whether a save renames. It names
 the retired slot (the old or deleted name, even when the file no longer holds
-it), the retired target whose ledger rows are pruned, and the name whose
-approvals carry over: the saved or renamed target's, none for a create
+it), the retired target whose ledger rows are pruned, the name whose
+approvals carry over (the saved or renamed target's, none for a create), and
+the new slot no saved target owns yet (a created or renamed target's)
 ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
 The services act on the change, so nothing reads a target before saving or
 deleting it.
+
+A save stores the slot's credentials and approvals before it writes the file.
+Once the file holds a new name, nothing names the old slot again, so a failure
+before that point leaves the file and the old slot as they were and empties the
+new slot. Once the file is written, a rename deletes the old slot even when
+saving the active name fails. The first failure is the one reported; a cleanup
+failing after it is only logged. A save of an existing target keeps what it
+stored in that target's slot when the file write fails, because the slot is
+still in use. That is a trade-off for one case: switching a stored literal to
+an environment reference leaves the reference in the slot while the file still
+lacks it, so the target sends an empty value until a save succeeds. Writing the
+file first would open the reverse case instead, a reference replaced by a
+literal while the secret store rejects writes, and a rejecting secret store is
+the likelier failure
+([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts)).
 
 Creating and updating are separate operations so a target is never overwritten
 by accident. **New** creates a target from the entered form data and rejects a
@@ -74,21 +100,23 @@ status-bar target picker use the same value. With no selected target, preserve
 the legacy unnamed connection behavior and write no target file until the user
 creates a target.
 
-Every successful target change publishes one `DeploymentTargetsEvent` through
+Every target change publishes one `DeploymentTargetsEvent` through
 `DeploymentTargetService.onDidChange`: a create, save, rename or delete carries
 its `TargetEdit`, and a sidebar select or a picked switch carries the new
-active name. A rejected save, a cancelled delete or a dismissed picker
-publishes nothing. An edit stores the active name it implies without a second
-event. The service awaits the listeners in subscription order. The change is
-already made when they run, so a failing listener is logged and skipped, and
-the sidebar still reports the target as saved when the ledger prune after it
-fails. `DeploymentFeature` subscribes the status service once and each
-attached panel until it is disposed. The status service prunes a retired
-target's ledger rows and refreshes the indicator, and the panel pushes the
-target list, so no command does either by hand. A panel posts the result of
-its own target command before that push, because the form ends its reload
-lock on the first target list after a successful result. Overlapping
-commands push once, after the last result
+active name. A create, save or rename that wrote the file publishes even when
+saving the active name or deleting the old slot fails after it, so the panel
+reloads instead of sending a retry as the same rename. A rejected save, a
+cancelled delete or a dismissed picker publishes nothing. An edit stores the
+active name it implies without a second event. The service awaits the
+listeners in subscription order. The change is already made when they run, so
+a failing listener is logged and skipped, and the sidebar still reports the
+target as saved when the ledger prune after it fails. `DeploymentFeature`
+subscribes the status service once and each attached panel until it is
+disposed. The status service prunes a retired target's ledger rows and
+refreshes the indicator, and the panel pushes the target list, so no command
+does either by hand. A panel posts the result of its own target command before
+that push, because the form ends its reload lock on the first target list after
+a successful result. Overlapping commands push once, after the last result
 ([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts),
 [feature tests](../../libs/modeler-core/src/deployment/DeploymentFeature.spec.ts)).
 

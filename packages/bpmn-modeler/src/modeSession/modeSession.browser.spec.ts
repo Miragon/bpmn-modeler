@@ -209,3 +209,54 @@ describe("createModeSession hands a Design edit to the next real surface", () =>
         await expect(untagged.getHandle().exportDiagram()).resolves.toContain(RENAMED_IN_DESIGN);
     });
 });
+
+describe("createModeSession hands a value the panel still debounces to the next real surface", () => {
+    it.each([
+        { model: "a tagged", engine: "c7" as const, xml: tagAsCamunda7(FAR_FROM_ORIGIN_XML) },
+        { model: "an untagged", engine: undefined, xml: FAR_FROM_ORIGIN_XML },
+    ])(
+        "finds $model model's typed name in the View export, applied before beforeDestroy",
+        async ({ engine, xml }) => {
+            const onError = vi.fn();
+            const events: string[] = [];
+            const mount = mountWithPanel();
+            session = await createModeSession({
+                container: mount.container,
+                engine,
+                surfaces: realSurfaces(mount.panel),
+                initialMode: "design",
+                onSurfaceCreated: (handle) => {
+                    if ("onCommandStackChanged" in handle) {
+                        handle.onCommandStackChanged(() => {
+                            events.push("commandStack.changed");
+                        });
+                    }
+                },
+                beforeDestroy: () => {
+                    events.push("beforeDestroy");
+                },
+                onError,
+            });
+            const editable = session.getHandle();
+            await editable.loadDiagram(xml);
+            await afterPaint();
+            editable.selection.selectElementsByIds(["Task_1"]);
+            const nameField = () =>
+                mount.panel.querySelector<HTMLTextAreaElement>("#bio-properties-panel-name");
+            await expect.poll(() => nameField()?.value).toBe("A");
+            nameField()!.value = "Typed in the panel";
+            nameField()!.dispatchEvent(new Event("input", { bubbles: true }));
+            await afterPaint();
+            expect(events).toEqual([]);
+
+            await session.requestMode("view");
+            await afterPaint();
+
+            expect(onError).not.toHaveBeenCalled();
+            expect(events).toEqual(["commandStack.changed", "beforeDestroy"]);
+            await expect(session.getHandle().exportDiagram()).resolves.toContain(
+                'name="Typed in the panel"',
+            );
+        },
+    );
+});

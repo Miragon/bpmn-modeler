@@ -69,14 +69,17 @@ flowchart TD
   received into it (the close flush), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
-  bridge's lint state. The page takes no edits until the render arrives, at
+  bridge's lint state. Last it sends `session/setActive` for the selected
+  diagram tab, so commands without an editor id keep acting on it and not on
+  the session re-registered last. The page takes no edits until the render arrives, at
   most 5 s after the replay; a crash recovery with an edit to write first waits
   for an open modal dialog to close. Tools ▸ Reload Modeler runs the same
   recovery against the running bridge. Like a tab close, recovery writes only
   diagrams edited since their last render: one you never edited keeps its text,
   even where the modeler would serialize it differently. A read-only file keeps
   its text, and its diagram re-renders from it. A tab closed while recovery
-  re-registers it is disposed in the new bridge too.
+  re-registers it is disposed in the new bridge too, and a file reopened
+  meanwhile keeps the new tab's session.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
@@ -154,7 +157,7 @@ cd apps/intellij-plugin && ./gradlew check
 
 `check` runs the JUnit suite and fails below the JaCoCo floor in
 `build.gradle.kts`. The tests need no built artefacts; the report lands in
-`build/reports/jacoco/test/jacocoTestReport.xml`. After adding tests, raise the
+`build/reports/jacoco/test/html/index.html`. After adding tests, raise the
 floor to about three points below the new numbers.
 
 ### Verifying the dark-mode Token Simulation fix

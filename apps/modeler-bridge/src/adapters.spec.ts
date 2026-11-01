@@ -5,13 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
     ChoicePrompt,
-    DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
     DeploymentStatePatch,
     LocateResult,
     SearchPrompt,
     SettingChange,
-    UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 import {
     readSettingsSnapshot,
@@ -26,13 +24,15 @@ import {
     RpcDeploymentState,
     RpcDocumentPort,
     RpcEditorHandle,
+    RpcLintingPreference,
     RpcNotifier,
     RpcPicker,
     RpcSecretStore,
     RpcStatusBar,
-    SessionMeta,
+    RpcTokenPrompt,
 } from "./adapters";
 import { BridgeSettings } from "./nodeAdapters";
+import { SessionMeta } from "./protocol/types";
 import { Rpc } from "./rpc";
 
 const META: SessionMeta = {
@@ -338,6 +338,22 @@ describe("RpcEditorHandle", () => {
         expect(onDispose).toHaveBeenCalledOnce();
     });
 
+    it("does not run an onDidDispose callback whose subscription was disposed", () => {
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
+        const onDispose = vi.fn();
+        const subscription = handle.onDidDispose(onDispose);
+
+        subscription.dispose();
+        handle.dispose();
+
+        expect(onDispose).not.toHaveBeenCalled();
+    });
+
     it("onDidChangeSetting relays the shared settings hub and detaches on dispose", () => {
         const settings = new BridgeSettings();
         const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}), settings);
@@ -357,7 +373,6 @@ describe("BridgeSettings", () => {
         const settings = new BridgeSettings();
 
         expect(readSettingsSnapshot(settings)).toEqual(DEFAULT_MODELER_SETTINGS);
-        expect(settings.getLintingEnabled()).toBe(DEFAULT_LINTING_ENABLED);
     });
 
     it.each([...SHARED_SETTINGS_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
@@ -446,37 +461,39 @@ describe("BridgeSettings", () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { toggles: [true], changed: [false], changes: 0, enabled: true },
-        { toggles: [false], changed: [true], changes: 1, enabled: false },
-        { toggles: [false, false], changed: [true, false], changes: 1, enabled: false },
-        { toggles: [false, true], changed: [true, true], changes: 2, enabled: true },
-    ])(
-        "reports the linting toggles $toggles as $changes linting.enabled change(s)",
-        ({ toggles, changed, changes, enabled }) => {
-            const settings = new BridgeSettings();
-            const events: SettingChange[] = [];
-            settings.onDidChange((event) => events.push(event));
-
-            const results = toggles.map((toggle) => settings.setLintingEnabled(toggle));
-
-            expect(results).toEqual(changed);
-            expect(settings.getLintingEnabled()).toBe(enabled);
-            expect(events).toHaveLength(changes);
-            for (const event of events) {
-                expect(event.affects("linting.enabled")).toBe(true);
-                expect(event.affects("language")).toBe(false);
-            }
-        },
-    );
-
-    it("keeps the linting toggle when the host pushes a settings snapshot", () => {
+    it("reports linting.enabled when the host pushes it", () => {
         const settings = new BridgeSettings();
-        settings.setLintingEnabled(false);
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
 
-        settings.apply({ language: "de", configFolder: ".config" });
+        settings.apply({ lintingEnabled: false });
 
         expect(settings.getLintingEnabled()).toBe(false);
+        expect(events.map((event) => event.affects("linting.enabled"))).toEqual([true]);
+    });
+});
+
+describe("RpcLintingPreference", () => {
+    it("asks the host to store the choice and settles on its ack", async () => {
+        const { frames, rpc, answerLast } = harness();
+
+        const stored = new RpcLintingPreference(rpc).setLintingEnabled(false);
+        expect(last(frames)).toMatchObject({
+            method: "settings/setLintingEnabled",
+            params: { enabled: false },
+        });
+        await answerLast(null);
+
+        await expect(stored).resolves.toBeUndefined();
+    });
+
+    it("rejects when the host fails to store the choice", async () => {
+        const { frames, rpc } = harness();
+        const stored = new RpcLintingPreference(rpc).setLintingEnabled(false);
+
+        await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "store failed" }));
+
+        await expect(stored).rejects.toThrow("store failed");
     });
 });
 
@@ -523,6 +540,8 @@ describe("RpcDocumentPort", () => {
 
 describe("RpcDeploymentState", () => {
     const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
+    const DEV_ROW = "target:dev@localhost:8080::/a.bpmn";
+    const PROD_ROW = "target:prod@localhost:8080::/a.bpmn";
 
     it("serves the seeded state through the synchronous load", () => {
         const state = new RpcDeploymentState(new Rpc(() => {}));
@@ -552,47 +571,77 @@ describe("RpcDeploymentState", () => {
         });
     });
 
-    it("sends a save as one acknowledged request and applies it to the mirror optimistically", async () => {
+    it("sends a save as one acknowledged request and applies it to the mirror once the host accepted it", async () => {
         const { frames, rpc, answerLast } = harness();
         const state = new RpcDeploymentState(rpc);
-        state.seed({
-            ledger: {
-                "target:dev@localhost:8080::/a.bpmn": revision,
-                "target:prod@localhost:8080::/a.bpmn": revision,
-            },
-        });
+        state.seed({ ledger: { [DEV_ROW]: revision, [PROD_ROW]: revision } });
+        const stored = state.load();
         const patch: DeploymentStatePatch = {
             endpoint: "https://engine",
             authType: "oauth2",
-            ledger: { remove: ["target:dev@localhost:8080::/a.bpmn"] },
+            ledger: { remove: [DEV_ROW] },
         };
 
         const pending = state.save(patch);
         // The persist is a request (has an id), not a fire-and-forget notification.
         expect(last(frames)).toMatchObject({ method: "deploymentState/save", params: { patch } });
         expect(last(frames).id).toBeTypeOf("number");
-        // Reads are correct before the host even acks (optimistic update).
-        expect(state.load()).toMatchObject({
-            endpoint: "https://engine",
-            authType: "oauth2",
-            ledger: { "target:prod@localhost:8080::/a.bpmn": revision },
-        });
-        expect(Object.keys(state.load().ledger)).toEqual(["target:prod@localhost:8080::/a.bpmn"]);
+        expect(state.load()).toEqual(stored);
 
         await answerLast(null);
         await expect(pending).resolves.toBeUndefined();
+        expect(state.load()).toEqual({
+            ...stored,
+            endpoint: "https://engine",
+            authType: "oauth2",
+            ledger: { [PROD_ROW]: revision },
+        });
     });
 
-    it("rejects when the host fails to persist and keeps the optimistic mirror", async () => {
+    it.each<{ write: string; patch: DeploymentStatePatch }>([
+        { write: "a deployed revision", patch: { ledger: { put: { [PROD_ROW]: revision } } } },
+        { write: "a forgotten revision", patch: { ledger: { remove: [DEV_ROW] } } },
+        {
+            write: "the ad-hoc connection",
+            patch: {
+                endpoint: "https://other",
+                tenantId: "t2",
+                authType: "oauth2",
+                tokenEndpoint: "https://token",
+                audience: "aud",
+            },
+        },
+        { write: "the active target", patch: { activeTargetName: "prod" } },
+    ])("keeps what the host stored when the host rejects $write", async ({ patch }) => {
         const { frames, rpc } = harness();
         const state = new RpcDeploymentState(rpc);
+        state.seed({
+            endpoint: "https://engine",
+            authType: "basic",
+            activeTargetName: "dev",
+            ledger: { [DEV_ROW]: revision },
+        });
+        const stored = state.load();
 
-        const pending = state.save({ endpoint: "https://engine", tenantId: "t1" });
+        const pending = state.save(patch);
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
 
         await expect(pending).rejects.toThrow("disk full");
-        // Rolling back would show stale form values mid-session; the next seed reconciles.
-        expect(state.load().endpoint).toBe("https://engine");
+        expect(state.load()).toEqual(stored);
+    });
+
+    it("keeps both of two overlapping saves the host accepted", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const state = new RpcDeploymentState(rpc);
+
+        const first = state.save({ ledger: { put: { [DEV_ROW]: revision } } });
+        const firstId = last(frames).id;
+        const second = state.save({ ledger: { put: { [PROD_ROW]: revision } } });
+        await rpc.handleLine(JSON.stringify({ id: firstId, result: null }));
+        await answerLast(null);
+        await Promise.all([first, second]);
+
+        expect(state.load().ledger).toEqual({ [DEV_ROW]: revision, [PROD_ROW]: revision });
     });
 });
 
@@ -783,6 +832,38 @@ describe("RpcSecretStore", () => {
     });
 });
 
+describe("RpcTokenPrompt", () => {
+    const PROMPT = {
+        host: "github.com",
+        title: "Personal Access Token for github.com",
+        prompt: "why",
+        password: true,
+    } as const;
+
+    it("sends the core's title and prompt and returns the answer as typed", async () => {
+        const { frames, rpc, answerLast } = harness();
+
+        const pending = new RpcTokenPrompt(rpc).promptForToken(PROMPT);
+        expect(last(frames)).toEqual({
+            id: expect.any(Number),
+            method: "tokenPrompt/show",
+            params: { title: "Personal Access Token for github.com", prompt: "why" },
+        });
+        await answerLast({ token: "  tok " });
+
+        await expect(pending).resolves.toBe("  tok ");
+    });
+
+    it("resolves undefined when the dialog is cancelled", async () => {
+        const { rpc, answerLast } = harness();
+
+        const pending = new RpcTokenPrompt(rpc).promptForToken(PROMPT);
+        await answerLast(null);
+
+        await expect(pending).resolves.toBeUndefined();
+    });
+});
+
 describe("RpcClipboard", () => {
     it("reads via a clipboard/read request and resolves with the host's text", async () => {
         const { frames, rpc, answerLast } = harness();
@@ -843,311 +924,13 @@ describe("RpcStatusBar", () => {
             params: { slot: "bpmnlint", view: null },
         });
     });
-
-    it("forwards template and engine-version updates as host frames", () => {
-        const { frames, rpc } = harness();
-        const statusBar = new RpcStatusBar(rpc);
-
-        statusBar.showElementTemplatesLoading();
-        expect(last(frames)).toEqual({ method: "statusBar/templatesLoading", params: {} });
-
-        statusBar.showElementTemplatesReady(12);
-        expect(last(frames)).toEqual({
-            method: "statusBar/templatesReady",
-            params: { count: 12 },
-        });
-
-        statusBar.showEngineVersion("c7", "7.20.0");
-        expect(last(frames)).toEqual({
-            method: "statusBar/showEngineVersion",
-            params: { platform: "c7", version: "7.20.0" },
-        });
-
-        statusBar.hideEngineVersion();
-        expect(last(frames)).toEqual({ method: "statusBar/hideEngineVersion", params: {} });
-    });
-
-    it("forwards the deployment target with verifiedAt, nulling absent values", () => {
-        const { frames, rpc } = harness();
-        const statusBar = new RpcStatusBar(rpc);
-
-        statusBar.showDeploymentTarget(
-            "dev",
-            "superseded",
-            "2026-09-17T14:40:00.000Z",
-            "2026-09-17T15:00:00.000Z",
-        );
-        expect(last(frames)).toEqual({
-            method: "statusBar/showDeploymentTarget",
-            params: {
-                name: "dev",
-                freshness: "superseded",
-                deployedAt: "2026-09-17T14:40:00.000Z",
-                verifiedAt: "2026-09-17T15:00:00.000Z",
-            },
-        });
-
-        statusBar.showDeploymentTarget(undefined, "unknown");
-        expect(last(frames)).toEqual({
-            method: "statusBar/showDeploymentTarget",
-            params: { name: null, freshness: "unknown", deployedAt: null, verifiedAt: null },
-        });
-    });
 });
 
 describe("RpcPicker", () => {
     function setup() {
         const h = harness();
-        const finder = { findFiles: vi.fn() };
-        return { ...h, finder, picker: new RpcPicker(h.rpc, finder) };
+        return { ...h, picker: new RpcPicker(h.rpc) };
     }
-
-    it("pickNewModelEngine lists the engines plus the neutral choice and returns the id", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickNewModelEngine("Pick a platform");
-        expect(last(frames)).toMatchObject({
-            method: "picker/show",
-            params: {
-                placeholder: "Pick a platform",
-                canPickMany: false,
-                items: [
-                    { label: "Camunda 7" },
-                    { label: "Camunda 8" },
-                    {
-                        label: "Engine-neutral",
-                        description: "No execution platform — opens in Design mode",
-                    },
-                ],
-            },
-        });
-        await answerLast({ selected: [2] });
-        await expect(pending).resolves.toBe("neutral");
-    });
-
-    it("pickNewModelEngine throws UserCancelledError on dismissal", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.pickNewModelEngine("Pick");
-        await answerLast({ selected: null });
-        await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
-    });
-
-    it("pickMigrationScope labels the counts and maps the selection", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickMigrationScope(1, 3);
-        expect(last(frames).params.items.map((item: { label: string }) => item.label)).toEqual([
-            "Camunda 7 only (1 diagram)",
-            "Camunda 8 only (3 diagrams)",
-            "Both (4 diagrams)",
-        ]);
-        await answerLast({ selected: [2] });
-        await expect(pending).resolves.toBe("both");
-    });
-
-    it("pickMigrationScope throws on dismissal", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.pickMigrationScope(2, 2);
-        await answerLast({ selected: null });
-        await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
-    });
-
-    it("pickEngineVersion returns the chosen version", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickEngineVersion("c7", ["7.19", "7.20"]);
-        expect(last(frames)).toMatchObject({
-            method: "picker/show",
-            params: { placeholder: "Select Camunda 7 engine version", canPickMany: false },
-        });
-        await answerLast({ selected: [1] });
-        await expect(pending).resolves.toBe("7.20");
-    });
-
-    it("pickEngineVersion throws on dismissal", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.pickEngineVersion("c8", ["8.5"]);
-        await answerLast({ selected: null });
-        await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
-    });
-
-    it("pickPayloadFile returns the chosen path with a basename label", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickPayloadFile(["/w/a.json", "/w/sub/b.json"]);
-        expect(last(frames).params.items).toEqual([
-            { label: "a.json", description: "/w/a.json" },
-            { label: "b.json", description: "/w/sub/b.json" },
-        ]);
-        await answerLast({ selected: [1] });
-        await expect(pending).resolves.toEqual({ filePath: "/w/sub/b.json", label: "b.json" });
-    });
-
-    it("pickPayloadFile returns null on dismissal", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.pickPayloadFile(["/w/a.json"]);
-        await answerLast({ selected: null });
-        await expect(pending).resolves.toBeNull();
-    });
-
-    it("pickDeploymentStatusAction offers verify only for a C7 target and maps the index", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickDeploymentStatusAction({ targetName: "dev", canVerify: true });
-        expect(last(frames)).toMatchObject({
-            method: "picker/show",
-            params: {
-                placeholder: 'Deployment target "dev"',
-                canPickMany: false,
-                items: [{ label: "Switch deployment target…" }, { label: "Verify on dev" }],
-            },
-        });
-        await answerLast({ selected: [1] });
-        await expect(pending).resolves.toBe("verify");
-    });
-
-    it("pickDeploymentStatusAction hides verify when the target cannot be verified", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickDeploymentStatusAction({ canVerify: false });
-        expect(last(frames).params.items).toEqual([{ label: "Switch deployment target…" }]);
-        await answerLast({ selected: [0] });
-        await expect(pending).resolves.toBe("switch");
-    });
-
-    it("pickDeploymentStatusAction resolves undefined on dismissal", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.pickDeploymentStatusAction({ targetName: "dev", canVerify: true });
-        await answerLast({ selected: null });
-        await expect(pending).resolves.toBeUndefined();
-    });
-
-    it("searchAndPickLocatedFile brackets the search with progress, then picks from multiple matches", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.searchAndPickLocatedFile(
-            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
-            async () => ({
-                kind: "matches",
-                paths: ["/w/b.bpmn", "/w/a.bpmn"],
-                readFailures: [],
-            }),
-        );
-        await settle();
-
-        // No busy list on the host, so the search keeps the status-bar spinner:
-        // progress brackets it, then the picker opens.
-        expect(frames.filter((f) => f.method.startsWith("notifier/progress"))).toEqual([
-            { method: "notifier/progressStart", params: { title: "Searching…" } },
-            { method: "notifier/progressEnd", params: { title: "Searching…" } },
-        ]);
-        const show = frames.find((f) => f.method === "picker/show");
-        expect(show.params.placeholder).toBe("Select the file to open");
-        expect(show.params.items.map((item: { description: string }) => item.description)).toEqual([
-            "/w/a.bpmn",
-            "/w/b.bpmn",
-        ]);
-        await answerLast({ selected: [0] });
-        await expect(pending).resolves.toEqual({
-            outcome: { kind: "matches", paths: ["/w/b.bpmn", "/w/a.bpmn"], readFailures: [] },
-            chosen: "/w/a.bpmn",
-        });
-    });
-
-    it("searchAndPickLocatedFile skips the picker for a single match", async () => {
-        const { frames, picker } = setup();
-        const result = await picker.searchAndPickLocatedFile(
-            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
-            async () => ({
-                kind: "matches",
-                paths: ["/w/only.bpmn"],
-                readFailures: [],
-            }),
-        );
-        expect(result).toEqual({
-            outcome: { kind: "matches", paths: ["/w/only.bpmn"], readFailures: [] },
-            chosen: undefined,
-        });
-        expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
-
-    it("searchAndPickLocatedFile returns chosen=undefined when the list is dismissed", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.searchAndPickLocatedFile(
-            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
-            async () => ({
-                kind: "matches",
-                paths: ["/w/a.bpmn", "/w/b.bpmn"],
-                readFailures: [],
-            }),
-        );
-        await settle();
-        await answerLast({ selected: null });
-        await expect(pending).resolves.toEqual({
-            outcome: { kind: "matches", paths: ["/w/a.bpmn", "/w/b.bpmn"], readFailures: [] },
-            chosen: undefined,
-        });
-    });
-
-    it("searchAndPickLocatedFile still ends the spinner when the search throws", async () => {
-        const { frames, picker } = setup();
-        const run = picker.searchAndPickLocatedFile(
-            { searchingPlaceholder: "Searching…", pickPlaceholder: "Select the file to open" },
-            async () => {
-                throw new Error("scan failed");
-            },
-        );
-        await expect(run).rejects.toThrow("scan failed");
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
-
-    it("pickScriptLanguage pins the current format first and returns it", async () => {
-        const { frames, picker, answerLast } = setup();
-        const pending = picker.pickScriptLanguage("groovy");
-        expect(last(frames).params.title).toBe("Script Language");
-        expect(last(frames).params.items[0]).toEqual({ label: "Groovy", description: ".groovy" });
-        await answerLast({ selected: [0] });
-        await expect(pending).resolves.toBe("groovy");
-    });
-
-    it("pickScriptLanguage returns undefined on dismissal", async () => {
-        const { picker, answerLast } = setup();
-        const pending = picker.pickScriptLanguage("javascript");
-        await answerLast({ selected: null });
-        await expect(pending).resolves.toBeUndefined();
-    });
-
-    it("pickWorkspaceFiles globs then maps the multi-selection", async () => {
-        const { frames, picker, answerLast, finder } = setup();
-        finder.findFiles.mockResolvedValue(["/w/a.form", "/w/b.json", "/w/c.dmn"]);
-        const pending = picker.pickWorkspaceFiles({
-            glob: "**/*.{form,json,dmn}",
-            exclude: "**/element-templates/**",
-            placeholder: "Pick files",
-        });
-        await settle();
-
-        expect(finder.findFiles).toHaveBeenCalledWith(
-            "**/*.{form,json,dmn}",
-            "**/element-templates/**",
-            undefined,
-        );
-        expect(last(frames)).toMatchObject({
-            method: "picker/show",
-            params: { canPickMany: true, placeholder: "Pick files" },
-        });
-        await answerLast({ selected: [0, 2] });
-        await expect(pending).resolves.toEqual(["/w/a.form", "/w/c.dmn"]);
-    });
-
-    it("pickWorkspaceFiles returns [] on dismissal", async () => {
-        const { picker, answerLast, finder } = setup();
-        finder.findFiles.mockResolvedValue(["/w/a.form"]);
-        const pending = picker.pickWorkspaceFiles({ glob: "**/*.form", placeholder: "Pick" });
-        await settle();
-        await answerLast({ selected: null });
-        await expect(pending).resolves.toEqual([]);
-    });
 
     describe("generic prompts", () => {
         const statusActions: ChoicePrompt<string> = {

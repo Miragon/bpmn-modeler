@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BPMN_EDITOR_COMMAND_TYPES } from "./bpmnEditorCommands";
+import { DIFF_PANE_COMMAND_TYPES } from "./diffPaneCommands";
 import * as baseMessages from "./messages";
 import { Command } from "./messages";
 import * as modelerMessages from "./modeler";
@@ -17,10 +18,8 @@ const protocolCommandTypes = Object.values<unknown>({ ...baseMessages, ...modele
     .filter((type): type is string => type !== undefined);
 
 const commandsOfOtherSurfaces = [
-    "ViewportChangedCommand",
-    "CursorChangedCommand",
-    "DiffReadyCommand",
-    "SwapCompareSidesCommand",
+    // The editor logs its errors too.
+    ...DIFF_PANE_COMMAND_TYPES.filter((type) => type !== "LogErrorCommand"),
     "GetDmnFileCommand",
     "GetDmnModelerSettingCommand",
     "GetFormFileCommand",
@@ -54,5 +53,14 @@ describe("BPMN_EDITOR_COMMAND_TYPES", () => {
         const leftOut = protocolCommandTypes.filter((type) => !listed.includes(type));
 
         expect([...leftOut].sort()).toEqual([...commandsOfOtherSurfaces].sort());
+    });
+});
+
+describe("DIFF_PANE_COMMAND_TYPES", () => {
+    it("lists every command type at most once and only ProtocolCommandTypes", () => {
+        const listed: readonly string[] = DIFF_PANE_COMMAND_TYPES;
+
+        expect(listed).toEqual([...new Set(listed)]);
+        expect(listed.filter((type) => !protocolCommandTypes.includes(type))).toEqual([]);
     });
 });

@@ -118,9 +118,9 @@ export class VsCodeWorkspace implements WorkspacePort {
         // Create the parent directory first (idempotent). `fs.writeFile` already
         // mkdirps via FileService, so this is platform-proof insurance for the
         // code-link artifact's nested target paths rather than a hard requirement.
-        // Deriving the parent from `uri.path` keeps this correct for both plain
-        // and `file://`-form inputs.
-        await fs.createDirectory(toUri(posix.dirname(uri.path)));
+        // Deriving the parent from the canonical path keeps this correct for
+        // plain and `file://`-form inputs and keeps the server of a UNC path.
+        await fs.createDirectory(toUri(posix.dirname(canonicalPath(uri))));
         await fs.writeFile(uri, Buffer.from(content));
     }
 
@@ -159,10 +159,11 @@ export class VsCodeWorkspace implements WorkspacePort {
      * and the `Uri`-typed event payloads so service callers stay free of
      * `vscode` imports.
      *
-     * Handlers receive the `uri.path` (POSIX) form, deliberately matching what
-     * {@link findFiles} returns: the code-link watcher compares changed-file
-     * paths against locator results, and `fsPath` (back-slashed, drive-prefixed
-     * on Windows) would never compare equal to a `uri.path`-style match.
+     * Handlers receive the canonical `uri.path` (POSIX) form, deliberately
+     * matching what {@link findFiles} returns: the code-link watcher compares
+     * changed-file paths against locator results, and `fsPath` (back-slashed,
+     * drive-prefixed on Windows) would never compare equal to a `uri.path`-style
+     * match.
      *
      * The returned handle disposes the underlying watcher and unsubscribes
      * the wired listeners in one call.

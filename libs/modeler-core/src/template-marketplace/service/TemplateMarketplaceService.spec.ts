@@ -52,7 +52,8 @@ function serviceOver(
     );
     return {
         service,
-        cachedPaths: () => [...host.workspace.files.keys()],
+        cachedPaths: () =>
+            [...host.workspace.files.keys()].filter((path) => !path.endsWith("/slot.json")),
         workspace: host.workspace,
         settings: host.settings,
         notifier: host.notifier,
@@ -135,8 +136,8 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         // Relative source resolves against the marketplace repo (index 0);
         // the github source uses its own repo (index 1).
         expect(cachedPaths()).toEqual([
-            "/cache/acme__templates/0/element-templates/element-templates/t.json",
-            "/cache/acme__templates/1/element-templates/resources/t.json",
+            "/cache/acme__templates/0/1/element-templates/element-templates/t.json",
+            "/cache/acme__templates/1/1/element-templates/resources/t.json",
         ]);
         expect(notifier.logged("info")).toContain(
             "Marketplace added: https://github.com/acme/templates (2 template file(s) cached)",
@@ -169,7 +170,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             path: "element-templates",
         });
         expect(cachedPaths()).toContain(
-            "/cache/local--Users-me-templates-f7bdb1db/0/element-templates/element-templates/t.json",
+            "/cache/local--Users-me-templates-f7bdb1db/0/1/element-templates/element-templates/t.json",
         );
     });
 
@@ -191,7 +192,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
-        const { service, workspace } = serviceOver(factory);
+        const { service, cachedPaths } = serviceOver(factory);
 
         await service.addMarketplace("https://github.com/acme/templates");
 
@@ -200,9 +201,9 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             rootDir: "/home/test/ext-templates",
             path: "",
         });
-        expect(workspace.files).toEqual(
-            new Map([["/cache/acme__templates/0/element-templates/connector.json", "{}"]]),
-        );
+        expect(cachedPaths()).toEqual([
+            "/cache/acme__templates/0/1/element-templates/connector.json",
+        ]);
     });
 
     it("throws when the manifest cannot be read, so no registration is persisted", async () => {
@@ -254,7 +255,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(cachedPaths()).toEqual([
-            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+            "/cache/acme__templates/0/1/element-templates/element-templates/t.json",
         ]);
         expect(notifier.logged("warning")).toHaveLength(1);
     });
@@ -309,7 +310,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(cachedPaths()).toEqual([
-            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+            "/cache/acme__templates/0/1/element-templates/element-templates/t.json",
         ]);
         expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining('content type "palette-entries" is not supported'),
@@ -397,10 +398,10 @@ describe("TemplateMarketplaceService.updateAll", () => {
         expect(notifier.logged("info")).toContain("Updating 2 marketplace(s)");
         expect(notifier.logged("info")).toContain("Marketplace update finished: 2 of 2 succeeded");
         expect(cachedPaths()).toEqual([
-            "/cache/acme__one/0/element-templates/element-templates/t.json",
-            "/cache/acme__one/1/element-templates/resources/t.json",
-            "/cache/acme__two/0/element-templates/element-templates/t.json",
-            "/cache/acme__two/1/element-templates/resources/t.json",
+            "/cache/acme__one/0/1/element-templates/element-templates/t.json",
+            "/cache/acme__one/1/1/element-templates/resources/t.json",
+            "/cache/acme__two/0/1/element-templates/element-templates/t.json",
+            "/cache/acme__two/1/1/element-templates/resources/t.json",
         ]);
     });
 
@@ -635,8 +636,8 @@ describe("TemplateMarketplaceService include filtering", () => {
 
         // The cache key is the untrimmed listed path (only stripped for matching).
         expect(cachedPaths()).toEqual([
-            "/cache/acme__mp/0/element-templates/connectors/http/element-templates/rest.json",
-            "/cache/acme__mp/0/element-templates/connectors/aws/lambda/element-templates/lambda.json",
+            "/cache/acme__mp/0/1/element-templates/connectors/http/element-templates/rest.json",
+            "/cache/acme__mp/0/1/element-templates/connectors/aws/lambda/element-templates/lambda.json",
         ]);
     });
 
@@ -650,7 +651,7 @@ describe("TemplateMarketplaceService include filtering", () => {
         await service.addMarketplace("https://github.com/acme/mp");
 
         expect(cachedPaths()).toEqual([
-            "/cache/acme__mp/0/element-templates/element-templates/a.json",
+            "/cache/acme__mp/0/1/element-templates/element-templates/a.json",
         ]);
     });
 
@@ -676,7 +677,7 @@ describe("TemplateMarketplaceService include filtering", () => {
 
         await service.addMarketplace("https://github.com/acme/mp");
 
-        expect(cachedPaths()).toEqual(["/cache/acme__mp/0/element-templates/a.json"]);
+        expect(cachedPaths()).toEqual(["/cache/acme__mp/0/1/element-templates/a.json"]);
     });
 
     it("warns and caches nothing when include matches none of the listed files", async () => {
@@ -729,11 +730,14 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/may be private/) },
+            expect.objectContaining({
+                host: "github.com",
+                prompt: expect.stringMatching(/may be private/),
+            }),
         ]);
         expect(tokens.tokens.get("github.com")).toBe("granted");
         expect(cachedPaths()).toEqual([
-            "/cache/acme__templates/0/element-templates/element-templates/t.json",
+            "/cache/acme__templates/0/1/element-templates/element-templates/t.json",
         ]);
         // One session spans the manifest and its sources, so the relative source's
         // first fetch carries the prompted token instead of re-reading the keychain.
@@ -908,7 +912,7 @@ describe("TemplateMarketplaceService cache retention", () => {
         await service.updateAll();
 
         expect(await cachedTemplatePaths()).toEqual([
-            `${SLOT}/0/element-templates/element-templates/a.json`,
+            `${SLOT}/0/2/element-templates/element-templates/a.json`,
         ]);
     });
 
@@ -925,7 +929,7 @@ describe("TemplateMarketplaceService cache retention", () => {
         upstream.sources = [{ path: "one" }];
         await service.updateAll();
 
-        expect(await cachedTemplatePaths()).toEqual([`${SLOT}/0/element-templates/one/a.json`]);
+        expect(await cachedTemplatePaths()).toEqual([`${SLOT}/0/2/element-templates/one/a.json`]);
     });
 
     it("drops templates a narrowed include no longer matches", async () => {
@@ -944,7 +948,7 @@ describe("TemplateMarketplaceService cache retention", () => {
         await service.updateAll();
 
         expect(await cachedTemplatePaths()).toEqual([
-            `${SLOT}/0/element-templates/element-templates/a.json`,
+            `${SLOT}/0/2/element-templates/element-templates/a.json`,
         ]);
     });
 
@@ -962,9 +966,29 @@ describe("TemplateMarketplaceService cache retention", () => {
         await service.updateAll();
 
         expect(await cachedTemplatePaths()).toEqual([
-            `${SLOT}/0/element-templates/two/b.json`,
-            `${SLOT}/1/element-templates/one/a.json`,
+            `${SLOT}/0/1/element-templates/two/b.json`,
+            `${SLOT}/1/1/element-templates/one/a.json`,
         ]);
+    });
+
+    it("does not serve the files of another source after the sources were reordered", async () => {
+        const { service, upstream, workspace, notifier, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }, { path: "two" }],
+            { one: ["one/a.json"], two: ["two/b.json"] },
+        );
+        await service.addMarketplace(MARKETPLACE_URL);
+
+        upstream.sources = [{ path: "two" }, { path: "one" }];
+        upstream.unreachablePaths.add("two");
+        await service.updateAll();
+
+        const servedPaths = await cachedTemplatePaths();
+        expect(await Promise.all(servedPaths.map((path) => workspace.readFile(path)))).toEqual([
+            '{"from":"one/a.json"}',
+        ]);
+        expect(notifier.logged("debug")).toContain(
+            "Removed cached files of another source: acme__templates/0",
+        );
     });
 
     it("keeps a source's last good templates when its fetch fails", async () => {
@@ -978,16 +1002,17 @@ describe("TemplateMarketplaceService cache retention", () => {
         await service.updateAll();
 
         expect(await cachedTemplatePaths()).toEqual([
-            `${SLOT}/0/element-templates/one/a.json`,
-            `${SLOT}/1/element-templates/two/b.json`,
+            `${SLOT}/0/2/element-templates/one/a.json`,
+            `${SLOT}/1/1/element-templates/two/b.json`,
         ]);
         expect(notifier.logged("warning")).toContainEqual(expect.stringContaining("offline"));
     });
 
     it("keeps a source's last good templates when it lists an unsafe path", async () => {
-        const { service, upstream, workspace, notifier } = changingMarketplace([{ path: "one" }], {
-            one: ["one/a.json"],
-        });
+        const { service, upstream, notifier, cachedTemplatePaths } = changingMarketplace(
+            [{ path: "one" }],
+            { one: ["one/a.json"] },
+        );
         await service.addMarketplace(MARKETPLACE_URL);
 
         upstream.listings.one = ["one/new.json", "../../escape.json"];
@@ -1005,9 +1030,7 @@ describe("TemplateMarketplaceService cache retention", () => {
                 },
             ],
         });
-        expect(workspace.files).toEqual(
-            new Map([[`${SLOT}/0/element-templates/one/a.json`, '{"from":"one/a.json"}']]),
-        );
+        expect(await cachedTemplatePaths()).toEqual([`${SLOT}/0/1/element-templates/one/a.json`]);
         expect(notifier.logged("warning")).toContainEqual(
             expect.stringContaining("unsafe template path"),
         );

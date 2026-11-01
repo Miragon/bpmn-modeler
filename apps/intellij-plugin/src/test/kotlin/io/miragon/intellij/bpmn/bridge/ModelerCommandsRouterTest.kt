@@ -1,27 +1,21 @@
 package io.miragon.intellij.bpmn.bridge
 
-import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
  * Covers the outbound Tools-menu notifications of [ModelerCommandsRouter] over
  * the real [RpcChannel] transport (a [FakeProcess], per [RouterTestSupport]).
- *
- * The method names are asserted verbatim because they are the contract with
- * `apps/modeler-bridge/src/protocol/descriptor.ts`; the `protocol.json` snapshot
- * keeps the other side honest, and this keeps the Kotlin side from drifting.
+ * Each frame must carry the param keys `protocol.json` lists for its method.
  */
 @TestApplication
 class ModelerCommandsRouterTest {
     private val projectFixture = projectFixtureWithoutServicePreload()
 
-    private val gson = Gson()
+    private val descriptor = ProtocolDescriptor.load()
 
     // Closed in teardown so the transport's daemon threads do not trip ThreadLeakTracker.
     private var wired: WiredBridge? = null
@@ -31,122 +25,61 @@ class ModelerCommandsRouterTest {
         wired?.dispose()
     }
 
-    private fun parse(line: String): JsonObject = gson.fromJson(line, JsonObject::class.java)
-
     private fun router(): Pair<WiredBridge, ModelerCommandsRouter> {
         val wired = wireChannel().also { this.wired = it }
         val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers)
         return wired to ModelerCommandsRouter(deps)
     }
 
-    @Test
-    fun `formatDiagram notifies layout format without an editor id`() {
+    private fun sentFrame(send: ModelerCommandsRouter.() -> Unit): SentFrame {
         val (wired, router) = router()
+        router.send()
+        return SentFrame.of(wired.fake.nextFrame())
+    }
 
-        router.formatDiagram()
+    private fun descriptorFrame(method: String) = SentFrame(method, descriptor.paramKeys(method))
 
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("layout/format", frame.get("method").asString)
-        // No editorId on purpose: the core resolves its own active session, so
-        // both hosts refuse identically when no diagram has focus.
-        assertTrue(
-            frame.getAsJsonObject("params").entrySet().isEmpty(),
-            "layout/format carries no params",
-        )
+    @Test
+    fun `formatDiagram notifies layout format`() {
+        assertEquals(descriptorFrame("layout/format"), sentFrame { formatDiagram() })
     }
 
     @Test
     fun `cleanupDiagram notifies layout cleanup`() {
-        val (wired, router) = router()
-
-        router.cleanupDiagram()
-
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("layout/cleanup", frame.get("method").asString)
-        assertTrue(
-            frame.getAsJsonObject("params").entrySet().isEmpty(),
-            "layout/cleanup carries no params",
-        )
+        assertEquals(descriptorFrame("layout/cleanup"), sentFrame { cleanupDiagram() })
     }
 
     @Test
-    fun `toggleLinting notifies linting toggle`() {
+    fun `toggleLinting notifies linting toggle once`() {
         val (wired, router) = router()
 
         router.toggleLinting()
 
-        val frames = wired.fake.framesUntilQuiet().map(::parse)
-        assertEquals(listOf("linting/toggle"), frames.map { it.get("method").asString })
-        assertTrue(frames.single().getAsJsonObject("params").entrySet().isEmpty(), "linting/toggle carries no params")
+        assertEquals(listOf(descriptorFrame("linting/toggle")), wired.fake.framesUntilQuiet().map(SentFrame::of))
     }
 
     @Test
-    fun `switchDeploymentTarget notifies with the project workspace root`() {
-        val (wired, router) = router()
-
-        router.switchDeploymentTarget()
-
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("deployment/switchTarget", frame.get("method").asString)
-        assertTrue(
-            frame.getAsJsonObject("params").has("workspaceRoot"),
-            "deployment/switchTarget carries the workspace root",
-        )
+    fun `switchDeploymentTarget notifies deployment switchTarget`() {
+        assertEquals(descriptorFrame("deployment/switchTarget"), sentFrame { switchDeploymentTarget() })
     }
 
     @Test
-    fun `deployFiles notifies with the project workspace root`() {
-        val (wired, router) = router()
-
-        router.deployFiles()
-
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("deployment/deployFiles", frame.get("method").asString)
-        assertTrue(
-            frame.getAsJsonObject("params").has("workspaceRoot"),
-            "deployment/deployFiles carries the workspace root",
-        )
+    fun `deployFiles notifies deployment deployFiles`() {
+        assertEquals(descriptorFrame("deployment/deployFiles"), sentFrame { deployFiles() })
     }
 
     @Test
-    fun `deployDiagram notifies with the project workspace root`() {
-        val (wired, router) = router()
-
-        router.deployDiagram()
-
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("deployment/deployActive", frame.get("method").asString)
-        assertTrue(
-            frame.getAsJsonObject("params").has("workspaceRoot"),
-            "deployment/deployActive carries the workspace root",
-        )
+    fun `deployDiagram notifies deployment deployActive`() {
+        assertEquals(descriptorFrame("deployment/deployActive"), sentFrame { deployDiagram() })
     }
 
     @Test
-    fun `verifyDeployment notifies with the project workspace root`() {
-        val (wired, router) = router()
-
-        router.verifyDeployment()
-
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("deployment/verify", frame.get("method").asString)
-        assertTrue(
-            frame.getAsJsonObject("params").has("workspaceRoot"),
-            "deployment/verify carries the workspace root",
-        )
+    fun `verifyDeployment notifies deployment verify`() {
+        assertEquals(descriptorFrame("deployment/verify"), sentFrame { verifyDeployment() })
     }
 
     @Test
-    fun `deploymentStatusMenu notifies with the project workspace root`() {
-        val (wired, router) = router()
-
-        router.deploymentStatusMenu()
-
-        val frame = parse(wired.fake.nextFrame())
-        assertEquals("deployment/statusBarMenu", frame.get("method").asString)
-        assertTrue(
-            frame.getAsJsonObject("params").has("workspaceRoot"),
-            "deployment/statusBarMenu carries the workspace root",
-        )
+    fun `deploymentStatusMenu notifies deployment statusBarMenu`() {
+        assertEquals(descriptorFrame("deployment/statusBarMenu"), sentFrame { deploymentStatusMenu() })
     }
 }

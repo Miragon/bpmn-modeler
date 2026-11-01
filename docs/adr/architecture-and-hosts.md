@@ -146,15 +146,28 @@ bootstrap nor a session module can post another surface's command or a query.
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
 `WebviewDocumentSync` takes a channel for exactly the three messages it posts,
-so handing it the BPMN channel proves they are on the list. Only the diff pane,
-which the bootstrap starts instead of the editor, still posts through the full
-`HostApi`. The diff pane, the DMN and Form editors and the deployment sidebar
-post their own commands, and a spec fails when a protocol command belongs to
-neither side. A host's router still dispatches an unrouted type as a no-op, but
-records a type it drops on purpose with `ignore(type, reason)`, once and with a
-non-blank reason. `routeOf(type)` reports a type as handled, ignored with that
-reason, or unrouted, and a type is never both handled and ignored, so a
-coverage spec can tell a deliberate drop from a missing route.
+so handing it the BPMN channel proves they are on the list. The diff pane,
+which the bootstrap starts instead of the editor, posts through its own
+`DiffPaneChannel`, typed to the closed `DIFF_PANE_COMMAND_TYPES`
+(`libs/shared/src/lib/diffPaneCommands.ts`), so it cannot post an editor
+command. Both hosts route a pane's commands through the core's
+`createDiffPaneRouter`, a `CommandTable` whose handlers get the pane. The table
+covers that list and `DIFF_PANE_HANDSHAKE_COMMAND_TYPES`, the editor requests
+the page posts before it knows it is a diff pane: it answers the file request
+and ignores the settings and panel-state requests, which a read-only pane does
+not use. A `DiffPaneHostExtensions` entry a host leaves out makes its command
+ignored: both hosts supply the pane log; VS Code also supplies the swap, and
+the bridge does not, because IntelliJ's diff viewer swaps the sides before it
+forwards a message. Each host pins these
+routes in a coverage spec, a `Record` over both lists, and the preview host's
+spec posts every command of the editor and diff-pane lists. The DMN and Form editors
+and the deployment sidebar post their own commands, and a spec fails when a
+protocol command belongs to none of the lists. A host's router still
+dispatches an unrouted type as a no-op, but records a type it drops on purpose
+with `ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
+reports a type as handled, ignored with that reason, or unrouted, and a type is
+never both handled and ignored, so a coverage spec can tell a deliberate drop
+from a missing route.
 
 Commands and Queries are not correlated by default: a request is a Command and
 the answer a later pushed Query. A webview port that answers a query while
@@ -171,8 +184,11 @@ without a bound, since a cold first open can outlast any backstop.
 Enforcement lives in the [core architecture tests](../../libs/modeler-core/src/architecture.spec.ts),
 [VS Code architecture tests](../../apps/vscode-plugin/src/architecture.spec.ts),
 [BPMN package tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
-[DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts), and
-[ESLint boundary rules](../../eslint.config.cjs).
+[DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts),
+the [repo-level tests](../../tools/repo-checks/src/architecture.spec.ts) (no
+import cycles and stable dependencies in every workspace), and
+[ESLint boundary rules](../../eslint.config.cjs). The specs share one
+[engine](engineering-practices.md#architecture-tests).
 
 ### Host integrations
 
@@ -284,20 +300,41 @@ under the same id in the background leaves the target where it is. When the
 target's panel turns inactive, the target moves to the session that has
 reported focus longest without blurring since, if any. A host focuses one
 editor at a time, so focusing a session drops every other session's report,
-and a target the host focused keeps the target when it blurs. Theia creates
-every custom-editor panel with `active = true`, so in the standalone app a
-diagram that resolves behind the focused one takes the target, and hands it
-back when Theia blurs its panel. Theia does not always send that blur. It
-caches each panel's view state, compares new states against that cache, and
-drops an update for a panel that does not exist yet. A background tab restored
-behind the focused one therefore keeps reporting `active` until the user
+and a target the host focused keeps the target when it blurs. The VS Code
+handle counts a panel as active only while it is also visible
+(`panel.active && panel.visible`), for `isActive()` and for the state its
+view-state events report. Running the app with Theia 1.76 showed Theia
+restoring a hidden tab as its active widget and reporting that panel active
+after a restart. That run logged only `active`. Theia's source takes
+`visible` from the widget (`!widget.isHidden`), so the same report should
+mark the panel hidden; no restart run has confirmed that yet. The handle
+reports such a panel as a blur: the hidden tab neither takes the target nor
+counts as focused, and a target on it goes to the session that has reported
+focus longest, if any. VS Code reports an
+active panel as visible, so nothing changes there. Theia creates every
+custom-editor panel active and visible, so in the standalone app a diagram
+that resolves behind the focused one takes the target, and hands it back when
+Theia blurs its panel. Theia does not always send that blur. It caches each
+panel's view state, compares new states against that cache, and drops an
+update for a panel that does not exist yet. A background tab restored behind
+the focused one therefore keeps reporting active and visible until the user
 activates and leaves it, and `isFocused` and `getFocusedEditorId` report it
 focused. Such a panel can take the target through a blur hand-off only until
-the host focuses a session. Running the app with Theia 1.76 showed that stale
-tab after a restart. It also showed Theia restoring a hidden tab as its active
-widget and reporting that panel active, and the target follows that report
-like any other activation. So after a restart, commands can still act on a
-diagram the user does not see ([#1911](https://github.com/Miragon/bpmn-modeler/issues/1911)).
+the host focuses a session. When Theia sends no view-state update for the
+restored diagrams at all, the diagram registered last keeps the target, so
+after a restart commands can still act on a hidden tab until the user
+focuses a diagram. The visibility check cannot catch that case, because the
+panel never learns that it is hidden. The hand-off also depends on the order
+of Theia's reports, which, by Theia's source, covers every changed panel in
+one pass in the order Theia created them. When the visible diagram reports
+inactive before the hidden tab reports, the visible one blurs first, the
+hidden tab's blur finds no session that reports focus, and the hidden tab
+keeps the target. `VsCodeEditorHandle.spec.ts` pins that case as an expected
+failure. The tab model does not close them: VS Code before 1.135 can leave a
+background tab marked active in `window.tabGroups`, and Theia's tab model can
+still be empty when restored panels register. Both cases stay open in #1972;
+the cause is Theia's view-state cache starting hidden while its panels start
+active and visible.
 In VS Code only one panel is active at a time, so the target ends on the panel
 VS Code activated whichever view-state event comes first, and the bridge blurs
 only sessions that no longer hold the target. A
@@ -305,10 +342,11 @@ closed target goes back to the open editor that held it before, and to the
 newest remaining editor only when none did, until the host reports the next
 focused one. The bridge treats `session/register` as the focused tab, so
 it marks the handle active before registering it, and it derives `isActive()`
-from the target. On IntelliJ the two agree with each other but not always
-with the selected tab: after a bridge respawn the host re-registers every
-session without replaying `session/setActive`, so the session registered last
-counts as focused. Theia sets a webview's `active` from
+from the target. After a bridge respawn the IntelliJ host re-registers every
+session, then sends `session/setActive` for the first selected tab that is a
+diagram, the focused window's first, so the session registered last does not
+keep the target. With no diagram tab selected, it does.
+Theia sets a webview's `active` from
 `shell.activeWidget`, so in the standalone app focusing a sidebar view such as
 the deployment sidebar blurs the editor, and the shared items hide while the
 sidebar has focus. VS Code keeps the panel active.
@@ -337,36 +375,59 @@ only the `dot` icon; the other icons are IntelliJ's own. The protocol snapshot h
 only top-level keys, so `HostUiRouterTest` pins the view fields and
 `StatusSlotPlacementTest` reads `statusView.ts` and fails when a slot, icon,
 tone or action has no Kotlin counterpart; at runtime the router logs and drops
-what it does not know. All four slots show the core's views, so the
-widget-shaped `LegacyStatusBarPort` and `DeploymentStatusBarPort` have no
-caller left. Their adapter methods, their `statusBar/*` RPCs and the Kotlin
-handlers that build a view from them with IntelliJ's old labels remain until
-they are removed together
-([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)).
+what it does not know. `statusBar/update` is the only status RPC, so a new
+status needs a slot, its view function and one placement per host, and no new
+port method, RPC or Kotlin handler. No host builds status text of its own.
 
-Prompts follow the same split. `PickerPort`'s `choose`, `chooseMany`, `confirm`
-and `searchAndChoose` take a prompt the core builds in full, typed in
-`kernel/domain/prompts.ts`: an id, a title, a placeholder and items with a
-label, a description or a file path, an icon from a closed union, and the value
-a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
+Prompts follow the same split. `PickerPort` has four methods, `choose`,
+`chooseMany`, `confirm` and `searchAndChoose`, and each takes a prompt the core
+builds in full, typed in `kernel/domain/prompts.ts`: an id, a title, a
+placeholder and items with a label, a description or a file path, an icon from
+a closed union, and the value a pick returns. A dismissal is an answer (`undefined`, `[]` or `false`), so the
 caller decides whether it cancels. `confirmation()` in
 `kernel/domain/affectedItems.ts` summarises a confirmation's details, and both
-hosts show every line. VS Code shows a path relative to the workspace,
-filters on descriptions too, draws an icon as its codicon and reveals the busy
-list of a search after 150 ms. The bridge sends a choice over the existing
-`picker/show` request with the path as its description and no icon, maps the
-chosen indices back to values, and brackets a search with status-bar progress,
-so neither the protocol nor Kotlin changes. The test kit's `ScriptedPicker`
-answers a prompt by its id and fails a test whose answer the prompt does not
-offer, so the prompts of one run carry distinct ids: each engine's version prompt
-has its own. Until each feature's prompts move to the core
-([#1828](https://github.com/Miragon/bpmn-modeler/issues/1828)), the
-feature-shaped prompts remain: the other `PickerPort` methods and
-`DeploymentPickerPort`, whose text the adapters build. The new-model engine,
-engine-version, migration-scope, script-language and cleanup prompts already
-come from the core, so `pickNewModelEngine`, `pickEngineVersion`,
-`pickScriptLanguage` and `MigrationPickerPort` have no caller left; they are
-removed together with the other feature-shaped methods.
+hosts show every line. The core also orders a file list by the path VS Code
+shows for it (`fileChoicesInWorkspaceOrder` in `kernel/domain/fileChoices.ts`,
+over `relativeToWorkspace`), and both hosts keep the order a prompt gives, so
+they list the files alike. Only the payload files stay nearest first, as their
+lookup finds them. VS Code
+shows a path relative to the workspace, filters on descriptions too, draws an
+icon as its codicon and reveals the busy list of a search after 150 ms. The
+bridge sends a choice over the existing `picker/show` request with the path as
+its description and no icon, maps the chosen indices back to values, and
+brackets a search with status-bar progress, so neither the protocol nor Kotlin
+changes. The test kit's `ScriptedPicker` answers a prompt by its id and fails
+a test whose answer the prompt does not offer, so the prompts of one run carry
+distinct ids: each engine's version prompt has its own. The new-model engine,
+engine-version, migration-scope, script-language and cleanup prompts, the choice
+among located files and every deployment prompt
+(`deployment/domain/deploymentPrompts.ts`: the payload file, the active target,
+the status-bar menu, the files to deploy, the additional files, and the
+confirmations to delete a target and to approve a credential host) come from
+the core. The deployment services search the workspace through
+`WorkspacePort.findFiles` themselves and offer the found files through
+`chooseMany`.
+
+One prompt stays outside `PickerPort`: the template marketplace asks for a
+personal access token in a masked input, which a chooser cannot show. Its port
+follows the same split. `TokenPromptPort.promptForToken` takes a `TokenPrompt`
+that `tokenPromptFor` (`template-marketplace/domain/tokenPrompt.ts`) builds in
+full from the host and why the session asks: a refused request, worded by
+`AccessDenial`, or a source the marketplace declares private. The view holds
+the title `Personal Access Token for <host>`, the prompt text,
+`password: true`, and the host. The session stores the answer under that host
+and the test kit's `ScriptedTokenPrompt` answers by it; no host shows it. No
+service writes any of this text. VS Code renders the view in an input box that
+stays open while the user leaves to create the token. The bridge sends the
+title and the prompt over `tokenPrompt/show`, and IntelliJ shows them in its
+password dialog. Both hosts return the answer as typed, and
+the core (`enteredToken`) takes a blank answer for no token, so a blank token
+is never stored and no host trims.
+
+No adapter builds prompt text. A new choice or confirmation needs a builder and
+an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
+as the masked one, needs its own port method, RPC and Kotlin handler, as the
+token prompt has.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
@@ -379,6 +440,14 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
+In the BPMN webview, a value that still waits in the properties panel's
+600 ms input debounce counts as such an edit. The panel's `debounceInput`
+service comes from `libs/properties-panel` and tracks its waiting calls; the
+flush applies them before it exports, so the persisted file holds the value
+the panel shows. A mode switch that rebuilds the surface applies them before
+it exports the diagram for the next surface, and the webview's `beforeDestroy`
+posts the sync they scheduled, so both the next surface and the document get
+the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents
@@ -399,10 +468,11 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a properties-panel
-value the panel has not passed to the modeler yet is not flushed on either
-host; and a save of one Document (`saveDocument`), which neither Ctrl+S nor
-autosave makes, does not flush.
+write has not reached the EDT yet, lands after the save; a DMN or Form
+properties-panel value the panel has not passed to the editor yet (dmn-js
+debounces it for 600 ms, form-js for 300 ms) is not flushed; and a save of one
+Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
+flush.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and
@@ -484,11 +554,18 @@ Update its committed snapshot when the private wire contract changes; the
 [contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
-reads that snapshot and registers the production `BridgeRouters`: each
-core→host method needs exactly one Kotlin handler, and a handler for a method
-the core no longer sends fails it. It compares method names, not parameter
-keys. The snapshot is an input of the Gradle test task and of the IntelliJ CI
-path filter, so a TypeScript-only protocol change runs the test.
+reads that snapshot and registers the production `BridgeRouters`: each core→host
+method needs exactly one Kotlin handler, and a handler for a method the core no
+longer sends fails it. It also compares parameter and result keys. Each
+host→core sender runs once, and its frame must carry the keys the snapshot lists.
+Each core→host handler reads its params before it acts, through `RpcParams`, so
+the test lets every handler read without acting and fails on a key the snapshot
+does not list. The registry seals the params once that read returns, so a handler
+that reads in its action fails at once instead of hiding the key. A reply can only
+carry an `RpcResult` class, whose property names are its keys; the test replies
+once with each request's result class and compares its keys with the snapshot's.
+The snapshot is an input of the Gradle test task and of the IntelliJ CI path
+filter, so a TypeScript-only protocol change runs the test.
 
 ### Process lifecycle
 
@@ -499,12 +576,12 @@ creation also remains off the UI thread when an editor needs it directly.
 
 On exit, the supervisor retries with backoff and limits repeated rapid crashes;
 a stable run resets that budget. Recovery re-registers live sessions from the
-authoritative IntelliJ Documents, replays render requests, and re-seeds
-deployment state. A tab that closes while recovery builds its register frame
+authoritative IntelliJ Documents, replays render requests, focuses the
+selected diagram tab again, and re-seeds deployment state. A tab that closes while recovery builds its register frame
 gets a second `session/dispose` after that frame, so the new bridge keeps no
-session for it. Accepted gap: if the same file registers again inside that
-window, the new bridge can end with no session for the new tab until it
-reopens or the next recovery runs. Stdin EOF terminates the bridge; project
+session for it. If the same file registers again inside that window, recovery
+then sends the new tab's `session/register` again, so the last frame for the
+editor id belongs to the open tab. Stdin EOF terminates the bridge; project
 disposal and shutdown cleanup prevent orphan processes.
 
 The replayed render re-imports the Document, and a sync the restart window
@@ -540,11 +617,23 @@ The host answers every core request exactly once: with its result, or with an
 error when its handler throws, also when the handler runs on the EDT
 (`RpcChannel.replyFromEdt`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
-The bridge's `Rpc.request` has no deadline. Prompts wait on the user, a document
-write waits behind any open modal dialog, and a write that landed after a
-timeout would leave the document mirror stale, because only its reply updates
-the mirror. An unanswered request would therefore hold the core's per-editor
-queue until the editor reopens.
+How long the bridge's `Rpc.request` waits is data on each request in the
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts)
+(`replyWait`). Host work, such as a save, a clipboard read or a secret, fails
+after two minutes, so a reply the host never sends cannot hold the caller's
+per-editor queue; the caller's own error handling runs. The limit is generous
+because host work can queue behind a modal dialog or a keychain prompt. Prompts
+wait for the user. A write the core keeps its own state in step with has no
+deadline either, because giving up on a write the host still applies would
+leave that state out of step with the host: `document/write` and
+`deploymentState/save` update a bridge mirror only on their reply, and a failed
+`marketplaceState/save` drops the templates its add just fetched. Such a
+request holds its caller until the host answers. `document/write` runs on the
+EDT, so a modal dialog delays it; the host answers the other two on its reader
+thread, so only an earlier request that blocks that thread, such as a keychain
+prompt, delays them. `Rpc` fails every outstanding and later request once its
+input ends; the stdio binding signals the end of stdin and then exits the
+process.
 
 Notifications and status indicators are native host UI backed by RPC ports.
 The core writes the text of every notification, including the error balloon
@@ -563,7 +652,7 @@ keeps explicit local mirrors with these ownership rules:
 | --- | --- | --- |
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
-| Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Bridge snapshot during the process lifetime; host persists the patches for the next seed |
+| Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -592,6 +681,17 @@ shows the values without the bridge.
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
 the Kotlin test also compares its defaults with the manifest's.
 
+The lint choice is a snapshot setting like the others, but the IntelliJ
+Settings page has no field for it: the editor's lint toggle and the BPMNlint
+widget drive it. The bridge never changes its copy. It reports a changed
+choice to the host over `settings/setLintingEnabled`; the host stores it per
+user in `PropertiesComponent` (application level) and pushes the snapshot to
+every running bridge before it acks. The choice therefore holds across bridge
+respawns, IDE restarts and open projects, as VS Code's User setting does. The
+core compares the page's choice with the stored one on every host: an equal
+choice is not stored, and the core pushes the lint state to the page again
+instead, so a page out of step catches up.
+
 The deployment state is one `DeploymentState` snapshot in the core's
 [`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):
 the ad-hoc connection, the active target and the freshness ledger.
@@ -605,17 +705,22 @@ store only what a patch names: VS Code writes the patched workspace-state
 keys, and IntelliJ seeds the bridge with the keys it has stored, without
 defaults, and applies each patch in the one `deploymentState/save` handler.
 
-The bridge applies a patch to its snapshot and awaits the acknowledged host
-persistence. Failures reject, as they do on VS Code, but are not rolled back:
-rolling back would show stale values mid-session, and the next seed reconciles
-with the persisted host state. Whether a failed write fails the operation is
-the core's decision, not the adapter's: an engine-accepted deploy stays
-deployed (see [deployment](deployment.md#saved-target-execution)).
+The bridge sends a patch as an acknowledged host request and applies it to
+its snapshot only once the host accepted it, onto the snapshot as it is then,
+so an overlapping save is kept. A rejected write rejects, as it does on
+VS Code, and leaves the snapshot as it was: a read never shows a value the
+host did not store, so the freshness indicator does not show a revision the
+host never recorded. The cost is that `load()` returns the previous state
+until the save resolves, so a core caller awaits a save before it reads what
+the save wrote; `DeploymentStatePort.save` states this for every host. Whether
+a failed write fails the operation is the core's decision, not the adapter's:
+an engine-accepted deploy stays deployed (see
+[deployment](deployment.md#saved-target-execution)).
 
 A new synchronous port must specify its seed, respawn replay, writer, update
 direction and any echo handling. Keep these explicit rather than forcing a
 generic mirror abstraction across keyed documents, event-producing settings,
-and optimistic deployment state.
+and patched deployment state.
 
 ### Document causation and session identity
 
@@ -710,6 +815,11 @@ a cached result must equal an uncached run.
   aliases and Vitest targets for code no consumer imports apart from the core,
   so they stay folders whose import direction the core architecture test
   enforces.
+- One port method per status item or prompt let each host build the text. The
+  copies drifted (labels, plurals, summaries, tooltips), and every new item
+  touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
+  the hosts per-item freedom: a host renders only what the shared shape
+  carries, so a widget-specific touch needs a field in that shape first.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

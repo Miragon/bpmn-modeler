@@ -58,9 +58,7 @@ export function buildSharedDeps(
     const nodeWorkspace = new NodeWorkspace();
     const settings = new BridgeSettings();
 
-    // The picker reuses NodeWorkspace for its one filesystem-backed prompt
-    // (pickWorkspaceFiles); every other prompt receives its candidates inline.
-    const picker = new RpcPicker(rpc, nodeWorkspace);
+    const picker = new RpcPicker(rpc);
 
     // onOpenCountChanged is the VS Code setContext hook; irrelevant out-of-process.
     const store = new EditorSessionStore(() => {});

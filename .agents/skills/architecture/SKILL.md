@@ -41,21 +41,28 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
   DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
 - Add host-independent logic to the core's feature-oriented domain/service
   layers. Reach host facilities through ports and editor handles. Cross-cutting
-  host ports live in the core's `kernel/domain/hostPorts.ts`; a port or prompt
-  one feature owns lives in that feature's `domain/ports.ts`. Wire concrete
-  adapters in the applications using constructor composition.
+  host ports live in the core's `kernel/domain/hostPorts.ts`; a port one
+  feature owns lives in that feature's `domain/ports.ts`, and the prompts it
+  asks are built in its `domain/`, the marketplace's masked token prompt
+  (`tokenPrompt.ts`) included. A host only renders a prompt and returns the
+  answer; the core reads it, and takes a blank token for no token. Wire
+  concrete adapters in the applications using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.
 
 Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
-and `apps/vscode-plugin/src`, plus root `eslint.config.cjs`. Package gates protect
-import direction and theme isolation. Core checks reject VS Code and transitive
-host-module imports (the core is still not browser-safe), and enforce layer
-direction, feature isolation through `kernel/` (which imports nothing outside
-itself) and `editorSession/` (which imports only `kernel/`) and no cycles
+`apps/vscode-plugin/src` and `tools/repo-checks/src`, plus root
+`eslint.config.cjs`. All specs read sources through the shared engine
+`@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
+protect import direction and theme isolation. Core checks reject VS Code and
+transitive host-module imports (the core is still not browser-safe), and
+enforce layer direction and feature isolation through `kernel/` (which imports
+nothing outside itself) and `editorSession/` (which imports only `kernel/`)
 against known exceptions that may only shrink. VS Code checks cover host
-isolation, cycles, and selected feature-barrel boundaries.
+isolation, port adapters, and selected feature-barrel boundaries. The
+repo-level spec bans import cycles in and between every workspace and a
+dependency on a less stable workspace.
 
 ## Trace host and session behavior
 

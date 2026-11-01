@@ -1,8 +1,8 @@
 import { ConfigurationChangeEvent, ConfigurationTarget, Disposable, workspace } from "vscode";
 
 import {
-    parseLintingEnabled,
     parseOpenTemplatePreview,
+    parseSetting,
     SettingChange,
     SettingKey,
 } from "@miragon/bpmn-modeler-core";
@@ -26,7 +26,7 @@ export function onDidChangeModelerSetting(listener: (change: SettingChange) => v
 }
 
 export function lintingEnabled(): boolean {
-    return parseLintingEnabled(modelerConfiguration().get("linting.enabled"));
+    return parseSetting("lintingEnabled", modelerConfiguration().get("linting.enabled"));
 }
 
 export function openTemplatePreviewAutomatically(): boolean {

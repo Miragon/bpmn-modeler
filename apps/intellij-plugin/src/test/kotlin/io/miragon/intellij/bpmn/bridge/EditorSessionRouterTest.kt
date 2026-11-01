@@ -79,8 +79,11 @@ class EditorSessionRouterTest {
         val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
         val wired = wireChannel()
         val scheduler = DeterministicScheduler()
+        val selectedEditorIds = CopyOnWriteArrayList<String>()
         val router =
-            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler, readDocumentText)
+            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler, readDocumentText) {
+                selectedEditorIds.toList()
+            }
         router.register()
 
         val posted = mutableListOf<String>()
@@ -93,7 +96,7 @@ class EditorSessionRouterTest {
             "registerSession seeds the core before any document traffic",
         )
         val sessionId = register.getAsJsonObject("params").get("sessionId").asLong
-        return Fixture(router, session, sessionId, bpmn, wired, scheduler, posted).also {
+        return Fixture(router, session, sessionId, bpmn, wired, scheduler, posted, selectedEditorIds).also {
             fixture = it
         }
     }
@@ -106,6 +109,8 @@ class EditorSessionRouterTest {
         val wired: WiredBridge,
         val scheduler: DeterministicScheduler,
         val posted: MutableList<String>,
+        /** The tabs selected in the editor windows, the focused window's first. */
+        val selectedEditorIds: MutableList<String>,
     )
 
     /**
@@ -520,6 +525,37 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a respawn replay tells the new bridge which editor is selected`() {
+        val f = setUpRouter(INITIAL_XML)
+        val selected = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        f.openPageShowing(INITIAL_XML, createSecondBpmnFile(), editedSinceRender = false)
+        f.selectedEditorIds.add(selected.session.editorId)
+
+        f.router.reregisterLiveSessions()
+
+        assertEquals(
+            listOf(selected.session.editorId to selected.sessionId),
+            f.wired.fake.framesUntilQuiet().map(::parse).focusFramesAfterLastRegister(),
+            "the bridge takes every register for the focused tab, so the last one replayed would keep the target",
+        )
+    }
+
+    @Test
+    fun `a respawn replay focuses the diagram another split shows when the focused tab is no diagram`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        val shownInOtherSplit = f.openPageShowing(INITIAL_XML, createSecondBpmnFile(), editedSinceRender = false)
+        f.selectedEditorIds.addAll(listOf(TEXT_TAB_EDITOR_ID, shownInOtherSplit.session.editorId))
+
+        f.router.reregisterLiveSessions()
+
+        assertEquals(
+            listOf(shownInOtherSplit.session.editorId to shownInOtherSplit.sessionId),
+            f.wired.fake.framesUntilQuiet().map(::parse).focusFramesAfterLastRegister(),
+        )
+    }
+
+    @Test
     fun `re-registering keeps a page edit that never reached the Document`() {
         val f = setUpRouter(INITIAL_XML)
         // The sync of this edit was dropped in the restart window: the page shows
@@ -919,6 +955,60 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a file reopened while its re-register frame is built ends up registered in the bridge`() {
+        var whileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                whileRegisterFrameIsBuilt?.also { whileRegisterFrameIsBuilt = null }?.invoke()
+                readDocumentTextInReadAction(file)
+            }
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        whileRegisterFrameIsBuilt = {
+            f.router.disposeSession(page.session)
+            f.router.registerSession(CoreSession(page.session.editorId, page.session.file, page.session.project) {})
+        }
+
+        f.router.reregisterLiveSessions()
+
+        val sessionFrames = f.wired.fake.framesUntilQuiet().map(::parse).sessionFramesFor(page.session.editorId)
+        val reopenedSessionId =
+            sessionFrames.first { (method, sessionId) -> method == "session/register" && sessionId != page.sessionId }.second
+        assertEquals(
+            "session/register" to reopenedSessionId,
+            sessionFrames.lastOrNull(),
+            "the bridge keeps the last register for an id and drops a session on its own dispose: $sessionFrames",
+        )
+    }
+
+    @Test
+    fun `a reopened file closed again while recovery registers it ends up disposed in the bridge`() {
+        var whileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                whileRegisterFrameIsBuilt?.also { whileRegisterFrameIsBuilt = null }?.invoke()
+                readDocumentTextInReadAction(file)
+            }
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false)
+        whileRegisterFrameIsBuilt = {
+            f.router.disposeSession(page.session)
+            val reopened = CoreSession(page.session.editorId, page.session.file, page.session.project) {}
+            f.router.registerSession(reopened)
+            whileRegisterFrameIsBuilt = { f.router.disposeSession(reopened) }
+        }
+
+        f.router.reregisterLiveSessions()
+
+        val sessionFrames = f.wired.fake.framesUntilQuiet().map(::parse).sessionFramesFor(page.session.editorId)
+        val reopenedSessionId =
+            sessionFrames.first { (method, sessionId) -> method == "session/register" && sessionId != page.sessionId }.second
+        assertEquals(
+            "session/dispose" to reopenedSessionId,
+            sessionFrames.lastOrNull(),
+            "the new bridge must not keep a session for a closed tab: $sessionFrames",
+        )
+    }
+
+    @Test
     fun `a page closed before its replayed render gets no release`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -1081,6 +1171,22 @@ class EditorSessionRouterTest {
         }
         return frames
     }
+
+    /** The editor and session each `session/setActive` names that follows the last `session/register`. */
+    private fun List<JsonObject>.focusFramesAfterLastRegister(): List<Pair<String, Long>> =
+        drop(indexOfLast { it.get("method").asString == "session/register" } + 1)
+            .filter { it.get("method").asString == "session/setActive" }
+            .map { frame ->
+                val params = frame.getAsJsonObject("params")
+                params.get("editorId").asString to params.get("sessionId").asLong
+            }
+
+    /** The method and session id of each `session/register` and `session/dispose` for [editorId], in order. */
+    private fun List<JsonObject>.sessionFramesFor(editorId: String): List<Pair<String, Long>> =
+        filter { frame ->
+            frame.get("method").asString in SESSION_LIFECYCLE_METHODS &&
+                frame.getAsJsonObject("params").get("editorId").asString == editorId
+        }.map { frame -> frame.get("method").asString to frame.getAsJsonObject("params").get("sessionId").asLong }
 
     /** The register and replay frames each session got, in the order it got them. */
     private fun List<JsonObject>.bySession(): Map<Long, List<String>> =
@@ -1307,5 +1413,9 @@ class EditorSessionRouterTest {
         const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
 
         val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
+
+        val SESSION_LIFECYCLE_METHODS = setOf("session/register", "session/dispose")
+
+        const val TEXT_TAB_EDITOR_ID = "file:///notes.txt"
     }
 }

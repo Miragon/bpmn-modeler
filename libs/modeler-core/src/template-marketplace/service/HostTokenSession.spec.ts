@@ -97,6 +97,14 @@ function scriptedFetch(...outcomes: (Error | "served")[]) {
     };
 }
 
+/** The masked input the session asks the host to show for `host`, its text matched by `prompt`. */
+const expectedPromptFor = (host: string, prompt: RegExp) => ({
+    host,
+    title: `Personal Access Token for ${host}`,
+    prompt: expect.stringMatching(prompt),
+    password: true,
+});
+
 /** `rejects.toThrow(regex)` also passes for an `undefined` rejection, so match the error itself. */
 const errorWithMessage = (pattern: RegExp) =>
     expect.objectContaining({ message: expect.stringMatching(pattern) });
@@ -212,9 +220,7 @@ describe("HostTokenSession.run", () => {
         await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).resolves.toBe("served");
 
         expect(privateRepo.attempts).toEqual([undefined, "granted"]);
-        expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/may be private/) },
-        ]);
+        expect(tokenPrompt.prompts).toEqual([expectedPromptFor("github.com", /may be private/)]);
         expect(tokens.tokens.get("github.com")).toBe("granted");
         expect(notifier.logs.some((entry) => entry.message.includes("granted"))).toBe(false);
     });
@@ -227,6 +233,36 @@ describe("HostTokenSession.run", () => {
         );
         expect(tokenPrompt.prompts).toHaveLength(1);
         expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
+    });
+
+    it.each([
+        { answered: "an empty answer", answer: "" },
+        { answered: "a blank answer", answer: " \t " },
+    ])(
+        "takes $answered from the host for no token: stores and sends nothing",
+        async ({ answer }) => {
+            const { session, tokens, notifier } = sessionOver({
+                tokenAnswers: { "github.com": answer },
+            });
+            const privateRepo = fakeFetch(nobody);
+
+            await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).rejects.toThrow(
+                errorWithMessage(/requires a personal access token/),
+            );
+            expect(privateRepo.attempts).toEqual([undefined]);
+            expect(tokens.tokens).toEqual(new Map());
+            expect(notifier.logged("debug")).toContain("Token prompt for github.com declined");
+        },
+    );
+
+    it("stores and sends a token without the whitespace the host's answer carried", async () => {
+        const { session, tokens } = sessionOver({ tokenAnswers: { "github.com": "  granted\n" } });
+        const privateRepo = fakeFetch(only("granted"));
+
+        await expect(session.run(GITHUB_MARKETPLACE, privateRepo.task)).resolves.toBe("served");
+
+        expect(privateRepo.attempts).toEqual([undefined, "granted"]);
+        expect(tokens.tokens.get("github.com")).toBe("granted");
     });
 
     it.each<{
@@ -301,10 +337,7 @@ describe("HostTokenSession.run", () => {
 
         await session.run(GITHUB_MARKETPLACE, fakeFetch(only("new")).task);
 
-        expect(tokenPrompt.prompts).toContainEqual({
-            host: "github.com",
-            reason: expect.stringMatching(/was rejected/),
-        });
+        expect(tokenPrompt.prompts).toContainEqual(expectedPromptFor("github.com", /was rejected/));
         expect(tokens.tokens.get("github.com")).toBe("new");
     });
 
@@ -339,9 +372,7 @@ describe("HostTokenSession.run", () => {
         await expect(session.run(GITHUB_SOURCE_ONE, otherPrivateRepo.task)).resolves.toBe("served");
 
         expect(otherPrivateRepo.attempts).toEqual(["stored-tok", undefined, "new"]);
-        expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/was rejected/) },
-        ]);
+        expect(tokenPrompt.prompts).toEqual([expectedPromptFor("github.com", /was rejected/)]);
         expect(tokens.reads).toEqual(["github.com"]);
     });
 
@@ -376,7 +407,7 @@ describe("HostTokenSession.run", () => {
             ),
         ).rejects.toThrow(errorWithMessage(/can't access acme\/templates \(HTTP 401\)/));
         expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/was rejected \(HTTP 401\)/) },
+            expectedPromptFor("github.com", /was rejected \(HTTP 401\)/),
         ]);
     });
 
@@ -524,10 +555,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await session.ensureTokensForPrivateHosts(["github.com"]);
 
         expect(tokenPrompt.prompts).toEqual([
-            {
-                host: "github.com",
-                reason: expect.stringMatching(/hosts a private template source/),
-            },
+            expectedPromptFor("github.com", /hosts a private template source/),
         ]);
     });
 
@@ -556,9 +584,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await expect(session.run(GITHUB_SOURCE_ONE, privateRepo.task)).resolves.toBe("served");
 
         expect(privateRepo.attempts).toEqual(["stale", undefined, "new"]);
-        expect(tokenPrompt.prompts).toEqual([
-            { host: "github.com", reason: expect.stringMatching(/was rejected/) },
-        ]);
+        expect(tokenPrompt.prompts).toEqual([expectedPromptFor("github.com", /was rejected/)]);
     });
 
     it("keys a self-hosted gitlab host's token so its baseUrl config carries it", async () => {
@@ -571,7 +597,7 @@ describe("HostTokenSession.ensureTokensForPrivateHosts", () => {
         await session.run(SELF_HOSTED_GITLAB_PROJECT, privateProject.task);
 
         expect(tokenPrompt.prompts).toEqual([
-            { host: "gitlab.acme.com", reason: expect.any(String) },
+            expectedPromptFor("gitlab.acme.com", /hosts a private template source/),
         ]);
         expect(privateProject.attempts).toEqual(["granted"]);
     });

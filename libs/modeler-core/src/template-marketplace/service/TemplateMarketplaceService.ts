@@ -21,6 +21,7 @@ import {
     describeSourceConfig,
     manifestConfig,
     sourceConfig,
+    sourceIdentity,
 } from "../domain/sourceConfig";
 import { includedFiles } from "../domain/sourceInclude";
 import {
@@ -222,6 +223,9 @@ export class TemplateMarketplaceService {
         const outcomes: SourceFetchOutcome[] = [];
         const sourceFailures: SourceFailure[] = [];
         for (let index = 0; index < sources.length; index++) {
+            const identity = sourceIdentity(
+                sourceConfig(sources[index], registration.location, this.homeDir),
+            );
             try {
                 const files = await this.fetchSourceFiles(
                     registration,
@@ -229,15 +233,20 @@ export class TemplateMarketplaceService {
                     index,
                     tokenSession,
                 );
-                outcomes.push({ kind: "fetched", sourceIndex: index, files });
+                outcomes.push({
+                    kind: "fetched",
+                    sourceIndex: index,
+                    sourceIdentity: identity,
+                    files,
+                });
             } catch (error) {
                 this.warnSkippedSource(registration, error);
-                outcomes.push({ kind: "failed", sourceIndex: index });
+                outcomes.push({ kind: "failed", sourceIndex: index, sourceIdentity: identity });
                 sourceFailures.push(this.sourceFailure(registration, sources[index], error));
             }
         }
         const actions = planSourceCacheRefresh(
-            await this.cache.sourceIndexes(registration.id),
+            await this.cache.cachedSlots(registration.id),
             outcomes,
         );
         let cached = 0;
@@ -247,7 +256,9 @@ export class TemplateMarketplaceService {
             } catch (error) {
                 this.warnSkippedSource(registration, error);
                 // A rejected replace keeps the source's last-good files, so it
-                // brought nothing in; a failed removal concerns no listed source.
+                // brought nothing in. A failed removal is only logged: a replace
+                // after it still claims the slot, and without one the removed
+                // files stay served until the next update.
                 if (action.kind === "replace") {
                     sourceFailures.push(
                         this.sourceFailure(registration, sources[action.sourceIndex], error),
@@ -271,14 +282,23 @@ export class TemplateMarketplaceService {
         const slot = `${registration.id}/${action.sourceIndex}`;
         switch (action.kind) {
             case "replace":
-                await this.cache.replaceSource(registration.id, action.sourceIndex, action.files);
+                await this.cache.replaceSource(
+                    registration.id,
+                    action.sourceIndex,
+                    action.sourceIdentity,
+                    action.files,
+                );
                 for (const { repoPath, contentType } of action.files) {
                     this.notifier.logDebug(`Cached template: ${repoPath} → ${slot}/${contentType}`);
                 }
                 return action.files.length;
             case "remove":
                 await this.cache.removeSource(registration.id, action.sourceIndex);
-                this.notifier.logDebug(`Removed cached source no longer listed: ${slot}`);
+                this.notifier.logDebug(
+                    action.reason === "unlisted"
+                        ? `Removed cached source no longer listed: ${slot}`
+                        : `Removed cached files of another source: ${slot}`,
+                );
                 return 0;
             case "keep":
                 return 0;

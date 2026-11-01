@@ -13,21 +13,25 @@
  *  - request:      `{ "method": m, "params": p, "id": n }`   (reply expected)
  *  - response:     `{ "id": n, "result": r }` | `{ "id": n, "error": s }`
  *
- * Both peers are symmetric: either side may send notifications/requests. This
- * core issues requests only for the document port (write/save) and receives
- * notifications (session/webview lifecycle); the class supports the full matrix
- * so the same code serves the host side conceptually too.
+ * Either side may send notifications and requests. How long a request waits
+ * for its reply is the protocol descriptor's `replyWait` for its method, so this
+ * peer is bound to the bridge protocol.
  */
+
+import { replyDeadlineMs } from "./protocol/descriptor";
 
 export type RpcHandler = (params: any) => unknown | Promise<unknown>;
 
 interface Pending {
+    method: string;
     resolve: (value: unknown) => void;
     reject: (reason: Error) => void;
+    deadline?: ReturnType<typeof setTimeout>;
 }
 
 export class Rpc {
     private nextId = 1;
+    private inputEnded = false;
     private readonly pending = new Map<number, Pending>();
     private readonly handlers = new Map<string, RpcHandler>();
     private readonly inboundCalls = new Map<string, Promise<void>>();
@@ -45,11 +49,27 @@ export class Rpc {
         this.write(JSON.stringify({ method, params }));
     }
 
-    /** Request/response call; resolves with the peer's `result`. */
+    /**
+     * Request/response call; resolves with the peer's `result`. Rejects on an
+     * error reply, once the method's reply deadline passes, or when the input
+     * has ended, so the caller's own error handling runs and its queue moves on.
+     */
     request(method: string, params: unknown): Promise<unknown> {
+        if (this.inputEnded) {
+            return Promise.reject(inputEndedError(method));
+        }
         const id = this.nextId++;
         return new Promise<unknown>((resolve, reject) => {
-            this.pending.set(id, { resolve, reject });
+            const pending: Pending = { method, resolve, reject };
+            const deadlineMs = replyDeadlineMs(method);
+            if (deadlineMs !== undefined) {
+                pending.deadline = setTimeout(() => {
+                    this.take(id)?.reject(
+                        new Error(`No reply to ${method} within ${deadlineMs / 1000} s`),
+                    );
+                }, deadlineMs);
+            }
+            this.pending.set(id, pending);
             this.write(JSON.stringify({ method, params, id }));
         });
     }
@@ -91,8 +111,7 @@ export class Rpc {
         }
 
         if (message.id != null) {
-            const pending = this.pending.get(message.id);
-            this.pending.delete(message.id);
+            const pending = this.take(message.id);
             if (!pending) {
                 return;
             }
@@ -102,6 +121,22 @@ export class Rpc {
                 pending.resolve(message.result ?? null);
             }
         }
+    }
+
+    /** The peer can no longer answer: rejects every outstanding request and every later one. */
+    handleEnd(): void {
+        this.inputEnded = true;
+        for (const [id, { method }] of this.pending) {
+            this.take(id)?.reject(inputEndedError(method));
+        }
+    }
+
+    /** Removes an outstanding request, so exactly one of reply, deadline and end settles it. */
+    private take(id: number): Pending | undefined {
+        const pending = this.pending.get(id);
+        this.pending.delete(id);
+        clearTimeout(pending?.deadline);
+        return pending;
     }
 
     private callQueueKey(message: { method?: string; params?: unknown }): string {
@@ -135,4 +170,8 @@ export class Rpc {
             );
         }
     }
+}
+
+function inputEndedError(method: string): Error {
+    return new Error(`No reply to ${method}: the input ended`);
 }

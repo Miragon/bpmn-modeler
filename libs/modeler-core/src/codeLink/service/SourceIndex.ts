@@ -1,7 +1,8 @@
-import { isInsideExcludedDirBelow } from "../../kernel/domain/excludedDirs";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
 import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import { SearchScope, searchScopeKey } from "../../kernel/domain/searchScope";
+import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
+import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import {
     findFilesInScope,
     resolveSearchScope,
@@ -164,16 +165,13 @@ class IndexedSources implements SourceCatalog {
     ) {
         try {
             for (const folder of scope.folders) {
-                const watch = (onEvent: (path: string) => void) => (path: string) => {
-                    if (!isInsideExcludedDirBelow(path, folder)) {
-                        onEvent(path);
-                    }
-                };
+                const watch = (event: WatcherEventKind) => (path: string) =>
+                    this.onWatchedChange(event, path, folder);
                 this.watchers.push(
-                    workspace.createWatcher(folder, "**/*", {
-                        onCreate: watch((path) => this.onCreated(path)),
-                        onChange: watch((path) => this.onChanged(path)),
-                        onDelete: watch((path) => this.onDeleted(path)),
+                    workspace.createWatcher(folder, EVERY_PATH_GLOB, {
+                        onCreate: watch("create"),
+                        onChange: watch("change"),
+                        onDelete: watch("delete"),
                     }),
                 );
             }
@@ -249,33 +247,20 @@ class IndexedSources implements SourceCatalog {
         return { facts, content };
     }
 
-    private onCreated(path: string): void {
-        if (SOURCE_FILES.includes(path)) {
-            this.forgetFacts(path);
-            if (this.listedPaths?.has(path)) {
-                return;
-            }
-        } else {
-            // A folder moved in may not report its files one by one.
+    private onWatchedChange(event: WatcherEventKind, path: string, folder: string): void {
+        const change = watchedChangeOf(event, path, folder, SOURCE_FILES.includes);
+        if (change === "unrelated") {
+            return;
+        }
+        if (change !== "file") {
             this.invalidateFolder(path);
+            this.forgetListing();
+            return;
         }
-        this.forgetListing();
-    }
-
-    private onChanged(path: string): void {
-        if (SOURCE_FILES.includes(path)) {
-            this.forgetFacts(path);
+        this.forgetFacts(path);
+        if (event === "delete" || (event === "create" && !this.listedPaths?.has(path))) {
+            this.forgetListing();
         }
-    }
-
-    private onDeleted(path: string): void {
-        if (SOURCE_FILES.includes(path)) {
-            this.forgetFacts(path);
-        } else {
-            // A deleted folder is reported as one event, without its files.
-            this.invalidateFolder(path);
-        }
-        this.forgetListing();
     }
 
     private forgetListing(listing = this.listing): void {

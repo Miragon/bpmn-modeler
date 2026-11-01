@@ -185,7 +185,7 @@ class CoreProcess(private val project: Project) : Disposable {
     fun changeEngineVersion(editorId: String) =
         routers.modelerCommands.changeEngineVersion(editorId)
 
-    /** Fires `linting/toggle`; the bridge flips the project's lint choice. */
+    /** Fires `linting/toggle`; the bridge flips the user's lint choice. */
     fun toggleLinting() = routers.modelerCommands.toggleLinting()
 
     /** Fires `migration/migrateAll` for the project's workspace root. */

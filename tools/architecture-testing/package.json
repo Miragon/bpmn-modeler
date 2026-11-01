@@ -1,0 +1,20 @@
+{
+    "name": "@miragon/architecture-testing",
+    "types": "./src/index.ts",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "test": "vitest run --coverage",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "typescript": "npm:@typescript/typescript6@6.0.2"
+    },
+    "devDependencies": {
+        "@types/node": "26.6.5",
+        "@typescript/native": "npm:typescript@7.0.2",
+        "@vitest/coverage-v8": "5.0.5",
+        "vite": "8.3.4",
+        "vitest": "5.0.5"
+    }
+}

@@ -1,6 +1,17 @@
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
-import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
-import type { CleanupOutcome, DisposableStore } from "@miragon/bpmn-modeler-types";
+import {
+    type CleanupService,
+    LAYOUT_FORMATTED_EVENT,
+    type LayoutOutcome,
+    type Layouter,
+} from "@miragon/bpmn-modeler-layout";
+import {
+    type CleanupOutcome,
+    type Disposer,
+    type DisposableStore,
+    type MinimalEventBus,
+    subscribe,
+} from "@miragon/bpmn-modeler-types";
 
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
@@ -45,6 +56,37 @@ export function installClipboardSupport(
 
 export function formatSurfaceDiagram(surface: SurfaceServices): Promise<LayoutOutcome> {
     return surface.service<Layouter>("bpmnLayouter").format();
+}
+
+// Block bodies: a listener's return value would stop the event reaching later listeners.
+export function subscribeCommandStackChanged(
+    surface: SurfaceServices,
+    listener: () => void,
+): Disposer {
+    return subscribe(surface.service<MinimalEventBus>("eventBus"), "commandStack.changed", () => {
+        listener();
+    });
+}
+
+export function subscribeFormatted(
+    surface: SurfaceServices,
+    listener: (outcome: LayoutOutcome) => void,
+): Disposer {
+    return subscribe(
+        surface.service<MinimalEventBus>("eventBus"),
+        LAYOUT_FORMATTED_EVENT,
+        (event: LayoutOutcome) => {
+            listener(layoutOutcomeOf(event));
+        },
+    );
+}
+
+// The bus copies the outcome onto its own event object; the consumer gets the outcome alone.
+function layoutOutcomeOf({ status, code, message, diagnostics }: LayoutOutcome): LayoutOutcome {
+    const outcome: LayoutOutcome = { status, diagnostics };
+    if (code !== undefined) outcome.code = code;
+    if (message !== undefined) outcome.message = message;
+    return outcome;
 }
 
 export function cleanupSurfaceDiagram(

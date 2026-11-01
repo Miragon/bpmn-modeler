@@ -53,7 +53,6 @@ import {
 } from "./modeler/form/controller/FormValuesController";
 import {
     BPMN_VIEW_TYPE,
-    DEFAULT_LINTING_ENABLED,
     DEFAULT_MODELER_SETTINGS,
     DEFAULT_OPEN_TEMPLATE_PREVIEW,
     DMN_VIEW_TYPE,
@@ -292,12 +291,12 @@ describe("package.json ↔ code contract", () => {
                 .map(([key, property]) => [settingsValueName(key), property.default]),
         );
 
-        expect({
-            ...DEFAULT_MODELER_SETTINGS,
-            lintingEnabled: DEFAULT_LINTING_ENABLED,
-            elementTemplatePreviewOpenAutomatically: DEFAULT_OPEN_TEMPLATE_PREVIEW,
-        }).toEqual(manifestDefaults);
-        expect(new InMemorySettings().values).toEqual(manifestDefaults);
+        // Only VS Code reads it, so it stays outside the core's snapshot.
+        const { elementTemplatePreviewOpenAutomatically, ...snapshotDefaults } = manifestDefaults;
+
+        expect(elementTemplatePreviewOpenAutomatically).toBe(DEFAULT_OPEN_TEMPLATE_PREVIEW);
+        expect(DEFAULT_MODELER_SETTINGS).toEqual(snapshotDefaults);
+        expect(new InMemorySettings().values).toEqual(snapshotDefaults);
     });
 
     it.each(

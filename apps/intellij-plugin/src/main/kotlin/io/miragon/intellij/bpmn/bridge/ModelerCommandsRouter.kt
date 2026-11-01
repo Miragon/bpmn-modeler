@@ -22,8 +22,8 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
     }
 
     /**
-     * Fires `linting/toggle`, the BPMNlint widget's click. The bridge owns the
-     * project's lint choice and re-lints every open diagram.
+     * Fires `linting/toggle`, the BPMNlint widget's click. The bridge reports the
+     * flipped choice back over `settings/setLintingEnabled`, which [SettingsRouter] stores.
      */
     fun toggleLinting() {
         deps.channel.notify(METHODS_LINTING_TOGGLE, linkedMapOf<String, Any>())

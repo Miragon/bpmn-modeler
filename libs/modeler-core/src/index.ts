@@ -86,6 +86,7 @@ export * from "./modeler/elementTemplate/session/PreviewLanguageParticipant";
 export * from "./diff/domain/DiffSession";
 export * from "./diff/service/BpmnDiffService";
 export * from "./diff/service/DiffPaneStore";
+export * from "./diff/service/diffPaneRouter";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";
@@ -113,7 +114,6 @@ export * from "./codeLink/CodeLinkFeature";
 
 // ── migration ────────────────────────────────────────────────────────────────
 export * from "./migration/domain/MigrationPlan";
-export * from "./migration/domain/ports";
 export * from "./migration/service/BpmnMigrationService";
 
 // ── deployment ───────────────────────────────────────────────────────────────
