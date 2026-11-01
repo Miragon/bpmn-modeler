@@ -20,7 +20,6 @@ import {
 import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { ElementTemplateEditorController } from "../modeler/elementTemplate/controller/ElementTemplateEditorController";
-import { NewElementTemplateController } from "../modeler/elementTemplate/controller/NewElementTemplateController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -71,6 +70,5 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
         ],
     }).register(context);
     new DocumentSaveFlushController(templateStore, pendingEdits).register(context);
-    new ElementTemplateEditorController(deps.notifier).register(context);
-    new NewElementTemplateController(deps.picker, deps.vsSettings, deps.notifier).register(context);
+    new ElementTemplateEditorController(deps.notifier, deps.vsSettings).register(context);
 }

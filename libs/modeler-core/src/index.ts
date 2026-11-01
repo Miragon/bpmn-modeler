@@ -81,6 +81,7 @@ export * from "./modeler/dmn/infrastructure/dmnMessageHandlers";
 export * from "./modeler/form/domain/emptyForm";
 export * from "./modeler/form/service/FormModelerService";
 export * from "./modeler/elementTemplate/domain/newElementTemplate";
+export * from "./modeler/elementTemplate/domain/newTemplateFile";
 export * from "./modeler/elementTemplate/service/ElementTemplateEditorService";
 export * from "./modeler/elementTemplate/session/TemplateEditorLanguageParticipant";
 

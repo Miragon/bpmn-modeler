@@ -45,10 +45,10 @@ import {
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
 import {
+    NEW_ELEMENT_TEMPLATE_CMD,
     OPEN_ELEMENT_TEMPLATE_EDITOR_CMD,
     TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
 } from "./modeler/elementTemplate/controller/ElementTemplateEditorController";
-import { NEW_ELEMENT_TEMPLATE_CMD } from "./modeler/elementTemplate/controller/NewElementTemplateController";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -246,6 +246,15 @@ describe("package.json ↔ code contract", () => {
                 }),
             ]),
         );
+    });
+
+    it("offers every new model in the New File menu", () => {
+        expect(manifest.contributes.menus["file/newFile"].map((entry) => entry.command)).toEqual([
+            NEW_BPMN_MODEL_CMD,
+            NEW_DMN_MODEL_CMD,
+            NEW_FORM_MODEL_CMD,
+            NEW_ELEMENT_TEMPLATE_CMD,
+        ]);
     });
 
     it("associates forms with JSON validation and the visual editor", () => {
