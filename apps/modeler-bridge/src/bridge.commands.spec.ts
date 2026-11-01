@@ -264,6 +264,43 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             expect(await fs.readFile(sourcePath, "utf8")).toBe(BPMN_C7_XML);
         });
 
+        it("shows the migrated content in the open diagram at the host's revision once the host accepts the write", async () => {
+            const { rpc, frames, editorId, workspaceRoot, sourcePath } = await setup();
+            const hostRevision = 3;
+            await rpc.handleLine(
+                hostNotification(
+                    "session/register",
+                    registerParams(editorId, workspaceRoot, sourcePath, BPMN_C7_XML, {
+                        sessionId: 1,
+                        documentRevision: hostRevision,
+                    }),
+                ),
+            );
+
+            const migration = rpc.handleLine(
+                hostNotification("migration/migrateAll", { workspaceRoot }),
+            );
+            const picker = await waitForFrame(frames, isPickerShow);
+            const pickedIndex = otherVersionIndex(picker);
+            const pickedVersion = picker.params.items[pickedIndex].label;
+            await rpc.handleLine(hostReply(picker.id, { selected: [pickedIndex] }));
+            const write = await waitForFrame(frames, (f) => f.method === "document/write");
+            const afterWrite = frames.length;
+            await rpc.handleLine(hostReply(write.id, { changed: true, accepted: true }));
+            await migration;
+            await settle();
+
+            const renders = postedQueries(frames.slice(afterWrite), "BpmnFileQuery");
+            expect(renders).toHaveLength(1);
+            expect(renders[0].params.message).toMatchObject({
+                content: write.params.content,
+                documentRevision: hostRevision,
+            });
+            expect(write.params.content).toContain(
+                `modeler:executionPlatformVersion="${pickedVersion}"`,
+            );
+        });
+
         it("writes and reports nothing when the user dismisses the version picker", async () => {
             const { rpc, frames, workspaceRoot, sourcePath } = await setup();
 
@@ -288,9 +325,11 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             const picker = await waitForFrame(frames, isPickerShow);
             await rpc.handleLine(hostReply(picker.id, { selected: [otherVersionIndex(picker)] }));
             const write = await waitForFrame(frames, (f) => f.method === "document/write");
+            const afterWrite = frames.length;
             await rpc.handleLine(hostReply(write.id, { changed: false, accepted: false }));
             await migration;
 
+            expect(postedQueries(frames.slice(afterWrite), "BpmnFileQuery")).toEqual([]);
             expect(frames).toContainEqual({
                 method: "notifier/log",
                 params: {

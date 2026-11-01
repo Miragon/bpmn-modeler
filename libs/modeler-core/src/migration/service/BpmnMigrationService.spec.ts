@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { engineVersionPrompt } from "../../kernel/domain/engineVersions";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
-import { createTestHost, PromptAnswers, ScriptedPicker } from "../../testing";
+import { createTestHost, PromptAnswers, ScriptedPicker, TestHost } from "../../testing";
 import { migrationScopePrompt } from "../domain/migrationScopePrompt";
-import { BpmnMigrationService } from "./BpmnMigrationService";
+import { BpmnMigrationService, CoreWriteRenderer } from "./BpmnMigrationService";
 
 // ─── Sample BPMN XML ────────────────────────────────────────────────────────
 
@@ -46,20 +46,33 @@ const withUnsavedEdit = (xml: string) =>
 
 // ─── Host ───────────────────────────────────────────────────────────────────
 
+/** Records what each open editor's document held when the migration asked to render it. */
+class RecordingCoreWriteRenderer implements CoreWriteRenderer {
+    readonly rendered: Array<{ editorId: string; content: string }> = [];
+
+    constructor(private readonly documents: TestHost["documents"]) {}
+
+    async renderCoreWrite(editorId: string): Promise<void> {
+        this.rendered.push({ editorId, content: this.documents.getContent(editorId) });
+    }
+}
+
 function createHost(files: Record<string, string>, promptAnswers: PromptAnswers = {}) {
     const host = createTestHost({ folders: ["/work"], files, promptAnswers });
+    const renderer = new RecordingCoreWriteRenderer(host.documents);
     const service = new BpmnMigrationService(
         host.store,
         host.documents,
         host.workspace,
         host.picker,
         host.notifier,
+        renderer,
     );
     const writtenPaths: string[] = [];
     host.workspace.createWatcher("/work", "**/*.bpmn", {
         onChange: (path) => writtenPaths.push(path),
     });
-    return { service, writtenPaths, ...host };
+    return { service, writtenPaths, renderer, ...host };
 }
 
 /** Runs `duringChoice` while the user still chooses, then answers as scripted. */
@@ -222,6 +235,18 @@ describe("migrateAllDiagrams", () => {
         expect(workspace.files.get("/work/open.bpmn")).toBe(c8Bpmn("8.5.0"));
     });
 
+    it("renders the migrated content of an open diagram once its editor accepted the write", async () => {
+        const { service, openEditor, renderer } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0"), "/work/closed.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
+
+        await service.migrateAllDiagrams();
+
+        expect(renderer.rendered).toEqual([{ editorId: editor.id, content: c8Bpmn("8.8.0") }]);
+    });
+
     it("keeps unsaved edits of an open diagram when migrating it", async () => {
         const { service, openEditor, workspace, writtenPaths } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
@@ -291,8 +316,8 @@ describe("migrateAllDiagrams", () => {
         expect(workspace.files.get("/work/a.bpmn")).toBe(withUnsavedEdit(c8Bpmn("8.8.0")));
     });
 
-    it("reports an open diagram whose editor rejected the write as skipped, not updated", async () => {
-        const { service, documents, notifier, openEditor } = createHost(
+    it("reports an open diagram whose editor rejected the write as skipped, not updated, and leaves it unrendered", async () => {
+        const { service, documents, notifier, openEditor, renderer } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
             { c8EngineVersion: "8.8.0" },
         );
@@ -301,6 +326,7 @@ describe("migrateAllDiagrams", () => {
 
         await service.migrateAllDiagrams();
 
+        expect(renderer.rendered).toEqual([]);
         expect(notifier.infos).toEqual([
             "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
         ]);
