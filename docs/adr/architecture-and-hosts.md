@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -710,19 +710,21 @@ The `document/write` reply is the causation signal for the bridge's own
 writes; the host sends no `document/didChange` echo for them. While applying a
 write, the host marks the editor so the synchronous Document listener skips
 the change without copying the text. An accepted, changed reply updates the
-bridge mirror. A page sync's write never re-renders. A core write of content
-the page did not produce (Change Engine Version, Migrate All) is followed by an
-explicit render at the unchanged host revision. Migrate All renders through
-`BpmnEditorFeature.renderCoreWrite`, which renders only for `host-driven`
-rendering: on VS Code the write's change event already re-renders. Accepted
-cost: a page sync sent before that render arrives carries the same revision,
-so the host accepts it and it overwrites the core write. When the host
-normalizes line separators, the reply carries `normalizedContent` so the
-mirror keeps the host's exact bytes; otherwise the full XML is not sent back.
-Every `document/didChange` is therefore external and re-renders. Content
-equality alone is never used to classify a change. This relies on the host
-replying on the same ordered channel after the Document mutation, so a later
-external change always arrives after the reply.
+bridge mirror and does not re-render. When the host normalizes line
+separators, the reply carries `normalizedContent` so the mirror keeps the
+host's exact bytes; otherwise the full XML is not sent back. Every
+`document/didChange` is therefore external and re-renders. Content equality
+alone is never used to classify a change. This relies on the host replying on
+the same ordered channel after the Document mutation, so a later external
+change always arrives after the reply.
+
+A page sync's write never re-renders: the page already shows that content. A
+core write of content the page did not produce (Change Engine Version, Migrate
+All) is followed by an explicit render at the unchanged host revision. Migrate
+All renders through `BpmnEditorFeature.renderCoreWrite`, which renders only for
+`host-driven` rendering: on VS Code the write's change event already
+re-renders. Accepted cost: a page sync sent before that render arrives carries
+the same revision, so the host accepts it and it overwrites the core write.
 
 A page flush the IntelliJ host writes itself (before a save, a close or a
 re-render) bypasses the core, so the bridge mirror misses that content. The
