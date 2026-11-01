@@ -137,11 +137,13 @@ export class MarketplaceCommands {
      */
     async remove(count: number, unregister: () => Promise<void> = async () => {}): Promise<void> {
         try {
-            await this.oneAtATime(async () => {
-                await unregister();
-                await this.marketplaces.pruneOrphanedCaches();
-                await this.templates.reloadMarketplaceTemplates();
-            });
+            await this.notifier.withProgress("Removing marketplace(s)…", () =>
+                this.oneAtATime(async () => {
+                    await unregister();
+                    await this.marketplaces.pruneOrphanedCaches();
+                    await this.templates.reloadMarketplaceTemplates();
+                }),
+            );
             this.notifier.showInfo(`Removed ${count} marketplace(s).`);
         } catch (error) {
             this.notifier.notifyError("Failed to remove marketplace(s).", error as Error);
