@@ -103,6 +103,8 @@ For properties:
 
 A `.json` file in an `element-templates` folder opens in the [element template editor](/vscode/features/element-template-editor): a form for every part of the template, the JSON one click away, and a live preview of the properties panel. **New Element Template** creates a new one in the right folder.
 
+In [IntelliJ](/intellij/getting-started#element-templates), a template opens split with a preview of the properties panel beside its JSON, and **New Element Template…** sits in the project view under **New**.
+
 ## Next steps
 
 - [Element template editor](/vscode/features/element-template-editor): build and edit templates in a form.

@@ -1,0 +1,77 @@
+{
+    "identities": [
+        { "fileName": "send-mail.json", "id": "send-mail", "name": "Send Mail" },
+        {
+            "fileName": "io.camunda.send-mail.json",
+            "id": "io.camunda.send-mail",
+            "name": "Send Mail"
+        },
+        { "fileName": "sendMail.json", "id": "sendMail", "name": "Send Mail" },
+        { "fileName": "payment_check.JSON", "id": "payment_check", "name": "Payment Check" },
+        { "fileName": " Send  Mail .json", "id": "Send-Mail", "name": "Send Mail" },
+        { "fileName": "invoice", "id": "invoice", "name": "Invoice" },
+        { "fileName": "HTTPConnector.json", "id": "HTTPConnector", "name": "HTTPConnector" },
+        { "fileName": "io.json.reader.json", "id": "io.json.reader", "name": "Reader" },
+        { "fileName": "io.camunda..json", "id": "io.camunda.", "name": "io.camunda." },
+        { "fileName": ".json", "id": "new-element-template", "name": "New Element Template" }
+    ],
+    "templates": [
+        {
+            "engine": "c7",
+            "fileName": "send-mail.json",
+            "template": {
+                "$schema": "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json",
+                "name": "Send Mail",
+                "id": "send-mail",
+                "version": 1,
+                "appliesTo": ["bpmn:ServiceTask"],
+                "properties": [
+                    {
+                        "type": "Hidden",
+                        "value": "external",
+                        "binding": { "type": "property", "name": "camunda:type" }
+                    },
+                    {
+                        "type": "Hidden",
+                        "value": "send-mail",
+                        "binding": { "type": "property", "name": "camunda:topic" }
+                    },
+                    {
+                        "label": "Input",
+                        "type": "String",
+                        "binding": { "type": "camunda:inputParameter", "name": "input" },
+                        "constraints": { "notEmpty": true }
+                    }
+                ]
+            }
+        },
+        {
+            "engine": "c8",
+            "fileName": "send-mail.json",
+            "template": {
+                "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+                "name": "Send Mail",
+                "id": "send-mail",
+                "version": 1,
+                "appliesTo": ["bpmn:Task"],
+                "elementType": { "value": "bpmn:ServiceTask" },
+                "groups": [{ "id": "input", "label": "Input" }],
+                "properties": [
+                    {
+                        "type": "Hidden",
+                        "value": "send-mail",
+                        "binding": { "type": "zeebe:taskDefinition", "property": "type" }
+                    },
+                    {
+                        "label": "Input",
+                        "group": "input",
+                        "type": "String",
+                        "feel": "optional",
+                        "binding": { "type": "zeebe:input", "name": "input" },
+                        "constraints": { "notEmpty": true }
+                    }
+                ]
+            }
+        }
+    ]
+}

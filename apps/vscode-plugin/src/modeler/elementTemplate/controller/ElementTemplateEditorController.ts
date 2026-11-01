@@ -19,6 +19,7 @@ import {
     templateFileName,
 } from "@miragon/bpmn-modeler-core";
 import { ELEMENT_TEMPLATES_FOLDER, isElementTemplateFile } from "@miragon/bpmn-modeler-types";
+import { promptNewFileTarget } from "../../../shared/infrastructure/newFileTarget";
 
 export const OPEN_ELEMENT_TEMPLATE_EDITOR_CMD = "bpmn-modeler.openElementTemplateEditor";
 export const TOGGLE_ELEMENT_TEMPLATE_JSON_CMD = "bpmn-modeler.toggleElementTemplateJson";
@@ -94,7 +95,12 @@ export class ElementTemplateEditorController {
     private async newTemplateTarget(): Promise<Uri | undefined> {
         const folders = workspace.workspaceFolders ?? [];
         if (folders.length === 0) {
-            return this.pickNewTemplateFile();
+            return promptNewFileTarget({
+                title: NEW_TEMPLATE_TITLE,
+                filterLabel: "Element Template",
+                extension: "json",
+                defaultUri: undefined,
+            });
         }
         const root: WorkspaceFolder | undefined =
             folders.length === 1
@@ -135,17 +141,6 @@ export class ElementTemplateEditorController {
         }
         await workspace.fs.createDirectory(folder);
         return target;
-    }
-
-    private async pickNewTemplateFile(): Promise<Uri | undefined> {
-        const uri = await window.showSaveDialog({
-            title: NEW_TEMPLATE_TITLE,
-            filters: { "Element Template": ["json"] },
-        });
-        if (!uri) {
-            return undefined;
-        }
-        return uri.path.endsWith(".json") ? uri : uri.with({ path: `${uri.path}.json` });
     }
 
     private async openInEditor(uri: Uri | undefined): Promise<void> {
