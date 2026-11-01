@@ -131,12 +131,13 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual(["Updated 2 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
-    it("migrates no copy of a diagram inside build output or node_modules", async () => {
+    it("migrates no copy of a diagram inside build output, node_modules or a dot-folder", async () => {
         const { service, writtenPaths } = createHost(
             {
                 "/work/src/main/resources/a.bpmn": c8Bpmn("8.5.0"),
                 "/work/target/classes/a.bpmn": c8Bpmn("8.5.0"),
                 "/work/node_modules/pkg/fixture.bpmn": c8Bpmn("8.5.0"),
+                "/work/.history/src/main/resources/a_20261101120000.bpmn": c8Bpmn("8.5.0"),
             },
             { c8EngineVersion: "8.8.0" },
         );
@@ -144,6 +145,22 @@ describe("migrateAllDiagrams", () => {
         await service.migrateAllDiagrams();
 
         expect(writtenPaths).toEqual(["/work/src/main/resources/a.bpmn"]);
+    });
+
+    it("asks for no scope when only a stale copy holds the other engine", async () => {
+        const { service, picker, notifier } = createHost(
+            {
+                "/work/src/main/resources/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/build/resources/main/legacy.bpmn": c7Bpmn("7.20.0"),
+                "/work/.history/legacy_20261101120000.bpmn": c7Bpmn("7.20.0"),
+            },
+            { c8EngineVersion: "8.8.0" },
+        );
+
+        await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c8")] }]);
+        expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
     it("should migrate C7-only workspace without scope picker", async () => {
