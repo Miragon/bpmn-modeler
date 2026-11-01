@@ -41,7 +41,12 @@ class ModelerSettingsConfigurable : Configurable {
         var marketplacesText: String,
     )
 
-    private val state = loadState()
+    /**
+     * The values the page showed on load, so [apply] tells the user's edits apart
+     * from writes the bridge made while the page was open.
+     */
+    private var loadedSettings = ModelerSettingsStore.getInstance().current()
+    private val state = uiStateOf(loadedSettings)
     private var dialogPanel: DialogPanel? = null
 
     override fun getDisplayName(): String = "Miragon BPMN Modeler"
@@ -159,16 +164,22 @@ class ModelerSettingsConfigurable : Configurable {
     override fun isModified(): Boolean = dialogPanel?.isModified() ?: false
 
     override fun apply() {
-        // Push UI → state, persist, then propagate to live bridges.
         dialogPanel?.apply()
-        ModelerSettingsStore.getInstance().update(state.toSettings())
+        val edited = state.toSettings()
+        ModelerSettingsStore.getInstance().update { stored ->
+            stored.withEdits(loaded = loadedSettings, edited = edited)
+        }
+        // Show the merged values: a baseline the page does not show would read
+        // as the user's removal on the next Apply.
+        reset()
         pushSettingsToRunningBridges()
     }
 
     override fun reset() {
         // Refresh the bound state from disk in place (the panel's getters read these
         // fields), then let the DSL repaint the components and clear the modified flag.
-        state.copyFrom(loadState())
+        loadedSettings = ModelerSettingsStore.getInstance().current()
+        state.copyFrom(uiStateOf(loadedSettings))
         dialogPanel?.reset()
     }
 
@@ -177,7 +188,7 @@ class ModelerSettingsConfigurable : Configurable {
     }
 
     private fun UiState.toSettings(): ModelerSettings =
-        ModelerSettings(
+        loadedSettings.copy(
             alignToOrigin = alignToOrigin,
             showTransactionBoundaries = showTransactionBoundaries,
             configFolder = configFolder.trim(),
@@ -188,8 +199,6 @@ class ModelerSettingsConfigurable : Configurable {
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
             scriptingSpin = scriptingSpin,
-            // Read on apply: the page shows no lint field and must not undo the editor's toggle.
-            lintingEnabled = ModelerSettingsStore.getInstance().current().lintingEnabled,
             marketplaces = parseMarketplaces(marketplacesText),
         )
 
@@ -207,9 +216,8 @@ class ModelerSettingsConfigurable : Configurable {
         marketplacesText = other.marketplacesText
     }
 
-    private fun loadState(): UiState {
-        val settings = ModelerSettingsStore.getInstance().current()
-        return UiState(
+    private fun uiStateOf(settings: ModelerSettings): UiState =
+        UiState(
             alignToOrigin = settings.alignToOrigin,
             showTransactionBoundaries = settings.showTransactionBoundaries,
             configFolder = settings.configFolder,
@@ -222,7 +230,6 @@ class ModelerSettingsConfigurable : Configurable {
             scriptingSpin = settings.scriptingSpin,
             marketplacesText = settings.marketplaces.joinToString("\n"),
         )
-    }
 
     /** Splits the textarea into trimmed, non-blank BPMN type lines (cap applied on persist). */
     private fun parseFavourites(text: String): List<String> =

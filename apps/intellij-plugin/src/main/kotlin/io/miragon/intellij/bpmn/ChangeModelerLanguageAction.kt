@@ -36,7 +36,7 @@ class ChangeModelerLanguageAction : DumbAwareAction() {
         ) { selected ->
             val picked = selected?.firstOrNull()?.let { ModelerLocales.CODES[it] } ?: return@show
             if (picked == current) return@show
-            store.update(store.current().copy(language = picked))
+            store.update { it.copy(language = picked) }
             // Fan the new snapshot to every open bridge so each open editor re-renders.
             pushSettingsToRunningBridges()
         }

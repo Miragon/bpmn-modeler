@@ -83,7 +83,7 @@ class MarketplaceRouterTest {
                 "an application-scoped save must not touch the per-project store",
             )
         } finally {
-            store.update(before)
+            store.update { before }
         }
     }
 
@@ -94,7 +94,7 @@ class MarketplaceRouterTest {
         // Seed the app-level list; the save must dedupe against the union.
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
-        store.update(before.copy(marketplaces = before.marketplaces + location))
+        store.update { before.copy(marketplaces = before.marketplaces + location) }
         try {
             dispatchSave(wired, location, id = 9)
 
@@ -104,7 +104,7 @@ class MarketplaceRouterTest {
             )
         } finally {
             // App-level settings are shared across the @TestApplication; restore them.
-            store.update(before)
+            store.update { before }
         }
     }
 
@@ -240,7 +240,7 @@ class MarketplaceRouterTest {
         val before = store.current()
         val keep = "https://github.com/owner/keep-${System.nanoTime()}"
         val drop = "https://github.com/owner/drop-${System.nanoTime()}"
-        store.update(before.copy(marketplaces = before.marketplaces + keep + drop))
+        store.update { before.copy(marketplaces = before.marketplaces + keep + drop) }
         try {
             store.removeMarketplaces(setOf(drop))
 
@@ -248,7 +248,7 @@ class MarketplaceRouterTest {
             assertTrue(after.contains(keep), "an unlisted app-level entry must survive")
             assertFalse(after.contains(drop), "a listed app-level entry must be removed")
         } finally {
-            store.update(before)
+            store.update { before }
         }
     }
 
@@ -275,7 +275,7 @@ class MarketplaceRouterTest {
         val projectEntry = "https://github.com/owner/project-${System.nanoTime()}"
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
-        store.update(before.copy(marketplaces = before.marketplaces + appEntry))
+        store.update { before.copy(marketplaces = before.marketplaces + appEntry) }
         ProjectMarketplacesStore.getInstance(projectFixture.get()).add(projectEntry)
         try {
             router.updateMarketplaces()
@@ -285,7 +285,7 @@ class MarketplaceRouterTest {
             assertTrue(marketplaces.contains(appEntry), "snapshot must carry the app-level entry")
             assertTrue(marketplaces.contains(projectEntry), "snapshot must carry the project-level entry")
         } finally {
-            store.update(before)
+            store.update { before }
         }
     }
 
