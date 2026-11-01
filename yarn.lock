@@ -971,17 +971,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/feel-analyzer@npm:^0.5.0":
-  version: 0.5.0
-  resolution: "@bpmn-io/feel-analyzer@npm:0.5.0"
-  dependencies:
-    "@bpmn-io/lezer-feel": "npm:^3.0.1"
-    "@lezer/common": "npm:^1.5.2"
-  checksum: 10c0/37107cf0f341e1dde8735aad0743fb05c594b985bd0c0520934ae867f6cffd220cf2a45e10099ad4b4b382a107a7837ee8ea277ea61bb513255b4a7e9680f69c
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/feel-analyzer@npm:^0.5.1":
+"@bpmn-io/feel-analyzer@npm:^0.5.0, @bpmn-io/feel-analyzer@npm:^0.5.1":
   version: 0.5.1
   resolution: "@bpmn-io/feel-analyzer@npm:0.5.1"
   dependencies:
@@ -1236,7 +1226,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:3.58.0":
+"@bpmn-io/properties-panel@npm:3.58.0, @bpmn-io/properties-panel@npm:^3.55.0":
   version: 3.58.0
   resolution: "@bpmn-io/properties-panel@npm:3.58.0"
   dependencies:
@@ -1254,27 +1244,6 @@ __metadata:
     min-dash: "npm:^5.1.0"
     min-dom: "npm:^5.3.0"
   checksum: 10c0/8f5b48e5f553d0f58285bb5561395386eac952acfc7cbdbb45e150831ea759e39c01acc47dcb76ea4dc97718c0b3afa76c322f222005b548fccc693d1a713738
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/properties-panel@npm:^3.55.0":
-  version: 3.57.0
-  resolution: "@bpmn-io/properties-panel@npm:3.57.0"
-  dependencies:
-    "@bpmn-io/feel-editor": "npm:^2.7.1"
-    "@bpmn-io/feelers-editor": "npm:^1.1.1"
-    "@codemirror/autocomplete": "npm:^6.18.6"
-    "@codemirror/commands": "npm:^6.10.3"
-    "@codemirror/lang-json": "npm:^6.0.2"
-    "@codemirror/language": "npm:^6.11.0"
-    "@codemirror/lint": "npm:^6.9.5"
-    "@codemirror/state": "npm:^6.6.0"
-    "@codemirror/view": "npm:^6.28.1"
-    classnames: "npm:^2.5.1"
-    focus-trap: "npm:^8.0.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-  checksum: 10c0/c7fdf81ebee4f0869bdf28290455762688cf52aae75bc351834cb35332cb27bf8bea0595f816c9d0ad1057f50ff661bf58fea05a06676d0a3063896a9b5eb4fd
   languageName: node
   linkType: hard
 
