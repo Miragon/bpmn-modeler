@@ -50,6 +50,11 @@ export class TemplateDocumentSession {
         return this.currentText;
     }
 
+    /** Whether the host's document has arrived. */
+    get hasDocument(): boolean {
+        return this.imported;
+    }
+
     async receive(query: ElementTemplateFileQuery): Promise<void> {
         const revision = query.documentRevision;
         try {

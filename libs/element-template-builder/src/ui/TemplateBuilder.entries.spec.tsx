@@ -119,7 +119,7 @@ describe("the groups tab", () => {
         builder.show(current);
         builder.tab("Groups");
 
-        builder.click(builder.buttonLabelled("Add group"));
+        builder.click(builder.buttonLabelled("Add Group"));
         expect(lastEdits()).toEqual(addGroup(current));
 
         builder.typeInto("group-0-id", "settings");
@@ -165,7 +165,7 @@ describe("the properties tab", () => {
         const current = three();
         builder.show(current);
 
-        builder.click(builder.buttonLabelled("Add property"));
+        builder.click(builder.buttonLabelled("Add Property"));
         expect(lastEdits()).toEqual(addProperty(current, C8));
         builder.show(template([...(current.properties as Json[]), input({ label: "New" })]));
 
@@ -270,7 +270,7 @@ describe("a property's value", () => {
             { kind: "set", path: ["properties", 0, "choices", 0, "value"], value: "alpha" },
         ]);
 
-        builder.click(builder.buttonLabelled("Add choice"));
+        builder.click(builder.buttonLabelled("Add Choice"));
         expect(lastEdits()).toEqual([
             {
                 kind: "insert",
@@ -675,7 +675,7 @@ describe("a condition", () => {
     it("starts on no property when no other property can be chosen", () => {
         builder.show(template([input()]));
 
-        builder.click(builder.buttonLabelled("Add condition"));
+        builder.click(builder.buttonLabelled("Add Condition"));
         expect(conditionEdit()).toEqual({ property: "", equals: "" });
 
         builder.show(template([input({ condition: { property: "", equals: "" } })]));
@@ -845,7 +845,7 @@ describe("groups in detail", () => {
                 (item) => item.textContent,
             ),
         ).toEqual(["plain"]);
-        expect(builder.buttonLabelled("Add group")).toBeUndefined();
+        expect(builder.buttonLabelled("Add Group")).toBeUndefined();
         expect(builder.action("Delete group")).toBeNull();
     });
 

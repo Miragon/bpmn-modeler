@@ -25,10 +25,10 @@ export const C7_CATALOG: EngineCatalog = {
     bindings: [
         {
             type: "camunda:inputParameter",
-            label: "Input parameter",
+            label: "Input Parameter",
             fields: [
                 { key: "name", label: "Name", kind: "text", required: true, initial: "input" },
-                { key: "scriptFormat", label: "Script format", kind: "text" },
+                { key: "scriptFormat", label: "Script Format", kind: "text" },
             ],
             types: ["String", "Text", "Hidden", "Dropdown"],
         },
@@ -50,7 +50,7 @@ export const C7_CATALOG: EngineCatalog = {
         },
         {
             type: "camunda:outputParameter",
-            label: "Output parameter",
+            label: "Output Parameter",
             fields: [
                 {
                     key: "source",
@@ -59,7 +59,7 @@ export const C7_CATALOG: EngineCatalog = {
                     required: true,
                     initial: "${output}",
                 },
-                { key: "scriptFormat", label: "Script format", kind: "text" },
+                { key: "scriptFormat", label: "Script Format", kind: "text" },
             ],
             types: ["String", "Hidden", "Dropdown"],
         },
