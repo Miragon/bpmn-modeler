@@ -168,12 +168,23 @@ export class ElementTemplateEditorController {
         await commands.executeCommand("vscode.openWith", target, "default", ViewColumn.Beside);
     }
 
+    /**
+     * The extension host learns about tabs after the workbench, so right after the
+     * template editor got the focus the previous group may still count as active;
+     * a template editor shown in another group is the one the command came from.
+     */
     private activeTemplateEditorUri(): Uri | undefined {
-        const input = window.tabGroups.activeTabGroup.activeTab?.input;
-        return input instanceof TabInputCustom &&
-            input.viewType === ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE
-            ? input.uri
-            : undefined;
+        const { activeTabGroup, all } = window.tabGroups;
+        for (const group of [activeTabGroup, ...all]) {
+            const input = group.activeTab?.input;
+            if (
+                input instanceof TabInputCustom &&
+                input.viewType === ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE
+            ) {
+                return input.uri;
+            }
+        }
+        return undefined;
     }
 
     private updateContextKey(editor: TextEditor | undefined): void {
