@@ -19,9 +19,9 @@ export type TimestampFormatter = (iso: string) => string;
 
 const TIMESTAMP_STYLE = { dateStyle: "short", timeStyle: "short" } as const;
 
-/** In the modeler language and the machine's time zone. */
-export function timestampFormatter(language: string): TimestampFormatter {
-    const format = dateTimeFormatFor(language);
+/** In the modeler language, and in the machine's time zone unless `timeZone` names one. */
+export function timestampFormatter(language: string, timeZone?: string): TimestampFormatter {
+    const format = dateTimeFormatFor(language, timeZone);
     return (iso) => {
         const time = new Date(iso);
         // `format` throws on an invalid date, which would fail the refresh and hide the item.
@@ -29,12 +29,13 @@ export function timestampFormatter(language: string): TimestampFormatter {
     };
 }
 
-function dateTimeFormatFor(language: string): Intl.DateTimeFormat {
+function dateTimeFormatFor(language: string, timeZone?: string): Intl.DateTimeFormat {
+    const options = { ...TIMESTAMP_STYLE, timeZone };
     try {
-        return new Intl.DateTimeFormat(language, TIMESTAMP_STYLE);
+        return new Intl.DateTimeFormat(language, options);
     } catch {
         // A hand-edited language setting need not be a locale tag.
-        return new Intl.DateTimeFormat(undefined, TIMESTAMP_STYLE);
+        return new Intl.DateTimeFormat(undefined, options);
     }
 }
 

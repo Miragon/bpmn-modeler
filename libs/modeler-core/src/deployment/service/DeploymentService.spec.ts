@@ -32,6 +32,7 @@ import {
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
 } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, Prompt, TestHostOptions } from "../../testing";
 import { Engine } from "@miragon/bpmn-modeler-types";
@@ -1285,6 +1286,29 @@ describe("DeploymentService.deploy credential approval", () => {
         expect(host.deploymentState.load().endpoint).toBe("");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
+
+    it("lets a cancelled keychain read of the approved hosts through, deploying and logging nothing", async () => {
+        const { service, host, restClient, deploymentStatus } = createService({
+            files: MAIN_FILE,
+        });
+        vi.spyOn(host.secrets, "getApprovedDestinations").mockRejectedValue(
+            new UserCancelledError(),
+        );
+
+        await expect(
+            service.deploy(
+                buildConfig({
+                    endpoint: "https://gw/engine-rest",
+                    auth: new BasicAuth("admin", "s3cret"),
+                }),
+                named(targetAt("https://gw/engine-rest")),
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual([]);
+    });
 });
 
 describe("DeploymentService.deployFiles", () => {
@@ -1725,5 +1749,29 @@ describe("DeploymentService.deployFiles", () => {
         expect(host.notifier.errors).toEqual([
             `Deployed 0/2 file(s) to "dev". a: ${DECLINED.message}`,
         ]);
+    });
+
+    it("stops the whole batch before the first deploy when the user cancels the keychain read of the approved hosts", async () => {
+        const { service, host, restClient } = createService({
+            files: xmlFiles("/work/a.bpmn", "/work/b.bpmn"),
+        });
+        const approvalReads = vi
+            .spyOn(host.secrets, "getApprovedDestinations")
+            .mockRejectedValue(new UserCancelledError());
+
+        await expect(
+            service.deployFiles(
+                ["/work/a.bpmn", "/work/b.bpmn"],
+                named(target),
+                new BasicAuth("admin", "s3cret"),
+                "/work",
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(approvalReads).toHaveBeenCalledOnce();
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.logged("warning")).toEqual([]);
     });
 });

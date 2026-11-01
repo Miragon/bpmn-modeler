@@ -19,6 +19,7 @@ import { ADDITIONAL_FILES_GLOB, additionalFilesExclude } from "../domain/additio
 import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { connectionPatch } from "../domain/deploymentState";
 import { EnvLookup } from "../domain/envRef";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { loggableHost } from "../../kernel/domain/http";
 import {
     DocumentPort,
@@ -43,9 +44,9 @@ import { storeCredentials } from "./storeCredentials";
  *   3. Read file contents and issue the REST deployment call.
  *   4. Persist endpoint and tenant ID on success.
  *
- * All errors from the REST call or filesystem reads are caught internally and
- * returned as a failed {@link DeploymentResult} so callers never need to
- * handle thrown exceptions from {@link deploy}.
+ * Errors from the REST call or filesystem reads are caught internally and
+ * returned as a failed {@link DeploymentResult}; only a cancelled prompt
+ * escapes {@link deploy} and {@link deployFiles}, as a dismissal.
  */
 export class DeploymentService {
     /**
@@ -172,8 +173,8 @@ export class DeploymentService {
      *      ledger row, each on its own: a failed save is logged and named in the
      *      result's message, never turned into a failed deploy.
      *
-     * This method never throws; all other errors are captured in the returned
-     * {@link DeploymentResult} with `success: false`.
+     * Every other error is captured in the returned {@link DeploymentResult}
+     * with `success: false`.
      *
      * @param config Validated deployment configuration.
      * @param destination Decides what an accepted deploy persists: a named
@@ -181,6 +182,7 @@ export class DeploymentService {
      *   lives in the targets file; the ad-hoc connection keeps both under the
      *   legacy keys.
      * @returns The outcome of the deployment attempt.
+     * @throws {UserCancelledError} when the user cancels a prompt.
      */
     async deploy(
         config: DeploymentConfig,
@@ -227,6 +229,7 @@ export class DeploymentService {
             );
             return outcome.toResult();
         } catch (error) {
+            if (error instanceof UserCancelledError) throw error;
             const message = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(message));
             return new DeploymentResult(false, message);
@@ -235,14 +238,17 @@ export class DeploymentService {
 
     /**
      * Deploys each path as its own single-file deployment against the target,
-     * naming the deployment after the file's basename. Never throws — a failed
-     * file yields a failed {@link DeploymentResult} so the batch always completes
-     * and the caller sees a per-file outcome. Credentials are assumed already
-     * stored on the target, so nothing is persisted here.
+     * naming the deployment after the file's basename. A failed file yields a
+     * failed {@link DeploymentResult} so the batch completes and the caller sees
+     * a per-file outcome. Credentials are assumed already stored on the target,
+     * so nothing is persisted here.
      *
      * @param documentDir The directory `destination` was resolved from. Its `.env`
      *   serves the whole batch, even for files from other workspace folders, so
      *   a target's endpoint and its variables always come from the same project.
+     * @throws {UserCancelledError} when the user cancels a prompt, which ends
+     *   the whole batch without a summary. The approval, the batch's only
+     *   prompt, is settled before any file is sent.
      */
     async deployFiles(
         paths: readonly string[],
@@ -293,6 +299,7 @@ export class DeploymentService {
                 this.notifier.logInfo(`Deployed ${name}: ${result.message}`);
                 results.push(result);
             } catch (error) {
+                if (error instanceof UserCancelledError) throw error;
                 const message = error instanceof Error ? error.message : String(error);
                 this.notifier.logWarning(`Deploy of ${name} failed: ${message}`);
                 results.push(new DeploymentResult(false, `${name}: ${message}`));
