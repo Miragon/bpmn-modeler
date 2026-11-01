@@ -121,6 +121,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         deploymentStatus,
         envResolver,
         credentialApproval,
+        host.settings,
     );
 
     return {

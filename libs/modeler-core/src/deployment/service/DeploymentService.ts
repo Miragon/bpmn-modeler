@@ -15,15 +15,16 @@ import {
     RememberedPart,
     rememberedPartLabel,
 } from "../domain/deploymentOutcome";
+import { ADDITIONAL_FILES_GLOB, additionalFilesExclude } from "../domain/additionalFiles";
 import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { connectionPatch } from "../domain/deploymentState";
 import { EnvLookup } from "../domain/envRef";
-import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { loggableHost } from "../../kernel/domain/http";
 import {
     DocumentPort,
     NotifierPort,
     PickerPort,
+    SettingsPort,
     WorkspacePort,
 } from "../../kernel/domain/hostPorts";
 import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
@@ -55,6 +56,7 @@ export class DeploymentService {
      * @param notifier User-facing message and logging helper.
      * @param picker Quick-pick helper for selecting deployment resources.
      * @param secretStore Secure credential storage for Basic Auth.
+     * @param settings Names the config folder the additional files leave out.
      */
     constructor(
         private readonly vsDocument: DocumentPort,
@@ -67,6 +69,7 @@ export class DeploymentService {
         private readonly deploymentStatus: DeploymentStatusService,
         private readonly envResolver: EnvValueResolver,
         private readonly credentialApproval: CredentialApprovalService,
+        private readonly settings: SettingsPort,
     ) {}
 
     /**
@@ -141,16 +144,16 @@ export class DeploymentService {
 
     /**
      * Opens a multi-select picker over workspace files relevant for
-     * deployment (`.form`, `.json`, `.dmn`), excluding element templates and
-     * the folders no listing offers.
+     * deployment (`.form`, `.json`, `.dmn`), excluding the modeler's own files
+     * and the folders no listing offers.
      *
      * @returns Absolute paths of the selected files, or an empty array if the
      *   user cancels or no files match.
      */
     async selectAdditionalFiles(): Promise<string[]> {
         const found = await this.vsWorkspace.findFiles(
-            "**/*.{form,json,dmn}",
-            excludedDirsGlob("element-templates"),
+            ADDITIONAL_FILES_GLOB,
+            additionalFilesExclude(this.settings.getConfigFolder()),
         );
         const chosen = await this.picker.chooseMany(
             additionalFilesPrompt({

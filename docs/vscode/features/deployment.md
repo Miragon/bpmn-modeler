@@ -9,6 +9,8 @@ Open the **Deploy Diagram** view from the rocket icon in the activity bar. It ha
 - **Deploy** saves the open diagram and uploads it, optionally with additional files. If the diagram cannot be saved, nothing is uploaded. Additional files go out as last saved.
 - **Start Instance** starts a process instance, optionally with a JSON payload. It fills in the id of the diagram's first executable process, which you can change.
 
+The additional files to pick from are every `.form`, `.json` and `.dmn` file in the workspace, except those in `node_modules`, build output (`dist`, `build`, `out`, `target`, `bin`, `coverage`), folders whose name starts with a dot (such as `.vscode`), `element-templates` folders and the [config folder](/vscode/configuration) (`.camunda` by default).
+
 Fill in engine, endpoint, tenant and authentication, then deploy. For a quick deploy of the open diagram use the rocket button in the editor title bar.
 
 ## Authentication
@@ -112,11 +114,9 @@ Freshness is recorded locally per target and file, not on the engine and not in 
 | Command | Use |
 |---|---|
 | **Miragon BPMN Modeler: Deploy Diagram** | Save and deploy the open diagram to the active target. Additional files need the sidebar. |
-| **Miragon BPMN Modeler: Deploy Files…** | Deploy several `.bpmn`/`.dmn` files, one deployment each. Also in the Explorer context menu. |
+| **Miragon BPMN Modeler: Deploy Files…** | Deploy several `.bpmn`/`.dmn` files, one deployment each. It offers every such file in the workspace except those in `node_modules`, build output or folders whose name starts with a dot. Also in the Explorer context menu. |
 | **Miragon BPMN Modeler: Switch Deployment Target** | Pick the active target or ad-hoc form values. |
 | **Miragon BPMN Modeler: Verify Deployment on Engine** | Check the open diagram against a Camunda 7 engine. |
-
-The additional files of the **Deploy** tab and the files of **Deploy Files…** list every matching file in the workspace, except `node_modules`, build output (`dist`, `build`, `out`, `target`, `bin`, `coverage`) and folders whose name starts with a dot, such as `.camunda` with `deployment-targets.json` or `.vscode`.
 
 ## Payload files
 

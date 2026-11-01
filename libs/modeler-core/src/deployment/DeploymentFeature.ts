@@ -137,6 +137,7 @@ export class DeploymentFeature {
             this.status,
             envResolver,
             credentialApproval,
+            ports.settings,
         );
         const saveBeforeDeploy = new SaveBeforeDeploy(ports.documents, ports.pendingEdits);
         this.deployActiveDiagram = new DeployActiveDiagramService(
