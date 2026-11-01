@@ -1,5 +1,7 @@
 import * as ts from "typescript";
 
+import { parseSource } from "./parseSource";
+
 export interface ModuleImport {
     readonly specifier: string;
     readonly typeOnly: boolean;
@@ -18,7 +20,7 @@ export function readModuleImports(fileName: string, text: string): ModuleImport[
         }
         ts.forEachChild(node, visit);
     };
-    visit(ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest));
+    visit(parseSource(fileName, text));
     return imports;
 }
 

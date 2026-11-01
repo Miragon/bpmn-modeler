@@ -1,12 +1,14 @@
 import * as ts from "typescript";
 
+import { parseSource } from "./parseSource";
+
 export interface ClassDeclaration {
     readonly name: string | undefined;
     readonly implementedInterfaces: readonly string[];
 }
 
 export function readClassDeclarations(fileName: string, text: string): ClassDeclaration[] {
-    const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest);
+    const sourceFile = parseSource(fileName, text);
     const classes: ClassDeclaration[] = [];
     const visit = (node: ts.Node): void => {
         if (ts.isClassLike(node)) {
