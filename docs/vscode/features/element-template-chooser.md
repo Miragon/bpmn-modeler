@@ -48,6 +48,8 @@ my-project/
     └── my-process.bpmn
 ```
 
+Open diagrams pick up added, changed and removed templates without a reopen, also when a whole config folder is moved in, moved out or deleted.
+
 The config folder name is set by `miragon.bpmnModeler.configFolder`. To share templates across projects, use a [template marketplace](/vscode/features/template-marketplace).
 
 Templates with an `engines` field (for example `"engines": { "camunda": "^8.7" }`) are shown only on Camunda 8 diagrams whose version matches. Templates without `engines` and all Camunda 7 diagrams are not filtered.

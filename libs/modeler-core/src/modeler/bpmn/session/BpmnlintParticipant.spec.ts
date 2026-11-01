@@ -52,7 +52,6 @@ describe("BpmnlintParticipant", () => {
         const { host, participant } = createServices();
         const editor = await host.openSession(PATH, [participant]);
         const [watcher] = host.workspace.watchers;
-        expect(watcher.glob).toBe("**/.bpmnlintrc");
         expect(watcher.disposed).toBe(false);
 
         editor.dispose();

@@ -27,7 +27,7 @@ Add a `.bpmnlintrc` at the workspace root or in the config folder (`.camunda/` b
 }
 ```
 
-The modeler walks from the diagram's folder up to the workspace root and uses the first `<dir>/.bpmnlintrc` or `<dir>/<configFolder>/.bpmnlintrc` it finds. Configs are not merged, so modeler and CI read the same file. Built-in presets are `bpmnlint:recommended`, `bpmnlint:all` and `bpmnlint:correctness`; see the [rule reference](https://github.com/bpmn-io/bpmnlint/blob/main/docs/rules/README.md).
+The modeler walks from the diagram's folder up to the workspace root and uses the first `<dir>/.bpmnlintrc` or `<dir>/<configFolder>/.bpmnlintrc` it finds. Configs are not merged, so modeler and CI read the same file. Open diagrams switch to a config that is added, changed or removed, also when the folder holding it is moved in, moved out or deleted. Built-in presets are `bpmnlint:recommended`, `bpmnlint:all` and `bpmnlint:correctness`; see the [rule reference](https://github.com/bpmn-io/bpmnlint/blob/main/docs/rules/README.md).
 
 ## Custom rules and plugins
 
@@ -62,6 +62,7 @@ If a referenced rule or plugin is not installed, only that entry is skipped. The
 | `BPMNlint (default)` | No `.bpmnlintrc` found, the bundled default is in use. |
 | `BPMNlint: N rules skipped` | Some rules or plugins could not be resolved. |
 | `BPMNlint: off` | Linting is turned off. |
+| `BPMNlint: failed` | The `.bpmnlintrc` could not be read, or the lint run failed. The *bpmn.modeler* output channel (IntelliJ: `idea.log`) has the error. |
 
 ## Turn linting off
 

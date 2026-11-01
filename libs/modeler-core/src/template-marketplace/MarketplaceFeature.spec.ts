@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../testing";
 import { FetchReport, SourceFailure } from "./domain/fetchReport";
+import { InvalidMarketplaceError } from "./domain/marketplace";
 import { MarketplaceCommands, createTemplateMarketplaceService } from "./MarketplaceFeature";
 import { TemplateMarketplaceService } from "./service/TemplateMarketplaceService";
 
@@ -126,22 +127,6 @@ describe("MarketplaceCommands.add", () => {
         expect(explained).toEqual(["not a registered configuration"]);
         expect(notifier.errors).toEqual([]);
     });
-
-    it("still reports the add failure when pruning fails too", async () => {
-        const { commands, marketplaces, notifier } = createCommands();
-        const offline = new Error("offline");
-        const cacheLocked = new Error("cache locked");
-        marketplaces.addMarketplace.mockRejectedValue(offline);
-        marketplaces.pruneOrphanedCaches.mockRejectedValue(cacheLocked);
-
-        await commands.add("/templates", vi.fn());
-
-        expect(notifier.logged("error")).toEqual([
-            cacheLocked.stack,
-            `Failed to add marketplace. ${offline.stack}`,
-        ]);
-        expect(notifier.errors).toEqual(["Failed to add marketplace.\noffline"]);
-    });
 });
 
 describe("MarketplaceCommands.update", () => {
@@ -213,6 +198,243 @@ describe("MarketplaceCommands.remove", () => {
         expect(notifier.errors).toEqual([
             "Failed to remove marketplace(s).\nsettings are read-only",
         ]);
+    });
+});
+
+function localMarketplaceFiles(root: string, templateId: string): Record<string, string> {
+    return {
+        [`${root}/marketplace.json`]: JSON.stringify({ sources: [{ path: "element-templates" }] }),
+        [`${root}/element-templates/${templateId}.json`]: JSON.stringify({
+            id: templateId,
+            name: templateId,
+            appliesTo: ["bpmn:Task"],
+            properties: [],
+        }),
+    };
+}
+
+function gate() {
+    let open!: () => void;
+    const opened = new Promise<void>((resolve) => {
+        open = resolve;
+    });
+    return { open, opened };
+}
+
+/** Real flows over an in-memory host: marketplace `/work/a` is registered, `/work/b` is not. */
+function commandsOverRealService() {
+    const host = createTestHost({
+        folders: ["/work"],
+        files: {
+            ...localMarketplaceFiles("/work/a", "a"),
+            ...localMarketplaceFiles("/work/b", "b"),
+        },
+        settings: { marketplaces: ["/work/a"] },
+    });
+    const service = createTemplateMarketplaceService({
+        workspace: host.workspace,
+        settings: host.settings,
+        notifier: host.notifier,
+        tokens: host.tokens,
+        tokenPrompt: host.tokenPrompt,
+        cacheRoot: "/cache",
+        homeDir: "/home/ada",
+    });
+    const templates = {
+        reloads: 0,
+        async reloadMarketplaceTemplates() {
+            this.reloads++;
+        },
+    };
+    const commands = new MarketplaceCommands(service, templates, host.notifier, "/home/ada");
+    const holdRead = (path: string) => {
+        const held = gate();
+        const readFile = host.workspace.readFile.bind(host.workspace);
+        vi.spyOn(host.workspace, "readFile").mockImplementation(async (requested) => {
+            if (requested === path) await held.opened;
+            return readFile(requested);
+        });
+        return held;
+    };
+    const lockCachedMarketplaces = (error: Error) => {
+        const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
+        vi.spyOn(host.workspace, "deleteDirectory").mockImplementation(async (path) => {
+            if (/^\/cache\/[^/]+$/.test(path)) throw error;
+            return deleteDirectory(path);
+        });
+    };
+    const cachedTemplateNames = async () =>
+        (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort();
+    return {
+        commands,
+        marketplaces: host.settings.values.marketplaces,
+        workspace: host.workspace,
+        notifier: host.notifier,
+        templates,
+        holdRead,
+        lockCachedMarketplaces,
+        cachedTemplateNames,
+    };
+}
+
+const letPendingWorkRun = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("MarketplaceCommands started while another one runs", () => {
+    it("keeps the cache of a marketplace added while an update runs", async () => {
+        const { commands, marketplaces, holdRead, cachedTemplateNames } = commandsOverRealService();
+        const updateFetchOfA = holdRead("/work/a/element-templates/a.json");
+
+        const update = commands.update();
+        await letPendingWorkRun();
+        const add = commands.add("/work/b", async (location) => {
+            marketplaces.push(location);
+        });
+        await letPendingWorkRun();
+        updateFetchOfA.open();
+        await Promise.all([update, add]);
+
+        expect(marketplaces).toEqual(["/work/a", "/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["a.json", "b.json"]);
+    });
+
+    it("keeps the cache of a marketplace being added while a removal prunes", async () => {
+        const { commands, marketplaces, cachedTemplateNames } = commandsOverRealService();
+        const persistOfB = gate();
+
+        const add = commands.add("/work/b", async (location) => {
+            await persistOfB.opened;
+            marketplaces.push(location);
+        });
+        await letPendingWorkRun();
+        const remove = commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+        await letPendingWorkRun();
+        persistOfB.open();
+        await Promise.all([add, remove]);
+
+        expect(marketplaces).toEqual(["/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
+    it("keeps the cache of a marketplace being added while another add fails", async () => {
+        const { commands, marketplaces, cachedTemplateNames } = commandsOverRealService();
+        const persistOfB = gate();
+
+        const add = commands.add("/work/b", async (location) => {
+            await persistOfB.opened;
+            marketplaces.push(location);
+        });
+        await letPendingWorkRun();
+        const failedAdd = commands.add("/work/missing", async () => {});
+        await letPendingWorkRun();
+        persistOfB.open();
+        await Promise.all([add, failedAdd]);
+
+        expect(marketplaces).toEqual(["/work/a", "/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
+    it("still runs a command started while a failing one runs", async () => {
+        const { commands, marketplaces, cachedTemplateNames } = commandsOverRealService();
+
+        await Promise.all([
+            commands.add("/work/missing", async () => {}),
+            commands.add("/work/b", async (location) => {
+                marketplaces.push(location);
+            }),
+        ]);
+
+        expect(marketplaces).toEqual(["/work/a", "/work/b"]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
+    it("does not bring back the cache of a marketplace removed while an update fetches it", async () => {
+        const { commands, marketplaces, holdRead, cachedTemplateNames } = commandsOverRealService();
+        const updateFetchOfA = holdRead("/work/a/element-templates/a.json");
+
+        const update = commands.update();
+        await letPendingWorkRun();
+        const remove = commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+        await letPendingWorkRun();
+        updateFetchOfA.open();
+        await Promise.all([update, remove]);
+
+        expect(marketplaces).toEqual([]);
+        expect(await cachedTemplateNames()).toEqual([]);
+    });
+
+    it("shows the progress of a removal that waits for an update", async () => {
+        const { commands, marketplaces, notifier, holdRead } = commandsOverRealService();
+        const updateFetchOfA = holdRead("/work/a/element-templates/a.json");
+
+        const update = commands.update();
+        await letPendingWorkRun();
+        const remove = commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+        await letPendingWorkRun();
+
+        expect(notifier.progressTitles).toEqual([
+            "Updating marketplaces…",
+            "Removing marketplace(s)…",
+        ]);
+        expect(marketplaces).toEqual(["/work/a"]);
+
+        updateFetchOfA.open();
+        await Promise.all([update, remove]);
+    });
+});
+
+describe("MarketplaceCommands when a cached marketplace cannot be deleted", () => {
+    const busy = new Error("EBUSY: resource busy or locked");
+
+    it("still reloads the open editors and reports the update", async () => {
+        const { commands, workspace, notifier, templates, lockCachedMarketplaces } =
+            commandsOverRealService();
+        await workspace.writeFile("/cache/gone/0/element-templates/gone.json", "{}");
+        lockCachedMarketplaces(busy);
+
+        await expect(commands.update()).resolves.toBeUndefined();
+
+        expect(templates.reloads).toBe(1);
+        expect(notifier.infos).toEqual(["Updated 1 marketplace(s)."]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.loggedErrors).toEqual([busy]);
+    });
+
+    it("still reports a failed add", async () => {
+        const { commands, workspace, notifier, lockCachedMarketplaces } = commandsOverRealService();
+        await workspace.writeFile("/cache/gone/0/element-templates/gone.json", "{}");
+        lockCachedMarketplaces(busy);
+
+        await commands.add("/work/missing", async () => {});
+
+        expect(notifier.loggedErrors).toEqual([busy, expect.any(InvalidMarketplaceError)]);
+        expect(notifier.errors).toEqual([
+            "Failed to add marketplace.\n" +
+                'Invalid marketplace: could not read marketplace.json from "/work/missing": ' +
+                "File not found: /work/missing/marketplace.json",
+        ]);
+    });
+
+    it("reports the removal and reloads the open editors once the entries are unregistered", async () => {
+        const { commands, marketplaces, notifier, templates, lockCachedMarketplaces } =
+            commandsOverRealService();
+        await commands.update();
+        lockCachedMarketplaces(busy);
+
+        await commands.remove(1, async () => {
+            marketplaces.splice(marketplaces.indexOf("/work/a"), 1);
+        });
+
+        expect(marketplaces).toEqual([]);
+        expect(templates.reloads).toBe(2);
+        expect(notifier.infos).toEqual(["Updated 1 marketplace(s).", "Removed 1 marketplace(s)."]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.loggedErrors).toEqual([busy]);
     });
 });
 

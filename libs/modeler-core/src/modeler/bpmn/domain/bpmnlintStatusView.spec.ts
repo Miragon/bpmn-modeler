@@ -91,9 +91,15 @@ const cases: ViewCase[] = [
         },
     },
     {
-        name: "shows that no config is in use after the lint failed",
-        indicator: { state: "noConfig" },
-        view: { text: "BPMNlint: no .bpmnlintrc", icon: "info", tone: "neutral" },
+        name: "warns that linting failed and points to the log",
+        indicator: { state: "failed" },
+        view: {
+            text: "BPMNlint: failed",
+            icon: "warning",
+            tooltip:
+                "The .bpmnlintrc could not be read, or the lint run failed. See the log for details.",
+            tone: "warning",
+        },
     },
 ];
 

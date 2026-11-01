@@ -1,10 +1,12 @@
-import { posix } from "path";
-
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { configFolderPath } from "../domain/configArtifacts";
+import { changesConfigLookup, ConfigLookup } from "../domain/configLookup";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
+import { EVERY_PATH_GLOB } from "../domain/watchedFiles";
 import { joinWorkspacePath, parentWorkspacePath } from "../domain/workspacePath";
+
+const ELEMENT_TEMPLATES_FOLDER = "element-templates";
 
 /**
  * Implemented by {@link import("../../modeler/bpmn/service/BpmnElementTemplatesService").BpmnElementTemplatesService}
@@ -83,7 +85,12 @@ export class ArtifactService {
         workspaceRoot: string,
         configFolder: string,
     ): Promise<string[]> {
-        return this.collectSubDirs(documentDir, workspaceRoot, configFolder, "element-templates");
+        return this.collectSubDirs(
+            documentDir,
+            workspaceRoot,
+            configFolder,
+            ELEMENT_TEMPLATES_FOLDER,
+        );
     }
 
     /**
@@ -197,18 +204,22 @@ export class ArtifactService {
      * the templates-service ↔ ArtifactService circular dependency.
      */
     async createWatcher(editorId: string, target: ArtifactChangeTarget): Promise<WatcherResult> {
-        const documentDir = posix.dirname(editorId);
-        const configFolder = this.vsSettings.getConfigFolder();
-        const workspaceRoot = await this.getWorkspaceRoot(documentDir);
+        const documentDirectory = this.vsWorkspace.getDocumentDirectory(editorId);
+        const workspaceRoot = await this.getWorkspaceRoot(documentDirectory);
+        const templatesLookup: ConfigLookup = {
+            documentDirectory,
+            workspaceRoot,
+            entries: [
+                configFolderPath("", this.vsSettings.getConfigFolder(), ELEMENT_TEMPLATES_FOLDER),
+            ],
+        };
 
-        // No `*.json` suffix: a one-shot folder copy into element-templates can
-        // surface as a single directory-create event, which a file-extension
-        // glob would filter out and the templates would stay stale until reopen.
-        // Over-firing is harmless — the refresh re-scans from disk and applies
-        // the `.json` filter itself.
-        const pattern = posix.join("**", configFolder, "element-templates", "**");
-        const refreshTemplates = () => target.refreshElementTemplates(editorId);
-        const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
+        const refreshTemplates = (path: string) => {
+            if (changesConfigLookup(path, templatesLookup)) {
+                target.refreshElementTemplates(editorId);
+            }
+        };
+        const handle = this.vsWorkspace.createWatcher(workspaceRoot, EVERY_PATH_GLOB, {
             onCreate: refreshTemplates,
             onChange: refreshTemplates,
             onDelete: refreshTemplates,
