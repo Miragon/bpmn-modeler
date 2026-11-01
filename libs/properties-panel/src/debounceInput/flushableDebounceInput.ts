@@ -3,6 +3,10 @@ import { debounce } from "min-dash";
 /** The delay of the `@bpmn-io/properties-panel` default this service replaces. */
 const INPUT_DEBOUNCE_MS = 600;
 
+// An entry may debounce twice (a number field inside a FEEL field), so one pass
+// can schedule another; the cap stops input that schedules itself on every run.
+const MAX_FLUSH_PASSES = 10;
+
 interface DebouncedInput<Args extends unknown[]> {
     (...args: Args): void;
     flush(): void;
@@ -18,7 +22,7 @@ export interface FlushableDebounceInput {
     <Args extends unknown[]>(apply: (...args: Args) => void): DebouncedInput<Args>;
     /** Whether an entry's input still waits in its debounce. */
     hasPending(): boolean;
-    /** Runs every waiting call now. */
+    /** Runs every waiting call now, and the calls those runs debounce in turn. */
     flush(): void;
 }
 
@@ -51,8 +55,10 @@ export function createFlushableDebounceInput(delayMs = INPUT_DEBOUNCE_MS): Flush
     return Object.assign(debounceInput, {
         hasPending: () => waiting.size > 0,
         flush: () => {
-            for (const input of [...waiting]) {
-                input.flush();
+            for (let pass = 0; pass < MAX_FLUSH_PASSES && waiting.size > 0; pass++) {
+                for (const input of [...waiting]) {
+                    input.flush();
+                }
             }
         },
     });

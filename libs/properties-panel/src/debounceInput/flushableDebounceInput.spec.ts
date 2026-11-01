@@ -78,6 +78,42 @@ describe("flushable debounceInput", () => {
         expect(appliedDocumentation).toEqual(["Checks the amount"]);
     });
 
+    it("applies input that a flushed call debounces again", () => {
+        const debounceInput = createFlushableDebounceInput();
+        const appliedPriorities: number[] = [];
+        const commitPriority = debounceInput((priority: number) => {
+            appliedPriorities.push(priority);
+        });
+        const numberFieldInput = debounceInput((priority: number) => commitPriority(priority));
+
+        numberFieldInput(5);
+        debounceInput.flush();
+
+        expect(appliedPriorities).toEqual([5]);
+        expect(debounceInput.hasPending()).toBe(false);
+    });
+
+    it("stops draining entries that keep scheduling each other", () => {
+        const debounceInput = createFlushableDebounceInput();
+        let runs = 0;
+        // Bounded so a flush without a pass limit fails here instead of hanging.
+        const scheduleWhileBounded = (next: () => void): void => {
+            runs++;
+            if (runs < 1000) {
+                next();
+            }
+        };
+        const sourceField = debounceInput(() => scheduleWhileBounded(() => mirrorField()));
+        const mirrorField = debounceInput(() => scheduleWhileBounded(() => sourceField()));
+
+        sourceField();
+        debounceInput.flush();
+
+        expect(runs).toBeGreaterThan(1);
+        expect(runs).toBeLessThan(1000);
+        expect(debounceInput.hasPending()).toBe(true);
+    });
+
     it("stops reporting a call its entry cancelled", () => {
         const { debounceInput, setName, appliedNames } = nameEntry();
 
