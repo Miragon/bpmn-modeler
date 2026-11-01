@@ -527,13 +527,14 @@ own document sync.
 
 Both editable surfaces replace the properties panel's `debounceInput` service
 with `libs/properties-panel`'s `FlushableDebounceInputModule`, which builds the
-flushable service from `modeler-types` (the DMN modeler uses the same one). It
-keeps the library's 600 ms delay and tracks the input still waiting in it; a
-flush also runs input a flushed call debounces again, such as a number field
-inside a FEEL field. The modeler and designer handles reach it through the
-internal `hasPendingInput()` and `flushPendingInput()` (`PendingInputHandle`),
-which the IDE webview's flush and a recreating mode switch use to apply a typed
-value before they export. They are not public API yet.
+flushable service from `modeler-types` (the DMN modeler and the Form webview
+use the same one). It keeps the library's 600 ms delay and tracks the input
+still waiting in it; a flush also runs input a flushed call debounces again,
+such as a number field inside a FEEL field. The modeler and designer handles
+reach it through the internal `hasPendingInput()` and `flushPendingInput()`
+(`PendingInputHandle`), which the IDE webview's flush and a recreating mode
+switch use to apply a typed value before they export. They are not public API
+yet.
 
 ## Consequences and enforcement
 

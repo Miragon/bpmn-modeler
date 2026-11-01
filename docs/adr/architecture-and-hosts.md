@@ -421,20 +421,21 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
-In the BPMN and DMN webviews, a value that still waits in a properties
-panel's 600 ms input debounce counts as such an edit, and so does DMN text that
-the decision-table, literal-expression and boxed-expression editors still
-debounce (300 ms). Both modelers replace those `debounceInput` services with
-the flushable one from `modeler-types` (`createFlushableDebounceInput`): it
-tracks its waiting calls, and a flush runs them and the calls they debounce in
-turn. The webview's flush applies them before it exports, so the persisted file
-holds the value the editor shows. The BPMN surfaces register it through
+In the BPMN, DMN and Form webviews, a value that still waits in an editor's
+input debounce counts as such an edit: a BPMN or DMN properties panel's
+(600 ms), DMN text in the decision-table, literal-expression and
+boxed-expression editors (300 ms), and every form-js editor input (300 ms). The
+webviews replace those debounce services with the flushable one from
+`modeler-types` (`createFlushableDebounceInput`): it tracks its waiting calls,
+and a flush runs them and the calls they debounce in turn. The webview's flush
+applies them before it exports, so the persisted file holds the value the
+editor shows. The BPMN surfaces register it as `debounceInput` through
 `libs/properties-panel`; the DMN modeler registers its own instances, one for
-the DRD panel and one for the other views. A BPMN mode switch that rebuilds
-the surface applies them before it exports the diagram for the next surface,
-and the webview's `beforeDestroy` posts the sync they scheduled, so both the
-next surface and the document get the value. Accepted residual: a Form
-properties-panel value that form-js still debounces (300 ms) is not flushed.
+the DRD panel and one for the other views; the Form webview registers one as
+form-js's `debounce` service, with form-js's 300 ms delay. A BPMN mode switch
+that rebuilds the surface applies them before it exports the diagram for the
+next surface, and the webview's `beforeDestroy` posts the sync they scheduled,
+so both the next surface and the document get the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents
