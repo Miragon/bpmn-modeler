@@ -5,6 +5,7 @@ import {
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
 } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
@@ -36,7 +37,7 @@ const ESCALATING_CONFIG = {
 };
 const ESCALATING_RAW = JSON.stringify(ESCALATING_CONFIG);
 
-type LintOutcome = { results: typeof RESULTS; unresolved: string[] };
+type LintOutcome = { results: LintResults; unresolved: string[] };
 
 /** Lets a fire-and-forget host lint settle before assertions. */
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -509,6 +510,151 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
         service.applyWebviewLintResults(editor.id, RESULTS, [], token);
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
+    });
+});
+
+describe("BpmnLintConfigService — an older config run that finishes after a newer one", () => {
+    const NEWER_COVERED_CONFIG = { extends: "bpmnlint:all" };
+    const LINT_MESSAGE_TYPES = [
+        "BpmnlintInPageQuery",
+        "BpmnLintDisabledQuery",
+        "BpmnlintResultsQuery",
+    ];
+
+    /** Starts a run whose `.bpmnlintrc` read waits until the test settles it. */
+    async function olderRunHeldOnRead(config: string) {
+        const ctx = createService({ config });
+        let answerRead!: (bytes: string) => void;
+        let failRead!: (error: Error) => void;
+        vi.spyOn(ctx.host.workspace, "readFile").mockImplementationOnce(
+            () =>
+                new Promise((resolve, reject) => {
+                    answerRead = resolve;
+                    failRead = reject;
+                }),
+        );
+        const olderRun = ctx.service.setBpmnlintConfig(ctx.editor.id);
+        await flush();
+        return {
+            ...ctx,
+            /** Answers with the bytes the older run saw, not the file's current ones. */
+            finishOlderRun: () => {
+                answerRead(config);
+                return olderRun;
+            },
+            failOlderRun: () => {
+                failRead(new Error("ENOENT: no such file"));
+                return olderRun;
+            },
+        };
+    }
+
+    function lastLintMessageType(editor: FakeEditorHandle): string | undefined {
+        return editor.posted.filter(({ type }) => LINT_MESSAGE_TYPES.includes(type)).at(-1)?.type;
+    }
+
+    it("keeps linting against the newer config when the older run's read finishes last", async () => {
+        const { service, host, editor, finishOlderRun } = await olderRunHeldOnRead(COVERED_RAW);
+        host.workspace.files.set(CONFIG_PATH, JSON.stringify(NEWER_COVERED_CONFIG));
+        await service.setBpmnlintConfig(editor.id);
+        const newerToken = lastPosted<BpmnlintInPageQuery>(
+            editor,
+            "BpmnlintInPageQuery",
+        )?.configToken;
+
+        await finishOlderRun();
+
+        const instruction = lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery");
+        expect(instruction?.config).toEqual(NEWER_COVERED_CONFIG);
+        expect(instruction?.configToken).toBe(newerToken);
+        service.applyWebviewLintResults(editor.id, RESULTS, [], newerToken);
+        expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
+    });
+
+    it.each([
+        { tier: "covered", config: COVERED_RAW },
+        { tier: "escalated", config: ESCALATING_RAW },
+    ])(
+        "keeps linting off when it is turned off while an older $tier run reads its config",
+        async ({ config }) => {
+            const { service, host, editor, finishOlderRun } = await olderRunHeldOnRead(config);
+            host.settings.values.lintingEnabled = false;
+            await service.setBpmnlintConfig(editor.id);
+
+            await finishOlderRun();
+
+            expect(lastLintMessageType(editor)).toBe("BpmnLintDisabledQuery");
+            expect(host.statusBar.views.bpmnlint).toEqual(
+                bpmnlintStatusView({ state: "disabled" }),
+            );
+            expect(host.diagnostics.published.has(editor.id)).toBe(false);
+        },
+    );
+
+    it("keeps linting off when it is turned off while an older run searches for a config", async () => {
+        const { service, host, editor } = createService();
+        const readDirectory = host.workspace.readDirectory.bind(host.workspace);
+        let answerSearch!: () => void;
+        vi.spyOn(host.workspace, "readDirectory").mockImplementationOnce(
+            (path) =>
+                new Promise((resolve) => {
+                    answerSearch = () => resolve(readDirectory(path));
+                }),
+        );
+        const olderRun = service.setBpmnlintConfig(editor.id);
+        await flush();
+        host.settings.values.lintingEnabled = false;
+        await service.setBpmnlintConfig(editor.id);
+
+        answerSearch();
+        await olderRun;
+
+        expect(lastLintMessageType(editor)).toBe("BpmnLintDisabledQuery");
+        expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "disabled" }));
+    });
+
+    it.each([
+        { outcome: "returns the deleted bytes", settle: "finishOlderRun" },
+        { outcome: "fails", settle: "failOlderRun" },
+    ] as const)(
+        "keeps the in-page default when the config is deleted and the older run's read $outcome",
+        async ({ settle }) => {
+            const run = await olderRunHeldOnRead(COVERED_RAW);
+            const { service, host, editor } = run;
+            host.workspace.files.delete(CONFIG_PATH);
+            await service.setBpmnlintConfig(editor.id);
+
+            await run[settle]();
+
+            expect(service.getLintMode(editor.id)).toBe("in-page");
+            expect(
+                lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery")?.config,
+            ).toBeUndefined();
+            expect(host.statusBar.views.bpmnlint).toEqual(
+                bpmnlintStatusView({ state: "default", platform: undefined }),
+            );
+            expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(0);
+            expect(host.notifier.logged("error")).toEqual([]);
+        },
+    );
+
+    it("keeps the newer diagram's findings when an older host lint of the same config finishes last", async () => {
+        const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
+        await service.setBpmnlintConfig(editor.id);
+        let finishOlderLint!: (outcome: LintOutcome) => void;
+        lintRunner.lint.mockReturnValueOnce(new Promise((resolve) => (finishOlderLint = resolve)));
+        const olderRelint = service.setBpmnlintConfig(editor.id);
+        await flush();
+
+        editor.content = "<xml edited/>";
+        await service.setBpmnlintConfig(editor.id);
+        finishOlderLint({ results: STALE_RESULTS, unresolved: [] });
+        await olderRelint;
+
+        expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
+        expect(lastPosted<BpmnlintResultsQuery>(editor, "BpmnlintResultsQuery")?.results).toEqual(
+            RESULTS,
+        );
     });
 });
 
