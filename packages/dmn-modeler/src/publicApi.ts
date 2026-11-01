@@ -181,6 +181,18 @@ export interface DmnModelerHandle {
     getService<T = unknown>(name: string): T;
 }
 
+/**
+ * @internal Input a view editor holds in its input debounce, so it is not in
+ * the document or an export yet.
+ */
+export interface DmnPendingInputHandle {
+    /** Whether such input waits; `false` once destroyed. */
+    hasPendingInput(): boolean;
+
+    /** Applies that input to the document now. A no-op once destroyed. */
+    flushPendingInput(): void;
+}
+
 /** Factory signature for one independent DMN modeler instance. */
 export type CreateDmnModeler = (
     container: HTMLElement,

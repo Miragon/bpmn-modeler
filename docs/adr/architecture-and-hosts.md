@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -421,14 +421,18 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
-In the BPMN webview, a value that still waits in the properties panel's
-600 ms input debounce counts as such an edit. The panel's `debounceInput`
-service comes from `libs/properties-panel` and tracks its waiting calls; the
-flush applies them before it exports, so the persisted file holds the value
-the panel shows. A mode switch that rebuilds the surface applies them before
-it exports the diagram for the next surface, and the webview's `beforeDestroy`
-posts the sync they scheduled, so both the next surface and the document get
-the value.
+In the BPMN and DMN webviews, a value that still waits in a properties
+panel's 600 ms input debounce counts as such an edit. Both modelers replace the
+panel's `debounceInput` service with the flushable one from `modeler-types`
+(`createFlushableDebounceInput`): it tracks its waiting calls, and a flush runs
+them and the calls they debounce in turn. The webview's flush applies them
+before it exports, so the persisted file holds the value the panel shows. The
+BPMN surfaces register it through `libs/properties-panel`; the DMN modeler
+registers its own instance for the DRD panel. A BPMN mode switch that rebuilds
+the surface applies them before it exports the diagram for the next surface,
+and the webview's `beforeDestroy` posts the sync they scheduled, so both the
+next surface and the document get the value. Accepted residual: a Form
+properties-panel value that form-js still debounces (300 ms) is not flushed.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
 another application) flushes in the Kotlin host instead. IntelliJ announces it
 with `beforeAllDocumentsSaving` on the EDT, before it reads which Documents
@@ -449,9 +453,7 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a DMN or Form
-properties-panel value the panel has not passed to the editor yet (dmn-js
-debounces it for 600 ms, form-js for 300 ms) is not flushed; and a save of one
+write has not reached the EDT yet, lands after the save; and a save of one
 Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
 flush.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in

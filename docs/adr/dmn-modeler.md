@@ -1,7 +1,7 @@
 # DMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-24
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -49,6 +49,17 @@ the same behavior from both packages. Teardown composes the shared
 idempotent; afterwards every member throws `NoModelerError` (async members
 reject with it), which the package exports, except `setTheme`, which becomes a
 no-op.
+
+The DRD properties panel's `debounceInput` service is the flushable one from
+`modeler-types`, with the panel library's 600 ms delay, registered after the
+panel module so it replaces the library's. The modeler holds the instance
+instead of reading it from the active viewer, so input typed into the panel is
+still found after a switch to another view. The handle reaches it through the
+internal `hasPendingInput()` and `flushPendingInput()`
+(`DmnPendingInputHandle`), which answer `false` and do nothing once destroyed.
+The IDE webview's flush uses them to apply a typed value before it exports, as
+it does for the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle).
+They are not public API yet.
 
 ### Themes
 

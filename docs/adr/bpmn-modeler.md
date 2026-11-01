@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-31
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -526,12 +526,14 @@ each change undebounced to consumers that need it, such as the IDE webview's
 own document sync.
 
 Both editable surfaces replace the properties panel's `debounceInput` service
-with the repo's own from `libs/properties-panel`. It keeps the library's
-600 ms delay and tracks the input still waiting in it. The modeler and designer
-handles reach it through the internal `hasPendingInput()` and
-`flushPendingInput()` (`PendingInputHandle`), which the IDE webview's flush
-and a recreating mode switch use to apply a typed value before they export.
-They are not public API yet.
+with `libs/properties-panel`'s `FlushableDebounceInputModule`, which builds the
+flushable service from `modeler-types` (the DMN modeler uses the same one). It
+keeps the library's 600 ms delay and tracks the input still waiting in it; a
+flush also runs input a flushed call debounces again, such as a number field
+inside a FEEL field. The modeler and designer handles reach it through the
+internal `hasPendingInput()` and `flushPendingInput()` (`PendingInputHandle`),
+which the IDE webview's flush and a recreating mode switch use to apply a typed
+value before they export. They are not public API yet.
 
 ## Consequences and enforcement
 

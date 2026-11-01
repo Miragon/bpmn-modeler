@@ -335,6 +335,7 @@
             "package": "@miragon/bpmn-modeler-properties-panel",
             "paths": [
                 "libs/properties-panel/**",
+                "libs/modeler-types/**",
                 "yarn.lock"
             ],
             "typecheck": "build"

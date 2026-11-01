@@ -8,6 +8,7 @@
  * by eslint (`BND-PROTOCOL-PRIVATE`), not convention.
  */
 export * from "./asyncDebounce";
+export * from "./flushableDebounceInput";
 export * from "./engine";
 export * from "./engineVersions";
 export * from "./surfaceMode";

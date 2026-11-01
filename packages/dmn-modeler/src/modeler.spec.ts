@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DmnView, DmnViewChangedEvent, DmnWarning } from "./publicApi";
 
@@ -158,6 +158,31 @@ function createViewer(services: Record<string, unknown>): MockViewer {
     return { services, get: <T>(name: string) => services[name] as T };
 }
 
+type DebounceInputService = <Args extends unknown[]>(
+    apply: (...args: Args) => void,
+) => (...args: Args) => void;
+
+// dmn-js appends a view's additionalModules after its own modules, and the last
+// module that provides a service wins, so this is what the view's inputs use.
+function viewDebounceInput(additionalModules: unknown[]): DebounceInputService {
+    const providers = additionalModules.flatMap((module) => {
+        const provider = (module as { debounceInput?: [string, unknown] }).debounceInput;
+        return provider ? [provider] : [];
+    });
+    const [kind, service] = providers.at(-1) ?? [];
+    expect(kind).toBe("value");
+    return service as DebounceInputService;
+}
+
+function typeInto(debounceInput: DebounceInputService, typed: string): string[] {
+    const applied: string[] = [];
+    const setValue = debounceInput((value: string) => {
+        applied.push(value);
+    });
+    setValue(typed);
+    return applied;
+}
+
 const drdView: DmnView = {
     id: "Definitions_1",
     type: "drd",
@@ -211,6 +236,7 @@ describe("DmnModeler", () => {
             mocks.drdProvider,
             mocks.camundaProvider,
             mocks.drdSimulation,
+            { debounceInput: ["value", expect.any(Function)] },
             drdModule,
         ]);
         expect(config.decisionTable.additionalModules).toEqual([
@@ -504,6 +530,66 @@ describe("DmnModeler", () => {
         handle.setTheme("automatic");
         expect(container.hasAttribute("data-dmn-theme")).toBe(false);
         expect(panel.hasAttribute("data-dmn-theme")).toBe(false);
+    });
+
+    describe("properties-panel input that still waits in its debounce", () => {
+        const createModeler = () =>
+            new DmnModeler(document.createElement("main"), {
+                propertiesPanel: { parent: document.createElement("aside") },
+            });
+        const drdDebounceInput = (vendor: MockVendor) =>
+            viewDebounceInput(vendor.options.drd.additionalModules);
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it("is reported and applied by the handle", () => {
+            const handle = createModeler();
+            const applied = typeInto(drdDebounceInput(mocks.vendors[0]), "Approve invoice");
+
+            expect(handle.hasPendingInput()).toBe(true);
+            handle.flushPendingInput();
+
+            expect(applied).toEqual(["Approve invoice"]);
+            expect(handle.hasPendingInput()).toBe(false);
+        });
+
+        it("keeps the properties panel's 600 ms input delay", () => {
+            vi.useFakeTimers();
+            const handle = createModeler();
+            const applied = typeInto(drdDebounceInput(mocks.vendors[0]), "Approve invoice");
+
+            vi.advanceTimersByTime(599);
+            expect(applied).toEqual([]);
+
+            vi.advanceTimersByTime(1);
+            expect(applied).toEqual(["Approve invoice"]);
+            expect(handle.hasPendingInput()).toBe(false);
+        });
+
+        it("stays with the modeler it was typed into", () => {
+            const first = createModeler();
+            const second = createModeler();
+            const applied = typeInto(drdDebounceInput(mocks.vendors[0]), "Approve invoice");
+
+            second.flushPendingInput();
+
+            expect(applied).toEqual([]);
+            expect(first.hasPendingInput()).toBe(true);
+            expect(second.hasPendingInput()).toBe(false);
+        });
+
+        it("is neither reported nor applied once the modeler is destroyed", () => {
+            const handle = createModeler();
+            const applied = typeInto(drdDebounceInput(mocks.vendors[0]), "Approve invoice");
+
+            handle.destroy();
+            handle.flushPendingInput();
+
+            expect(handle.hasPendingInput()).toBe(false);
+            expect(applied).toEqual([]);
+        });
     });
 
     it("destroys exactly once, detaches listeners, and rejects later operations", async () => {

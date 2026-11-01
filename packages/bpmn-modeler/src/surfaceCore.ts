@@ -1,6 +1,10 @@
 import type BaseViewer from "bpmn-js/lib/BaseViewer";
-import { type DisposableStore, NoModelerError, ThemeController } from "@miragon/bpmn-modeler-types";
-import type { FlushableDebounceInput } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
+import {
+    type DisposableStore,
+    type FlushableDebounceInput,
+    NoModelerError,
+    ThemeController,
+} from "@miragon/bpmn-modeler-types";
 
 import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
 import type { ThemeMode } from "./publicApi";
