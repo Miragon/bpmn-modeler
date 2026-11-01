@@ -412,8 +412,9 @@ token prompt has.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
-syncs, and a single, snapshot-checked initialization of an empty file that a
-webview reload or a host edit cannot race. Each modeler service adds only its
+syncs, and a single, snapshot-checked initialization of an empty file. A
+webview reload cannot race it; a host edit at a newer revision supersedes it,
+whichever host owns the revision. Each modeler service adds only its
 document type (the empty content, BPMN's engine prompt, the query it posts),
 and one `DocumentRenderParticipant` re-renders any of them on a host change.
 Before a document is persisted, the core's `PendingEditsFlush` asks the
