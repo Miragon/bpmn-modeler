@@ -25,6 +25,7 @@ import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
 import { createTestHost, PromptAnswers, RecordingNotifier } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
+import { AdHocDestination, NamedDestination } from "./domain/deploymentDestination";
 import {
     contentFingerprint,
     DeployedRevision,
@@ -43,6 +44,8 @@ const INVOICE_PROCESS = "/ws/src/invoice.bpmn";
 
 const target = (name: string): DeploymentTarget =>
     new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
+const namedDestination = (savedTarget: DeploymentTarget): NamedDestination =>
+    new NamedDestination(savedTarget, { filePath: TARGETS_FILE, exists: true, projectDir: "/ws" });
 
 class RecordingEngineHttp implements HttpClient {
     readonly deployments: { url: string; headers: Record<string, string>; body: string }[] = [];
@@ -448,7 +451,10 @@ describe("DeploymentFeature.statusMenu", () => {
         await feature.statusMenu();
 
         expect(host.picker.prompts).toEqual([
-            { method: "choose", args: [deploymentStatusActionPrompt(target("dev"))] },
+            {
+                method: "choose",
+                args: [deploymentStatusActionPrompt(namedDestination(target("dev")))],
+            },
         ]);
         expect(host.notifier.infos).toEqual(["Process 'order-process' is not deployed on dev."]);
     });
@@ -460,7 +466,10 @@ describe("DeploymentFeature.statusMenu", () => {
         await feature.statusMenu();
 
         expect(host.picker.prompts).toEqual([
-            { method: "choose", args: [deploymentStatusActionPrompt(undefined)] },
+            {
+                method: "choose",
+                args: [deploymentStatusActionPrompt(new AdHocDestination("", ""))],
+            },
         ]);
         expect(host.deploymentState.load().activeTargetName).toBe("");
         expect(host.notifier.infos).toEqual([]);

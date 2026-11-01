@@ -124,7 +124,6 @@ function createService({
     const editor = host.openEditor(filePath, "<a/>");
     editor.active = true;
     const deploymentTargetService = {
-        getActiveTarget: vi.fn().mockResolvedValue(undefined),
         getActiveDestination: vi.fn(async (): Promise<DeploymentDestination> => {
             const { endpoint, tenantId } = host.deploymentState.load();
             return new AdHocDestination(endpoint, tenantId);
@@ -702,13 +701,13 @@ describe("DeploymentStatusService.ledgerIdentity", () => {
 describe("DeploymentStatusService.pickStatusBarAction", () => {
     it("offers verify for a named C7 target", async () => {
         const c = createService({ promptAnswers: { deploymentStatusAction: "verify" } });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
 
         await expect(c.service.pickStatusBarAction("/work")).resolves.toBe("verify");
 
-        expect(c.deploymentTargetService.getActiveTarget).toHaveBeenCalledWith("/work");
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith("/work");
         expect(c.host.picker.prompts).toEqual([
-            { method: "choose", args: [deploymentStatusActionPrompt(target("dev"))] },
+            { method: "choose", args: [deploymentStatusActionPrompt(named(target("dev")))] },
         ]);
     });
 
@@ -718,7 +717,10 @@ describe("DeploymentStatusService.pickStatusBarAction", () => {
         await expect(c.service.pickStatusBarAction()).resolves.toBeUndefined();
 
         expect(c.host.picker.prompts).toEqual([
-            { method: "choose", args: [deploymentStatusActionPrompt(undefined)] },
+            {
+                method: "choose",
+                args: [deploymentStatusActionPrompt(new AdHocDestination("", ""))],
+            },
         ]);
     });
 
@@ -733,12 +735,12 @@ describe("DeploymentStatusService.pickStatusBarAction", () => {
             "",
             "",
         );
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(cloud);
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(cloud));
 
         await expect(c.service.pickStatusBarAction()).resolves.toBe("switch");
 
         expect(c.host.picker.prompts).toEqual([
-            { method: "choose", args: [deploymentStatusActionPrompt(cloud)] },
+            { method: "choose", args: [deploymentStatusActionPrompt(named(cloud))] },
         ]);
     });
 

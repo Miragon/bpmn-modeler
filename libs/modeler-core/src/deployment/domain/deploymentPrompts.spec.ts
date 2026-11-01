@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { Engine } from "@miragon/bpmn-modeler-types";
+
 import { CredentialDestinations } from "./credentialDestinations";
+import { AdHocDestination, NamedDestination } from "./deploymentDestination";
 import {
     additionalFilesPrompt,
     credentialApprovalConfirmation,
@@ -10,6 +13,7 @@ import {
     deploymentTargetPrompt,
     payloadFilePrompt,
 } from "./deploymentPrompts";
+import { DeploymentTarget } from "./deploymentTarget";
 
 const fileChoice = (path: string, label: string) => ({ label, path, value: path });
 
@@ -68,28 +72,41 @@ describe("deploymentTargetPrompt", () => {
 
 describe("deploymentStatusActionPrompt", () => {
     const SWITCH = { label: "Switch deployment target…", icon: "swap", value: "switch" };
+    const ENDPOINT = "http://localhost:8080/engine-rest";
+    const namedDestination = (name: string, engine: Engine) =>
+        new NamedDestination(new DeploymentTarget(name, engine, ENDPOINT, "", "none", "", ""), {
+            filePath: "/work/.camunda/deployment-targets.json",
+            exists: true,
+            projectDir: "/work",
+        });
 
     it.each([
         {
             behaviour: "offers to verify on a named Camunda 7 target",
-            activeTarget: { name: "dev", engine: "c7" as const },
+            activeDestination: namedDestination("dev", "c7"),
             placeholder: 'Deployment target "dev"',
             items: [SWITCH, { label: "Verify on dev", icon: "cloud", value: "verify" }],
         },
         {
             behaviour: "offers only the switch for a Camunda 8 target, which has no lookup",
-            activeTarget: { name: "cloud", engine: "c8" as const },
+            activeDestination: namedDestination("cloud", "c8"),
             placeholder: 'Deployment target "cloud"',
             items: [SWITCH],
         },
         {
-            behaviour: "offers only the switch without a named target",
-            activeTarget: undefined,
+            behaviour: "names the form values once a deploy saved the form's endpoint",
+            activeDestination: new AdHocDestination(ENDPOINT, ""),
+            placeholder: "Deployment with the form values",
+            items: [SWITCH],
+        },
+        {
+            behaviour: "names no connection before a deploy saved the form's endpoint",
+            activeDestination: new AdHocDestination("", ""),
             placeholder: "No deployment target selected",
             items: [SWITCH],
         },
-    ])("$behaviour", ({ activeTarget, placeholder, items }) => {
-        expect(deploymentStatusActionPrompt(activeTarget)).toStrictEqual({
+    ])("$behaviour", ({ activeDestination, placeholder, items }) => {
+        expect(deploymentStatusActionPrompt(activeDestination)).toStrictEqual({
             id: "deploymentStatusAction",
             placeholder,
             items,

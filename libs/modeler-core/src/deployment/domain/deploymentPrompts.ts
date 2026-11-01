@@ -2,7 +2,8 @@ import { confirmation } from "../../kernel/domain/affectedItems";
 import { fileChoice, fileChoicesInWorkspaceOrder } from "../../kernel/domain/fileChoices";
 import { ChoiceItem, ChoicePrompt, ConfirmRequest } from "../../kernel/domain/prompts";
 import { CredentialDestinations } from "./credentialDestinations";
-import { DeploymentTarget } from "./deploymentTarget";
+import { DeploymentDestination } from "./deploymentDestination";
+import { StatusConnection } from "./deploymentStatusView";
 
 export type DeploymentStatusAction = "switch" | "verify";
 
@@ -29,21 +30,32 @@ export function deploymentTargetPrompt(names: readonly string[]): ChoicePrompt<s
 
 /** The status-bar item's click menu. Only Camunda 7 has a deployment lookup to verify against. */
 export function deploymentStatusActionPrompt(
-    activeTarget: Pick<DeploymentTarget, "name" | "engine"> | undefined,
+    activeDestination: Pick<DeploymentDestination, "statusConnection" | "target">,
 ): ChoicePrompt<DeploymentStatusAction> {
+    const { statusConnection, target } = activeDestination;
     const items: ChoiceItem<DeploymentStatusAction>[] = [
         { label: "Switch deployment target…", icon: "swap", value: "switch" },
     ];
-    if (activeTarget?.engine === "c7") {
-        items.push({ label: `Verify on ${activeTarget.name}`, icon: "cloud", value: "verify" });
+    if (target?.engine === "c7") {
+        items.push({ label: `Verify on ${target.name}`, icon: "cloud", value: "verify" });
     }
     return {
         id: "deploymentStatusAction",
-        placeholder: activeTarget
-            ? `Deployment target "${activeTarget.name}"`
-            : "No deployment target selected",
+        placeholder: statusActionPlaceholder(statusConnection),
         items,
     };
+}
+
+/** Reads the connection the status item names, so the item and its menu cannot disagree. */
+function statusActionPlaceholder(connection: StatusConnection): string {
+    switch (connection.kind) {
+        case "named":
+            return `Deployment target "${connection.name}"`;
+        case "formValues":
+            return "Deployment with the form values";
+        case "none":
+            return "No deployment target selected";
+    }
 }
 
 /** What a workspace search found, and the folders it searched. */
