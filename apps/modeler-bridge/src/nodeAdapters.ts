@@ -13,8 +13,9 @@
  * adapter with *different* string spaces:
  *  - `setElementTemplates` resolves dirs via `DocumentPort.getFilePath` → a
  *    clean OS path (`fsPath`, no scheme).
- *  - `ArtifactService.createWatcher` does `posix.dirname(editorId)` → a
- *    URI-form path (`file:///…`), and watches the folder resolved for it.
+ *  - The element-template and `.bpmnlintrc` watchers resolve dirs via
+ *    `getDocumentDirectory(editorId)`, which here keeps the URI form
+ *    (`file:///…`), and watch the folder resolved for it.
  * So this adapter is **scheme-tolerant and space-preserving**: it strips a
  * leading `file://` only at the fs boundary, and returns the workspace root in
  * the *same* space as the queried document (URI in → URI out; clean in → clean
