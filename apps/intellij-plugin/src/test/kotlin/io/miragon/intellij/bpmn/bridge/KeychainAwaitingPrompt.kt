@@ -6,7 +6,9 @@ import com.intellij.credentialStore.CredentialStore
 import com.intellij.credentialStore.Credentials
 import com.intellij.ide.passwordSafe.PasswordSafe
 import com.intellij.ide.passwordSafe.impl.BasePasswordSafe
+import com.intellij.openapi.application.ApplicationManager
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -34,10 +36,14 @@ internal class ReplacedPasswordSafeStore(store: CredentialStore) : AutoCloseable
 internal class KeychainAwaitingPrompt : AutoCloseable {
     private val readStarted = CountDownLatch(1)
     private val promptAnswered = CountDownLatch(1)
+
+    @Volatile private var readHeldTheEdt = false
+
     private val replacedStore =
         ReplacedPasswordSafeStore(
             object : CredentialStore {
                 override fun get(attributes: CredentialAttributes): Credentials? {
+                    readHeldTheEdt = ApplicationManager.getApplication().isDispatchThread
                     readStarted.countDown()
                     promptAnswered.await(PROMPT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     return null
@@ -47,8 +53,10 @@ internal class KeychainAwaitingPrompt : AutoCloseable {
             },
         )
 
-    fun awaitReadReachingKeychain() =
+    fun awaitReadReachingKeychain() {
         assertTrue(readStarted.await(WAIT_SECONDS, TimeUnit.SECONDS), "the read must reach PasswordSafe")
+        assertFalse(readHeldTheEdt, "a PasswordSafe read waiting for the user must not hold the EDT")
+    }
 
     fun answerPrompt() = promptAnswered.countDown()
 
