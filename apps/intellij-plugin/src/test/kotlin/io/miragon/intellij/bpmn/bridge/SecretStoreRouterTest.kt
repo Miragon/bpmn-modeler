@@ -24,9 +24,12 @@ class SecretStoreRouterTest {
 
     @AfterEach
     fun tearDown() {
-        wired?.let { request(it, "secretStore/delete", mapOf("slot" to SLOT)) }
-        wired?.let { request(it, "secretStore/delete", mapOf("slot" to OTHER_SLOT)) }
-        wired?.dispose()
+        try {
+            wired?.let { request(it, "secretStore/delete", mapOf("slot" to SLOT)) }
+            wired?.let { request(it, "secretStore/delete", mapOf("slot" to OTHER_SLOT)) }
+        } finally {
+            wired?.dispose()
+        }
     }
 
     private fun registeredRouter(): WiredBridge {
@@ -108,6 +111,35 @@ class SecretStoreRouterTest {
         val stored = request(wired, "secretStore/getBasicAuth", mapOf("slot" to null))!!.asJsonObject
         assertEquals("legacy", stored.get("username").asString)
         assertNull(request(wired, "secretStore/getBasicAuth", mapOf("slot" to SLOT)))
+    }
+
+    @Test
+    fun `dispatches the next frame while a secret read is still blocked`() {
+        val wired = registeredRouter()
+
+        assertNextFrameIsDispatchedWhileReadWaitsForKeychain(
+            wired,
+            """{"method":"secretStore/getBasicAuth","params":{"slot":"$SLOT"},"id":41}""",
+            readRequestId = 41,
+        )
+    }
+
+    @Test
+    fun `a secret save waits for an earlier read that is still blocked`() {
+        val wired = registeredRouter()
+
+        KeychainAwaitingPrompt().use { keychain ->
+            wired.fake.emit("""{"method":"secretStore/getBasicAuth","params":{"slot":"$SLOT"},"id":51}""")
+            keychain.awaitReadReachingKeychain()
+            wired.fake.emit(
+                """{"method":"secretStore/saveBasicAuth","params":{"username":"u","password":"p","slot":"$SLOT"},"id":52}""",
+            )
+
+            wired.fake.expectNoFrame()
+            keychain.answerPrompt()
+            val replyIds = List(2) { gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java).get("id").asInt }
+            assertEquals(listOf(51, 52), replyIds, "secret requests are answered in the order they arrived")
+        }
     }
 
     private companion object {

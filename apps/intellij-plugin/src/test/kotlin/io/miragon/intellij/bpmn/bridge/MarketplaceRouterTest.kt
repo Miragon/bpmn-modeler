@@ -133,6 +133,17 @@ class MarketplaceRouterTest {
     }
 
     @Test
+    fun `dispatches the next frame while a token read is still blocked`() {
+        val (wired, _) = router()
+
+        assertNextFrameIsDispatchedWhileReadWaitsForKeychain(
+            wired,
+            """{"method":"tokenStore/get","params":{"host":"github.com"},"id":42}""",
+            readRequestId = 42,
+        )
+    }
+
+    @Test
     fun `tokenPrompt shows the core's title and prompt and replies the answer as typed`() {
         val shown = mutableListOf<Pair<String, String>>()
         val (wired, _) = router(prompt = { title, prompt -> "  ghp_granted  ".also { shown += title to prompt } })
