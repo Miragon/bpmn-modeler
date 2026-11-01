@@ -4,7 +4,7 @@
  * Same harness as `bridge.navigate.spec.ts`: the real bridge (`createBridge`)
  * runs against a fake transport (a frames array) over a real temp filesystem, so
  * the `CodeLinkMapService` + `ImplementationLocator` it constructs do an actual
- * `fs.glob` + path/content match. The tests cover the host-visible behaviour:
+ * directory walk + path/content match. The tests cover the host-visible behaviour:
  * `SyncActivitiesCommand` resolving (and not resolving) an entry into an
  * `ImplementationStatusQuery`, `NavigateToImplementationCommand` opening the
  * single match, and the unknown-`kind` guard short-circuiting before any search.

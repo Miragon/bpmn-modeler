@@ -4,7 +4,7 @@
  * Same harness style as `server.spec.ts`: the real bridge (`createBridge`) runs
  * against a fake transport (a frames array) over a real temp filesystem, so the
  * `ReferencedModelLocator` + `ModelNavigationService` it constructs do an
- * actual `fs.glob` + read-and-regex search. The tests cover the four branches
+ * actual directory walk + read-and-regex search. The tests cover the four branches
  * the navigation flow exposes to the host: single-match (direct open), multi-
  * match (picker round-trip), no-match (info balloon, no open), and unknown
  * `referenceKind` (warn log, no search).
