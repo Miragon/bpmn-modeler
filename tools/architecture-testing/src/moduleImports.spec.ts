@@ -101,6 +101,12 @@ describe("readModuleImports", () => {
         ]);
     });
 
+    it("reads a source again under another name without parsing it again", () => {
+        const source = 'import { a } from "./a";';
+
+        expect(readModuleImports("b.ts", source)).toBe(readModuleImports("a.ts", source));
+    });
+
     it("reads JSX text in a .tsx file as text, not as an import", () => {
         const source = 'const view = <p>import "./x";</p>;\nimport { a } from "./a";';
 
