@@ -160,16 +160,8 @@ export class MarketplaceCommands {
             await this.templates.reloadMarketplaceTemplates();
             return report;
         } catch (error) {
-            await this.pruneAfterFailedAdd();
-            throw error;
-        }
-    }
-
-    private async pruneAfterFailedAdd(): Promise<void> {
-        try {
             await this.marketplaces.pruneOrphanedCaches();
-        } catch (pruneError) {
-            this.notifier.logError(pruneError as Error);
+            throw error;
         }
     }
 

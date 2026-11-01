@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../testing";
 import { FetchReport, SourceFailure } from "./domain/fetchReport";
+import { InvalidMarketplaceError } from "./domain/marketplace";
 import { MarketplaceCommands, createTemplateMarketplaceService } from "./MarketplaceFeature";
 import { TemplateMarketplaceService } from "./service/TemplateMarketplaceService";
 
@@ -125,22 +126,6 @@ describe("MarketplaceCommands.add", () => {
 
         expect(explained).toEqual(["not a registered configuration"]);
         expect(notifier.errors).toEqual([]);
-    });
-
-    it("still reports the add failure when pruning fails too", async () => {
-        const { commands, marketplaces, notifier } = createCommands();
-        const offline = new Error("offline");
-        const cacheLocked = new Error("cache locked");
-        marketplaces.addMarketplace.mockRejectedValue(offline);
-        marketplaces.pruneOrphanedCaches.mockRejectedValue(cacheLocked);
-
-        await commands.add("/templates", vi.fn());
-
-        expect(notifier.logged("error")).toEqual([
-            cacheLocked.stack,
-            `Failed to add marketplace. ${offline.stack}`,
-        ]);
-        expect(notifier.errors).toEqual(["Failed to add marketplace.\noffline"]);
     });
 });
 
@@ -397,6 +382,21 @@ describe("MarketplaceCommands when a cached marketplace cannot be deleted", () =
         expect(notifier.infos).toEqual(["Updated 1 marketplace(s)."]);
         expect(notifier.errors).toEqual([]);
         expect(notifier.loggedErrors).toEqual([busy]);
+    });
+
+    it("still reports a failed add", async () => {
+        const { commands, workspace, notifier, lockCachedMarketplaces } = commandsOverRealService();
+        await workspace.writeFile("/cache/gone/0/element-templates/gone.json", "{}");
+        lockCachedMarketplaces(busy);
+
+        await commands.add("/work/missing", async () => {});
+
+        expect(notifier.loggedErrors).toEqual([busy, expect.any(InvalidMarketplaceError)]);
+        expect(notifier.errors).toEqual([
+            "Failed to add marketplace.\n" +
+                'Invalid marketplace: could not read marketplace.json from "/work/missing": ' +
+                "File not found: /work/missing/marketplace.json",
+        ]);
     });
 
     it("reports the removal and reloads the open editors once the entries are unregistered", async () => {
