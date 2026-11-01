@@ -192,6 +192,12 @@ export interface WorkspacePort {
      * {@link import("./workspacePath").toWorkspacePath} spells them: `/`-separated,
      * and `//server/share/repo/src/A.java` under a UNC root, never
      * `/server/share/…`, which Node's `fs` on Windows opens on the current drive.
+     *
+     * `pattern` and `exclude` match a file's path relative to its workspace
+     * folder, so the folders above a workspace folder exclude none of its
+     * files. `undefined` keeps the host's own default excludes (VS Code's
+     * `files.exclude`), `null` drops them. A host need not read a folder that
+     * `exclude` covers whole ({@link import("./globToRegExp").coveredFolderRegExp}).
      */
     findFiles(pattern: string, exclude?: string | null): Promise<string[]>;
     /**
