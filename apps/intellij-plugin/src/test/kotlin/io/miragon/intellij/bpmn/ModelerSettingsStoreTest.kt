@@ -102,7 +102,7 @@ class ModelerSettingsStoreTest {
             }
         changeStarted.await(LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
-        val writer = thread { write.apply(store) }
+        val writer = thread { write.writeTo(store) }
         // Without the shared lock the write lands inside this window and the update then overwrites it.
         writer.join(RACE_WINDOW_MILLIS)
         releaseChange.countDown()
@@ -151,7 +151,7 @@ class ModelerSettingsStoreTest {
     class SettingsNormalizationCase(val raw: JsonObject, val normalized: JsonObject)
 
     class WriteDuringUpdate(
-        val apply: (ModelerSettingsStore) -> Unit,
+        val writeTo: (ModelerSettingsStore) -> Unit,
         val expectedEffect: (ModelerSettings) -> ModelerSettings,
     )
 
@@ -187,21 +187,21 @@ class ModelerSettingsStoreTest {
                 Named.of(
                     "an app-wide marketplace add",
                     WriteDuringUpdate(
-                        apply = { it.addMarketplace("https://github.com/acme/added") },
+                        writeTo = { it.addMarketplace("https://github.com/acme/added") },
                         expectedEffect = { it.copy(marketplaces = it.marketplaces + "https://github.com/acme/added") },
                     ),
                 ),
                 Named.of(
                     "an app-wide marketplace removal",
                     WriteDuringUpdate(
-                        apply = { it.removeMarketplaces(listOf(SEEDED_MARKETPLACE)) },
+                        writeTo = { it.removeMarketplaces(listOf(SEEDED_MARKETPLACE)) },
                         expectedEffect = { it.copy(marketplaces = emptyList()) },
                     ),
                 ),
                 Named.of(
                     "a lint toggle",
                     WriteDuringUpdate(
-                        apply = { it.setLintingEnabled(false) },
+                        writeTo = { it.setLintingEnabled(false) },
                         expectedEffect = { it.copy(lintingEnabled = false) },
                     ),
                 ),

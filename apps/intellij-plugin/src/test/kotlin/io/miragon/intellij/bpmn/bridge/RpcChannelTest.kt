@@ -470,14 +470,14 @@ class RpcChannelTest {
     }
 
     /** A core request as the host received it, answered through the channel that dispatched it. */
-    private class ReceivedRequest(val method: String, val answer: (RpcResult) -> Unit)
+    private class ReceivedRequest(val answer: (RpcResult) -> Unit)
 
     private fun answerableChannel(): Pair<RpcChannel, LinkedBlockingQueue<ReceivedRequest>> {
         val received = LinkedBlockingQueue<ReceivedRequest>()
         var channelRef: RpcChannel? = null
         val channel =
-            rpcChannel { method, _, requestId ->
-                received.add(ReceivedRequest(method) { channelRef!!.reply(requestId!!, it) })
+            rpcChannel { _, _, requestId ->
+                received.add(ReceivedRequest { channelRef!!.reply(requestId!!, it) })
             }
         channelRef = channel
         return channel to received
