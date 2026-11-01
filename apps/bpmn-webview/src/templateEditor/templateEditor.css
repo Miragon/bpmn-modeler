@@ -116,6 +116,18 @@ html[data-bpmn-theme="dark"] .template-editor__wizard input {
     display: none;
 }
 
+/* A host without the builder shows the page as a preview only. */
+.template-editor--preview-only .template-editor__main,
+.template-editor--preview-only .panel-resizer {
+    display: none;
+}
+
+.template-editor--preview-only #js-properties-panel {
+    flex: 1;
+    width: auto;
+    max-width: none;
+}
+
 /* The panels' own surface, so the builder column narrower than its area shows no edge. */
 .template-editor__body {
     background: #fff;

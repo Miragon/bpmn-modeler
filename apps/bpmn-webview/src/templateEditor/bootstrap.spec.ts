@@ -435,6 +435,48 @@ describe("bootstrapTemplateEditor", () => {
         );
     });
 
+    describe("as a preview only, for a host without the builder", () => {
+        beforeEach(() => {
+            document.body.innerHTML = '<div id="app" data-view="preview"></div>';
+        });
+
+        it("shows the preview of the file and no builder", async () => {
+            await start();
+
+            receive(JSON.stringify(STATUS));
+            await vi.advanceTimersByTimeAsync(0);
+
+            expect(query(".template-editor")?.classList).toContain("template-editor--preview-only");
+            expect(query(".template-editor")?.classList).not.toContain(
+                "template-editor--no-preview",
+            );
+            expect(mocks.shown).toEqual([{ template: STATUS, engine: "c8" }]);
+            expect(mocks.builderStates).toEqual([]);
+            expect(query(".panel-resizer-toggle")).toBeNull();
+        });
+
+        it("explains what it cannot show instead of offering to write the file", async () => {
+            await start();
+
+            receive("");
+            await vi.advanceTimersByTimeAsync(0);
+            expect(messages()).toEqual(["This file does not contain an element template."]);
+
+            receive(JSON.stringify(STATUS));
+            await vi.advanceTimersByTimeAsync(200);
+            receive("{");
+            await vi.advanceTimersByTimeAsync(200);
+            expect(messages()).toEqual([
+                expect.stringContaining("The JSON is invalid:"),
+                "The preview shows the last template without errors.",
+            ]);
+            expect(query(".template-editor")?.classList).not.toContain(
+                "template-editor--no-preview",
+            );
+            expect(syncs()).toEqual([]);
+        });
+    });
+
     it("needs the #app root", async () => {
         document.body.innerHTML = "";
 

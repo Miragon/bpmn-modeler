@@ -7,6 +7,7 @@ import {
     newTemplateText,
     ruleDiagnostics,
     schemaDiagnostics,
+    type TemplateBuilderHandle,
     type TemplateBuilderState,
     type TemplateEdit,
     withSchema,
@@ -65,14 +66,18 @@ export async function bootstrapTemplateEditor(
     if (!root) {
         throw new Error("Template editor: missing #app");
     }
-    const view = mountEditorView(root, translate);
-    const previewPane = initResizer({
-        getToggleLabel: (state) =>
-            translate(state === "collapsed" ? "Show preview" : "Hide preview"),
-        onLabelChange: (apply) => i18n.onChange(apply),
-    });
+    // A host without the builder, such as IntelliJ, asks for the preview alone.
+    const previewOnly = root.dataset.view === "preview";
+    const view = mountEditorView(root, translate, { previewOnly });
+    const previewPane = previewOnly
+        ? undefined
+        : initResizer({
+              getToggleLabel: (state) =>
+                  translate(state === "collapsed" ? "Show preview" : "Hide preview"),
+              onLabelChange: (apply) => i18n.onChange(apply),
+          });
     if (window.innerWidth < NARROW_EDITOR_WIDTH) {
-        previewPane.setVisible(false);
+        previewPane?.setVisible(false);
     }
     const preview = await createTemplatePreview(view.previewPanel, {
         theme: resolveHostThemeKind(),
@@ -98,14 +103,16 @@ export async function bootstrapTemplateEditor(
             refresh("select");
         }
     });
-    const builder = createTemplateBuilder(view.builderRoot, {
-        translate,
-        onEdit: (edits: TemplateEdit[]) => {
-            if (state.kind === "template") {
-                session.edit(applyTemplateEdits(session.text, state.path, edits));
-            }
-        },
-    });
+    const builder: TemplateBuilderHandle = previewOnly
+        ? { show: () => undefined, destroy: () => undefined }
+        : createTemplateBuilder(view.builderRoot, {
+              translate,
+              onEdit: (edits: TemplateEdit[]) => {
+                  if (state.kind === "template") {
+                      session.edit(applyTemplateEdits(session.text, state.path, edits));
+                  }
+              },
+          });
 
     function showBuilder(next: TemplateBuilderState): void {
         lastShown = next;
@@ -122,11 +129,17 @@ export async function bootstrapTemplateEditor(
             view.showChoices([], undefined);
         }
         const main = mainFor(state, lastShown !== undefined);
-        view.showMain(main);
+        if (!previewOnly) {
+            view.showMain(main);
+        }
         view.showPreview(main === "builder");
         if (state.kind !== "template") {
             view.showEngine(undefined);
-            view.showMessages(messagesFor(state, translate));
+            view.showMessages(
+                previewOnly
+                    ? previewMessagesFor(state, translate, lastShown !== undefined)
+                    : messagesFor(state, translate),
+            );
             if (lastShown) {
                 builder.show({ ...lastShown, editable: false });
             }
@@ -212,7 +225,7 @@ export async function bootstrapTemplateEditor(
         session.dispose();
         clearTimeout(pendingCheck);
         themeAdapter.dispose();
-        previewPane.dispose();
+        previewPane?.dispose();
         builder.destroy();
         preview.destroy();
     };
@@ -248,5 +261,26 @@ function messagesFor(
             return [translate("This file does not contain an element template.")];
         case "unknownEngine":
             return [translate('The template has no "$schema" that names its engine.')];
+    }
+}
+
+/** The preview alone cannot write the file, so it only says what it cannot show. */
+function previewMessagesFor(
+    state: Exclude<TemplateFileState, { kind: "template" }>,
+    translate: Translate,
+    showsLastTemplate: boolean,
+): string[] {
+    switch (state.kind) {
+        case "invalidJson":
+            return [
+                translate("The JSON is invalid: {message}", { message: state.message }),
+                ...(showsLastTemplate
+                    ? [translate("The preview shows the last template without errors.")]
+                    : []),
+            ];
+        case "unknownEngine":
+            return [translate('The template has no "$schema" that names its engine.')];
+        default:
+            return [translate("This file does not contain an element template.")];
     }
 }

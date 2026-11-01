@@ -28,7 +28,11 @@ export type EditorMain = "builder" | "wizard" | "engineChoice" | "placeholder";
 const ENGINES: readonly Engine[] = ["c8", "c7"];
 
 // Template names come from the edited file, so text is only ever set, never parsed as HTML.
-export function mountEditorView(root: HTMLElement, translate: Translate): EditorView {
+export function mountEditorView(
+    root: HTMLElement,
+    translate: Translate,
+    { previewOnly = false }: { previewOnly?: boolean } = {},
+): EditorView {
     const doc = root.ownerDocument;
     const element = <K extends keyof HTMLElementTagNameMap>(
         tag: K,
@@ -51,6 +55,7 @@ export function mountEditorView(root: HTMLElement, translate: Translate): Editor
     };
 
     const container = element("div", "template-editor");
+    container.classList.toggle("template-editor--preview-only", previewOnly);
     const toolbar = element("div", "template-editor__toolbar");
     const engineBadge = element("span", "template-editor__engine");
     engineBadge.hidden = true;
