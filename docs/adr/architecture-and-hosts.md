@@ -743,7 +743,7 @@ default and drops a ledger row that is not a revision, on both hosts. A host
 stores a save all or nothing. VS Code keeps the whole snapshot under the one
 workspace-state key `bpmn-modeler.deployment.state`, because an update of one
 `Memento` key is its only atomic write; a key per field, written one after
-another, kept the keys written before a rejected write and so stored a
+another, would keep the keys written before a rejected write and so store a
 connection in part. It reads the per-field keys earlier releases wrote until
 the first save, and leaves them in place, so a downgraded release reads the
 state as it was at the upgrade. IntelliJ seeds the bridge with the keys it has
