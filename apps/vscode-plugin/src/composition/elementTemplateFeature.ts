@@ -70,5 +70,5 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
         ],
     }).register(context);
     new DocumentSaveFlushController(templateStore, pendingEdits).register(context);
-    new ElementTemplateEditorController(deps.notifier).register(context);
+    new ElementTemplateEditorController(deps.notifier, deps.vsSettings).register(context);
 }
