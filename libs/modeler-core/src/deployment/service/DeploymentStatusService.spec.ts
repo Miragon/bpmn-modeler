@@ -741,6 +741,28 @@ describe("DeploymentStatusService.pickStatusBarAction", () => {
             { method: "choose", args: [deploymentStatusActionPrompt(cloud)] },
         ]);
     });
+
+    it.each([
+        {
+            behaviour: "names the form values once a deploy saved the form's endpoint",
+            endpoint: LITERAL_ENDPOINT,
+            placeholder: "Deployment with the form values",
+        },
+        {
+            behaviour: "names no connection before a deploy saved the form's endpoint",
+            endpoint: "",
+            placeholder: "No deployment target selected",
+        },
+    ])("$behaviour", async ({ endpoint, placeholder }) => {
+        const c = createService();
+        useAdHocConnection(c, endpoint, "");
+
+        await c.service.pickStatusBarAction("/work");
+
+        expect(c.host.picker.prompts).toEqual([
+            { method: "choose", args: [expect.objectContaining({ placeholder })] },
+        ]);
+    });
 });
 
 describe("DeploymentStatusService.refresh", () => {

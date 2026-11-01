@@ -465,6 +465,26 @@ describe("DeploymentFeature.statusMenu", () => {
         expect(host.deploymentState.load().activeTargetName).toBe("");
         expect(host.notifier.infos).toEqual([]);
     });
+
+    it("names the form values the status item shows after an ad-hoc deploy", async () => {
+        const { host, feature } = createFeature();
+        host.deploymentState.seed({
+            activeTargetName: "",
+            endpoint: "http://localhost:8080/engine-rest",
+        });
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant]);
+        await settle();
+        expect(host.statusBar.views.deploymentTarget?.text).toBe("Form values");
+
+        await feature.statusMenu();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "choose",
+                args: [expect.objectContaining({ placeholder: "Deployment with the form values" })],
+            },
+        ]);
+    });
 });
 
 describe("DeploymentFeature command failures", () => {
