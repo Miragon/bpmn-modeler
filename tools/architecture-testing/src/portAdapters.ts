@@ -6,7 +6,7 @@ import type { SourceFile } from "./sourceTree";
 export interface PortAdapterViolations {
     readonly misplacedAdapters: readonly string[];
     /** Imports of an adapter from outside its homes, where the port should be taken instead. */
-    readonly adapterImporters: readonly Violation[];
+    readonly adapterImports: readonly Violation[];
 }
 
 /** Files declaring a class that implements an interface named `*Port`. */
@@ -28,7 +28,7 @@ export function portAdapterViolations(
     isAdapterHome: (path: string) => boolean,
 ): PortAdapterViolations {
     const reportedPairs = new Set<string>();
-    const adapterImporters: Violation[] = [];
+    const adapterImports: Violation[] = [];
     for (const { from, to } of graph.edges) {
         // An adapter's edge to itself is no importer; a misplaced adapter is reported by placement.
         if (to === undefined || to === from || !adapters.has(to) || isAdapterHome(from)) {
@@ -37,11 +37,11 @@ export function portAdapterViolations(
         const pair = `${from}\n${to}`;
         if (!reportedPairs.has(pair)) {
             reportedPairs.add(pair);
-            adapterImporters.push({ from, to });
+            adapterImports.push({ from, to });
         }
     }
     return {
         misplacedAdapters: [...adapters].filter((adapter) => !isAdapterHome(adapter)),
-        adapterImporters,
+        adapterImports,
     };
 }

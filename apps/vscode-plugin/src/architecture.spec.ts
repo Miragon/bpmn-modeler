@@ -70,7 +70,7 @@ describe("architecture", () => {
     describe("ports, not adapters (regression lock — green)", () => {
         it("port adapters live in infrastructure or composition, and only those import them", () => {
             const adapters = requireMatches("port adapters", findPortAdapters(tree));
-            const { misplacedAdapters, adapterImporters } = portAdapterViolations(
+            const { misplacedAdapters, adapterImports } = portAdapterViolations(
                 adapters,
                 graph,
                 (path) => isInFolder(path, "composition") || hasSegment(path, "infrastructure"),
@@ -80,7 +80,7 @@ describe("architecture", () => {
                     (adapter) =>
                         `${adapter} implements a port, so it belongs in infrastructure/ or composition/`,
                 ),
-                ...adapterImporters.map(({ from, to }) => `${from} → ${to}`),
+                ...adapterImports.map(({ from, to }) => `${from} → ${to}`),
             ];
             expect(
                 offenders,

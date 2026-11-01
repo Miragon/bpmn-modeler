@@ -39,19 +39,19 @@ describe("portAdapterViolations", () => {
             case: "an adapter outside its homes with only a self-edge",
             adapter: "a/controller/Foo.ts",
             imports: [["a/controller/Foo.ts", "a/controller/Foo.ts"]],
-            expected: { misplacedAdapters: ["a/controller/Foo.ts"], adapterImporters: [] },
+            expected: { misplacedAdapters: ["a/controller/Foo.ts"], adapterImports: [] },
         },
         {
             case: "an adapter outside its homes that nothing imports",
             adapter: "a/controller/Foo.ts",
             imports: [],
-            expected: { misplacedAdapters: ["a/controller/Foo.ts"], adapterImporters: [] },
+            expected: { misplacedAdapters: ["a/controller/Foo.ts"], adapterImports: [] },
         },
         {
             case: "an adapter outside its homes that only composition imports",
             adapter: "a/controller/Foo.ts",
             imports: [["composition/root.ts", "a/controller/Foo.ts"]],
-            expected: { misplacedAdapters: ["a/controller/Foo.ts"], adapterImporters: [] },
+            expected: { misplacedAdapters: ["a/controller/Foo.ts"], adapterImports: [] },
         },
         {
             case: "an adapter outside its homes that a sibling imports",
@@ -59,7 +59,7 @@ describe("portAdapterViolations", () => {
             imports: [["a/controller/Bar.ts", "a/controller/Foo.ts"]],
             expected: {
                 misplacedAdapters: ["a/controller/Foo.ts"],
-                adapterImporters: [{ from: "a/controller/Bar.ts", to: "a/controller/Foo.ts" }],
+                adapterImports: [{ from: "a/controller/Bar.ts", to: "a/controller/Foo.ts" }],
             },
         },
         {
@@ -71,7 +71,7 @@ describe("portAdapterViolations", () => {
             ],
             expected: {
                 misplacedAdapters: [],
-                adapterImporters: [{ from: "a/controller/Bar.ts", to: "a/infrastructure/Foo.ts" }],
+                adapterImports: [{ from: "a/controller/Bar.ts", to: "a/infrastructure/Foo.ts" }],
             },
         },
         {
@@ -81,7 +81,7 @@ describe("portAdapterViolations", () => {
                 ["composition/root.ts", "a/infrastructure/Foo.ts"],
                 ["b/infrastructure/Baz.ts", "a/infrastructure/Foo.ts"],
             ],
-            expected: { misplacedAdapters: [], adapterImporters: [] },
+            expected: { misplacedAdapters: [], adapterImports: [] },
         },
         {
             case: "a controller importing a non-adapter and a package",
@@ -90,7 +90,7 @@ describe("portAdapterViolations", () => {
                 ["a/controller/Bar.ts", "a/domain/rule.ts"],
                 ["a/controller/Bar.ts", undefined],
             ],
-            expected: { misplacedAdapters: [], adapterImporters: [] },
+            expected: { misplacedAdapters: [], adapterImports: [] },
         },
     ] satisfies {
         case: string;
