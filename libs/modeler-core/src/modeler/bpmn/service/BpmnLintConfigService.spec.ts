@@ -638,24 +638,38 @@ describe("BpmnLintConfigService — an older config run that finishes after a ne
         },
     );
 
-    it("keeps the newer diagram's findings when an older host lint of the same config finishes last", async () => {
-        const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
-        await service.setBpmnlintConfig(editor.id);
-        let finishOlderLint!: (outcome: LintOutcome) => void;
-        lintRunner.lint.mockReturnValueOnce(new Promise((resolve) => (finishOlderLint = resolve)));
-        const olderRelint = service.setBpmnlintConfig(editor.id);
-        await flush();
+    it.each([
+        { outcome: "finishes", olderLint: { results: STALE_RESULTS, unresolved: [] } },
+        { outcome: "fails", olderLint: new Error("plugin crashed") },
+    ])(
+        "keeps the newer diagram's findings when an older host lint of the same config $outcome last",
+        async ({ olderLint }) => {
+            const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
+            await service.setBpmnlintConfig(editor.id);
+            let settleOlderLint!: () => void;
+            lintRunner.lint.mockReturnValueOnce(
+                new Promise((resolve, reject) => {
+                    settleOlderLint = () =>
+                        olderLint instanceof Error ? reject(olderLint) : resolve(olderLint);
+                }),
+            );
+            const olderRelint = service.setBpmnlintConfig(editor.id);
+            await flush();
 
-        editor.content = "<xml edited/>";
-        await service.setBpmnlintConfig(editor.id);
-        finishOlderLint({ results: STALE_RESULTS, unresolved: [] });
-        await olderRelint;
+            editor.content = "<xml edited/>";
+            await service.setBpmnlintConfig(editor.id);
+            settleOlderLint();
+            await olderRelint;
 
-        expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(lastPosted<BpmnlintResultsQuery>(editor, "BpmnlintResultsQuery")?.results).toEqual(
-            RESULTS,
-        );
-    });
+            expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
+            expect(
+                lastPosted<BpmnlintResultsQuery>(editor, "BpmnlintResultsQuery")?.results,
+            ).toEqual(RESULTS);
+            expect(host.statusBar.views.bpmnlint).toEqual(
+                bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+            );
+        },
+    );
 });
 
 /** Runs the real participant and lifecycle, so closing an editor tears it down as the hosts do. */
