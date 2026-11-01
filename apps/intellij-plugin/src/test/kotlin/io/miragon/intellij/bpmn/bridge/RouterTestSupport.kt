@@ -11,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import io.miragon.intellij.bpmn.HostNotifications
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -64,15 +65,17 @@ internal fun wireChannel(): WiredBridge {
 
 /**
  * Constructs [BridgeDeps] for a router under test. `isProcessAlive` returns true so
- * `notify`/`seed` sends are not no-oped, and `notifications` is wired to fail loudly
- * if a tested path ever forces it (none should). The default [parentDisposable]
- * dies with the project: a router's message-bus subscriptions would leak it otherwise.
+ * `notify`/`seed` sends are not no-oped, and `notifications` by default fails loudly
+ * if a tested path forces it without the test passing its own. The default
+ * [parentDisposable] dies with the project: a router's message-bus subscriptions
+ * would leak it otherwise.
  */
 internal fun bridgeDeps(
     project: Project,
     channel: RpcChannel,
     handlers: RpcHandlerRegistry,
     parentDisposable: Disposable = Disposer.newDisposable(project, "router-under-test"),
+    notifications: Lazy<HostNotifications> = lazy { error("HostNotifications must not be forced in router tests") },
 ): BridgeDeps =
     BridgeDeps(
         project = project,
@@ -82,7 +85,7 @@ internal fun bridgeDeps(
         isProcessAlive = { true },
         ensureStartedAsync = {},
         parentDisposable = parentDisposable,
-        notifications = lazy { error("HostNotifications must not be forced in router tests") },
+        notifications = notifications,
     )
 
 /**

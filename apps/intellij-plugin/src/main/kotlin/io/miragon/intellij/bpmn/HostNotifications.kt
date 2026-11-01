@@ -18,9 +18,10 @@ import com.intellij.openapi.vfs.LocalFileSystem
  * say (over the `notifier/…` RPC methods); this decides *how* IntelliJ shows it — the same
  * split the VS Code `VsCodeNotifier` makes against `window.show*Message`.
  */
-class HostNotifications(private val project: Project) {
-    private val log = Logger.getInstance(HostNotifications::class.java)
-
+class HostNotifications(
+    private val project: Project,
+    private val log: Logger = Logger.getInstance(HostNotifications::class.java),
+) {
     private val group
         get() = NotificationGroupManager.getInstance().getNotificationGroup(GROUP_ID)
 
