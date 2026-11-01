@@ -28,7 +28,7 @@ export interface ElementTypeChoice {
  */
 export type Requirement =
     | { kind: "elementType"; oneOf: readonly ElementTypeChoice[] }
-    | { kind: "binding"; binding: Readonly<Record<string, string>>; label: string };
+    | { kind: "binding"; binding: Readonly<Record<string, string>>; message: string };
 
 /** How the property's value may use FEEL. */
 export type FeelSupport = "none" | "optional" | "required";

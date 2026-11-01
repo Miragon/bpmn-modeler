@@ -3,7 +3,11 @@ import { vi } from "vitest";
 
 import type { Diagnostic } from "../../domain/diagnostics";
 import type { TemplateEdit } from "../../domain/templateText";
-import { createTemplateBuilder, type TemplateBuilderHandle } from "../createTemplateBuilder";
+import {
+    createTemplateBuilder,
+    type TemplateBuilderHandle,
+    type TemplateBuilderOptions,
+} from "../createTemplateBuilder";
 
 type Json = Record<string, unknown>;
 
@@ -13,11 +17,11 @@ export const C8_SCHEMA =
     "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
 
 /** A mounted builder plus DOM drivers for its entries. */
-export function mountBuilder() {
+export function mountBuilder({ translate }: Pick<TemplateBuilderOptions, "translate"> = {}) {
     const parent = document.createElement("div");
     document.body.appendChild(parent);
     const onEdit = vi.fn<(edits: TemplateEdit[]) => void>();
-    const handle: TemplateBuilderHandle = createTemplateBuilder(parent, { onEdit });
+    const handle: TemplateBuilderHandle = createTemplateBuilder(parent, { onEdit, translate });
 
     const entry = (id: string) => parent.querySelector(`[data-entry-id="${id}"]`);
     const control = (id: string) =>

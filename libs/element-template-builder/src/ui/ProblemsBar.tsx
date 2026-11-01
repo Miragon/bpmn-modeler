@@ -78,7 +78,7 @@ export function ProblemsBar({ problems, disabled, onFix, onShow, translate }: Pr
                                 {problem.where ? (
                                     <span class="etb-problem__where">{problem.where}: </span>
                                 ) : null}
-                                {translate(problem.message)}
+                                {problem.message}
                             </span>
                             {problem.entryId ? (
                                 <button
