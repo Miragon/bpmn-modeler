@@ -592,12 +592,16 @@ before the last replay re-imports; and each replay clears the page's undo stack.
 
 An asynchronous writer drains a soft-bounded outbound queue so editor and JCEF
 threads never block on bridge stdin. Superseded document and host-state updates
-coalesce; authoritative document updates and RPC replies remain reliable across
-backpressure and writer replacement. Best-effort frames may be dropped.
+coalesce; authoritative document updates remain reliable across backpressure
+and writer replacement. Best-effort frames may be dropped. An RPC reply survives
+backpressure but not its process: a respawned bridge numbers its requests from 1
+again, so the host tags each request with the generation of the process that
+sent it and drops the reply once that process is detached, also when the reply
+is created after the respawn.
 
 The host answers every core request exactly once: with its result, or with an
-error when its handler throws, also when the handler runs on the EDT
-(`RpcChannel.replyFromEdt`, pinned by the
+error when its handler throws, also when the handler leaves the reader thread
+for the EDT or a background thread (`RpcChannel.replyFrom`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
 How long the bridge's `Rpc.request` waits is data on each request in the
 [protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts)
@@ -612,10 +616,18 @@ leave that state out of step with the host: `document/write` and
 `marketplaceState/save` drops the templates its add just fetched. Such a
 request holds its caller until the host answers. `document/write` runs on the
 EDT, so a modal dialog delays it; the host answers the other two on its reader
-thread, so only an earlier request that blocks that thread, such as a keychain
-prompt, delays them. `Rpc` fails every outstanding and later request once its
-input ends; the stdio binding signals the end of stdin and then exits the
-process.
+thread, which runs no work that waits for the user. `Rpc` fails every
+outstanding and later request once its input ends; the stdio binding signals
+the end of stdin and then exits the process.
+
+The reader thread reads every frame of one bridge, so a handler that blocks it
+holds every editor's relays, status updates and document requests behind it.
+A PasswordSafe read can block until the user answers an OS keychain prompt, so
+the host runs `secretStore/*` and `tokenStore/*` on one background thread per
+project, never the EDT, and answers from there. A prompt then delays only the
+credential requests queued behind it, also those of a bridge respawned while it
+is open, and the single thread keeps a save ahead of the read that follows it
+([`SecretStoreRouterTest`](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/SecretStoreRouterTest.kt)).
 
 Notifications and status indicators are native host UI backed by RPC ports.
 The core writes the text of every notification, including the error balloon
