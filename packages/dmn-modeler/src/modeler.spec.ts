@@ -239,17 +239,21 @@ describe("DmnModeler", () => {
             { debounceInput: ["value", expect.any(Function)] },
             drdModule,
         ]);
+        const viewEditorInputModule = { debounceInput: ["value", expect.any(Function)] };
         expect(config.decisionTable.additionalModules).toEqual([
             mocks.translateModule,
             mocks.tableSimulation,
+            viewEditorInputModule,
             tableModule,
         ]);
         expect(config.literalExpression.additionalModules).toEqual([
             mocks.translateModule,
+            viewEditorInputModule,
             literalModule,
         ]);
         expect(config.boxedExpression.additionalModules).toEqual([
             mocks.translateModule,
+            viewEditorInputModule,
             boxedModule,
         ]);
         expect(config.moddleExtensions.acme).toEqual({ name: "acme" });

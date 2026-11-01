@@ -52,14 +52,19 @@ no-op.
 
 The DRD properties panel's `debounceInput` service is the flushable one from
 `modeler-types`, with the panel library's 600 ms delay, registered after the
-panel module so it replaces the library's. The modeler holds the instance
-instead of reading it from the active viewer, so input typed into the panel is
-still found after a switch to another view. The handle reaches it through the
+panel module so it replaces the library's. The decision-table,
+literal-expression and boxed-expression views share a second instance with
+dmn-js's 300 ms delay, registered after the facade's other modules of each
+view, so annotations, names, descriptions and simple-mode popups are flushed
+too. The modeler holds both instances instead of reading them from the active
+viewer, so it sees the input of every view. The handle reaches them through the
 internal `hasPendingInput()` and `flushPendingInput()`
 (`DmnPendingInputHandle`), which answer `false` and do nothing once destroyed.
 The IDE webview's flush uses them to apply a typed value before it exports, as
 it does for the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle).
-They are not public API yet.
+They are not public API yet. Not covered yet: dmn-js clears the view it
+leaves, so a value still waiting when the user switches views throws when it is
+applied, by a flush as by the dmn-js timer, and misses that save.
 
 ### Themes
 
