@@ -18,6 +18,10 @@ const BPMN_FILE = "smoke.bpmn";
 const DMN_FILE = "smoke.dmn";
 const FORM_FILE = "smoke.form";
 const CSP_FILE = "smoke-csp.bpmn";
+const TEMPLATE_FILE = "smoke-template.json";
+const TEMPLATE_NAME = "Smoke template";
+const C8_TEMPLATE_SCHEMA =
+    "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
 const HTTPS_ICON = "https://icons.invalid/smoke-template.svg";
 const TASK_ID = "Task_Check";
 const ORIGINAL_TASK_NAME = "Check order";
@@ -97,6 +101,15 @@ function templateIconOnCanvas(webview: FrameLocator, elementId: string): Promise
 
 async function selectElement(webview: FrameLocator, elementId: string): Promise<void> {
     await webview.locator(`.djs-shape[data-element-id="${elementId}"] > .djs-hit`).click();
+}
+
+async function jsonInFile(file: string): Promise<Record<string, unknown> | undefined> {
+    try {
+        return JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
+    } catch {
+        // Not written yet, or VS Code is halfway through writing it.
+        return undefined;
+    }
 }
 
 describe("the packaged extension in a real VS Code", () => {
@@ -321,6 +334,125 @@ describe("the packaged extension in a real VS Code", () => {
         await settle(vscode().webview());
         await vscode().screenshot(join(RESULTS_DIRECTORY, "form.png"));
         expectNoCspViolations();
+    });
+
+    it("creates an element template through New Element Template", async () => {
+        const page = vscode().page;
+        const file = join(workspaceDirectory, ".camunda", "element-templates", TEMPLATE_FILE);
+        await vscode().runCommand("New Element Template");
+        const name = page.locator(".quick-input-widget .quick-input-box input");
+        await expect.poll(() => name.inputValue(), { timeout: TIMEOUT_MS }).toBe("new-template");
+        await name.fill("smoke-template");
+        await page.keyboard.press("Enter");
+
+        await vscode().showInCustomEditor(TEMPLATE_FILE, (webview) =>
+            webview.locator(".template-editor__wizard").isVisible(),
+        );
+        const webview = vscode().webview();
+        // The smoke diagram's task, so the BPMN step below can apply the template.
+        await webview.locator(".template-editor__wizard-element-type").selectOption("bpmn:Task");
+        await webview.locator(".template-editor__wizard-name").fill(TEMPLATE_NAME);
+        await webview.getByRole("button", { name: "Create template" }).click();
+        await webview.locator(".etb-heading__title", { hasText: TEMPLATE_NAME }).waitFor();
+        await expect.poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS }).toBe(true);
+        await page.keyboard.press(`${COMMAND_KEY}+s`);
+
+        await expect
+            .poll(() => jsonInFile(file), { timeout: TIMEOUT_MS })
+            .toMatchObject({
+                $schema: C8_TEMPLATE_SCHEMA,
+                name: TEMPLATE_NAME,
+                id: "smoke-template",
+                version: 1,
+                appliesTo: ["bpmn:Task"],
+                properties: [],
+            });
+        expectNoCspViolations();
+    });
+
+    it("edits the template in the builder and previews its property", async () => {
+        const file = join(workspaceDirectory, ".camunda", "element-templates", TEMPLATE_FILE);
+        const webview = vscode().webview();
+        await webview
+            .locator('[data-entry-id="template-description"]')
+            .locator("input, textarea")
+            .fill("Written by the smoke test");
+        await webview.getByRole("tab", { name: /^Properties/ }).click();
+        await webview.getByRole("button", { name: "Add property" }).click();
+        const label = webview.locator('[data-entry-id="property-0-label"] input');
+        await expect.poll(() => label.inputValue(), { timeout: TIMEOUT_MS }).toBe("New property");
+        await label.fill("Order number");
+
+        // The preview keeps the panel's collapsed groups, so the field is there but maybe folded.
+        await webview
+            .locator("#js-properties-panel")
+            .getByText("Order number", { exact: true })
+            .first()
+            .waitFor({ state: "attached" });
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+s`);
+        await expect
+            .poll(() => jsonInFile(file), { timeout: TIMEOUT_MS })
+            .toMatchObject({
+                description: "Written by the smoke test",
+                properties: [{ label: "Order number" }],
+            });
+        await expect.poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS }).toBe(false);
+        expectNoCspViolations();
+    });
+
+    it("toggles the template's JSON beside the builder", async () => {
+        // Playwright's text matching treats Monaco's no-break spaces as spaces.
+        const json = vscode()
+            .page.locator(".monaco-editor .view-lines")
+            .filter({ hasText: '"label": "Order number"' });
+        await vscode().runCommand("Toggle JSON Editor");
+        await json.waitFor();
+
+        // The command acts on the template editor, so the focus goes back to its group first.
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+1`);
+        await vscode().runCommand("Toggle JSON Editor");
+        await json.waitFor({ state: "detached" });
+    });
+
+    it.each(COLOR_THEMES)("shows the template editor in VS Code's $name theme", async (theme) => {
+        const webview = vscode().webview();
+        const html = webview.locator("html");
+        await html.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+        await vscode().setColorTheme(theme.name);
+        await expect
+            .poll(() => vscode().workbenchHasClass(theme.workbenchClass), { timeout: TIMEOUT_MS })
+            .toBe(true);
+        await expect
+            .poll(
+                () =>
+                    html.evaluate(
+                        (_, name) => document.body.classList.contains(name),
+                        theme.bodyClass,
+                    ),
+                { timeout: TIMEOUT_MS },
+            )
+            .toBe(true);
+
+        await settle(webview);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, `template-editor-${theme.id}.png`));
+    });
+
+    it("offers the new template in the BPMN modeler's template chooser", async () => {
+        await vscode().openFromExplorer(BPMN_FILE);
+        await vscode().showInCustomEditor(BPMN_FILE, diagramRendered);
+        // Saving the template refreshed this editor while it was hidden.
+        expect(await vscode().extensionLog()).not.toContain(
+            "A problem occurred while loading element templates",
+        );
+        const webview = vscode().webview();
+        await switchMode(webview, "implement");
+        await selectElement(webview, TASK_ID);
+        await webview.locator(".bio-properties-panel-select-template-button").click();
+
+        await webview.locator(".etc-modal .etc-card-name", { hasText: TEMPLATE_NAME }).waitFor();
+        await vscode().page.keyboard.press("Escape");
+        await webview.locator(".etc-modal").waitFor({ state: "detached" });
     });
 
     // Runs last: proves the collector sees violations, so the empty lists above mean something.
