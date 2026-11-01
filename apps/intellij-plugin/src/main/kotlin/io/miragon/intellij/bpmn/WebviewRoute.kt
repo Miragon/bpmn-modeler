@@ -9,12 +9,15 @@ internal sealed interface WebviewRoute {
 
     data object DeploymentShell : WebviewRoute
 
+    data object TemplatePreviewShell : WebviewRoute
+
     data class ClasspathAsset(val resourcePath: String, val mimeType: String) : WebviewRoute
 
     companion object {
         fun forPath(requestPath: String): WebviewRoute {
             if (requestPath == "/" || requestPath == "/index.html") return BpmnShell
             if (requestPath == "/deployment.html") return DeploymentShell
+            if (requestPath == "/templatePreview.html") return TemplatePreviewShell
 
             // The two bundles live under distinct classpath roots; the
             // `/deployment/...` request prefix maps to `/webview-deployment/...`,

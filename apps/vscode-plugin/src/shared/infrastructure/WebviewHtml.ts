@@ -116,6 +116,35 @@ export function dmnModelerHtml(
         `;
 }
 
+/**
+ * The element-template preview: a second entry of the BPMN bundle that renders
+ * its own page into `#app`, so it shares the bundle's stylesheet and policy.
+ */
+export function elementTemplatePreviewHtml(webview: Webview, extensionUri: Uri): string {
+    const baseUri = Uri.joinPath(extensionUri, BPMN_WEBVIEW_PATH);
+    const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "templatePreview.js"));
+    const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
+    const nonce = createWebviewNonce();
+    const policy = webviewContentSecurityPolicy("bpmn", { cspSource: webview.cspSource, nonce });
+
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <meta http-equiv="Content-Security-Policy" content="${policy}"/>
+                <link href="${styleUri}" rel="stylesheet"/>
+                <title>Element Template Preview</title>
+            </head>
+            <body>
+                <div id="app"></div>
+                <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
+            </body>
+        </html>
+    `;
+}
+
 /** Generates the sandboxed HTML shell for the form editor webview. */
 export function formEditorHtml(webview: Webview, extensionUri: Uri): string {
     const baseUri = Uri.joinPath(extensionUri, FORM_WEBVIEW_PATH);

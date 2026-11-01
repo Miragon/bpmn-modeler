@@ -36,7 +36,10 @@ import org.cef.handler.CefLoadHandlerAdapter
  * now-set forwarder. The sink is deliberately *not* injected during pre-warm, so
  * nothing flushes to a null forwarder.
  */
-class WarmBrowser : Disposable {
+class WarmBrowser(
+    // The template preview loads its own page through the same pipes, on open rather than pre-warmed.
+    pageUrl: String = service<WebviewServer>().ensureStarted(),
+) : Disposable {
     val browser = createModelerBrowser()
 
     // Set by bind() once the owning editor is known; read from the CEF query
@@ -109,7 +112,7 @@ class WarmBrowser : Disposable {
         // pre-warm instead of waiting for the component to be shown in a tab. Order
         // matters: jsQuery.create() above ran before this, so its router is bound.
         browser.createImmediately()
-        browser.loadURL(service<WebviewServer>().ensureStarted())
+        browser.loadURL(pageUrl)
     }
 
     /**

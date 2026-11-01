@@ -79,6 +79,9 @@ export * from "./modeler/dmn/session/DmnSettingsParticipant";
 export * from "./modeler/dmn/infrastructure/dmnMessageHandlers";
 export * from "./modeler/form/domain/emptyForm";
 export * from "./modeler/form/service/FormModelerService";
+export * from "./modeler/elementTemplate/domain/newElementTemplate";
+export * from "./modeler/elementTemplate/service/ElementTemplatePreviewService";
+export * from "./modeler/elementTemplate/session/PreviewLanguageParticipant";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/DiffSession";
