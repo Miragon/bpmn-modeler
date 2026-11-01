@@ -24,9 +24,10 @@ export function stripComments(fileName: string, text: string): string {
  */
 function commentRanges(sourceFile: ts.SourceFile): ts.TextRange[] {
     const { text } = sourceFile;
+    const skipTrivia = false;
     const scanner = ts.createScanner(
         ts.ScriptTarget.Latest,
-        false,
+        skipTrivia,
         sourceFile.languageVariant,
         text,
     );
