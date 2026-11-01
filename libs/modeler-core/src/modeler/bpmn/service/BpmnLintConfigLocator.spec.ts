@@ -118,6 +118,32 @@ describe("BpmnLintConfigLocator.createWatcher", () => {
         expect(target.setBpmnlintConfig).toHaveBeenCalledTimes(3);
     });
 
+    it("re-pushes the lint config when the folder holding .bpmnlintrc is deleted as one event", async () => {
+        const { locator, workspace } = createLocator({ "/work/.camunda/.bpmnlintrc": "{}" });
+        const target = { setBpmnlintConfig: vi.fn().mockResolvedValue(true) };
+        await locator.createWatcher("file:///work/proc/order.bpmn", target);
+
+        await workspace.deleteDirectory("/work/.camunda");
+
+        expect(target.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(
+            "file:///work/proc/order.bpmn",
+        );
+    });
+
+    it("re-pushes the lint config when a folder holding .bpmnlintrc is moved in as one event", async () => {
+        const { locator, workspace } = createLocator();
+        const target = { setBpmnlintConfig: vi.fn().mockResolvedValue(true) };
+        await locator.createWatcher("file:///work/proc/order.bpmn", target);
+
+        workspace.createDirectory("/work/proc/.camunda", {
+            "/work/proc/.camunda/.bpmnlintrc": "{}",
+        });
+
+        expect(target.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(
+            "file:///work/proc/order.bpmn",
+        );
+    });
+
     it("watches from a UNC document's directory when only its server holds a git repository", async () => {
         const { locator, workspace } = createLocator(
             { "file://server/.git/HEAD": "ref: refs/heads/main" },

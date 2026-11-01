@@ -522,6 +522,59 @@ describe("ArtifactService.createWatcher", () => {
         expect(workspace.watchers.map(({ root }) => root)).toEqual(["file://server/share/loose"]);
     });
 
+    it("refreshes the templates when the config folder is deleted as one event", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/.camunda/element-templates/payment.json": "[]" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        await workspace.deleteDirectory("/work/.camunda");
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("refreshes the templates when a folder holding the config folder is deleted as one event", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/proc/.camunda/element-templates/payment.json": "[]" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        await workspace.deleteDirectory("/work/proc");
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("refreshes the templates when the config folder is moved in as one event", async () => {
+        const { service, workspace } = createService({ folders: ["/work"] });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        workspace.createDirectory("/work/.camunda", {
+            "/work/.camunda/element-templates/payment.json": "[]",
+        });
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("refreshes the templates when the element-templates folder is moved in as one event", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/.camunda/.bpmnlintrc": "{}" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        workspace.createDirectory("/work/.camunda/element-templates", {
+            "/work/.camunda/element-templates/payment.json": "[]",
+        });
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
     it("watches element templates when the config folder is empty", async () => {
         const { service, workspace } = createService({
             folders: ["/work"],
