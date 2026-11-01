@@ -623,9 +623,9 @@ The reader thread reads every frame of one bridge, so a handler that blocks it
 holds every editor's relays, status updates and document requests behind it.
 A PasswordSafe read can block until the user answers an OS keychain prompt, so
 the host runs `secretStore/*` and `tokenStore/*` on one background thread per
-bridge, never the EDT, and answers from there. A prompt then delays only the
-credential requests queued behind it, and the single thread keeps a save ahead
-of the read that follows it
+project, never the EDT, and answers from there. A prompt then delays only the
+credential requests queued behind it, also those of a bridge respawned while it
+is open, and the single thread keeps a save ahead of the read that follows it
 ([`SecretStoreRouterTest`](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/SecretStoreRouterTest.kt)).
 
 Notifications and status indicators are native host UI backed by RPC ports.
