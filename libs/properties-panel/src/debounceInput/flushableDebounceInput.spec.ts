@@ -34,6 +34,14 @@ describe("FlushableDebounceInputModule", () => {
     });
 
     it("gives each modeler its own service", () => {
-        expect(panelDebounceInput()).not.toBe(panelDebounceInput());
+        // didi calls a factory once per injector; a value would be shared by every modeler.
+        expect(FlushableDebounceInputModule.debounceInput[0]).toBe("factory");
+        const firstModeler = panelDebounceInput();
+        const secondModeler = panelDebounceInput();
+
+        firstModeler(() => {})();
+
+        expect(firstModeler.hasPending()).toBe(true);
+        expect(secondModeler.hasPending()).toBe(false);
     });
 });
