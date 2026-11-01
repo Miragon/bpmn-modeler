@@ -43,6 +43,16 @@ export function globToRegExp(glob: string): RegExp {
     return new RegExp(`^${re}$`);
 }
 
-export function coveredFolderRegExp(_glob: string): RegExp | undefined {
-    return undefined;
+const WHOLE_FOLDER_SUFFIX = "/**";
+
+/**
+ * Matches the relative path of each folder whose every file `glob` matches,
+ * so a walk can skip reading it; `undefined` when `glob` covers no folder
+ * whole. Only a glob ending in a slash and a double-star does: its head names
+ * the folder.
+ */
+export function coveredFolderRegExp(glob: string): RegExp | undefined {
+    return glob.endsWith(WHOLE_FOLDER_SUFFIX)
+        ? globToRegExp(glob.slice(0, -WHOLE_FOLDER_SUFFIX.length))
+        : undefined;
 }

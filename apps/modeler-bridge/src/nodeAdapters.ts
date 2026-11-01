@@ -30,12 +30,13 @@
 
 import { watch } from "chokidar";
 import { promises as fs, watch as watchFs } from "node:fs";
-import { join, posix, relative, sep } from "node:path";
+import { join, posix, relative } from "node:path";
 
 import {
     changedSettingKeys,
     coalesceWatcherEvents,
     ColorThemeSetting,
+    coveredFolderRegExp,
     DirectoryNotFound,
     EditorSubscription,
     FileNotFound,
@@ -441,25 +442,30 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Globs `pattern` across every registered workspace root, returning absolute
-     * paths. Mirrors `VsCodeWorkspace.findFiles` for the picker's workspace-file
-     * prompt: `exclude` drops matches, `limit` caps the result count.
+     * The absolute paths of the files below the registered workspace roots
+     * whose path below their root matches `pattern`. Mirrors
+     * `VsCodeWorkspace.findFiles`: `exclude` drops matches, `limit` caps the
+     * result count.
      *
-     * `fs.glob` is the Node/Bun built-in (no extra dependency); excluded paths
-     * are filtered via {@link globToRegExp} for cross-runtime stability.
+     * Walks with `readdir` rather than `fs.glob`: under Bun, `fs.glob` reads
+     * every folder an exclude covers and follows symlinked folders.
      */
     async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
-        const excludeRe = exclude ? globToRegExp(exclude) : undefined;
+        const included = globToRegExp(pattern);
+        const excluded = exclude ? globToRegExp(exclude) : undefined;
+        const coveredFolder = exclude ? coveredFolderRegExp(exclude) : undefined;
         const results: string[] = [];
         for (const root of this.roots.keys()) {
-            const cwd = withoutFileScheme(root);
-            for await (const match of fs.glob(pattern, { cwd })) {
-                // fs.glob yields the OS separator; the exclude glob expects `/`.
-                const relative = match.split(sep).join("/");
-                if (excludeRe?.test(relative)) {
+            const rootDir = withoutFileScheme(root);
+            const files = await listFilesBelow(
+                rootDir,
+                (folder) => coveredFolder?.test(folder) ?? false,
+            );
+            for (const relative of files) {
+                if (!included.test(relative) || excluded?.test(relative)) {
                     continue;
                 }
-                results.push(joinWorkspacePath(cwd, relative));
+                results.push(joinWorkspacePath(rootDir, relative));
                 if (limit !== undefined && results.length >= limit) {
                     return results;
                 }
@@ -467,6 +473,44 @@ export class NodeWorkspace implements WorkspacePort {
         }
         return results;
     }
+}
+
+/**
+ * The `/`-separated paths below `rootDir` of all but its folders, reading each
+ * level's folders in parallel. A symlink counts as a file, so a symlinked
+ * folder is never entered; dot-entries stay unlisted, as `fs.glob` leaves them.
+ */
+async function listFilesBelow(
+    rootDir: string,
+    skipsFolder: (relativeFolder: string) => boolean,
+): Promise<string[]> {
+    const files: string[] = [];
+    let level = [""];
+    while (level.length > 0) {
+        const listings = await Promise.all(
+            level.map(async (folder) => ({
+                folder,
+                entries: await fs.readdir(joinWorkspacePath(rootDir, folder), {
+                    withFileTypes: true,
+                }),
+            })),
+        );
+        level = [];
+        for (const { folder, entries } of listings) {
+            for (const entry of entries) {
+                if (entry.name.startsWith(".")) {
+                    continue;
+                }
+                const relative = folder === "" ? entry.name : `${folder}/${entry.name}`;
+                if (!entry.isDirectory()) {
+                    files.push(relative);
+                } else if (!skipsFolder(relative)) {
+                    level.push(relative);
+                }
+            }
+        }
+    }
+    return files;
 }
 
 /**

@@ -18,6 +18,7 @@ import {
 import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { connectionPatch } from "../domain/deploymentState";
 import { EnvLookup } from "../domain/envRef";
+import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { loggableHost } from "../../kernel/domain/http";
 import {
     DocumentPort,
@@ -140,7 +141,8 @@ export class DeploymentService {
 
     /**
      * Opens a multi-select picker over workspace files relevant for
-     * deployment (`.form`, `.json`, `.dmn`), excluding element templates.
+     * deployment (`.form`, `.json`, `.dmn`), excluding element templates and
+     * the folders no listing offers.
      *
      * @returns Absolute paths of the selected files, or an empty array if the
      *   user cancels or no files match.
@@ -148,7 +150,7 @@ export class DeploymentService {
     async selectAdditionalFiles(): Promise<string[]> {
         const found = await this.vsWorkspace.findFiles(
             "**/*.{form,json,dmn}",
-            "**/element-templates/**",
+            excludedDirsGlob("element-templates"),
             20,
         );
         const chosen = await this.picker.chooseMany(

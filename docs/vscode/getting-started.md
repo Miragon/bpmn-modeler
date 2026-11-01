@@ -51,7 +51,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Mirago
 | Save Diagram as SVG | | Save an SVG file next to the BPMN file |
 | Change Modeler Language | | Switch the modeler UI language |
 | Change Engine Version | | Change the engine version of the open diagram |
-| Migrate All BPMN Diagrams | | Change the engine version of every BPMN diagram in the workspace |
+| Migrate All BPMN Diagrams | | Change the engine version of every BPMN diagram in the workspace, except copies in `node_modules` or build output |
 | Deploy Diagram | | Deploy the open diagram to the active deployment target |
 | Toggle Linting | | Turn [linting](/vscode/features/linting) on or off |
 | Reload Modeler | | Re-read element templates and re-render open diagrams |

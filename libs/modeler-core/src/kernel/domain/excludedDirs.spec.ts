@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    EXCLUDED_DIRS,
-    excludedDirsGlob,
-    isInsideExcludedDirBelow,
-    isInsideExcludedDirBelowEveryFolder,
-} from "./excludedDirs";
+import { EXCLUDED_DIRS, excludedDirsGlob, isInsideExcludedDirBelow } from "./excludedDirs";
 import { globToRegExp } from "./globToRegExp";
 
 describe("isInsideExcludedDirBelow", () => {
@@ -86,49 +81,6 @@ describe("isInsideExcludedDirBelow", () => {
             expect(isInsideExcludedDirBelow(`/repo/${directory}/a.bpmn`, "/repo")).toBe(true);
         },
     );
-});
-
-describe("isInsideExcludedDirBelowEveryFolder", () => {
-    it.each([
-        {
-            behaviour: "keeps a file of a folder below a build directory beside another folder",
-            path: "/home/u/build/repo/a.bpmn",
-            folders: ["/home/u/web", "/home/u/build/repo"],
-            excluded: false,
-        },
-        {
-            behaviour: "excludes a file in a build directory below the folder that contains it",
-            path: "/home/u/build/repo/dist/a.bpmn",
-            folders: ["/home/u/web", "/home/u/build/repo"],
-            excluded: true,
-        },
-        {
-            behaviour: "keeps a file of a folder opened inside another folder's build output",
-            path: "/x/proj/build/gen/a.bpmn",
-            folders: ["/x/proj", "/x/proj/build/gen"],
-            excluded: false,
-        },
-        {
-            behaviour: "keeps that file whichever folder comes first",
-            path: "/x/proj/build/gen/a.bpmn",
-            folders: ["/x/proj/build/gen", "/x/proj"],
-            excluded: false,
-        },
-        {
-            behaviour: "excludes the outer folder's build output beside the nested folder",
-            path: "/x/proj/build/a.bpmn",
-            folders: ["/x/proj", "/x/proj/build/gen"],
-            excluded: true,
-        },
-        {
-            behaviour: "judges a path outside every folder by all its segments",
-            path: "/elsewhere/dist/a.bpmn",
-            folders: ["/home/u/web"],
-            excluded: true,
-        },
-    ])("$behaviour", ({ path, folders, excluded }) => {
-        expect(isInsideExcludedDirBelowEveryFolder(path, folders)).toBe(excluded);
-    });
 });
 
 describe("excludedDirsGlob", () => {

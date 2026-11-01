@@ -4,11 +4,9 @@ import { relativeToRoot } from "./rootContainment";
  * Directory names that never contain user-authored sources worth searching
  * (process/decision models or implementation code).
  *
- * Applied uniformly to both workspace-search code paths: as a post-filter on
- * the `workspace.findFiles` result, and per-directory during the fs-walk
- * fallback. VS Code's default `files.exclude` / `search.exclude` only cover a
- * subset of these (notably `**\/node_modules`), so the platform defaults alone
- * are not enough.
+ * Every workspace listing skips them: `workspace.findFiles` through
+ * {@link excludedDirsGlob}, the fs-walk fallback per directory. VS Code's
+ * default `files.exclude` covers only the version-control folders among them.
  */
 export const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
     "node_modules",
@@ -23,8 +21,14 @@ export const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
     ".hg",
 ]);
 
-export function excludedDirsGlob(..._additionalDirNames: string[]): string {
-    return "";
+/**
+ * The exclude a listing hands `WorkspacePort.findFiles`, so the host prunes
+ * these folders while it walks: the files inside {@link EXCLUDED_DIRS} and
+ * `additionalDirNames` at any depth below each workspace folder. A host takes
+ * one exclude glob, so a caller's own folders join the same brace group.
+ */
+export function excludedDirsGlob(...additionalDirNames: string[]): string {
+    return `**/{${[...EXCLUDED_DIRS, ...additionalDirNames].join(",")}}/**`;
 }
 
 /**
@@ -35,17 +39,4 @@ export function excludedDirsGlob(..._additionalDirNames: string[]): string {
 export function isInsideExcludedDirBelow(path: string, root: string): boolean {
     const judgedPath = relativeToRoot(path, root) ?? path;
     return judgedPath.split("/").some((segment) => EXCLUDED_DIRS.has(segment));
-}
-
-/**
- * {@link isInsideExcludedDirBelow} for the innermost of `folders` that holds
- * `path`, so a folder opened inside another folder's build output keeps its
- * files. Every other folder sees the same segments or more, so it never
- * answers `false` where the innermost one answers `true`.
- */
-export function isInsideExcludedDirBelowEveryFolder(
-    path: string,
-    folders: readonly string[],
-): boolean {
-    return folders.every((folder) => isInsideExcludedDirBelow(path, folder));
 }

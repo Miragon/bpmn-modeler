@@ -1,6 +1,6 @@
 import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
-import { EXCLUDED_DIRS, isInsideExcludedDirBelowEveryFolder } from "../domain/excludedDirs";
+import { EXCLUDED_DIRS, excludedDirsGlob } from "../domain/excludedDirs";
 import { WorkspacePort } from "../domain/hostPorts";
 import { LocateResult, outcomeAfterReading, SearchOutcome } from "../domain/locateResult";
 import { SearchScope } from "../domain/searchScope";
@@ -65,8 +65,8 @@ export interface WorkspaceFileQuery extends FindFilesOptions {
  * fs-walk fallback for hosts where the bundled ripgrep is missing.
  *
  * Strategy, in order:
- *   1. `workspace.findFiles(glob)` — fast (ripgrep-backed) and respects the
- *      user's `files.exclude` setting; results post-filtered by {@link EXCLUDED_DIRS}.
+ *   1. `workspace.findFiles(glob)` — fast (ripgrep-backed); the host skips
+ *      {@link EXCLUDED_DIRS} and, on VS Code, the user's `files.exclude`.
  *   2. fs-walk fallback — when (1) returns `[]` despite open folders, which
  *      happens in the unsigned electron-builder package where ripgrep is
  *      missing/unexecutable.
@@ -93,20 +93,15 @@ export async function findFilesInScope(
         return walkWorkspaceTree(ws, scope.directory, matchesWalkedFile, logger, "walk-primary");
     }
 
-    // Pass no excludes — VS Code layers the user's `files.exclude` and
-    // `search.exclude` on top — then post-filter with EXCLUDED_DIRS because the
-    // VS Code defaults do not cover all of them (dist, build, out, target, …).
+    // VS Code adds the user's `files.exclude` to this exclude, never
+    // `search.exclude`.
     const startedAt = Date.now();
-    const found = await ws.findFiles(glob);
-    const filtered = found.filter(
-        (path) => !isInsideExcludedDirBelowEveryFolder(path, scope.folders),
-    );
+    const found = await ws.findFiles(glob, excludedDirsGlob());
     logger?.logInfo(
-        `[search] findFiles("${glob}") returned ${found.length} path(s) ` +
-            `(${filtered.length} after exclude filter) in ${Date.now() - startedAt}ms`,
+        `[search] findFiles("${glob}") returned ${found.length} path(s) in ${Date.now() - startedAt}ms`,
     );
-    if (filtered.length > 0) {
-        return filtered;
+    if (found.length > 0) {
+        return found;
     }
 
     // Fallback: findFiles failed silently (ripgrep missing in packaged .app).

@@ -131,17 +131,6 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         });
     });
 
-    it("passes undefined as exclude — VS Code layers files.exclude and search.exclude", async () => {
-        const { locator, workspace } = createLocator({
-            files: { "/a.bpmn": bpmnWithProcess("ProcessB") },
-        });
-        const findFiles = vi.spyOn(workspace, "findFiles");
-
-        await locator.findDeclaringFiles("ProcessB", "process");
-
-        expect(findFiles.mock.calls).toEqual([["**/*.bpmn"]]);
-    });
-
     it("filters out paths inside build/output dirs that VS Code defaults miss", async () => {
         const { locator, workspace } = createLocator({
             files: {
@@ -166,26 +155,6 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         }
         // Excluded paths should not even be read.
         expect(readFile.mock.calls).toEqual([["/work/wanted.bpmn"]]);
-    });
-
-    it("falls back to fs-walk when every findFiles result is excluded", async () => {
-        const { locator, workspace } = createLocator({
-            folders: ["/work"],
-            files: {
-                "/work/dist/stale.bpmn": bpmnWithProcess("Wanted"),
-                "/work/src/real.bpmn": bpmnWithProcess("Wanted"),
-            },
-        });
-        vi.spyOn(workspace, "findFiles").mockResolvedValue(["/work/dist/stale.bpmn"]);
-        const readDirectory = vi.spyOn(workspace, "readDirectory");
-
-        const result = await locator.findDeclaringFiles("Wanted", "process");
-
-        expect(readDirectory).toHaveBeenCalledWith("/work");
-        expect(result.kind).toBe("matches");
-        if (result.kind === "matches") {
-            expect(result.paths).toEqual(["/work/src/real.bpmn"]);
-        }
     });
 
     it("walks every workspace root when findFiles fails silently", async () => {
