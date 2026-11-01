@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { DeployedRevision, DeploymentState } from "@miragon/bpmn-modeler-core";
+import type {
+    DeployedRevision,
+    DeploymentState,
+    DeploymentStatePatch,
+} from "@miragon/bpmn-modeler-core";
 
-import { InMemoryMemento } from "../../__fixtures__/vscodeStorage";
+import { FailingMemento, InMemoryMemento } from "../../__fixtures__/vscodeStorage";
 import { VsCodeDeploymentState } from "./VsCodeDeploymentState";
 
 const LEDGER_KEY = "bpmn-modeler.deployment.ledger";
@@ -20,6 +24,26 @@ const SAVED: DeploymentState = {
     activeTargetName: "dev",
     ledger: { "target:dev::/a.bpmn": revision("f1") },
 };
+
+const OLD_CONNECTION: DeploymentStatePatch = {
+    endpoint: "https://old.example",
+    tenantId: "tenant-1",
+    authType: "none",
+    tokenEndpoint: "",
+    audience: "",
+};
+
+const NEW_OAUTH2_CONNECTION: DeploymentStatePatch = {
+    endpoint: "https://new.example",
+    tenantId: "tenant-2",
+    authType: "oauth2",
+    tokenEndpoint: "https://idp/token",
+    audience: "zeebe-api",
+};
+
+function connectionOf({ endpoint, tenantId, authType, tokenEndpoint, audience }: DeploymentState) {
+    return { endpoint, tenantId, authType, tokenEndpoint, audience };
+}
 
 describe("VsCodeDeploymentState", () => {
     it("falls back to ad-hoc defaults in a fresh workspace", () => {
@@ -119,4 +143,27 @@ describe("VsCodeDeploymentState", () => {
             "target:prod::/a.bpmn": revision("a1"),
         });
     });
+
+    it.each(
+        [0, 1, 2, 3, 4].flatMap((writesBeforeFailure) => [
+            [writesBeforeFailure, false] as const,
+            [writesBeforeFailure, true] as const,
+        ]),
+    )(
+        "stores a connection whole or not at all when the workspace state rejects after %i writes (rejected value kept in memory: %s)",
+        async (writesBeforeFailure, keepsRejectedValue) => {
+            const memento = new FailingMemento(keepsRejectedValue);
+            await new VsCodeDeploymentState(memento).save(OLD_CONNECTION);
+            const oldConnection = connectionOf(new VsCodeDeploymentState(memento).load());
+            memento.failAfter(writesBeforeFailure);
+
+            await new VsCodeDeploymentState(memento)
+                .save(NEW_OAUTH2_CONNECTION)
+                .catch(() => undefined);
+
+            expect([oldConnection, NEW_OAUTH2_CONNECTION]).toContainEqual(
+                connectionOf(new VsCodeDeploymentState(memento).load()),
+            );
+        },
+    );
 });
