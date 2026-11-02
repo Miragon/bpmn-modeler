@@ -31,7 +31,7 @@ class NewElementTemplateAction : DumbAwareAction() {
         HostPicker.show(
             project,
             title = "New Element Template",
-            placeholder = "Select the engine the element template is for.",
+            placeholder = NewElementTemplates.ENGINE_PLACEHOLDER,
             canPickMany = false,
             items = engines.mapIndexed { index, engine -> HostPicker.PickItem(index, engine.label, null) },
         ) { selected ->

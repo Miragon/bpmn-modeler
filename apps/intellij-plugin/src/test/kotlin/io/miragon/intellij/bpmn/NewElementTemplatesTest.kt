@@ -1,8 +1,5 @@
 package io.miragon.intellij.bpmn
 
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
@@ -18,24 +15,26 @@ class NewElementTemplatesTest {
 
     @ParameterizedTest
     @MethodSource("templateCases")
-    fun `scaffolds the same template as the core`(case: TemplateCase) {
-        assertEquals(case.template, JsonParser.parseString(NewElementTemplates.stub(case.engine, case.fileName)))
+    fun `writes the same bytes as the core`(case: TemplateCase) {
+        assertEquals(case.text, NewElementTemplates.stub(case.engine, case.fileName))
     }
 
     @Test
-    fun `writes the file the way the core does`() {
-        val text = NewElementTemplates.stub(TemplateEngine.C8, "send-mail.json")
+    fun `offers the engines the core's prompt offers`() {
+        val prompt = cases.getAsJsonObject("enginePrompt")
 
-        assertEquals(PRETTY.toJson(JsonParser.parseString(text)) + "\n", text)
+        assertEquals(prompt.get("placeholder").asString, NewElementTemplates.ENGINE_PLACEHOLDER)
+        assertEquals(
+            prompt.getAsJsonArray("items").map { it.asJsonObject.get("label").asString to it.asJsonObject.get("value").asString },
+            TemplateEngine.values().map { it.label to it.id },
+        )
     }
 
     class IdentityCase(val fileName: String, val id: String, val name: String)
 
-    class TemplateCase(val engine: TemplateEngine, val fileName: String, val template: JsonObject)
+    class TemplateCase(val engine: TemplateEngine, val fileName: String, val text: String)
 
     companion object {
-        private val PRETTY = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
-
         private val cases by lazy { readTypeScriptJson("miragon.newElementTemplateCases").asJsonObject }
 
         @JvmStatic
@@ -51,10 +50,8 @@ class NewElementTemplatesTest {
             cases.getAsJsonArray("templates").map { row ->
                 val case = row.asJsonObject
                 val engine = TemplateEngine.values().first { it.id == case.get("engine").asString }
-                Named.of(
-                    engine.id,
-                    TemplateCase(engine, case.get("fileName").asString, case.getAsJsonObject("template")),
-                )
+                val fileName = case.get("fileName").asString
+                Named.of("${engine.id} $fileName", TemplateCase(engine, fileName, case.get("text").asString))
             }
     }
 }

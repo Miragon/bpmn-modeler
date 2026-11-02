@@ -13,7 +13,8 @@ import {
 
 interface NewElementTemplateCases {
     identities: { fileName: string; id: string; name: string }[];
-    templates: { engine: Engine; fileName: string; template: Record<string, unknown> }[];
+    enginePrompt: { placeholder: string; items: { label: string; value: Engine }[] };
+    templates: { engine: Engine; fileName: string; text: string }[];
 }
 
 // Shared with the IntelliJ host, whose copy of the stubs runs the same rows.
@@ -30,8 +31,8 @@ describe("templateIdentity", () => {
 });
 
 describe("newElementTemplate", () => {
-    it.each(CASES.templates)("scaffolds a $engine template", ({ engine, fileName, template }) => {
-        expect(JSON.parse(newElementTemplate(engine, fileName))).toEqual(template);
+    it.each(CASES.templates)("writes $fileName for $engine", ({ engine, fileName, text }) => {
+        expect(newElementTemplate(engine, fileName)).toBe(text);
     });
 
     it.each<Engine>(["c7", "c8"])("passes the %s schema", (engine) => {
@@ -43,21 +44,13 @@ describe("newElementTemplate", () => {
     it.each<Engine>(["c7", "c8"])("is told apart as a %s template", (engine) => {
         expect(detectTemplateEngine(JSON.parse(newElementTemplate(engine, "a.json")))).toBe(engine);
     });
-
-    it("writes the file the way a JSON editor formats it", () => {
-        const text = newElementTemplate("c8", "send-mail.json");
-
-        expect(text).toBe(`${JSON.stringify(JSON.parse(text), null, 2)}\n`);
-    });
 });
 
 describe("elementTemplateEnginePrompt", () => {
     it("offers both engines and nothing else", () => {
-        expect(elementTemplateEnginePrompt().items.map((item) => [item.label, item.value])).toEqual(
-            [
-                ["Camunda 7", "c7"],
-                ["Camunda 8", "c8"],
-            ],
-        );
+        expect(elementTemplateEnginePrompt()).toEqual({
+            id: "elementTemplateEngine",
+            ...CASES.enginePrompt,
+        });
     });
 });

@@ -284,7 +284,8 @@ from the file name. VS Code writes it after a save dialog that suggests
 `<configFolder>/element-templates/` and the engine prompt. IntelliJ keeps a
 Kotlin copy of the stub, as it does for the DMN skeleton, because creating a
 file should not wait for a bridge; `newElementTemplate.cases.json` holds the
-rows both run.
+rows both run, down to the exact bytes of the file, the Unicode cases where
+JavaScript's and Java's regular expressions differ, and the engine prompt.
 
 Inline scripts still open and sync their tabs per host, behind the core
 `ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab

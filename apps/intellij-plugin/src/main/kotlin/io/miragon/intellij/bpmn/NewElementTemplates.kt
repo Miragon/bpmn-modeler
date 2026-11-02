@@ -19,6 +19,8 @@ enum class TemplateEngine(val id: String, val label: String, val schemaUrl: Stri
 internal object NewElementTemplates {
     data class Identity(val id: String, val name: String)
 
+    const val ENGINE_PLACEHOLDER = "Select the engine the element template is for."
+
     private const val FALLBACK_ID = "new-element-template"
     private val PRETTY = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
 
