@@ -205,8 +205,12 @@ describe("package.json ↔ code contract", () => {
                 selector: [{ filenamePattern: "*.json" }],
             }),
         );
+        // A `when` clause cannot read the config folder, so it leaves the rule to the context key.
         expect(manifest.contributes.menus["editor/title"]).toContainEqual(
-            expect.objectContaining({ command: OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD }),
+            expect.objectContaining({
+                command: OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD,
+                when: "resourceExtname == .json && !activeCustomEditorId && bpmn-modeler.isElementTemplate",
+            }),
         );
     });
 
