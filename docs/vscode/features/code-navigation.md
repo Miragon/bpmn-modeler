@@ -45,6 +45,17 @@ Select an element that refers to another model and click **Navigate to reference
 | User task (Camunda 8) | `zeebe:formDefinition formId` | The `.form` file whose top-level `id` matches |
 
 The entry works in every mode, including View. For a user task it only appears once a matching `.form` file exists.
+
+Selecting a linked Camunda 8 user task automatically previews its saved form.
+Disable **BPMN Modeler: Form Preview: Automatic** in User Settings, or run
+**Miragon BPMN Modeler: Toggle Automatic Form Preview**, to stop automatic
+previews and unresolved-form indicators in every open diagram. The preference
+survives restarts. Use the context-pad eye to preview a resolvable form manually;
+the eye and **Refresh** never change the preference. Disabling closes automatic
+previews, but leaves manually opened or explicitly refreshed previews alone.
+Re-enabling previews the current task again, unless you deliberately dismissed
+it; selecting another task or changing its form reference clears that dismissal.
+
 As above, one match opens, several open a list and none shows a message. IntelliJ has no DMN or form editor, so those
 files open in the IDE's own editor.
 

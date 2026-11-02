@@ -54,6 +54,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Mirago
 | Migrate All BPMN Diagrams | | Change the engine version of every BPMN diagram in the workspace, except copies in `node_modules`, build output or folders whose name starts with a dot |
 | Deploy Diagram | | Deploy the open diagram to the active deployment target |
 | Toggle Linting | | Turn [linting](/vscode/features/linting) on or off |
+| Toggle Automatic Form Preview | | Turn automatic linked-form previews on or off for all open diagrams; manual preview stays available |
 | Reload Modeler | | Re-read element templates and re-render open diagrams |
 | Display Logging Information | | Open the modeler log |
 

@@ -74,6 +74,11 @@ export class FormPreviewController {
         // Canvas resize events can themselves originate in a ResizeObserver delivery.
         eventBus.on("canvas.resized", scheduleReposition);
         const unsubscribe = port.onReferenceAvailabilityChanged?.(() => this.update());
+        const unsubscribeAutomatic = port.formPreview?.onAutomaticChanged?.(() => {
+            if (this.disposed) return;
+            this.update();
+            this.refreshPad();
+        });
         const observer =
             typeof ResizeObserver !== "undefined"
                 ? new ResizeObserver(scheduleReposition)
@@ -83,6 +88,7 @@ export class FormPreviewController {
             this.disposed = true;
             this.stop();
             unsubscribe?.();
+            unsubscribeAutomatic?.();
             observer?.disconnect();
         });
     }
@@ -119,7 +125,11 @@ export class FormPreviewController {
     }
 
     private transition(event: FormPreviewEvent<PreviewElement>): void {
-        const decision = reduceFormPreview(this.state, event);
+        const decision = reduceFormPreview(
+            this.state,
+            event,
+            this.port.formPreview?.isAutomaticEnabled?.() ?? true,
+        );
         if (decision.action !== "keep") this.stop();
         this.state = decision.state;
         if (decision.action === "open") this.start(decision.automatic);

@@ -77,6 +77,14 @@ The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in
 [Architecture and hosts: host replicated state](../../docs/adr/architecture-and-hosts.md#host-replicated-state).
 
+Automatic form preview uses the existing settings snapshot, not a new RPC:
+`formPreviewAutomatic` defaults to `true` and maps to the central
+`formPreview.automatic` setting key. The host persists it and sends
+`settings/didChange` to each running bridge. The core pushes the flag as
+`BpmnModelerSettingQuery.formPreviewAutomatic` metadata to every open editor.
+On recovery, request settings before replaying the file so an opt-out made
+while the bridge was down reaches the surviving page before selection restore.
+
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server
 > directly. In the JCEF host the JVM already owns the browser, so relaying

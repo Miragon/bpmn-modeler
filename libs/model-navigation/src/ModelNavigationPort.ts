@@ -41,6 +41,9 @@ export interface FormPreviewHandle {
 }
 export interface FormPreviewPort {
     open(request: FormPreviewRequest): FormPreviewHandle;
+    /** Omitted means enabled. Manual previews and Refresh ignore this preference. */
+    isAutomaticEnabled?(): boolean;
+    onAutomaticChanged?(listener: () => void): () => void;
 }
 
 /**

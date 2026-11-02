@@ -233,6 +233,12 @@
                 text="Change Modeler Language…"
                 description="Choose the UI language for the BPMN modeler"/>
             <action
+                id="io.miragon.bpmn-modeler.toggleAutomaticFormPreview"
+                class="io.miragon.intellij.bpmn.ToggleAutomaticFormPreviewAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
+                text="Toggle Automatic Form Preview"
+                description="Toggle automatic linked form previews in every modeler"/>
+            <action
                 id="io.miragon.bpmn-modeler.copyDiagramAsSvg"
                 class="io.miragon.intellij.bpmn.CopyDiagramAsSvgAction"
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"

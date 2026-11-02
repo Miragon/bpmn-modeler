@@ -131,6 +131,7 @@ export interface SettingsPort {
      * shown automation rules they do not care about. Defaults to `true`.
      */
     getLintingEnabled(): boolean;
+    getFormPreviewAutomatic(): boolean;
     getColorTheme(): ColorThemeSetting;
     /**
      * The default landing mode (View/Design/Implement) for an editor with no

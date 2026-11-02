@@ -263,7 +263,10 @@ export class FocusElementQuery extends Query<"FocusElementQuery"> {
 export class BpmnModelerSettingQuery extends Query<"BpmnModelerSettingQuery"> {
     public readonly setting: BpmnModelerSetting;
 
-    constructor(setting: BpmnModelerSetting) {
+    constructor(
+        setting: BpmnModelerSetting,
+        public readonly formPreviewAutomatic = true,
+    ) {
         super("BpmnModelerSettingQuery");
         this.setting = setting;
     }

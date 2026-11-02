@@ -40,6 +40,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Change Engine Version… | Change the engine version of the focused diagram |
 | Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project, except copies in `node_modules`, build output or folders whose name starts with a dot |
 | Change Modeler Language… | Switch the modeler UI language |
+| Toggle Automatic Form Preview | Enable or disable automatic linked-form previews across all projects; manual preview remains available |
 | Copy Diagram as SVG / Save Diagram as SVG… | Export the focused diagram as SVG |
 | Deploy Diagram / Deploy Files… | Deploy to the active target (see the **Miragon Deployment** tool window) |
 | Switch Deployment Target… | Pick the active deployment target for the project |
@@ -63,6 +64,16 @@ elements and template marketplaces. They mean the same as the [VS Code settings]
 list offers every language under [Language support](/vscode/features/language-support). Linting has no field there:
 the lint toggle in the editor and the BPMNlint widget turn it on or off for all your projects, and the IDE keeps the
 choice across restarts.
+
+**Automatically preview linked forms** is enabled by default. Its checkbox and
+**Toggle Automatic Form Preview** action persist the same application preference
+(`miragon.bpmnModeler.formPreview.automatic`), including before any diagram is
+open. Changes apply to open diagrams immediately and survive restarts. Disabling
+closes automatic previews and suppresses unresolved-form indicators; the
+context-pad eye and **Refresh** still work without changing the preference.
+Manually opened or explicitly refreshed previews remain open. Re-enabling
+previews the current selection unless you deliberately dismissed it; changing
+selection or the form reference clears that dismissal.
 
 ## Next steps
 

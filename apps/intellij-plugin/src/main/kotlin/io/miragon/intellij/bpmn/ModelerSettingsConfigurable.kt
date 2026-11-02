@@ -38,6 +38,7 @@ class ModelerSettingsConfigurable : Configurable {
         var favouritesText: String,
         var language: String,
         var scriptingSpin: Boolean,
+        var formPreviewAutomatic: Boolean,
         var marketplacesText: String,
     )
 
@@ -64,6 +65,11 @@ class ModelerSettingsConfigurable : Configurable {
                             { state.showTransactionBoundaries },
                             { state.showTransactionBoundaries = it },
                         )
+                }
+                row {
+                    checkBox("Automatically preview linked forms")
+                        .bindSelected({ state.formPreviewAutomatic }, { state.formPreviewAutomatic = it })
+                        .comment("The context-pad eye still opens previews manually when disabled.")
                 }
                 row("Config folder:") {
                     textField()
@@ -199,6 +205,7 @@ class ModelerSettingsConfigurable : Configurable {
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
             scriptingSpin = scriptingSpin,
+            formPreviewAutomatic = formPreviewAutomatic,
             marketplaces = parseMarketplaces(marketplacesText),
         )
 
@@ -213,6 +220,7 @@ class ModelerSettingsConfigurable : Configurable {
         favouritesText = other.favouritesText
         language = other.language
         scriptingSpin = other.scriptingSpin
+        formPreviewAutomatic = other.formPreviewAutomatic
         marketplacesText = other.marketplacesText
     }
 
@@ -228,6 +236,7 @@ class ModelerSettingsConfigurable : Configurable {
             favouritesText = settings.favouriteBpmnElements.joinToString("\n"),
             language = settings.language,
             scriptingSpin = settings.scriptingSpin,
+            formPreviewAutomatic = settings.formPreviewAutomatic,
             marketplacesText = settings.marketplaces.joinToString("\n"),
         )
 

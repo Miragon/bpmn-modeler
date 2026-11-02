@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-02
 
 ## Context
 
@@ -730,6 +730,19 @@ respawns, IDE restarts and open projects, as VS Code's User setting does. The
 core compares the page's choice with the stored one on every host: an equal
 choice is not stored, and the core pushes the lint state to the page again
 instead, so a page out of step catches up.
+
+Automatic form preview is the boolean `formPreviewAutomatic` snapshot field,
+mapped centrally to `formPreview.automatic` (default `true`, strict boolean
+normalization). VS Code's application-scoped setting and toggle command write
+the User value through `modelerConfiguration.ts`. IntelliJ's checkbox and
+Tools/Find Action toggle persist the same namespaced key in the application
+`ModelerSettingsStore`, then broadcast the full snapshot to all running bridges;
+no new RPC method is needed. Its locked update and `withEdits` merge preserve a
+command toggle made while Settings is open. Initial settings precede restored
+selection; recovery replays settings before the file so an opt-out changed while
+the bridge was down reaches the surviving page before selection is restored.
+The preview eye and Refresh never write the preference. Contract coverage lives
+in the settings normalization, manifest, bridge editor and Kotlin store/UI tests.
 
 The deployment state is one `DeploymentState` snapshot in the core's
 [`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):

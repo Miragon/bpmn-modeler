@@ -43,6 +43,16 @@
             "normalized": { "lintingEnabled": false }
         },
         {
+            "name": "keeps automatic form preview turned off",
+            "raw": { "formPreviewAutomatic": false },
+            "normalized": { "formPreviewAutomatic": false }
+        },
+        {
+            "name": "keeps automatic form preview turned on",
+            "raw": { "formPreviewAutomatic": true },
+            "normalized": { "formPreviewAutomatic": true }
+        },
+        {
             "name": "reads an empty config folder as the default",
             "raw": { "configFolder": "" },
             "normalized": { "configFolder": ".camunda" }

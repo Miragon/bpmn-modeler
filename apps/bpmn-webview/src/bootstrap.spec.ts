@@ -467,6 +467,31 @@ describe("bootstrap", () => {
             expect(mocks.createViewer).toHaveBeenCalledOnce();
             expect(mocks.createModeler).not.toHaveBeenCalled();
         });
+
+        it("keeps preference changes received during asynchronous surface creation on the rebuilt surface", async () => {
+            const viewer = deferredSurface<ReturnType<typeof makeViewer>>();
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            mocks.createViewer.mockReturnValueOnce(viewer.surface);
+            boot(makeHost({ file: tagged("c8") }), { capabilities: undefined });
+            await settle();
+            const firstOptions = mocks.createModeler.mock.calls[0][1];
+            const firstPort = (firstOptions.capabilities as ModelerCapabilities).modelNavigation!
+                .formPreview!;
+            modeButtons()[0].click();
+            await settle();
+            dispatch(new BpmnModelerSettingQuery(settingsQuery().setting, false));
+            await settle();
+            viewer.finish(makeViewer());
+            await settle();
+            const viewerOptions = mocks.createViewer.mock.calls[0][1];
+            const rebuiltPort = (viewerOptions.capabilities as ModelerCapabilities).modelNavigation!
+                .formPreview!;
+            expect(rebuiltPort).toBe(firstPort);
+            expect(rebuiltPort.isAutomaticEnabled!()).toBe(false);
+            dispatch(new BpmnModelerSettingQuery(settingsQuery().setting, true));
+            await settle();
+            expect(rebuiltPort.isAutomaticEnabled!()).toBe(true);
+        });
     });
 
     describe("locale", () => {
@@ -822,7 +847,7 @@ describe("bootstrap", () => {
             mocks.stateManagerCreated.mock.calls[0][0] as RestoringStateManager;
 
         // A c8 file: the c7 process-variable publish would add its own 300 ms timer.
-        async function bootAwaitingReplies() {
+        async function bootAwaitingReplies(opts: Parameters<typeof bootstrap>[1] = {}) {
             const modeler = makeModeler();
             mocks.createModeler.mockResolvedValue(modeler);
             boot(
@@ -833,6 +858,7 @@ describe("bootstrap", () => {
                         GetBpmnModelerSettingCommand: unanswered,
                     },
                 }),
+                opts,
             );
             await settle();
             return modeler;
@@ -856,6 +882,22 @@ describe("bootstrap", () => {
             expect(firstCall(modeler.setSettings)).toBeLessThan(firstCall(restoreSelection));
             expect(firstCall(restoreSelection)).toBeLessThan(firstCall(restorePanelUiState));
             expect(firstCall(restorePanelUiState)).toBeLessThan(firstCall(mocks.startPersisting));
+        });
+
+        it("applies persisted automatic-preview opt-out before restoring selection", async () => {
+            await bootAwaitingReplies({ capabilities: undefined });
+            const options = mocks.createModeler.mock.calls[0][1];
+            const preview = (options.capabilities as ModelerCapabilities).modelNavigation!
+                .formPreview!;
+            expect(stateManager().restoreSelection).not.toHaveBeenCalled();
+            dispatch(new BpmnModelerSettingQuery(settingsQuery().setting, false));
+            await settle();
+            expect(preview.isAutomaticEnabled!()).toBe(false);
+            expect(stateManager().restoreSelection).not.toHaveBeenCalled();
+            dispatch(new ElementTemplatesQuery([]));
+            await settle();
+            expect(stateManager().restoreSelection).toHaveBeenCalledOnce();
+            expect(preview.isAutomaticEnabled!()).toBe(false);
         });
 
         it.each([

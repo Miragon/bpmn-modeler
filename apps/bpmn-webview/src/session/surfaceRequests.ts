@@ -92,10 +92,12 @@ export function createSurfaceRequests(
         hostModelerState,
         theme,
         replies,
+        setFormPreviewAutomatic,
     }: {
         hostModelerState: Pick<HostModelerState, "rememberSettings" | "rememberOpenScripts">;
         theme: Pick<HostThemeAdapter, "setMode">;
         replies: SurfaceRequestReplies;
+        setFormPreviewAutomatic?: (enabled: boolean) => void;
     },
 ): SurfaceRequests {
     return {
@@ -222,6 +224,7 @@ export function createSurfaceRequests(
             BpmnModelerSettingQuery: (query) => {
                 hostModelerState.rememberSettings(query.setting);
                 try {
+                    setFormPreviewAutomatic?.(query.formPreviewAutomatic ?? true);
                     // Theme is host policy: the package's setSettings does not
                     // apply `colorTheme`, so the host adapter drives it.
                     theme.setMode(query.setting.colorTheme);

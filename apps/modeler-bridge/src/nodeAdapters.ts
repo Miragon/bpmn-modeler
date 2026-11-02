@@ -641,6 +641,9 @@ export class BridgeSettings implements SettingsPort {
     getLintingEnabled(): boolean {
         return this.snapshot.lintingEnabled;
     }
+    getFormPreviewAutomatic(): boolean {
+        return this.snapshot.formPreviewAutomatic;
+    }
     /**
      * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the
      * `SpinJsonNode` member table to the host. The gate lives here in the bridge

@@ -20,11 +20,13 @@ function task(id = "Form_1") {
         },
     };
 }
-function setup(available = true) {
+function setup(available = true, automatic = true) {
     const handlers = new Map<string, Array<(event?: unknown) => void>>();
     const fire = (name: string, event?: unknown) => handlers.get(name)?.forEach((fn) => fn(event));
     const selected: ReturnType<typeof task>[] = [];
     let availabilityChanged = () => {};
+    let automaticChanged = () => {};
+    const unsubscribeAutomatic = vi.fn();
     const handles: Array<{
         close: ReturnType<typeof vi.fn>;
         reposition: ReturnType<typeof vi.fn>;
@@ -37,7 +39,14 @@ function setup(available = true) {
     const unsubscribe = vi.fn();
     const port = {
         openReference: vi.fn(),
-        formPreview: { open },
+        formPreview: {
+            open,
+            isAutomaticEnabled: () => automatic,
+            onAutomaticChanged: (listener: () => void) => {
+                automaticChanged = listener;
+                return unsubscribeAutomatic;
+            },
+        },
         isReferenceAvailable: vi.fn(() => available),
         onReferenceAvailabilityChanged: (listener: () => void) => {
             availabilityChanged = listener;
@@ -92,11 +101,77 @@ function setup(available = true) {
         contextPad,
         canvas,
         unsubscribe,
+        unsubscribeAutomatic,
+        setAutomatic: (enabled: boolean) => {
+            automatic = enabled;
+            automaticChanged();
+        },
         availabilityChanged: () => availabilityChanged(),
     };
 }
 
 describe("automatic linked form preview", () => {
+    it.each([false, true])(
+        "cancels automatic handles immediately even before visibility (%s)",
+        (visible) => {
+            const fixture = setup();
+            const element = task();
+            fixture.select(element);
+            const stale = fixture.open.mock.calls[0][0];
+            stale.onVisibilityChanged(visible);
+
+            fixture.setAutomatic(false);
+            expect(fixture.handles[0].close).toHaveBeenCalledOnce();
+            expect(fixture.controller.isVisible(element)).toBe(false);
+            expect(fixture.contextPad.open).toHaveBeenLastCalledWith(element, true);
+            fixture.availabilityChanged();
+            fixture.fire("elements.changed");
+            expect(fixture.open).toHaveBeenCalledOnce();
+
+            fixture.controller.openManual(element);
+            expect(fixture.open.mock.calls[1][0].automatic).toBe(false);
+            const manual = fixture.open.mock.calls[1][0];
+            manual.onVisibilityChanged(true);
+            stale.onVisibilityChanged(false);
+            stale.onClose();
+            stale.onExplicitRequest!();
+            expect(fixture.controller.isVisible(element)).toBe(true);
+            fixture.setAutomatic(true);
+            fixture.setAutomatic(false);
+            expect(fixture.handles[1].close).not.toHaveBeenCalled();
+            manual.onClose();
+            fixture.setAutomatic(true);
+            expect(fixture.open).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it("tracks selection while disabled, re-enables it once, and disposes the preference listener", () => {
+        const fixture = setup(true, false);
+        const element = task();
+        fixture.select(element);
+        expect(fixture.open).not.toHaveBeenCalled();
+        fixture.setAutomatic(true);
+        expect(fixture.open.mock.calls[0][0]).toMatchObject({ automatic: true, id: "Form_1" });
+        fixture.open.mock.calls[0][0].onVisibilityChanged(true);
+        fixture.setAutomatic(true);
+        expect(fixture.open).toHaveBeenCalledOnce();
+        fixture.setAutomatic(false);
+        fixture.setAutomatic(true);
+        expect(fixture.open).toHaveBeenCalledTimes(2);
+        fixture.fire("diagram.destroy");
+        expect(fixture.unsubscribeAutomatic).toHaveBeenCalledOnce();
+        fixture.setAutomatic(false);
+        fixture.setAutomatic(true);
+        expect(fixture.open).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps a refreshed automatic preview when the preference is disabled", () => {
+        const fixture = setup();
+        fixture.select(task());
+        fixture.open.mock.calls[0][0].onExplicitRequest!();
+        fixture.setAutomatic(false);
+        expect(fixture.handles[0].close).not.toHaveBeenCalled();
+    });
     it("uses live rendered task bounds without reading the synchronous viewbox", () => {
         const fixture = setup();
         const target = task();

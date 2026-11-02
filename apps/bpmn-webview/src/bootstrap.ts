@@ -132,6 +132,7 @@ export function bootstrap(
     const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
 
     const surfaceRequests = createSurfaceRequests(editorHost, getSurface, {
+        setFormPreviewAutomatic: protocolCapabilities.setFormPreviewAutomatic,
         hostModelerState,
         theme: themeAdapter,
         replies: { elementTemplates: elementTemplatesResolver, settings: settingsResolver },

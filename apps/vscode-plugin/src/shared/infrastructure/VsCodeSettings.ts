@@ -29,6 +29,9 @@ export class VsCodeSettings implements SettingsPort {
     getLintingEnabled(): boolean {
         return lintingEnabled();
     }
+    getFormPreviewAutomatic(): boolean {
+        return readSetting("formPreviewAutomatic");
+    }
 
     getConfigFolder(): string {
         return readSetting("configFolder");

@@ -53,3 +53,19 @@ also implement `isReferenceAvailable(reference)` and call listeners registered
 through `onReferenceAvailabilityChanged(listener)` after its cache changes. The
 subscription returns an unsubscribe function, which the modeler calls when its
 diagram is destroyed.
+
+An optional `formPreview` capability supplies `open(request)` for anchored form
+previews. Automatic requests and unresolved-reference indicators follow task
+selection. To make only automatic behavior configurable, supply
+`formPreview.isAutomaticEnabled(): boolean` and
+`formPreview.onAutomaticChanged(listener): unsubscribe`. Omitting the hooks
+keeps automatic preview enabled. Notify only when the value changes; the
+controller reads the latest value for every selection and releases its listener
+on destruction. Keep the capability installed while disabled so selection
+tracking and the context-pad eye remain usable.
+
+Disabling closes pending/visible automatic handles; implementations must cancel
+late reads/imports when `close()` is called. Re-enabling retries the current
+selection unless dismissed. Manual opens and explicit Refresh remain independent
+and never change the preference. The host owns persistence and broadcasts;
+these hooks contain no IDE protocol or storage dependency.

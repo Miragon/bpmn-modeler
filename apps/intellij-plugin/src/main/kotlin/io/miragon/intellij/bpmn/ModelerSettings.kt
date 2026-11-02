@@ -22,6 +22,7 @@ data class ModelerSettings(
     val lintingEnabled: Boolean,
     /** Pasted marketplace URLs / local paths (strings-only v1); fed to the core over RPC. */
     val marketplaces: List<String>,
+    val formPreviewAutomatic: Boolean = true,
 ) {
     /**
      * Applies only what changed from [loaded] to [edited] onto these stored values,
@@ -44,6 +45,7 @@ data class ModelerSettings(
             language = editedOrStored { language },
             scriptingSpin = editedOrStored { scriptingSpin },
             lintingEnabled = editedOrStored { lintingEnabled },
+            formPreviewAutomatic = editedOrStored { formPreviewAutomatic },
             marketplaces = mergeMarketplaces(loaded.marketplaces, edited.marketplaces),
         )
     }

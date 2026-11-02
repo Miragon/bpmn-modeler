@@ -471,6 +471,16 @@ describe("BridgeSettings", () => {
         expect(settings.getLintingEnabled()).toBe(false);
         expect(events.map((event) => event.affects("linting.enabled"))).toEqual([true]);
     });
+
+    it("reports automatic preview changes once under the central setting key", () => {
+        const settings = new BridgeSettings();
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
+        settings.apply({ formPreviewAutomatic: false });
+        settings.apply({ formPreviewAutomatic: false });
+        expect(settings.getFormPreviewAutomatic()).toBe(false);
+        expect(events.map((event) => event.affects("formPreview.automatic"))).toEqual([true]);
+    });
 });
 
 describe("RpcLintingPreference", () => {

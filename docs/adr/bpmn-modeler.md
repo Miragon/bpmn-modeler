@@ -100,18 +100,36 @@ components are rejected rather than widening CSP; form actions are blocked.
 The optional availability-known hook distinguishes a pending index from an empty
 one; an unavailable preview request renders status only, without reading a file.
 
+The optional `FormPreviewPort.isAutomaticEnabled` getter and
+`onAutomaticChanged` subscription default to enabled when omitted. The pure
+selection reducer gates automatic opens and unavailable indicators, not selection
+tracking or capability registration: the context-pad eye still needs both.
+Disabling closes pending and visible automatic handles and resets their attempt;
+re-enabling retries the current selection unless deliberately dismissed. Manual
+opens and explicit Refresh remain independent and survive preference changes.
+Generation guards discard late reads/imports and callbacks from closed handles;
+diagram destruction releases preference subscriptions. Unchanged pushes do not
+reload a preview.
+
+The webview capability adapter owns the latest flag independently of View,
+Design or Implement surfaces, including asynchronous rebuilds. Hosts send it as
+default-true `BpmnModelerSettingQuery.formPreviewAutomatic` metadata, outside the
+surface-specific settings bag. Older senders/embedders retain automatic behavior.
+Persistence and fan-out follow the shared [host settings ownership](architecture-and-hosts.md#host-replicated-state).
+
 **Consequences.** Place the preview directly right of the selected task and its
 context pad, clamped to the canvas viewport. Stable task association takes priority
 over avoiding obstruction: overlap with diagram elements is accepted rather than
 searching alternate locations. Bounded dimensions and scrolling keep content and
-close controls reachable in narrow viewports. An opt-out for automatic previews
-is recommended as a separate follow-up, not implemented here.
+close controls reachable in narrow viewports. Users can opt out of automatic
+previews without losing manual preview or saved-form navigation.
 Saved-byte resolution avoids coupling to open form editors at the cost of not
 reflecting unsaved changes. The index cannot distinguish missing from malformed
 JSON, so lightweight feedback names both without another scan. Explicit attempts
 retain retryable feedback rather than inheriting automatic failure handling.
 The optional port keeps form-js and IDE transport out of embedders. Enforcement lives in
-`FormPreviewService.spec.ts`, preview reducer/webview specs and focused
+`FormPreviewService.spec.ts`, preview reducer/webview specs,
+`packages/bpmn-modeler/src/formPreview.browser.spec.ts` and focused
 packaged-extension smoke scenarios.
 
 ### Surfaces and modes

@@ -108,6 +108,27 @@ describe("FormReferenceAvailability", () => {
 });
 
 describe("createProtocolCapabilities", () => {
+    it("retains the latest preview preference across surfaces and notifies only changes", () => {
+        const host = createHost();
+        const adapter = createProtocolCapabilities(host, () => {
+            throw new Error("surface not constructed yet");
+        });
+        const port = adapter.capabilities.modelNavigation.formPreview!;
+        expect(port.isAutomaticEnabled!()).toBe(true);
+        const changed = vi.fn();
+        const unsubscribe = port.onAutomaticChanged!(changed);
+        adapter.setFormPreviewAutomatic(false);
+        adapter.setFormPreviewAutomatic(false);
+        expect(port.isAutomaticEnabled!()).toBe(false);
+        expect(changed).toHaveBeenCalledOnce();
+        unsubscribe();
+        adapter.setFormPreviewAutomatic(true);
+        expect(changed).toHaveBeenCalledOnce();
+        port.onAutomaticChanged!(changed);
+        adapter.dispose();
+        adapter.setFormPreviewAutomatic(false);
+        expect(changed).toHaveBeenCalledOnce();
+    });
     afterEach(() => {
         vi.useRealTimers();
     });

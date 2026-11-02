@@ -25,6 +25,8 @@ import { DEFAULT_MODELER_SETTINGS, SettingChange } from "@miragon/bpmn-modeler-c
 
 import {
     lintingEnabled,
+    formPreviewAutomatic,
+    setFormPreviewAutomatic,
     onDidChangeModelerSetting,
     setLanguage,
     setLintingEnabled,
@@ -38,6 +40,17 @@ beforeEach(() => {
 });
 
 describe("modelerConfiguration", () => {
+    it.each([
+        { stored: false, enabled: false },
+        { stored: true, enabled: true },
+        { stored: undefined, enabled: true },
+        { stored: "false", enabled: true },
+    ])("reads the automatic preview preference strictly ($stored)", ({ stored, enabled }) => {
+        getMock.mockImplementation((key: string) =>
+            key === "formPreview.automatic" ? stored : undefined,
+        );
+        expect(formPreviewAutomatic()).toBe(enabled);
+    });
     it.each([
         { stored: false, enabled: false },
         { stored: true, enabled: true },
@@ -56,6 +69,12 @@ describe("modelerConfiguration", () => {
             write: () => setLanguage("de"),
             key: "language",
             value: "de",
+        },
+        {
+            preference: "automatic form preview",
+            write: () => setFormPreviewAutomatic(false),
+            key: "formPreview.automatic",
+            value: false,
         },
         {
             preference: "the linting switch",

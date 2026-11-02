@@ -446,6 +446,8 @@ internal class EditorSessionRouter(
             // Armed before the replay goes out, so its render cannot overtake the hold.
             flushesByEntry[entry]?.let(::holdUntilRendered)
             if (!reregisterCurrentOwner(entry)) return@forEach
+            // A preference changed while the bridge was down must precede restored selection.
+            forwardWebviewMessage(entry, GET_BPMN_MODELER_SETTING_COMMAND)
             forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
             forwardWebviewMessage(entry, GET_BPMNLINT_CONFIG_COMMAND)
         }
@@ -861,6 +863,7 @@ internal class EditorSessionRouter(
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
 
         const val GET_BPMNLINT_CONFIG_COMMAND = "{\"type\":\"GetBpmnlintConfigCommand\"}"
+        const val GET_BPMN_MODELER_SETTING_COMMAND = "{\"type\":\"GetBpmnModelerSettingCommand\"}"
 
         // Posted into the webview to request an SVG export; the webview echoes the
         // same command back with the rendered `svg` field populated.

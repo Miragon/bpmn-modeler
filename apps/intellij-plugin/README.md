@@ -67,7 +67,8 @@ flowchart TD
 - **Crash recovery:** detects process exit, respawns with linear backoff (giving
   up after repeated rapid crashes), writes each page's edits the `Document` never
   received into it (the close flush), re-registers every live session from the
-  authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
+  authoritative IntelliJ `Document`, replays `GetBpmnModelerSettingCommand` to
+  apply current preferences before restoring selection, and replays `GetBpmnFileCommand` so open
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
   bridge's lint state. Last it sends `session/setActive` for the selected
   diagram tab, so commands without an editor id keep acting on it and not on
@@ -86,7 +87,22 @@ flowchart TD
   coalesces superseded document-sync frames per editor, so the EDT/JS threads
   never block on bridge stdin.
 
-### Saving
+### Automatic linked form previews
+
+Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ **Automatically preview linked forms**
+and Tools / Find Action ▸ **Toggle Automatic Form Preview** change the same
+application-wide preference (`miragon.bpmnModeler.formPreview.automatic`, default
+`true`). Changes apply to all open diagrams immediately and survive IDE/bridge
+restarts. The action also works before opening a diagram.
+
+Disabling closes automatic previews and suppresses unresolved-form indicators.
+The context-pad eye still opens a resolvable form manually, and Refresh remains
+available; neither changes the preference. Manually opened or explicitly
+refreshed previews stay open when the preference changes. Re-enabling previews
+the current selection unless deliberately dismissed; changing selection or the
+form reference resets that dismissal.
+
+### Saving diagrams
 
 Ctrl+S, autosave and the save on switching to another application first ask
 every open diagram for the edit its 300 ms sync debounce still holds, and write
