@@ -22,7 +22,7 @@ export async function promptNewFileTarget(options: NewFileTargetOptions): Promis
     if (!uri) {
         return undefined;
     }
-    return uri.path.endsWith(`.${extension}`)
+    return uri.path.toLowerCase().endsWith(`.${extension}`)
         ? uri
         : uri.with({ path: `${uri.path}.${extension}` });
 }
