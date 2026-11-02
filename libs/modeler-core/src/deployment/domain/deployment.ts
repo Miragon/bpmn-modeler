@@ -11,7 +11,7 @@ import {
 } from "./envRef";
 import { SecretRedactor } from "./secretRedactor";
 
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine, isEngine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
 export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
 
 export class NoAuth {
@@ -298,6 +298,7 @@ export class DeploymentConfigBuilder {
      * @returns A new, immutable {@link DeploymentConfig} instance.
      * @throws {InvalidDeploymentConfigError} If `deploymentName`, `endpoint`,
      *   or `mainFilePath` are empty.
+     * @throws {UnsupportedEngineError} If the engine, which arrives from the webview, is unknown.
      */
     build(): DeploymentConfig {
         const missing: string[] = [];
@@ -312,6 +313,9 @@ export class DeploymentConfigBuilder {
         }
         if (missing.length > 0) {
             throw new InvalidDeploymentConfigError(missing);
+        }
+        if (!isEngine(this._engine)) {
+            throw new UnsupportedEngineError(this._engine);
         }
         return new DeploymentConfig(
             this._deploymentName,

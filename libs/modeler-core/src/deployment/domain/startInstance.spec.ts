@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { type Engine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
+
 import {
     DisallowedEnvReferenceError,
     InvalidCredentialDestinationError,
@@ -37,6 +39,12 @@ function startConfig(overrides: Partial<StartInstanceConfig> = {}): StartInstanc
 }
 
 describe("StartInstanceConfig", () => {
+    it("refuses an engine outside the known engines", () => {
+        expect(() => startConfig({ engine: "c9" as Engine })).toThrow(
+            new UnsupportedEngineError("c9"),
+        );
+    });
+
     describe("referencesEnv", () => {
         it("is false for a fully literal config", () => {
             expect(
