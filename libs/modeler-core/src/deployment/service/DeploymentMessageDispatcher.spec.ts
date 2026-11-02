@@ -678,28 +678,6 @@ describe("DeploymentMessageDispatcher.handle routing", () => {
         expect(c.deploymentService.deploy).toHaveBeenCalledOnce();
     });
 
-    it("routes RequestProcessDefinitionKeyCommand to the key handler", async () => {
-        const c = createDispatcher();
-        c.startInstanceService.getProcessDefinitionKey.mockReturnValue("proc-key");
-
-        await c.dispatcher.handle({ type: "RequestProcessDefinitionKeyCommand" } as Command);
-
-        expect(postedQuery(c.post, ProcessDefinitionKeyQuery).processDefinitionKey).toBe(
-            "proc-key",
-        );
-    });
-
-    it("posts an empty key when key extraction throws", async () => {
-        const c = createDispatcher();
-        c.startInstanceService.getProcessDefinitionKey.mockImplementation(() => {
-            throw new Error("no id");
-        });
-
-        await c.dispatcher.handle({ type: "RequestProcessDefinitionKeyCommand" } as Command);
-
-        expect(postedQuery(c.post, ProcessDefinitionKeyQuery).processDefinitionKey).toBe("");
-    });
-
     it("routes RequestPayloadFilesCommand to the payload selector", async () => {
         const c = createDispatcher();
         c.startInstanceService.selectPayloadFile.mockResolvedValue({

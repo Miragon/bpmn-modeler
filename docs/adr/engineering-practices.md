@@ -264,14 +264,28 @@ tree, so comments, JSDoc `import()` and strings never count, and marks an
 import type-only where TypeScript would elide it. It resolves a relative import
 through a fixed suffix list (`.ts`, `.tsx`, `/index.ts`, `/index.tsx`, then the
 exact path) and maps a package import to a workspace by its package name. It
-also finds import cycles, host reach, implemented interfaces and comments. Only
-`sourceTree.ts` touches the file system; the rest are pure functions over
-source text. The engine also holds one rule set per workspace kind
-(`HEXAGONAL_RULES`, `FLAT_RULES`) over role folders that `roleOf` reads from
-the path, so no rule reads a file or type name (see
+also finds import cycles, host reach, implemented interfaces and comments. A
+rule that needs types, not syntax, gets a type-checked `ts.Program`:
+`readTypeProgram` builds one from a tsconfig, and `findSubclassConstructions`
+finds every `new` of a subclass of a named base class, through intermediate and
+generic bases, with the literal type of a discriminant property. It throws when
+the base class is not declared in the named file, so a moved base cannot match
+nothing and pass. Only `sourceTree.ts` and `typeProgram.ts` touch the file
+system; the rest are pure functions over source text or a program. The engine
+also holds one rule set per workspace kind (`HEXAGONAL_RULES`, `FLAT_RULES`)
+over role folders that `roleOf` reads from the path, so no rule reads a file or
+type name (see
 [Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders)).
 A workspace's own spec keeps only the rules specific to it, such as the core's
 domain package allowlist.
+
+The type-checked rule does not need a full install. Workspace imports resolve
+through the `tsconfig.base.json` paths to sources, so with every third-party
+package hidden, as in the focused CI install, the webview command scan finds
+the same 112 constructions it finds with them. A missing third-party type only
+turns a value into `any`, which no `Command` construction depends on, so the
+rule does not demand zero diagnostics. Building and scanning the four webview
+programs takes 2 to 4 s.
 
 [`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts) holds
 the rules over every root workspace with a `src/`: no import cycle inside a

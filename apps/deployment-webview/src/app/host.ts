@@ -93,6 +93,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                         authType: "none",
                     }),
                 );
+                dispatchEvent(new ProcessDefinitionKeyQuery("Process_0gjrx3e"));
                 dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
                 break;
             }
@@ -178,10 +179,6 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             case "DeployCommand": {
                 console.debug("[DEBUG] DeployCommand", message);
                 dispatchEvent(new DeploymentResultQuery(true, "Deployment succeeded (mock)."));
-                break;
-            }
-            case "RequestProcessDefinitionKeyCommand": {
-                dispatchEvent(new ProcessDefinitionKeyQuery("Process_0gjrx3e"));
                 break;
             }
             case "RequestPayloadFilesCommand": {

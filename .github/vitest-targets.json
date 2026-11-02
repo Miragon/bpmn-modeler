@@ -210,7 +210,8 @@
             "dir": "tools/repo-checks",
             "package": "@miragon/bpmn-modeler-repo-checks",
             "focus": [
-                "@miragon/architecture-testing"
+                "@miragon/architecture-testing",
+                "@miragon/bpmn-modeler-shared"
             ],
             "paths": [
                 "tools/repo-checks/**",
@@ -218,6 +219,8 @@
                 ".agents/skills/**",
                 "{apps,libs,packages,tools}/*/src/**",
                 "{apps,libs,packages,tools}/*/package.json",
+                "apps/*-webview/tsconfig*.json",
+                "tsconfig.base.json",
                 ".github/workflows/sync-release-markers.yml",
                 "packages/bpmn-modeler/inlined-libraries.json",
                 "packages/dmn-modeler/vite.config.mts"

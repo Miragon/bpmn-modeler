@@ -10,6 +10,7 @@
     },
     "devDependencies": {
         "@miragon/architecture-testing": "workspace:*",
+        "@miragon/bpmn-modeler-shared": "workspace:*",
         "@types/node": "26.6.5",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.0.5",

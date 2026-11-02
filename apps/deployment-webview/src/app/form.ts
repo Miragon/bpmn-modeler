@@ -1,17 +1,16 @@
 import {
     AuthConfigPayload,
-    Command,
     CreateTargetCommand,
     DeleteTargetCommand,
     DeployCommand,
     DeploymentConfigPayload,
     DeploymentFormDefaults,
     DeploymentResultQuery,
+    type DeploymentSidebarCommand,
     DeploymentTargetPayload,
     DeploymentTargetsQuery,
     LogInfoCommand,
     OpenTargetsFileCommand,
-    Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
     SaveTargetCommand,
@@ -128,7 +127,7 @@ export class DeploymentForm {
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
-    constructor(private readonly host: HostApi<WebviewState, Command | Query>) {
+    constructor(private readonly host: HostApi<WebviewState, DeploymentSidebarCommand>) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
         this.targetSelect = this.requireElement<HTMLSelectElement>("#target-select");
         this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");

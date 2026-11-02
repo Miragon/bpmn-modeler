@@ -1,4 +1,4 @@
-import type { ProtocolCommandType } from "./protocolMessageMap";
+import type { MessageOfType, ProtocolCommandType } from "./protocolMessageMap";
 
 /**
  * Every command the element template editor's page may post to its host. A
@@ -15,3 +15,5 @@ export const TEMPLATE_EDITOR_COMMAND_TYPES = [
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type TemplateEditorCommandType = (typeof TEMPLATE_EDITOR_COMMAND_TYPES)[number];
+
+export type TemplateEditorCommand = MessageOfType<TemplateEditorCommandType>;

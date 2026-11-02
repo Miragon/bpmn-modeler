@@ -7,6 +7,7 @@ import {
     LanguageQuery,
     MockHostApi,
     type Query,
+    type TemplateEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
@@ -18,7 +19,7 @@ declare const process: { env: { NODE_ENV: string } };
 
 type MessageType = Command | Query;
 
-export function getTemplateEditorHostApi(): HostApi<unknown, MessageType> {
+export function getTemplateEditorHostApi(): HostApi<unknown, TemplateEditorCommand> {
     if (process.env.NODE_ENV === "development") {
         return new MockTemplateEditorHost();
     }

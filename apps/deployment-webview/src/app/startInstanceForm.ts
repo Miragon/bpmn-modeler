@@ -1,8 +1,7 @@
 import {
     AuthConfigPayload,
-    Command,
+    type DeploymentSidebarCommand,
     LogInfoCommand,
-    Query,
     RequestPayloadFilesCommand,
     StartInstanceCommand,
     StartInstanceConfigPayload,
@@ -37,7 +36,7 @@ export class StartInstanceForm {
 
     /** Resolves DOM references and binds events; throws if an expected element is missing. */
     constructor(
-        private readonly host: Pick<HostApi<unknown, Command | Query>, "postMessage">,
+        private readonly host: Pick<HostApi<unknown, DeploymentSidebarCommand>, "postMessage">,
         private readonly getSharedAuth: () => AuthConfigPayload,
         private readonly getSharedConnection: () => {
             endpoint: string;

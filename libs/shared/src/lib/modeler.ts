@@ -1330,15 +1330,6 @@ export class RequestPayloadFilesCommand extends Command<"RequestPayloadFilesComm
     }
 }
 
-/**
- * Sent by the webview to request the process definition key from the current BPMN file.
- */
-export class RequestProcessDefinitionKeyCommand extends Command<"RequestProcessDefinitionKeyCommand"> {
-    constructor() {
-        super("RequestProcessDefinitionKeyCommand");
-    }
-}
-
 // --- Extension → Webview queries ---
 
 /**

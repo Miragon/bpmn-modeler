@@ -26,7 +26,6 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     applyPageThemeScope,
-    type Command,
     createHostThemeAdapter,
     GetElementTemplateFileCommand,
     type HostApi,
@@ -34,6 +33,7 @@ import {
     LogErrorCommand,
     type MessageOfType,
     resolveHostThemeKind,
+    type TemplateEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
@@ -41,7 +41,7 @@ import { TemplateDocumentSession } from "./documentSession";
 import { mountEditorView } from "./editorView";
 import { fitPreview, INITIAL_PREVIEW_FIT } from "./previewFit";
 
-type EditorHost = Pick<HostApi<unknown, Command>, "postMessage">;
+type EditorHost = Pick<HostApi<unknown, TemplateEditorCommand>, "postMessage">;
 type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 type TemplateEditorHostMessages = {
