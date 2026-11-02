@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { ExtensionContext } from "vscode";
 
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
-import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { RouteLookup, WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewNotificationHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewFocusHandlers } from "@miragon/bpmn-modeler-core";
@@ -38,7 +38,10 @@ import { SharedDeps } from "./sharedDeps";
  * per-document services and message routers behind them, and the save flush
  * that every editor format shares. The BPMN editor is `bpmnEditorFeature`'s.
  */
-export function register(context: ExtensionContext, deps: SharedDeps): void {
+export function register(
+    context: ExtensionContext,
+    deps: SharedDeps,
+): { dmnEditorRoutes: RouteLookup; formEditorRoutes: RouteLookup } {
     // DMN keeps its own default under a distinct key; the panel service is
     // engine-agnostic, so the BPMN implementation is reused.
     const dmnPanelStateRepo = new PropertiesPanelStateRepository(
@@ -120,4 +123,6 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     // Flush pending webview changes into the buffer before every save so a
     // persist never trails the live model.
     new DocumentSaveFlushController(deps.editorStore, deps.pendingEdits).register(context);
+
+    return { dmnEditorRoutes: dmnMessageRouter, formEditorRoutes: formMessageRouter };
 }

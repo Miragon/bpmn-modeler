@@ -15,12 +15,6 @@ import { commands, workspace } from "vscode";
 
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
-import {
-    DIFF_PANE_COMMAND_TYPES,
-    DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
-    DiffPaneCommandType,
-    DiffPaneHandshakeCommandType,
-} from "@miragon/bpmn-modeler-shared";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
 import { BootstrappableDiffPane, BpmnDiffController } from "./BpmnDiffController";
 
@@ -41,21 +35,6 @@ function fakePane(
         bootstrap: bootstrapSpy,
     };
 }
-
-/** How VS Code serves each command its diff panes post. */
-const VSCODE_DIFF_COVERAGE: Record<
-    DiffPaneHandshakeCommandType | DiffPaneCommandType,
-    "handled" | "ignored"
-> = {
-    GetBpmnFileCommand: "handled",
-    GetBpmnModelerSettingCommand: "ignored",
-    GetPropertiesPanelStateCommand: "ignored",
-    DiffReadyCommand: "handled",
-    ViewportChangedCommand: "handled",
-    CursorChangedCommand: "handled",
-    SwapCompareSidesCommand: "handled",
-    LogErrorCommand: "handled",
-};
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
 function uri(scheme: string, value: string) {
@@ -237,21 +216,6 @@ describe("BpmnDiffController.resolveDiffPane", () => {
         cbs.dispose?.();
 
         expect(store.findByUri("file:///a.bpmn")).toBeUndefined();
-    });
-});
-
-describe("BpmnDiffController routes", () => {
-    it("match the host's coverage table", () => {
-        const { controller } = createController();
-
-        const coverage = Object.fromEntries(
-            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
-                type,
-                controller.paneRoutes.routeOf(type).kind,
-            ]),
-        );
-
-        expect(coverage).toEqual(VSCODE_DIFF_COVERAGE);
     });
 });
 

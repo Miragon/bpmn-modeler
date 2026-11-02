@@ -5,6 +5,7 @@ import {
     CreateTargetCommand,
     DeleteTargetCommand,
     DeployCommand,
+    DEPLOYMENT_SIDEBAR_COMMAND_TYPES,
     DeploymentResultQuery,
     DeploymentTargetsQuery,
     DocumentFlushedCommand,
@@ -22,7 +23,13 @@ import { UserCancelledError } from "../../kernel/domain/errors";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../../editorSession/service/DocumentFlushService";
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
-import { createTestHost, PromptAnswers, RecordingNotifier } from "../../testing";
+import {
+    createTestHost,
+    HANDLED,
+    PromptAnswers,
+    RecordingNotifier,
+    routesOf,
+} from "../../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
@@ -136,6 +143,16 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 afterEach(() => {
     vi.restoreAllMocks();
+});
+
+describe("DeploymentFeature.panelRoutes", () => {
+    it("handles every command the deployment sidebar posts", () => {
+        const { feature } = createFeature();
+
+        expect(routesOf(feature.panelRoutes, DEPLOYMENT_SIDEBAR_COMMAND_TYPES)).toEqual(
+            Object.fromEntries(DEPLOYMENT_SIDEBAR_COMMAND_TYPES.map((type) => [type, HANDLED])),
+        );
+    });
 });
 
 describe("DeploymentFeature.attachPanel", () => {

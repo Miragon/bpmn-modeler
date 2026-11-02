@@ -1,4 +1,8 @@
-import { DeploymentFeature, EditorSessionParticipant } from "@miragon/bpmn-modeler-core";
+import {
+    DeploymentFeature,
+    EditorSessionParticipant,
+    RouteLookup,
+} from "@miragon/bpmn-modeler-core";
 
 import { RpcDeploymentState } from "../deployment/adapter/out/RpcDeploymentState";
 import { RpcSecretStore } from "../deployment/adapter/out/RpcSecretStore";
@@ -14,7 +18,10 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * deployment tool window is the one panel; `post` notifies the host, which
  * pushes the Query into its JCEF browser.
  */
-export function register(deps: BridgeSharedDeps): { statusParticipant: EditorSessionParticipant } {
+export function register(deps: BridgeSharedDeps): {
+    statusParticipant: EditorSessionParticipant;
+    panelRoutes: RouteLookup;
+} {
     const deploymentState = new RpcDeploymentState(deps.rpc);
     const deployment = new DeploymentFeature({
         store: deps.store,
@@ -46,5 +53,5 @@ export function register(deps: BridgeSharedDeps): { statusParticipant: EditorSes
         }),
     );
 
-    return { statusParticipant: deployment.statusParticipant };
+    return { statusParticipant: deployment.statusParticipant, panelRoutes: deployment.panelRoutes };
 }

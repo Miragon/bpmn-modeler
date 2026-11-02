@@ -1,6 +1,10 @@
 import { ExtensionContext } from "vscode";
 
-import { DeploymentFeature, DeploymentStatusParticipant } from "@miragon/bpmn-modeler-core";
+import {
+    DeploymentFeature,
+    DeploymentStatusParticipant,
+    RouteLookup,
+} from "@miragon/bpmn-modeler-core";
 import { VsCodeDeploymentState } from "../deployment/adapter/out/VsCodeDeploymentState";
 import { VsCodeSecretStore } from "../deployment/adapter/out/VsCodeSecretStore";
 import { createWebviewNonce } from "../shared/adapter/out/webviewNonce";
@@ -15,6 +19,7 @@ import { SharedDeps } from "./sharedDeps";
  */
 export interface DeploymentHandles {
     deploymentStatusParticipant: DeploymentStatusParticipant;
+    deploymentSidebarRoutes: RouteLookup;
 }
 
 /**
@@ -39,5 +44,8 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         context,
     );
 
-    return { deploymentStatusParticipant: deployment.statusParticipant };
+    return {
+        deploymentStatusParticipant: deployment.statusParticipant,
+        deploymentSidebarRoutes: deployment.panelRoutes,
+    };
 }

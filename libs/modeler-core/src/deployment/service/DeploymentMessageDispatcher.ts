@@ -4,11 +4,11 @@ import {
     CreateTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
+    DeploymentSidebarCommandType,
     DeploymentTargetsQuery,
-    exhaustiveMessageGuard,
     FormDefaultsQuery,
-    MessageOfType,
     ProcessDefinitionKeyQuery,
+    ProtocolCommandType,
     Query,
     SaveTargetCommand,
     SelectedPayloadFileQuery,
@@ -33,25 +33,19 @@ import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../d
 import { UserCancelledError } from "../../kernel/domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
-import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
+import {
+    isWebviewLogCommand,
+    routeWebviewLogCommand,
+} from "../../editorSession/service/webviewLog";
+import {
+    MessageRoute,
+    RouteLookup,
+    WebviewMessageRouter,
+} from "../../editorSession/service/WebviewMessageRouter";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService, toAuthConfig, toTargetPayload } from "./DeploymentTargetService";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 import { StartInstanceService } from "./StartInstanceService";
-
-type DeploymentWebviewCommand = MessageOfType<
-    | "RequestFormDefaultsCommand"
-    | "RequestStoredCredentialsCommand"
-    | "SelectTargetCommand"
-    | "CreateTargetCommand"
-    | "SaveTargetCommand"
-    | "DeleteTargetCommand"
-    | "OpenTargetsFileCommand"
-    | "RequestAdditionalFilesCommand"
-    | "DeployCommand"
-    | "RequestPayloadFilesCommand"
-    | "StartInstanceCommand"
->;
 
 /**
  * Host-agnostic dispatch core for the deployment webview's message protocol.
@@ -67,7 +61,28 @@ type DeploymentWebviewCommand = MessageOfType<
  * editor's document, never from the webview payload, so a tampered payload can't
  * redirect which file is deployed.
  */
-export class DeploymentMessageDispatcher {
+export class DeploymentMessageDispatcher implements RouteLookup {
+    private readonly router = WebviewMessageRouter.fromTable<DeploymentSidebarCommandType, void>({
+        LogInfoCommand: [(command) => this.logWebviewCommand(command)],
+        LogErrorCommand: [(command) => this.logWebviewCommand(command)],
+        RequestFormDefaultsCommand: [() => this.sendFormDefaults()],
+        DeployCommand: [(command) => this.handleDeploy(command.config)],
+        RequestAdditionalFilesCommand: [() => this.handleAdditionalFilesRequest()],
+        RequestStoredCredentialsCommand: [
+            (command) =>
+                this.handleStoredCredentialsRequest(
+                    command.targetName ?? "",
+                    command.requestId ?? 0,
+                ),
+        ],
+        SelectTargetCommand: [(command) => this.handleSelectTarget(command.name)],
+        SaveTargetCommand: [(command) => this.handleSaveTarget(command)],
+        CreateTargetCommand: [(command) => this.handleCreateTarget(command)],
+        DeleteTargetCommand: [(command) => this.handleDeleteTarget(command.name)],
+        OpenTargetsFileCommand: [() => this.handleOpenTargetsFile()],
+        StartInstanceCommand: [(command) => this.handleStartInstance(command.config)],
+        RequestPayloadFilesCommand: [() => this.handlePayloadFilesRequest()],
+    });
     private targetsGeneration = 0;
     private runningTargetCommands = 0;
     private targetsPushDue = false;
@@ -95,54 +110,19 @@ export class DeploymentMessageDispatcher {
      * ignored — the protocol is closed and a stray discriminant is not an error.
      */
     async handle(message: Command): Promise<void> {
-        // The deployment webview forwards its own diagnostics as Log*Commands.
-        // This dispatcher owns a raw switch (it bypasses WebviewMessageRouter),
-        // so route them here or the switch below drops them as unknown types.
-        if (routeWebviewLogCommand(this.notifier, message, "deployment")) {
-            return;
+        // Forwarded log lines would otherwise be logged twice.
+        if (!isWebviewLogCommand(message)) {
+            this.notifier.logDebug(`Deployment message received -> ${message.type}`);
         }
-        this.notifier.logDebug(`Deployment message received -> ${message.type}`);
-        const command = message as DeploymentWebviewCommand;
-        switch (command.type) {
-            case "RequestFormDefaultsCommand":
-                this.sendFormDefaults();
-                break;
-            case "RequestStoredCredentialsCommand":
-                await this.handleStoredCredentialsRequest(
-                    command.targetName ?? "",
-                    command.requestId ?? 0,
-                );
-                break;
-            case "SelectTargetCommand":
-                await this.handleSelectTarget(command.name);
-                break;
-            case "CreateTargetCommand":
-                await this.handleCreateTarget(command);
-                break;
-            case "SaveTargetCommand":
-                await this.handleSaveTarget(command);
-                break;
-            case "DeleteTargetCommand":
-                await this.handleDeleteTarget(command.name);
-                break;
-            case "OpenTargetsFileCommand":
-                await this.handleOpenTargetsFile();
-                break;
-            case "RequestAdditionalFilesCommand":
-                await this.handleAdditionalFilesRequest();
-                break;
-            case "DeployCommand":
-                await this.handleDeploy(command.config);
-                break;
-            case "RequestPayloadFilesCommand":
-                await this.handlePayloadFilesRequest();
-                break;
-            case "StartInstanceCommand":
-                await this.handleStartInstance(command.config);
-                break;
-            default:
-                exhaustiveMessageGuard(command);
-        }
+        await this.router.dispatch(message, undefined);
+    }
+
+    routeOf(type: ProtocolCommandType): MessageRoute {
+        return this.router.routeOf(type);
+    }
+
+    private logWebviewCommand(command: Command): void {
+        routeWebviewLogCommand(this.notifier, command, "deployment");
     }
 
     /**
