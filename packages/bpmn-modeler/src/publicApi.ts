@@ -15,11 +15,11 @@ import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
 import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
-import type { ModelerMode } from "./mode";
+import type { ModelerMode } from "./mode/mode";
 import type { BpmnSurfaceHandle } from "./surfaceHandle";
 import type { ThemeMode } from "./themeMode";
 
-export type { ModelerMode } from "./mode";
+export type { ModelerMode } from "./mode/mode";
 export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
 
 /**

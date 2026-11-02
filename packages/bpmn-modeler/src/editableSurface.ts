@@ -17,7 +17,7 @@ import type { LintConfigService } from "./bpmnlint/LintConfigService";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
 import type { ClipboardOptions } from "./publicApi";
-import type { SurfaceReporter } from "./reporting";
+import type { SurfaceReporter } from "./reporting/reporting";
 import type { SurfaceServices } from "./surfaceCore";
 
 // Kept out of SurfaceCore: these value imports (clipboard modules) must stay out of `/viewer`.

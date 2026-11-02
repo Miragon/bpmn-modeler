@@ -10,7 +10,7 @@ import {
     reduceLintTier,
     startLintTier,
 } from "./lintTierMachine";
-import type { ModelerMode } from "../mode";
+import type { ModelerMode } from "../mode/mode";
 
 // bpmn-js-bpmnlint ships no types for this service.
 interface Linting {

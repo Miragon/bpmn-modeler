@@ -14,7 +14,7 @@
  * `config.*` to ensure the bridge is always available when the module loads.
  */
 import { ClipboardBridge } from "./BridgedClipboardModule";
-import { getDirectEditingContent } from "./directEditingInternals";
+import { getDirectEditingContent } from "./upstreamInternals/directEditingInternals";
 
 interface EventBusLike {
     on(event: string, cb: () => void): void;

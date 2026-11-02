@@ -10,7 +10,7 @@
 /// <reference path="./types/execution-moddle.d.ts" />
 
 import { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
-import { categoryIds, runDiff } from "./differResult";
+import { categoryIds, runDiff } from "./upstreamInternals/differResult";
 import { DiffCounts, DiffResult } from "./diffResult";
 
 const CAMUNDA_NAMESPACE = "http://camunda.org/schema/1.0/bpmn";

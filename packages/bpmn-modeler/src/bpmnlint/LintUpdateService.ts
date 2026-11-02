@@ -3,7 +3,7 @@ import type EventBus from "diagram-js/lib/core/EventBus";
 import type Overlays from "diagram-js/lib/features/overlays/Overlays";
 
 import { diffElementIssues, type ElementIssues } from "./lintIssueDiff";
-import { LintingInternals } from "./lintingInternals";
+import { LintingInternals } from "./upstreamInternals/lintingInternals";
 import { LintRunScheduler } from "./lintRunScheduler";
 
 // The vendor mirrors a subprocess's overlay onto its drill-down plane under this id.
