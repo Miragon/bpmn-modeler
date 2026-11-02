@@ -1,5 +1,6 @@
 import {
     Command,
+    type FormEditorCommand,
     FormFileQuery,
     FormInputValuesQuery,
     GetFormFileCommand,
@@ -16,7 +17,7 @@ export interface WebviewState {
     mode: "edit" | "preview";
 }
 
-export type FormHost = HostApi<WebviewState, Command | Query>;
+export type FormHost = HostApi<WebviewState, FormEditorCommand>;
 
 export function getHostApi(): FormHost {
     return process.env.NODE_ENV === "development"

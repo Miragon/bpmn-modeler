@@ -69,7 +69,6 @@ import type {
     RequestAdditionalFilesCommand,
     RequestFormDefaultsCommand,
     RequestPayloadFilesCommand,
-    RequestProcessDefinitionKeyCommand,
     RequestStoredCredentialsCommand,
     SaveTargetCommand,
     SearchWorkspaceDefinitionsCommand,
@@ -193,7 +192,6 @@ export type ProtocolCommand =
     | OpenTargetsFileCommand
     | StartInstanceCommand
     | RequestPayloadFilesCommand
-    | RequestProcessDefinitionKeyCommand
     | ViewportChangedCommand
     | CursorChangedCommand
     | DiffReadyCommand

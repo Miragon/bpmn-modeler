@@ -10,7 +10,6 @@ import {
     RequestAdditionalFilesCommand,
     RequestFormDefaultsCommand,
     RequestPayloadFilesCommand,
-    RequestProcessDefinitionKeyCommand,
     RequestStoredCredentialsCommand,
     SaveTargetCommand,
     SelectTargetCommand,
@@ -91,7 +90,7 @@ describe("development preview host", () => {
         vi.restoreAllMocks();
     });
 
-    it("prefills the form and lists the two sample targets with none active", () => {
+    it("prefills the form and its process key and lists the two sample targets with none active", () => {
         previewHost().postMessage(new RequestFormDefaultsCommand());
 
         expect(replies).toEqual([
@@ -99,9 +98,10 @@ describe("development preview host", () => {
                 type: "FormDefaultsQuery",
                 defaults: expect.objectContaining({ deploymentName: "my-process", engine: "c7" }),
             }),
+            { type: "ProcessDefinitionKeyQuery", processDefinitionKey: "Process_0gjrx3e" },
             expect.objectContaining({ type: "DeploymentTargetsQuery", activeTargetName: "" }),
         ]);
-        expect(targetNames(replies[1])).toEqual(["dev", "prod"]);
+        expect(targetNames(replies[2])).toEqual(["dev", "prod"]);
     });
 
     it("activates a selected target", () => {
@@ -231,10 +231,6 @@ describe("development preview host", () => {
                 targetName: "",
             }),
             { type: "DeploymentResultQuery", success: true },
-        ],
-        [
-            new RequestProcessDefinitionKeyCommand(),
-            { type: "ProcessDefinitionKeyQuery", processDefinitionKey: "Process_0gjrx3e" },
         ],
         [new RequestPayloadFilesCommand(), { type: "SelectedPayloadFileQuery" }],
         [

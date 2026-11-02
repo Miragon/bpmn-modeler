@@ -168,9 +168,27 @@ ignored: both hosts supply the pane log; VS Code also supplies the swap, and
 the bridge does not, because IntelliJ's diff viewer swaps the sides before it
 forwards a message. Each host pins these
 routes in a coverage spec, a `Record` over both lists, and the preview host's
-spec posts every command of the editor and diff-pane lists. The DMN and Form editors
-and the deployment sidebar post their own commands, and a spec fails when a
-protocol command belongs to none of the lists. A host's router still
+spec posts every command of the editor and diff-pane lists.
+
+The DMN and Form editors, the element-template editor and the deployment
+sidebar have closed lists of their own (`dmnEditorCommands.ts`,
+`formEditorCommands.ts`, `templateEditorCommands.ts`,
+`deploymentSidebarCommands.ts`), and each of these pages narrows its host
+channel to its list, so a page cannot post a command of another surface.
+`WEBVIEW_SURFACE_COMMAND_TYPES` (`libs/shared/src/lib/webviewSurfaces.ts`)
+registers every surface with its list; the diff pane's entry is the handshake
+plus the pane list. A spec in `libs/shared` fails when a protocol command is on
+no surface, so a command no webview posts is deleted, not kept routed. A
+command may be on several surfaces: the log commands and the document sync
+are. A repo-level spec ties the lists to the code: it type-checks each
+`apps/*-webview` program from its `tsconfig.app.json` and finds every
+construction of a `Command` subclass in a workspace source of that program, its
+libraries included, by base type rather than by name. A construction whose
+`type` is not a string literal, or whose type is on no surface, fails with its
+`path:line`. A new surface therefore registers in
+`WEBVIEW_SURFACE_COMMAND_TYPES` before its webview can post anything. The scan
+misses a message posted without a construction, such as an object literal or a
+command the page echoes back. A host's router still
 dispatches an unrouted type as a no-op, but records a type it drops on purpose
 with `ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
 reports a type as handled, ignored with that reason, or unrouted, and a type is
@@ -195,7 +213,8 @@ Enforcement lives in the [core architecture tests](../../libs/modeler-core/src/a
 [DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts),
 the [repo-level tests](../../tools/repo-checks/src/architecture.spec.ts) (no
 import cycles, stable dependencies and the
-[role-folder rules](#workspace-kinds-and-role-folders) in every workspace), and
+[role-folder rules](#workspace-kinds-and-role-folders) in every workspace), the
+[webview command scan](../../tools/repo-checks/src/webviewCommands.spec.ts), and
 [ESLint boundary rules](../../eslint.config.cjs). The specs share one
 [engine](engineering-practices.md#architecture-tests).
 

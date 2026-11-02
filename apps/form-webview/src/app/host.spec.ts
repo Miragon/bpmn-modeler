@@ -4,8 +4,8 @@ import {
     GetFormFileCommand,
     GetFormInputValuesCommand,
     HostApiImpl,
+    LogWarningCommand,
     MockHostApi,
-    RequestFocusCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { getHostApi } from "./host";
@@ -85,7 +85,7 @@ describe("development preview host", () => {
 
     it("logs any other message without replying", () => {
         const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
-        const command = new RequestFocusCommand();
+        const command = new LogWarningCommand("no reply");
 
         previewHost().postMessage(command);
 

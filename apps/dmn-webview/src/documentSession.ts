@@ -1,11 +1,10 @@
 import {
-    type Command,
     createInertLock,
     createResolver,
+    type DmnEditorCommand,
     type DmnFileQuery,
     type HostApi,
     LogErrorCommand,
-    type Query,
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
@@ -13,7 +12,7 @@ import type { DmnModelerHandle, DmnPendingInputHandle } from "@miragon/dmn-model
 
 import type { WebviewState } from "./webviewState";
 
-type HostChannel = Pick<HostApi<WebviewState, Command | Query>, "postMessage">;
+type HostChannel = Pick<HostApi<WebviewState, DmnEditorCommand>, "postMessage">;
 
 function holdsPendingInput(
     modeler: DmnModelerHandle | undefined,
@@ -138,7 +137,7 @@ export class DmnDocumentSession {
         this.attachedModeler = undefined;
     }
 
-    private post(message: Command | Query): void {
+    private post(message: DmnEditorCommand): void {
         if (!this.disposed) {
             this.host.postMessage(message);
         }

@@ -67,6 +67,13 @@ applies the role-folder rules below. Fitness functions that are not static
 plug into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`), which
 reports new and existing findings and never fails a build.
 
+A webview posts only the commands of its surface list in `libs/shared`, and
+narrows its host channel to that list. A new webview surface registers in
+`WEBVIEW_SURFACE_COMMAND_TYPES` (`webviewSurfaces.ts`) and gets a row in each
+host's surface coverage. `tools/repo-checks/src/webviewCommands.spec.ts`
+type-checks every `apps/*-webview` program and fails on a constructed command
+that is on no list.
+
 ## Put each file in its role folder
 
 Each workspace declares its kind in the `"architecture"` field of its

@@ -6,7 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { MessageGate } from "../messageGate";
-import { type HostChannel, receiveErrorPrefix } from "./hostChannel";
+import { type ErrorLogChannel, type HostChannel, receiveErrorPrefix } from "./hostChannel";
 
 export type HostMessage = Query | Command;
 
@@ -93,7 +93,7 @@ export function admitSessionMessage(
 
 /** A type without a handler is ignored; a failing handler is reported to the host instead of rejecting. */
 export function createHostMessageRouter<Messages extends KeyedByType<Messages>>(
-    host: HostChannel,
+    host: ErrorLogChannel,
     handlers: HostMessageHandlers<Messages>,
 ): HostMessageRoute {
     // A Map, not the table itself, so a `type` naming an Object.prototype member finds no handler.

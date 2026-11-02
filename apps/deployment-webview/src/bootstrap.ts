@@ -1,6 +1,7 @@
 import {
     asProtocolMessage,
     Command,
+    type DeploymentSidebarCommand,
     HostApi,
     LogErrorCommand,
     Query,
@@ -12,7 +13,7 @@ import { FORM_TEMPLATE } from "./app/formTemplate";
 import type { WebviewState } from "./app/host";
 import { StartInstanceForm } from "./app/startInstanceForm";
 
-type DeploymentHost = HostApi<WebviewState, Command | Query>;
+type DeploymentHost = HostApi<WebviewState, DeploymentSidebarCommand>;
 
 type DeploymentFormPort = Pick<
     DeploymentForm,

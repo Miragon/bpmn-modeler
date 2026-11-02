@@ -49,7 +49,6 @@ type DeploymentWebviewCommand = MessageOfType<
     | "OpenTargetsFileCommand"
     | "RequestAdditionalFilesCommand"
     | "DeployCommand"
-    | "RequestProcessDefinitionKeyCommand"
     | "RequestPayloadFilesCommand"
     | "StartInstanceCommand"
 >;
@@ -134,9 +133,6 @@ export class DeploymentMessageDispatcher {
                 break;
             case "DeployCommand":
                 await this.handleDeploy(command.config);
-                break;
-            case "RequestProcessDefinitionKeyCommand":
-                this.handleProcessDefinitionKeyRequest();
                 break;
             case "RequestPayloadFilesCommand":
                 await this.handlePayloadFilesRequest();
@@ -381,21 +377,6 @@ export class DeploymentMessageDispatcher {
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             this.post(new AdditionalFilesQuery([]));
-        }
-    }
-
-    /**
-     * Extracts the process definition key from the active BPMN file and sends it
-     * to the webview.
-     */
-    private handleProcessDefinitionKeyRequest(): void {
-        try {
-            const activeEditorId = this.editorStore.getActiveEditorId();
-            const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
-            this.post(new ProcessDefinitionKeyQuery(key));
-        } catch (error) {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.post(new ProcessDefinitionKeyQuery(""));
         }
     }
 
