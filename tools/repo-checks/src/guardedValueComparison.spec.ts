@@ -1,10 +1,6 @@
-import {
-    directivesWithoutIssue,
-    readComments,
-    readSourceTree,
-    readWorkspaces,
-} from "@miragon/architecture-testing";
+import { directivesWithoutIssue, readComments } from "@miragon/architecture-testing";
 import { ESLint, type Linter } from "eslint";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -22,7 +18,7 @@ const CAPABILITY_MODULES = "packages/bpmn-modeler/src/capabilityModules.ts";
 
 // The first lint builds the type program of the whole repository.
 const FIRST_PROGRAM_BUILD_MS = 60_000;
-const SOURCE_TREE_WALK_MS = 30_000;
+const LINTED_FILES_SCAN_MS = 60_000;
 
 // On CI typescript-eslint builds each program once from disk, which never sees an appended snippet.
 const WATCHED_PROGRAM: Linter.Config = {
@@ -151,22 +147,30 @@ export const guardedIsC7 = guardedEngine === "c7";`,
     });
 });
 
-describe(`${RULE} disable directives`, { timeout: SOURCE_TREE_WALK_MS }, () => {
-    const sourceFiles = readWorkspaces(REPO_ROOT)
-        .filter(({ dir }) => existsSync(join(REPO_ROOT, dir, "src")))
-        .flatMap(({ dir }) =>
-            readSourceTree(join(REPO_ROOT, dir, "src"), { includeSpecs: true }).map((file) => ({
-                ...file,
-                path: `${dir}/src/${file.path}`,
-            })),
-        );
+// Untracked files count too, so a new file fails locally before it is committed.
+function lintedTypeScriptFiles(): string[] {
+    return execFileSync(
+        "git",
+        ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.ts", "*.tsx"],
+        { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    )
+        .split("\0")
+        .filter((path) => path !== "" && existsSync(join(REPO_ROOT, path)));
+}
 
-    it("name the issue that removes them and why", () => {
-        const unexplained = sourceFiles.flatMap(({ path, text }) =>
-            directivesWithoutIssue(readComments(path, text), RULE).map(
-                (directive) => `${path}: ${directive}`,
-            ),
-        );
+describe(`${RULE} disable directives`, { timeout: LINTED_FILES_SCAN_MS }, () => {
+    it("name the issue that removes them and why", async () => {
+        const unexplained: string[] = [];
+        for (const path of lintedTypeScriptFiles()) {
+            const filePath = join(REPO_ROOT, path);
+            if (await eslint.isPathIgnored(filePath)) {
+                continue;
+            }
+            const comments = readComments(path, readFileSync(filePath, "utf8"));
+            for (const directive of directivesWithoutIssue(comments, RULE)) {
+                unexplained.push(`${path}: ${directive}`);
+            }
+        }
         expect(unexplained).toEqual([]);
     });
 });

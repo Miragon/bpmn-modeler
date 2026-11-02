@@ -36,7 +36,7 @@ export function exceptionsWithoutIssue(exceptions: readonly KnownException[]): K
     return exceptions.filter(({ until }) => !ISSUE_REFERENCE.test(until));
 }
 
-const DISABLE_DIRECTIVE = /^eslint-disable(?:-next-line|-line)?\s/;
+const DISABLE_DIRECTIVE = /^eslint-disable(?:-next-line|-line)?(?=\s|$)/;
 const DESCRIPTION_SEPARATOR = /\s--/;
 const ISSUE_AND_REASON = /^#\d+:\s*\S/;
 
@@ -52,9 +52,14 @@ export function directivesWithoutIssue(comments: readonly string[], rule: string
         if (!directive) {
             return false;
         }
-        const disablesRule = directive.ruleList.split(",").some((name) => name.trim() === rule);
-        return disablesRule && !ISSUE_AND_REASON.test(directive.description);
+        return disables(directive, rule) && !ISSUE_AND_REASON.test(directive.description);
     });
+}
+
+// A directive that names no rule turns off every rule.
+function disables(directive: DisableDirective, rule: string): boolean {
+    const ruleNames = directive.ruleList.split(",").map((name) => name.trim());
+    return ruleNames.every((name) => name === "") || ruleNames.includes(rule);
 }
 
 // One regex over rule list and description backtracks quadratically on long whitespace runs.

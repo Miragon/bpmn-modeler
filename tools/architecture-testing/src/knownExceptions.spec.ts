@@ -92,6 +92,7 @@ describe("directivesWithoutIssue", () => {
         `// eslint-disable-next-line ${rule} -- #2051: the parser owns this value`,
         `/* eslint-disable ${rule} -- #2051: generated fixture */`,
         `// eslint-disable-line no-console, ${rule} -- #12: a reason`,
+        "// eslint-disable-next-line -- #2051: generated fixture",
     ])("accepts a directive naming an issue and a reason: %s", (comment) => {
         expect(directivesWithoutIssue([comment], rule)).toEqual([]);
     });
@@ -103,6 +104,11 @@ describe("directivesWithoutIssue", () => {
         `// eslint-disable-next-line ${rule} -- #2051:`,
         `/* eslint-disable ${rule} */`,
         `// eslint-disable-line ${rule} -- see #2051: below`,
+        "// eslint-disable-next-line",
+        "// eslint-disable-next-line -- the parser owns this value",
+        "// eslint-disable-line",
+        "/* eslint-disable */",
+        "/* eslint-disable -- generated fixture */",
     ])("rejects %s", (comment) => {
         expect(directivesWithoutIssue([comment], rule)).toEqual([comment]);
     });
@@ -111,6 +117,7 @@ describe("directivesWithoutIssue", () => {
         "// eslint-disable-next-line no-console",
         `// ${rule} keeps engine rules in one place`,
         `// eslint-enable ${rule}`,
+        "// eslint-disable-next-line-ish note",
     ])("ignores a comment that disables no such rule: %s", (comment) => {
         expect(directivesWithoutIssue([comment], rule)).toEqual([]);
     });
