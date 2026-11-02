@@ -108,6 +108,7 @@ const query = (selector: string) => document.querySelector<HTMLElement>(selector
 const messages = () =>
     Array.from(document.querySelectorAll(".template-editor__messages p"), (p) => p.textContent);
 const choice = () => query(".template-editor__choice") as HTMLSelectElement;
+const chooser = () => query(".template-editor__chooser") as HTMLElement;
 const lastBuilderState = () => mocks.builderStates[mocks.builderStates.length - 1];
 const syncs = () => posted.filter((message) => message instanceof SyncDocumentCommand);
 
@@ -155,7 +156,7 @@ describe("bootstrapTemplateEditor", () => {
         });
         expect(query(".template-editor__engine")?.textContent).toBe("Camunda 8");
         expect(query(".template-editor__builder")?.hidden).toBe(false);
-        expect(choice().hidden).toBe(true);
+        expect(chooser().hidden).toBe(true);
     });
 
     it("shows the host's edits once they pause", async () => {
@@ -273,6 +274,19 @@ describe("bootstrapTemplateEditor", () => {
         await vi.advanceTimersByTimeAsync(300);
 
         expect(messages()).toEqual([]);
+    });
+
+    it("says which of a file's templates is open", async () => {
+        await start();
+        receive(JSON.stringify([STATUS, MAIL]));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(chooser().hidden).toBe(false);
+        expect(query(".template-editor__choice-position")?.textContent).toBe("1 of 2");
+
+        choice().selectedIndex = 1;
+        choice().dispatchEvent(new Event("change"));
+
+        expect(query(".template-editor__choice-position")?.textContent).toBe("2 of 2");
     });
 
     it("starts a new template's name from its file name", async () => {
@@ -483,6 +497,23 @@ describe("bootstrapTemplateEditor", () => {
         toggle.click();
         expect(query("#js-properties-panel")?.classList).not.toContain("collapsed");
         expect(toggle.getAttribute("aria-label")).toBe("Hide preview");
+    });
+
+    it("closes the preview when the editor turns narrow, and brings it back", async () => {
+        vi.stubGlobal("innerWidth", 1000);
+        await start();
+        receive(JSON.stringify(STATUS));
+        await vi.advanceTimersByTimeAsync(0);
+        const panel = query("#js-properties-panel")!;
+        expect(panel.classList.contains("collapsed")).toBe(false);
+
+        vi.stubGlobal("innerWidth", 500);
+        window.dispatchEvent(new Event("resize"));
+        expect(panel.classList.contains("collapsed")).toBe(true);
+
+        vi.stubGlobal("innerWidth", 1000);
+        window.dispatchEvent(new Event("resize"));
+        expect(panel.classList.contains("collapsed")).toBe(false);
     });
 
     it("leaves a narrow editor to the builder until the preview is opened", async () => {

@@ -23,6 +23,7 @@ html[data-bpmn-theme="dark"] .template-editor__messages {
 }
 
 html[data-bpmn-theme="dark"] .template-editor__lead,
+html[data-bpmn-theme="dark"] .template-editor__choice-position,
 html[data-bpmn-theme="dark"] .template-editor__placeholder {
     color: var(--vscode-descriptionForeground, #a0a0a0);
 }
@@ -68,10 +69,26 @@ html[data-bpmn-theme="dark"] .template-editor__wizard input {
     color: var(--vscode-badge-foreground, #333);
 }
 
-.template-editor__choice {
+/* A file with many templates: which one is open is the first thing to know. */
+.template-editor__chooser {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
-    max-width: 60%;
-    margin-left: auto;
+}
+
+.template-editor__choice-position {
+    flex: none;
+    color: var(--vscode-descriptionForeground, #616161);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.template-editor__choice {
+    flex: 0 1 420px;
+    min-width: 0;
+    height: 24px;
     color: var(--vscode-dropdown-foreground, inherit);
     background: var(--vscode-dropdown-background, inherit);
     border: 1px solid var(--vscode-dropdown-border, #ccc);

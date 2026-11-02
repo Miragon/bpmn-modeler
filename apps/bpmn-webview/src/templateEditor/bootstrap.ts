@@ -39,6 +39,7 @@ import {
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
 import { TemplateDocumentSession } from "./documentSession";
 import { mountEditorView } from "./editorView";
+import { fitPreview, INITIAL_PREVIEW_FIT } from "./previewFit";
 
 type EditorHost = Pick<HostApi<unknown, Command>, "postMessage">;
 type Translate = (template: string, replacements?: Record<string, string>) => string;
@@ -52,9 +53,6 @@ type TemplateEditorHostMessages = {
 
 // Host edits arrive already debounced; this skips the half-typed states of the page's own.
 const EDIT_DEBOUNCE_MS = 300;
-
-// Below this the builder needs the room, e.g. beside the JSON editor; the toggle opens the preview.
-const NARROW_EDITOR_WIDTH = 640;
 
 export interface TemplateEditorOptions {
     /** Sees every text the page translates; the dev page records them for the i18n overlay. */
@@ -85,9 +83,21 @@ export async function bootstrapTemplateEditor(
                   translate(state === "collapsed" ? "Show preview" : "Hide preview"),
               onLabelChange: (apply) => i18n.onChange(apply),
           });
-    if (window.innerWidth < NARROW_EDITOR_WIDTH) {
-        previewPane?.setVisible(false);
-    }
+    let previewFit = INITIAL_PREVIEW_FIT;
+    const fitToWidth = () => {
+        if (previewPane) {
+            const { fit, show } = fitPreview(
+                previewFit,
+                window.innerWidth,
+                previewPane.isVisible(),
+            );
+            previewFit = fit;
+            if (show !== undefined) {
+                previewPane.setVisible(show);
+            }
+        }
+    };
+    fitToWidth();
     const preview = await createTemplatePreview(view.previewPanel, {
         theme: resolveHostThemeKind(),
     });
@@ -211,11 +221,13 @@ export async function bootstrapTemplateEditor(
         }
     };
     window.addEventListener("message", onMessage);
+    window.addEventListener("resize", fitToWidth);
     document.addEventListener("visibilitychange", onVisibilityChange);
     host.postMessage(new GetElementTemplateFileCommand());
     return () => {
         stopRelabelling();
         window.removeEventListener("message", onMessage);
+        window.removeEventListener("resize", fitToWidth);
         document.removeEventListener("visibilitychange", onVisibilityChange);
         session.dispose();
         clearTimeout(pendingCheck);

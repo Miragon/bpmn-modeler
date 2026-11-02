@@ -57,7 +57,8 @@ export function mountEditorView(
         return node;
     };
 
-    const relabels: (() => void)[] = [];
+    let showPosition = () => undefined as void;
+    const relabels: (() => void)[] = [() => showPosition()];
     // The language usually arrives after the page is built, so each text can be set again.
     const label = (apply: () => void) => {
         apply();
@@ -71,7 +72,10 @@ export function mountEditorView(
     engineBadge.hidden = true;
     const choice = element("select", "template-editor__choice");
     label(() => choice.setAttribute("aria-label", translate("Template")));
-    choice.hidden = true;
+    const choicePosition = element("span", "template-editor__choice-position");
+    const chooser = element("div", "template-editor__chooser");
+    chooser.append(choice, choicePosition);
+    chooser.hidden = true;
     const messages = element("div", "template-editor__messages");
     messages.setAttribute("role", "status");
 
@@ -198,10 +202,10 @@ export function mountEditorView(
     }
     main.append(builderRoot, wizard, engineChoice, placeholder);
     body.append(main, resizer, previewPane);
-    toolbar.append(engineBadge, choice);
+    toolbar.append(engineBadge, chooser);
     // An empty toolbar would only be a stray line above the wizard.
     const fitToolbar = () => {
-        toolbar.hidden = engineBadge.hidden && choice.hidden;
+        toolbar.hidden = engineBadge.hidden && chooser.hidden;
     };
     fitToolbar();
     container.append(toolbar, messages, body);
@@ -224,7 +228,14 @@ export function mountEditorView(
                 }),
             );
             choice.value = String(selected ?? "");
-            choice.hidden = choices.length < 2;
+            chooser.hidden = choices.length < 2;
+            showPosition = () => {
+                choicePosition.textContent = translate("{position} of {count}", {
+                    position: String(choice.selectedIndex + 1),
+                    count: String(choices.length),
+                });
+            };
+            showPosition();
             fitToolbar();
         },
         showMessages(lines) {
