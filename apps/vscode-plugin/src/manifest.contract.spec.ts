@@ -86,13 +86,13 @@ interface Manifest {
     contributes: {
         commands: { command: string; title: string }[];
         keybindings: { command: string }[];
-        menus: Record<string, { command: string }[]>;
+        menus: Record<string, { command: string; when?: string }[]>;
         customEditors: {
             viewType: string;
             priority: string | { textEditor: string; diffEditor?: string };
             selector: { filenamePattern: string }[];
         }[];
-        configurationDefaults: Record<string, Record<string, string>>;
+        configurationDefaults: Record<string, Record<string, unknown>>;
         jsonValidation: { fileMatch: string | string[]; url: string }[];
         configuration: {
             properties: Record<
@@ -238,7 +238,7 @@ describe("package.json ↔ code contract", () => {
             expect.arrayContaining([
                 expect.objectContaining({
                     command: OPEN_ELEMENT_TEMPLATE_EDITOR_CMD,
-                    when: "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && bpmn-modeler.isElementTemplate",
+                    when: "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && !bpmn-modeler.templateEditorShowsFile && bpmn-modeler.isElementTemplate",
                 }),
                 expect.objectContaining({
                     command: TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
@@ -452,6 +452,7 @@ describe("package.json ↔ code contract", () => {
             "bpmn-modeler.openCustomEditors",
             "bpmn-modeler.compareSelectionActive",
             "bpmn-modeler.isElementTemplate",
+            "bpmn-modeler.templateEditorShowsFile",
         ];
 
         const sources = productionSourceFiles(SRC_DIR).map((file) => readFileSync(file, "utf-8"));

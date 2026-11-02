@@ -606,7 +606,7 @@
                 {
                     "command": "bpmn-modeler.openElementTemplateEditor",
                     "group": "navigation",
-                    "when": "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && bpmn-modeler.isElementTemplate"
+                    "when": "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && !bpmn-modeler.templateEditorShowsFile && bpmn-modeler.isElementTemplate"
                 },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",

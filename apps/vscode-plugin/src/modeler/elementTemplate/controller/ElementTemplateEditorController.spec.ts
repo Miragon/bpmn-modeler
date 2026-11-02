@@ -11,6 +11,7 @@ const vscode = vi.hoisted(() => ({
     activeTab: undefined as { input: unknown } | undefined,
     editorListeners: [] as ((editor: unknown) => void)[],
     documentListeners: [] as ((event: { document: unknown }) => void)[],
+    tabListeners: [] as (() => void)[],
     workspaceFolders: undefined as { uri: unknown; name: string }[] | undefined,
     files: new Map<string, Uint8Array>(),
     directories: new Set<string>(),
@@ -19,7 +20,7 @@ const vscode = vi.hoisted(() => ({
 const showInputBox = vi.fn();
 const showWorkspaceFolderPick = vi.fn();
 const showSaveDialog = vi.fn();
-const { editorListeners, documentListeners } = vscode;
+const { editorListeners, documentListeners, tabListeners } = vscode;
 
 vi.mock("vscode", () => {
     class TabInputText {
@@ -69,6 +70,7 @@ vi.mock("vscode", () => {
                     return { activeTab: vscode.activeTab };
                 },
                 close: (...args: unknown[]) => closeTabs(...args),
+                onDidChangeTabs: subscribe(vscode.tabListeners),
             },
         },
         workspace: {
@@ -125,6 +127,15 @@ const contextKeyValues = () =>
         )
         .map(([, , value]) => value);
 
+const templateEditorShowsFile = () =>
+    executeCommand.mock.calls
+        .filter(
+            ([command, key]) =>
+                command === "setContext" && key === "bpmn-modeler.templateEditorShowsFile",
+        )
+        .map(([, , value]) => value)
+        .at(-1);
+
 const showEditor = (editor: unknown) => {
     vscode.activeTextEditor = editor;
     editorListeners.forEach((listener) => listener(editor));
@@ -148,6 +159,7 @@ beforeEach(() => {
     commandHandlers.clear();
     editorListeners.length = 0;
     documentListeners.length = 0;
+    tabListeners.length = 0;
     vscode.activeTextEditor = undefined;
     vscode.tabGroups = [];
     vscode.activeTab = undefined;
@@ -499,6 +511,54 @@ describe("ElementTemplateEditorController", () => {
 
             vi.advanceTimersByTime(300);
             expect(contextKeyValues()).toEqual([false, true]);
+        });
+
+        it("says when the template editor already shows the JSON editor's file", () => {
+            const editor = editorOf("/work/status.json", TEMPLATE);
+            vscode.activeTextEditor = editor;
+            register();
+            expect(templateEditorShowsFile()).toBe(false);
+
+            vscode.tabGroups = [
+                {
+                    tabs: [
+                        {
+                            input: new TabInputCustom(
+                                editor.document.uri as never,
+                                ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
+                            ),
+                        },
+                    ],
+                },
+            ];
+            tabListeners.forEach((listener) => listener());
+            expect(templateEditorShowsFile()).toBe(true);
+
+            vscode.tabGroups = [];
+            tabListeners.forEach((listener) => listener());
+            expect(templateEditorShowsFile()).toBe(false);
+        });
+
+        it("does not count another file's template editor, or another custom editor", () => {
+            const editor = editorOf("/work/status.json", TEMPLATE);
+            vscode.activeTextEditor = editor;
+            vscode.tabGroups = [
+                {
+                    tabs: [
+                        {
+                            input: new TabInputCustom(
+                                uriOf("/work/other.json") as never,
+                                ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
+                            ),
+                        },
+                        { input: new TabInputCustom(editor.document.uri as never, "other.view") },
+                    ],
+                },
+            ];
+
+            register();
+
+            expect(templateEditorShowsFile()).toBe(false);
         });
     });
 });

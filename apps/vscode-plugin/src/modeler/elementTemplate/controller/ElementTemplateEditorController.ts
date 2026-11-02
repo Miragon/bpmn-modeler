@@ -30,6 +30,7 @@ export const OPEN_ELEMENT_TEMPLATE_EDITOR_CMD = "bpmn-modeler.openElementTemplat
 export const TOGGLE_ELEMENT_TEMPLATE_JSON_CMD = "bpmn-modeler.toggleElementTemplateJson";
 export const NEW_ELEMENT_TEMPLATE_CMD = "bpmn-modeler.newElementTemplate";
 const IS_ELEMENT_TEMPLATE_KEY = "bpmn-modeler.isElementTemplate";
+const TEMPLATE_EDITOR_SHOWS_FILE_KEY = "bpmn-modeler.templateEditorShowsFile";
 const RECHECK_DELAY_MS = 300;
 
 /**
@@ -57,6 +58,7 @@ export class ElementTemplateEditorController {
                 this.toggleJson(uri),
             ),
             window.onDidChangeActiveTextEditor((editor) => this.updateContextKey(editor)),
+            window.tabGroups.onDidChangeTabs(() => this.updateContextKey(window.activeTextEditor)),
             workspace.onDidChangeTextDocument((event) => {
                 if (event.document === window.activeTextEditor?.document) {
                     clearTimeout(this.pendingRecheck);
@@ -209,6 +211,24 @@ export class ElementTemplateEditorController {
             editor !== undefined &&
             isElementTemplateFile(editor.document.fileName, editor.document.getText());
         void commands.executeCommand("setContext", IS_ELEMENT_TEMPLATE_KEY, isTemplate);
+        void commands.executeCommand(
+            "setContext",
+            TEMPLATE_EDITOR_SHOWS_FILE_KEY,
+            editor !== undefined && this.templateEditorShows(editor.document.uri),
+        );
+    }
+
+    /** Then a JSON editor beside it has no reason to offer the template editor. */
+    private templateEditorShows(uri: Uri): boolean {
+        const key = uri.toString();
+        return window.tabGroups.all
+            .flatMap((group) => group.tabs)
+            .some(
+                ({ input }) =>
+                    input instanceof TabInputCustom &&
+                    input.viewType === ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE &&
+                    input.uri.toString() === key,
+            );
     }
 }
 
