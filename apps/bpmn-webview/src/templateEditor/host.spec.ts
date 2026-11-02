@@ -57,6 +57,18 @@ describe("getTemplateEditorHostApi", () => {
         ]);
     });
 
+    it("serves the C8 samples for an engine it does not know", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        window.history.replaceState({}, "", "/?engine=toString");
+        const replies = captureReplies();
+
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
+
+        expect(replies).toEqual([
+            new ElementTemplateFileQuery(`${JSON.stringify(c8Samples, null, 2)}\n`),
+        ]);
+    });
+
     it.each([
         ["empty", ""],
         ["broken", '{\n  "name": "Broken",\n'],
