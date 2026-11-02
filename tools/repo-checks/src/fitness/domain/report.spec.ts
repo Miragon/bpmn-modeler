@@ -79,6 +79,14 @@ describe("the Markdown report", () => {
             text: "| new | `src/A.ts:1` | a \\| b c |",
         },
         {
+            case: "keeps a backslash before a pipe from closing the table cell",
+            report: reportOf(
+                { findings: [{ ...finding("A"), message: "a\\|b" }] },
+                { findings: [] },
+            ),
+            text: "| new | `src/A.ts:1` | a\\\\\\|b |",
+        },
+        {
             case: "gives the reason HEAD was not measurable",
             report: reportOf({ unmeasurable: "no mutation run" }, { findings: [] }),
             text: "Not measurable at HEAD: no mutation run",

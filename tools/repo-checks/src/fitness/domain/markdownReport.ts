@@ -9,7 +9,7 @@ function shortCommit(commit: string): string {
 }
 
 function tableCell(text: string): string {
-    return text.replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+    return text.replace(/\r?\n/g, " ").replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 }
 
 function location(finding: Finding): string {
