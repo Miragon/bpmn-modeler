@@ -58,6 +58,20 @@
             "isTemplate": true
         },
         {
+            "name": "an upper-case extension naming a template schema",
+            "path": "/work/Mail.JSON",
+            "configFolder": ".camunda",
+            "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+            "isTemplate": true
+        },
+        {
+            "name": "a mixed-case extension in the template folder",
+            "path": "/work/.camunda/element-templates/Mail.Json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
             "name": "a subfolder of the template folder",
             "path": "/work/.camunda/element-templates/mail/mail.json",
             "configFolder": ".camunda",
@@ -130,6 +144,13 @@
         {
             "name": "a non-JSON file in the template folder",
             "path": "/work/.camunda/element-templates/notes.md",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": false
+        },
+        {
+            "name": "an extension that only folds to .json",
+            "path": "/work/.camunda/element-templates/mail.jſon",
             "configFolder": ".camunda",
             "text": "{}",
             "isTemplate": false

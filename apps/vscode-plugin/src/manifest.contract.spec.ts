@@ -231,7 +231,7 @@ describe("package.json ↔ code contract", () => {
         expect(manifest.contributes.menus["editor/title"]).toContainEqual(
             expect.objectContaining({
                 command: OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD,
-                when: "resourceExtname == .json && !activeCustomEditorId && bpmn-modeler.isElementTemplate",
+                when: "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && bpmn-modeler.isElementTemplate",
             }),
         );
     });
