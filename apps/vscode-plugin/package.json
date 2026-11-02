@@ -146,6 +146,14 @@
             {
                 "fileMatch": "**/deployment-targets.json",
                 "url": "./schemas/deployment-targets.schema.json"
+            },
+            {
+                "fileMatch": [],
+                "url": "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json"
+            },
+            {
+                "fileMatch": [],
+                "url": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json"
             }
         ],
         "languages": [

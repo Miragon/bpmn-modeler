@@ -287,6 +287,15 @@ file should not wait for a bridge; `newElementTemplate.cases.json` holds the
 rows both run, down to the exact bytes of the file, the Unicode cases where
 JavaScript's and Java's regular expressions differ, and the engine prompt.
 
+VS Code only downloads a JSON schema from a trusted domain, and unpkg is not a
+default one. Its JSON client also trusts a URL an extension contributes through
+`jsonValidation`, so the manifest contributes the two published template schema
+URLs with an empty `fileMatch`: that trusts exactly those URLs and leaves the
+user's `json.schemaDownload.trustedDomains` alone. It assigns them to no file,
+because a template folder does not tell C7 from C8. This relies on how the
+client works rather than on documented API, so the VS Code smoke test pins it,
+with a version-pinned URL as the control that must still warn.
+
 Inline scripts still open and sync their tabs per host, behind the core
 `ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab
 handling is host API. What the webview's script commands mean is the core

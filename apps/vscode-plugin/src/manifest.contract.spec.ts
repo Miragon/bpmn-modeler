@@ -63,7 +63,10 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { ELEMENT_TEMPLATE_FOLDER_NAME } from "@miragon/bpmn-modeler-types";
+import {
+    ELEMENT_TEMPLATE_FOLDER_NAME,
+    ELEMENT_TEMPLATE_SCHEMA_URL,
+} from "@miragon/bpmn-modeler-types";
 import {
     MODELER_SETTINGS_SECTION,
     OPEN_TEMPLATE_PREVIEW_DEFAULT,
@@ -91,7 +94,7 @@ interface Manifest {
             selector: { filenamePattern: string }[];
         }[];
         configurationDefaults: Record<string, Record<string, string>>;
-        jsonValidation: { fileMatch: string; url: string }[];
+        jsonValidation: { fileMatch: string | string[]; url: string }[];
         configuration: {
             properties: Record<
                 string,
@@ -199,6 +202,20 @@ describe("package.json ↔ code contract", () => {
                 FORM_VIEW_TYPE,
                 ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
             ]),
+        );
+    });
+
+    // VS Code downloads a schema only from a trusted domain or a URL an extension contributes.
+    // No `fileMatch`, because a template's folder does not tell C7 from C8; its `$schema` does.
+    it("trusts exactly the template schemas without assigning them to any file", () => {
+        const unassigned = manifest.contributes.jsonValidation.filter(
+            ({ fileMatch }) => fileMatch.length === 0,
+        );
+
+        expect(new Set(unassigned)).toEqual(
+            new Set(
+                Object.values(ELEMENT_TEMPLATE_SCHEMA_URL).map((url) => ({ fileMatch: [], url })),
+            ),
         );
     });
 

@@ -109,6 +109,8 @@ The new file holds a service task template to build on. Its `id` and `name` come
 
 Open a template's `.json` file: the preview opens beside the JSON editor and shows the properties panel the template produces, updating as you type. The JSON editor stays the one you edit in, with completion from the template's `$schema`.
 
+The extension marks the two published schema URLs as trusted, so VS Code downloads them without further setup. A version-pinned URL (`…-json-schema@0.9.0/…`) or another CDN still warns that the location is untrusted; the quick fix **Configure Trusted Domains…** allows it. The download needs a trusted workspace and network access.
+
 A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in the template folder the chooser loads from (`.camunda/element-templates/` unless `miragon.bpmnModeler.configFolder` names another folder). The preview opens on its own the first time such a file is shown; once you close it, it stays closed until you open the file again. To open it by hand, click **Open Element Template Preview** in the editor title or run it from the Command Palette. Turn the automatic opening off with `miragon.bpmnModeler.elementTemplatePreview.openAutomatically`.
 
 - `$schema` decides the engine: `…/element-templates-json-schema/…` for Camunda 7, `…/zeebe-element-templates-json-schema/…` for Camunda 8. Without it, the preview reads the engine from `camunda:` or `zeebe:` bindings.
