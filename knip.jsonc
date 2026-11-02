@@ -64,7 +64,6 @@
             // The VS Code smoke test runs vsce's bin through `require.resolve`.
             "ignoreDependencies": ["@vscode/vsce"],
             "entry": [
-                "src/**/index.ts",
                 "test/e2e/.vscode-test.mjs",
                 "test/e2e/**/*.test.ts"
             ]

@@ -264,8 +264,7 @@ tree, so comments, JSDoc `import()` and strings never count, and marks an
 import type-only where TypeScript would elide it. It resolves a relative import
 through a fixed suffix list (`.ts`, `.tsx`, `/index.ts`, `/index.tsx`, then the
 exact path) and maps a package import to a workspace by its package name. It
-also finds import cycles, host reach, implemented interfaces, port adapters
-outside their homes or imported from outside them, and comments. Only
+also finds import cycles, host reach, implemented interfaces and comments. Only
 `sourceTree.ts` touches the file system; the rest are pure functions over
 source text. The engine also holds one rule set per workspace kind
 (`HEXAGONAL_RULES`, `FLAT_RULES`) over role folders that `roleOf` reads from
@@ -297,8 +296,7 @@ Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Role,
 layer and stability rules take `KnownException` entries that name the issue removing
 them, and a stale or unnamed entry fails the gate, so the lists only shrink. A
 rule scoped to a folder or file set fails when the scope matches nothing
-(`requireMatches`), so a renamed folder cannot make it pass vacuously; the VS
-Code host-isolation rule is exempt because its empty scope is the goal.
+(`requireMatches`), so a renamed folder cannot make it pass vacuously.
 
 The engine lives under `tools/`, not `libs/`: it is dev-only tooling that no
 host or webview ships.

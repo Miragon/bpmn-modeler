@@ -42,7 +42,6 @@ const STABILITY_EXCEPTIONS: readonly KnownException[] = [];
 
 /** One per workspace not yet moved into role folders, naming the issue that moves it. */
 const ROLE_EXCEPTIONS: readonly KnownException[] = [
-    { from: "apps/vscode-plugin", to: "*", until: "#2126" },
     { from: "apps/modeler-bridge", to: "*", until: "#2126" },
     { from: "apps/bpmn-webview", to: "*", until: "#2129" },
     { from: "apps/dmn-webview", to: "*", until: "#2129" },

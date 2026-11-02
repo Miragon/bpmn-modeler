@@ -2,13 +2,17 @@ import { commands, ExtensionContext } from "vscode";
 
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { EditorSessionDocuments } from "@miragon/bpmn-modeler-core";
-import { VsCodeWorkspace } from "../shared/infrastructure/VsCodeWorkspace";
-import { VsCodeSettings } from "../shared/infrastructure/VsCodeSettings";
-import { VsCodeStatusBar } from "../shared/infrastructure/VsCodeStatusBar";
-import { VsCodeNotifier } from "../shared/infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../shared/infrastructure/VsCodePicker";
-import { VsCodeClipboard } from "../shared/infrastructure/VsCodeClipboard";
-import { VsCodeTextEditor } from "../shared/infrastructure/VsCodeTextEditor";
+import { VsCodeWorkspace } from "../shared/adapter/out/VsCodeWorkspace";
+import { VsCodeSettings } from "../shared/adapter/out/VsCodeSettings";
+import { VsCodeStatusBar } from "../shared/adapter/out/VsCodeStatusBar";
+import { VsCodeNotifier } from "../shared/adapter/out/VsCodeNotifier";
+import { VsCodePicker } from "../shared/adapter/out/VsCodePicker";
+import { VsCodeClipboard } from "../shared/adapter/out/VsCodeClipboard";
+import { VsCodeTextEditor } from "../shared/adapter/in/VsCodeTextEditor";
+import { VsCodeEditorHandle } from "../shared/adapter/out/VsCodeEditorHandle";
+import { vsCodeModelerPreferences } from "../shared/adapter/out/modelerConfiguration";
+import { ModelerPreferences } from "../shared/port/ModelerPreferences";
+import { EditorHandleFactory } from "../modeler/editor-session/adapter/in/ModelerEditorController";
 import { ArtifactService } from "@miragon/bpmn-modeler-core";
 import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-core";
 
@@ -30,6 +34,8 @@ export interface SharedDeps {
     picker: VsCodePicker;
     clipboard: VsCodeClipboard;
     textEditor: VsCodeTextEditor;
+    preferences: ModelerPreferences;
+    createEditorHandle: EditorHandleFactory;
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
     pendingEdits: PendingEditsFlush;
@@ -38,7 +44,7 @@ export interface SharedDeps {
 /**
  * Constructs the collaborators shared across features exactly once, so every
  * feature observes the same session registry and adapter instances. Only
- * genuinely cross-feature objects live here; feature-specific infrastructure is
+ * genuinely cross-feature objects live here; feature-specific adapters are
  * built inside the owning feature's `register()`.
  */
 export function buildSharedDeps(context: ExtensionContext): SharedDeps {
@@ -66,7 +72,9 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         notifier,
         picker: new VsCodePicker(),
         clipboard: new VsCodeClipboard(),
-        textEditor: new VsCodeTextEditor(),
+        textEditor: new VsCodeTextEditor(context.subscriptions),
+        preferences: vsCodeModelerPreferences,
+        createEditorHandle: VsCodeEditorHandle.create,
         artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),
         flushSvc,
         pendingEdits: new PendingEditsFlush(editorStore, flushSvc, notifier),

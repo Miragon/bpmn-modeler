@@ -1,7 +1,7 @@
 import { ExtensionContext } from "vscode";
 
-import { setContext } from "./shared/infrastructure/extensionContext";
-import { notifyIfNewRelease } from "./shared/infrastructure/releaseNotes";
+import { setContext } from "./shared/adapter/out/extensionContext";
+import { notifyIfNewRelease } from "./shared/adapter/out/releaseNotes";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";

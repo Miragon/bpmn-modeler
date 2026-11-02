@@ -1,0 +1,102 @@
+import {
+    Diagnostic,
+    DiagnosticCollection,
+    DiagnosticSeverity,
+    languages,
+    Position,
+    Range,
+    Uri,
+} from "vscode";
+
+import { LintResults } from "@miragon/bpmn-modeler-types";
+import { DiagnosticsPort } from "@miragon/bpmn-modeler-core";
+
+import { ElementIdPositions, TextPosition } from "../../domain/elementIdPositions";
+
+/**
+ * Publishes bpmnlint findings into VS Code's Problems panel via a single shared
+ * {@link DiagnosticCollection}, so lint results are searchable and clickable
+ * without opening the diagram — the payoff of linting in the host.
+ *
+ * bpmnlint reports address elements by id, not text ranges, so the range is a
+ * best-effort scan for the element's `id="…"` in the XML ({@link ElementIdPositions}),
+ * falling back to the document start. That is enough for the Problems entry to
+ * open the file; the precise on-canvas location is still shown by the
+ * in-diagram overlay.
+ *
+ * Element-specific findings additionally get a clickable `code` link to a host
+ * command that centres the element — the only handle a Problems entry has,
+ * since VS Code discards the range for custom editors. The command id is
+ * injected so this shared adapter stays decoupled from the feature that owns it.
+ */
+export class VsCodeDiagnostics implements DiagnosticsPort {
+    private readonly collection: DiagnosticCollection =
+        languages.createDiagnosticCollection("bpmnlint");
+
+    // focusCommandId is called with (editorId, elementId); omitted → no link.
+    constructor(private readonly focusCommandId?: string) {}
+
+    publish(documentUri: string, xml: string, results: LintResults): void {
+        const uri = Uri.parse(documentUri);
+        const diagnostics: Diagnostic[] = [];
+        let elementIdPositions: ElementIdPositions | undefined;
+
+        for (const reports of Object.values(results)) {
+            for (const report of reports) {
+                const position = report.id
+                    ? (elementIdPositions ??= new ElementIdPositions(xml)).positionOf(report.id)
+                    : undefined;
+                const range = this.rangeAt(position);
+                const diagnostic = new Diagnostic(
+                    range,
+                    report.message,
+                    this.severity(report.category),
+                );
+                diagnostic.source = "bpmnlint";
+                const target =
+                    report.id && this.focusCommandId
+                        ? this.focusCommandTarget(documentUri, report.id)
+                        : undefined;
+                if (target) {
+                    // Fallback label keeps the code link clickable when a finding
+                    // carries no rule.
+                    diagnostic.code = { value: report.rule ?? "bpmnlint", target };
+                } else if (report.rule) {
+                    diagnostic.code = report.rule;
+                }
+                diagnostics.push(diagnostic);
+            }
+        }
+
+        this.collection.set(uri, diagnostics);
+    }
+
+    clear(documentUri: string): void {
+        this.collection.delete(Uri.parse(documentUri));
+    }
+
+    // Args are a JSON array in the query string (VS Code command-URI
+    // convention), URI-encoded so reserved characters in ids survive.
+    private focusCommandTarget(editorId: string, elementId: string): Uri {
+        const args = encodeURIComponent(JSON.stringify([editorId, elementId]));
+        return Uri.parse(`command:${this.focusCommandId}?${args}`);
+    }
+
+    private severity(category: string): DiagnosticSeverity {
+        switch (category) {
+            case "error":
+                return DiagnosticSeverity.Error;
+            case "warn":
+                return DiagnosticSeverity.Warning;
+            default:
+                return DiagnosticSeverity.Information;
+        }
+    }
+
+    private rangeAt(textPosition: TextPosition | undefined): Range {
+        const position = textPosition
+            ? new Position(textPosition.line, textPosition.character)
+            : new Position(0, 0);
+        return new Range(position, position);
+    }
+}

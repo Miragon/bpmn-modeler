@@ -3,7 +3,7 @@
  * so the VS Code editor registrations
  * (`apps/vscode-plugin/src/composition/bpmnEditorFeature.ts` and
  * `editorFeature.ts`) and webview bootstrap
- * (`apps/vscode-plugin/src/shared/infrastructure/bootstrapWebview.ts`) agree by
+ * (`apps/vscode-plugin/src/shared/adapter/out/bootstrapWebview.ts`) agree by
  * import rather than by two independently-maintained string literals. They must
  * also match `contributes.customEditors[].viewType` in `package.json`; the
  * manifest-contract spec asserts that link.

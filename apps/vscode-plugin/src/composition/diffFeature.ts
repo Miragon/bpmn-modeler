@@ -2,7 +2,8 @@ import { ExtensionContext } from "vscode";
 
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
-import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
+import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -18,7 +19,13 @@ export function register(
     const diffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore);
     const diffService = new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore);
-    const diffController = new BpmnDiffController(diffStore, diffService, deps.notifier);
+    const diffController = new BpmnDiffController(
+        diffStore,
+        diffService,
+        deps.notifier,
+        (panel, document) => new WebviewPaneHandle(panel, document),
+        deps.preferences,
+    );
     diffController.register(context);
 
     return { diffController, diffStore };

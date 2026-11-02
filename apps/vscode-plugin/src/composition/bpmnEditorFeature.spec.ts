@@ -53,8 +53,8 @@ import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
 import { BPMN_EDITOR_COMMAND_TYPES, BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
-import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
-import { setContext } from "../shared/infrastructure/extensionContext";
+import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { setContext } from "../shared/adapter/out/extensionContext";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import { buildSharedDeps } from "./sharedDeps";
 
@@ -123,6 +123,10 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
             diffStore,
             new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore),
             deps.notifier,
+            () => {
+                throw new Error("no diff pane resolves here");
+            },
+            deps.preferences,
         ),
         marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,
