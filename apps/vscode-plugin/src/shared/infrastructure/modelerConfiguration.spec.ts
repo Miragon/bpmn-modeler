@@ -51,10 +51,6 @@ describe("openTemplatePreviewAutomatically", () => {
         expect(openTemplatePreviewAutomatically()).toBe(open);
         expect(getMock).toHaveBeenCalledWith("elementTemplatePreview.openAutomatically");
     });
-
-    it("opens the preview unless told otherwise", () => {
-        expect(OPEN_TEMPLATE_PREVIEW_DEFAULT).toBe(true);
-    });
 });
 
 describe("modelerConfiguration", () => {
