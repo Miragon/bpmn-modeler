@@ -86,6 +86,7 @@ const VSCODE_COVERAGE: Record<BpmnEditorCommandType, "handled" | "ignored"> = {
     NavigateToImplementationCommand: "handled",
     SyncActivitiesCommand: "handled",
     GetFormReferenceStatusCommand: "handled",
+    GetFormPreviewCommand: "handled",
     SearchWorkspaceDefinitionsCommand: "handled",
     OpenScriptEditorCommand: "handled",
     OpenScriptEditorsCommand: "handled",

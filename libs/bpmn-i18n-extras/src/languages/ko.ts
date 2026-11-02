@@ -7,6 +7,28 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "The linked form is missing or invalid. Check the form reference.":
+        "연결된 양식이 없거나 유효하지 않습니다. 양식 참조를 확인하세요.",
+    "Preview linked form": "연결된 양식 미리보기",
+    "Linked form preview": "연결된 양식 미리보기",
+    "Refresh": "새로 고침",
+    "Close form preview": "양식 미리보기 닫기",
+    "Read-only preview of the saved local form.": "저장된 로컬 양식의 읽기 전용 미리보기입니다.",
+    "Saved form loaded.": "저장된 양식을 불러왔습니다.",
+    "Open a workspace folder to preview linked forms.":
+        "연결된 양식을 미리 보려면 작업 영역 폴더를 여세요.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "이 참조와 일치하는 저장된 로컬 양식이 없습니다. 새로 고침하여 다시 시도하세요.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "이 참조와 일치하는 저장된 양식이 여러 개입니다. 미리 볼 양식을 선택하세요.",
+    "The saved form could not be read. Refresh to try again.":
+        "저장된 양식을 읽을 수 없습니다. 새로 고침하여 다시 시도하세요.",
+    "The host did not answer. Refresh to try again.":
+        "호스트가 응답하지 않았습니다. 새로 고침하여 다시 시도하세요.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "저장된 양식이 유효하지 않거나 지원되지 않습니다. 양식 편집기에서 여세요.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "양식 미리보기를 불러올 수 없습니다. 새로 고침하여 다시 시도하세요.",
     "Apply Template": "템플릿 적용",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Java 델리게이트, 표현식 또는 외부 작업이 수행하는 자동화된 작업입니다",

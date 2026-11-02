@@ -57,6 +57,7 @@ function fakeSessionHandlers() {
         UpdateOpenScriptEditorsQuery: vi.fn(),
         ImplementationStatusQuery: vi.fn(),
         FormReferenceStatusQuery: vi.fn(),
+        FormPreviewQuery: vi.fn(),
         WorkspaceDefinitionsQuery: vi.fn(),
         FocusElementQuery: vi.fn(),
         TakeFocusQuery: vi.fn(),

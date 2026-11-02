@@ -6,7 +6,8 @@ import {
     stripComments,
 } from "@miragon/architecture-testing";
 import type { SourceFile } from "@miragon/architecture-testing";
-import { join, normalize } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, join, normalize, resolve } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
@@ -61,6 +62,28 @@ const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 const TREE_PARSE = { timeout: 30_000 };
 
 describe("bpmn-modeler import direction", TREE_PARSE, () => {
+    it("keeps shared navigation JavaScript CSS-free for viewer and designer consumers", () => {
+        const navigation = join(LIBS_ROOT, "model-navigation", "src");
+        const offenders = readSourceTree(navigation).flatMap((file) =>
+            valueImportedModules(file)
+                .filter((specifier) => /\.(css|less|scss|sass)(\?|$)/.test(specifier))
+                .map((specifier) => `${file.path} → ${specifier}`),
+        );
+        expect(offenders).toEqual([]);
+    });
+
+    it.each(["engineModeler", "design", "viewer"])(
+        "ships navigation controls through the %s stylesheet",
+        (surface) => {
+            const file = join(PKG_SRC, "styles", `${surface}.css`);
+            const imports: string[] = [];
+            postcss.parse(readFileSync(file, "utf8")).walkAtRules("import", (rule) => {
+                imports.push(resolve(dirname(file), cssImportSpecifier(rule.params)));
+            });
+            expect(imports).toContain(join(LIBS_ROOT, "model-navigation", "src", "style.css"));
+        },
+    );
+
     it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
         const collected = readSourceTree(join(LIBS_ROOT, "properties-panel", "src"));
         expect(collected.some(({ path }) => path.endsWith(".tsx"))).toBe(true);

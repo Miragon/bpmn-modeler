@@ -1,6 +1,8 @@
 import type { DefinitionSearchPort, ModelerCapabilities } from "@miragon/bpmn-modeler";
 import {
     type FormReferenceStatusQuery,
+    type FormPreviewQuery,
+    GetFormPreviewCommand,
     GetFormReferenceStatusCommand,
     LogWarningCommand,
     NavigateToImplementationCommand,
@@ -16,11 +18,14 @@ import { type DetectedEngine, extractProcessVariables } from "@miragon/bpmn-mode
 
 import { isModelerHandle, type SurfaceHandle } from "../surface";
 import type { HostChannel } from "./hostChannel";
+import { createFormPreview } from "./formPreview";
 
 // The first search indexes the workspace cold, which can walk a whole directory tree.
 export const DEFINITION_SEARCH_TIMEOUT_MS = 30_000;
+export const FORM_PREVIEW_TIMEOUT_MS = 30_000;
 
 interface ProtocolCapabilityHandlers {
+    FormPreviewQuery(query: FormPreviewQuery): void;
     FormReferenceStatusQuery(query: FormReferenceStatusQuery): void;
     WorkspaceDefinitionsQuery(query: WorkspaceDefinitionsQuery): void;
 }
@@ -29,10 +34,12 @@ export interface ProtocolCapabilities {
     readonly capabilities: Required<ModelerCapabilities>;
     readonly handlers: ProtocolCapabilityHandlers;
     requestFormReferenceStatus(engine: DetectedEngine): void;
+    dispose(): void;
 }
 
 /** The form ids the host last reported as resolvable. */
 export class FormReferenceAvailability {
+    known = false;
     private availableFormIds: ReadonlySet<string> = new Set();
     private readonly listeners = new Set<() => void>();
 
@@ -51,9 +58,11 @@ export class FormReferenceAvailability {
     update(formIds: readonly string[]): boolean {
         const nextFormIds = new Set(formIds);
         const changed =
+            !this.known ||
             nextFormIds.size !== this.availableFormIds.size ||
             [...nextFormIds].some((formId) => !this.availableFormIds.has(formId));
         this.availableFormIds = nextFormIds;
+        this.known = true;
         if (changed) {
             this.listeners.forEach((listener) => listener());
         }
@@ -102,13 +111,31 @@ export function createProtocolCapabilities(
 ): ProtocolCapabilities {
     const formReferences = new FormReferenceAvailability();
     const definitionSearch = createDefinitionSearchRequests(host);
+    const previewReplies = createReplyRegistry<FormPreviewQuery>(FORM_PREVIEW_TIMEOUT_MS);
+    const preview = createFormPreview(
+        async (id, automatic) => {
+            const { requestId, reply } = previewReplies.open();
+            host.postMessage(new GetFormPreviewCommand(requestId, id, automatic));
+            const answer = await reply;
+            return (
+                answer?.result ?? {
+                    kind: "unavailable",
+                    reason: "timeout",
+                }
+            );
+        },
+        undefined,
+        (message) => host.postMessage(new LogWarningCommand(message)),
+    );
 
     return {
         capabilities: {
             modelNavigation: {
+                formPreview: preview,
                 openReference: ({ id, kind }) =>
                     host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
                 isReferenceAvailable: ({ id, kind }) => kind !== "form" || formReferences.has(id),
+                isReferenceAvailabilityKnown: () => formReferences.known,
                 onReferenceAvailabilityChanged: (listener) => formReferences.onChanged(listener),
             },
             codeLink: {
@@ -150,6 +177,7 @@ export function createProtocolCapabilities(
             definitionSearch: definitionSearch.port,
         },
         handlers: {
+            FormPreviewQuery: (query) => previewReplies.settle(query.requestId, query),
             FormReferenceStatusQuery: (query) => {
                 formReferences.update(query.formIds);
             },
@@ -159,6 +187,10 @@ export function createProtocolCapabilities(
             if (engine === "c8") {
                 host.postMessage(new GetFormReferenceStatusCommand());
             }
+        },
+        dispose: () => {
+            preview.dispose();
+            previewReplies.cancelAll();
         },
     };
 }

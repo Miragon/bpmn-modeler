@@ -112,7 +112,9 @@ export interface BpmnEditorHostExtensions {
 /** The other features' handlers and participants, which the hosts' composition hands over. */
 export interface BpmnEditorContributions {
     readonly navigation: EditorContribution<
-        "NavigateToReferencedModelCommand" | "GetFormReferenceStatusCommand"
+        | "NavigateToReferencedModelCommand"
+        | "GetFormReferenceStatusCommand"
+        | "GetFormPreviewCommand"
     >;
     readonly definitionSearch: EditorContribution<"SearchWorkspaceDefinitionsCommand">;
     readonly deploymentStatus: EditorSessionParticipant;
@@ -245,6 +247,7 @@ export class BpmnEditorFeature {
             GetFormReferenceStatusCommand: [
                 navigation.commandHandlers.GetFormReferenceStatusCommand,
             ],
+            GetFormPreviewCommand: [navigation.commandHandlers.GetFormPreviewCommand],
             SearchWorkspaceDefinitionsCommand: [
                 definitionSearch.commandHandlers.SearchWorkspaceDefinitionsCommand,
             ],

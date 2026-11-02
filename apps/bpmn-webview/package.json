@@ -14,6 +14,7 @@
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
+        "@bpmn-io/form-js-viewer": "2.1.1",
         "@bpmn-io/properties-panel": "3.57.0",
         "@bpmn-io/svg-to-image": "1.0.1",
         "@miragon/bpmn-modeler": "workspace:*",

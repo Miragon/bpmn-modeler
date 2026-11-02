@@ -5,7 +5,7 @@ import {
     ensureArrayToSorted,
     ensureUrlCanParse,
     URLConstructor,
-} from "./urlCompatibility";
+} from "./formRuntimeCompatibility";
 
 describe("ensureUrlCanParse", () => {
     it("installs the browser API missing from the VS Code 1.76 runtime", () => {

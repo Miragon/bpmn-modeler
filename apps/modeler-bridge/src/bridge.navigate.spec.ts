@@ -156,6 +156,77 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
 
+    it("returns fresh saved form content and correlated errors without opening or writing a form", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const path = join(root, "preview.form");
+        const content = JSON.stringify({ id: "Form_Preview", type: "default", components: [] });
+        await fs.writeFile(path, content);
+        async function request(requestId: number, formId = "Form_Preview") {
+            await rpc.handleLine(
+                JSON.stringify({
+                    method: "webview/message",
+                    params: {
+                        editorId,
+                        message: { type: "GetFormPreviewCommand", requestId, formId },
+                    },
+                }),
+            );
+            const frame = await waitForFrame(
+                frames,
+                (f) =>
+                    f.method === "editor/postMessage" &&
+                    f.params.message.type === "FormPreviewQuery" &&
+                    f.params.message.requestId === requestId,
+            );
+            return frame.params.message.result;
+        }
+        expect(await request(1)).toEqual({ kind: "loaded", content });
+        const updated = content.replace('"components":[]', '"components":[],"schemaVersion":19');
+        await fs.writeFile(path, updated);
+        expect(await request(2)).toEqual({ kind: "loaded", content: updated });
+        expect(await fs.readFile(path, "utf8")).toBe(updated);
+        expect(await request(3, "Missing")).toEqual({
+            kind: "unavailable",
+            reason: "notFound",
+        });
+        expect(frames.find((f) => f.method === "notifier/openDocument")).toBeUndefined();
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("declines an ambiguous automatic form preview without asking the host to show a picker", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const content = JSON.stringify({ id: "Form_Shared", type: "default", components: [] });
+        await fs.writeFile(join(root, "first.form"), content);
+        await fs.writeFile(join(root, "second.form"), content);
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "GetFormPreviewCommand",
+                        requestId: 15,
+                        formId: "Form_Shared",
+                        automatic: true,
+                    },
+                },
+            }),
+        );
+        const reply = await waitForFrame(
+            frames,
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "FormPreviewQuery",
+        );
+        expect(reply.params.message).toMatchObject({
+            requestId: 15,
+            result: { kind: "unavailable", reason: "ambiguous" },
+        });
+        expect(frames.find((frame) => frame.method === "picker/show")).toBeUndefined();
+        expect(frames.find((frame) => frame.method === "notifier/openDocument")).toBeUndefined();
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
     it("prompts via picker/show when multiple files declare the id, then opens the choice", async () => {
         const { rpc, frames, root, editorId } = await setup();
         const aPath = join(root, "a.bpmn");

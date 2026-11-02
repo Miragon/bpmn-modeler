@@ -69,5 +69,10 @@ export function createReplyRegistry<T>(timeoutMs = HOST_REPLY_TIMEOUT_MS) {
         pending.get(requestId)?.done(value);
     }
 
-    return { open, settle };
+    function cancelAll(): void {
+        for (const resolver of pending.values()) resolver.done(undefined);
+        pending.clear();
+    }
+
+    return { open, settle, cancelAll };
 }
