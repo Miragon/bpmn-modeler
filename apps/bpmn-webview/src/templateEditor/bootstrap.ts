@@ -18,6 +18,7 @@ import {
     type TemplateBuilderHandle,
     type TemplateEdit,
     type TemplateEditResult,
+    templateIdentity,
     type TextOrigin,
     withSchema,
 } from "@miragon/bpmn-modeler-element-template-builder";
@@ -34,7 +35,6 @@ import {
     type MessageOfType,
     resolveHostThemeKind,
 } from "@miragon/bpmn-modeler-shared";
-import { templateIdentity } from "@miragon/bpmn-modeler-types";
 
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
 import { TemplateDocumentSession } from "./documentSession";

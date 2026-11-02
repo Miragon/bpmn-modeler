@@ -323,7 +323,7 @@ not know is logged as a warning. IntelliJ sends no document revision, since a
 preview makes no edits to base on one.
 
 A new template has one scaffold: `newTemplateText` in the builder library, with
-its `id` and suggested name from `templateIdentity` in `modeler-types`. VS Code's
+its `id` and suggested name from `templateIdentity` beside it. VS Code's
 **New Element Template** writes an empty file into
 `<configFolder>/element-templates/` of a workspace folder and opens it in the
 template editor, whose start form asks for the engine and the element type and

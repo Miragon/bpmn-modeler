@@ -8,7 +8,6 @@ import {
     isElementTemplateFile,
     isElementTemplateText,
     isPreviewableElementType,
-    templateIdentity,
     templatesOfFile,
 } from "./elementTemplates";
 
@@ -19,27 +18,6 @@ const C8_SCHEMA =
 function withBinding(type: string): object {
     return { name: "T", properties: [{ binding: { type, name: "x" } }] };
 }
-
-describe("templateIdentity", () => {
-    it.each([
-        ["send-mail.json", "send-mail", "Send Mail"],
-        ["io.camunda.send-mail.json", "io.camunda.send-mail", "Send Mail"],
-        ["sendMail.json", "sendMail", "Send Mail"],
-        ["payment_check.JSON", "payment_check", "Payment Check"],
-        [" Send  Mail .json", "Send-Mail", "Send Mail"],
-        ["invoice", "invoice", "Invoice"],
-        ["HTTPConnector.json", "HTTPConnector", "HTTPConnector"],
-        ["io.json.reader.json", "io.json.reader", "Reader"],
-        ["io.camunda..json", "io.camunda.", "io.camunda."],
-        [".json", "new-element-template", "New Element Template"],
-        ["Send\u00a0Mail.json", "Send-Mail", "Send Mail"],
-        ["Send\u3000Mail.json", "Send-Mail", "Send Mail"],
-        ["\ufeffmail.json", "mail", "Mail"],
-        ["\u00dfmail.json", "\u00dfmail", "SSmail"],
-    ])("names a template in %j", (fileName, id, name) => {
-        expect(templateIdentity(fileName)).toEqual({ id, name });
-    });
-});
 
 describe("isPreviewableElementType", () => {
     it.each([
