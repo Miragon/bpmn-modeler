@@ -2,231 +2,63 @@ import { describe, expect, it } from "vitest";
 import { positionFormPreview } from "./formPreviewPosition";
 
 const canvas = { x: 20, y: 30, width: 1000, height: 700 };
-describe("anchored preview placement", () => {
+describe("adjacent preview placement", () => {
     it.each([
-        { width: 600, height: 400 },
-        { width: 120, height: 60 },
-        { width: 12, height: 12 },
+        { task: { x: 200, y: 200, width: 100, height: 80 }, contextPad: undefined, left: 312 },
+        {
+            task: { x: 200, y: 200, width: 100, height: 80 },
+            contextPad: { x: 310, y: 180, width: 80, height: 150 },
+            left: 402,
+        },
+        {
+            task: { x: 200, y: 200, width: 200, height: 160 },
+            contextPad: { x: 410, y: 180, width: 80, height: 150 },
+            left: 502,
+        },
     ])(
-        "honors an explicit request in a crowded $width by $height viewport",
-        ({ width, height }) => {
-            const anchor = {
-                canvas: { x: 20, y: 30, width, height },
-                task: { x: 20, y: 30, width, height },
-                obstacles: [{ x: 20, y: 30, width, height }],
-            };
-            expect(positionFormPreview(anchor, 340, 400, 120)).toBeUndefined();
-            const position = positionFormPreview(anchor, 340, 400, 120, true)!;
-            expect(position).toBeDefined();
-            expect(position.width).toBeGreaterThan(0);
-            expect(position.maxHeight).toBeGreaterThan(0);
-            expect(position.left).toBeGreaterThanOrEqual(20);
-            expect(position.top).toBeGreaterThanOrEqual(30);
-            expect(position.left + position.width).toBeLessThanOrEqual(20 + width);
-            expect(position.top + position.maxHeight).toBeLessThanOrEqual(30 + height);
+        "sits right of the rendered task and context pad at any zoom ($left)",
+        ({ task, contextPad, left }) => {
+            expect(positionFormPreview({ canvas, task, contextPad }, 320, 300)).toEqual({
+                left,
+                top: 200,
+                width: 320,
+                maxHeight: 300,
+            });
         },
     );
-    it("bounds candidate collision work linearly even with 1000 nearby overlapping obstacles", () => {
-        let reads = 0;
-        const obstacles = Array.from({ length: 1000 }, () => ({
-            get x() {
-                reads++;
-                return 0;
-            },
-            y: 0,
-            width: 1000,
-            height: 700,
-        }));
-        expect(
-            positionFormPreview(
-                { canvas, task: { x: 200, y: 200, width: 100, height: 80 }, obstacles },
-                340,
-                400,
-            ),
-        ).toBeUndefined();
-        expect(reads).toBeLessThan(300_000);
-    });
-    it("checks a decisive collision blocker beyond the candidate-generation budget", () => {
-        const task = { x: 200, y: 200, width: 100, height: 80 };
-        const obstacles = Array.from({ length: 17 }, () => ({
-            x: -1000,
-            y: -1000,
-            width: 10,
-            height: 10,
-        }));
-        const unobstructed = positionFormPreview({ canvas, task, obstacles }, 340, 300)!;
-        expect(unobstructed).toEqual({ left: 312, top: 200, width: 340, maxHeight: 300 });
-        const blocker = { x: 400, y: 200, width: 100, height: 80 };
-        const position = positionFormPreview(
-            { canvas, task, obstacles: [...obstacles, blocker] },
-            340,
-            300,
-        )!;
-        expect(position).toBeDefined();
-        expect(
-            position.left + position.width <= blocker.x ||
-                position.left >= blocker.x + blocker.width ||
-                position.top + position.maxHeight <= blocker.y ||
-                position.top >= blocker.y + blocker.height,
-        ).toBe(true);
-    });
-    it("rejects a constrained preview that cannot fit its chrome and usable content viewport", () => {
-        expect(
-            positionFormPreview(
-                {
-                    canvas: { x: 0, y: 0, width: 500, height: 300 },
-                    task: { x: 100, y: 60, width: 100, height: 80 },
-                    contextPad: { x: 210, y: 50, width: 80, height: 150 },
-                    obstacles: [{ x: 320, y: 60, width: 100, height: 80 }],
-                },
-                340,
-                500,
-                200,
-            ),
-        ).toBeUndefined();
-    });
-    it("keeps a constrained scrollable preview in a dense diagram without covering its successor", () => {
-        const position = positionFormPreview(
-            {
-                canvas: { x: 0, y: 0, width: 600, height: 420 },
-                task: { x: 100, y: 100, width: 100, height: 80 },
-                contextPad: { x: 210, y: 90, width: 80, height: 150 },
-                obstacles: [{ x: 320, y: 100, width: 100, height: 80 }],
-            },
-            340,
-            500,
-        )!;
-        expect(position).toBeDefined();
-        expect(position.maxHeight).toBeGreaterThanOrEqual(80);
-        expect(position.maxHeight).toBeLessThan(500);
-        expect(position.top).toBeGreaterThanOrEqual(240);
-        expect(position.top + position.maxHeight).toBeLessThanOrEqual(412);
-    });
-    it("does not cover neighboring tasks, labels or flow segments after clamping", () => {
-        const obstacles = [
-            { x: 400, y: 200, width: 100, height: 80 },
-            { x: 600, y: 200, width: 100, height: 80 },
-            { x: 300, y: 238, width: 300, height: 4 },
-        ];
-        const position = positionFormPreview(
-            { canvas, task: { x: 200, y: 200, width: 100, height: 80 }, obstacles },
-            340,
-            400,
-        )!;
-        expect(position).toBeDefined();
-        for (const box of obstacles) {
-            expect(
-                position.left + position.width <= box.x ||
-                    position.left >= box.x + box.width ||
-                    position.top + position.maxHeight <= box.y ||
-                    position.top >= box.y + box.height,
-            ).toBe(true);
-        }
-    });
-    it("checks collisions after clamping an offscreen anchor", () => {
-        const position = positionFormPreview(
-            {
-                canvas,
-                task: { x: 1400, y: 200, width: 100, height: 80 },
-                obstacles: [{ x: 700, y: 200, width: 100, height: 80 }],
-            },
-            340,
-            300,
-        )!;
-        expect(position).toBeDefined();
-        expect(
-            position.top >= 280 ||
-                position.top + position.maxHeight <= 200 ||
-                position.left + position.width <= 700,
-        ).toBe(true);
-    });
-    it("sits to the right of both the task and its action pad", () => {
-        expect(
-            positionFormPreview(
-                {
-                    canvas,
-                    task: { x: 200, y: 200, width: 100, height: 80 },
-                    contextPad: { x: 310, y: 180, width: 80, height: 150 },
-                },
-                320,
-                300,
-            ),
-        ).toEqual({ left: 402, top: 200, width: 320, maxHeight: 300 });
-    });
-    it("flips left near the right edge", () => {
-        expect(
-            positionFormPreview(
-                { canvas, task: { x: 850, y: 200, width: 100, height: 80 } },
-                320,
-                300,
-            )?.left,
-        ).toBe(518);
-    });
     it.each([
-        { x: 1400, expectedLeft: 672 },
-        { x: -500, expectedLeft: 28 },
+        { x: 850, y: 200, left: 692, top: 200 },
+        { x: 1400, y: 900, left: 692, top: 422 },
+        { x: -500, y: -100, left: 28, top: 38 },
     ])(
-        "keeps the preview and close control inside the canvas when a task pans beyond x=$x",
-        ({ x, expectedLeft }) => {
+        "clamps at the viewport rather than searching another side ($x, $y)",
+        ({ x, y, left, top }) => {
+            expect(
+                positionFormPreview({ canvas, task: { x, y, width: 100, height: 80 } }, 320, 300),
+            ).toEqual({ left, top, width: 320, maxHeight: 300 });
+        },
+    );
+    it.each([
+        { width: 280, height: 600, edge: 8 },
+        { width: 200, height: 120, edge: 8 },
+        { width: 12, height: 12, edge: 3 },
+    ])(
+        "keeps a bounded visible preview on a $width by $height viewport even when it overlaps",
+        ({ width, height, edge }) => {
             const position = positionFormPreview(
                 {
-                    canvas,
-                    task: { x, y: 200, width: 100, height: 80 },
-                    contextPad: { x: x + 110, y: 180, width: 80, height: 150 },
+                    canvas: { x: 10, y: 20, width, height },
+                    task: { x: 100, y: 100, width: 100, height: 80 },
                 },
                 340,
-                300,
-            )!;
-            expect(position.left).toBe(expectedLeft);
-            expect(position.left).toBeGreaterThanOrEqual(canvas.x + 8);
-            expect(position.left + position.width).toBeLessThanOrEqual(canvas.x + canvas.width - 8);
+                700,
+            );
+            expect(position).toEqual({
+                left: 10 + edge,
+                top: 20 + edge,
+                width: width - 2 * edge,
+                maxHeight: height - 2 * edge,
+            });
         },
     );
-    it("uses vertical free space on a narrow canvas without covering actions", () => {
-        const position = positionFormPreview(
-            {
-                canvas: { x: 0, y: 0, width: 500, height: 700 },
-                task: { x: 200, y: 200, width: 100, height: 80 },
-                contextPad: { x: 310, y: 180, width: 80, height: 150 },
-            },
-            320,
-            400,
-        )!;
-        expect(position.top).toBe(342);
-        expect(position.left + position.width).toBeLessThanOrEqual(492);
-        expect(position.top + position.maxHeight).toBeLessThanOrEqual(692);
-    });
-    it("clamps the top and width to canvas bounds", () => {
-        const position = positionFormPreview(
-            { canvas, task: { x: 220, y: -100, width: 100, height: 80 } },
-            320,
-            300,
-        )!;
-        expect(position.top).toBe(38);
-    });
-    it("uses space above a task near the bottom and clamps panel width on small canvases", () => {
-        const position = positionFormPreview(
-            {
-                canvas: { x: 10, y: 20, width: 280, height: 600 },
-                task: { x: 150, y: 550, width: 100, height: 60 },
-            },
-            340,
-            400,
-        )!;
-        expect(position.width).toBe(264);
-        expect(position.left).toBe(18);
-        expect(position.top + position.maxHeight).toBe(538);
-    });
-    it("hides when no usable space remains rather than covering the task or actions", () => {
-        expect(
-            positionFormPreview(
-                {
-                    canvas: { x: 0, y: 0, width: 200, height: 120 },
-                    task: { x: 50, y: 30, width: 100, height: 80 },
-                },
-                340,
-                400,
-            ),
-        ).toBeUndefined();
-    });
 });

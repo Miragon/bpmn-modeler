@@ -2,17 +2,16 @@ import { extractReference } from "./extractReference";
 import { is } from "bpmn-js/lib/util/ModelUtil";
 import type { FormPreviewHandle, ModelNavigationPort, PreviewRect } from "./ModelNavigationPort";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
-import {
-    collectPreviewObstacles,
-    previewNeighborhood,
-    type PreviewElement,
-} from "./collectPreviewObstacles";
+import type { BusinessObjectLike } from "./extractReference";
 import {
     reduceFormPreview,
     type FormPreviewEvent,
     type FormPreviewState,
 } from "./formPreviewState";
 
+interface PreviewElement extends Partial<PreviewRect> {
+    businessObject?: BusinessObjectLike;
+}
 interface EventBus {
     on(event: string, callback: (event?: unknown) => void): void;
 }
@@ -25,7 +24,6 @@ interface Canvas {
         querySelector(selector: string): { getBoundingClientRect(): PreviewRect } | null;
     };
     getAbsoluteBBox(element: PreviewElement): PreviewRect;
-    viewbox(): { x: number; y: number; scale: number };
     focus(): void;
 }
 interface ContextPad {
@@ -41,7 +39,6 @@ export class FormPreviewController {
         "contextPad",
         "modelNavigationPort",
         "formReferenceStatusClient",
-        "elementRegistry",
     ];
     private state: FormPreviewState<PreviewElement> = {
         dismissed: false,
@@ -60,7 +57,6 @@ export class FormPreviewController {
         private readonly contextPad: ContextPad,
         private readonly port: ModelNavigationPort,
         private readonly status: Pick<FormReferenceStatusClient, "isResolved">,
-        private readonly elementRegistry: { getAll(): PreviewElement[] },
     ) {
         const scheduleReposition = () => {
             if (!this.disposed) this.handle?.reposition();
@@ -147,25 +143,10 @@ export class FormPreviewController {
                     .querySelector(".djs-context-pad.open")
                     ?.getBoundingClientRect();
                 const task = { ...box, x: viewport.x + box.x, y: viewport.y + box.y };
-                const canvas = previewNeighborhood(viewport, task);
-                const viewbox = this.canvas.viewbox();
-                const toViewport = (rect: PreviewRect): PreviewRect => ({
-                    x: viewport.x + (rect.x - viewbox.x) * viewbox.scale,
-                    y: viewport.y + (rect.y - viewbox.y) * viewbox.scale,
-                    width: rect.width * viewbox.scale,
-                    height: rect.height * viewbox.scale,
-                });
-                const obstacles = collectPreviewObstacles(
-                    this.elementRegistry.getAll(),
-                    target,
-                    toViewport,
-                    canvas,
-                );
                 return {
-                    canvas,
+                    canvas: viewport,
                     task,
                     contextPad: pad && pad.width > 0 ? pad : undefined,
-                    obstacles,
                 };
             },
             onVisibilityChanged: (visible) => {

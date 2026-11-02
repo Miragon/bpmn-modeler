@@ -68,24 +68,28 @@ const loaded = () => {
 const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
 
 describe("anchored linked form preview", () => {
-    it("uses the webview viewport for explicit requests when the canvas is too small for close controls", async () => {
-        const { preview } = setup();
-        preview.open(
-            request({
-                automatic: false,
-                anchor: () => ({
-                    canvas: { x: 0, y: 0, width: 12, height: 12 },
-                    task: { x: 0, y: 0, width: 100, height: 80 },
+    it.each([false, true])(
+        "uses the webview viewport when the canvas is too small for close controls (automatic=%s)",
+        async (automatic) => {
+            const { preview } = setup();
+            preview.open(
+                request({
+                    automatic,
+                    anchor: () => ({
+                        canvas: { x: 0, y: 0, width: 12, height: 12 },
+                        task: { x: 0, y: 0, width: 100, height: 80 },
+                    }),
                 }),
-            }),
-        );
-        await vi.waitFor(loaded);
-        expect(panel()!.hidden).toBe(false);
-        expect(parseFloat(panel()!.style.width)).toBe(340);
-        expect(document.activeElement).toBe(panel()!.querySelector("[data-close]"));
-        preview.dispose();
-    });
-    it("keeps compact explicit feedback stable across resize frames and restores readable content when space returns", async () => {
+            );
+            await vi.waitFor(loaded);
+            expect(panel()!.hidden).toBe(false);
+            expect(parseFloat(panel()!.style.width)).toBe(340);
+            if (!automatic)
+                expect(document.activeElement).toBe(panel()!.querySelector("[data-close]"));
+            preview.dispose();
+        },
+    );
+    it("keeps loaded content and controls available across narrow viewport resize frames", async () => {
         const { preview } = setup();
         let height = 100;
         const handle = preview.open(
@@ -100,38 +104,36 @@ describe("anchored linked form preview", () => {
         await vi.waitFor(loaded);
         const node = panel()!;
         const header = node.querySelector("header")!;
-        Object.defineProperty(header, "offsetHeight", {
-            get: () => (node.classList.contains("linked-form-preview-compact") ? 0 : 100),
-        });
+        Object.defineProperty(header, "offsetHeight", { get: () => 100 });
         for (let i = 0; i < 4; i++) {
             handle.reposition();
             await new Promise(requestAnimationFrame);
-            expect(node.classList.contains("linked-form-preview-compact")).toBe(true);
+            expect(node.hidden).toBe(false);
+            expect(node.style.maxHeight).toBe("84px");
+            expect(node.querySelector<HTMLElement>("[data-close]")!.hidden).toBe(false);
+            expect(node.querySelector<HTMLElement>(".linked-form-preview-content")!.hidden).toBe(
+                false,
+            );
         }
         height = 500;
         handle.reposition();
-        await vi.waitFor(() =>
-            expect(node.classList.contains("linked-form-preview-compact")).toBe(false),
-        );
+        await vi.waitFor(() => expect(node.style.maxHeight).toBe("164px"));
         preview.dispose();
     });
     it.each([false, true])(
-        "keeps an explicit dense-diagram request visible (refresh=%s)",
+        "keeps an explicit request visible even when it overlaps the task (refresh=%s)",
         async (refresh) => {
             const { preview } = setup();
-            let crowded = !refresh;
             const options = request({
                 automatic: refresh,
                 anchor: () => ({
                     canvas: { x: 0, y: 0, width: 600, height: 400 },
-                    task: { x: 100, y: 100, width: 100, height: 80 },
-                    obstacles: crowded ? [{ x: 0, y: 0, width: 600, height: 400 }] : [],
+                    task: { x: 0, y: 0, width: 600, height: 400 },
                 }),
             });
             preview.open(options);
             await vi.waitFor(loaded);
             if (refresh) {
-                crowded = true;
                 click("[data-refresh]");
                 await vi.waitFor(() => expect(panel()!.getAttribute("aria-busy")).toBe("false"));
             }
@@ -142,7 +144,7 @@ describe("anchored linked form preview", () => {
             preview.dispose();
         },
     );
-    it("does not display a loaded form when only its chrome would fit", async () => {
+    it("bounds loaded forms instead of hiding them when space is constrained", async () => {
         const { preview } = setup();
         let height = 300;
         const options = request({
@@ -150,7 +152,6 @@ describe("anchored linked form preview", () => {
                 canvas: { x: 0, y: 0, width: 500, height },
                 task: { x: 100, y: 60, width: 100, height: 80 },
                 contextPad: { x: 210, y: 50, width: 80, height: 150 },
-                obstacles: [{ x: 320, y: 60, width: 100, height: 80 }],
             }),
         });
         const handle = preview.open(options);
@@ -161,15 +162,16 @@ describe("anchored linked form preview", () => {
             get: () => 500,
         });
         handle.reposition();
-        await vi.waitFor(() => expect(node.hidden).toBe(true));
-        expect(options.onVisibilityChanged).toHaveBeenLastCalledWith(false);
+        await vi.waitFor(() => expect(node.style.maxHeight).toBe("284px"));
+        expect(node.hidden).toBe(false);
+        expect(options.onVisibilityChanged).toHaveBeenLastCalledWith(true);
         height = 600;
         handle.reposition();
-        await vi.waitFor(() => expect(node.hidden).toBe(false));
-        expect(parseFloat(node.style.maxHeight)).toBeGreaterThanOrEqual(164);
+        await vi.waitFor(() => expect(node.style.maxHeight).toBe("584px"));
+        expect(node.hidden).toBe(false);
         preview.dispose();
     });
-    it("retains intrinsic height while hidden instead of oscillating with zero-size measurements", async () => {
+    it("keeps indicator geometry stable across repeated constrained resize frames", async () => {
         const { preview } = setup();
         const handle = preview.open(
             request({
@@ -177,19 +179,19 @@ describe("anchored linked form preview", () => {
                 anchor: () => ({
                     canvas: { x: 0, y: 0, width: 600, height: 200 },
                     task: { x: 1000, y: 100, width: 100, height: 80 },
-                    obstacles: [{ x: 0, y: 70, width: 600, height: 130 }],
                 }),
             }),
         );
         const node = document.querySelector<HTMLElement>(".linked-form-preview")!;
         const status = node.querySelector<HTMLElement>('[role="status"]')!;
-        Object.defineProperty(status, "offsetHeight", { get: () => (node.hidden ? 0 : 140) });
+        Object.defineProperty(status, "offsetHeight", { get: () => 240 });
         handle.reposition();
-        await vi.waitFor(() => expect(node.hidden).toBe(true));
+        await vi.waitFor(() => expect(node.style.maxHeight).toBe("184px"));
         for (let frame = 0; frame < 5; frame++) {
             handle.reposition();
             await new Promise(requestAnimationFrame);
-            expect(node.hidden).toBe(true);
+            expect(node.hidden).toBe(false);
+            expect(node.style.maxHeight).toBe("184px");
         }
         preview.dispose();
     });

@@ -21,8 +21,6 @@ export interface FormPreviewAnchor {
     /** Allowed preview area in viewport coordinates. */
     canvas: PreviewRect;
     contextPad?: PreviewRect;
-    /** Visible diagram shapes, labels and narrow connection segments in viewport coordinates. */
-    obstacles?: PreviewRect[];
 }
 export interface FormPreviewRequest {
     id: string;

@@ -36,9 +36,6 @@ export function createFormPreview(
         let viewer: PreviewViewer | undefined;
         let indicator = false;
         let frame: number | undefined;
-        let measuredHeight = 0;
-        let minimumHeight = 0;
-        let explicit = !request.automatic;
         const panel = document.createElement("div");
         panel.className = "linked-form-preview";
         panel.style.width = "340px";
@@ -107,13 +104,11 @@ export function createFormPreview(
                 number(style.paddingBottom) +
                 number(style.borderTopWidth) +
                 number(style.borderBottomWidth);
-            if (!panel.hidden && !panel.classList.contains("linked-form-preview-compact")) {
-                measuredHeight = chromeHeight + (indicator ? 0 : content.scrollHeight);
-                minimumHeight = chromeHeight + (viewer ? 64 : 0);
-            }
+            const measuredHeight = chromeHeight + (indicator ? 0 : content.scrollHeight);
+            const minimumHeight = chromeHeight + (viewer ? 64 : 0);
             const anchor = request.anchor();
-            // An explicit request still needs reachable chrome when the canvas is collapsed.
-            if (explicit && (anchor.canvas.width < 160 || anchor.canvas.height < 80))
+            // Keep controls reachable even when the canvas is collapsed.
+            if (anchor.canvas.width < 160 || anchor.canvas.height < 80)
                 anchor.canvas = {
                     x: 0,
                     y: 0,
@@ -124,27 +119,17 @@ export function createFormPreview(
                 anchor,
                 340,
                 Math.max(indicator ? 48 : 120, measuredHeight, minimumHeight),
-                minimumHeight,
-                explicit,
             );
-            panel.classList.toggle(
-                "linked-form-preview-compact",
-                !!position && position.maxHeight < minimumHeight,
-            );
-            if (panel.hidden !== !position) panel.hidden = !position;
-            if (position) {
-                for (const [key, value] of Object.entries({
-                    left: position.left,
-                    top: position.top,
-                    width: position.width,
-                    maxHeight: position.maxHeight,
-                })) {
-                    const property = key as "left" | "top" | "width" | "maxHeight";
-                    if (panel.style[property] !== `${value}px`)
-                        panel.style[property] = `${value}px`;
-                }
+            for (const [key, value] of Object.entries({
+                left: position.left,
+                top: position.top,
+                width: position.width,
+                maxHeight: position.maxHeight,
+            })) {
+                const property = key as "left" | "top" | "width" | "maxHeight";
+                if (panel.style[property] !== `${value}px`) panel.style[property] = `${value}px`;
             }
-            setVisible(Boolean(position));
+            setVisible(true);
         }
         function scheduleReposition(): void {
             if (closed || frame !== undefined) return;
@@ -176,7 +161,6 @@ export function createFormPreview(
             if (restoreFocus) request.focusCanvas();
         }
         async function load(automatic: boolean): Promise<void> {
-            if (!automatic) explicit = true;
             if (!automatic) request.onExplicitRequest?.();
             const token = ++generation;
             const wasVisible = visible;

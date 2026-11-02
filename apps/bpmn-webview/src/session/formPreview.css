@@ -4,7 +4,7 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: auto;
     padding: 12px;
     background: var(--vscode-editor-background, #fff);
     color: var(--vscode-editor-foreground, #222);
@@ -13,23 +13,17 @@
     font-size: var(--vscode-font-size, 13px);
 }
 .linked-form-preview[hidden] { display: none; }
-.linked-form-preview-compact { padding: 4px; overflow: auto; }
-.linked-form-preview-compact h2,
-.linked-form-preview-compact [data-refresh],
-.linked-form-preview-compact [data-description],
-.linked-form-preview-compact .linked-form-preview-content { display: none; }
-.linked-form-preview-compact header { justify-content: flex-end; }
 .linked-form-preview-indicator { padding: 8px; flex-direction: row-reverse; gap: 8px; align-items: center; }
 .linked-form-preview-indicator [hidden] { display: none; }
 .linked-form-preview-indicator .linked-form-preview-content { display: none; }
 .linked-form-preview > header,
 .linked-form-preview > p { flex-shrink: 0; }
 .linked-form-preview-indicator > p { flex-shrink: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.linked-form-preview-content { min-height: 0; overflow: auto; }
-.linked-form-preview header { display: flex; align-items: center; gap: 8px; }
+.linked-form-preview-content { min-height: 64px; overflow: auto; }
+.linked-form-preview header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .linked-form-preview header button { flex-shrink: 0; }
 .linked-form-preview [data-close] { padding: 0; width: 26px; height: 26px; font-size: 22px; line-height: 1; }
-.linked-form-preview h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.2em; }
+.linked-form-preview h2 { flex: 1; min-width: 4em; margin: 0; font-size: 1.2em; }
 .linked-form-preview button {
     background: var(--vscode-button-background, #0067b8);
     color: var(--vscode-button-foreground, #fff);

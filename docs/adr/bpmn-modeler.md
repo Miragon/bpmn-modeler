@@ -100,12 +100,12 @@ components are rejected rather than widening CSP; form actions are blocked.
 The optional availability-known hook distinguishes a pending index from an empty
 one; an unavailable preview request renders status only, without reading a file.
 
-**Consequences.** Automatic adjacency keeps the saved form in context but competes
-with diagram space; obstacle-aware placement can constrain the scrollable preview.
-Automatic previews yield when no readable nearby space is found. Explicit opens
-and refreshes instead allow viewport-clamped overlap: a requested preview must
-respond visibly and retain a reachable close control. A bounded local search
-favors predictable interaction cost over finding every possible empty region.
+**Consequences.** Place the preview directly right of the selected task and its
+context pad, clamped to the canvas viewport. Stable task association takes priority
+over avoiding obstruction: overlap with diagram elements is accepted rather than
+searching alternate locations. Bounded dimensions and scrolling keep content and
+close controls reachable in narrow viewports. An opt-out for automatic previews
+is recommended as a separate follow-up, not implemented here.
 Saved-byte resolution avoids coupling to open form editors at the cost of not
 reflecting unsaved changes. The index cannot distinguish missing from malformed
 JSON, so lightweight feedback names both without another scan. Explicit attempts

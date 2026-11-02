@@ -21,13 +21,6 @@ function task(id = "Form_1") {
     };
 }
 function setup(available = true) {
-    const elements: Array<
-        ReturnType<typeof task> & {
-            parent?: object;
-            hidden?: boolean;
-            waypoints?: Array<{ x: number; y: number }>;
-        }
-    > = [];
     const handlers = new Map<string, Array<(event?: unknown) => void>>();
     const fire = (name: string, event?: unknown) => handlers.get(name)?.forEach((fn) => fn(event));
     const selected: ReturnType<typeof task>[] = [];
@@ -84,7 +77,6 @@ function setup(available = true) {
         contextPad,
         port,
         { isResolved: () => port.isReferenceAvailable() },
-        { getAll: () => elements },
     );
     const select = (...elements: ReturnType<typeof task>[]) => {
         selected.splice(0, selected.length, ...elements);
@@ -92,7 +84,6 @@ function setup(available = true) {
     };
     return {
         controller,
-        elements,
         select,
         fire,
         open,
@@ -106,70 +97,18 @@ function setup(available = true) {
 }
 
 describe("automatic linked form preview", () => {
-    it("reads only the task bbox and uses the latest viewbox for 1000 distant nodes", () => {
+    it("uses live rendered task bounds without reading the synchronous viewbox", () => {
         const fixture = setup();
-        const root = task();
-        const target = { ...task(), parent: root };
-        fixture.elements.push(
-            ...Array.from({ length: 1000 }, () => ({ ...task(), parent: root, x: 10000 })),
-        );
+        const target = task();
         fixture.select(target);
         const request = fixture.open.mock.calls[0][0];
-        expect(request.anchor().obstacles).toEqual([]);
-        expect(fixture.canvas.getAbsoluteBBox).toHaveBeenCalledOnce();
-        fixture.elements[0].x = 300;
-        fixture.canvas.viewbox.mockReturnValue({ x: 50, y: 60, scale: 2 });
-        expect(request.anchor().obstacles).toEqual([{ x: 550, y: 340, width: 200, height: 160 }]);
-        expect(fixture.canvas.getAbsoluteBBox).toHaveBeenCalledTimes(2);
-    });
-    it("uses narrow boxes for each bent flow segment instead of its enclosing box", () => {
-        const fixture = setup();
-        const root = task();
-        const target = { ...task(), parent: root };
-        fixture.elements.push({
-            ...task(),
-            parent: root,
-            waypoints: [
-                { x: 200, y: 140 },
-                { x: 300, y: 140 },
-                { x: 300, y: 400 },
-            ],
+        expect(request.anchor()).toEqual({
+            canvas: { x: 50, y: 60, width: 800, height: 600 },
+            task: { x: 150, y: 260, width: 100, height: 80 },
         });
-        fixture.select(target);
-        expect(fixture.open.mock.calls[0][0].anchor().obstacles).toEqual([
-            { x: 248, y: 198, width: 104, height: 4 },
-            { x: 348, y: 198, width: 4, height: 264 },
-        ]);
-    });
-    it("anchors obstacles in viewport coordinates, excluding ancestors, hidden and inactive shapes", () => {
-        const fixture = setup();
-        const root = task();
-        const lane = {
-            ...task(),
-            type: "bpmn:Lane",
-            parent: root,
-            x: 50,
-            y: 150,
-            width: 600,
-            height: 250,
-        };
-        const target = { ...task(), parent: root };
-        const successor = { ...task(), parent: root };
-        const label = { ...task(), parent: root };
-        fixture.elements.push(
-            root,
-            lane,
-            target,
-            successor,
-            label,
-            { ...task(), parent: root, hidden: true },
-            { ...task(), parent: task() },
-        );
-        fixture.select(target);
-        expect(fixture.open.mock.calls[0][0].anchor().obstacles).toEqual([
-            { x: 150, y: 260, width: 100, height: 80 },
-            { x: 150, y: 260, width: 100, height: 80 },
-        ]);
+        fixture.canvas.getAbsoluteBBox.mockReturnValue({ x: 200, y: 300, width: 200, height: 160 });
+        expect(request.anchor().task).toEqual({ x: 250, y: 360, width: 200, height: 160 });
+        expect(fixture.canvas.viewbox).not.toHaveBeenCalled();
     });
     it("keeps explicit refresh errors retryable when the index changes", () => {
         const { select, open, handles, port, availabilityChanged } = setup();
@@ -283,13 +222,11 @@ describe("automatic linked form preview", () => {
             {
                 getContainer: () => container,
                 getAbsoluteBBox: () => pad,
-                viewbox: () => ({ x: 0, y: 0, scale: 1 }),
                 focus,
             },
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn(), formPreview: { open } },
             { isResolved: () => true },
-            { getAll: () => [] },
         );
         controller.openManual(task());
         handlers.get("selection.changed")!();
@@ -327,7 +264,6 @@ describe("automatic linked form preview", () => {
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn() },
             { isResolved: () => true },
-            { getAll: () => [] },
         );
         callbacks.forEach((fn) => fn());
         expect(canvas.focus).not.toHaveBeenCalled();

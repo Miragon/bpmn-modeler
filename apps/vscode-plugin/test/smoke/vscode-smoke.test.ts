@@ -372,7 +372,7 @@ describe("the packaged extension in a real VS Code", () => {
         });
         const previewAction = () => webview.locator('[data-action="preview-linked-form"]');
         const preview = () => webview.getByRole("region", { name: "Linked form preview" });
-        it("shows an explicitly requested preview in a dense diagram without automatic overlap", async () => {
+        it("automatically shows an adjacent preview in a dense diagram and reopens after dismissal", async () => {
             const source = await readFile(join(FIXTURES_DIRECTORY, "linked-form.bpmn"), "utf8");
             const tasks: string[] = [];
             const shapes: string[] = [];
@@ -407,7 +407,10 @@ describe("the packaged extension in a real VS Code", () => {
                 .getByText("Saved form loaded.", { exact: true })
                 .waitFor({ state: "attached" });
             await settle(webview);
-            expect(await preview().isVisible()).toBe(false);
+            expect(await preview().isVisible()).toBe(true);
+            await assertAnchored();
+            await preview().getByRole("button", { name: "Close form preview" }).click();
+            await previewAction().waitFor();
             await previewAction().focus();
             await vscode().page.keyboard.press("Enter");
             await preview().waitFor();
@@ -478,18 +481,37 @@ describe("the packaged extension in a real VS Code", () => {
                 true,
             );
         };
+        const dismissPreview = async () => {
+            const close = webview.locator(".linked-form-preview [data-close]");
+            if (await close.count()) await close.click();
+        };
         const selectLinked = async () => {
+            await dismissPreview();
             await selectElement(webview, "Task_Missing");
             await selectElement(webview, "Task_Linked");
             await preview().waitFor();
         };
         const assertAnchored = async () => {
-            const box = await preview().boundingBox();
-            const canvas = await webview.locator("#js-canvas .djs-container").boundingBox();
-            const task = await webview
-                .locator('.djs-shape[data-element-id="Task_Linked"]')
-                .boundingBox();
-            const pad = await webview.locator(".djs-context-pad.open").boundingBox();
+            await settle(webview);
+            // SVG boundingBox() can differ from DOM geometry in a scaled host iframe.
+            const { box, canvas, task, pad, maxHeight } = await preview().evaluate((node) => {
+                const rect = (element: Element | null) => {
+                    if (!element) return null;
+                    const { x, y, width, height } = element.getBoundingClientRect();
+                    return { x, y, width, height };
+                };
+                return {
+                    box: rect(node),
+                    canvas: rect(document.querySelector("#js-canvas .djs-container")),
+                    task: rect(
+                        document.querySelector(
+                            '.djs-shape[data-element-id="Task_Linked"] .djs-visual > rect',
+                        ),
+                    ),
+                    pad: rect(document.querySelector(".djs-context-pad.open")),
+                    maxHeight: parseFloat((node as HTMLElement).style.maxHeight),
+                };
+            });
             expect(box).not.toBeNull();
             expect(canvas).not.toBeNull();
             expect(task).not.toBeNull();
@@ -498,34 +520,23 @@ describe("the packaged extension in a real VS Code", () => {
             expect(box!.y).toBeGreaterThanOrEqual(canvas!.y);
             expect(box!.x + box!.width).toBeLessThanOrEqual(canvas!.x + canvas!.width + 1);
             expect(box!.y + box!.height).toBeLessThanOrEqual(canvas!.y + canvas!.height + 1);
-            const overlaps = (a: NonNullable<typeof box>, b: NonNullable<typeof box>) =>
-                a.x < b.x + b.width &&
-                a.x + a.width > b.x &&
-                a.y < b.y + b.height &&
-                a.y + a.height > b.y;
-            expect(overlaps(box!, task!)).toBe(false);
-            expect(overlaps(box!, pad!)).toBe(false);
+            const edge = Math.min(8, canvas!.width / 4, canvas!.height / 4);
+            const desiredLeft = Math.max(task!.x + task!.width, pad!.x + pad!.width) + 12;
+            const expectedLeft = Math.max(
+                canvas!.x + edge,
+                Math.min(desiredLeft, canvas!.x + canvas!.width - edge - box!.width),
+            );
+            expect(box!.x).toBeCloseTo(expectedLeft, 0);
+            const expectedTop = Math.max(
+                canvas!.y + edge,
+                Math.min(task!.y, canvas!.y + canvas!.height - edge - maxHeight),
+            );
+            expect(box!.y).toBeCloseTo(expectedTop, 0);
             expect(
                 await preview()
                     .locator(".linked-form-preview-content")
                     .evaluate((node) => node.clientHeight),
             ).toBeGreaterThan(0);
-            for (const id of ["Task_Missing", "Task_Unlinked", "Flow_1", "Flow_2"]) {
-                const neighbor = await webview
-                    .locator(`.djs-element[data-element-id="${id}"]`)
-                    .boundingBox();
-                expect(neighbor).not.toBeNull();
-                expect(overlaps(box!, neighbor!)).toBe(false);
-            }
-            const gapX = Math.min(
-                Math.abs(box!.x - task!.x - task!.width),
-                Math.abs(task!.x - box!.x - box!.width),
-            );
-            const gapY = Math.min(
-                Math.abs(box!.y - task!.y - task!.height),
-                Math.abs(task!.y - box!.y - box!.height),
-            );
-            expect(Math.min(gapX, gapY)).toBeLessThan(200);
         };
         it.each(COLOR_THEMES)(
             "anchors read-only content and aligned controls in $id",
@@ -600,7 +611,7 @@ describe("the packaged extension in a real VS Code", () => {
             expectNoCspViolations();
         });
 
-        it("leaves neighboring tasks clickable while open and keeps missing indicators stable without resize errors", async () => {
+        it("converges across repeated loaded selections and missing indicators without resize errors", async () => {
             await webview.locator("body").evaluate(() => {
                 const errors: string[] = [];
                 Object.assign(window, { previewResizeErrors: errors });
@@ -613,7 +624,19 @@ describe("the packaged extension in a real VS Code", () => {
                 for (const id of ["Task_Missing", "Task_Unlinked", "Task_Missing"]) {
                     await selectLinked();
                     await assertAnchored();
-                    // Playwright's real click must reach the SVG, not the preview overlay.
+                    const loadedStable = await preview().evaluate(async (node) => {
+                        const measurements: string[] = [];
+                        for (let frame = 0; frame < 12; frame++) {
+                            await new Promise(requestAnimationFrame);
+                            measurements.push(
+                                JSON.stringify(node.getBoundingClientRect().toJSON()),
+                            );
+                        }
+                        return new Set(measurements.slice(4)).size;
+                    });
+                    expect(loadedStable).toBe(1);
+                    // Adjacent previews may cover neighbors; dismiss before selecting one.
+                    await preview().getByRole("button", { name: "Close form preview" }).click();
                     await selectElement(webview, id);
                     await webview.locator(`.djs-shape.selected[data-element-id="${id}"]`).waitFor();
                     if (id === "Task_Missing") {
@@ -666,68 +689,110 @@ describe("the packaged extension in a real VS Code", () => {
             ).toEqual([]);
         });
 
-        it("keeps a usable scrolling form viewport and converges in constrained space", async () => {
-            const schema = JSON.parse(original);
-            schema.components = Array.from({ length: 12 }, (_, index) => ({
-                ...schema.components[0],
-                id: `Field_${index}`,
-                key: `field${index}`,
-                layout: { row: `Row_${index}`, columns: null },
-            }));
-            await writeFile(file, JSON.stringify(schema));
-            await webview.locator("body").evaluate(() => {
-                const errors: string[] = [];
-                Object.assign(window, { previewResizeErrors: errors });
-                window.addEventListener("error", (event) => {
-                    if (event.message.includes("ResizeObserver")) errors.push(event.message);
+        it.each([
+            { width: 280, height: 0, wrapped: false },
+            { width: 200, height: 240, wrapped: true },
+        ])(
+            "keeps a usable scrolling form and reachable controls at width=$width height=$height",
+            async ({ width, height, wrapped }) => {
+                const schema = JSON.parse(original);
+                schema.components = Array.from({ length: 12 }, (_, index) => ({
+                    ...schema.components[0],
+                    id: `Field_${index}`,
+                    key: `field${index}`,
+                    layout: { row: `Row_${index}`, columns: null },
+                }));
+                await writeFile(file, JSON.stringify(schema));
+                await webview.locator("body").evaluate(() => {
+                    const errors: string[] = [];
+                    Object.assign(window, { previewResizeErrors: errors });
+                    window.addEventListener("error", (event) => {
+                        if (event.message.includes("ResizeObserver")) errors.push(event.message);
+                    });
                 });
-            });
-            await selectLinked();
-            await preview()
-                .locator(".linked-form-preview-content")
-                .evaluate((content) => {
-                    const panel = content.closest<HTMLElement>(".linked-form-preview")!;
-                    const canvas = document.querySelector<HTMLElement>(
-                        "#js-canvas .djs-container",
-                    )!;
-                    const task = document
-                        .querySelector('[data-element-id="Task_Linked"]')!
-                        .getBoundingClientRect();
-                    const pad = document
-                        .querySelector(".djs-context-pad.open")!
-                        .getBoundingClientRect();
-                    const chrome = panel.getBoundingClientRect().height - content.clientHeight;
-                    canvas.style.height = `${Math.max(task.bottom, pad.bottom) - canvas.getBoundingClientRect().top + 12 + chrome + 96 + 8}px`;
-                });
-            await settle(webview);
-            await assertAnchored();
-            const geometry = await preview().evaluate(async (node) => {
-                const content = node.querySelector<HTMLElement>(".linked-form-preview-content")!;
-                const measurements: string[] = [];
-                for (let frame = 0; frame < 16; frame++) {
-                    await new Promise(requestAnimationFrame);
-                    measurements.push(
-                        JSON.stringify({
-                            box: node.getBoundingClientRect().toJSON(),
-                            height: content.clientHeight,
-                        }),
+                await selectLinked();
+                await preview()
+                    .locator(".linked-form-preview-content")
+                    .evaluate(
+                        (content, { width, height }) => {
+                            const panel = content.closest<HTMLElement>(".linked-form-preview")!;
+                            const canvas = document.querySelector<HTMLElement>(
+                                "#js-canvas .djs-container",
+                            )!;
+                            const task = document
+                                .querySelector('[data-element-id="Task_Linked"]')!
+                                .getBoundingClientRect();
+                            const pad = document
+                                .querySelector(".djs-context-pad.open")!
+                                .getBoundingClientRect();
+                            const chrome =
+                                panel.getBoundingClientRect().height - content.clientHeight;
+                            canvas.style.width = `${width}px`;
+                            canvas.style.height = `${height || Math.max(task.bottom, pad.bottom) - canvas.getBoundingClientRect().top + 12 + chrome + 96 + 8}px`;
+                        },
+                        { width, height },
                     );
-                }
-                return {
-                    usableHeight: content.clientHeight,
-                    scrollHeight: content.scrollHeight,
-                    stable: new Set(measurements.slice(6)).size,
-                    errors: (window as unknown as { previewResizeErrors: string[] })
-                        .previewResizeErrors,
-                };
-            });
-            expect(geometry.usableHeight).toBeGreaterThanOrEqual(64);
-            expect(geometry.scrollHeight).toBeGreaterThan(geometry.usableHeight);
-            expect(geometry.stable).toBe(1);
-            expect(geometry.errors).toEqual([]);
-        });
+                await settle(webview);
+                await assertAnchored();
+                const geometry = await preview().evaluate(async (node) => {
+                    const content = node.querySelector<HTMLElement>(
+                        ".linked-form-preview-content",
+                    )!;
+                    const measurements: string[] = [];
+                    for (let frame = 0; frame < 16; frame++) {
+                        await new Promise(requestAnimationFrame);
+                        measurements.push(
+                            JSON.stringify({
+                                box: node.getBoundingClientRect().toJSON(),
+                                height: content.clientHeight,
+                            }),
+                        );
+                    }
+                    content.scrollTop = content.scrollHeight;
+                    const close = node.querySelector<HTMLElement>("[data-close]")!;
+                    const header = node.querySelector<HTMLElement>("header")!;
+                    content.scrollIntoView({ block: "nearest" });
+                    const panelBox = node.getBoundingClientRect();
+                    const contentBox = content.getBoundingClientRect();
+                    close.scrollIntoView({ block: "nearest" });
+                    const closeBox = close.getBoundingClientRect();
+                    return {
+                        usableHeight: content.clientHeight,
+                        scrollHeight: content.scrollHeight,
+                        scrolled: content.scrollTop > 0,
+                        contentInside:
+                            contentBox.top >= panelBox.top && contentBox.bottom <= panelBox.bottom,
+                        wrapped:
+                            header.getBoundingClientRect().height >
+                            Math.max(
+                                ...Array.from(
+                                    header.children,
+                                    (child) => child.getBoundingClientRect().height,
+                                ),
+                            ) +
+                                1,
+                        closeInside:
+                            closeBox.left >= panelBox.left &&
+                            closeBox.right <= panelBox.right &&
+                            closeBox.top >= panelBox.top &&
+                            closeBox.bottom <= panelBox.bottom,
+                        stable: new Set(measurements.slice(6)).size,
+                        errors: (window as unknown as { previewResizeErrors: string[] })
+                            .previewResizeErrors,
+                    };
+                });
+                expect(geometry.usableHeight).toBeGreaterThanOrEqual(64);
+                expect(geometry.scrollHeight).toBeGreaterThan(geometry.usableHeight);
+                expect(geometry.scrolled).toBe(true);
+                expect(geometry.contentInside).toBe(true);
+                expect(geometry.closeInside).toBe(true);
+                expect(geometry.wrapped).toBe(wrapped);
+                expect(geometry.stable).toBe(1);
+                expect(geometry.errors).toEqual([]);
+            },
+        );
 
-        it("follows pan and zoom without covering task actions", async () => {
+        it("follows pan and zoom at the clamped adjacent position", async () => {
             await selectLinked();
             const shape = webview.locator('.djs-shape[data-element-id="Task_Linked"]');
             const svg = webview.locator(".djs-container > svg");
@@ -795,6 +860,7 @@ describe("the packaged extension in a real VS Code", () => {
 
         it("indicates missing references but stays quiet for unlinked automatic selections", async () => {
             await selectLinked();
+            await dismissPreview();
             await selectElement(webview, "Task_Missing");
             await expect.poll(() => preview().count()).toBe(0);
             const indicator = webview.locator(".linked-form-preview-indicator");
@@ -815,6 +881,7 @@ describe("the packaged extension in a real VS Code", () => {
                 "The linked form is missing or invalid. Check the form reference.",
                 "Close form preview",
             );
+            await dismissPreview();
             await selectElement(webview, "Task_Unlinked");
             expect(await preview().count()).toBe(0);
             expect(await indicator.count()).toBe(0);
@@ -939,6 +1006,7 @@ describe("the packaged extension in a real VS Code", () => {
 
         it("indicates initially malformed JSON with a hidden action and recovers on resolution", async () => {
             await selectLinked();
+            await dismissPreview();
             await selectElement(webview, "Task_Missing");
             await webview.locator("html").evaluate((node, formId) => {
                 const receive = (event: MessageEvent) => {
@@ -977,6 +1045,7 @@ describe("the packaged extension in a real VS Code", () => {
 
         it("indicates invalid automatic schema without a broken preview panel", async () => {
             await selectLinked();
+            await dismissPreview();
             await selectElement(webview, "Task_Unlinked");
             await writeFile(file, original.replace('"textfield"', '"iframe"'));
             await selectElement(webview, "Task_Linked");
@@ -990,6 +1059,7 @@ describe("the packaged extension in a real VS Code", () => {
                 .waitFor();
             expect(await preview().count()).toBe(0);
             expect(await previewAction().count()).toBe(0);
+            await dismissPreview();
             await selectElement(webview, "Task_Unlinked");
             expect(await webview.locator(".linked-form-preview-indicator").count()).toBe(0);
             await writeFile(file, original);
