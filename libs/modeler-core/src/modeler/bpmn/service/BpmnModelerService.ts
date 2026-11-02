@@ -9,7 +9,7 @@ import {
     PickerPort,
     SettingsPort,
     StatusBarPort,
-} from "../../../kernel/domain/hostPorts";
+} from "../../../kernel/port/hostPorts";
 import { newModelEnginePrompt } from "../../../kernel/domain/newModelEngine";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";

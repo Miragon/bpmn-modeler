@@ -1,11 +1,11 @@
 import { Command, LanguageQuery, Query } from "@miragon/bpmn-modeler-shared";
 
 import { isHiddenEditorError } from "../../kernel/domain/errors";
-import { LoggerPort } from "../../kernel/domain/hostPorts";
+import { LoggerPort } from "../../kernel/port/hostPorts";
 import { normalizeLineEndings } from "../../kernel/domain/lineEndings";
 import { CommandTarget } from "../domain/CommandTarget";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
-import { EditorHandle } from "./EditorHandle";
+import { EditorHandle } from "../port/EditorHandle";
 
 /** What became of a message: delivered, kept back from a hidden editor, or dropped by the host. */
 export type PostOutcome = "sent" | "hidden" | "undelivered";

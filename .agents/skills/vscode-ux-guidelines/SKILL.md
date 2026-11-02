@@ -52,7 +52,7 @@ window
 
 ## Status Bar
 
-The core shows status through `StatusBarPort` (`libs/modeler-core/src/kernel/domain/hostPorts.ts`): `show(slot, view)` and `hide(slot)`. Each slot (`elementTemplates`, `engineVersion`, `bpmnlint`, `deploymentTarget`) holds one `StatusView` (`kernel/domain/statusView.ts`) with its text, icon, tone, tooltip, click action and `transient` flag. The core writes the text; a host only places the slot and renders the view.
+The core shows status through `StatusBarPort` (`libs/modeler-core/src/kernel/port/hostPorts.ts`): `show(slot, view)` and `hide(slot)`. Each slot (`elementTemplates`, `engineVersion`, `bpmnlint`, `deploymentTarget`) holds one `StatusView` (`kernel/domain/statusView.ts`) with its text, icon, tone, tooltip, click action and `transient` flag. The core writes the text; a host only places the slot and renders the view.
 
 `VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) creates one item per slot on first show, at the side and priority its placement table gives. It maps each icon to a codicon, each tone to a theme colour (`warning` to `statusBarItem.warningBackground`) and each action to a command:
 
@@ -135,7 +135,7 @@ async readClipboard(): Promise<string>   // vscode.env.clipboard.readText()
 async writeClipboard(text: string): Promise<void>  // vscode.env.clipboard.writeText()
 ```
 
-The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
+The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `libs/modeler-core/src/modeler/bpmn/adapter/in/bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
 
 ### Webview Side: Two DI Modules
 

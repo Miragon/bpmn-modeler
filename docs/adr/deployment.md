@@ -121,7 +121,7 @@ before that push, because the form ends its reload lock on the first target
 list after a successful result. Overlapping commands push once, after the last
 result
 ([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts),
-[feature tests](../../libs/modeler-core/src/deployment/DeploymentFeature.spec.ts)).
+[feature tests](../../libs/modeler-core/src/deployment/composition/DeploymentFeature.spec.ts)).
 
 A target name is resolved once per request, command or prefill into a
 `DeploymentDestination`: a blank name is the ad-hoc connection

@@ -1,13 +1,9 @@
-import { NotifierPort } from "../../kernel/domain/hostPorts";
+import { NotifierPort } from "../../kernel/port/hostPorts";
 import { AccessDenial } from "../domain/accessDenial";
-import {
-    hostForConfig,
-    RepositoryAccessError,
-    RepositorySourceConfig,
-    TokenPrompt,
-    TokenPromptPort,
-    TokenStorePort,
-} from "../domain/ports";
+import { hostForConfig, RepositorySourceConfig } from "../domain/repositorySourceConfig";
+import { RepositoryAccessError } from "../domain/repositoryAccessError";
+import { TokenPrompt } from "../domain/tokenPrompt";
+import { TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
 import { enteredToken, tokenPromptFor } from "../domain/tokenPrompt";
 
 /**

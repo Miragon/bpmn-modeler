@@ -6,7 +6,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
 import { globToRegExp } from "../kernel/domain/globToRegExp";
-import { WorkspacePort } from "../kernel/domain/hostPorts";
+import { WorkspacePort } from "../kernel/port/hostPorts";
 import { isWithinRoot, relativeToRoot } from "../kernel/domain/rootContainment";
 import { withoutFileScheme } from "../kernel/domain/workspacePath";
 

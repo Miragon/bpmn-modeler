@@ -1,5 +1,6 @@
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
-import { DiffPaneHandle, DiffSession } from "../domain/DiffSession";
+import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { DiffSession } from "./DiffSession";
 
 /**
  * Milliseconds a pre-registered `compare-files` session stays alive with no

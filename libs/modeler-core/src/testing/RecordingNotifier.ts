@@ -3,7 +3,7 @@ import {
     notifiedErrorLogText,
     notifiedErrorToastText,
 } from "../kernel/domain/errorLogText";
-import { NotifierPort } from "../kernel/domain/hostPorts";
+import { NotifierPort } from "../kernel/port/hostPorts";
 
 export type LogLevel = "debug" | "info" | "warning" | "error";
 

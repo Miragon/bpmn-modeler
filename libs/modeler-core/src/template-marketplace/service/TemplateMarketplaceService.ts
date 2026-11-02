@@ -1,4 +1,4 @@
-import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { FetchReport, SourceFailure } from "../domain/fetchReport";
 import {
     InvalidMarketplaceError,
@@ -10,12 +10,8 @@ import {
     TemplateSource,
 } from "../domain/marketplace";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
-import {
-    RepositorySourceConfig,
-    RepositorySourceFactory,
-    TokenPromptPort,
-    TokenStorePort,
-} from "../domain/ports";
+import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
+import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
 import {
     declaredPrivateHosts,
     describeSourceConfig,

@@ -75,44 +75,51 @@ file reaches a host module (`node:*`, `fs`, `http`), directly or transitively.
 This does not make the whole core browser-safe: portable Node utilities such as
 `path` remain valid there.
 
-Inside the core, each feature folder (`modeler/<editor>` for the editors)
-splits into `domain/`, an application layer of `service/` and `session/` (the
-editor-session participants), `infrastructure/` and root files that compose the
-feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
-and Node `path`. Two folders are shared, and features reach each other only
-through them. A feature's `domain/` may import only its own `domain/` and the
-`domain/` of `kernel/` and `editorSession/`.
+Inside the core, each feature folder (`modeler/<editor>` for the editors) is a
+context with the [role folders](#workspace-kinds-and-role-folders) it needs:
+`domain/`, `port/`, `service/` (the editor-session participants included),
+`adapter/in/` (the `*MessageHandlers` tables), `adapter/out/` and
+`composition/`, where the `*Feature` module wires the context. `domain/`
+imports only domain modules, `@miragon/bpmn-modeler-types` and Node `path`.
+Two contexts are shared, and the others reach each other only through them,
+composition included. A context's `domain/` may import only its own `domain/`
+and the `domain/` of `kernel/` and `editorSession/`.
 
 - `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
   engine versions, the workspace path, config-folder, glob, containment and
-  watcher rules, the cross-cutting errors and host ports, and the HTTP
-  contract (`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch
+  watcher rules, the cross-cutting errors, the host ports
+  (`kernel/port/hostPorts.ts`), and the HTTP contract (`HttpClient` in
+  `port/`, `HttpTransportError` and `loggableHost` in `domain/`) with its fetch
   adapter. A service joins `kernel/service/` only when at least two features
   use it, as `ArtifactService` and the workspace file search do. `kernel/`
   imports no other folder, so it stays the bottom layer.
 - `editorSession/` is the application core every editor runs on. Its
   `service/` holds the store, lifecycle, router, document sync, ordered
-  dispatch, flush services and webview log routing, `session/` the render
-  participant, and `infrastructure/` only the inbound document, focus, log and
-  notification handlers. Its `domain/` keeps the session events, the
-  participant contract, the echo guard and status-item ownership.
-  `EditorHandle` sits in `service/` because its `postMessage` speaks the
-  private protocol; `EditorSessionDocuments` implements `DocumentPort` on top
-  of the store, so it is a service, not an adapter. `editorSession/` imports
-  only `kernel/`, which the cross-feature rule already implies.
+  dispatch, flush services, webview log routing and the render participant,
+  and `adapter/in/` the inbound document, focus, log and notification
+  handlers. Its `domain/` keeps the session events, the participant contract,
+  the echo guard and status-item ownership. `EditorHandle` is a port: the host
+  implements it, and its `postMessage` speaks the private protocol.
+  `EditorSessionDocuments` implements `DocumentPort` on top of the store, so
+  it is a service, not an adapter. `editorSession/` imports only `kernel/`,
+  which the cross-feature rule already implies.
 
-Services and participants import no infrastructure; in infrastructure only the
-inbound `*MessageHandlers` adapters import services. A relative import resolves
-to a feature module, never to the package entry or the test kit, and the core
-has no import cycles. The core architecture test enforces these rules.
-Cross-cutting host ports live in `kernel/domain/hostPorts.ts`; a port, prompt
-or error one feature owns lives in that feature's `domain/` (`ports.ts`,
-`errors.ts`), so `kernel/` names no feature.
+The shared role-folder rules keep services off adapters, outbound adapters off
+services, and every import away from the package entry and the test kit; the
+core has no import cycles. A port file holds only interfaces: the value types,
+errors and pure functions a port names stay in `domain/`, so the domain never
+imports a port. A port, prompt or error one feature owns lives in that
+feature's `port/` or `domain/`, so `kernel/` names no feature.
+`EditorSessionParticipant` stays in `editorSession/domain/`: it is an in-core
+extension point the lifecycle drives, not a port a host implements.
 A store that holds application state and reaches the host, if at all, only
 through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
-feature's `service/` with no port of its own. The test lists no exception
-today. A new one names the issue that removes it, and the test fails when one
-is no longer needed, so the lists only shrink.
+feature's `service/` with no port of its own, and so does `DiffSession`, which
+holds the panes' `DiffPaneHandle` port. The core architecture test enforces
+the core's own rules (no host module, the domain package allowlist, the
+context rules) and lists no exception today. A new one names the issue that
+removes it, and the test fails when one is no longer needed, so the lists only
+shrink.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
@@ -252,8 +259,8 @@ level of the direction rather than of each adapter package: here one
 technology spans contexts, and the rules between contexts stay per workspace.
 
 The core's session participants are in-core reactions that
-`EditorSessionLifecycle` drives, so they join `service/`; the previous core
-spec already treated `service/` and `session/` as one application layer. Webviews
+`EditorSessionLifecycle` drives, so they sit in `service/`, which the core
+always treated as one application layer with them. Webviews
 follow the same roles: the UI and host queries are `adapter/in/`, the host
 channel and the modeler-library wrappers `adapter/out/`, the reducers
 `domain/` and the bootstrap `composition/`. Each webview maps its files in its
@@ -287,12 +294,12 @@ once it is shown, and reports `"hidden"` for what must be replayed. The host-fre
 code-link, form-reference status, definition search, script editor) and the
 webview message handlers live in the core. `DeploymentFeature` and
 `MarketplaceCommands` own the deployment and marketplace flows.
-`BpmnEditorFeature` (`modeler/bpmn/`) builds the BPMN editor: its services, one
+`BpmnEditorFeature` (`modeler/bpmn/composition/`) builds the BPMN editor: its services, one
 router from a `CommandTable` that has an entry for every type in
 `BPMN_EDITOR_COMMAND_TYPES` (`WebviewMessageRouter.fromTable`), and its
 participants in one order. The
-cross-feature rule holds for it as for every feature, with no exempt
-composition folder: navigation, definition search, code-link and the script
+cross-feature rule holds for it as for every feature, its `composition/`
+included: navigation, definition search, code-link and the script
 editor each export their handlers and participant as an `EditorContribution`
 (`NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`,
 `ScriptEditorFeature`), and the host's composition hands them to the editor

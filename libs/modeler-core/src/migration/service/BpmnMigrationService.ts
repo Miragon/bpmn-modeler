@@ -16,12 +16,7 @@ import {
     nothingToMigrateSummary,
 } from "../domain/migrationSummary";
 import { migrationScopePrompt } from "../domain/migrationScopePrompt";
-import {
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    WorkspacePort,
-} from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 
 /**

@@ -149,7 +149,6 @@ module.exports = [
         files: [
             "**/src/**/adapter/**/*.ts",
             "apps/vscode-plugin/src/**/infrastructure/**/*.ts",
-            "libs/modeler-core/src/**/infrastructure/**/*.ts",
             "libs/modeler-core/src/testing/**/*.ts",
             "apps/modeler-bridge/src/*[aA]dapters.ts",
         ],

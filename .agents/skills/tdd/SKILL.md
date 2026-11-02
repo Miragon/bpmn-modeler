@@ -38,7 +38,8 @@ Pull any decision out of such code first; the decision itself is not exempt.
 
 - Pure code in `libs/modeler-core/src/<feature>/domain/`: no ports, fakes,
   timers, DOM, `vscode`, Node host modules or `@miragon/bpmn-modeler-shared`
-  imports. The core's `architecture.spec.ts` enforces the layer direction.
+  imports. `tools/repo-checks/src/architecture.spec.ts` enforces the role
+  folders' import direction; the domain imports no `port/`.
 - Aggregates and value objects own their invariants: a factory that validates,
   no public mutation, derived state computed instead of stored.
 - Return decisions as values, as discriminated unions such as

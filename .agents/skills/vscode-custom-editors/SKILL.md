@@ -123,14 +123,14 @@ Services operate on the active editor by default. The echo-prevention guard is p
 
 - **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
 - **Session lifecycle + participant contract**: `libs/modeler-core/src/editorSession/service/EditorSessionLifecycle.ts`, `libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts`
-- **BPMN editor**: `libs/modeler-core/src/modeler/bpmn/BpmnEditorFeature.ts` (services, router table, participant order); the contributing features' roots `NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`, `ScriptEditorFeature`
-- **Shared participants / handlers**: `libs/modeler-core/src/<feature>/session/`, `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch`/`scriptTask` `infrastructure/*MessageHandlers.ts`)
+- **BPMN editor**: `libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts` (services, router table, participant order); the contributing features' `composition/` modules `NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`, `ScriptEditorFeature`
+- **Shared participants / handlers**: `libs/modeler-core/src/<feature>/service/*Participant.ts`, `libs/modeler-core/src/modeler/bpmn/adapter/in/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch`/`scriptTask` `adapter/in/*MessageHandlers.ts`)
 - **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/form/controller/editor-participants/`, `…/webview-handlers/formMessageHandlers.ts` (form values); the BPMN editor's VS Code adapters are `VsCodeLintingPreference`, `PropertiesPanelStateRepository` and the script tabs `scriptTask/infrastructure/ScriptTaskService.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts` (host-agnostic)
 - **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
 - **Editor session store**: `libs/modeler-core/src/editorSession/service/EditorSessionStore.ts` (`vscode`-free registry)
-- **Editor handle**: contract `libs/modeler-core/src/editorSession/service/EditorHandle.ts`; VS Code adapter `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts`
+- **Editor handle**: contract `libs/modeler-core/src/editorSession/port/EditorHandle.ts`; VS Code adapter `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts`
 - **Session documents**: `libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store)
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`

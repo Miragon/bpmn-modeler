@@ -5,7 +5,7 @@ import {
     FileNotFound,
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
-import { WorkspacePort } from "../kernel/domain/hostPorts";
+import { WorkspacePort } from "../kernel/port/hostPorts";
 import { WatcherEventKind } from "../kernel/domain/watcherEvents";
 
 /** One {@link WorkspacePort} adapter under the {@link describeWorkspaceContract} scenarios. */

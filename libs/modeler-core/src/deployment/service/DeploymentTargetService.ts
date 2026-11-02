@@ -1,12 +1,7 @@
 import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
 
 import { configFolderPath } from "../../kernel/domain/configArtifacts";
-import {
-    NotifierPort,
-    PickerPort,
-    SettingsPort,
-    WorkspacePort,
-} from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { AuthConfig, BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
@@ -37,7 +32,7 @@ import {
     DeploymentTargetsListener,
 } from "../domain/deploymentTargetsEvent";
 import { deleteTargetConfirmation, deploymentTargetPrompt } from "../domain/deploymentPrompts";
-import { DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { DeploymentStatePort, SecretStorePort } from "../port/deploymentPorts";
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { storeCredentials } from "./storeCredentials";
 

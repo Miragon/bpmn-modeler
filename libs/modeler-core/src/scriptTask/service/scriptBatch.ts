@@ -1,7 +1,7 @@
 import type { ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
 import { notifiedErrorLogText } from "../../kernel/domain/errorLogText";
-import type { LoggerPort } from "../../kernel/domain/hostPorts";
+import type { LoggerPort } from "../../kernel/port/hostPorts";
 import {
     type ScriptBatchOutcome,
     scriptBatchOutcome,

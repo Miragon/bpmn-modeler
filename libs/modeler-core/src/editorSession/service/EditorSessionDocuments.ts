@@ -1,4 +1,4 @@
-import { DocumentPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 
 /**

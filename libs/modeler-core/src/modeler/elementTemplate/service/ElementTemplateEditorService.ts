@@ -2,7 +2,7 @@ import { basename } from "path";
 
 import { ElementTemplateFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/port/hostPorts";
 import {
     EditorDocumentSync,
     ModelerDocumentService,

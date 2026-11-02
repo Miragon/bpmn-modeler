@@ -2,13 +2,8 @@ import { posix } from "path";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
-import {
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    WorkspacePort,
-} from "../../kernel/domain/hostPorts";
-import { CamundaEnginePort } from "../domain/ports";
+import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { CamundaEnginePort } from "../port/deploymentPorts";
 import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";

@@ -1,7 +1,7 @@
 import { FormFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { UserCancelledError } from "../../../kernel/domain/errors";
-import { DocumentPort, NotifierPort } from "../../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../../kernel/port/hostPorts";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { createEmptyForm } from "../domain/emptyForm";

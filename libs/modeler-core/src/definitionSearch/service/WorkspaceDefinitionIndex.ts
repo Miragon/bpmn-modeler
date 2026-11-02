@@ -1,6 +1,6 @@
 import { extractModelDefinitions, type ModelDefinition } from "@miragon/bpmn-modeler-types";
 
-import type { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import type { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import {

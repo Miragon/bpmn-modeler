@@ -8,7 +8,7 @@ import {
     SourceSlotRecord,
 } from "../domain/sourceCacheRefresh";
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
-import { WorkspacePort } from "../../kernel/domain/hostPorts";
+import { WorkspacePort } from "../../kernel/port/hostPorts";
 
 /**
  * The content-type segment the template pipeline owns. `getCachedTemplatePaths`

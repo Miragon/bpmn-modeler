@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { openLocatedFile } from "../../kernel/service/openLocatedFile";
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 

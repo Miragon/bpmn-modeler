@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { openLocatedFile } from "../../kernel/service/openLocatedFile";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationTarget } from "../domain/ImplementationTarget";

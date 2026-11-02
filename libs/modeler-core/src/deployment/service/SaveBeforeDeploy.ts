@@ -1,4 +1,4 @@
-import { DocumentPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort } from "../../kernel/port/hostPorts";
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 
 export type SaveBeforeDeployResult = { saved: true } | { saved: false; message: string };

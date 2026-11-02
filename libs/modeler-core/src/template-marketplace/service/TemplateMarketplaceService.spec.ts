@@ -3,12 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestHost } from "../../testing";
 import { FetchReport } from "../domain/fetchReport";
 import { InvalidMarketplaceError } from "../domain/marketplace";
-import {
-    RepositoryAccessError,
-    RepositorySource,
-    RepositorySourceConfig,
-    RepositorySourceFactory,
-} from "../domain/ports";
+import { RepositoryAccessError } from "../domain/repositoryAccessError";
+import { RepositorySource, RepositorySourceFactory } from "../port/marketplacePorts";
+import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { MarketplaceCache } from "./MarketplaceCache";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 

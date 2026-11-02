@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { createTestHost } from "../../testing";
-import { RepositoryAccessError, RepositorySourceConfig } from "../domain/ports";
+import { RepositoryAccessError } from "../domain/repositoryAccessError";
+import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { HostTokenSession } from "./HostTokenSession";
 
 const GITHUB_MARKETPLACE: RepositorySourceConfig = {

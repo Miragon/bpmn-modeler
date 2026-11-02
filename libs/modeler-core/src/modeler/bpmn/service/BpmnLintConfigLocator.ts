@@ -2,7 +2,7 @@ import { ancestorsUpTo } from "../../../kernel/domain/ancestorsUpTo";
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
 import { changesConfigLookup } from "../../../kernel/domain/configLookup";
 import { DirectoryNotFound } from "../../../kernel/domain/errors";
-import { SettingsPort, WorkspacePort } from "../../../kernel/domain/hostPorts";
+import { SettingsPort, WorkspacePort } from "../../../kernel/port/hostPorts";
 import { EVERY_PATH_GLOB } from "../../../kernel/domain/watchedFiles";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService, WatcherResult } from "../../../kernel/service/ArtifactService";

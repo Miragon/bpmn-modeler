@@ -1,4 +1,4 @@
-import { MarketplaceSettingsEntry } from "../../kernel/domain/hostPorts";
+import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     marketplaceEntryLabel,
     MarketplaceRegistration,

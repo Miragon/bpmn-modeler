@@ -396,7 +396,7 @@ Before 11.15.0, bpmnlint's `no-overlapping-elements` and `no-bpmndi` scaled
 quadratically with model size and dominated every lint pass on large models.
 Since 11.15.0 both are near-linear; every host and npm consumers of
 `@miragon/bpmn-modeler` get that through its pinned `bpmnlint` dependency. The
-[equivalence spec](../../libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnlint/coreRuleEquivalence.spec.ts)
+[equivalence spec](../../libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/coreRuleEquivalence.spec.ts)
 pins their reports and order, so a bpmnlint bump that changes either rule's
 output fails. 11.15.0 reports the same elements as 11.14.0, but
 `no-overlapping-elements` lists them in element order instead of detection order.

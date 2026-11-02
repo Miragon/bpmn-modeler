@@ -1,6 +1,6 @@
 import { Command, LogMessageCommand } from "@miragon/bpmn-modeler-shared";
 
-import { LoggerPort } from "../../kernel/domain/hostPorts";
+import { LoggerPort } from "../../kernel/port/hostPorts";
 
 /** Command types this module recognises, mapped to the logger method each drives. */
 const LOG_LEVELS = {
