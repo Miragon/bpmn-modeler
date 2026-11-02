@@ -80,3 +80,6 @@ docs/.vitepress/cache
 .claude/logs/
 .claude/settings.local.json
 .flatpak-builder/
+
+# debugging logs
+.context

@@ -1,0 +1,6 @@
+import type { Snapshot } from "../domain/snapshot";
+
+export interface SnapshotReader {
+    /** Undefined when no snapshot is stored for the commit; throws on a corrupt one. */
+    read(commit: string): Snapshot | undefined;
+}

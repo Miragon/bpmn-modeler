@@ -31,6 +31,7 @@ export const BPMN_EDITOR_COMMAND_TYPES = [
     "NavigateToImplementationCommand",
     "SyncActivitiesCommand",
     "GetFormReferenceStatusCommand",
+    "GetFormPreviewCommand",
     "SearchWorkspaceDefinitionsCommand",
     "OpenScriptEditorCommand",
     "OpenScriptEditorsCommand",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
     FormReferenceStatusQuery,
+    FormPreviewQuery,
+    GetFormPreviewCommand,
     GetFormReferenceStatusCommand,
     NavigateToReferencedModelCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -30,6 +32,25 @@ function createFeature() {
 }
 
 describe("NavigationFeature", () => {
+    it.each([true, false])(
+        "previews the saved form linked from the editor (automatic: %s)",
+        async (automatic) => {
+            const { editor, editorContribution } = createFeature();
+
+            await editorContribution.commandHandlers.GetFormPreviewCommand(
+                new GetFormPreviewCommand(1, "Form_Approve", automatic),
+                editor.id,
+            );
+
+            expect(editor.postedOfType("FormPreviewQuery")).toEqual([
+                new FormPreviewQuery(1, {
+                    kind: "loaded",
+                    content: JSON.stringify({ id: "Form_Approve", components: [] }),
+                }),
+            ]);
+        },
+    );
+
     it("opens the model a call activity references", async () => {
         const { host, editor, editorContribution } = createFeature();
 

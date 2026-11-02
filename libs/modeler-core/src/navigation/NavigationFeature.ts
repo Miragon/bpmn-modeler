@@ -3,9 +3,11 @@ import { EditorContribution } from "../editorSession/service/EditorContribution"
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import {
     getFormReferenceStatusHandler,
+    getFormPreviewHandler,
     navigateToReferencedModelHandler,
 } from "./infrastructure/navigationMessageHandlers";
 import { FormReferenceStatusService } from "./service/FormReferenceStatusService";
+import { FormPreviewService } from "./service/FormPreviewService";
 import { ModelNavigationService } from "./service/ModelNavigationService";
 import { ReferencedModelLocator } from "./service/ReferencedModelLocator";
 import { FormReferenceStatusParticipant } from "./session/FormReferenceStatusParticipant";
@@ -24,7 +26,9 @@ export interface NavigationHostPorts {
  */
 export class NavigationFeature {
     readonly editorContribution: EditorContribution<
-        "NavigateToReferencedModelCommand" | "GetFormReferenceStatusCommand"
+        | "NavigateToReferencedModelCommand"
+        | "GetFormReferenceStatusCommand"
+        | "GetFormPreviewCommand"
     >;
 
     private readonly formReferenceStatus: FormReferenceStatusService;
@@ -46,6 +50,10 @@ export class NavigationFeature {
         );
         this.editorContribution = {
             commandHandlers: {
+                GetFormPreviewCommand: getFormPreviewHandler(
+                    ports.store,
+                    new FormPreviewService(locator, ports.workspace, ports.picker, ports.notifier),
+                ),
                 NavigateToReferencedModelCommand: navigateToReferencedModelHandler(
                     ports.store,
                     navigation,

@@ -7,6 +7,26 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "The linked form is missing or invalid. Check the form reference.":
+        "連結的表單不存在或無效。請檢查表單參照。",
+    "Preview linked form": "預覽關聯表單",
+    "Linked form preview": "關聯表單預覽",
+    "Refresh": "重新整理",
+    "Close form preview": "關閉表單預覽",
+    "Read-only preview of the saved local form.": "已儲存本機表單的唯讀預覽。",
+    "Saved form loaded.": "已載入儲存的表單。",
+    "Open a workspace folder to preview linked forms.": "請開啟工作區資料夾以預覽關聯表單。",
+    "No saved local form matches this reference. Refresh to try again.":
+        "沒有與此參照相符的已儲存本機表單。請重新整理後再試。",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "多個已儲存表單與此參照相符。請選取要預覽的表單。",
+    "The saved form could not be read. Refresh to try again.":
+        "無法讀取已儲存的表單。請重新整理後再試。",
+    "The host did not answer. Refresh to try again.": "主機未回應。請重新整理後再試。",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "已儲存的表單無效或不受支援。請在表單編輯器中開啟。",
+    "The form preview could not be loaded. Refresh to try again.":
+        "無法載入表單預覽。請重新整理後再試。",
     "Apply Template": "套用範本",
     "Automated work carried out by a Java delegate, expression, or external task":
         "由 Java delegate、表達式或外部任務執行的自動化工作",

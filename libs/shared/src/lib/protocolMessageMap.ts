@@ -39,6 +39,8 @@ import type {
     FormFileQuery,
     FormInputValuesQuery,
     FormReferenceStatusQuery,
+    FormPreviewQuery,
+    GetFormPreviewCommand,
     FormatDiagramQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
@@ -122,6 +124,7 @@ export type ProtocolQuery =
     | LanguageQuery
     | ImplementationStatusQuery
     | FormReferenceStatusQuery
+    | FormPreviewQuery
     | WorkspaceDefinitionsQuery
     | OpenAllScriptTasksQuery
     | FormatDiagramQuery
@@ -167,6 +170,7 @@ export type ProtocolCommand =
     | NavigateToReferencedModelCommand
     | GetFormReferenceStatusCommand
     | SearchWorkspaceDefinitionsCommand
+    | GetFormPreviewCommand
     | NavigateToImplementationCommand
     | SyncActivitiesCommand
     | SetClipboardCommand

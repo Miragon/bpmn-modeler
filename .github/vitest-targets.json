@@ -213,6 +213,7 @@
             "paths": [
                 "tools/repo-checks/**",
                 "tools/architecture-testing/**",
+                ".agents/skills/**",
                 "{apps,libs,packages,tools}/*/src/**",
                 "{apps,libs,packages,tools}/*/package.json",
                 ".github/workflows/sync-release-markers.yml",

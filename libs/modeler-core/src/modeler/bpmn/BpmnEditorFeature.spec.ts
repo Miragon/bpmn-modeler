@@ -72,6 +72,7 @@ const FULL_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
     NavigateToImplementationCommand: HANDLED,
     SyncActivitiesCommand: HANDLED,
     GetFormReferenceStatusCommand: HANDLED,
+    GetFormPreviewCommand: HANDLED,
     SearchWorkspaceDefinitionsCommand: HANDLED,
     OpenScriptEditorCommand: HANDLED,
     OpenScriptEditorsCommand: HANDLED,
@@ -119,6 +120,7 @@ function recordingContributions(
             commandHandlers: {
                 NavigateToReferencedModelCommand: handler("navigate to model"),
                 GetFormReferenceStatusCommand: handler("form reference status"),
+                GetFormPreviewCommand: handler("form preview"),
             },
             participant: participant("navigation"),
         },
@@ -333,6 +335,7 @@ describe("BpmnEditorFeature", () => {
         for (const type of [
             "NavigateToReferencedModelCommand",
             "GetFormReferenceStatusCommand",
+            "GetFormPreviewCommand",
             "SearchWorkspaceDefinitionsCommand",
             "OpenScriptEditorCommand",
             "OpenScriptEditorsCommand",
@@ -347,6 +350,7 @@ describe("BpmnEditorFeature", () => {
         expect(calls).toEqual([
             "navigate to model",
             "form reference status",
+            "form preview",
             "search definitions",
             "open script",
             "open scripts",

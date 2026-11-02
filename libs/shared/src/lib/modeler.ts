@@ -79,6 +79,7 @@ import type {
     VariableDef,
     Viewport,
     WorkspaceDefinition,
+    FormPreviewResult,
 } from "@miragon/bpmn-modeler-types";
 
 // =================================== Queries ==================================>
@@ -681,6 +682,25 @@ export class NavigateToReferencedModelCommand extends Command<"NavigateToReferen
 export class GetFormReferenceStatusCommand extends Command<"GetFormReferenceStatusCommand"> {
     constructor() {
         super("GetFormReferenceStatusCommand");
+    }
+}
+
+export class GetFormPreviewCommand extends Command<"GetFormPreviewCommand"> {
+    constructor(
+        public requestId: number,
+        public formId: string,
+        public automatic = false,
+    ) {
+        super("GetFormPreviewCommand");
+    }
+}
+
+export class FormPreviewQuery extends Query<"FormPreviewQuery"> {
+    constructor(
+        public requestId: number,
+        public result: FormPreviewResult,
+    ) {
+        super("FormPreviewQuery");
     }
 }
 

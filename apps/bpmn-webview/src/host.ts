@@ -12,6 +12,7 @@ import {
     ClipboardQuery,
     Command,
     ElementTemplatesQuery,
+    FormPreviewQuery,
     HostApi,
     HostApiImpl,
     MockHostApi,
@@ -264,6 +265,15 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             case "CleanupReportCommand": {
                 console.debug("[DEBUG] CleanupReportCommand", message);
+                break;
+            }
+            case "GetFormPreviewCommand": {
+                dispatchEvent(
+                    new FormPreviewQuery(command.requestId, {
+                        kind: "unavailable",
+                        reason: "noScope",
+                    }),
+                );
                 break;
             }
             case "GetFormReferenceStatusCommand": {

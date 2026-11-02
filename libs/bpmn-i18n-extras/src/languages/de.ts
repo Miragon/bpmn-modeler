@@ -7,6 +7,29 @@
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */
 const dictionary: Record<string, string> = {
+    "The linked form is missing or invalid. Check the form reference.":
+        "Das verknüpfte Formular fehlt oder ist ungültig. Prüfen Sie den Formularverweis.",
+    "Preview linked form": "Verknüpftes Formular vorschauen",
+    "Linked form preview": "Vorschau des verknüpften Formulars",
+    "Refresh": "Aktualisieren",
+    "Close form preview": "Formularvorschau schließen",
+    "Read-only preview of the saved local form.":
+        "Schreibgeschützte Vorschau des gespeicherten lokalen Formulars.",
+    "Saved form loaded.": "Gespeichertes Formular geladen.",
+    "Open a workspace folder to preview linked forms.":
+        "Öffnen Sie einen Arbeitsbereichsordner für die Formularvorschau.",
+    "No saved local form matches this reference. Refresh to try again.":
+        "Kein gespeichertes lokales Formular passt zu dieser Referenz. Aktualisieren Sie die Vorschau.",
+    "Multiple saved forms match this reference. Choose a form to preview.":
+        "Mehrere gespeicherte Formulare passen zu dieser Referenz. Wählen Sie ein Formular aus.",
+    "The saved form could not be read. Refresh to try again.":
+        "Das gespeicherte Formular konnte nicht gelesen werden. Aktualisieren Sie die Vorschau.",
+    "The host did not answer. Refresh to try again.":
+        "Der Host hat nicht geantwortet. Aktualisieren Sie die Vorschau.",
+    "The saved form is invalid or unsupported. Open it in the form editor.":
+        "Das gespeicherte Formular ist ungültig oder wird nicht unterstützt. Öffnen Sie es im Formulareditor.",
+    "The form preview could not be loaded. Refresh to try again.":
+        "Die Formularvorschau konnte nicht geladen werden. Aktualisieren Sie die Vorschau.",
     "Apply Template": "Vorlage anwenden",
     "Automated work carried out by a Java delegate, expression, or external task":
         "Automatisierte Arbeit, ausgeführt von einem Java Delegate, einem Ausdruck oder einem externen Task",

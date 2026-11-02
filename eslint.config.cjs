@@ -74,6 +74,7 @@ module.exports = [
             "apps/standalone/scripts/**/*.mjs",
             "libs/*/scripts/**/*.mjs",
             "packages/*/scripts/**/*.mjs",
+            "tools/*/bin/**/*.mjs",
         ],
         languageOptions: {
             globals: {

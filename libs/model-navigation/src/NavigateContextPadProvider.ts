@@ -9,6 +9,7 @@
  * Clicking the entry calls {@link ModelNavigationPort.openReference}; the
  * consumer performs the workspace lookup and opens the referenced `.bpmn`,
  * `.dmn`, or `.form` file.
+ * An optional preview capability adds a separate read-only linked-form action.
  *
  * The entry is rendered as an inline `html` fragment with an embedded SVG
  * (same approach as the `append` entry from `bpmn-js-create-append-anything`)
@@ -29,6 +30,7 @@ import { extractReference } from "./extractReference";
 import type { BusinessObjectLike } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
+import type { FormPreviewController } from "./FormPreviewController";
 
 interface ContextPad {
     registerProvider(provider: NavigateContextPadProvider): void;
@@ -75,6 +77,7 @@ export class NavigateContextPadProvider {
         "translate",
         "modelNavigationPort",
         "formReferenceStatusClient",
+        "formPreviewController",
     ];
 
     private readonly translate: Translate;
@@ -86,6 +89,10 @@ export class NavigateContextPadProvider {
         translate: Translate,
         modelNavigationPort: ModelNavigationPort,
         private readonly formReferenceStatusClient: FormReferenceStatusClient,
+        private readonly formPreviewController?: Pick<
+            FormPreviewController,
+            "isVisible" | "openManual"
+        >,
     ) {
         this.translate = translate;
         this.port = modelNavigationPort;
@@ -93,8 +100,8 @@ export class NavigateContextPadProvider {
     }
 
     /**
-     * Called by the context pad for the selected element.  Returns a single
-     * entry when the element has a resolvable process, decision, or form reference,
+     * Called by the context pad for the selected element. Returns navigation
+     * entries when the element has a resolvable process, decision, or form reference,
      * or an empty object otherwise (no contribution).
      *
      * @param element The currently selected element.
@@ -112,7 +119,7 @@ export class NavigateContextPadProvider {
             return {};
         }
 
-        return {
+        const entries: ContextPadEntries = {
             "navigate-to-referenced-model": {
                 group: "connect",
                 html: `<div class="entry">${NAVIGATE_ICON_SVG}</div>`,
@@ -133,6 +140,27 @@ export class NavigateContextPadProvider {
                 },
             },
         };
+        if (
+            kind === "form" &&
+            this.port.formPreview &&
+            !this.formPreviewController?.isVisible(element)
+        ) {
+            const title = this.translate("Preview linked form");
+            entries["preview-linked-form"] = {
+                group: "connect",
+                html: `<button type="button" class="entry linked-form-preview-action" aria-label="${title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>`,
+                title,
+                action: {
+                    click: (_event, clickedElement) => {
+                        const current = extractReference(clickedElement.businessObject, "form");
+                        if (current && this.formReferenceStatusClient.isResolved(current)) {
+                            this.formPreviewController?.openManual(clickedElement);
+                        }
+                    },
+                },
+            };
+        }
+        return entries;
     }
 
     private detectKind(element: Element): ReferenceKind | undefined {

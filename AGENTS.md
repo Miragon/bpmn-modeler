@@ -46,6 +46,7 @@ corepack yarn watch             # F5 Extension Host: webviews rebuild to disk
 corepack yarn test              # Every Vitest project, no coverage
 corepack yarn test:coverage     # Each workspace's `test`: coverage + thresholds as in CI
 corepack yarn lint
+corepack yarn fitness           # Fitness function report against the merge base; --format json
 
 corepack yarn test libs/modeler-core/src/kernel/domain/BpmnDocument.spec.ts  # One spec
 corepack yarn workspace @miragon/bpmn-modeler-core test                      # One workspace with its coverage gate
