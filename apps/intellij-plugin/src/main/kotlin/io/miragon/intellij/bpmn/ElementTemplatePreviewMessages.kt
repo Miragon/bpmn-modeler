@@ -13,7 +13,7 @@ internal object ElementTemplatePreviewMessages {
     const val GET_FILE = "GetElementTemplateFileCommand"
     const val LOG_ERROR = "LogErrorCommand"
 
-    data class PageMessage(val type: String, val log: String?)
+    data class PageMessage(val type: String, val text: String?)
 
     private val GSON = Gson()
 
@@ -37,6 +37,6 @@ internal object ElementTemplatePreviewMessages {
     fun parse(json: String): PageMessage? {
         val message = runCatching { JsonParser.parseString(json) }.getOrNull()?.takeIf { it.isJsonObject }?.asJsonObject
         val type = message?.get("type")?.takeIf { it.isJsonPrimitive }?.asString ?: return null
-        return PageMessage(type, message.get("log")?.takeIf { it.isJsonPrimitive }?.asString)
+        return PageMessage(type, message.get("message")?.takeIf { it.isJsonPrimitive }?.asString)
     }
 }

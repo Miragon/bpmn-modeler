@@ -79,8 +79,8 @@ class ElementTemplatePreviewEditor(private val file: VirtualFile) : UserDataHold
         when (message.type) {
             ElementTemplatePreviewMessages.GET_FILE ->
                 post(ElementTemplatePreviewMessages.fileQuery(currentText(), locale))
-            "LogErrorCommand" -> log.warn("Element template preview: ${message.log}")
-            else -> log.debug("Element template preview: ${message.type} ${message.log.orEmpty()}")
+            ElementTemplatePreviewMessages.LOG_ERROR -> log.warn("Element template preview: ${message.text}")
+            else -> log.debug("Element template preview: ${message.type} ${message.text.orEmpty()}")
         }
     }
 
