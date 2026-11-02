@@ -14,7 +14,11 @@ import {
     type WorkspaceDefinitionsQuery,
     createReplyRegistry,
 } from "@miragon/bpmn-modeler-shared";
-import { type DetectedEngine, extractProcessVariables } from "@miragon/bpmn-modeler-types";
+import {
+    type DetectedEngine,
+    engineSupports,
+    extractProcessVariables,
+} from "@miragon/bpmn-modeler-types";
 
 import { isModelerHandle, type SurfaceHandle } from "../surface";
 import type { HostChannel } from "./hostChannel";
@@ -184,7 +188,7 @@ export function createProtocolCapabilities(
             WorkspaceDefinitionsQuery: (query) => definitionSearch.receive(query),
         },
         requestFormReferenceStatus: (engine) => {
-            if (engine === "c8") {
+            if (engineSupports(engine, "formReferenceStatus")) {
                 host.postMessage(new GetFormReferenceStatusCommand());
             }
         },

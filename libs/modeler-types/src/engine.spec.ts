@@ -5,10 +5,12 @@ import {
     ENGINE_EXECUTION_PLATFORM,
     ENGINE_LABEL,
     ENGINES,
+    engineSupports,
     executionPlatformAttributeNames,
     isEngine,
     readDefinitionsStartTag,
     readStartTag,
+    type EngineCapability,
 } from "./engine";
 
 const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
@@ -31,7 +33,9 @@ describe("isEngine", () => {
         ["c9", false],
         ["C8", false],
         ["", false],
+        ["toString", false],
         [undefined, false],
+        [null, false],
         [8, false],
     ])("judges %j", (value, expected) => {
         expect(isEngine(value)).toBe(expected);
@@ -254,5 +258,29 @@ describe("executionPlatformAttributeNames", () => {
     ])("names the attributes under $given", ({ xml, expected }) => {
         const attributes = readDefinitionsStartTag(xml)?.attributes ?? [];
         expect(executionPlatformAttributeNames(attributes)).toEqual(expected);
+    });
+});
+
+describe("engineSupports", () => {
+    it.each([
+        { engine: "c7", capability: "verifiesDeployments", supported: true },
+        { engine: "c8", capability: "verifiesDeployments", supported: false },
+        { engine: "c7", capability: "inlineScripting", supported: true },
+        { engine: "c8", capability: "inlineScripting", supported: false },
+        { engine: "c7", capability: "transactionBoundaries", supported: true },
+        { engine: "c8", capability: "transactionBoundaries", supported: false },
+        { engine: "c7", capability: "formReferenceStatus", supported: false },
+        { engine: "c8", capability: "formReferenceStatus", supported: true },
+    ] as const)("$engine supports $capability: $supported", ({ engine, capability, supported }) => {
+        expect(engineSupports(engine, capability)).toBe(supported);
+    });
+
+    it.each<EngineCapability>([
+        "verifiesDeployments",
+        "inlineScripting",
+        "transactionBoundaries",
+        "formReferenceStatus",
+    ])("an undetected engine supports no %s", (capability) => {
+        expect(engineSupports(undefined, capability)).toBe(false);
     });
 });

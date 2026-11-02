@@ -38,6 +38,43 @@ export const ENGINE_EXECUTION_PLATFORM: Record<Engine, string> = {
 };
 
 /**
+ * What an engine supports. Every engine rule lives here, so code asks
+ * {@link engineSupports} instead of comparing an {@link Engine} value.
+ */
+export interface EngineCapabilities {
+    /** Only Camunda 7 has a deployment lookup to verify a diagram against. */
+    readonly verifiesDeployments: boolean;
+    /** Inline scripting is a Camunda 7 feature; the Camunda 8 modeler leaves it unregistered. */
+    readonly inlineScripting: boolean;
+    /** Transaction boundaries are a Camunda 7 overlay. */
+    readonly transactionBoundaries: boolean;
+    /** Only Camunda 8 links user tasks to Camunda Forms by id. */
+    readonly formReferenceStatus: boolean;
+}
+
+export type EngineCapability = keyof EngineCapabilities;
+
+const ENGINE_CAPABILITIES: Record<Engine, EngineCapabilities> = {
+    c7: {
+        verifiesDeployments: true,
+        inlineScripting: true,
+        transactionBoundaries: true,
+        formReferenceStatus: false,
+    },
+    c8: {
+        verifiesDeployments: false,
+        inlineScripting: false,
+        transactionBoundaries: false,
+        formReferenceStatus: true,
+    },
+};
+
+/** Whether `engine` has `capability`. An undetected engine has none. */
+export function engineSupports(engine: Engine | undefined, capability: EngineCapability): boolean {
+    return engine !== undefined && ENGINE_CAPABILITIES[engine][capability];
+}
+
+/**
  * Result of {@link detectEngine}: the engine, or `undefined` when the XML
  * carries no recognisable platform metadata.
  */

@@ -46,6 +46,11 @@ Pull any decision out of such code first; the decision itself is not exempt.
   `{ kind: "alreadyDeclared" } | { kind: "declared"; manifestText: string }`,
   and let the service act on them. The domain decides; it does not call out.
 - Services in `service/` only orchestrate ports around those decisions.
+- A service never decides on a domain value's raw data (`target.engine === "c7"`);
+  it asks the home, a capability or method named after the rule (for example
+  `verifiesDeployments`). Acting on a decision a domain function returned is
+  fine. `miragon/no-guarded-value-comparison` enforces it for the registered
+  types.
 - Rules that browser code and the core both apply live in `libs/modeler-types`
   (pure, protocol-free). Webview-only rules go into a pure reducer module next
   to the bootstrap, not into DOM handlers.

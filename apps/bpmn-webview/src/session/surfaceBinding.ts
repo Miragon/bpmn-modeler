@@ -6,7 +6,7 @@ import {
     GetElementTemplatesCommand,
     type WebviewStateHost,
 } from "@miragon/bpmn-modeler-shared";
-import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
+import { type DetectedEngine, engineSupports } from "@miragon/bpmn-modeler-types";
 
 import { WebviewStateManager } from "../state";
 import {
@@ -67,8 +67,11 @@ export function createSurfaceBinder(
         }
 
         let cancelPendingVariablePublish = (): void => {};
-        // Scripting is a C7 cluster, so only a C7 modeler with the scripting port publishes.
-        if (isModelerHandle(handle) && engine === "c7" && capabilities.scripting) {
+        if (
+            isModelerHandle(handle) &&
+            engineSupports(engine, "inlineScripting") &&
+            capabilities.scripting
+        ) {
             const variables = createProcessVariablePublisher(host, handle, session);
             cancelPendingVariablePublish = variables.cancel;
             handle.onCommandStackChanged(variables.schedule);

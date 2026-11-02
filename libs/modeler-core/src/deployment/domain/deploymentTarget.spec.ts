@@ -578,6 +578,15 @@ describe("DeploymentTarget", () => {
         });
     });
 
+    describe("verifiesDeployments", () => {
+        it.each([
+            { engine: "c7", verifies: true },
+            { engine: "c8", verifies: false },
+        ] as const)("$engine target verifies deployments: $verifies", ({ engine, verifies }) => {
+            expect(target("dev", { engine }).verifiesDeployments()).toBe(verifies);
+        });
+    });
+
     describe("authWith", () => {
         const basicTarget = (credentialRefs?: CredentialRefs) =>
             target("dev", { authType: "basic", credentialRefs });

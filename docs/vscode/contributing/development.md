@@ -74,10 +74,8 @@ instructions in a `CLAUDE.local.md`, set **Project instructions** to
 `claude-md-and-agents-md` in `/config`, otherwise Claude Code stops loading
 `AGENTS.md`. Run `/context` to see which instruction files a session loaded.
 
-`.claude/settings.json` contains only Claude settings: automatic attribution
-is disabled and the existing Playwright plugin tools are pre-approved.
-Codex does not read this file. The rule against agent attribution in commits
-and PRs lives in the shared instructions and applies to both clients.
+`.claude/settings.json` contains only Claude settings: it pre-approves the
+existing Playwright plugin tools. Codex does not read this file.
 Keep personal Claude overrides in `.claude/settings.local.json` (gitignored).
 When updating an older checkout, move any local Claude overrides from the
 former shared agent directory to `.claude/settings.local.json`; `.claude/`

@@ -1,4 +1,4 @@
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine, engineSupports, isEngine } from "@miragon/bpmn-modeler-types";
 
 import {
     DeploymentTargetChangedError,
@@ -261,7 +261,7 @@ export class DeploymentTarget {
         if (name === "") {
             throw new InvalidDeploymentTargetError("name", NON_EMPTY_STRING);
         }
-        if (engine !== "c7" && engine !== "c8") {
+        if (!isEngine(engine)) {
             throw new InvalidDeploymentTargetError("engine", 'must be "c7" or "c8"');
         }
         if (fields.endpoint.trim() === "") {
@@ -291,6 +291,10 @@ export class DeploymentTarget {
 
     get credentialRefs(): CredentialRefs {
         return this.auth.credentialRefs;
+    }
+
+    verifiesDeployments(): boolean {
+        return engineSupports(this.engine, "verifiesDeployments");
     }
 
     /**

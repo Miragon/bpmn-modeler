@@ -32,6 +32,11 @@ export const C8_VERSIONS: readonly string[] = [
     "8.0.0",
 ];
 
+const VERSIONS: Record<Engine, readonly string[]> = {
+    c7: C7_VERSIONS,
+    c8: C8_VERSIONS,
+};
+
 /** Returns the latest (first) version for the given platform. */
 export function getLatestVersion(platform: Engine): string {
     return getVersions(platform)[0];
@@ -39,5 +44,5 @@ export function getLatestVersion(platform: Engine): string {
 
 /** Returns the platform's version list, newest first. */
 export function getVersions(platform: Engine): readonly string[] {
-    return platform === "c7" ? C7_VERSIONS : C8_VERSIONS;
+    return VERSIONS[platform];
 }

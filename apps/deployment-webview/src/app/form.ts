@@ -18,7 +18,7 @@ import {
     StoredCredentialsQuery,
     HostApi,
 } from "@miragon/bpmn-modeler-shared";
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import {
     type DraftActivity,
@@ -310,7 +310,7 @@ export class DeploymentForm {
             deploymentName,
             tenantId: this.tenantIdInput.value.trim(),
             endpoint,
-            engine: this.engineSelect.value as Engine,
+            engine: this.selectedEngine(),
             mainFilePath: "", // Populated by the extension host from the active editor
             additionalFilePaths: [...this.additionalFilePaths],
             auth,
@@ -323,7 +323,7 @@ export class DeploymentForm {
     getTargetPayload(): DeploymentTargetPayload {
         return {
             name: this.targetNameInput.value.trim(),
-            engine: this.engineSelect.value as Engine,
+            engine: this.selectedEngine(),
             endpoint: this.endpointInput.value.trim(),
             tenantId: this.tenantIdInput.value.trim(),
             authType: this.authTypeSelect.value as AuthConfigPayload["authType"],
@@ -397,7 +397,7 @@ export class DeploymentForm {
         this.assertExecutionReady();
         return {
             endpoint: this.endpointInput.value.trim(),
-            engine: this.engineSelect.value as Engine,
+            engine: this.selectedEngine(),
             targetName: this.editingTargetName,
             startInstanceUrl: this.startInstanceUrlInput.value.trim() || undefined,
         };
@@ -692,8 +692,16 @@ export class DeploymentForm {
         this.requestCredentials();
     }
 
+    private selectedEngine(): Engine {
+        const engine = this.engineSelect.value;
+        if (!isEngine(engine)) {
+            throw new Error(`Unknown engine "${engine}".`);
+        }
+        return engine;
+    }
+
     private updateAdvancedPlaceholders(): void {
-        const engine = this.engineSelect.value as Engine;
+        const engine = this.selectedEngine();
         this.deployUrlInput.placeholder = CONVENTION_DEPLOY_URL[engine];
         this.startInstanceUrlInput.placeholder = CONVENTION_START_URL[engine];
     }
@@ -703,7 +711,7 @@ export class DeploymentForm {
      * focused diagram's detected execution platform.
      */
     private updateEngineMismatchHint(): void {
-        const engine = this.engineSelect.value as Engine;
+        const engine = this.selectedEngine();
         if (this.detectedEngine !== undefined && this.detectedEngine !== engine) {
             const label: Record<Engine, string> = {
                 c7: "Camunda Platform 7",
