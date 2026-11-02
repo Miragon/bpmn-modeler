@@ -43,6 +43,9 @@ function parseCommand(args: readonly string[]) {
         throw new UsageError(`unexpected argument ${extra[0]}`);
     }
     if (command === "report") {
+        if (values.out !== undefined) {
+            throw new UsageError("report does not take --out");
+        }
         const format = values.format ?? "markdown";
         if (format !== "markdown" && format !== "json") {
             throw new UsageError(`unknown format ${format}`);
@@ -50,6 +53,9 @@ function parseCommand(args: readonly string[]) {
         return { command, format } as const;
     }
     if (command === "snapshot") {
+        if (values.format !== undefined) {
+            throw new UsageError("snapshot does not take --format");
+        }
         if (values.out === undefined) {
             throw new UsageError("snapshot needs --out <dir>");
         }

@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -154,6 +155,23 @@ describe("the worktree checkout", () => {
         ).toThrow("broken function");
         expect(existsSync(checkoutRoot)).toBe(false);
         expect(repository.git("worktree", "list").split("\n")).toHaveLength(1);
+    });
+
+    it("reports a failed add as the error and leaves no directory behind", () => {
+        repository.commit("a.ts", "1");
+        const before = new Set(readdirSync(tmpdir()));
+
+        expect(() =>
+            new GitWorktreeCheckout(repository.root).withTreeAt("0".repeat(40), () => ""),
+        ).toThrow("invalid reference");
+
+        const leaked = readdirSync(tmpdir()).filter(
+            (entry) =>
+                entry.startsWith("fitness-") &&
+                !entry.startsWith("fitness-spec-") &&
+                !before.has(entry),
+        );
+        expect(leaked).toEqual([]);
     });
 });
 

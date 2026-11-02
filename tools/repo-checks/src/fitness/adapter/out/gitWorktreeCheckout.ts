@@ -10,11 +10,16 @@ export class GitWorktreeCheckout implements TreeCheckout {
 
     withTreeAt<T>(commit: string, use: (root: string) => T): T {
         const root = mkdtempSync(join(tmpdir(), "fitness-"));
+        // A failed add leaves no worktree; removing one anyway would mask the add's error.
+        let added = false;
         try {
             git(this.repoRoot, ["worktree", "add", "--detach", "--quiet", root, commit]);
+            added = true;
             return use(root);
         } finally {
-            git(this.repoRoot, ["worktree", "remove", "--force", root]);
+            if (added) {
+                git(this.repoRoot, ["worktree", "remove", "--force", root]);
+            }
             rmSync(root, { recursive: true, force: true });
         }
     }

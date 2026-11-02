@@ -118,6 +118,11 @@ describe("the fitness command", () => {
         [["--format", "html"], "unknown format html"],
         [["review"], "unknown command review"],
         [["snapshot"], "snapshot needs --out <dir>"],
+        [
+            ["snapshot", "--out", "/tmp/fitness", "--format", "json"],
+            "snapshot does not take --format",
+        ],
+        [["--out", "/tmp/fitness"], "report does not take --out"],
         [["report", "extra"], "unexpected argument extra"],
         [["--colour"], "--colour"],
     ])("exits 2 on the usage error in %j", (args, message) => {
