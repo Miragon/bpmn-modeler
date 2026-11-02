@@ -46,7 +46,7 @@ const PROBLEMS = [
         name: "Problems",
         id: "problems",
         appliesTo: ["bpmn:ServiceTask"],
-        groups: [{}],
+        groups: [{}, { id: "twin" }, { id: "twin" }],
         properties: [
             input("first", { id: "a" }),
             input("second", { id: "a" }),
@@ -61,6 +61,10 @@ const PROBLEMS = [
             hidden({ type: "zeebe:script", property: "resultVariable" }),
             hidden({ type: "bpmn:Message#property", name: "name" }),
             hidden({ type: "zeebe:linkedResource", linkName: "x", property: "resourceId" }),
+            hidden({ type: "zeebe:taskDefinition:type" }),
+            input("old optional", { optional: true }),
+            input("locked FEEL", { feel: "optional", editable: false }),
+            { type: "Hidden", binding: { type: "zeebe:input", name: "no value" } },
         ],
     },
     {
@@ -79,6 +83,9 @@ const FILES: Readonly<Record<string, string>> = {
     broken: '{\n  "name": "Broken",\n',
     notemplate: "[]\n",
     problems: `${JSON.stringify(PROBLEMS, null, 2)}\n`,
+    // Valid JSON the builder cannot edit in place, and a type the preview cannot show.
+    unshaped: `${JSON.stringify({ $schema: C8_SCHEMA, name: "Unshaped", id: "unshaped", appliesTo: ["bpmn:ServiceTask"], elementType: "bpmn:ServiceTask", properties: [] }, null, 2)}\n`,
+    process: `${JSON.stringify({ $schema: C8_SCHEMA, name: "Process", id: "process", appliesTo: ["bpmn:Process"], properties: [] }, null, 2)}\n`,
 };
 
 /**

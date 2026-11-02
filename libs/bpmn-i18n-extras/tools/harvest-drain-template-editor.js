@@ -11,6 +11,8 @@
  *   /template-editor.html?file=noschema   the engine choice
  *   /template-editor.html?file=broken     the broken-JSON messages
  *   /template-editor.html?file=notemplate a JSON file without a template
+ *   /template-editor.html?file=unshaped   an edit the JSON cannot take
+ *   /template-editor.html?file=process    a template the preview cannot show
  *
  * It relies on the dev-only recorder in apps/bpmn-webview/src/templateEditor/main.ts,
  * which adds every text the page translates to `window.__harvested`. The page
@@ -68,6 +70,9 @@ window.__harvestDrainTemplateEditor = async function harvestDrainTemplateEditor(
         for (const tab of ["template", "groups", "properties"]) {
             await click($(`#etb-tab-${tab}`));
             await type($("#etb-search"), "no-such-setting");
+            // Something another tab has, whichever tab this is.
+            await type($("#etb-search"), "e");
+            await type($("#etb-search"), "name");
             await type($("#etb-search"), "");
             for (let index = 0; index < $$(".etb-index__item").length; index++) {
                 await click($$(".etb-index__item")[index]);
@@ -87,11 +92,17 @@ window.__harvestDrainTemplateEditor = async function harvestDrainTemplateEditor(
     await click($("#etb-tab-template"));
     await type($('[data-entry-id="template-name"] input'), "");
     await type($('[data-entry-id="template-version"] input'), "one");
-    for (const elementType of optionsOf(select("template-elementType-value"))) {
-        await choose(select("template-elementType-value"), elementType);
+    const elementTypeSetting = () =>
+        select("template-elementType") ?? select("template-elementType-value");
+    for (const elementType of optionsOf(elementTypeSetting())) {
+        await choose(elementTypeSetting(), elementType);
     }
     await click($("#etb-tab-groups"));
     await click(button("Add Group"));
+    // An id the group cannot have, in both ways.
+    await type($('[data-entry-id="group-0-id"] input'), "");
+    await type($('[data-entry-id="group-0-id"] input'), "twin");
+    await type($('[data-entry-id="group-0-id"] input'), "group-1");
 
     // Every binding and type on one property renders every field the builder edits.
     await click($("#etb-tab-properties"));
