@@ -38,11 +38,7 @@ export class ElementTemplatePreviewService implements RenderedDocumentService {
             if (!snapshot) return false;
             return await this.editorStore.postMessage(
                 editorId,
-                new ElementTemplateFileQuery(
-                    snapshot.content,
-                    snapshot.revision,
-                    this.settings.getLanguage(),
-                ),
+                new ElementTemplateFileQuery(snapshot.content, this.settings.getLanguage()),
             );
         } catch (error) {
             if (isHiddenEditorError(error)) {

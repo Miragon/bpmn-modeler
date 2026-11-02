@@ -21,7 +21,6 @@ internal object ElementTemplatePreviewMessages {
             JsonObject().apply {
                 addProperty("type", "ElementTemplateFileQuery")
                 addProperty("content", content)
-                addProperty("documentRevision", 0)
                 addProperty("locale", locale)
             },
         )

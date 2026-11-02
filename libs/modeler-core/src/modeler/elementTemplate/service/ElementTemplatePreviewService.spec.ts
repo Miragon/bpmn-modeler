@@ -31,21 +31,19 @@ describe("ElementTemplatePreviewService", () => {
         const { service, editor } = createService(content);
 
         expect(await service.display(editor.id)).toBe(true);
-        expect(editor.posted).toEqual([new ElementTemplateFileQuery(content, 0, "de")]);
+        expect(editor.posted).toEqual([new ElementTemplateFileQuery(content, "de")]);
         expect(editor.content).toBe(content);
         expect(editor.saveCount).toBe(0);
     });
 
-    it("sends each host edit with the document's revision", async () => {
+    it("sends each host edit", async () => {
         const { service, editor } = createService(TEMPLATE);
         await service.display(editor.id);
 
         editor.content = '{"id":"edited"}';
         expect(await service.display(editor.id, true)).toBe(true);
 
-        expect(editor.posted.at(-1)).toEqual(
-            new ElementTemplateFileQuery('{"id":"edited"}', 1, "de"),
-        );
+        expect(editor.posted.at(-1)).toEqual(new ElementTemplateFileQuery('{"id":"edited"}', "de"));
     });
 
     it("stays quiet when the preview is hidden", async () => {

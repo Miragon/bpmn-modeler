@@ -12,7 +12,6 @@ class ElementTemplatePreviewMessagesTest {
 
         assertEquals("ElementTemplateFileQuery", query.get("type").asString)
         assertEquals("{\"a\":\"<b>\"}", query.get("content").asString)
-        assertEquals(0, query.get("documentRevision").asInt)
         assertEquals("de", query.get("locale").asString)
     }
 

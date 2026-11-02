@@ -51,7 +51,7 @@ async function start(): Promise<void> {
 
 function receive(content: string): void {
     window.dispatchEvent(
-        new MessageEvent("message", { data: new ElementTemplateFileQuery(content, 1) }),
+        new MessageEvent("message", { data: new ElementTemplateFileQuery(content) }),
     );
 }
 
@@ -182,7 +182,7 @@ describe("bootstrapTemplatePreview", () => {
 
         window.dispatchEvent(
             new MessageEvent("message", {
-                data: new ElementTemplateFileQuery(JSON.stringify(STATUS), 1, "de"),
+                data: new ElementTemplateFileQuery(JSON.stringify(STATUS), "de"),
             }),
         );
         await vi.advanceTimersByTimeAsync(0);
