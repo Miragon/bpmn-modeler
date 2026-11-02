@@ -22,8 +22,19 @@ const CAPABILITY_MODULES = "packages/bpmn-modeler/src/capabilityModules.ts";
 
 // The first lint builds the type program of the whole repository.
 const FIRST_PROGRAM_BUILD_MS = 60_000;
+const SOURCE_TREE_WALK_MS = 30_000;
 
-const eslint = new ESLint({ cwd: REPO_ROOT });
+// On CI typescript-eslint builds each program once from disk, which never sees an appended snippet.
+const WATCHED_PROGRAM: Linter.Config = {
+    files: ["**/*.ts"],
+    languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } },
+};
+
+function createLinter(...overrides: Linter.Config[]): ESLint {
+    return new ESLint({ cwd: REPO_ROOT, overrideConfig: [WATCHED_PROGRAM, ...overrides] });
+}
+
+const eslint = createLinter();
 
 /** Appends to the real file, so the shared type program keeps every other file as it is. */
 async function lintAppended(
@@ -127,23 +138,20 @@ export const guardedIsC7 = guardedEngine === "c7";`,
             error: "is not a union of string literals",
         },
     ])("rejects a registry entry naming $entry", async ({ guardedType, error }) => {
-        const linter = new ESLint({
-            cwd: REPO_ROOT,
-            overrideConfig: {
-                files: ["**/*.ts"],
-                rules: {
-                    [RULE]: [
-                        "error",
-                        { guardedTypes: [{ ...guardedType, homes: [], message: "unused" }] },
-                    ],
-                },
+        const linter = createLinter({
+            files: ["**/*.ts"],
+            rules: {
+                [RULE]: [
+                    "error",
+                    { guardedTypes: [{ ...guardedType, homes: [], message: "unused" }] },
+                ],
             },
         });
         await expect(lintAppended(DEPLOYMENT_SERVICE, "", linter)).rejects.toThrow(error);
     });
 });
 
-describe(`${RULE} disable directives`, () => {
+describe(`${RULE} disable directives`, { timeout: SOURCE_TREE_WALK_MS }, () => {
     const sourceFiles = readWorkspaces(REPO_ROOT)
         .filter(({ dir }) => existsSync(join(REPO_ROOT, dir, "src")))
         .flatMap(({ dir }) =>
