@@ -23,13 +23,7 @@ import { UserCancelledError } from "../../kernel/domain/errors";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../../editorSession/service/DocumentFlushService";
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
-import {
-    createTestHost,
-    HANDLED,
-    PromptAnswers,
-    RecordingNotifier,
-    routesOf,
-} from "../../testing";
+import { createTestHost, HANDLED, PromptAnswers, RecordingNotifier, routesOf } from "../../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "../domain/credentialRefs";
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
