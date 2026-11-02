@@ -1,3 +1,5 @@
+import { basename } from "node:path";
+
 import {
     commands,
     ExtensionContext,
@@ -94,7 +96,7 @@ export class ElementTemplateEditorController {
     private async newTemplateTarget(): Promise<Uri | undefined> {
         const folders = workspace.workspaceFolders ?? [];
         if (folders.length === 0) {
-            return this.pickNewTemplateFile();
+            return this.newTemplateTargetOutsideWorkspace();
         }
         const root: WorkspaceFolder | undefined =
             folders.length === 1
@@ -137,15 +139,19 @@ export class ElementTemplateEditorController {
         return target;
     }
 
-    private async pickNewTemplateFile(): Promise<Uri | undefined> {
-        const uri = await window.showSaveDialog({
+    /** The OS dialog lets the user confirm overwriting, but this command only creates files. */
+    private async newTemplateTargetOutsideWorkspace(): Promise<Uri | undefined> {
+        const target = await promptNewFileTarget({
             title: NEW_TEMPLATE_TITLE,
-            filters: { "Element Template": ["json"] },
+            filterLabel: "Element Template",
+            extension: "json",
+            defaultUri: undefined,
         });
-        if (!uri) {
+        if (target && (await exists(target))) {
+            this.notifier.showInfo(`${basename(target.path)} already exists.`);
             return undefined;
         }
-        return uri.path.endsWith(".json") ? uri : uri.with({ path: `${uri.path}.json` });
+        return target;
     }
 
     private async openInEditor(uri: Uri | undefined): Promise<void> {
