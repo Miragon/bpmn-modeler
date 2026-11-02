@@ -1,3 +1,3 @@
 export { createClipboardModules } from "./createClipboardModules";
 export type { ClipboardBridge } from "./BridgedClipboardModule";
-export { getDirectEditingContent } from "./directEditingInternals";
+export { getDirectEditingContent } from "./upstreamInternals/directEditingInternals";

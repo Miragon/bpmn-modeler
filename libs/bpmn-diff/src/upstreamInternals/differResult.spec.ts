@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { assertDiffResultShape, categoryIds, runDiff } from "./differResult";
-import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "./__fixtures__/mock-diff";
+import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../__fixtures__/mock-diff";
 
 type ModdleFactory = () => { fromXML(xml: string): Promise<{ rootElement: unknown }> };
 

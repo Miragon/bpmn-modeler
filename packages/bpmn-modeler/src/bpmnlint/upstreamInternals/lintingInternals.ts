@@ -7,7 +7,7 @@
  */
 import type { LintResults } from "@miragon/bpmn-modeler-types";
 
-import type { ElementIssue, ElementIssues } from "./lintIssueDiff";
+import type { ElementIssue, ElementIssues } from "../lintIssueDiff";
 
 interface VendorLinting {
     _issues: ElementIssues;

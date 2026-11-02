@@ -55,7 +55,7 @@ import {
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "./editableSurface";
-import { createReporter, type SurfaceReporter } from "./reporting";
+import { createReporter, type SurfaceReporter } from "./reporting/reporting";
 import { SurfaceCore } from "./surfaceCore";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
@@ -65,8 +65,14 @@ import { deriveEngines } from "./engines";
 import { executionPlatformAttributes } from "./executionPlatformAttributes";
 import { loadEngineStack } from "./engineStacks";
 import { initialDiagram } from "./initialDiagram";
-import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
-import { ModeUiModule } from "./modeModules";
+import {
+    applyMode,
+    normalizeMode,
+    MODE_ATTRIBUTE,
+    type ModePorts,
+    type ModelerMode,
+} from "./mode/mode";
+import { ModeUiModule } from "./mode/modeModules";
 import { DrilldownFitModule } from "./viewState";
 import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";

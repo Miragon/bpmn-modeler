@@ -5,7 +5,7 @@
  * and a pinned upstream-shape test — turns a silent breakage on a dependency
  * bump into a loud, located failure.
  */
-import type { PopupMenuEntry } from "./types";
+import type { PopupMenuEntry } from "../types";
 
 export interface PopupMenuContext {
     entries: Record<string, PopupMenuEntry>;

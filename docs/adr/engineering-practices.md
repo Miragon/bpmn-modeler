@@ -392,8 +392,9 @@ into a cache directory. Startup takes about 0.6 s.
 
 ### Private upstream APIs
 
-Confine access to undocumented upstream members behind small typed adapters.
-Validate runtime shape and report a descriptive error naming the dependency and
+Confine access to undocumented upstream members behind small typed adapters,
+each in an `upstreamInternals/` folder of its library (the package's lint
+adapter in `src/bpmnlint/upstreamInternals/`). Validate runtime shape and report a descriptive error naming the dependency and
 pinned expectation. Callers use narrow public concepts rather than spreading
 private member names through feature code.
 
@@ -406,11 +407,13 @@ private member names through feature code.
 
 The [package architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts)
 scan the package and inlined libraries to reject new private-member reaches
-outside approved adapters, excluding the vendored panel fork. Installed-package
+outside an `upstreamInternals/` folder, excluding the vendored panel fork. They
+read the folder, not the adapters' file names, as do the package's rules on
+`mode/` and `reporting/`. Installed-package
 tests make a dependency bump fail where its shape changed:
 [upstream shapes](../../packages/bpmn-modeler/src/upstreamShape.browser.spec.ts),
 [engine groups](../../packages/bpmn-modeler/src/engineGroupData.upstream.browser.spec.ts),
-[differ results](../../libs/bpmn-diff/src/differResult.spec.ts), and
+[differ results](../../libs/bpmn-diff/src/upstreamInternals/differResult.spec.ts), and
 [template prefixes](../../libs/properties-panel/src/modeFilter/engineGroupData.upstream.spec.ts).
 The `bpmn-diff` and `properties-panel` targets list `yarn.lock` among their
 trigger paths so a lockfile-only bump re-runs those pins.

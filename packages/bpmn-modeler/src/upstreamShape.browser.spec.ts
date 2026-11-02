@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDirectEditingContent } from "@miragon/bpmn-modeler-clipboard";
 import { getPopupMenuContext } from "@miragon/bpmn-modeler-append-menu";
 
-import { LintingInternals } from "./bpmnlint/lintingInternals";
+import { LintingInternals } from "./bpmnlint/upstreamInternals/lintingInternals";
 import { mountCanvas, removeMounts } from "./__fixtures__/surfaceMount";
 
 /**

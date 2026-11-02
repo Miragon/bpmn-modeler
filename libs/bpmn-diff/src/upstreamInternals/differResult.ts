@@ -1,7 +1,7 @@
 // See computeDiff.ts for why the ambient shim is pulled in explicitly rather
 // than via tsconfig `include`.
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="./types/bpmn-js-differ.d.ts" />
+/// <reference path="../types/bpmn-js-differ.d.ts" />
 
 /**
  * Typed adapter around `bpmn-js-differ`, whose result exposes its four change

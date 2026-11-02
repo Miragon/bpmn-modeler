@@ -1,7 +1,7 @@
 import type { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { type LintConfigOption, resolveLintConfig } from "./lintConfigResolution";
-import type { ModelerMode } from "../mode";
+import type { ModelerMode } from "../mode/mode";
 
 /**
  * The per-instance tier decision, registered as the `lintTier` DI value by

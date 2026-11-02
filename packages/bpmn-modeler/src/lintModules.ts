@@ -1,6 +1,6 @@
 import type { Engine } from "@miragon/bpmn-modeler-types";
 import type { LintCallbacks } from "./bpmnlint/LintConfigService";
-import type { ModelerMode } from "./mode";
+import type { ModelerMode } from "./mode/mode";
 import type { LintingOptions } from "./publicApi";
 
 // Fires at most once per page: an omitted `linting` used to enable in-page
