@@ -31,7 +31,6 @@ import {
     EditorSessionStore,
     generateCamundaDts,
     InlineScript,
-    isHiddenEditorError,
     joinWorkspacePath,
     matchScriptFile,
     SCRIPT_JSCONFIG,
@@ -482,11 +481,8 @@ export class ScriptTaskService implements ScriptEditorPort {
         }
 
         this.editorStore
-            .postMessage(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
+            .postUnlessHidden(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
             .catch((error: unknown) => {
-                if (isHiddenEditorError(error)) {
-                    return;
-                }
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             });
     }
@@ -587,7 +583,7 @@ export class ScriptTaskService implements ScriptEditorPort {
                 continue;
             }
             try {
-                await this.editorStore.postMessage(
+                const outcome = await this.editorStore.postUnlessHidden(
                     editorId,
                     new UpdateScriptContentQuery(
                         entry.elementId,
@@ -596,6 +592,16 @@ export class ScriptTaskService implements ScriptEditorPort {
                         content,
                     ),
                 );
+                /**
+                 * The webview can transition back to hidden between the
+                 * reload signal and our replay (e.g. user clicks another
+                 * tab mid-resync). Re-arm pendingResync so the next reload
+                 * tries again rather than dropping the edit permanently.
+                 */
+                if (outcome === "hidden") {
+                    this.pendingResync.add(editorId);
+                    continue;
+                }
                 // The replay just carried the live buffer, so any keystroke
                 // still pending in this path's sender is redundant — cancel it
                 // to avoid a duplicate post landing right after.
@@ -609,17 +615,7 @@ export class ScriptTaskService implements ScriptEditorPort {
                     deferredCleanups.push(entry.uri);
                 }
             } catch (error) {
-                /**
-                 * The webview can transition back to hidden between the
-                 * reload signal and our replay (e.g. user clicks another
-                 * tab mid-resync). Re-arm pendingResync so the next reload
-                 * tries again rather than dropping the edit permanently.
-                 */
-                if (isHiddenEditorError(error)) {
-                    this.pendingResync.add(editorId);
-                } else {
-                    this.notifier.logError(error as Error);
-                }
+                this.notifier.logError(error as Error);
             }
         }
         for (const uri of deferredCleanups) {
@@ -982,7 +978,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         if (!sender) {
             sender = asyncDebounce(async (content: string) => {
                 try {
-                    await this.editorStore.postMessage(
+                    const outcome = await this.editorStore.postUnlessHidden(
                         entry.editorId,
                         new UpdateScriptContentQuery(
                             entry.elementId,
@@ -991,18 +987,16 @@ export class ScriptTaskService implements ScriptEditorPort {
                             content,
                         ),
                     );
-                } catch (error) {
                     /**
-                     * VS Code throws "The active editor is hidden." when the
-                     * webview's tab isn't visible. The user may still be typing,
-                     * so mark the editor and replay all open documents on the
-                     * next reload via `resyncOpenDocuments`.
+                     * The user may still be typing in the script while the
+                     * webview's tab isn't visible, so mark the editor and replay
+                     * all open documents on the next reload via `resyncOpenDocuments`.
                      */
-                    if (isHiddenEditorError(error)) {
+                    if (outcome === "hidden") {
                         this.pendingResync.add(entry.editorId);
-                    } else {
-                        this.notifier.logError(error as Error);
                     }
+                } catch (error) {
+                    this.notifier.logError(error as Error);
                 }
             }, ScriptTaskService.STREAM_DEBOUNCE_MS);
             this.contentSenders.set(entry.uri.path, sender);

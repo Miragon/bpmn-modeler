@@ -1,0 +1,357 @@
+import type { BindingSpec, EngineCatalog, PropertyType, Requirement } from "../catalog";
+import { bindingOptions } from "./bindingOptions";
+import { allowedTypes, bindingSpecOf, initialBinding, sampleValue } from "./bindingRules";
+import { isObject, objectOf, valueAt, type Json } from "./json";
+import { propertyCapabilities, typeCapabilities } from "./propertyCapabilities";
+import { elementTypeChoiceFor } from "./requirements";
+import type { JsonPath, TemplateEdit } from "./templateText";
+
+/**
+ * Sets the value at `path`. An empty text or `undefined` removes the key; when
+ * `template` is given, a key that is already missing yields no edit.
+ */
+export function setField(path: JsonPath, value: unknown, template?: Json): TemplateEdit[] {
+    if (value === undefined || value === "") {
+        return template && valueAt(template, path) === undefined ? [] : [{ kind: "remove", path }];
+    }
+    return [{ kind: "set", path, value }];
+}
+
+/** Appends a property with the first binding that works on the template's element. */
+export function addProperty(template: Json, catalog: EngineCatalog): TemplateEdit[] {
+    const [spec] = bindingOptions(catalog, template).fitting;
+    const binding = initialBinding(spec);
+    const property = fitted({ label: "New property", binding }, spec, binding);
+    return appendTo(template, ["properties"], property);
+}
+
+export function removeProperty(index: number): TemplateEdit[] {
+    return [{ kind: "remove", path: ["properties", index] }];
+}
+
+/** Moves a property so that it ends up at index `to`. */
+export function moveProperty(template: Json, from: number, to: number): TemplateEdit[] {
+    if (from === to) {
+        return [];
+    }
+    return [
+        { kind: "remove", path: ["properties", from] },
+        { kind: "insert", path: ["properties", to], value: arrayAt(template, "properties")[from] },
+    ];
+}
+
+/** Inserts a copy right after the property, with a label and an id that tell it apart. */
+export function duplicateProperty(template: Json, index: number): TemplateEdit[] {
+    const copy: unknown = structuredClone(arrayAt(template, "properties")[index]);
+    if (isObject(copy) && typeof copy.label === "string") {
+        copy.label = `${copy.label} (copy)`;
+    }
+    if (isObject(copy) && typeof copy.id === "string") {
+        const ids = propertiesOf(template).map((property) => property.id);
+        copy.id = unused(`${copy.id}-copy`, ids);
+    }
+    return [{ kind: "insert", path: ["properties", index + 1], value: copy }];
+}
+
+/**
+ * Switches a property to another binding: the new binding starts from its
+ * defaults, keeps text fields both bindings share, and the property drops what
+ * the new binding does not allow.
+ */
+export function changeBindingType(
+    template: Json,
+    catalog: EngineCatalog,
+    index: number,
+    type: string,
+): TemplateEdit[] {
+    const spec = bindingSpecOf(catalog, type);
+    if (!spec) {
+        return [];
+    }
+    const property = propertyAt(template, index);
+    const previous = objectAt(property, "binding");
+    const binding = initialBinding(spec);
+    for (const field of spec.fields) {
+        if (field.kind === "text" && typeof previous[field.key] === "string") {
+            binding[field.key] = previous[field.key];
+        }
+    }
+    return diffEdits(
+        ["properties", index],
+        property,
+        fitted({ ...property, binding }, spec, binding),
+    );
+}
+
+/** Changes one binding field; selecting another variant applies that variant's rules. */
+export function changeBindingField(
+    template: Json,
+    catalog: EngineCatalog,
+    index: number,
+    key: string,
+    value: unknown,
+): TemplateEdit[] {
+    const property = propertyAt(template, index);
+    const binding: Json = { ...objectAt(property, "binding") };
+    if (value === undefined || value === "") {
+        delete binding[key];
+    } else {
+        binding[key] = value;
+    }
+    const spec = bindingSpecOf(catalog, binding.type);
+    const next = spec ? fitted({ ...property, binding }, spec, binding) : { ...property, binding };
+    return diffEdits(["properties", index], property, next);
+}
+
+/** Changes the property's type and converts what depends on it: value, choices, FEEL, placeholder. */
+export function changePropertyType(
+    template: Json,
+    catalog: EngineCatalog,
+    index: number,
+    type: string,
+): TemplateEdit[] {
+    const property = propertyAt(template, index);
+    const binding = objectAt(property, "binding");
+    const spec = bindingSpecOf(catalog, binding.type);
+    const retyped = withType(property, type);
+    const next = spec ? fitted(retyped, spec, binding) : retyped;
+    return diffEdits(["properties", index], property, next);
+}
+
+export function addChoice(template: Json, index: number): TemplateEdit[] {
+    const choices = arrayAt(propertyAt(template, index), "choices");
+    const number = choices.length + 1;
+    return appendTo(propertyAt(template, index), ["properties", index, "choices"], {
+        name: `Option ${number}`,
+        value: `option-${number}`,
+    });
+}
+
+export function updateChoice(
+    index: number,
+    choice: number,
+    key: string,
+    value: string,
+): TemplateEdit[] {
+    return [{ kind: "set", path: ["properties", index, "choices", choice, key], value }];
+}
+
+export function removeChoice(index: number, choice: number): TemplateEdit[] {
+    return [{ kind: "remove", path: ["properties", index, "choices", choice] }];
+}
+
+export function addGroup(template: Json): TemplateEdit[] {
+    const ids = groupIdsOf(template);
+    const id = unused(`group-${ids.length + 1}`, ids);
+    return appendTo(template, ["groups"], { id, label: "New group" });
+}
+
+export type GroupIdProblem = "empty" | "taken";
+
+/** Why a group cannot have `id`: typed into its field, it must not reach the file. */
+export function groupIdProblem(
+    template: Json,
+    index: number,
+    id: string,
+): GroupIdProblem | undefined {
+    if (id === "") {
+        return "empty";
+    }
+    return groupIdsOf(template).some((other, at) => at !== index && other === id)
+        ? "taken"
+        : undefined;
+}
+
+/** Renames a group and moves its properties along; an id it cannot have writes nothing. */
+export function renameGroup(template: Json, index: number, id: string): TemplateEdit[] {
+    if (groupIdProblem(template, index, id)) {
+        return [];
+    }
+    return [
+        { kind: "set", path: ["groups", index, "id"], value: id },
+        ...propertyIndexesOfGroup(template, index).map((property): TemplateEdit => ({
+            kind: "set",
+            path: ["properties", property, "group"],
+            value: id,
+        })),
+    ];
+}
+
+/** Removes a group; its properties move to the default group. */
+export function removeGroup(template: Json, index: number): TemplateEdit[] {
+    return [
+        ...propertyIndexesOfGroup(template, index).map((property): TemplateEdit => ({
+            kind: "remove",
+            path: ["properties", property, "group"],
+        })),
+        { kind: "remove", path: ["groups", index] },
+    ];
+}
+
+/** Sets or clears one constraint; clearing the last one removes `constraints`. */
+export function setConstraint(
+    template: Json,
+    index: number,
+    key: string,
+    value: unknown,
+): TemplateEdit[] {
+    const constraints = objectAt(propertyAt(template, index), "constraints");
+    const path: JsonPath = ["properties", index, "constraints"];
+    if (value !== undefined && value !== "") {
+        return [{ kind: "set", path: [...path, key], value }];
+    }
+    const remaining = Object.keys(constraints).filter((existing) => existing !== key);
+    return [{ kind: "remove", path: remaining.length === 0 ? path : [...path, key] }];
+}
+
+/** Makes the template meet a binding's requirement, staying with the element it is for if it can. */
+export function fixRequirement(
+    template: Json,
+    catalog: EngineCatalog,
+    requirement: Requirement,
+): TemplateEdit[] {
+    if (requirement.kind === "elementType") {
+        const choice = elementTypeChoiceFor(template, requirement.oneOf);
+        const appliesTo = arrayAt(template, "appliesTo");
+        return [
+            { kind: "set", path: ["elementType"], value: { ...choice } },
+            ...(appliesTo.includes(choice.value)
+                ? []
+                : appendTo(template, ["appliesTo"], choice.value)),
+        ];
+    }
+    const spec = bindingSpecOf(catalog, requirement.binding.type);
+    const binding = { ...(spec ? initialBinding(spec) : {}), ...requirement.binding };
+    const value = spec ? sampleValue(spec, binding) : undefined;
+    return appendTo(template, ["properties"], { type: "Hidden", value: value ?? "", binding });
+}
+
+/** The property after a change to its type, without the binding's rules. */
+function withType(property: Json, type: string): Json {
+    const next: Json = { ...property, type };
+    const value = property.value;
+    if (type === "Boolean") {
+        next.value = value === true || value === "true";
+    } else if (type === "Number") {
+        const number = typeof value === "number" ? value : Number(value);
+        if (
+            typeof value === "number" ||
+            (typeof value === "string" && value !== "" && !Number.isNaN(number))
+        ) {
+            next.value = number;
+        } else {
+            delete next.value;
+        }
+    } else if (typeof value === "boolean" || typeof value === "number") {
+        next.value = String(value);
+    }
+    if (type === "Dropdown") {
+        const choices = Array.isArray(property.choices) ? [...property.choices] : [];
+        if (choices.length === 0) {
+            const text =
+                typeof next.value === "string" && next.value !== "" ? next.value : undefined;
+            choices.push(
+                text ? { name: text, value: text } : { name: "Option 1", value: "option-1" },
+            );
+        }
+        next.choices = choices;
+        const values = choices.map((choice) => (isObject(choice) ? choice.value : undefined));
+        if (!values.includes(next.value)) {
+            next.value = values[0];
+        }
+    } else {
+        delete next.choices;
+    }
+    const capabilities = typeCapabilities(type);
+    if (!capabilities.textual) {
+        delete next.placeholder;
+    }
+    if (!capabilities.feel) {
+        delete next.feel;
+    }
+    if (!capabilities.language) {
+        delete next.language;
+    }
+    return next;
+}
+
+/** The property with only what its binding allows: type, FEEL and `optional`. */
+function fitted(property: Json, spec: BindingSpec, binding: Json): Json {
+    const types = allowedTypes(spec, binding);
+    const next = types.includes(property.type as PropertyType)
+        ? { ...property }
+        : withType(property, types.includes("String") ? "String" : types[0]);
+    const { feelUse, textual, optional } = propertyCapabilities({ ...next, binding }, spec);
+    if (feelUse === "none") {
+        delete next.feel;
+    } else if (feelUse === "required" && textual) {
+        next.feel = "required";
+    }
+    if (!optional) {
+        delete next.optional;
+    }
+    return next;
+}
+
+/** Edits that turn `before` into `after`, descending into nested objects. */
+function diffEdits(path: JsonPath, before: Json, after: Json): TemplateEdit[] {
+    const edits: TemplateEdit[] = Object.keys(before)
+        .filter((key) => !(key in after))
+        .map((key) => ({ kind: "remove", path: [...path, key] }));
+    for (const [key, value] of Object.entries(after)) {
+        const previous = before[key];
+        if (isObject(previous) && isObject(value)) {
+            edits.push(...diffEdits([...path, key], previous, value));
+        } else if (JSON.stringify(previous) !== JSON.stringify(value)) {
+            edits.push({ kind: "set", path: [...path, key], value });
+        }
+    }
+    return edits;
+}
+
+/** Anything but a list or nothing at the path is left for applyTemplateEdits to refuse, not replaced. */
+function appendTo(owner: Json, path: JsonPath, value: unknown): TemplateEdit[] {
+    const list = valueAt(owner, path.slice(-1));
+    return list === undefined
+        ? [{ kind: "set", path, value: [value] }]
+        : [{ kind: "insert", path: [...path, Array.isArray(list) ? list.length : 0], value }];
+}
+
+function groupIdsOf(template: Json): unknown[] {
+    return arrayAt(template, "groups").map((group) => (isObject(group) ? group.id : undefined));
+}
+
+/** The properties in a group; two groups sharing an id cannot tell whose they are, so neither owns any. */
+function propertyIndexesOfGroup(template: Json, index: number): number[] {
+    const ids = groupIdsOf(template);
+    const id = ids[index];
+    if (id === undefined || ids.filter((other) => other === id).length > 1) {
+        return [];
+    }
+    return propertiesOf(template).flatMap((property, at) => (property.group === id ? [at] : []));
+}
+
+function propertiesOf(template: Json): Json[] {
+    return arrayAt(template, "properties").map((property) => (isObject(property) ? property : {}));
+}
+
+function propertyAt(template: Json, index: number): Json {
+    return propertiesOf(template)[index] ?? {};
+}
+
+function objectAt(owner: Json, ...path: JsonPath): Json {
+    return objectOf(valueAt(owner, path));
+}
+
+function arrayAt(owner: Json, key: string): unknown[] {
+    const value = owner[key];
+    return Array.isArray(value) ? value : [];
+}
+
+function unused(candidate: string, taken: readonly unknown[]): string {
+    let id = candidate;
+    for (let suffix = 2; taken.includes(id); suffix++) {
+        id = `${candidate}-${suffix}`;
+    }
+    return id;
+}

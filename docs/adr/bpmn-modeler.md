@@ -317,7 +317,8 @@ survives the re-import of each `show`, so an edit does not reopen what the user
 collapsed. It deliberately overrides a C8 group's `openByDefault: false`, because
 a preview that hides its own fields misses its purpose.
 
-Templates for a process or a sequence flow are reported as not previewable:
+Templates for a process or a sequence flow are reported as not previewable, by
+naming the type (`unsupportedType`) so that the page can say so in its language:
 selecting such a templated element throws inside create-append-anything's
 remove-template replace entry. That also affects the modeler itself and needs
 an upstream or local fix before the preview can show them.

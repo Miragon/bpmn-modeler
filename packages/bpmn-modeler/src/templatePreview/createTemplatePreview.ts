@@ -19,6 +19,8 @@ export interface TemplatePreviewOutcome {
     rendered: boolean;
     /** Why the template was rejected or could not be shown. */
     errors: string[];
+    /** The element type the preview cannot show yet, for a template that is otherwise fine. */
+    unsupportedType?: string;
 }
 
 /** The handle {@link createTemplatePreview} resolves to. */
@@ -116,10 +118,7 @@ export async function createTemplatePreview(
         }
         const target = previewTargetOf(fields);
         if (target.kind === "unsupported") {
-            return {
-                rendered: false,
-                errors: [...errors, `Templates for ${target.type} cannot be previewed yet.`],
-            };
+            return { rendered: false, errors, unsupportedType: target.type };
         }
         const shape = modeler
             .getService("modeling")

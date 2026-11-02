@@ -5,6 +5,7 @@ import { DIFF_PANE_COMMAND_TYPES } from "./diffPaneCommands";
 import * as baseMessages from "./messages";
 import { Command } from "./messages";
 import * as modelerMessages from "./modeler";
+import { TEMPLATE_EDITOR_COMMAND_TYPES } from "./templateEditorCommands";
 
 type CommandClass = new () => Command;
 
@@ -59,6 +60,15 @@ describe("BPMN_EDITOR_COMMAND_TYPES", () => {
 describe("DIFF_PANE_COMMAND_TYPES", () => {
     it("lists every command type at most once and only ProtocolCommandTypes", () => {
         const listed: readonly string[] = DIFF_PANE_COMMAND_TYPES;
+
+        expect(listed).toEqual([...new Set(listed)]);
+        expect(listed.filter((type) => !protocolCommandTypes.includes(type))).toEqual([]);
+    });
+});
+
+describe("TEMPLATE_EDITOR_COMMAND_TYPES", () => {
+    it("lists every command type at most once and only ProtocolCommandTypes", () => {
+        const listed: readonly string[] = TEMPLATE_EDITOR_COMMAND_TYPES;
 
         expect(listed).toEqual([...new Set(listed)]);
         expect(listed.filter((type) => !protocolCommandTypes.includes(type))).toEqual([]);

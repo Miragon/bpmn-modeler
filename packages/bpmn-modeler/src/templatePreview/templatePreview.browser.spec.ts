@@ -240,7 +240,8 @@ describe("createTemplatePreview", () => {
 
             expect(outcome).toEqual({
                 rendered: false,
-                errors: [`Templates for ${type} cannot be previewed yet.`],
+                errors: [],
+                unsupportedType: type,
             });
         },
     );

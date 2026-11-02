@@ -17,6 +17,8 @@ const runFile = promisify(execFile);
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
 export const COMMAND_KEY = process.platform === "darwin" ? "Meta" : "Control";
+const PALETTE_ATTEMPT_MS = 5_000;
+const PALETTE_ATTEMPTS = 6;
 
 const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
@@ -226,6 +228,7 @@ export class VsCodeSession {
             .getByText(fileName, { exact: true })
             .first()
             .click();
+        await this.movePointerAway();
     }
 
     /** A double click keeps the tab, where a single click opens one the next file replaces. */
@@ -235,21 +238,39 @@ export class VsCodeSession {
             .getByText(fileName, { exact: true })
             .first()
             .dblclick();
+        await this.movePointerAway();
     }
 
-    /** Webviews forward keybindings, so F1 reaches the palette without moving the focus first. */
+    /** A pointer left on a row shows its hover, which can cover what a later step clicks. */
+    private async movePointerAway(): Promise<void> {
+        await this.page.mouse.move(0, 0);
+    }
+
+    /**
+     * Webviews forward keybindings, so F1 reaches the palette without moving the focus first.
+     * A webview that was just opened can still take the focus, which closes the palette at any
+     * point and sends keys into the webview, an Enter included. So the title goes into the
+     * palette's input and a click on the row runs the command, which fails on a palette that
+     * closed; that one starts over.
+     */
     async runCommand(title: string): Promise<void> {
-        await this.page.keyboard.press("F1");
-        await this.page.waitForFunction(() =>
-            document.activeElement?.closest(".quick-input-widget"),
-        );
-        await this.page.keyboard.type(title);
-        await this.page
-            .locator(".quick-input-widget .quick-input-list-entry")
-            .filter({ hasText: title })
-            .first()
-            .waitFor();
-        await this.page.keyboard.press("Enter");
+        const palette = this.page.locator(".quick-input-widget");
+        const input = palette.locator(".quick-input-box input");
+        // The best match; until the list has filtered, that row holds another command.
+        const row = palette.locator(".monaco-list-row.focused").filter({ hasText: title });
+        for (let attempt = 1; ; attempt++) {
+            await this.page.keyboard.press("F1");
+            try {
+                await input.fill(`>${title}`, { timeout: PALETTE_ATTEMPT_MS });
+                await row.click({ timeout: PALETTE_ATTEMPT_MS });
+                await this.movePointerAway();
+                return;
+            } catch (error) {
+                if (attempt === PALETTE_ATTEMPTS) {
+                    throw error;
+                }
+            }
+        }
     }
 
     clipboardText(): Promise<string> {
@@ -292,6 +313,23 @@ export class VsCodeSession {
                         : [],
                 ),
             );
+    }
+
+    /** What the extension wrote to its output channel, which VS Code keeps as a log file. */
+    async extensionLog(): Promise<string> {
+        const files = await readdir(this.logsDirectory, { recursive: true }).catch(
+            (): string[] => [],
+        );
+        const logs = await Promise.all(
+            files
+                .filter(
+                    (file) =>
+                        file.endsWith(".log") &&
+                        file.split(/[\\/]/).includes(this.options.extensionId),
+                )
+                .map((file) => readFile(join(this.logsDirectory, file), "utf8").catch(() => "")),
+        );
+        return logs.join("\n");
     }
 
     /** CSS pixels, so a Retina Mac and a CI runner produce the same image size. */

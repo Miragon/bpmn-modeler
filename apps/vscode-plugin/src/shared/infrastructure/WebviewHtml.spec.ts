@@ -13,7 +13,7 @@ import {
 import {
     bpmnEditorUi,
     dmnModelerHtml,
-    elementTemplatePreviewHtml,
+    elementTemplateEditorHtml,
     formEditorHtml,
 } from "./WebviewHtml";
 
@@ -53,8 +53,8 @@ describe("bpmnEditorUi", () => {
     });
 });
 
-describe("elementTemplatePreviewHtml", () => {
-    const render = () => elementTemplatePreviewHtml(shellWebview, shellExtensionUri);
+describe("elementTemplateEditorHtml", () => {
+    const render = () => elementTemplateEditorHtml(shellWebview, shellExtensionUri);
 
     // The preview is a second entry of the BPMN bundle, so it shares its policy.
     describeShellPolicy("bpmn", render);
@@ -69,7 +69,7 @@ describe("elementTemplatePreviewHtml", () => {
             {
                 type: "module",
                 nonce: scriptNonceOf(html),
-                src: "https://webview.test/extension/bpmn-webview/templatePreview.js",
+                src: "https://webview.test/extension/bpmn-webview/templateEditor.js",
             },
         ]);
         expect(tagsOf(html, "div")).toEqual([{ id: "app" }]);

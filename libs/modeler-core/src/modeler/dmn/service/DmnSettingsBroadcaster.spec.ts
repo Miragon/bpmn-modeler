@@ -63,7 +63,7 @@ describe("DmnSettingsBroadcaster.setLanguage", () => {
         expect((msg as LanguageQuery).locale).toBe("de");
     });
 
-    it("logs when the post rejects", async () => {
+    it("passes a hidden editor by quietly: its webview asks again when shown", async () => {
         const { broadcaster, host, editor } = createBroadcaster();
         editor.hidden = true;
 
@@ -71,9 +71,7 @@ describe("DmnSettingsBroadcaster.setLanguage", () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(host.notifier.logged("error")).toEqual([
-            expect.stringContaining("Error: The active editor is hidden.\n"),
-        ]);
+        expect(host.notifier.logged("error")).toEqual([]);
     });
 });
 

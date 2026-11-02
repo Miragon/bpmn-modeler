@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { LogErrorCommand } from "./messages";
 import { ElementTemplateFileQuery, GetElementTemplateFileCommand, LanguageQuery } from "./modeler";
+import { TEMPLATE_EDITOR_COMMAND_TYPES } from "./templateEditorCommands";
 
 // Shared with the IntelliJ host, which answers the preview page without a bridge session.
 const MESSAGES = JSON.parse(
@@ -14,6 +15,7 @@ const MESSAGES = JSON.parse(
     languageQuery: { locale: string };
     getFile: object;
     logError: { message: string };
+    commands: string[];
 };
 
 const onTheWire = (message: object): unknown => JSON.parse(JSON.stringify(message));
@@ -41,5 +43,9 @@ describe("the template preview page's messages", () => {
         expect(onTheWire(new LogErrorCommand(MESSAGES.logError.message))).toEqual(
             MESSAGES.logError,
         );
+    });
+
+    it("lists every command the page may post", () => {
+        expect(MESSAGES.commands).toEqual([...TEMPLATE_EDITOR_COMMAND_TYPES]);
     });
 });

@@ -14,6 +14,14 @@ export type BpmnViewerMode = "modeler" | "viewer";
  */
 export type Engine = "c7" | "c8";
 
+/** Every engine, for what offers a choice or walks them all. */
+export const ENGINES: readonly Engine[] = ["c7", "c8"];
+
+/** Whether a value from outside (JSON, a data attribute, a setting) names an engine. */
+export function isEngine(value: unknown): value is Engine {
+    return ENGINES.includes(value as Engine);
+}
+
 /** Display names for UI surfaces (status bar, pickers, labels). */
 export const ENGINE_LABEL: Record<Engine, string> = {
     c7: "Camunda 7",

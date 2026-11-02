@@ -290,14 +290,6 @@
                 description="Create a new DMN decision file">
                 <add-to-group group-id="NewGroup" anchor="last"/>
             </action>
-            <action
-                id="io.miragon.bpmn-modeler.newElementTemplate"
-                class="io.miragon.intellij.bpmn.NewElementTemplateAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
-                text="New Element Template…"
-                description="Create an element template for Camunda 7 or Camunda 8 and preview it">
-                <add-to-group group-id="NewGroup" anchor="last"/>
-            </action>
         </group>
     </actions>
 </idea-plugin>

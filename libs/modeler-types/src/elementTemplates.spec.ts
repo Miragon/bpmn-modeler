@@ -7,6 +7,7 @@ import {
     elementTemplateFolder,
     isElementTemplateFile,
     isElementTemplateText,
+    isPreviewableElementType,
     templatesOfFile,
 } from "./elementTemplates";
 
@@ -17,6 +18,17 @@ const C8_SCHEMA =
 function withBinding(type: string): object {
     return { name: "T", properties: [{ binding: { type, name: "x" } }] };
 }
+
+describe("isPreviewableElementType", () => {
+    it.each([
+        ["bpmn:ServiceTask", true],
+        ["bpmn:SubProcess", true],
+        ["bpmn:Process", false],
+        ["bpmn:SequenceFlow", false],
+    ])("judges %s", (type, previewable) => {
+        expect(isPreviewableElementType(type)).toBe(previewable);
+    });
+});
 
 describe("templatesOfFile", () => {
     it("accepts a single template or an array of them", () => {

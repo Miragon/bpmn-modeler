@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
     detectEngine,
+    ENGINE_EXECUTION_PLATFORM,
+    ENGINE_LABEL,
+    ENGINES,
     executionPlatformAttributeNames,
+    isEngine,
     readDefinitionsStartTag,
     readStartTag,
 } from "./engine";
@@ -12,6 +16,27 @@ const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
 function definitions(attributes: string): string {
     return `<bpmn:definitions xmlns:modeler="${MODELER_NS}" ${attributes} />`;
 }
+
+describe("ENGINES", () => {
+    it("names the engines every per-engine table has an entry for", () => {
+        expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_LABEL).sort());
+        expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_EXECUTION_PLATFORM).sort());
+    });
+});
+
+describe("isEngine", () => {
+    it.each([
+        ["c7", true],
+        ["c8", true],
+        ["c9", false],
+        ["C8", false],
+        ["", false],
+        [undefined, false],
+        [8, false],
+    ])("judges %j", (value, expected) => {
+        expect(isEngine(value)).toBe(expected);
+    });
+});
 
 describe("detectEngine", () => {
     it("detects c7 from the Camunda Platform execution-platform name", () => {

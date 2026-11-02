@@ -76,11 +76,16 @@ class ElementTemplatePreviewEditor(private val file: VirtualFile) : UserDataHold
 
     private fun onPageMessage(json: String) {
         val message = ElementTemplatePreviewMessages.parse(json) ?: return
-        when (message.type) {
-            ElementTemplatePreviewMessages.GET_FILE ->
+        when (ElementTemplatePreviewMessages.routeOf(message.type)) {
+            ElementTemplatePreviewMessages.PageRoute.SEND_FILE ->
                 post(ElementTemplatePreviewMessages.fileQuery(currentText(), locale))
-            ElementTemplatePreviewMessages.LOG_ERROR -> log.warn("Element template preview: ${message.text}")
-            else -> log.debug("Element template preview: ${message.type} ${message.text.orEmpty()}")
+            ElementTemplatePreviewMessages.PageRoute.LOG_WARNING ->
+                log.warn("Element template preview: ${message.text}")
+            ElementTemplatePreviewMessages.PageRoute.LOG_DEBUG ->
+                log.debug("Element template preview: ${message.text}")
+            ElementTemplatePreviewMessages.PageRoute.IGNORE -> Unit
+            ElementTemplatePreviewMessages.PageRoute.UNKNOWN ->
+                log.warn("Element template preview: unknown command ${message.type}")
         }
     }
 

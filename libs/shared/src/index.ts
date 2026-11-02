@@ -9,6 +9,7 @@ export * from "./lib/modeler";
 export * from "./lib/protocolMessageMap";
 export * from "./lib/bpmnEditorCommands";
 export * from "./lib/diffPaneCommands";
+export * from "./lib/templateEditorCommands";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";
 export * from "./lib/canvasAutoFocus";

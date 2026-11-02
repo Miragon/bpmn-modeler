@@ -15,7 +15,24 @@ internal object ElementTemplatePreviewMessages {
 
     data class PageMessage(val type: String, val text: String?)
 
+    /** What the preview does with a command of the page. An unknown one means the protocol moved on. */
+    enum class PageRoute { SEND_FILE, LOG_WARNING, LOG_DEBUG, IGNORE, UNKNOWN }
+
+    private val ROUTES =
+        mapOf(
+            GET_FILE to PageRoute.SEND_FILE,
+            LOG_ERROR to PageRoute.LOG_WARNING,
+            "LogWarningCommand" to PageRoute.LOG_WARNING,
+            "LogInfoCommand" to PageRoute.LOG_DEBUG,
+            "LogDebugCommand" to PageRoute.LOG_DEBUG,
+            // The preview-only page has no builder, so it never edits or flushes.
+            "SyncDocumentCommand" to PageRoute.IGNORE,
+            "DocumentFlushedCommand" to PageRoute.IGNORE,
+        )
+
     private val GSON = Gson()
+
+    fun routeOf(type: String): PageRoute = ROUTES[type] ?: PageRoute.UNKNOWN
 
     fun fileQuery(content: String, locale: String): String =
         GSON.toJson(

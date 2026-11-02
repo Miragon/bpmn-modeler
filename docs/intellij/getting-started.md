@@ -30,11 +30,11 @@ The plugin edits BPMN only. **New DMN Model…** creates a `.dmn` file, which op
 
 ## Element templates
 
-**New Element Template…** (in the project view under **New**) asks for a file name, suggesting the template folder
-under the config folder (`.camunda/element-templates/` by default), and then for **Camunda 7** or **Camunda 8**. It
-writes a service task template named after the file. An element template's JSON opens split, with the
-[preview](/vscode/features/element-template-chooser#preview-a-template-while-you-write-it) of its properties panel
+An element template's JSON opens split, with the
+[preview](/vscode/features/element-template-editor) of its properties panel
 beside the IDE's JSON editor; the buttons in the editor's top right switch between editor, split and preview.
+Templates live in the template folder under the config folder (`.camunda/element-templates/` by default). The form
+that creates and edits them is in VS Code so far.
 
 ## Actions
 
@@ -43,7 +43,6 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Action | What it does |
 |---|---|
 | New BPMN Model… / New DMN Model… | Create a model (also in the project view under **New**) |
-| New Element Template… | Create an element template (also in the project view under **New**) |
 | Format Diagram (`Ctrl+Alt+L`) | Lay out the focused diagram |
 | Clean Up Diagram | List leftovers in the diagram and remove them after you confirm |
 | Change Engine Version… | Change the engine version of the focused diagram |

@@ -1,9 +1,14 @@
-import { Command, Query } from "@miragon/bpmn-modeler-shared";
+import { Command, LanguageQuery, Query } from "@miragon/bpmn-modeler-shared";
 
+import { isHiddenEditorError } from "../../kernel/domain/errors";
+import { LoggerPort } from "../../kernel/domain/hostPorts";
 import { normalizeLineEndings } from "../../kernel/domain/lineEndings";
 import { CommandTarget } from "../domain/CommandTarget";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
 import { EditorHandle } from "./EditorHandle";
+
+/** What became of a message: delivered, kept back from a hidden editor, or dropped by the host. */
+export type PostOutcome = "sent" | "hidden" | "undelivered";
 
 /**
  * Pure, host-agnostic registry of open editor sessions plus active-editor
@@ -321,6 +326,33 @@ export class EditorSessionStore {
      */
     postMessage(editorId: string, message: Command | Query): Promise<boolean> {
         return this.requireHandle(editorId).postMessage(message);
+    }
+
+    /**
+     * Posts something a webview asks for again once it is shown: a hidden
+     * editor is no failure, it restarts and catches up by itself.
+     *
+     * @throws If the post fails for any other reason.
+     */
+    async postUnlessHidden(editorId: string, message: Command | Query): Promise<PostOutcome> {
+        try {
+            return (await this.postMessage(editorId, message)) ? "sent" : "undelivered";
+        } catch (error) {
+            if (isHiddenEditorError(error)) {
+                return "hidden";
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Tells the editor the language now chosen. It has no caller to answer to,
+     * so a failure ends in the log.
+     */
+    pushLanguage(editorId: string, locale: string, logger: LoggerPort): void {
+        this.postUnlessHidden(editorId, new LanguageQuery(locale)).catch((error: unknown) => {
+            logger.logError(error instanceof Error ? error : new Error(String(error)));
+        });
     }
 
     /**
