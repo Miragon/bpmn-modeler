@@ -110,12 +110,6 @@ function patchedLedger(
     return { ...Object.fromEntries(kept), ...put };
 }
 
-/** The keys a patch writes, in state order, for a host that stores each key on its own. */
-export function patchedKeys(patch: DeploymentStatePatch): (keyof DeploymentState)[] {
-    const fields: (keyof DeploymentState)[] = patchedFields(patch);
-    return patch.ledger === undefined ? fields : [...fields, "ledger"];
-}
-
 function patchedFields(patch: DeploymentStatePatch): DeploymentStateField[] {
     return FIELDS.filter((field) => patch[field] !== undefined);
 }

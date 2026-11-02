@@ -60,7 +60,13 @@ vi.mock("vscode", () => ({
 
 import { FileSystemError, FileType, workspace } from "vscode";
 
-import { DirectoryNotFound, FileNotFound } from "@miragon/bpmn-modeler-core";
+import {
+    ArtifactService,
+    BpmnLintConfigLocator,
+    DirectoryNotFound,
+    FileNotFound,
+} from "@miragon/bpmn-modeler-core";
+import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 const getWorkspaceFolderMock = workspace.getWorkspaceFolder as unknown as ReturnType<typeof vi.fn>;
@@ -95,7 +101,7 @@ describe("VsCodeWorkspace.findFiles", () => {
         const result = await sut.findFiles("**/*.bpmn");
 
         expect(result).toEqual(["/a.bpmn", "/b.bpmn"]);
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", undefined, undefined);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", undefined);
     });
 
     it("forwards a glob exclude pattern when supplied", async () => {
@@ -103,7 +109,7 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", "**/dist/**");
 
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**", undefined);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**");
     });
 
     it("forwards null as exclude to opt out of all default excludes", async () => {
@@ -114,15 +120,7 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", null);
 
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", null, undefined);
-    });
-
-    it("forwards the limit as maxResults to workspace.findFiles", async () => {
-        const sut = new VsCodeWorkspace();
-
-        await sut.findFiles("**/*.bpmn", "**/dist/**", 20);
-
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**", 20);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", null);
     });
 
     it("returns the .path of every matching Uri", async () => {
@@ -464,4 +462,62 @@ describe("VsCodeWorkspace.writeFile", () => {
             writeFileMock.mock.invocationCallOrder[0],
         );
     });
+});
+
+describe("VsCodeWorkspace under the config watchers of a Windows document", () => {
+    const EDITOR_ID = "file:///c%3A/ws/proc/order.bpmn";
+
+    function reportDeletes(): (path: string) => void {
+        let reportDelete: (uri: unknown) => void = () => undefined;
+        createFileSystemWatcherMock.mockReturnValue({
+            onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidChange: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidDelete: vi.fn((listener: (uri: unknown) => void) => {
+                reportDelete = listener;
+                return { dispose: vi.fn() };
+            }),
+            dispose: vi.fn(),
+        });
+        return (path) => reportDelete({ scheme: "file", authority: "", path });
+    }
+
+    it.each([
+        {
+            watcher: "element-template",
+            arm: (workspace: VsCodeWorkspace, onLookupChange: () => void) =>
+                new ArtifactService(workspace, new InMemorySettings()).createWatcher(EDITOR_ID, {
+                    refreshElementTemplates: onLookupChange,
+                }),
+        },
+        {
+            watcher: ".bpmnlintrc",
+            arm: (workspace: VsCodeWorkspace, onLookupChange: () => void) => {
+                const settings = new InMemorySettings();
+                return new BpmnLintConfigLocator(
+                    workspace,
+                    settings,
+                    new ArtifactService(workspace, settings),
+                ).createWatcher(EDITOR_ID, {
+                    setBpmnlintConfig: async () => {
+                        onLookupChange();
+                        return true;
+                    },
+                });
+            },
+        },
+    ])(
+        "follows the $watcher lookup of a document whose URI escapes the drive colon",
+        async ({ arm }) => {
+            getWorkspaceFolderMock.mockReturnValue({ uri: { path: "/C:/ws" } });
+            const reportDelete = reportDeletes();
+            const onLookupChange = vi.fn();
+            await arm(new VsCodeWorkspace(), onLookupChange);
+
+            reportDelete("/C:/ws/other/.camunda");
+            expect(onLookupChange).not.toHaveBeenCalled();
+
+            reportDelete("/C:/ws/.camunda");
+            expect(onLookupChange).toHaveBeenCalledOnce();
+        },
+    );
 });

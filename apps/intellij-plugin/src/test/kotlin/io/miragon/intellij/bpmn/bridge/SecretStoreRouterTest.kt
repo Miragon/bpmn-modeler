@@ -3,6 +3,9 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.intellij.credentialStore.CredentialAttributes
+import com.intellij.credentialStore.CredentialStore
+import com.intellij.credentialStore.Credentials
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
@@ -24,9 +27,12 @@ class SecretStoreRouterTest {
 
     @AfterEach
     fun tearDown() {
-        wired?.let { request(it, "secretStore/delete", mapOf("slot" to SLOT)) }
-        wired?.let { request(it, "secretStore/delete", mapOf("slot" to OTHER_SLOT)) }
-        wired?.dispose()
+        try {
+            wired?.let { request(it, "secretStore/delete", mapOf("slot" to SLOT)) }
+            wired?.let { request(it, "secretStore/delete", mapOf("slot" to OTHER_SLOT)) }
+        } finally {
+            wired?.dispose()
+        }
     }
 
     private fun registeredRouter(): WiredBridge {
@@ -37,7 +43,7 @@ class SecretStoreRouterTest {
 
     private fun request(wired: WiredBridge, method: String, params: Map<String, Any?>): JsonElement? {
         val requestId = nextRequestId++
-        wired.handlers.dispatch(method, gson.toJsonTree(params).asJsonObject, requestId)
+        wired.handlers.dispatch(method, gson.toJsonTree(params).asJsonObject, wired.requestId(requestId))
         val reply = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
         assertEquals(requestId, reply.get("id").asInt, "$method must answer its own request id")
         return reply.get("result")?.takeUnless { it.isJsonNull }
@@ -108,6 +114,55 @@ class SecretStoreRouterTest {
         val stored = request(wired, "secretStore/getBasicAuth", mapOf("slot" to null))!!.asJsonObject
         assertEquals("legacy", stored.get("username").asString)
         assertNull(request(wired, "secretStore/getBasicAuth", mapOf("slot" to SLOT)))
+    }
+
+    @Test
+    fun `dispatches the next frame while a secret read is still blocked`() {
+        val wired = registeredRouter()
+
+        assertNextFrameIsDispatchedWhileReadWaitsForKeychain(
+            wired,
+            """{"method":"secretStore/getBasicAuth","params":{"slot":"$SLOT"},"id":41}""",
+            readRequestId = 41,
+        )
+    }
+
+    @Test
+    fun `a secret save waits for an earlier read that is still blocked`() {
+        val wired = registeredRouter()
+
+        KeychainAwaitingPrompt().use { keychain ->
+            wired.fake.emit("""{"method":"secretStore/getBasicAuth","params":{"slot":"$SLOT"},"id":51}""")
+            keychain.awaitReadReachingKeychain()
+            wired.fake.emit(
+                """{"method":"secretStore/saveBasicAuth","params":{"username":"u","password":"p","slot":"$SLOT"},"id":52}""",
+            )
+
+            wired.fake.expectNoFrame()
+            keychain.answerPrompt()
+            val replyIds = List(2) { gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java).get("id").asInt }
+            assertEquals(listOf(51, 52), replyIds, "secret requests are answered in the order they arrived")
+        }
+    }
+
+    @Test
+    fun `a failing secret read is answered with an error`() {
+        val wired = registeredRouter()
+        val lockedKeychain =
+            object : CredentialStore {
+                override fun get(attributes: CredentialAttributes): Credentials? =
+                    throw IllegalStateException("keychain locked")
+
+                override fun set(attributes: CredentialAttributes, credentials: Credentials?) = Unit
+            }
+
+        ReplacedPasswordSafeStore(lockedKeychain).use {
+            wired.fake.emit("""{"method":"secretStore/getBasicAuth","params":{"slot":"$SLOT"},"id":61}""")
+
+            val reply = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
+            assertEquals(61, reply.get("id").asInt)
+            assertEquals("keychain locked", reply.get("error").asString)
+        }
     }
 
     private companion object {

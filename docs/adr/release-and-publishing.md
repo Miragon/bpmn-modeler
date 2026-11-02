@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-10-27
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -66,6 +66,9 @@ DMN's two inlined libraries use this same mechanism. Its marker also strips
 or explicit release override. IntelliJ does not bundle a DMN editor and does
 not receive DMN-only markers. Exclude marker files from trigger paths where
 necessary, particularly DMN's marker, to prevent recursive marker commits.
+The [release-marker spec](../../tools/repo-checks/src/releaseMarkers.spec.ts)
+fails when a library either package inlines is missing from the workflow's
+trigger paths or from its routing pattern.
 
 Keeping VS Code as root would leave the npm package's inlined-library changes
 under-versioned and could major-release VS Code for package-only breaks.

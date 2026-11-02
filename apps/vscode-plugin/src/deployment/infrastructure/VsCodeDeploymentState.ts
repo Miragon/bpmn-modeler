@@ -6,11 +6,14 @@ import {
     DeploymentStatePatch,
     DeploymentStatePort,
     deploymentStateFrom,
-    patchedKeys,
+    RawDeploymentState,
 } from "@miragon/bpmn-modeler-core";
 
-/** The keys earlier releases wrote; renaming one would forget the stored value. */
-const MEMENTO_KEYS: Readonly<Record<keyof DeploymentState, string>> = {
+/** One key, because an update of one `Memento` key is its only write that is all or nothing. */
+const STATE_KEY = "bpmn-modeler.deployment.state";
+
+/** The per-field keys earlier releases wrote, read until the first save writes `STATE_KEY`. */
+const LEGACY_KEYS: Readonly<Record<keyof DeploymentState, string>> = {
     endpoint: "bpmn-modeler.deployment.endpoint",
     tenantId: "bpmn-modeler.deployment.tenantId",
     authType: "bpmn-modeler.deployment.authType",
@@ -25,21 +28,21 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
     constructor(private readonly workspaceState: Memento) {}
 
     load(): DeploymentState {
-        return deploymentStateFrom({
-            endpoint: this.workspaceState.get(MEMENTO_KEYS.endpoint),
-            tenantId: this.workspaceState.get(MEMENTO_KEYS.tenantId),
-            authType: this.workspaceState.get(MEMENTO_KEYS.authType),
-            tokenEndpoint: this.workspaceState.get(MEMENTO_KEYS.tokenEndpoint),
-            audience: this.workspaceState.get(MEMENTO_KEYS.audience),
-            activeTargetName: this.workspaceState.get(MEMENTO_KEYS.activeTargetName),
-            ledger: this.workspaceState.get(MEMENTO_KEYS.ledger),
-        });
+        return deploymentStateFrom(
+            this.workspaceState.get<RawDeploymentState>(STATE_KEY) ?? this.legacyState(),
+        );
     }
 
     async save(patch: DeploymentStatePatch): Promise<void> {
-        const next = applyDeploymentStatePatch(this.load(), patch);
-        for (const key of patchedKeys(patch)) {
-            await this.workspaceState.update(MEMENTO_KEYS[key], next[key]);
-        }
+        await this.workspaceState.update(STATE_KEY, applyDeploymentStatePatch(this.load(), patch));
+    }
+
+    private legacyState(): RawDeploymentState {
+        return Object.fromEntries(
+            Object.entries(LEGACY_KEYS).map(([field, key]) => [
+                field,
+                this.workspaceState.get(key),
+            ]),
+        );
     }
 }

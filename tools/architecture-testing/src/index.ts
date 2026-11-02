@@ -10,6 +10,8 @@ export { exceptionsWithoutIssue, staleExceptions, unexcusedViolations } from "./
 export type { KnownException, Violation } from "./knownExceptions";
 export { readModuleImports } from "./moduleImports";
 export type { ModuleImport } from "./moduleImports";
+export { findPortAdapters, portAdapterViolations } from "./portAdapters";
+export type { PortAdapterViolations } from "./portAdapters";
 export { requireMatches } from "./requireMatches";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";

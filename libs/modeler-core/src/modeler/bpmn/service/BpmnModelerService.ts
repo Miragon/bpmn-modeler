@@ -53,18 +53,13 @@ export class BpmnModelerService {
             let doc = new BpmnDocument(snapshot.content);
 
             if (doc.isEmpty()) {
-                const xml = await this.documents.initializeEmpty(
-                    editorId,
-                    snapshot,
-                    hostUpdated,
-                    async () => {
-                        const engine = await this.picker.choose(newModelEnginePrompt());
-                        if (engine === undefined) {
-                            throw new UserCancelledError();
-                        }
-                        return BpmnDocument.forNewModel(engine).xml;
-                    },
-                );
+                const xml = await this.documents.initializeEmpty(editorId, snapshot, async () => {
+                    const engine = await this.picker.choose(newModelEnginePrompt());
+                    if (engine === undefined) {
+                        throw new UserCancelledError();
+                    }
+                    return BpmnDocument.forNewModel(engine).xml;
+                });
                 if (xml === undefined) return false;
                 doc = new BpmnDocument(xml);
             }

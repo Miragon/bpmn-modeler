@@ -165,8 +165,8 @@ export class DeploymentStatusService {
      * the target and — for a named Camunda 7 target — engine verification.
      */
     async pickStatusBarAction(documentDir?: string): Promise<DeploymentStatusAction | undefined> {
-        const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-        return this.picker.choose(deploymentStatusActionPrompt(target));
+        const destination = await this.deploymentTargetService.getActiveDestination(documentDir);
+        return this.picker.choose(deploymentStatusActionPrompt(destination));
     }
 
     /**

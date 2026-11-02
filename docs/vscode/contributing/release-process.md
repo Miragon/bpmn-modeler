@@ -11,7 +11,7 @@ no longer forces a release of the others:
 
 | Line | Tag | Covers | Publishes to |
 |---|---|---|---|
-| **`npm`** (path `.`, the root component) | `bpmn-modeler-v<version>` | The publishable `@miragon/bpmn-modeler` package + the 10 libs it inlines | npm registry |
+| **`npm`** (path `.`, the root component) | `bpmn-modeler-v<version>` | The publishable `@miragon/bpmn-modeler` package + the libs it inlines | npm registry |
 | **`vscode`** (path `apps/vscode-plugin`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS/Flatpak) + Homebrew |
 | **`intellij`** (path `apps/intellij-plugin`) | `intellij-v<version>` | IntelliJ plugin | JetBrains Marketplace + `updatePlugins.xml` |
 | **`dmn-modeler`** (path `packages/dmn-modeler`) | `dmn-modeler-v<version>` | The publishable `@miragon/dmn-modeler` package + the two libs it inlines | npm registry |
@@ -47,26 +47,29 @@ release-please routes each commit purely by its changed file paths, and **only
 the root component (`.`) can watch multiple paths** — it receives every commit
 minus its `exclude-paths`; all other components are single-directory. The root
 slot belongs to the **npm package**, the one artifact where semver correctness
-is a hard requirement and whose sources span `packages/bpmn-modeler` plus 10
-inlined libs. The hosts are single-path components fed by **sync markers** for
-the sources they bundle from elsewhere
+is a hard requirement and whose sources span `packages/bpmn-modeler` plus the
+libs it inlines. The hosts are single-path components fed by **sync markers**
+for the sources they bundle from elsewhere
 ([Release and publishing: release components and markers](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/release-and-publishing.md#release-components-and-markers)).
 
 | Line | Natively watched paths | Bundled sources (marker-covered) | Marker file |
 |---|---|---|---|
-| **npm** (root `.`) | `packages/bpmn-modeler`, the 10 inlined libs + remaining root files | — | — |
+| **npm** (root `.`) | `packages/bpmn-modeler`, the inlined libs + remaining root files | — | — |
 | **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the four webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, `packages/dmn-modeler`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
 | **intellij** (`apps/intellij-plugin`) | `apps/intellij-plugin` only | `apps/bpmn-webview`, `apps/deployment-webview`, `apps/modeler-bridge`, `libs/modeler-core`, `libs/shared`, the npm-package sphere | `apps/intellij-plugin/BUNDLED_WEBVIEW` |
 | **dmn-modeler** (`packages/dmn-modeler`) | `packages/dmn-modeler` only | `libs/modeler-types`, `libs/bpmn-i18n-extras` | `packages/dmn-modeler/BUNDLED_LIBS` |
 
-The 10 inlined libs (with `packages/bpmn-modeler`, the "npm-package sphere" —
-see `INLINED_LIBS` in `packages/bpmn-modeler/vite.config.mts`):
+The inlined libs (with `packages/bpmn-modeler`, the "npm-package sphere" —
+see `packages/bpmn-modeler/inlined-libraries.json`):
 `libs/modeler-types`, `libs/bpmn-diff`, `libs/bpmn-clipboard`,
 `libs/bpmn-i18n-extras`, `libs/element-template-chooser`, `libs/append-menu`,
-`libs/model-navigation`, `libs/code-link`, `libs/inline-scripting`,
-`libs/flow-navigation`. `libs/modeler-core` and `libs/shared` are host-side
-(never inlined into the npm package) and are excluded from the root along with
-`libs/standalone-extension` — they reach the hosts via markers.
+`libs/properties-panel`, `libs/model-navigation`, `libs/definition-search`,
+`libs/code-link`, `libs/inline-scripting`, `libs/flow-navigation`,
+`libs/bpmn-layout`. A spec in `tools/repo-checks` fails when the marker
+workflow misses one of them, or one of the DMN package's. `libs/modeler-core`
+and `libs/shared` are host-side (never inlined into the npm package) and are
+excluded from the root along with `libs/standalone-extension` — they reach the
+hosts via markers.
 
 **Unwatched by everyone** — `docs`, `.github` and all
 repo-root tooling files (`yarn.lock`, `package.json`, `tsconfig.base.json`,

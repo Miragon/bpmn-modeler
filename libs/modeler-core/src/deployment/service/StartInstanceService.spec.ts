@@ -24,6 +24,7 @@ import {
     InvalidDeploymentConfigError,
     UnresolvedEnvVariableError,
 } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, TestHostOptions } from "../../testing";
 
@@ -814,5 +815,30 @@ describe("StartInstanceService.startInstance credential approval", () => {
 
         expect(result).toMatchObject({ success: false, message: declinedAdHoc.message });
         expect(restClient.startInstance).not.toHaveBeenCalled();
+    });
+
+    it("lets a cancelled keychain read of the approved hosts through, starting and logging nothing", async () => {
+        const { service, host, restClient } = createService({
+            dotEnv: { MIRAGON_URL: "https://camunda.example/engine-rest" },
+        });
+        vi.spyOn(host.secrets, "getApprovedDestinations").mockRejectedValue(
+            new UserCancelledError(),
+        );
+
+        await expect(
+            service.startInstance(
+                "Process_1",
+                "${env:MIRAGON_URL}",
+                "c7",
+                new BasicAuth("admin", "s3cret"),
+                "",
+                undefined,
+                PROJECT_DIR,
+                named(NAMED_TARGET),
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(restClient.startInstance).not.toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual([]);
     });
 });

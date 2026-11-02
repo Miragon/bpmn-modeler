@@ -10,7 +10,7 @@ import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import { createDesigner } from "./design/createDesigner";
 import type { BpmnDesignerHandle, DesignerOptions } from "./design/publicApi";
-import type { PendingInputHandle } from "./surfaceHandle";
+import type { PendingInputHandle, PendingSaveHandle } from "./surfaceHandle";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import {
     afterPaint,
@@ -22,9 +22,9 @@ import {
 
 /**
  * The host-command contract the modeler and the designer both expose (import fit, export, format,
- * cleanup, import errors, theme, lint pushes, debounced save, favourites, command-stack and format
- * notifications, pending panel input). Both run the real bpmn-js modeling stack, so the contract
- * runs in the browser project against each surface.
+ * cleanup, import errors, theme, lint pushes, debounced save and its flush, favourites,
+ * command-stack and format notifications, pending panel input). Both run the real bpmn-js modeling
+ * stack, so the contract runs in the browser project against each surface.
  */
 
 type SharedOptions = Pick<
@@ -39,7 +39,7 @@ interface PopupMenuService {
     close(): void;
 }
 
-type EditableSurface = BpmnDesignerHandle & PendingInputHandle;
+type EditableSurface = BpmnDesignerHandle & PendingInputHandle & PendingSaveHandle;
 
 interface EditableSurfaceDescriptor {
     name: string;
@@ -433,6 +433,38 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
 
         await vi.waitFor(() => expect(onContentSaved).toHaveBeenCalledOnce());
         expect(onContentSaved.mock.calls[0][0].xml).toContain('name="Renamed"');
+    });
+
+    it("delivers the save still waiting in its debounce at once when flushed", async () => {
+        const onContentSaved = vi.fn();
+        const handle = await open({ linting: false, onContentSaved });
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        await afterPaint();
+        renameTask(handle, "Renamed");
+
+        await handle.flushContentSaved();
+
+        expect(onContentSaved).toHaveBeenCalledOnce();
+        expect(onContentSaved.mock.calls[0][0].xml).toContain('name="Renamed"');
+    });
+
+    it("drops the waiting save on destroy, so a later flush delivers nothing", async () => {
+        const onContentSaved = vi.fn();
+        const handle = await open({ linting: false, onContentSaved });
+        await handle.loadDiagram(FAR_FROM_ORIGIN_XML);
+        await afterPaint();
+        renameTask(handle, "Renamed");
+        handle.destroy();
+
+        await handle.flushContentSaved();
+
+        expect(onContentSaved).not.toHaveBeenCalled();
+    });
+
+    it("resolves a save flush on a surface without a save callback", async () => {
+        const handle = await open();
+
+        await expect(handle.flushContentSaved()).resolves.toBeUndefined();
     });
 
     it("pins the configured favourites at the top of the append menu", async () => {

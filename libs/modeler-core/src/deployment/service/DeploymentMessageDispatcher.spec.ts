@@ -44,6 +44,7 @@ import {
 } from "../domain/deployment";
 import { StartInstanceResult } from "../domain/startInstance";
 import { InvalidDeploymentConfigError } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { createTestHost } from "../../testing";
 import { DeploymentMessageDispatcher } from "./DeploymentMessageDispatcher";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
@@ -277,6 +278,20 @@ describe("DeploymentMessageDispatcher deploy result handling", () => {
         const query = postedQuery(c.post, DeploymentResultQuery);
         expect(query.success).toBe(false);
         expect(query.message).toBe(fallback);
+    });
+
+    it("posts a cancelled result without a notification or an error log when the user cancels a prompt", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockRejectedValue(new UserCancelledError());
+
+        await deploy(c, { authType: "none" });
+
+        expect(c.host.notifier.errors).toEqual([]);
+        expect(c.host.notifier.logged("error")).toEqual([]);
+        expect(postedQuery(c.post, DeploymentResultQuery)).toMatchObject({
+            success: false,
+            cancelled: true,
+        });
     });
 });
 
@@ -518,6 +533,20 @@ describe("DeploymentMessageDispatcher start-instance result handling", () => {
         const query = postedQuery(c.post, StartInstanceResultQuery);
         expect(query.success).toBe(false);
         expect(query.message).toBe(fallback);
+    });
+
+    it("posts a cancelled result without a notification or an error log when the user cancels a prompt", async () => {
+        const c = createDispatcher();
+        c.startInstanceService.startInstance.mockRejectedValue(new UserCancelledError());
+
+        await startInstance(c, { authType: "none" });
+
+        expect(c.host.notifier.errors).toEqual([]);
+        expect(c.host.notifier.logged("error")).toEqual([]);
+        expect(postedQuery(c.post, StartInstanceResultQuery)).toMatchObject({
+            success: false,
+            cancelled: true,
+        });
     });
 });
 

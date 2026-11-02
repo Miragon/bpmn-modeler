@@ -1,7 +1,9 @@
 {
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        "types": ["node"]
+        "types": ["node"],
+        // `bun run` transpiles each file alone, the workspace libs included.
+        "isolatedModules": true
     },
     "include": ["src/**/*.ts"]
 }

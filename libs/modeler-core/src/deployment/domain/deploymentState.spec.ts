@@ -9,7 +9,6 @@ import {
     DeploymentState,
     DeploymentStatePatch,
     deploymentStateFrom,
-    patchedKeys,
     RawDeploymentState,
 } from "./deploymentState";
 
@@ -147,38 +146,6 @@ describe("applyDeploymentStatePatch", () => {
         });
 
         expect(STORED).toEqual(before);
-    });
-});
-
-describe("patchedKeys", () => {
-    it.each<[string, DeploymentStatePatch, (keyof DeploymentState)[]]>([
-        ["nothing for an empty patch", {}, []],
-        ["nothing for a field set to undefined", { tenantId: undefined }, []],
-        ["a field set to an empty text", { activeTargetName: "" }, ["activeTargetName"]],
-        ["the ledger for an empty ledger patch", { ledger: {} }, ["ledger"]],
-        [
-            "the fields in state order, then the ledger",
-            {
-                ledger: { remove: [DEV_ROW] },
-                audience: "zeebe-api",
-                endpoint: "https://engine.example/engine-rest",
-                authType: "oauth2",
-                tokenEndpoint: "https://idp.example/token",
-                tenantId: "acme",
-                activeTargetName: "dev",
-            },
-            [
-                "endpoint",
-                "tenantId",
-                "authType",
-                "tokenEndpoint",
-                "audience",
-                "activeTargetName",
-                "ledger",
-            ],
-        ],
-    ])("names %s", (_case, patch, expected) => {
-        expect(patchedKeys(patch)).toEqual(expected);
     });
 });
 

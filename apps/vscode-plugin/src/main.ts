@@ -67,6 +67,7 @@ export function activate(context: ExtensionContext): TestApi {
     commandsFeature.register(context, deps, {
         bpmnService: bpmnEditor.bpmnService,
         layoutSvc: bpmnEditor.layout,
+        coreWriteRenderer: bpmnEditor,
     });
 
     return {

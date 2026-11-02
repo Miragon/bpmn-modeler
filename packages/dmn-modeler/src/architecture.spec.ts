@@ -71,7 +71,8 @@ describe("dmn-modeler import direction", () => {
         ).toEqual([]);
     });
 
-    it("no libs/* source imports @miragon/dmn-modeler", () => {
+    // Parses every lib: seconds under coverage on CI.
+    it("no libs/* source imports @miragon/dmn-modeler", { timeout: 30_000 }, () => {
         const offenders: string[] = [];
         for (const file of readSourceTree(LIBS_ROOT)) {
             for (const spec of importedModules(file)) {

@@ -160,7 +160,8 @@ export class TemplateMarketplaceService {
      * once, sparing the user a full re-fetch of every remaining marketplace.
      *
      * Reads the post-removal settings and prunes as
-     * {@link MarketplaceRegistry.cachePrune} decides, like `updateAll`.
+     * {@link MarketplaceRegistry.cachePrune} decides, like `updateAll`. Never
+     * throws: a failed prune is logged.
      */
     async pruneOrphanedCaches(): Promise<void> {
         await this.pruneCache(
@@ -181,7 +182,14 @@ export class TemplateMarketplaceService {
             );
             return;
         }
-        const pruned = await this.cache.prune(prune.ids);
+        let pruned: string[];
+        try {
+            pruned = await this.cache.prune(prune.ids);
+        } catch (error) {
+            // An orphaned slot left behind is only served until the next prune.
+            this.notifier.logError(error as Error);
+            return;
+        }
         if (pruned.length > 0) {
             this.notifier.logInfo(
                 `Pruned ${pruned.length} orphaned marketplace cache(s): ${pruned.join(", ")}`,

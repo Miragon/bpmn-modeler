@@ -1186,11 +1186,15 @@ export class DeploymentResultQuery extends Query<"DeploymentResultQuery"> {
 
     public readonly deploymentId: string | undefined;
 
-    constructor(success: boolean, message: string, deploymentId?: string) {
+    /** The user cancelled a prompt before anything was sent; the form shows no result. */
+    public readonly cancelled: boolean;
+
+    constructor(success: boolean, message: string, deploymentId?: string, cancelled = false) {
         super("DeploymentResultQuery");
         this.success = success;
         this.message = message;
         this.deploymentId = deploymentId;
+        this.cancelled = cancelled;
     }
 }
 
@@ -1321,11 +1325,15 @@ export class StartInstanceResultQuery extends Query<"StartInstanceResultQuery"> 
 
     public readonly processInstanceId: string | undefined;
 
-    constructor(success: boolean, message: string, processInstanceId?: string) {
+    /** The user cancelled a prompt before anything was sent; the form shows no result. */
+    public readonly cancelled: boolean;
+
+    constructor(success: boolean, message: string, processInstanceId?: string, cancelled = false) {
         super("StartInstanceResultQuery");
         this.success = success;
         this.message = message;
         this.processInstanceId = processInstanceId;
+        this.cancelled = cancelled;
     }
 }
 

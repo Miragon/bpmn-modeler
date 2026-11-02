@@ -67,6 +67,24 @@ describe("watchedChangeOf", () => {
             path: `${ROOT}/node_modules`,
             change: "unrelated",
         },
+        {
+            behaviour: "ignores a watched file inside a dot-folder below the root",
+            event: "create",
+            path: `${ROOT}/.history/order.bpmn`,
+            change: "unrelated",
+        },
+        {
+            behaviour: "ignores a dot-folder created below the root",
+            event: "create",
+            path: `${ROOT}/.history`,
+            change: "unrelated",
+        },
+        {
+            behaviour: "reads a change of a watched dot-file as the file's",
+            event: "change",
+            path: `${ROOT}/.order.bpmn`,
+            change: "file",
+        },
     ])("$behaviour", ({ event, path, change }) => {
         expect(watchedChangeOf(event, path, ROOT, isBpmnFile)).toBe(change);
     });

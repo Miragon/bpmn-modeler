@@ -29,6 +29,7 @@ const c7NamespaceOnly = diagram(CAMUNDA_NAMESPACE);
 const c8NamespaceOnly = diagram(ZEEBE_NAMESPACE, MODELER_NAMESPACE);
 const c8PlatformNameOnly = diagram(MODELER_NAMESPACE, C8_PLATFORM);
 const untagged = diagram(MODELER_NAMESPACE);
+const notADiagramMentioningZeebe = `<!-- ${ZEEBE_NAMESPACE} -->`;
 
 const BOTH_VERSIONS: MigrationVersions = { c7: "7.24.0", c8: "8.8.0" };
 
@@ -63,6 +64,10 @@ describe("MigrationPlan.classify", () => {
     it.each([
         { diagram: "a diagram without an execution platform", xml: untagged },
         { diagram: "an empty document", xml: "" },
+        {
+            diagram: "a file that only mentions an engine namespace",
+            xml: notADiagramMentioningZeebe,
+        },
     ])("leaves $diagram undetected", ({ xml }) => {
         const plan = planOf(candidate("/work/a.bpmn", xml));
 
@@ -107,6 +112,14 @@ describe("MigrationPlan.scopeDecision", () => {
             candidates: [
                 candidate("/work/a.bpmn", untagged),
                 candidate("/work/b.bpmn", c7NamespaceOnly),
+            ],
+            expected: { kind: "fixed", scope: "c7" },
+        },
+        {
+            workspace: "C7 diagrams next to a file that only mentions the C8 namespace",
+            candidates: [
+                candidate("/work/a.bpmn", taggedC7("7.20.0")),
+                candidate("/work/notes.bpmn", notADiagramMentioningZeebe),
             ],
             expected: { kind: "fixed", scope: "c7" },
         },

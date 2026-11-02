@@ -7,7 +7,7 @@ import {
     type SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
 import type { ModelerMode, ThemeMode } from "../publicApi";
-import type { PendingInputHandle } from "../surfaceHandle";
+import type { PendingInputHandle, PendingSaveHandle } from "../surfaceHandle";
 import type {
     ModeSession,
     ModeSessionOptions,
@@ -26,6 +26,10 @@ function canToggleMode(handle: SurfaceHandle): handle is SurfaceHandle & {
 
 function holdsPanelInput(handle: SurfaceHandle): handle is SurfaceHandle & PendingInputHandle {
     return "flushPendingInput" in handle;
+}
+
+function holdsPendingSave(handle: SurfaceHandle): handle is SurfaceHandle & PendingSaveHandle {
+    return "flushContentSaved" in handle;
 }
 
 /**
@@ -144,6 +148,15 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             }
             snapshot = original.captureViewState();
             xml = await original.exportDiagram();
+            if (disposed) {
+                safeDestroy(original);
+                return;
+            }
+            // The destroy would drop the debounced save, and the next surface's import
+            // fires no change that saves the edit again.
+            if (holdsPendingSave(original)) {
+                await original.flushContentSaved();
+            }
             if (disposed) {
                 safeDestroy(original);
                 return;

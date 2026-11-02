@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { DeployedRevision, DeploymentState } from "@miragon/bpmn-modeler-core";
+import type {
+    DeployedRevision,
+    DeploymentState,
+    DeploymentStatePatch,
+} from "@miragon/bpmn-modeler-core";
 
-import { InMemoryMemento } from "../../__fixtures__/vscodeStorage";
+import { FailingMemento, InMemoryMemento } from "../../__fixtures__/vscodeStorage";
 import { VsCodeDeploymentState } from "./VsCodeDeploymentState";
 
 const LEDGER_KEY = "bpmn-modeler.deployment.ledger";
@@ -20,6 +24,26 @@ const SAVED: DeploymentState = {
     activeTargetName: "dev",
     ledger: { "target:dev::/a.bpmn": revision("f1") },
 };
+
+const OLD_CONNECTION: DeploymentStatePatch = {
+    endpoint: "https://old.example",
+    tenantId: "tenant-1",
+    authType: "none",
+    tokenEndpoint: "",
+    audience: "",
+};
+
+const NEW_OAUTH2_CONNECTION: DeploymentStatePatch = {
+    endpoint: "https://new.example",
+    tenantId: "tenant-2",
+    authType: "oauth2",
+    tokenEndpoint: "https://idp/token",
+    audience: "zeebe-api",
+};
+
+function connectionOf({ endpoint, tenantId, authType, tokenEndpoint, audience }: DeploymentState) {
+    return { endpoint, tenantId, authType, tokenEndpoint, audience };
+}
 
 describe("VsCodeDeploymentState", () => {
     it("falls back to ad-hoc defaults in a fresh workspace", () => {
@@ -72,17 +96,50 @@ describe("VsCodeDeploymentState", () => {
         expect(new VsCodeDeploymentState(memento).load()).toEqual(SAVED);
     });
 
-    it("writes only the keys a patch names", async () => {
+    it("keeps the fields a patch leaves out", async () => {
         const memento = new InMemoryMemento();
-        const state = new VsCodeDeploymentState(memento);
+        const { ledger, ...fields } = SAVED;
+        await new VsCodeDeploymentState(memento).save({ ...fields, ledger: { put: ledger } });
 
-        await state.save({ endpoint: "https://engine/api", activeTargetName: "" });
+        await new VsCodeDeploymentState(memento).save({
+            endpoint: "https://other/api",
+            activeTargetName: "",
+        });
 
-        expect(memento.keys()).toEqual([
-            "bpmn-modeler.deployment.endpoint",
-            "bpmn-modeler.deployment.activeTargetName",
-        ]);
-        expect(memento.get("bpmn-modeler.deployment.activeTargetName")).toBe("");
+        expect(new VsCodeDeploymentState(memento).load()).toEqual({
+            ...SAVED,
+            endpoint: "https://other/api",
+            activeTargetName: "",
+        });
+    });
+
+    it("carries the keys earlier releases wrote into the first save", async () => {
+        const memento = new InMemoryMemento();
+        await memento.update("bpmn-modeler.deployment.endpoint", "https://engine/api");
+        await memento.update("bpmn-modeler.deployment.tenantId", "tenant-1");
+        await memento.update(LEDGER_KEY, { "target:dev::/a.bpmn": revision("f1") });
+
+        await new VsCodeDeploymentState(memento).save({ activeTargetName: "dev" });
+
+        expect(new VsCodeDeploymentState(memento).load()).toMatchObject({
+            endpoint: "https://engine/api",
+            tenantId: "tenant-1",
+            activeTargetName: "dev",
+            ledger: { "target:dev::/a.bpmn": revision("f1") },
+        });
+    });
+
+    it("reads no key an earlier release wrote once a save has stored the state", async () => {
+        const memento = new InMemoryMemento();
+        await new VsCodeDeploymentState(memento).save({ endpoint: "https://engine/api" });
+
+        await memento.update("bpmn-modeler.deployment.endpoint", "https://older/api");
+        await memento.update("bpmn-modeler.deployment.authType", "basic");
+
+        expect(new VsCodeDeploymentState(memento).load()).toMatchObject({
+            endpoint: "https://engine/api",
+            authType: "none",
+        });
     });
 
     it("adds a ledger row without dropping the others and overwrites the same key", async () => {
@@ -119,4 +176,27 @@ describe("VsCodeDeploymentState", () => {
             "target:prod::/a.bpmn": revision("a1"),
         });
     });
+
+    it.each(
+        [0, 1, 2, 3, 4].flatMap((writesBeforeFailure) => [
+            [writesBeforeFailure, false] as const,
+            [writesBeforeFailure, true] as const,
+        ]),
+    )(
+        "stores a connection whole or not at all when the workspace state rejects after %i writes (rejected value kept in memory: %s)",
+        async (writesBeforeFailure, keepsRejectedValue) => {
+            const memento = new FailingMemento(keepsRejectedValue);
+            await new VsCodeDeploymentState(memento).save(OLD_CONNECTION);
+            const oldConnection = connectionOf(new VsCodeDeploymentState(memento).load());
+            memento.failAfter(writesBeforeFailure);
+
+            await new VsCodeDeploymentState(memento)
+                .save(NEW_OAUTH2_CONNECTION)
+                .catch(() => undefined);
+
+            expect([oldConnection, NEW_OAUTH2_CONNECTION]).toContainEqual(
+                connectionOf(new VsCodeDeploymentState(memento).load()),
+            );
+        },
+    );
 });

@@ -34,7 +34,7 @@ class SettingsRouterTest {
             pushedChoices += ModelerSettingsStore.getInstance().snapshotMap(project)["lintingEnabled"]
         }.register()
 
-        wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), REQUEST_ID)
+        wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), wired.requestId(REQUEST_ID))
 
         assertEquals(listOf<Any?>(false), pushedChoices)
         assertEquals(REQUEST_ID, frame(wired.fake.nextFrame()).get("id").asInt)
@@ -48,7 +48,7 @@ class SettingsRouterTest {
             wired.channel.notify("settings/didChange", linkedMapOf("settings" to emptyMap<String, Any>()))
         }.register()
 
-        wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), REQUEST_ID)
+        wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), wired.requestId(REQUEST_ID))
 
         assertEquals("settings/didChange", frame(wired.fake.nextFrame()).get("method").asString)
         assertEquals(REQUEST_ID, frame(wired.fake.nextFrame()).get("id").asInt)
@@ -59,7 +59,7 @@ class SettingsRouterTest {
         val wired = wireChannel().also { this.wired = it }
         SettingsRouter(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers)) {}.register()
 
-        wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), REQUEST_ID)
+        wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), wired.requestId(REQUEST_ID))
 
         assertNull(PropertiesComponent.getInstance().getList(FAVOURITES_KEY))
     }

@@ -18,9 +18,10 @@ import com.intellij.openapi.vfs.LocalFileSystem
  * say (over the `notifier/…` RPC methods); this decides *how* IntelliJ shows it — the same
  * split the VS Code `VsCodeNotifier` makes against `window.show*Message`.
  */
-class HostNotifications(private val project: Project) {
-    private val log = Logger.getInstance(HostNotifications::class.java)
-
+class HostNotifications(
+    private val project: Project,
+    private val log: Logger = Logger.getInstance(HostNotifications::class.java),
+) {
     private val group
         get() = NotificationGroupManager.getInstance().getNotificationGroup(GROUP_ID)
 
@@ -30,13 +31,13 @@ class HostNotifications(private val project: Project) {
 
     fun showError(message: String) = balloon(message, NotificationType.ERROR)
 
+    /** The core already tags a line a webview forwarded, so [message] is written as it came. */
     fun log(level: String?, message: String) {
-        val text = "[webview] $message"
         when (level) {
-            "error" -> log.warn(text)
-            "warn" -> log.warn(text)
-            "debug" -> log.debug(text)
-            else -> log.info(text)
+            "error" -> log.warn(message)
+            "warn" -> log.warn(message)
+            "debug" -> log.debug(message)
+            else -> log.info(message)
         }
     }
 

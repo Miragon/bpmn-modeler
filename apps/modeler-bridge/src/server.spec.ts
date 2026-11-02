@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+    hostNotification,
+    hostReply,
     isStatusSlotUpdate,
     registerParams,
     settle,
@@ -174,6 +176,66 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         );
         expect(render.params.message.content).toBe(C7_XML);
         expect(render.params.message.documentRevision).toBe(4);
+    });
+
+    it("initialises a diagram the host empties again while the engine prompt is open", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+        const isEnginePrompt = (frame: { method?: string; id?: number }) =>
+            frame.method === "picker/show" && frame.id != null;
+        const changeDocument = (content: string, documentRevision: number) =>
+            rpc.handleLine(
+                hostNotification("document/didChange", {
+                    editorId,
+                    sessionId: 1,
+                    content,
+                    documentRevision,
+                }),
+            );
+
+        await rpc.handleLine(
+            hostNotification(
+                "session/register",
+                registerParams(editorId, root, bpmnPath, "", { sessionId: 1, documentRevision: 0 }),
+            ),
+        );
+        await rpc.handleLine(
+            hostNotification("webview/message", {
+                editorId,
+                sessionId: 1,
+                message: { type: "GetBpmnFileCommand" },
+            }),
+        );
+        const firstPrompt = await waitForFrame(frames, isEnginePrompt);
+
+        await changeDocument(C7_XML, 1);
+        // The bridge serves one editor's calls in order, so this call stays open
+        // until its own prompt is answered.
+        const reEmptying = changeDocument("", 2);
+        await settle();
+        await rpc.handleLine(hostReply(firstPrompt.id, { selected: [0] }));
+        await settle();
+
+        const enginePrompts = frames.filter(isEnginePrompt);
+        expect(enginePrompts).toHaveLength(2);
+        await rpc.handleLine(hostReply(enginePrompts[1].id, { selected: [1] }));
+
+        const write = await waitForFrame(frames, (frame) => frame.method === "document/write");
+        expect(write.params.expectedDocumentRevision).toBe(2);
+        expect(write.params.content).toContain('modeler:executionPlatform="Camunda Cloud"');
+        await rpc.handleLine(hostReply(write.id, { changed: true, accepted: true }));
+        const save = await waitForFrame(frames, (frame) => frame.method === "document/save");
+        await rpc.handleLine(hostReply(save.id, { saved: true }));
+        await reEmptying;
+
+        const render = await waitForFrame(
+            frames,
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "BpmnFileQuery" &&
+                frame.params.message.documentRevision === 2,
+        );
+        expect(render.params.message.engine).toBe("c8");
     });
 
     it("ignores stale same-uri traffic and disposal after replacement", async () => {

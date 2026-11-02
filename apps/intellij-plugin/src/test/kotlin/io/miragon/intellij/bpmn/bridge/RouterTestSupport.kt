@@ -11,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import io.miragon.intellij.bpmn.HostNotifications
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -31,7 +32,11 @@ internal class WiredBridge(
     val fake: FakeProcess,
     val channel: RpcChannel,
     val handlers: RpcHandlerRegistry,
+    private val generation: Int,
 ) {
+    /** The id of a request [fake] sent, as the reader pump would dispatch it. */
+    fun requestId(value: Int): CoreRequestId = CoreRequestId(value, generation)
+
     /**
      * Tears down the transport so its daemon threads (the channel's writer and the
      * fake's stdin/stdout pumps) exit — otherwise `@TestApplication`'s
@@ -52,23 +57,25 @@ internal class WiredBridge(
  */
 internal fun wireChannel(): WiredBridge {
     val handlers = RpcHandlerRegistry()
-    val channel = RpcChannel { method, params, id -> handlers.dispatch(method, params, id) }
+    val channel = RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
     val fake = FakeProcess()
-    channel.attach(fake.outputStream, fake.inputStream)
-    return WiredBridge(fake, channel, handlers)
+    val generation = channel.attach(fake.outputStream, fake.inputStream)
+    return WiredBridge(fake, channel, handlers, generation)
 }
 
 /**
  * Constructs [BridgeDeps] for a router under test. `isProcessAlive` returns true so
- * `notify`/`seed` sends are not no-oped, and `notifications` is wired to fail loudly
- * if a tested path ever forces it (none should). The default [parentDisposable]
- * dies with the project: a router's message-bus subscriptions would leak it otherwise.
+ * `notify`/`seed` sends are not no-oped, and `notifications` by default fails loudly
+ * if a tested path forces it without the test passing its own. The default
+ * [parentDisposable] dies with the project: a router's message-bus subscriptions
+ * would leak it otherwise.
  */
 internal fun bridgeDeps(
     project: Project,
     channel: RpcChannel,
     handlers: RpcHandlerRegistry,
     parentDisposable: Disposable = Disposer.newDisposable(project, "router-under-test"),
+    notifications: Lazy<HostNotifications> = lazy { error("HostNotifications must not be forced in router tests") },
 ): BridgeDeps =
     BridgeDeps(
         project = project,
@@ -78,7 +85,8 @@ internal fun bridgeDeps(
         isProcessAlive = { true },
         ensureStartedAsync = {},
         parentDisposable = parentDisposable,
-        notifications = lazy { error("HostNotifications must not be forced in router tests") },
+        notifications = notifications,
+        credentialStoreExecutor = orderedCredentialStoreExecutor(),
     )
 
 /**

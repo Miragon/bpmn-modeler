@@ -8,11 +8,14 @@ import {
     GetFormInputValuesCommand,
     Query,
 } from "@miragon/bpmn-modeler-shared";
+import { createFlushableDebounceInput } from "@miragon/bpmn-modeler-types";
 
 import { FormEditorApp } from "./app/FormEditorApp";
 import { FORM_TEMPLATE } from "./app/formTemplate";
 import type { FormHost } from "./app/host";
 import { shouldHandleHostMessage } from "./app/hostMessage";
+
+const FORM_JS_DEFAULT_DEBOUNCE_MS = 300;
 
 function requiredElement<T extends HTMLElement>(id: string): T {
     const element = document.getElementById(id);
@@ -26,8 +29,12 @@ export function bootstrap(host: FormHost): void {
 
     const editorElement = requiredElement<HTMLElement>("form-editor");
     const previewElement = requiredElement<HTMLElement>("form-preview");
+    const editorInput = createFlushableDebounceInput(FORM_JS_DEFAULT_DEBOUNCE_MS);
     const app = new FormEditorApp(
-        new FormEditor({ container: editorElement }),
+        new FormEditor({
+            container: editorElement,
+            additionalModules: [{ debounce: ["value", editorInput] }],
+        }),
         new Form({ container: previewElement }),
         host,
         {
@@ -37,6 +44,7 @@ export function bootstrap(host: FormHost): void {
             editButton: requiredElement("edit-view"),
             previewButton: requiredElement("preview-view"),
         },
+        editorInput,
         host.getState()?.mode,
     );
 

@@ -2,7 +2,9 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.HostNotifications
 import io.miragon.intellij.bpmn.StatusAction
 import io.miragon.intellij.bpmn.StatusIcon
 import io.miragon.intellij.bpmn.StatusSlot
@@ -17,8 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 /**
  * Covers how [HostUiRouter] reads the core's status frames into one view per
- * slot. `statusBar/update` is pinned by key only in `protocol.json`, so the
- * nested view fields are checked here.
+ * slot and its log frames into IDE log lines. `statusBar/update` is pinned by
+ * key only in `protocol.json`, so the nested view fields are checked here.
  */
 @TestApplication
 @ExtendWith(TestLoggerSetup::class)
@@ -52,7 +54,56 @@ class HostUiRouterTest {
         return wired.handlers to slots
     }
 
+    private class RecordingLogger : Logger() {
+        val lines = mutableListOf<String>()
+
+        override fun isDebugEnabled(): Boolean = true
+
+        override fun debug(message: String?, t: Throwable?) {
+            lines += "DEBUG $message"
+        }
+
+        override fun info(message: String?, t: Throwable?) {
+            lines += "INFO $message"
+        }
+
+        override fun warn(message: String?, t: Throwable?) {
+            lines += "WARN $message"
+        }
+
+        override fun error(message: String?, t: Throwable?, vararg details: String) {
+            lines += "ERROR $message"
+        }
+    }
+
+    private fun routedLog(): Pair<RpcHandlerRegistry, RecordingLogger> {
+        val wired = wireChannel().also { this.wired = it }
+        val project = projectFixture.get()
+        val ideLog = RecordingLogger()
+        val deps = bridgeDeps(project, wired.channel, wired.handlers, notifications = lazyOf(HostNotifications(project, ideLog)))
+        HostUiRouter(deps, RecordingStatusSlots()).register()
+        return wired.handlers to ideLog
+    }
+
     private fun json(text: String): JsonObject = JsonParser.parseString(text).asJsonObject
+
+    @Test
+    fun `writes a core log line to the IDE log without a webview label`() {
+        val (handlers, ideLog) = routedLog()
+
+        handlers.dispatch("notifier/log", json("""{"level": "warn", "message": "Failed to lint against .bpmnlintrc: boom"}"""), null)
+
+        assertEquals(listOf("WARN Failed to lint against .bpmnlintrc: boom"), ideLog.lines)
+    }
+
+    @Test
+    fun `writes a webview line with only the label the core gave it`() {
+        val (handlers, ideLog) = routedLog()
+
+        handlers.dispatch("notifier/log", json("""{"level": "info", "message": "[webview:order.bpmn] slow render"}"""), null)
+
+        assertEquals(listOf("INFO [webview:order.bpmn] slow render"), ideLog.lines)
+    }
 
     @Test
     fun `shows a status update in its slot`() {

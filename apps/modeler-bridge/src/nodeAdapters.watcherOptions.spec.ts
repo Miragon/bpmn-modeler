@@ -10,7 +10,7 @@ import { NodeWorkspace } from "./nodeAdapters";
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */
-const { watchSpy, closeSpy, chokidarListeners, globSpy, fsEvents, statSpy } = vi.hoisted(() => {
+const { watchSpy, closeSpy, chokidarListeners, readdirSpy, fsEvents, statSpy } = vi.hoisted(() => {
     const closeSpy = vi.fn(() => Promise.resolve());
     const chokidarListeners = new Map<string, (path: string) => void>();
     const fsEvents: { listener?: (event: string, filename: string | null) => void } = {};
@@ -18,7 +18,7 @@ const { watchSpy, closeSpy, chokidarListeners, globSpy, fsEvents, statSpy } = vi
         closeSpy,
         chokidarListeners,
         fsEvents,
-        globSpy: vi.fn(),
+        readdirSpy: vi.fn(),
         statSpy: vi.fn(),
         watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
             on(event: string, listener: (path: string) => void) {
@@ -32,13 +32,19 @@ const { watchSpy, closeSpy, chokidarListeners, globSpy, fsEvents, statSpy } = vi
 
 vi.mock("chokidar", () => ({ watch: watchSpy }));
 
-// A UNC root cannot be globbed on the macOS/Linux CI, so `fs.glob` is stubbed;
-// the macOS recursive watch is stubbed so its events play on every OS.
+// A UNC root cannot be read or resolved on the macOS/Linux CI, so `fs.readdir`
+// and `fs.realpath` are stubbed; the macOS recursive watch is stubbed so its
+// events play on every OS.
 vi.mock("node:fs", async (importOriginal) => {
     const actual = await importOriginal<typeof import("node:fs")>();
     return {
         ...actual,
-        promises: { ...actual.promises, glob: globSpy, stat: statSpy },
+        promises: {
+            ...actual.promises,
+            readdir: readdirSpy,
+            realpath: async (path: string) => path,
+            stat: statSpy,
+        },
         watch: (_root: string, _options: unknown, listener: typeof fsEvents.listener) => {
             fsEvents.listener = listener;
             return { close: closeSpy };
@@ -134,7 +140,7 @@ describe("NodeWorkspace path spelling", () => {
     afterEach(() => {
         vi.useRealTimers();
         watchSpy.mockClear();
-        globSpy.mockReset();
+        readdirSpy.mockReset();
         chokidarListeners.clear();
         vi.unstubAllGlobals();
     });
@@ -158,10 +164,16 @@ describe("NodeWorkspace path spelling", () => {
         return received;
     }
 
-    async function pathsFound(root: string, relativeMatch: string): Promise<string[]> {
-        globSpy.mockImplementation(async function* () {
-            yield relativeMatch;
+    /** Lists what `findFiles` finds below `root` in a tree holding only `<folder>/<file>`. */
+    async function pathsFound(root: string, folder: string, file: string): Promise<string[]> {
+        const entry = (name: string, isFolder: boolean) => ({
+            name,
+            isDirectory: () => isFolder,
+            isSymbolicLink: () => false,
         });
+        readdirSpy.mockImplementation(async (path: string) =>
+            path.endsWith(`/${folder}`) ? [entry(file, false)] : [entry(folder, true)],
+        );
         const workspace = new NodeWorkspace();
         workspace.registerRoot(root);
         return workspace.findFiles("**/*.java");
@@ -209,7 +221,7 @@ describe("NodeWorkspace path spelling", () => {
             vi.stubGlobal("process", { ...process, platform });
 
             const watched = pathsHandedToTheCore(root, emittedPath);
-            const found = await pathsFound(root, "src/A.java");
+            const found = await pathsFound(root, "src", "A.java");
 
             expect(found).toEqual([spelled]);
             expect(watched).toEqual({ deleted: [spelled], changed: [spelled], created: [spelled] });

@@ -87,8 +87,9 @@ export interface ModeSessionOptions {
     onSwitchStateChanged?: (busy: boolean) => void;
     /**
      * Runs before `destroy()` on a recreate, once the outgoing surface's pending
-     * properties-panel input is applied and the diagram exported — the place for
-     * a host to flush pending sync.
+     * properties-panel input is applied, the diagram exported and the surface's
+     * pending `onContentSaved` delivered — the place for a host to flush pending
+     * sync.
      */
     beforeDestroy?: () => void | Promise<void>;
     /**

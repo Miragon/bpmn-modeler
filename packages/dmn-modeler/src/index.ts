@@ -21,3 +21,5 @@ export type {
     DmnModelerHandle,
     CreateDmnModeler,
 } from "./publicApi";
+/** @internal */
+export type { DmnPendingInputHandle } from "./publicApi";

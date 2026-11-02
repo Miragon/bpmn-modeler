@@ -46,7 +46,15 @@ export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView {
                 tone: "neutral",
                 action: "toggleLinting",
             };
-        case "noConfig":
-            return { text: "BPMNlint: no .bpmnlintrc", icon: "info", tone: "neutral" };
+        case "failed":
+            return {
+                text: "BPMNlint: failed",
+                icon: "warning",
+                // One text for both hosts, so it names no host-specific log.
+                tooltip:
+                    "The .bpmnlintrc could not be read, or the lint run failed. See the log for details.",
+                // A run without findings must not look calmer than a partly applied config.
+                tone: "warning",
+            };
     }
 }

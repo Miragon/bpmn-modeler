@@ -32,6 +32,7 @@ import {
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
 } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, Prompt, TestHostOptions } from "../../testing";
 import { Engine } from "@miragon/bpmn-modeler-types";
@@ -121,6 +122,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         deploymentStatus,
         envResolver,
         credentialApproval,
+        host.settings,
     );
 
     return {
@@ -402,25 +404,100 @@ describe("DeploymentService.selectAdditionalFiles", () => {
         ]);
     });
 
-    it("offers at most 20 files and returns none when the user dismisses the list", async () => {
-        const forms = Object.fromEntries(
-            Array.from({ length: 21 }, (_, index) => [`/work/forms/form-${index}.form`, "{}"]),
-        );
-        const { service, host } = createService({ files: forms });
+    it("offers no file inside node_modules or build output", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/node_modules/left-pad/package.json": "{}",
+                "/work/target/classes/discount.dmn": "<definitions/>",
+            },
+        });
 
-        await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
+        await service.selectAdditionalFiles();
 
         expect(host.picker.prompts).toEqual([
             {
                 method: "chooseMany",
                 args: [
                     additionalFilesPrompt({
-                        files: Object.keys(forms).slice(0, 20),
+                        files: Object.keys(RESOURCES),
                         workspaceFolders: ["/work"],
                     }),
                 ],
             },
         ]);
+    });
+
+    it("offers no file inside a dot-folder, such as the modeler's own config", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/.camunda/deployment-targets.json": "{}",
+                "/work/.camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/.vscode/settings.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers no file inside the modeler's config folder when its name has no dot", async () => {
+        const { service, host } = createService({
+            settings: { configFolder: "camunda" },
+            files: {
+                ...RESOURCES,
+                "/work/camunda/deployment-targets.json": "{}",
+                "/work/camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/processes/camunda/payloads/start.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers every matching file in workspace order, the one found last first, and returns none when the user dismisses the list", async () => {
+        const foundLast = "/work/forms/a.form";
+        const forms = {
+            ...Object.fromEntries(
+                Array.from({ length: 20 }, (_, index) => [`/work/forms/z-${index}.form`, "{}"]),
+            ),
+            [foundLast]: "{}",
+        };
+        const { service, host } = createService({ files: forms });
+
+        await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
+
+        const offered = additionalFilesPrompt({
+            files: Object.keys(forms),
+            workspaceFolders: ["/work"],
+        });
+        expect(offered.items).toHaveLength(21);
+        expect(offered.items[0]).toEqual(fileChoice(foundLast));
+        expect(host.picker.prompts).toEqual([{ method: "chooseMany", args: [offered] }]);
     });
 });
 
@@ -1209,6 +1286,29 @@ describe("DeploymentService.deploy credential approval", () => {
         expect(host.deploymentState.load().endpoint).toBe("");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
+
+    it("lets a cancelled keychain read of the approved hosts through, deploying and logging nothing", async () => {
+        const { service, host, restClient, deploymentStatus } = createService({
+            files: MAIN_FILE,
+        });
+        vi.spyOn(host.secrets, "getApprovedDestinations").mockRejectedValue(
+            new UserCancelledError(),
+        );
+
+        await expect(
+            service.deploy(
+                buildConfig({
+                    endpoint: "https://gw/engine-rest",
+                    auth: new BasicAuth("admin", "s3cret"),
+                }),
+                named(targetAt("https://gw/engine-rest")),
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual([]);
+    });
 });
 
 describe("DeploymentService.deployFiles", () => {
@@ -1649,5 +1749,29 @@ describe("DeploymentService.deployFiles", () => {
         expect(host.notifier.errors).toEqual([
             `Deployed 0/2 file(s) to "dev". a: ${DECLINED.message}`,
         ]);
+    });
+
+    it("stops the whole batch before the first deploy when the user cancels the keychain read of the approved hosts", async () => {
+        const { service, host, restClient } = createService({
+            files: xmlFiles("/work/a.bpmn", "/work/b.bpmn"),
+        });
+        const approvalReads = vi
+            .spyOn(host.secrets, "getApprovedDestinations")
+            .mockRejectedValue(new UserCancelledError());
+
+        await expect(
+            service.deployFiles(
+                ["/work/a.bpmn", "/work/b.bpmn"],
+                named(target),
+                new BasicAuth("admin", "s3cret"),
+                "/work",
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(approvalReads).toHaveBeenCalledOnce();
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.logged("warning")).toEqual([]);
     });
 });

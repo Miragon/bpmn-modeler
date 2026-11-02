@@ -24,7 +24,7 @@ export type BpmnlintIndicator =
       }
     | { readonly state: "default"; readonly platform: Engine | undefined }
     | { readonly state: "disabled" }
-    | { readonly state: "noConfig" };
+    | { readonly state: "failed" };
 
 export function indicatorForFindings(
     source: LintFindingsSource,

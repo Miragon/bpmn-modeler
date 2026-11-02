@@ -4,7 +4,8 @@ Go from a task to the source file that implements it, from a reference to the mo
 signals, errors and escalations from other models.
 
 All three work in VS Code, the desktop app and IntelliJ. They search the open workspace (in IntelliJ, the project) and
-skip `node_modules`, `dist`, `build`, `out`, `target`, `bin`, `coverage` and version-control folders inside it.
+skip `node_modules`, `dist`, `build`, `out`, `target`, `bin`, `coverage` and folders whose name starts with a dot (such
+as `.git`, `.idea` or `.camunda`) inside it.
 
 ## Go to implementation
 

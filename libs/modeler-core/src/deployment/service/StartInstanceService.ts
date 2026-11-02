@@ -13,6 +13,7 @@ import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { DeploymentDestination } from "../domain/deploymentDestination";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { loggableHost } from "../../kernel/domain/http";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { EnvValueResolver } from "./EnvValueResolver";
@@ -87,7 +88,7 @@ export class StartInstanceService {
      *   1. Reads the payload file (if specified).
      *   2. Issues the REST start-instance request.
      *
-     * This method never throws; all errors are captured in the returned
+     * Every error but a cancelled prompt is captured in the returned
      * {@link StartInstanceResult} with `success: false`.
      *
      * @param processDefinitionKey The BPMN process definition key.
@@ -99,6 +100,7 @@ export class StartInstanceService {
      * @param documentDir Directory anchoring the `.env` lookup for env refs.
      * @param destination The named target the request was admitted against, or the ad-hoc connection.
      * @returns The outcome of the start-instance attempt.
+     * @throws {UserCancelledError} when the user cancels a prompt.
      */
     async startInstance(
         processDefinitionKey: string,
@@ -141,6 +143,7 @@ export class StartInstanceService {
             );
             return await this.restClient.startInstance(requestConfig);
         } catch (error) {
+            if (error instanceof UserCancelledError) throw error;
             const message = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(message));
             return new StartInstanceResult(false, message);

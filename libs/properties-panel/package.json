@@ -13,6 +13,9 @@
         "build": "tsc --noEmit",
         "test": "vitest run --coverage"
     },
+    "dependencies": {
+        "@miragon/bpmn-modeler-types": "workspace:*"
+    },
     "peerDependencies": {
         "@bpmn-io/properties-panel": "3.57.0",
         "bpmn-js": "18.31.0",

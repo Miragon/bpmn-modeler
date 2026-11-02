@@ -139,7 +139,7 @@ class EditorSessionRouterTest {
         val params =
             linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId, "content" to content)
         expectedDocumentRevision?.let { params["expectedDocumentRevision"] = it }
-        wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, 1)
+        wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, wired.requestId(1))
         // handleWrite defers the mutation to invokeLater; pump it so setText (and the
         // synchronous listener call it triggers) actually runs before we read frames.
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
@@ -160,7 +160,7 @@ class EditorSessionRouterTest {
 
     private fun Fixture.dispatchCoreSave() {
         val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to sessionId)
-        wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, 2)
+        wired.handlers.dispatch("document/save", wired.channel.gson.toJsonTree(params).asJsonObject, wired.requestId(2))
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 
@@ -1234,7 +1234,7 @@ class EditorSessionRouterTest {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "coalesce.bpmn", INITIAL_XML)
         val handlers = RpcHandlerRegistry()
-        val channel = RpcChannel { method, params, id -> handlers.dispatch(method, params, id) }
+        val channel = RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
         val fake = FakeProcess()
         val router = EditorSessionRouter(bridgeDeps(project, channel, handlers), DeterministicScheduler())
         router.register()
@@ -1289,7 +1289,7 @@ class EditorSessionRouterTest {
                     ),
                 )
                 .asJsonObject
-        f.wired.handlers.dispatch("document/write", params, 1)
+        f.wired.handlers.dispatch("document/write", params, f.wired.requestId(1))
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         val reply = parse(f.wired.fake.nextFrame())
@@ -1325,7 +1325,7 @@ class EditorSessionRouterTest {
                     ),
                 ).asJsonObject
 
-        f.wired.handlers.dispatch("document/write", params, 1)
+        f.wired.handlers.dispatch("document/write", params, f.wired.requestId(1))
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         val reply = parse(f.wired.fake.nextFrame())

@@ -15,6 +15,7 @@ import {
     type SurfaceMount,
 } from "../__fixtures__/surfaceMount";
 import { createModeSession } from "./modeSession";
+import type { ContentSavedEvent } from "../publicApi";
 import type { ViewportData } from "../viewport";
 import type { ModeSession, SurfaceFactories, SurfaceHandle } from "./publicApi";
 
@@ -28,14 +29,24 @@ import type { ModeSession, SurfaceFactories, SurfaceHandle } from "./publicApi";
 
 const DRILLED_IN_VIEWPORT = { x: 1700, y: 1900, width: 1200, height: 900 };
 
-function realSurfaces(panel: HTMLElement): SurfaceFactories {
+function realSurfaces(
+    panel: HTMLElement,
+    onContentSaved?: (event: ContentSavedEvent) => void,
+): SurfaceFactories {
     const propertiesPanel = { parent: panel };
     return {
         view: ({ container, theme }) => createViewer(container, { theme, propertiesPanel }),
         design: ({ container, theme }) =>
-            createDesigner(container, { theme, propertiesPanel, linting: false }),
+            createDesigner(container, { theme, propertiesPanel, linting: false, onContentSaved }),
         implement: ({ container, theme, engine, mode }) =>
-            createModeler(container, { engine, mode, theme, propertiesPanel, linting: false }),
+            createModeler(container, {
+                engine,
+                mode,
+                theme,
+                propertiesPanel,
+                linting: false,
+                onContentSaved,
+            }),
     };
 }
 
@@ -255,6 +266,68 @@ describe("createModeSession hands a value the panel still debounces to the next 
             expect(onError).not.toHaveBeenCalled();
             expect(events).toEqual(["commandStack.changed", "beforeDestroy"]);
             await expect(session.getHandle().exportDiagram()).resolves.toContain(
+                'name="Typed in the panel"',
+            );
+        },
+    );
+});
+
+describe("createModeSession delivers the outgoing surface's pending content save", () => {
+    const models = [
+        { model: "a tagged", engine: "c7" as const, xml: tagAsCamunda7(FAR_FROM_ORIGIN_XML) },
+        { model: "an untagged", engine: undefined, xml: FAR_FROM_ORIGIN_XML },
+    ];
+
+    async function openPersistingInDesign(engine: DetectedEngine, xml: string) {
+        const onContentSaved = vi.fn<(event: ContentSavedEvent) => void>();
+        const onError = vi.fn();
+        const mount = mountWithPanel();
+        session = await createModeSession({
+            container: mount.container,
+            engine,
+            surfaces: realSurfaces(mount.panel, onContentSaved),
+            initialMode: "design",
+            onError,
+        });
+        await session.getHandle().loadDiagram(xml);
+        await afterPaint();
+        return { session, mount, onContentSaved, onError };
+    }
+
+    it.each(models)(
+        "saves $model model's edit that still waits in the save debounce when switching to View",
+        async ({ engine, xml }) => {
+            const opened = await openPersistingInDesign(engine, xml);
+            await renameTaskInDesign(opened.session);
+
+            await opened.session.requestMode("view");
+            await afterPaint();
+
+            expect(opened.onError).not.toHaveBeenCalled();
+            expect(opened.session.getMode()).toBe("view");
+            expect(opened.onContentSaved).toHaveBeenCalledOnce();
+            expect(opened.onContentSaved.mock.calls[0][0].xml).toContain(RENAMED_IN_DESIGN);
+        },
+    );
+
+    it.each(models)(
+        "saves $model model's value the panel still debounces when switching to View",
+        async ({ engine, xml }) => {
+            const opened = await openPersistingInDesign(engine, xml);
+            opened.session.getHandle().selection.selectElementsByIds(["Task_1"]);
+            const nameField = () =>
+                opened.mount.panel.querySelector<HTMLTextAreaElement>("#bio-properties-panel-name");
+            await expect.poll(() => nameField()?.value).toBe("A");
+            nameField()!.value = "Typed in the panel";
+            nameField()!.dispatchEvent(new Event("input", { bubbles: true }));
+            await afterPaint();
+
+            await opened.session.requestMode("view");
+            await afterPaint();
+
+            expect(opened.onError).not.toHaveBeenCalled();
+            expect(opened.onContentSaved).toHaveBeenCalledOnce();
+            expect(opened.onContentSaved.mock.calls[0][0].xml).toContain(
                 'name="Typed in the panel"',
             );
         },

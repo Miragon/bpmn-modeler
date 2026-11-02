@@ -395,7 +395,11 @@ export interface NotifierOpenDocumentParams {
     path: string;
 }
 
-/** `notifier/log` — a leveled line to the IDE log/console. */
+/**
+ * `notifier/log` — a leveled line to the IDE log/console. `message` is the whole
+ * line: the core tags a line a webview forwarded (`[webview]` or
+ * `[webview:<source>]`), so the host adds no origin label.
+ */
 export interface NotifierLogParams {
     level: "debug" | "info" | "warn" | "error";
     message: string;

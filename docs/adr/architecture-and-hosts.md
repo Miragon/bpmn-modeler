@@ -442,6 +442,30 @@ the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
 
+The core also decides which folders a workspace listing leaves out.
+`excludedDirsGlob` (`kernel/domain/excludedDirs.ts`) builds one exclude glob
+from `EXCLUDED_DIRS` (`node_modules` and build output) and every folder whose
+name starts with a dot, and every listing passes it to `findFiles`: the
+definition index, code-link, Navigate, both deployment pickers and Migrate
+All. A caller adds its own folders to the same brace group, as the additional
+files add `element-templates` and the config folder. The exclude matches a
+file's path below its workspace folder. VS Code hands it to ripgrep, and the
+bridge walks with `readdir` and never reads a folder the exclude covers whole
+(`coveredFolderRegExp`), so both hosts prune the same folders and list the
+same files; `testing/workspaceContract.ts` runs the same rows against the
+bridge adapter and the in-memory workspace. On both hosts `findFiles` follows
+a symlinked folder, as ripgrep does under VS Code's default
+`search.followSymlinks`. The bridge prunes an excluded name before it follows
+a link, so a `node_modules` link is never read, does not follow a link back
+to a folder the walk came through, and skips a link it cannot resolve. These
+rows run in `nodeAdapters.spec.ts` only, as the in-memory workspace has no
+links. The core's fs-walk fallback and `watchedChangeOf` skip the same
+folders, so a live update agrees with the listing. Dot-folders are left out on
+every host because VS Code's ripgrep searched them and the bridge's former
+`fs.glob` did not; none of these listings needs a file in one, as element
+templates, targets, payloads and code-link maps are read by path. The pickers
+offer every match with no cap.
+
 One prompt stays outside `PickerPort`: the template marketplace asks for a
 personal access token in a masked input, which a chooser cannot show. Its port
 follows the same split. `TokenPromptPort.promptForToken` takes a `TokenPrompt`
@@ -465,8 +489,9 @@ token prompt has.
 
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
-syncs, and a single, snapshot-checked initialization of an empty file that a
-webview reload or a host edit cannot race. Each modeler service adds only its
+syncs, and a single, snapshot-checked initialization of an empty file. A
+webview reload cannot race it; a host edit at a newer revision supersedes it,
+whichever host owns the revision. Each modeler service adds only its
 document type (the empty content, BPMN's engine prompt, the query it posts),
 and one `DocumentRenderParticipant` re-renders any of them on a host change.
 Before a document is persisted, the core's `PendingEditsFlush` asks the
@@ -474,12 +499,21 @@ webview for the edits its sync debounce still holds and writes them through
 the modeler service served for the file type; VS Code runs it on every save,
 and both deploys of the open diagram (Deploy Diagram and the deployment
 sidebar's Deploy) run it on both hosts before they save.
-In the BPMN webview, a value that still waits in the properties panel's
-600 ms input debounce counts as such an edit. The panel's `debounceInput`
-service comes from `libs/properties-panel` and tracks its waiting calls; the
-flush applies them before it exports, so the persisted file holds the value
-the panel shows. A mode switch that rebuilds the surface applies them before
-it exports the diagram for the next surface, and the webview's `beforeDestroy`
+In the BPMN, DMN and Form webviews, a value that still waits in an editor's
+input debounce counts as such an edit: a BPMN or DMN properties panel's
+(600 ms), DMN text in the decision-table, literal-expression and
+boxed-expression editors (300 ms), and every form-js editor input (300 ms). The
+BPMN and DMN modeler packages and the Form webview replace those debounce
+services with the flushable one from `modeler-types`
+(`createFlushableDebounceInput`): it tracks its waiting calls, and a flush runs
+them and the calls they debounce in turn; a call that fails does not hold back
+the others. The webview's flush applies them before it exports, so the
+persisted file holds the value the editor shows. The BPMN surfaces register it
+as `debounceInput` through `libs/properties-panel`; the DMN modeler registers
+its own instances, one for the DRD panel and one for the other views; the Form
+webview registers one as form-js's `debounce` service, with form-js's 300 ms
+delay. A BPMN mode switch that rebuilds the surface applies them before it
+exports the diagram for the next surface, and the webview's `beforeDestroy`
 posts the sync they scheduled, so both the next surface and the document get
 the value.
 A save IntelliJ starts itself (Ctrl+S, autosave, the save on switching to
@@ -502,11 +536,23 @@ switching away saves from a background thread, but the platform still
 delivers the event on the EDT through `invokeAndWait` while the saving thread
 holds no lock, so the host's write cannot deadlock it.
 Accepted residual: a sync the page posted before the host asked, whose core
-write has not reached the EDT yet, lands after the save; a DMN or Form
-properties-panel value the panel has not passed to the editor yet (dmn-js
-debounces it for 600 ms, form-js for 300 ms) is not flushed; and a save of one
+write has not reached the EDT yet, lands after the save; and a save of one
 Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
 flush.
+Before the standalone app shuts down or moves a diagram into or out of a
+secondary window (which reloads the webview), the Theia frontend in
+`libs/standalone-extension` flushes the page into Theia's text model itself,
+past the core. Every `clean` and `host-updated` reply carries the revision the
+page represents; the core and IntelliJ read a reply's revision only on a
+`flushed` export, so the field is additive. The frontend writes a `flushed`
+export, and nothing for `host-updated`. For `clean` or `unavailable` it falls
+back to the last sync it saw, once the text model has not taken it within
+500 ms, unless the reply's revision is newer than the sync's: the page has
+then imported an outside change newer than the document its sync was made
+against, and the host document already holds it. `decideFlushWrite` holds this rule. Accepted residual: a
+`flushed` export that races a host update still on its way to the page is
+written without a revision check; only a flush through the core's
+`PendingEditsFlush` would close that.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and
@@ -644,12 +690,16 @@ before the last replay re-imports; and each replay clears the page's undo stack.
 
 An asynchronous writer drains a soft-bounded outbound queue so editor and JCEF
 threads never block on bridge stdin. Superseded document and host-state updates
-coalesce; authoritative document updates and RPC replies remain reliable across
-backpressure and writer replacement. Best-effort frames may be dropped.
+coalesce; authoritative document updates remain reliable across backpressure
+and writer replacement. Best-effort frames may be dropped. An RPC reply survives
+backpressure but not its process: a respawned bridge numbers its requests from 1
+again, so the host tags each request with the generation of the process that
+sent it and drops the reply once that process is detached, also when the reply
+is created after the respawn.
 
 The host answers every core request exactly once: with its result, or with an
-error when its handler throws, also when the handler runs on the EDT
-(`RpcChannel.replyFromEdt`, pinned by the
+error when its handler throws, also when the handler leaves the reader thread
+for the EDT or a background thread (`RpcChannel.replyFrom`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
 How long the bridge's `Rpc.request` waits is data on each request in the
 [protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts)
@@ -664,10 +714,18 @@ leave that state out of step with the host: `document/write` and
 `marketplaceState/save` drops the templates its add just fetched. Such a
 request holds its caller until the host answers. `document/write` runs on the
 EDT, so a modal dialog delays it; the host answers the other two on its reader
-thread, so only an earlier request that blocks that thread, such as a keychain
-prompt, delays them. `Rpc` fails every outstanding and later request once its
-input ends; the stdio binding signals the end of stdin and then exits the
-process.
+thread, which runs no work that waits for the user. `Rpc` fails every
+outstanding and later request once its input ends; the stdio binding signals
+the end of stdin and then exits the process.
+
+The reader thread reads every frame of one bridge, so a handler that blocks it
+holds every editor's relays, status updates and document requests behind it.
+A PasswordSafe read can block until the user answers an OS keychain prompt, so
+the host runs `secretStore/*` and `tokenStore/*` on one background thread per
+project, never the EDT, and answers from there. A prompt then delays only the
+credential requests queued behind it, also those of a bridge respawned while it
+is open, and the single thread keeps a save ahead of the read that follows it
+([`SecretStoreRouterTest`](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/SecretStoreRouterTest.kt)).
 
 Notifications and status indicators are native host UI backed by RPC ports.
 The core writes the text of every notification, including the error balloon
@@ -734,10 +792,16 @@ the ad-hoc connection, the active target and the freshness ledger.
 ledger rows it puts and removes, so a deploy's connection or a prune's rows
 travel as one write. The core owns the defaults and the shape:
 `deploymentStateFrom` reads a missing value or one of the wrong type as the
-default and drops a ledger row that is not a revision, on both hosts. Hosts
-store only what a patch names: VS Code writes the patched workspace-state
-keys, and IntelliJ seeds the bridge with the keys it has stored, without
-defaults, and applies each patch in the one `deploymentState/save` handler.
+default and drops a ledger row that is not a revision, on both hosts. A host
+stores a save all or nothing. VS Code keeps the whole snapshot under the one
+workspace-state key `bpmn-modeler.deployment.state`, because an update of one
+`Memento` key is its only atomic write; a key per field, written one after
+another, would keep the keys written before a rejected write and so store a
+connection in part. It reads the per-field keys earlier releases wrote until
+the first save, and leaves them in place, so a downgraded release reads the
+state as it was at the upgrade. IntelliJ seeds the bridge with the keys it has
+stored, without defaults, and applies each patch in the one
+`deploymentState/save` handler.
 
 The bridge sends a patch as an acknowledged host request and applies it to
 its snapshot only once the host accepted it, onto the snapshot as it is then,
@@ -762,13 +826,21 @@ The `document/write` reply is the causation signal for the bridge's own
 writes; the host sends no `document/didChange` echo for them. While applying a
 write, the host marks the editor so the synchronous Document listener skips
 the change without copying the text. An accepted, changed reply updates the
-bridge mirror and never re-renders. When the host normalizes line separators,
-the reply carries `normalizedContent` so the mirror keeps the host's exact
-bytes; otherwise the full XML is not sent back. Every `document/didChange` is
-therefore external and re-renders. Content equality alone is never used to
-classify a change. This relies on the host replying on the same ordered
-channel after the Document mutation, so a later external change always
-arrives after the reply.
+bridge mirror and does not re-render. When the host normalizes line
+separators, the reply carries `normalizedContent` so the mirror keeps the
+host's exact bytes; otherwise the full XML is not sent back. Every
+`document/didChange` is therefore external and re-renders. Content equality
+alone is never used to classify a change. This relies on the host replying on
+the same ordered channel after the Document mutation, so a later external
+change always arrives after the reply.
+
+A page sync's write never re-renders: the page already shows that content. A
+core write of content the page did not produce (Change Engine Version, Migrate
+All) is followed by an explicit render at the unchanged host revision. Migrate
+All renders through `BpmnEditorFeature.renderCoreWrite`, which renders only for
+`host-driven` rendering: on VS Code the write's change event already
+re-renders. Accepted cost: a page sync sent before that render arrives carries
+the same revision, so the host accepts it and it overwrites the core write.
 
 A page flush the IntelliJ host writes itself (before a save, a close or a
 re-render) bypasses the core, so the bridge mirror misses that content. The
@@ -863,6 +935,18 @@ a cached result must equal an uncached run.
   isolate failing session hooks. Feature modules in the core cost a little
   indirection — a host reads its surface mapping, not the flow — in exchange for
   one place per fix.
+- The core filtered listings after the host returned them. That kept the
+  rule in one place but let every host read `node_modules` and build output
+  first: Bun's `fs.glob` spent 206-273 ms per listing on this repository,
+  a pruned walk 3-5 ms. Handing the host the exclude costs a stricter port
+  contract: an adapter that ignores the exclude, or matches it against
+  absolute paths, lists those folders again. The workspace contract checks
+  the bridge and the in-memory workspace; `VsCodeWorkspace` only forwards to
+  VS Code.
+- The additional files picker capped its listing at 20, and each host cut the
+  list before the core sorted it, so the hosts offered different files. The
+  pickers offer every match instead, at the cost of reading every match of
+  `**/*.{form,json,dmn}` on a large workspace.
 - `BpmnEditorFeature` could import the features whose commands it routes, if a
   composition folder were exempt from the cross-feature rule. That exception
   would never shrink, so the features hand their handlers and participants to

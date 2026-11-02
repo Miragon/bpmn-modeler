@@ -247,33 +247,36 @@ export class DeploymentTargetService {
             throw error;
         }
 
-        const edit = new TargetEdit(change, location);
+        return this.finishWrittenEdit(new TargetEdit(change, location), documentDir, () =>
+            this.saveActiveTargetName(target.name),
+        );
+    }
+
+    private async finishWrittenEdit(
+        edit: TargetEdit,
+        documentDir: string | undefined,
+        updateActiveTargetName: () => Promise<unknown>,
+    ): Promise<TargetEdit> {
         try {
-            await this.activateWrittenTarget(target.name, change.retiredSlotName, location);
+            await this.retireSlotAfter(updateActiveTargetName, edit);
         } finally {
             // The file holds the edit even when a later step failed; a panel still
-            // showing the old name would send a retry as the same rename.
-            await this.publishEdit(edit, documentDir);
+            // showing the old state would send a retry of the same edit.
+            await this.publish({ kind: "targetsChanged", edit, documentDir });
         }
         return edit;
     }
 
-    /**
-     * Nothing names the retired slot once the file is written, so it goes even
-     * when saving the active name fails.
-     */
-    private async activateWrittenTarget(
-        name: string,
-        retiredSlotName: string | undefined,
-        location: TargetsLocation,
-    ): Promise<void> {
+    /** Nothing names the retired slot once the file is written, so it goes even when `step` fails. */
+    private async retireSlotAfter(step: () => Promise<unknown>, edit: TargetEdit): Promise<void> {
+        const retireSlot = () => this.deleteSlot(edit.location, edit.change.retiredSlotName);
         try {
-            await this.saveActiveTargetName(name);
+            await step();
         } catch (error) {
-            await this.cleanUpAfterFailure(() => this.deleteSlot(location, retiredSlotName));
+            await this.cleanUpAfterFailure(retireSlot);
             throw error;
         }
-        await this.deleteSlot(location, retiredSlotName);
+        await retireSlot();
     }
 
     /** The edit's own failure is the one to report, so a cleanup failing after it is only logged. */
@@ -289,14 +292,6 @@ export class DeploymentTargetService {
         if (name !== undefined) {
             await this.secretStore.delete(targetSecretSlot(location, name));
         }
-    }
-
-    private async publishEdit(
-        edit: TargetEdit,
-        documentDir: string | undefined,
-    ): Promise<TargetEdit> {
-        await this.publish({ kind: "targetsChanged", edit, documentDir });
-        return edit;
     }
 
     /**
@@ -341,12 +336,11 @@ export class DeploymentTargetService {
             location.filePath,
             serializeDeploymentTargets(change.targets),
         );
-        await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
-
-        if (this.deploymentState.load().activeTargetName === change.name) {
-            await this.saveActiveTargetName("");
-        }
-        return this.publishEdit(new TargetEdit(change, location), documentDir);
+        return this.finishWrittenEdit(new TargetEdit(change, location), documentDir, async () => {
+            if (this.deploymentState.load().activeTargetName === change.name) {
+                await this.saveActiveTargetName("");
+            }
+        });
     }
 
     /**

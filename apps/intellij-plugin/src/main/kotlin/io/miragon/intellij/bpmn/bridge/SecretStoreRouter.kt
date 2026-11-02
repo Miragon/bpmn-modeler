@@ -2,12 +2,7 @@ package io.miragon.intellij.bpmn.bridge
 
 import io.miragon.intellij.bpmn.IntellijSecretStore
 
-/**
- * Routes the core's `SecretStorePort` to IntelliJ's PasswordSafe. These are the
- * only reply-bearing inbound handlers: get/set both block, and PasswordSafe must
- * not be touched on the EDT — `onLine` runs them on the background reader thread,
- * so calling them inline is safe.
- */
+/** Routes the core's `SecretStorePort` to IntelliJ's PasswordSafe. */
 internal class SecretStoreRouter(private val deps: BridgeDeps) {
     private val secretStore by lazy { IntellijSecretStore() }
 
@@ -17,26 +12,21 @@ internal class SecretStoreRouter(private val deps: BridgeDeps) {
                 val username = params.string("username")
                 val password = params.string("password")
                 val slot = params.slot()
-                RpcAction { id ->
+                deps.credentialStoreAction("secretStore/saveBasicAuth") {
                     secretStore.saveBasicAuth(username, password, slot)
-                    id?.let { deps.channel.reply(it, null) }
+                    null
                 }
             }
             .on("secretStore/getBasicAuth") { params ->
                 val slot = params.slot()
-                RpcAction { id ->
+                deps.credentialStoreAction("secretStore/getBasicAuth") {
                     val creds = secretStore.getBasicAuth(slot)
                     val username = creds?.userName
                     val password = creds?.getPasswordAsString()
-                    id?.let {
-                        deps.channel.reply(
-                            it,
-                            if (username != null && password != null) {
-                                BasicAuthCredentials(username, password)
-                            } else {
-                                null
-                            },
-                        )
+                    if (username != null && password != null) {
+                        BasicAuthCredentials(username, password)
+                    } else {
+                        null
                     }
                 }
             }
@@ -44,49 +34,43 @@ internal class SecretStoreRouter(private val deps: BridgeDeps) {
                 val clientId = params.string("clientId")
                 val clientSecret = params.string("clientSecret")
                 val slot = params.slot()
-                RpcAction { id ->
+                deps.credentialStoreAction("secretStore/saveOAuth2") {
                     secretStore.saveOAuth2(clientId, clientSecret, slot)
-                    id?.let { deps.channel.reply(it, null) }
+                    null
                 }
             }
             .on("secretStore/getOAuth2") { params ->
                 val slot = params.slot()
-                RpcAction { id ->
+                deps.credentialStoreAction("secretStore/getOAuth2") {
                     val creds = secretStore.getOAuth2(slot)
                     val clientId = creds?.userName
                     val clientSecret = creds?.getPasswordAsString()
-                    id?.let {
-                        deps.channel.reply(
-                            it,
-                            if (clientId != null && clientSecret != null) {
-                                OAuth2Credentials(clientId, clientSecret)
-                            } else {
-                                null
-                            },
-                        )
+                    if (clientId != null && clientSecret != null) {
+                        OAuth2Credentials(clientId, clientSecret)
+                    } else {
+                        null
                     }
                 }
             }
             .on("secretStore/getApprovedDestinations") { params ->
                 val slot = params.string("slot")
-                RpcAction { id ->
-                    val origins = secretStore.getApprovedDestinations(slot)
-                    id?.let { deps.channel.reply(it, origins?.let(::SecretApprovedDestinations)) }
+                deps.credentialStoreAction("secretStore/getApprovedDestinations") {
+                    secretStore.getApprovedDestinations(slot)?.let(::SecretApprovedDestinations)
                 }
             }
             .on("secretStore/saveApprovedDestinations") { params ->
                 val slot = params.string("slot")
                 val origins = params.jsonArray("origins").map { it.asString }
-                RpcAction { id ->
+                deps.credentialStoreAction("secretStore/saveApprovedDestinations") {
                     secretStore.saveApprovedDestinations(slot, origins)
-                    id?.let { deps.channel.reply(it, null) }
+                    null
                 }
             }
             .on("secretStore/delete") { params ->
                 val slot = params.string("slot")
-                RpcAction { id ->
+                deps.credentialStoreAction("secretStore/delete") {
                     secretStore.delete(slot)
-                    id?.let { deps.channel.reply(it, null) }
+                    null
                 }
             }
     }

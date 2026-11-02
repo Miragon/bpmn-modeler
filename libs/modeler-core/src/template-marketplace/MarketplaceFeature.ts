@@ -63,8 +63,15 @@ export interface MarketplaceTemplates {
  * The add, update and remove flows behind the marketplace commands of every
  * host. A host collects the input its own way and persists the registration in
  * its own settings; after each flow the open editors show the changed templates.
+ *
+ * The flows run one at a time, a later one waiting under its progress: a prune
+ * keeps only the registered marketplaces, so it must not run while an add has
+ * cached a marketplace it has not persisted yet, nor while an update works from
+ * the registrations it read before a removal.
  */
 export class MarketplaceCommands {
+    private runs: Promise<unknown> = Promise.resolve();
+
     /**
      * @param explainAddFailure Lets a host replace the generic failure toast with
      *   a host-specific remedy; resolves `true` when it reported the failure.
@@ -87,11 +94,8 @@ export class MarketplaceCommands {
         const location = expandHomePath(input.trim(), this.homeDir, join);
         try {
             const report = await this.notifier.withProgress("Adding marketplace…", () =>
-                this.marketplaces.addMarketplace(location),
+                this.oneAtATime(() => this.fetchAndRegister(location, persist)),
             );
-            await persist(location);
-            this.notifier.logDebug(`Marketplace registration persisted: ${location}`);
-            await this.templates.reloadMarketplaceTemplates();
             this.reportAdded(report);
         } catch (error) {
             await this.reportAddFailure(error as Error);
@@ -104,9 +108,12 @@ export class MarketplaceCommands {
      */
     async update(): Promise<void> {
         const outcome = await this.notifier.withProgress("Updating marketplaces…", () =>
-            this.marketplaces.updateAll(),
+            this.oneAtATime(async () => {
+                const updated = await this.marketplaces.updateAll();
+                await this.templates.reloadMarketplaceTemplates();
+                return updated;
+            }),
         );
-        await this.templates.reloadMarketplaceTemplates();
 
         const total = outcome.succeeded + outcome.failures.length;
         if (total === 0) {
@@ -130,12 +137,33 @@ export class MarketplaceCommands {
      */
     async remove(count: number, unregister: () => Promise<void> = async () => {}): Promise<void> {
         try {
-            await unregister();
-            await this.marketplaces.pruneOrphanedCaches();
-            await this.templates.reloadMarketplaceTemplates();
+            await this.notifier.withProgress("Removing marketplace(s)…", () =>
+                this.oneAtATime(async () => {
+                    await unregister();
+                    await this.marketplaces.pruneOrphanedCaches();
+                    await this.templates.reloadMarketplaceTemplates();
+                }),
+            );
             this.notifier.showInfo(`Removed ${count} marketplace(s).`);
         } catch (error) {
             this.notifier.notifyError("Failed to remove marketplace(s).", error as Error);
+        }
+    }
+
+    /** The fetch caches before the persist, so a failed add must not leave that cache behind. */
+    private async fetchAndRegister(
+        location: string,
+        persist: (location: string) => Promise<void>,
+    ): Promise<FetchReport> {
+        try {
+            const report = await this.marketplaces.addMarketplace(location);
+            await persist(location);
+            this.notifier.logDebug(`Marketplace registration persisted: ${location}`);
+            await this.templates.reloadMarketplaceTemplates();
+            return report;
+        } catch (error) {
+            await this.marketplaces.pruneOrphanedCaches();
+            throw error;
         }
     }
 
@@ -152,14 +180,15 @@ export class MarketplaceCommands {
         this.notifier.showWarning(`${headline}\n${report.reasons().join("\n")}`);
     }
 
-    /** The fetch caches before the persist, so a failed add must not leave that cache behind. */
+    // Outside the queue: a host's explanation may wait for a click.
     private async reportAddFailure(error: Error): Promise<void> {
-        try {
-            await this.marketplaces.pruneOrphanedCaches();
-        } catch (pruneError) {
-            this.notifier.logError(pruneError as Error);
-        }
         if (await this.explainAddFailure(error)) return;
         this.notifier.notifyError("Failed to add marketplace.", error);
+    }
+
+    private oneAtATime<T>(run: () => Promise<T>): Promise<T> {
+        const done = this.runs.then(run);
+        this.runs = done.catch(() => undefined);
+        return done;
     }
 }

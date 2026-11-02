@@ -168,7 +168,7 @@ describe("WebviewDocumentSync", () => {
         expect(posted).toEqual([
             new SyncDocumentCommand("<exported/>", 1),
             new DocumentFlushedCommand(9, "<exported/>", "flushed", 1),
-            new DocumentFlushedCommand(10, undefined, "clean"),
+            new DocumentFlushedCommand(10, undefined, "clean", 2),
         ]);
     });
 

@@ -1,8 +1,9 @@
 import {
     buildImportGraph,
     filesReaching,
+    findPortAdapters,
     isHostModule,
-    readClassDeclarations,
+    portAdapterViolations,
     readSourceTree,
     requireMatches,
 } from "@miragon/architecture-testing";
@@ -64,32 +65,27 @@ describe("architecture", () => {
     // composition root and handed to controllers, participants and handlers as
     // the port. A controller importing the adapter would bind to VS Code where
     // the in-memory test kit — and a future core feature — expect the port.
+    // Placement is asserted by path: a misplaced adapter that only the
+    // composition root imports breaks no import rule.
     describe("ports, not adapters (regression lock — green)", () => {
-        it("only composition and infrastructure import a port adapter", () => {
-            const adapters = requireMatches(
-                "port adapters",
-                new Set(
-                    tree
-                        .filter(({ path, text }) =>
-                            readClassDeclarations(path, text).some(({ implementedInterfaces }) =>
-                                implementedInterfaces.some((name) => name.endsWith("Port")),
-                            ),
-                        )
-                        .map(({ path }) => path),
-                ),
+        it("port adapters live in infrastructure or composition, and only those import them", () => {
+            const adapters = requireMatches("port adapters", findPortAdapters(tree));
+            const { misplacedAdapters, adapterImports } = portAdapterViolations(
+                adapters,
+                graph,
+                (path) => isInFolder(path, "composition") || hasSegment(path, "infrastructure"),
             );
-            const offenders = graph.edges
-                .filter(
-                    ({ from, to }) =>
-                        to !== undefined &&
-                        adapters.has(to) &&
-                        !isInFolder(from, "composition") &&
-                        !hasSegment(from, "infrastructure"),
-                )
-                .map(({ from, to }) => `${from} → ${to}`);
+            const offenders = [
+                ...misplacedAdapters.map(
+                    (adapter) =>
+                        `${adapter} implements a port, so it belongs in infrastructure/ or composition/`,
+                ),
+                ...adapterImports.map(({ from, to }) => `${from} → ${to}`),
+            ];
             expect(
-                [...new Set(offenders)],
-                `take the core port instead of the concrete adapter:\n${offenders.join("\n")}`,
+                offenders,
+                `a port adapter belongs in infrastructure/ or composition/, and code elsewhere ` +
+                    `takes the core port instead of the concrete adapter:\n${offenders.join("\n")}`,
             ).toEqual([]);
         });
     });

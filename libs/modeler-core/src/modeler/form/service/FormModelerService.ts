@@ -31,12 +31,7 @@ export class FormModelerService {
             if (!snapshot) return false;
             let content: string | undefined = snapshot.content;
             if (content === "") {
-                content = await this.documents.initializeEmpty(
-                    editorId,
-                    snapshot,
-                    hostUpdated,
-                    createEmptyForm,
-                );
+                content = await this.documents.initializeEmpty(editorId, snapshot, createEmptyForm);
                 if (content === undefined) return false;
             }
             return await this.editorStore.postMessage(

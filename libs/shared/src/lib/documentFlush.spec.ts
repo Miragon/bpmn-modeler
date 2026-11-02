@@ -52,7 +52,7 @@ describe("createFlushResponder", () => {
 
         await createFlushResponder(source, post)(new FlushDocumentQuery(2));
 
-        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(2, undefined, "clean"));
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(2, undefined, "clean", 0));
         expect(exportContent).not.toHaveBeenCalled();
         expect(cancelPendingSync).not.toHaveBeenCalled();
     });
@@ -78,7 +78,9 @@ describe("createFlushResponder", () => {
         await createFlushResponder(source, post)(new FlushDocumentQuery(4));
 
         expect(source.exportContent).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(4, undefined, "host-updated"));
+        expect(post).toHaveBeenCalledWith(
+            new DocumentFlushedCommand(4, undefined, "host-updated", 0),
+        );
     });
 
     it("forces the normal sync fallback and reports unavailable when export fails", async () => {
@@ -133,7 +135,7 @@ describe("createFlushResponder", () => {
         expect(source.beginDestructiveFlush).toHaveBeenCalledOnce();
         expect(source.flushPendingSync).not.toHaveBeenCalled();
         expect(source.exportContent).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(7, undefined, "clean"));
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(7, undefined, "clean", 0));
         expect(source.endDestructiveFlush).not.toHaveBeenCalled();
 
         await respond(new ReleaseDocumentFlushQuery(7));
@@ -167,7 +169,7 @@ describe("createFlushResponder", () => {
         expect(source.beginDestructiveFlush).toHaveBeenCalledOnce();
         expect(source.flushPendingSync).not.toHaveBeenCalled();
         expect(source.exportContent).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(8, undefined, "clean"));
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(8, undefined, "clean", 0));
         expect(source.endDestructiveFlush).not.toHaveBeenCalled();
     });
 
@@ -181,7 +183,9 @@ describe("createFlushResponder", () => {
         expect(source.beginDestructiveFlush).toHaveBeenCalledOnce();
         expect(source.flushPendingSync).not.toHaveBeenCalled();
         expect(source.exportContent).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(9, undefined, "host-updated"));
+        expect(post).toHaveBeenCalledWith(
+            new DocumentFlushedCommand(9, undefined, "host-updated", 0),
+        );
 
         await respond(new ReleaseDocumentFlushQuery(9));
         expect(source.endDestructiveFlush).toHaveBeenCalledOnce();
@@ -208,7 +212,7 @@ describe("createFlushResponder", () => {
         await responding;
 
         expect(post).toHaveBeenCalledWith(
-            new DocumentFlushedCommand(10, undefined, "host-updated"),
+            new DocumentFlushedCommand(10, undefined, "host-updated", 0),
         );
         expect(post).not.toHaveBeenCalledWith(
             new DocumentFlushedCommand(10, "<stale/>", "flushed", 0),
@@ -282,6 +286,84 @@ describe("createFlushResponder", () => {
         await respond(new ReleaseDocumentFlushQuery(16));
         expect(source.endDestructiveFlush).toHaveBeenCalledTimes(2);
     });
+
+    function hostUpdateArrivingDuring(
+        step: "flushPendingSync" | "exportContent",
+        exportFails = false,
+    ): Partial<FlushSource> {
+        let version = 0;
+        const arrive = (): void => void version++;
+        return step === "flushPendingSync"
+            ? { hostUpdateVersion: () => version, flushPendingSync: vi.fn(async () => arrive()) }
+            : {
+                  hostUpdateVersion: () => version,
+                  exportContent: vi.fn(async () => {
+                      arrive();
+                      if (exportFails) throw new Error("no diagram");
+                      return "<stale/>";
+                  }),
+              };
+    }
+
+    it.each<{
+        reply: "clean" | "host-updated";
+        when: string;
+        query: FlushDocumentQuery;
+        overrides: () => Partial<FlushSource>;
+    }>([
+        {
+            reply: "clean",
+            when: "nothing is pending",
+            query: new FlushDocumentQuery(20),
+            overrides: () => ({ hasPendingSync: () => false }),
+        },
+        {
+            reply: "host-updated",
+            when: "a host update is importing",
+            query: new FlushDocumentQuery(20),
+            overrides: () => ({ hasPendingHostUpdate: () => true }),
+        },
+        {
+            reply: "clean",
+            when: "a destructive flush finds no edit",
+            query: new FlushDocumentQuery(20, true),
+            overrides: () => ({ hasPendingSync: () => false }),
+        },
+        {
+            reply: "host-updated",
+            when: "a destructive flush meets an importing host update",
+            query: new FlushDocumentQuery(20, true),
+            overrides: () => ({ hasPendingHostUpdate: () => true }),
+        },
+        {
+            reply: "host-updated",
+            when: "a host update arrives while a destructive flush drains its sync",
+            query: new FlushDocumentQuery(20, true),
+            overrides: () => hostUpdateArrivingDuring("flushPendingSync"),
+        },
+        {
+            reply: "host-updated",
+            when: "a host update arrives while the export awaits",
+            query: new FlushDocumentQuery(20),
+            overrides: () => hostUpdateArrivingDuring("exportContent"),
+        },
+        {
+            reply: "host-updated",
+            when: "a host update arrives before the export fails",
+            query: new FlushDocumentQuery(20),
+            overrides: () => hostUpdateArrivingDuring("exportContent", true),
+        },
+    ])(
+        "names the document revision it represents in a $reply reply when $when",
+        async ({ reply, query, overrides }) => {
+            const source = makeSource({ ...overrides(), documentRevision: () => 4 });
+            const post = vi.fn();
+
+            await createFlushResponder(source, post)(query);
+
+            expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(20, undefined, reply, 4));
+        },
+    );
 
     it("echoes the query token verbatim", async () => {
         const source = makeSource();

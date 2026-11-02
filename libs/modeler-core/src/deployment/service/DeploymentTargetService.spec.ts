@@ -1034,6 +1034,86 @@ describe("DeploymentTargetService.deleteTarget", () => {
         expect(await c.service.deleteTarget("dev", DOC_DIR)).toBeUndefined();
         expect(c.host.workspace.files.get(FILE_PATH)).toBe(existing);
     });
+
+    describe("when a step after the file write fails", () => {
+        const dev = target("dev", { authType: "basic" });
+        const failure = new Error("secret store unavailable");
+
+        async function serviceWithActiveDev() {
+            const c = serviceWithTargetsFile(fileWith(dev, target("prod")));
+            c.host.deploymentState.seed({ activeTargetName: "dev" });
+            await c.host.secrets.saveBasicAuth("u", "p", slot("dev"));
+            const events: DeploymentTargetsEvent[] = [];
+            c.service.onDidChange((event) => void events.push(event));
+            return { ...c, events };
+        }
+
+        const failActiveNameSave = (c: ReturnType<typeof createService>, error: Error) =>
+            c.host.deploymentState.failSaves(
+                (patch) => patch.activeTargetName !== undefined,
+                error,
+            );
+
+        const failSlotDelete = (c: ReturnType<typeof createService>, error: Error) =>
+            vi.spyOn(c.host.secrets, "delete").mockRejectedValue(error);
+
+        it.each<{ step: string; fail: (c: ReturnType<typeof createService>) => void }>([
+            { step: "deleting its slot", fail: (c) => failSlotDelete(c, failure) },
+            {
+                step: "clearing the active target name",
+                fail: (c) => failActiveNameSave(c, failure),
+            },
+        ])(
+            "publishes a delete that reached the file and reports the failure when $step fails",
+            async ({ fail }) => {
+                const c = await serviceWithActiveDev();
+                fail(c);
+
+                await expect(c.service.deleteTarget("dev", DOC_DIR)).rejects.toThrow(failure);
+
+                expect(c.host.workspace.files.get(FILE_PATH)).toBe(fileWith(target("prod")));
+                expect(c.events).toEqual([
+                    {
+                        kind: "targetsChanged",
+                        edit: expect.objectContaining({
+                            change: expect.objectContaining({ kind: "removed", before: dev }),
+                        }),
+                        documentDir: DOC_DIR,
+                    },
+                ]);
+            },
+        );
+
+        it("still clears the active target name when deleting the slot fails", async () => {
+            const c = await serviceWithActiveDev();
+            failSlotDelete(c, failure);
+
+            await expect(c.service.deleteTarget("dev", DOC_DIR)).rejects.toThrow(failure);
+
+            expect(c.host.deploymentState.load().activeTargetName).toBe("");
+        });
+
+        it("still deletes the slot when clearing the active target name fails", async () => {
+            const c = await serviceWithActiveDev();
+            failActiveNameSave(c, failure);
+
+            await expect(c.service.deleteTarget("dev", DOC_DIR)).rejects.toThrow(failure);
+
+            await expect(c.host.secrets.getBasicAuth(slot("dev"))).resolves.toBeUndefined();
+        });
+
+        it("reports the active-name failure and logs the failed slot delete when both fail", async () => {
+            const c = await serviceWithActiveDev();
+            const cleanupFailure = new Error("delete failed");
+            failActiveNameSave(c, failure);
+            failSlotDelete(c, cleanupFailure);
+
+            await expect(c.service.deleteTarget("dev", DOC_DIR)).rejects.toThrow(failure);
+
+            expect(c.host.notifier.loggedErrors).toEqual([cleanupFailure]);
+            expect(c.events).toHaveLength(1);
+        });
+    });
 });
 
 describe("DeploymentTargetService.getActiveTarget", () => {

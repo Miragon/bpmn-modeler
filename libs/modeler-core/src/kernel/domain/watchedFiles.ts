@@ -1,4 +1,4 @@
-import { isInsideExcludedDirBelow } from "./excludedDirs";
+import { isExcludedDirBelow, isInsideExcludedDirBelow } from "./excludedDirs";
 import type { WatcherEventKind } from "./watcherEvents";
 
 /**
@@ -15,8 +15,8 @@ export const EVERY_PATH_GLOB = "**/*";
  * - `folderCreated` / `folderDeleted` — another path was created or deleted.
  *   It may be a folder that arrived without events for its files, so it
  *   stands for the consumer's files below it.
- * - `unrelated` — a change of another path, or anything inside an
- *   {@link import("./excludedDirs").EXCLUDED_DIRS} directory below the root,
+ * - `unrelated` — a change of another path, or an excluded folder below the
+ *   root or anything inside one (see {@link import("./excludedDirs").EXCLUDED_DIRS}),
  *   which no workspace search lists.
  */
 export type WatchedChange = "file" | "folderCreated" | "folderDeleted" | "unrelated";
@@ -27,11 +27,11 @@ export function watchedChangeOf(
     root: string,
     isWatchedFile: (path: string) => boolean,
 ): WatchedChange {
-    if (isInsideExcludedDirBelow(path, root)) {
-        return "unrelated";
-    }
     if (isWatchedFile(path)) {
-        return "file";
+        return isInsideExcludedDirBelow(path, root) ? "unrelated" : "file";
+    }
+    if (isExcludedDirBelow(path, root)) {
+        return "unrelated";
     }
     if (event === "create") {
         return "folderCreated";

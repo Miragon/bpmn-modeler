@@ -512,6 +512,25 @@ describe("TemplateMarketplaceService.updateAll", () => {
         expect(cachedPaths()).toEqual(["/cache/acme__one/0/element-templates/t.json"]);
     });
 
+    it("still returns its outcome when the cache prune fails, and logs the failure", async () => {
+        const { service, settings, workspace, notifier } = createService({
+            cachedFiles: { "/cache/acme__gone/0/element-templates/t.json": "{}" },
+        });
+        settings.values.marketplaces = ["https://github.com/acme/one"];
+        const busy = new Error("EBUSY: resource busy or locked");
+        const deleteDirectory = workspace.deleteDirectory.bind(workspace);
+        vi.spyOn(workspace, "deleteDirectory").mockImplementation(async (path) => {
+            if (path === "/cache/acme__gone") throw busy;
+            return deleteDirectory(path);
+        });
+
+        const outcome = await service.updateAll();
+
+        expect(outcome).toEqual({ succeeded: 1, failures: [] });
+        expect(notifier.loggedErrors).toEqual([busy]);
+        expect(notifier.logged("info")).toContain("Marketplace update finished: 1 of 1 succeeded");
+    });
+
     it("suppresses pruning entirely when a settings entry cannot be parsed", async () => {
         const { service, settings, cachedPaths, notifier } = createService({
             cachedFiles: { "/cache/acme__one/0/element-templates/t.json": "{}" },
@@ -574,6 +593,19 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
         await service.pruneOrphanedCaches();
 
         expect(notifier.logged("info")).toEqual([]);
+    });
+
+    it("logs a failed prune instead of throwing", async () => {
+        const { service, settings, workspace, notifier } = createService({
+            cachedFiles: { "/cache/acme__gone/0/element-templates/t.json": "{}" },
+        });
+        settings.values.marketplaces = [];
+        const busy = new Error("EBUSY: resource busy or locked");
+        vi.spyOn(workspace, "deleteDirectory").mockRejectedValue(busy);
+
+        await expect(service.pruneOrphanedCaches()).resolves.toBeUndefined();
+
+        expect(notifier.loggedErrors).toEqual([busy]);
     });
 
     it("suppresses pruning and names every entry that cannot be parsed", async () => {

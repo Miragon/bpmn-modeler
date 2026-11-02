@@ -19,6 +19,19 @@ export interface PendingInputHandle {
 }
 
 /**
+ * @internal The editable surfaces' `onContentSaved` export that still waits in
+ * its debounce. `destroy()` drops it.
+ */
+export interface PendingSaveHandle {
+    /**
+     * Runs that export now and resolves once it, and any save already running,
+     * has settled. Delivers nothing without `onContentSaved`, with nothing
+     * pending, or once destroyed.
+     */
+    flushContentSaved(): Promise<void>;
+}
+
+/**
  * The members every BPMN surface handle shares — modeler, designer and viewer
  * — with one contract: same document I/O, view state, theme and teardown.
  */

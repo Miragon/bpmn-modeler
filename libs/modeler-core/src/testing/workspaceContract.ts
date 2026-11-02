@@ -258,6 +258,38 @@ export function describeWorkspaceContract(
                     `${root}/two/pay.bpmn`,
                 ]);
             });
+
+            it("lists the files inside a dot-folder and dot-files, as VS Code does", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/order.bpmn`, "");
+                await workspace.writeFile(`${root}/.history/order_1.bpmn`, "");
+                await workspace.writeFile(`${root}/.draft.bpmn`, "");
+                fixture.openFolder(root);
+
+                const found = await workspace.findFiles("**/*.bpmn");
+
+                expect(found.sort()).toEqual([
+                    `${root}/.draft.bpmn`,
+                    `${root}/.history/order_1.bpmn`,
+                    `${root}/order.bpmn`,
+                ]);
+            });
+
+            it("judges the exclude below each folder, so a folder inside another's build output keeps its files", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/proj/order.bpmn`, "");
+                await workspace.writeFile(`${root}/proj/build/stale.bpmn`, "");
+                await workspace.writeFile(`${root}/proj/build/gen/generated.bpmn`, "");
+                fixture.openFolder(`${root}/proj`);
+                fixture.openFolder(`${root}/proj/build/gen`);
+
+                const found = await workspace.findFiles("**/*.bpmn", "**/build/**");
+
+                expect(found.sort()).toEqual([
+                    `${root}/proj/build/gen/generated.bpmn`,
+                    `${root}/proj/order.bpmn`,
+                ]);
+            });
         });
 
         describe("watchers", () => {

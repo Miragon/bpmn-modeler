@@ -543,7 +543,7 @@ internal class EditorSessionRouter(
         sessionId: Long?,
         writtenContent: String,
         expectedDocumentRevision: Long?,
-        id: Int?,
+        id: CoreRequestId?,
     ) {
         val content = StringUtil.convertLineSeparators(writtenContent)
         val entry = sessions[editorId]
@@ -595,7 +595,7 @@ internal class EditorSessionRouter(
             normalizedContent = normalizedContent.takeIf { changed && it != writtenContent },
         )
 
-    private fun handleSave(editorId: String, sessionId: Long?, id: Int?) {
+    private fun handleSave(editorId: String, sessionId: Long?, id: CoreRequestId?) {
         val entry = sessions[editorId]
         deps.channel.replyFromEdt(id, "document/save") {
             val liveSession =

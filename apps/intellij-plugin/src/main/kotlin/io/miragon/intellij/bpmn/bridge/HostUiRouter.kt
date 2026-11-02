@@ -186,7 +186,12 @@ internal class HostUiRouter(
      * Every path that cannot ask replies `false`: a disposed project or a
      * missing reply id must never be read as consent to delete.
      */
-    private fun handleConfirm(title: String, confirmLabel: String, details: List<String>, id: Int) {
+    private fun handleConfirm(
+        title: String,
+        confirmLabel: String,
+        details: List<String>,
+        id: CoreRequestId,
+    ) {
         deps.channel.replyFromEdt(id, "confirm/show") {
             if (project.isDisposed) return@replyFromEdt ConfirmShowResult(confirmed = false)
             val message = (listOf(title) + details).joinToString("\n")
@@ -231,7 +236,7 @@ internal class HostUiRouter(
         placeholder: String,
         canPickMany: Boolean,
         items: List<HostPicker.PickItem>,
-        id: Int,
+        id: CoreRequestId,
     ) {
         deps.channel.replyLaterFromEdt(id, "picker/show") { reply ->
             if (project.isDisposed) {
@@ -251,7 +256,7 @@ internal class HostUiRouter(
      * `runCatching` → `""` keeps a denied/empty/non-text clipboard from breaking
      * paste — an empty string is a valid "nothing to paste" answer.
      */
-    private fun handleClipboardRead(id: Int?) {
+    private fun handleClipboardRead(id: CoreRequestId?) {
         deps.channel.replyFromEdt(id, "clipboard/read") {
             val text =
                 runCatching {

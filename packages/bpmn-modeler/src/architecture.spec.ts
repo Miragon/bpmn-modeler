@@ -57,7 +57,10 @@ function cssImportSpecifier(importParams: string): string {
 /** `@miragon/bpmn-modeler` exactly, or a subpath of it — but not `-types`/`-core`/… */
 const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
-describe("bpmn-modeler import direction", () => {
+// The first rule to read a tree parses it: seconds for libs/ under coverage on CI.
+const TREE_PARSE = { timeout: 30_000 };
+
+describe("bpmn-modeler import direction", TREE_PARSE, () => {
     it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
         const collected = readSourceTree(join(LIBS_ROOT, "properties-panel", "src"));
         expect(collected.some(({ path }) => path.endsWith(".tsx"))).toBe(true);
@@ -415,7 +418,7 @@ describe("bpmn-modeler import direction", () => {
     });
 });
 
-describe("bpmn-modeler warning sink", () => {
+describe("bpmn-modeler warning sink", TREE_PARSE, () => {
     it("only reporting.ts writes console.warn, so every facade warning reaches onWarning", () => {
         const offenders = packageSources
             .filter(({ path }) => path !== "reporting.ts")

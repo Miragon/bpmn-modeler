@@ -83,7 +83,7 @@ class MarketplaceRouterTest {
                 "an application-scoped save must not touch the per-project store",
             )
         } finally {
-            store.update(before)
+            store.update { before }
         }
     }
 
@@ -94,7 +94,7 @@ class MarketplaceRouterTest {
         // Seed the app-level list; the save must dedupe against the union.
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
-        store.update(before.copy(marketplaces = before.marketplaces + location))
+        store.update { before.copy(marketplaces = before.marketplaces + location) }
         try {
             dispatchSave(wired, location, id = 9)
 
@@ -104,7 +104,7 @@ class MarketplaceRouterTest {
             )
         } finally {
             // App-level settings are shared across the @TestApplication; restore them.
-            store.update(before)
+            store.update { before }
         }
     }
 
@@ -114,10 +114,10 @@ class MarketplaceRouterTest {
         val host = "github.com"
         val token = "ghp_test_${System.nanoTime()}"
 
-        wired.handlers.dispatch("tokenStore/set", obj("host" to host, "token" to token), 10)
+        wired.handlers.dispatch("tokenStore/set", obj("host" to host, "token" to token), wired.requestId(10))
         assertAck(wired, 10)
 
-        wired.handlers.dispatch("tokenStore/get", obj("host" to host), 11)
+        wired.handlers.dispatch("tokenStore/get", obj("host" to host), wired.requestId(11))
         val reply = parse(wired.fake.nextFrame())
         assertEquals(11, reply.get("id").asInt)
         assertEquals(token, reply.getAsJsonObject("result").get("token").asString)
@@ -126,17 +126,28 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenStore get replies null for an unknown host`() {
         val (wired, _) = router()
-        wired.handlers.dispatch("tokenStore/get", obj("host" to "unknown-${System.nanoTime()}.example"), 12)
+        wired.handlers.dispatch("tokenStore/get", obj("host" to "unknown-${System.nanoTime()}.example"), wired.requestId(12))
         val reply = parse(wired.fake.nextFrame())
         assertEquals(12, reply.get("id").asInt)
         assertNullResult(reply)
     }
 
     @Test
+    fun `dispatches the next frame while a token read is still blocked`() {
+        val (wired, _) = router()
+
+        assertNextFrameIsDispatchedWhileReadWaitsForKeychain(
+            wired,
+            """{"method":"tokenStore/get","params":{"host":"github.com"},"id":42}""",
+            readRequestId = 42,
+        )
+    }
+
+    @Test
     fun `tokenPrompt shows the core's title and prompt and replies the answer as typed`() {
         val shown = mutableListOf<Pair<String, String>>()
         val (wired, _) = router(prompt = { title, prompt -> "  ghp_granted  ".also { shown += title to prompt } })
-        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 20)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, wired.requestId(20))
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(20, reply.get("id").asInt)
@@ -147,7 +158,7 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenPrompt reply is null on cancel`() {
         val (wired, _) = router(prompt = { _, _ -> null })
-        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 21)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, wired.requestId(21))
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(21, reply.get("id").asInt)
@@ -157,7 +168,7 @@ class MarketplaceRouterTest {
     @Test
     fun `tokenPrompt answers with an error when the prompt throws`() {
         val (wired, _) = router(prompt = { _, _ -> throw IllegalStateException("dialog failed") })
-        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, 22)
+        wired.handlers.dispatch("tokenPrompt/show", tokenPromptParams, wired.requestId(22))
         ApplicationManager.getApplication().invokeAndWait { }
         val reply = parse(wired.fake.nextFrame())
         assertEquals(22, reply.get("id").asInt)
@@ -229,7 +240,7 @@ class MarketplaceRouterTest {
         val before = store.current()
         val keep = "https://github.com/owner/keep-${System.nanoTime()}"
         val drop = "https://github.com/owner/drop-${System.nanoTime()}"
-        store.update(before.copy(marketplaces = before.marketplaces + keep + drop))
+        store.update { before.copy(marketplaces = before.marketplaces + keep + drop) }
         try {
             store.removeMarketplaces(setOf(drop))
 
@@ -237,7 +248,7 @@ class MarketplaceRouterTest {
             assertTrue(after.contains(keep), "an unlisted app-level entry must survive")
             assertFalse(after.contains(drop), "a listed app-level entry must be removed")
         } finally {
-            store.update(before)
+            store.update { before }
         }
     }
 
@@ -264,7 +275,7 @@ class MarketplaceRouterTest {
         val projectEntry = "https://github.com/owner/project-${System.nanoTime()}"
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
-        store.update(before.copy(marketplaces = before.marketplaces + appEntry))
+        store.update { before.copy(marketplaces = before.marketplaces + appEntry) }
         ProjectMarketplacesStore.getInstance(projectFixture.get()).add(projectEntry)
         try {
             router.updateMarketplaces()
@@ -274,14 +285,14 @@ class MarketplaceRouterTest {
             assertTrue(marketplaces.contains(appEntry), "snapshot must carry the app-level entry")
             assertTrue(marketplaces.contains(projectEntry), "snapshot must carry the project-level entry")
         } finally {
-            store.update(before)
+            store.update { before }
         }
     }
 
     private fun dispatchSave(wired: WiredBridge, location: String, id: Int, scope: String? = null) {
         val params = obj("location" to location)
         if (scope != null) params.addProperty("scope", scope)
-        wired.handlers.dispatch("marketplaceState/save", params, id)
+        wired.handlers.dispatch("marketplaceState/save", params, wired.requestId(id))
         assertAck(wired, id)
     }
 

@@ -49,10 +49,12 @@ service's `setMode(mode)`.
 
 - **Flushable input debounce.** `PropertiesPanelModule` depends on
   `FlushableDebounceInputModule` instead of the library's `DebounceInputModule`.
-  It registers the same `debounceInput` service with the same 600 ms delay, and
-  the service also reports (`hasPending()`) and runs (`flush()`) the input still
-  waiting, so a host can persist a value the user just typed. A modeler built on
-  the upstream panel registers the module after it to replace the library's.
+  It registers the same `debounceInput` service with the same 600 ms delay,
+  built by `createFlushableDebounceInput` from `@miragon/bpmn-modeler-types`,
+  and the service also reports (`hasPending()`) and runs (`flush()`) the input
+  still waiting, so a host can persist a value the user just typed. A modeler
+  built on the upstream panel registers the module after it to replace the
+  library's.
 - **Preact runtime.** Forked `.tsx` files carry a per-file
   `/** @jsxImportSource @bpmn-io/properties-panel/preact */` pragma so they draw
   with the panel's vendored preact.

@@ -150,7 +150,7 @@ class DeploymentRouterTest {
         id: Int,
     ) {
         val params = JsonObject().apply { add("patch", wired.channel.gson.toJsonTree(patch)) }
-        wired.handlers.dispatch("deploymentState/save", params, id)
+        wired.handlers.dispatch("deploymentState/save", params, wired.requestId(id))
         val reply = parse(wired.fake.nextFrame())
         assertEquals(id, reply.get("id").asInt, "deploymentState/save must acknowledge its request id")
         assertFalse(reply.has("method"), "an ack is a reply frame, never another request")

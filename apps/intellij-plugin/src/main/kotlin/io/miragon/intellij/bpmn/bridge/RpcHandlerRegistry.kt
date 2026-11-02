@@ -12,9 +12,9 @@ internal fun interface RpcHandler {
     fun read(params: RpcParams): RpcAction
 }
 
-/** What one core→host frame asks the host to do; [id] is null for a notification. */
+/** What one core→host frame asks the host to do; [requestId] is null for a notification. */
 internal fun interface RpcAction {
-    fun run(id: Int?)
+    fun run(requestId: CoreRequestId?)
 }
 
 /**
@@ -40,12 +40,12 @@ internal class RpcHandlerRegistry {
     fun handler(method: String): RpcHandler? = handlers[method]
 
     /** @return false when no handler is registered (caller logs the debug line). */
-    fun dispatch(method: String, params: JsonObject, id: Int?): Boolean {
+    fun dispatch(method: String, params: JsonObject, requestId: CoreRequestId?): Boolean {
         val handler = handlers[method] ?: return false
         val frameParams = JsonRpcParams(params)
         val action = handler.read(frameParams)
         frameParams.seal()
-        action.run(id)
+        action.run(requestId)
         return true
     }
 }

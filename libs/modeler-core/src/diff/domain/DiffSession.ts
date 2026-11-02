@@ -1,6 +1,4 @@
-import { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-types";
-
-export { DiffOrigin };
+import type { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-types";
 
 /**
  * Domain handle for a single diff pane.
