@@ -22,7 +22,8 @@ declare module "@bpmn-io/element-templates-validator" {
     export interface ValidationResult {
         valid: boolean;
         object: unknown;
-        errors: ValidationError[];
+        /** A valid template comes back with `null`. */
+        errors: ValidationError[] | null;
         warnings?: ValidationError[];
     }
 

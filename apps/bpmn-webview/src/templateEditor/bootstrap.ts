@@ -1,12 +1,10 @@
 import { createTemplatePreview } from "@miragon/bpmn-modeler";
 import {
     applyTemplateEdits,
-    catalogFor,
     createTemplateBuilder,
     type Diagnostic,
     newTemplateText,
-    ruleDiagnostics,
-    schemaDiagnostics,
+    templateDiagnostics,
     type TemplateBuilderHandle,
     type TemplateBuilderState,
     type TemplateEdit,
@@ -191,10 +189,7 @@ export async function bootstrapTemplateEditor(
         }
         const { template, engine } = state;
         const shownRefusal = refusal;
-        diagnostics = [
-            ...schemaDiagnostics(engine, template),
-            ...ruleDiagnostics(template, catalogFor(engine)),
-        ];
+        diagnostics = templateDiagnostics(template, engine);
         showBuilder({ template, engine, editable: true, diagnostics });
         const outcome = await preview.show(template, engine);
         if (shownRefusal) {

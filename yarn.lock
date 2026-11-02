@@ -3251,6 +3251,7 @@ __metadata:
   dependencies:
     "@bpmn-io/element-templates-validator": "npm:2.26.0"
     "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@types/node": "npm:26.6.5"
     "@typescript/native": "npm:typescript@7.0.2"

@@ -3,18 +3,21 @@ import type { ComponentChildren, ComponentType } from "@bpmn-io/properties-panel
 import { useEffect, useRef, useState } from "@bpmn-io/properties-panel/preact/hooks";
 import type { Engine } from "@miragon/bpmn-modeler-types";
 
-import {
-    allowedTypes,
-    bindingSpecOf,
-    catalogFor,
-    feelSupport,
-    type BindingField,
-    type BindingSpec,
-    type EngineCatalog,
-} from "../catalog";
+import { catalogFor, type BindingField, type EngineCatalog } from "../catalog";
+import { allowedTypes, bindingSpecOf } from "../domain/bindingRules";
 import { conditionOf, conditionRows } from "../domain/conditions";
 import type { Diagnostic } from "../domain/diagnostics";
 import { normalizedNumberText, readNumberText } from "../domain/numberText";
+import {
+    propertyCapabilities,
+    typeCapabilities,
+    type PropertyCapabilities,
+} from "../domain/propertyCapabilities";
+import {
+    jsonOnlyGroupKeys,
+    jsonOnlyPropertyKeys,
+    jsonOnlyTemplateKeys,
+} from "../domain/templateKeys";
 import type { JsonPath, TemplateEdit } from "../domain/templateText";
 import {
     addChoice,
@@ -78,39 +81,6 @@ const EVENT_DEFINITIONS = [
     "bpmn:ConditionalEventDefinition",
 ];
 
-const TEMPLATE_KEYS = [
-    "$schema",
-    "name",
-    "id",
-    "version",
-    "description",
-    "documentationRef",
-    "appliesTo",
-    "elementType",
-    "groups",
-    "properties",
-];
-const PROPERTY_KEYS = [
-    "id",
-    "label",
-    "description",
-    "tooltip",
-    "type",
-    "value",
-    "placeholder",
-    "optional",
-    "feel",
-    "editable",
-    "choices",
-    "constraints",
-    "group",
-    "condition",
-    "binding",
-];
-const C7_PROPERTY_KEYS = PROPERTY_KEYS.filter(
-    (key) => !["id", "tooltip", "optional", "feel", "condition"].includes(key),
-);
-const GROUP_KEYS = ["id", "label"];
 const TABS: readonly Tab[] = ["template", "groups", "properties"];
 
 interface Context {
@@ -723,7 +693,7 @@ function templateEntries(ctx: Context, ids: Set<string>): Setting[] {
             }),
         );
     }
-    return [...settings, ...jsonOnly(ctx, "template", template, TEMPLATE_KEYS)];
+    return [...settings, ...jsonOnly(ctx, "template", jsonOnlyTemplateKeys(template))];
 }
 
 function groupEntries(ctx: Context, ids: Set<string>, group: Json, index: number): Setting[] {
@@ -747,7 +717,7 @@ function groupEntries(ctx: Context, ids: Set<string>, group: Json, index: number
         textEntry(ctx, ids, ["groups", index, "label"], "Label", {
             description: "The group's heading in the properties panel.",
         }),
-        ...jsonOnly(ctx, `group-${index}`, group, GROUP_KEYS),
+        ...jsonOnly(ctx, `group-${index}`, jsonOnlyGroupKeys(group)),
     ];
 }
 
@@ -764,6 +734,7 @@ function propertyEntries(
     const spec = bindingSpecOf(catalog, binding.type);
     const type = stringOf(property.type);
     const extras = catalog.propertyExtras;
+    const capabilities = propertyCapabilities(property, spec);
     const settings: Setting[] = [
         section(`property-${index}-basics`, "Basics", translate),
         textEntry(ctx, ids, at("label"), "Label", { description: "Shown above the field." }),
@@ -832,18 +803,18 @@ function propertyEntries(
         );
     }
     settings.push(...valueEntries(ctx, ids, property, index));
-    if (type === "String" || type === "Text") {
+    if (capabilities.textual) {
         settings.push(
             textEntry(ctx, ids, at("placeholder"), "Placeholder", {
                 description: "Shown in the empty field.",
             }),
         );
     }
-    if (extras && spec) {
-        settings.push(...feelEntries(ctx, ids, spec, binding, property, index));
+    if (extras) {
+        settings.push(...feelEntries(ctx, ids, capabilities, property, index));
     }
 
-    if (type !== "Hidden") {
+    if (capabilities.visible) {
         settings.push(
             section(`property-${index}-rules`, "Rules", translate),
             checkEntry(
@@ -909,7 +880,7 @@ function propertyEntries(
     }
     return [
         ...settings,
-        ...jsonOnly(ctx, `property-${index}`, property, extras ? PROPERTY_KEYS : C7_PROPERTY_KEYS),
+        ...jsonOnly(ctx, `property-${index}`, jsonOnlyPropertyKeys(property, extras)),
     ];
 }
 
@@ -1026,18 +997,13 @@ function valueEntries(ctx: Context, ids: Set<string>, property: Json, index: num
 function feelEntries(
     ctx: Context,
     ids: Set<string>,
-    spec: BindingSpec,
-    binding: Json,
+    capabilities: PropertyCapabilities,
     property: Json,
     index: number,
 ): Setting[] {
     const { template, translate } = ctx;
     const settings: Setting[] = [];
-    const support = feelSupport(spec, binding);
-    if (
-        support === "optional" &&
-        ["String", "Text", "Number", "Boolean"].includes(String(property.type))
-    ) {
+    if (capabilities.feelUse === "optional") {
         settings.push(
             selectEntry(ctx, ids, ["properties", index, "feel"], "FEEL", {
                 description: "Whether users may or must enter a FEEL expression.",
@@ -1052,7 +1018,7 @@ function feelEntries(
             }),
         );
     }
-    if (spec.optional) {
+    if (capabilities.optional) {
         settings.push(
             checkEntry(
                 ctx,
@@ -1071,9 +1037,6 @@ function feelEntries(
     return settings;
 }
 
-// Lengths and patterns check text; other types keep only those the JSON already sets.
-const TEXT_TYPES = ["String", "Text"];
-
 function constraintEntries(
     ctx: Context,
     ids: Set<string>,
@@ -1083,7 +1046,8 @@ function constraintEntries(
     const { template } = ctx;
     const constraints = objectOf(property.constraints);
     const at = (key: string): JsonPath => ["properties", index, "constraints", key];
-    const textual = TEXT_TYPES.includes(stringOf(property.type));
+    const { textual, requirable } = typeCapabilities(property.type);
+    // A type without the field keeps only the constraints the JSON already sets.
     const offered = (key: string, forType: boolean) => forType || constraints[key] !== undefined;
     const pattern = constraints.pattern;
     const patternValue = typeof pattern === "string" ? pattern : stringOf(objectOf(pattern).value);
@@ -1109,7 +1073,7 @@ function constraintEntries(
         );
     };
     const settings: Setting[] = [];
-    if (offered("notEmpty", property.type !== "Boolean")) {
+    if (offered("notEmpty", requirable)) {
         settings.push(
             checkEntry(
                 ctx,
@@ -1272,8 +1236,7 @@ function checkEntry(
     };
 }
 
-function jsonOnly(ctx: Context, prefix: string, object: Json, known: readonly string[]): Setting[] {
-    const keys = unknownKeys(object, known);
+function jsonOnly(ctx: Context, prefix: string, keys: readonly string[]): Setting[] {
     return keys.length > 0
         ? [{ id: `${prefix}-json-only`, component: JsonOnlyEntry, keys, translate: ctx.translate }]
         : [];
@@ -1321,10 +1284,6 @@ function whereOf(path: JsonPath, template: Json, translate: Translate): string |
 
 function withCurrent(options: readonly string[], current: string): string[] {
     return current === "" || options.includes(current) ? [...options] : [...options, current];
-}
-
-function unknownKeys(object: Json, known: readonly string[]): string[] {
-    return Object.keys(object).filter((key) => !known.includes(key));
 }
 
 function valueAt(owner: unknown, path: JsonPath): unknown {

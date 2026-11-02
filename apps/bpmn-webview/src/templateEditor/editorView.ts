@@ -1,5 +1,5 @@
 import { catalogFor } from "@miragon/bpmn-modeler-element-template-builder";
-import { ENGINE_LABEL, type Engine } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL, ENGINES, type Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import type { TemplateChoice } from "./templateFile";
 
@@ -26,7 +26,8 @@ export interface EditorView {
 /** The builder, the new-template wizard, the engine choice, or a note while nothing can be built. */
 export type EditorMain = "builder" | "wizard" | "engineChoice" | "placeholder";
 
-const ENGINES: readonly Engine[] = ["c8", "c7"];
+// The newest engine first: the one a new template is most likely for.
+const OFFERED_ENGINES: readonly Engine[] = [...ENGINES].reverse();
 
 // Template names come from the edited file, so text is only ever set, never parsed as HTML.
 export function mountEditorView(
@@ -96,7 +97,7 @@ export function mountEditorView(
             )),
     );
     const engineSelect = element("select", "template-editor__wizard-engine");
-    for (const engine of ENGINES) {
+    for (const engine of OFFERED_ENGINES) {
         const option = element("option", "", ENGINE_LABEL[engine]);
         option.value = engine;
         engineSelect.append(option);
@@ -138,7 +139,7 @@ export function mountEditorView(
     const engineChoice = element("div", "template-editor__engine-choice");
     const engineButtons = element("div", "template-editor__engine-buttons");
     engineButtons.append(
-        ...ENGINES.map((engine) => {
+        ...OFFERED_ENGINES.map((engine) => {
             const button = element(
                 "button",
                 "template-editor__engine-button",
@@ -237,7 +238,7 @@ export function mountEditorView(
         onChooseEngine(listener) {
             engineChoice.addEventListener("click", (event) => {
                 const engine = (event.target as HTMLElement).dataset?.engine;
-                if (engine === "c7" || engine === "c8") {
+                if (isEngine(engine)) {
                     listener(engine);
                 }
             });

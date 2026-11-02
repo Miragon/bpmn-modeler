@@ -9,6 +9,8 @@ import {
     type Query,
 } from "@miragon/bpmn-modeler-shared";
 
+import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
+
 import c7Samples from "../__fixtures__/c7-samples.json";
 import c8Samples from "../__fixtures__/c8-samples.json";
 
@@ -23,8 +25,7 @@ export function getTemplateEditorHostApi(): HostApi<unknown, MessageType> {
     return new HostApiImpl<unknown, MessageType>();
 }
 
-const C8_SCHEMA =
-    "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
+const C8_SCHEMA = ELEMENT_TEMPLATE_SCHEMA_URL.c8;
 const hidden = (binding: Record<string, string>, value = "x") => ({
     type: "Hidden",
     value,

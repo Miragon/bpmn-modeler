@@ -1,21 +1,10 @@
-import {
-    allowedTypes,
-    bindingSpecOf,
-    feelSupport,
-    initialBinding,
-    sampleValue,
-    type BindingSpec,
-    type EngineCatalog,
-    type PropertyType,
-    type Requirement,
-} from "../catalog";
+import type { BindingSpec, EngineCatalog, PropertyType, Requirement } from "../catalog";
+import { allowedTypes, bindingSpecOf, initialBinding, sampleValue } from "./bindingRules";
+import { propertyCapabilities, typeCapabilities } from "./propertyCapabilities";
 import { elementTypeChoiceFor } from "./requirements";
 import type { JsonPath, TemplateEdit } from "./templateText";
 
 type Json = Record<string, unknown>;
-
-const FEEL_TYPES: readonly string[] = ["String", "Text", "Number", "Boolean"];
-const PLACEHOLDER_TYPES: readonly string[] = ["String", "Text"];
 
 /**
  * Sets the value at `path`. An empty text or `undefined` removes the key; when
@@ -273,13 +262,14 @@ function withType(property: Json, type: string): Json {
     } else {
         delete next.choices;
     }
-    if (!PLACEHOLDER_TYPES.includes(type)) {
+    const capabilities = typeCapabilities(type);
+    if (!capabilities.textual) {
         delete next.placeholder;
     }
-    if (!FEEL_TYPES.includes(type)) {
+    if (!capabilities.feel) {
         delete next.feel;
     }
-    if (type !== "Text") {
+    if (!capabilities.language) {
         delete next.language;
     }
     return next;
@@ -291,13 +281,13 @@ function fitted(property: Json, spec: BindingSpec, binding: Json): Json {
     const next = types.includes(property.type as PropertyType)
         ? { ...property }
         : withType(property, types.includes("String") ? "String" : types[0]);
-    const feel = feelSupport(spec, binding);
-    if (feel === "none") {
+    const { feelUse, textual, optional } = propertyCapabilities({ ...next, binding }, spec);
+    if (feelUse === "none") {
         delete next.feel;
-    } else if (feel === "required" && PLACEHOLDER_TYPES.includes(next.type as string)) {
+    } else if (feelUse === "required" && textual) {
         next.feel = "required";
     }
-    if (!spec.optional) {
+    if (!optional) {
         delete next.optional;
     }
     return next;

@@ -1,5 +1,7 @@
 import { applyEdits, modify } from "jsonc-parser";
 
+import { BINDING_KEY_ORDER, PROPERTY_KEY_ORDER, TEMPLATE_KEY_ORDER } from "./templateKeys";
+
 export type JsonPath = (string | number)[];
 
 /** One change to a template, addressed from the template's own root. */
@@ -19,46 +21,6 @@ export interface TextFormat {
     tabSize: number;
     eol: string;
 }
-
-// New keys go where a person would write them, not at the end of the object.
-const TEMPLATE_KEYS = [
-    "$schema",
-    "name",
-    "id",
-    "version",
-    "description",
-    "documentationRef",
-    "category",
-    "icon",
-    "keywords",
-    "engines",
-    "deprecated",
-    "appliesTo",
-    "elementType",
-    "groups",
-    "properties",
-    "scopes",
-    "entriesVisible",
-];
-const PROPERTY_KEYS = [
-    "id",
-    "label",
-    "description",
-    "tooltip",
-    "type",
-    "value",
-    "placeholder",
-    "optional",
-    "feel",
-    "language",
-    "editable",
-    "choices",
-    "constraints",
-    "group",
-    "condition",
-    "binding",
-];
-const BINDING_KEYS = ["type", "name", "property", "key", "source", "scriptFormat", "expression"];
 
 const DEFAULT_FORMAT: TextFormat = { insertSpaces: true, tabSize: 2, eol: "\n" };
 
@@ -127,14 +89,14 @@ function insertionIndexFor(path: JsonPath): ((keys: string[]) => number) | undef
 
 function keyOrderOf(objectPath: JsonPath): readonly string[] {
     if (objectPath.length === 0) {
-        return TEMPLATE_KEYS;
+        return TEMPLATE_KEY_ORDER;
     }
     const [first, , third] = objectPath;
     if (first !== "properties") {
         return [];
     }
     if (objectPath.length === 2) {
-        return PROPERTY_KEYS;
+        return PROPERTY_KEY_ORDER;
     }
-    return objectPath.length === 3 && third === "binding" ? BINDING_KEYS : [];
+    return objectPath.length === 3 && third === "binding" ? BINDING_KEY_ORDER : [];
 }

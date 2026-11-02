@@ -6,11 +6,12 @@ import {
 import type { Engine } from "@miragon/bpmn-modeler-types";
 
 import {
-    bindingSpecOf,
+    catalogFor,
     type ElementTypeChoice,
     type EngineCatalog,
     type Requirement,
 } from "../catalog";
+import { bindingSpecOf } from "./bindingRules";
 import { conditionComparisons } from "./conditions";
 import { elementTypeChoiceFor, meetsRequirement } from "./requirements";
 import type { JsonPath } from "./templateText";
@@ -30,10 +31,19 @@ export interface Diagnostic {
     fix?: { label: string; replacements?: Record<string, string>; requirement: Requirement };
 }
 
+const VALIDATORS: Readonly<Record<Engine, typeof validate>> = { c7: validate, c8: validateZeebe };
+
+/** Everything to tell about a template: the official validator's findings, then the builder's own. */
+export function templateDiagnostics(template: Json, engine: Engine): Diagnostic[] {
+    return [
+        ...schemaDiagnostics(engine, template),
+        ...ruleDiagnostics(template, catalogFor(engine)),
+    ];
+}
+
 /** The official validator's findings, one per field and without its root-level noise. */
 export function schemaDiagnostics(engine: Engine, template: unknown): Diagnostic[] {
-    const result = (engine === "c7" ? validate : validateZeebe)(template as object);
-    // A valid template comes back with `errors: null`.
+    const result = VALIDATORS[engine](template as object);
     const findings = [
         ...(result.errors ?? []).map((error) => ({ error, severity: "error" as const })),
         ...(result.warnings ?? []).map((error) => ({ error, severity: "warning" as const })),

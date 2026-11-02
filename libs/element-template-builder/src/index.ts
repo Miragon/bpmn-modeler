@@ -1,6 +1,6 @@
 export { catalogFor } from "./catalog";
 export type { EngineCatalog } from "./catalog";
-export { ruleDiagnostics, schemaDiagnostics } from "./domain/diagnostics";
+export { ruleDiagnostics, schemaDiagnostics, templateDiagnostics } from "./domain/diagnostics";
 export type { Diagnostic } from "./domain/diagnostics";
 export { newTemplateText, templateIdOf, withSchema } from "./domain/skeleton";
 export { applyTemplateEdits } from "./domain/templateText";

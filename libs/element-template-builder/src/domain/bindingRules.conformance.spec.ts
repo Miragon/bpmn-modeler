@@ -3,17 +3,14 @@ import { describe, expect, it } from "vitest";
 import { validate, validateZeebe } from "@bpmn-io/element-templates-validator";
 import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
 
+import { catalogFor, type BindingSpec, type EngineCatalog, type PropertyType } from "../catalog";
 import {
     allowedTypes,
     bindingSpecOf,
-    catalogFor,
     feelSupport,
     initialBinding,
     sampleValue,
-    type BindingSpec,
-    type EngineCatalog,
-    type PropertyType,
-} from "./index";
+} from "./bindingRules";
 
 /**
  * Holds the catalog to the official schemas: every property type it allows for
@@ -98,9 +95,7 @@ function templateOf(catalog: EngineCatalog, spec: BindingSpec, property: Json): 
 
 function errorsOf(catalog: EngineCatalog, template: Json): string[] {
     const result = VALIDATORS[catalog.engine](template);
-    return result.valid
-        ? []
-        : result.errors.map((error) => `${error.instancePath} ${error.message}`);
+    return (result.errors ?? []).map((error) => `${error.instancePath} ${error.message}`);
 }
 
 describe.each([catalogFor("c7"), catalogFor("c8")])("the $engine catalog", (catalog) => {
