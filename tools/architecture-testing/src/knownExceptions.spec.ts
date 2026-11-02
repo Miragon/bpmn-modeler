@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { exceptionsWithoutIssue, staleExceptions, unexcusedViolations } from "./knownExceptions";
+import {
+    directivesWithoutIssue,
+    exceptionsWithoutIssue,
+    staleExceptions,
+    unexcusedViolations,
+} from "./knownExceptions";
 
 const target = "deployment/domain/deploymentTarget.ts";
 const ports = "deployment/domain/ports.ts";
@@ -77,5 +82,36 @@ describe("known exceptions", () => {
         const unnamed = { from: "a", to: "c", until: "later" };
 
         expect(exceptionsWithoutIssue([named, unnamed])).toEqual([unnamed]);
+    });
+});
+
+describe("directivesWithoutIssue", () => {
+    const rule = "miragon/no-guarded-value-comparison";
+
+    it.each([
+        `// eslint-disable-next-line ${rule} -- #2051: the parser owns this value`,
+        `/* eslint-disable ${rule} -- #2051: generated fixture */`,
+        `// eslint-disable-line no-console, ${rule} -- #12: a reason`,
+    ])("accepts a directive naming an issue and a reason: %s", (comment) => {
+        expect(directivesWithoutIssue([comment], rule)).toEqual([]);
+    });
+
+    it.each([
+        `// eslint-disable-next-line ${rule}`,
+        `// eslint-disable-next-line ${rule} -- the parser owns this value`,
+        `// eslint-disable-next-line ${rule} -- #2051`,
+        `// eslint-disable-next-line ${rule} -- #2051:`,
+        `/* eslint-disable ${rule} */`,
+        `// eslint-disable-line ${rule} -- see #2051: below`,
+    ])("rejects %s", (comment) => {
+        expect(directivesWithoutIssue([comment], rule)).toEqual([comment]);
+    });
+
+    it.each([
+        "// eslint-disable-next-line no-console",
+        `// ${rule} keeps engine rules in one place`,
+        `// eslint-enable ${rule}`,
+    ])("ignores a comment that disables no such rule: %s", (comment) => {
+        expect(directivesWithoutIssue([comment], rule)).toEqual([]);
     });
 });

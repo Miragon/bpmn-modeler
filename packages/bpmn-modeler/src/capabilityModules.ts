@@ -4,15 +4,15 @@ import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { createCodeLinkModule } from "@miragon/bpmn-modeler-code-link";
 import { createDefinitionSearchModule } from "@miragon/bpmn-modeler-definition-search";
 import { createInlineScriptingModules } from "@miragon/bpmn-modeler-inline-scripting";
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import { engineSupports, type Engine } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./capabilities";
 
 /**
  * Builds the DI modules for the capability-gated features. A capability that is
  * absent contributes no module, so its providers are never registered and its
  * UI cannot appear — the browser-side mirror of the host-capability-port
- * pattern. Scripting is additionally C7-only (the C8 modeler leaves it
- * unregistered), so its port alone is not enough on C8.
+ * pattern. Scripting also needs an engine that supports it, so its port alone
+ * is not enough.
  *
  * Split out of {@link BpmnModeler} so the gating is unit-testable without
  * dragging in the engine stacks.
@@ -31,7 +31,7 @@ export function capabilityModules(
     if (capabilities?.definitionSearch) {
         modules.push(createDefinitionSearchModule(capabilities.definitionSearch));
     }
-    if (engine === "c7" && capabilities?.scripting) {
+    if (engineSupports(engine, "inlineScripting") && capabilities?.scripting) {
         modules.push(...createInlineScriptingModules(capabilities.scripting));
     }
     return modules;

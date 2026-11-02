@@ -314,6 +314,42 @@ rule scoped to a folder or file set fails when the scope matches nothing
 The engine lives under `tools/`, not `libs/`: it is dev-only tooling that no
 host or webview ships.
 
+A domain value that describes the world, such as `Engine`, keeps its rules in
+one home module. The typed ESLint rule `miragon/no-guarded-value-comparison`
+([`tools/repo-checks/eslint`](../../tools/repo-checks/eslint/noGuardedValueComparison.cjs))
+reports `===`, `!==`, `==`, `!=` and each `case` that compares such a value
+with a string literal outside its home, in every folder. Code elsewhere asks
+the home: a capability in the `Record<Engine, …>` table of
+`libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after the
+rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
+lookup, so the compiler reports a missing engine. Each registry entry in
+`eslint.config.cjs` names the type, its module, its homes and an error message
+that names the fix.
+
+- **Typed, not name-based.** The rule reads the type checker through the parser
+  services typescript-eslint already provides, so it sees the value under any
+  name: a local, a parameter, a type parameter (resolved to its constraint),
+  with `null` and `undefined` removed. A value of raw `string` or `unknown` is
+  invisible; it is parsed with `isEngine` first (parse, don't validate).
+- **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
+  `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
+  registry when review or the change-coupling report shows a decision on it in
+  two places.
+- **Never vacuous.** The registry is resolved against the program on every run:
+  a missing module, a missing export or a type that is no string-literal union
+  throws, and so does a file without type information.
+- **Exceptions.** An exception is an `eslint-disable-next-line` directive whose
+  description reads `-- #<issue>: <reason>`;
+  [`guardedValueComparison.spec.ts`](../../tools/repo-checks/src/guardedValueComparison.spec.ts)
+  fails on one without, and `reportUnusedDisableDirectives: "error"` fails a
+  directive that silences nothing. None exists today.
+- **Cost.** `eslint .` took 10.1 s before and 9.2 to 10.4 s after, within
+  run-to-run noise: the type program was built anyway for
+  `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
+  root, so a run from a workspace directory gets type information too.
+- **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
+  value typed `string`, and Kotlin.
+
 Alternatives considered:
 
 - **archunit** ran the VS Code spec before. It needed a Vitest matcher shim, a
@@ -333,6 +369,9 @@ Alternatives considered:
 - **Sheriff** adds editor feedback through ESLint, but its tag and barrel rules
   would either repeat the spec rules or move them out of Vitest, losing the
   issue-named exceptions and the stale check.
+- **A name-based `no-restricted-syntax` selector** on `engine` and `platform`
+  instead of the typed guarded-value rule misses every alias, such as
+  `const e = target.engine`.
 
 ### Fitness function report
 

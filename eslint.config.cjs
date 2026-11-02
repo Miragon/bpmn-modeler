@@ -3,6 +3,8 @@ const js = require("@eslint/js");
 const globals = require("globals");
 const typescriptEslintEslintPlugin = require("@typescript-eslint/eslint-plugin");
 const eslintConfigPrettier = require("eslint-config-prettier/flat");
+const path = require("node:path");
+const noGuardedValueComparison = require("./tools/repo-checks/eslint/noGuardedValueComparison.cjs");
 
 const compat = new FlatCompat({
     baseDirectory: __dirname,
@@ -50,6 +52,11 @@ module.exports = [
             // Conductor's scratch space holds build snapshots and scripts; gitignored only.
             ".context/**",
         ],
+    },
+    {
+        linterOptions: {
+            reportUnusedDisableDirectives: "error",
+        },
     },
     {
         plugins: {
@@ -108,6 +115,9 @@ module.exports = [
             languageOptions: {
                 parserOptions: {
                     project: ["tsconfig.*?.json"],
+                    // The project glob resolves against the current directory otherwise,
+                    // so a run from a workspace would lint without type information.
+                    tsconfigRootDir: __dirname,
                 },
             },
         })),
@@ -275,6 +285,33 @@ module.exports = [
         ],
         rules: {
             "@typescript-eslint/no-explicit-any": "error",
+        },
+    },
+    // A guarded type's rules live in its home module; elsewhere code asks the home
+    // instead of comparing the value (docs/adr/engineering-practices.md).
+    {
+        files: ["**/*.ts", "**/*.tsx"],
+        plugins: {
+            miragon: {
+                meta: { name: "miragon" },
+                rules: { "no-guarded-value-comparison": noGuardedValueComparison },
+            },
+        },
+        rules: {
+            "miragon/no-guarded-value-comparison": [
+                "error",
+                {
+                    guardedTypes: [
+                        {
+                            name: "Engine",
+                            module: path.join(__dirname, "libs/modeler-types/src/engine.ts"),
+                            homes: [path.join(__dirname, "libs/modeler-types/src/engine.ts")],
+                            message:
+                                "`Engine` compared outside its home. Add a capability to `libs/modeler-types/src/engine.ts` and ask it.",
+                        },
+                    ],
+                },
+            ],
         },
     },
     // Must come last: turns off ESLint rules that would conflict with Prettier.

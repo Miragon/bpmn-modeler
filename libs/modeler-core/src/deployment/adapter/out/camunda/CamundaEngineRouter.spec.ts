@@ -26,7 +26,7 @@ describe("CamundaEngineRouter", () => {
     beforeEach(() => {
         c7 = mockEnginePort();
         c8 = mockEnginePort();
-        router = new CamundaEngineRouter(c7, c8);
+        router = new CamundaEngineRouter({ c7, c8 });
     });
 
     // ── deploy ──────────────────────────────────────────────────────────

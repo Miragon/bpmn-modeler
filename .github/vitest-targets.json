@@ -210,6 +210,7 @@
             "dir": "tools/repo-checks",
             "package": "@miragon/bpmn-modeler-repo-checks",
             "focus": [
+                "bpmn-modeler",
                 "@miragon/architecture-testing",
                 "@miragon/bpmn-modeler-shared"
             ],
@@ -223,7 +224,9 @@
                 "tsconfig.base.json",
                 ".github/workflows/sync-release-markers.yml",
                 "packages/bpmn-modeler/inlined-libraries.json",
-                "packages/dmn-modeler/vite.config.mts"
+                "packages/dmn-modeler/vite.config.mts",
+                "eslint.config.cjs",
+                "**/eslint.config.cjs"
             ],
             "typecheck": "typecheck"
         },

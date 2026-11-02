@@ -83,10 +83,10 @@ export class DeploymentFeature {
         const http = ports.http ?? new FetchHttpClient();
         const auth = new AuthHeaderResolver(http);
         const c7Client = new Camunda7RestClient(http, auth);
-        const engines = new CamundaEngineRouter(
-            c7Client,
-            new Camunda8RestClient(http, auth, ports.settings.getC8ApiVersion()),
-        );
+        const engines = new CamundaEngineRouter({
+            c7: c7Client,
+            c8: new Camunda8RestClient(http, auth, ports.settings.getC8ApiVersion()),
+        });
 
         this.targets = new DeploymentTargetService(
             ports.artifacts,

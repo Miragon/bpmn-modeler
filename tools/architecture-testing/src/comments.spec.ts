@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stripComments } from "./comments";
+import { readComments, stripComments } from "./comments";
 
 describe("stripComments", () => {
     it.each([
@@ -94,5 +94,17 @@ describe("stripComments", () => {
         },
     ])("strips $form in a .tsx file", ({ source, stripped }) => {
         expect(stripComments("view.tsx", source)).toBe(stripped);
+    });
+});
+
+describe("readComments", () => {
+    it("reads every comment with its markers, in source order", () => {
+        const source = "/* a */ const a = 1; // b\n/** c */\nconst c = 2;";
+        expect(readComments("module.ts", source)).toEqual(["/* a */", "// b", "/** c */"]);
+    });
+
+    it("reads no comment out of a string or template", () => {
+        const source = 'const a = "// eslint-disable-line"; const b = `/* note */`;';
+        expect(readComments("module.ts", source)).toEqual([]);
     });
 });

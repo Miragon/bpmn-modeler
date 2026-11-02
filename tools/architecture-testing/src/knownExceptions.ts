@@ -36,6 +36,27 @@ export function exceptionsWithoutIssue(exceptions: readonly KnownException[]): K
     return exceptions.filter(({ until }) => !ISSUE_REFERENCE.test(until));
 }
 
+const DISABLE_DIRECTIVE = /^eslint-disable(?:-next-line|-line)?\s+(.*?)(?:\s+--\s*(.*))?$/s;
+const ISSUE_AND_REASON = /^#\d+:\s*\S/;
+
+/** The comments that disable `rule` without a `-- #<issue>: <reason>` description. */
+export function directivesWithoutIssue(comments: readonly string[], rule: string): string[] {
+    return comments.filter((comment) => {
+        const directive = DISABLE_DIRECTIVE.exec(commentBody(comment));
+        if (!directive) {
+            return false;
+        }
+        const [, ruleList, description = ""] = directive;
+        const disablesRule = ruleList.split(",").some((name) => name.trim() === rule);
+        return disablesRule && !ISSUE_AND_REASON.test(description);
+    });
+}
+
+function commentBody(comment: string): string {
+    const body = comment.startsWith("//") ? comment.slice(2) : comment.slice(2, -2);
+    return body.trim();
+}
+
 function excuses(exception: KnownException, violation: Violation): boolean {
     return inScope(exception.from, violation.from) && inScope(exception.to, violation.to);
 }

@@ -17,6 +17,11 @@ export function stripComments(fileName: string, text: string): string {
     return stripped + text.slice(cursor);
 }
 
+/** Each comment's text with its markers, in source order; the parser keeps strings and templates out. */
+export function readComments(fileName: string, text: string): string[] {
+    return commentRanges(parseSource(fileName, text)).map(({ pos, end }) => text.slice(pos, end));
+}
+
 /**
  * Every literal and JSX text is a leaf of the tree, so the text between a
  * node's children holds only trivia and punctuation, which the scanner reads

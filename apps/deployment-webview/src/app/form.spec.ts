@@ -610,3 +610,13 @@ describe("deployment form credential env references", () => {
         });
     });
 });
+
+describe("deployment form engine selection", () => {
+    it("refuses an engine option outside the known engines", () => {
+        const { form } = setup();
+        const engineSelect = document.getElementById("engine") as HTMLSelectElement;
+        engineSelect.append(new Option("Camunda 9", "c9"));
+        engineSelect.value = "c9";
+        expect(() => form.getTargetPayload()).toThrow('Unknown engine "c9".');
+    });
+});
