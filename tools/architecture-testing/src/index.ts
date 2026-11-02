@@ -18,6 +18,8 @@ export { isEntry, roleOf } from "./roleFolders";
 export type { Role, RoleLocation } from "./roleFolders";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";
+export { findSubclassConstructions } from "./subclassConstructions";
+export type { BaseClass, SubclassConstruction } from "./subclassConstructions";
 export {
     describeDependency,
     instability,
@@ -25,6 +27,7 @@ export {
     workspaceDependencies,
 } from "./stability";
 export type { Stability, WorkspaceDependency } from "./stability";
+export { readTypeProgram } from "./typeProgram";
 export { isWorkspaceKind, RULES_BY_KIND } from "./workspaceKinds";
 export type { WorkspaceKind } from "./workspaceKinds";
 export { readWorkspaces, workspaceOfSpecifier } from "./workspaces";
