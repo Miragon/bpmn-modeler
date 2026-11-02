@@ -2,7 +2,7 @@ import { basename } from "node:path";
 
 import { ExtensionContext } from "vscode";
 
-import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
+import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
 import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewNotificationHandlers } from "@miragon/bpmn-modeler-core";
@@ -17,10 +17,10 @@ import {
     getDmnModelerSettingHandler,
 } from "@miragon/bpmn-modeler-core";
 import { FormModelerService } from "@miragon/bpmn-modeler-core";
-import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
-import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
-import { FormValuesParticipant } from "../modeler/form/controller/editor-participants/FormValuesParticipant";
-import { FormValuesController } from "../modeler/form/controller/FormValuesController";
+import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
+import { DocumentSaveFlushController } from "../modeler/editor-session/adapter/in/DocumentSaveFlushController";
+import { FormValuesParticipant } from "../modeler/form/adapter/in/editor-participants/FormValuesParticipant";
+import { FormValuesController } from "../modeler/form/adapter/in/FormValuesController";
 import {
     getPropertiesPanelStateHandler,
     setPropertiesPanelStateHandler,
@@ -29,7 +29,7 @@ import {
 import {
     getFormInputValuesHandler,
     updateFormOutputValuesHandler,
-} from "../modeler/form/controller/webview-handlers/formMessageHandlers";
+} from "../modeler/form/adapter/in/webview-handlers/formMessageHandlers";
 import { DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 import { SharedDeps } from "./sharedDeps";
 
@@ -97,7 +97,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     registerWebviewLogHandlers(formMessageRouter, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(formMessageRouter, deps.notifier);
 
-    new ModelerEditorController(deps.editorStore, deps.notifier, {
+    new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: DMN_VIEW_TYPE,
         messageRouter: dmnMessageRouter,
         participants: [
@@ -106,7 +106,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
         ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
-    new ModelerEditorController(deps.editorStore, deps.notifier, {
+    new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: FORM_VIEW_TYPE,
         messageRouter: formMessageRouter,
         participants: [

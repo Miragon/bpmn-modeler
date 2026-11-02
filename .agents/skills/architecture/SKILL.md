@@ -60,10 +60,10 @@ protect import direction and theme isolation. Core checks reject VS Code and
 transitive host-module imports (the core is still not browser-safe), its
 domain package allowlist, and context isolation through `kernel/` (which imports
 nothing outside itself) and `editorSession/` (which imports only `kernel/`)
-against known exceptions that may only shrink. VS Code checks cover host
-isolation, port adapters, and selected feature-barrel boundaries. The
-repo-level spec bans import cycles in and between every workspace and a
-dependency on a less stable workspace. Fitness functions that are not static
+against known exceptions that may only shrink. VS Code checks that a context
+reaches another only through `shared/`. The repo-level spec bans import cycles
+in and between every workspace and a dependency on a less stable workspace, and
+applies the role-folder rules below. Fitness functions that are not static
 plug into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`), which
 reports new and existing findings and never fails a build.
 

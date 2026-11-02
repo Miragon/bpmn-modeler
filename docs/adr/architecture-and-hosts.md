@@ -325,9 +325,15 @@ VS Code's input UI, settings writes and reload hint; the bridge's
 workspace-root registration, acknowledged marketplace persistence and
 rendering on `document/didChange`, because the host owns the document revision
 there. Host classes depend on the core ports, not
-on concrete adapters, so the in-memory test kit fits every one of them; the VS
-Code architecture test lets only the composition root and infrastructure
-import a class that implements a port.
+on concrete adapters, so the in-memory test kit fits every one of them. Inbound
+adapters never import outbound ones (rule 6 of the
+[role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
+port (`ModelerPreferences`), a factory (`EditorHandleFactory`,
+`DiffPaneFactory`) or a value (the extension URI, the nonce source) from the
+composition root, and a helper both directions use is pure and sits in
+`domain/` (`canonicalPath` reads only the parts of a `Uri`). A context of the
+VS Code host reaches another only through `shared/`, which the VS Code
+architecture test checks.
 
 The element-template editor is the main editor for template files in VS Code:
 files in an `element-templates` folder open in it through a default editor
@@ -528,7 +534,7 @@ workspace-wide status on the left (element templates, whose loads also run for
 background diagrams), the focused diagram's state on the right (engine
 version, BPMNlint, deployment target). A transient view hides itself after
 3 s, and a later show or hide of its slot cancels that
-([`VsCodeStatusBar.spec.ts`](../../apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.spec.ts)).
+([`VsCodeStatusBar.spec.ts`](../../apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.spec.ts)).
 The bridge sends a slot as one `statusBar/update {slot, view}` frame, with
 `view: null` to hide it. IntelliJ follows VS Code as far as its status bar
 allows: one widget per slot, the same text and tooltip, the same 3 s rule, and

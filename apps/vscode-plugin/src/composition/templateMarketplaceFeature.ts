@@ -7,10 +7,10 @@ import {
     createTemplateMarketplaceService,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
-import { getContext } from "../shared/infrastructure/extensionContext";
-import { TemplateMarketplaceController } from "../templateMarketplace/controller/TemplateMarketplaceController";
-import { VsCodeTokenPrompt } from "../templateMarketplace/infrastructure/VsCodeTokenPrompt";
-import { VsCodeTokenStore } from "../templateMarketplace/infrastructure/VsCodeTokenStore";
+import { getContext } from "../shared/adapter/out/extensionContext";
+import { TemplateMarketplaceController } from "../templateMarketplace/adapter/in/TemplateMarketplaceController";
+import { VsCodeTokenPrompt } from "../templateMarketplace/adapter/out/VsCodeTokenPrompt";
+import { VsCodeTokenStore } from "../templateMarketplace/adapter/out/VsCodeTokenStore";
 import { SharedDeps } from "./sharedDeps";
 
 /**

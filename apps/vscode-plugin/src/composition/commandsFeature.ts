@@ -6,7 +6,7 @@ import {
     CoreWriteRenderer,
 } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import { CommandController } from "../modeler/bpmn/controller/CommandController";
+import { CommandController } from "../modeler/bpmn/adapter/in/CommandController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -41,5 +41,6 @@ export function register(
         deps.picker,
         deps.pendingEdits,
         handles.layoutSvc,
+        deps.preferences,
     ).register(context);
 }

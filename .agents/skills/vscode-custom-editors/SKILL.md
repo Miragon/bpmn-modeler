@@ -32,7 +32,7 @@ The single generic controller has a `register(context)` instance method that cal
 
 ### Controller Implementation
 
-A single generic controller — `ModelerEditorController` (`src/modeler/editor-session/`) — serves both `.bpmn` and `.dmn`. Everything that differs between them is passed as `options` (the `viewType`, the per-editor `WebviewMessageRouter`, the participant list, the BPMN-only diff `delegateResolve` hook). It implements `CustomTextEditorProvider` with the single method `resolveCustomTextEditor(document, webviewPanel, _token)`.
+A single generic controller — `ModelerEditorController` (`src/modeler/editor-session/adapter/in/`) — serves both `.bpmn` and `.dmn`. Everything that differs between them is passed as `options` (the `viewType`, the per-editor `WebviewMessageRouter`, the participant list, the BPMN-only diff `delegateResolve` hook). It implements `CustomTextEditorProvider` with the single method `resolveCustomTextEditor(document, webviewPanel, _token)`.
 
 VS Code calls this each time a file matching the selector is opened. The `editorId` is the **full URI string** (`document.uri.toString()`, not just the path — so a `git:` diff ref and the `file:` working tree resolve to distinct ids). Inside, the controller:
 
@@ -46,10 +46,10 @@ Lifecycle is split into independently testable `EditorSessionParticipant`s (cont
 
 | Concern | Where | Notes |
 |---|---|---|
-| Webview messages | `WebviewMessageRouter.dispatch` → handler factories (host-agnostic ones in `libs/modeler-core`, VS Code-only ones in `<feature>/controller/webview-handlers/`); the BPMN router is the core `BpmnEditorFeature`'s table | Replaces the old `switch(message.type)` |
+| Webview messages | `WebviewMessageRouter.dispatch` → handler factories (host-agnostic ones in `libs/modeler-core`, VS Code-only ones in `<feature>/adapter/in/webview-handlers/`); the BPMN router is the core `BpmnEditorFeature`'s table | Replaces the old `switch(message.type)` |
 | Render + service session | `DocumentRenderParticipant` (one per editor type, with the file extension) | `service.registerSession` + doc-change → `service.display()`; the services share `EditorDocumentSync` (echo guard, revision check, empty-file init) |
 | Element templates | `ElementTemplatesParticipant` (BPMN only) | config-folder watch via `ArtifactService.createWatcher()` |
-| Settings / language | `BpmnSettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (asks `SettingChange.affects` for the `SettingKey`s it pushes). The plugin reads, writes and watches settings only through `shared/infrastructure/modelerConfiguration.ts`, keyed by `SettingKey`; `manifest.contract.spec.ts` fails on a configuration call elsewhere |
+| Settings / language | `BpmnSettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (asks `SettingChange.affects` for the `SettingKey`s it pushes). The plugin reads, writes and watches settings only through `shared/adapter/out/modelerConfiguration.ts`, keyed by `SettingKey`; `manifest.contract.spec.ts` fails on a configuration call elsewhere |
 | Engine-version status bar | `EngineVersionStatusBarParticipant` (BPMN only) | focus → show/hide |
 | Tab tracking | `editorStore.subscribeToTabChangeEvent` | updates the active-editor pointer |
 | Dispose | the lifecycle aggregates every participant's `onDispose` into one `subscribeToDisposeEvent` | `disposeEditor` runs once, after store bookkeeping |
@@ -121,16 +121,16 @@ Services operate on the active editor by default. The echo-prevention guard is p
 
 ## Key Files
 
-- **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
+- **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/adapter/in/ModelerEditorController.ts`
 - **Session lifecycle + participant contract**: `libs/modeler-core/src/editorSession/service/EditorSessionLifecycle.ts`, `libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts`
 - **BPMN editor**: `libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts` (services, router table, participant order); the contributing features' `composition/` modules `NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`, `ScriptEditorFeature`
 - **Shared participants / handlers**: `libs/modeler-core/src/<feature>/service/*Participant.ts`, `libs/modeler-core/src/modeler/bpmn/adapter/in/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch`/`scriptTask` `adapter/in/*MessageHandlers.ts`)
-- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/form/controller/editor-participants/`, `…/webview-handlers/formMessageHandlers.ts` (form values); the BPMN editor's VS Code adapters are `VsCodeLintingPreference`, `PropertiesPanelStateRepository` and the script tabs `scriptTask/infrastructure/ScriptTaskService.ts`
+- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/form/adapter/in/editor-participants/`, `…/webview-handlers/formMessageHandlers.ts` (form values); the BPMN editor's VS Code adapters are `VsCodeLintingPreference`, `PropertiesPanelStateRepository` and the script tabs `scriptTask/adapter/out/ScriptTaskService.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts` (host-agnostic)
-- **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
-- **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
+- **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts`
+- **Deployment Controller**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentController.ts`
 - **Editor session store**: `libs/modeler-core/src/editorSession/service/EditorSessionStore.ts` (`vscode`-free registry)
-- **Editor handle**: contract `libs/modeler-core/src/editorSession/port/EditorHandle.ts`; VS Code adapter `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts`
+- **Editor handle**: contract `libs/modeler-core/src/editorSession/port/EditorHandle.ts`; VS Code adapter `apps/vscode-plugin/src/shared/adapter/out/VsCodeEditorHandle.ts`
 - **Session documents**: `libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store)
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`

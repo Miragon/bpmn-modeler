@@ -24,37 +24,37 @@ import {
     SAVE_SVG_CMD,
     TOGGLE_CMD,
     TOGGLE_LINTING_CMD,
-} from "./modeler/bpmn/controller/CommandController";
+} from "./modeler/bpmn/adapter/in/CommandController";
 import {
     COMPARE_SELECTED_CMD,
     COMPARE_WITH_SELECTED_CMD,
     SELECT_FOR_COMPARE_CMD,
-} from "./diff/controller/BpmnCompareController";
+} from "./diff/adapter/in/BpmnCompareController";
 import {
     DEPLOY_CMD,
     DEPLOY_FILES_CMD,
     DEPLOYMENT_STATUS_MENU_CMD,
     SWITCH_TARGET_CMD,
     VERIFY_DEPLOYMENT_CMD,
-} from "./deployment/controller/DeploymentController";
+} from "./deployment/adapter/in/DeploymentController";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
     UPDATE_MARKETPLACES_CMD,
-} from "./templateMarketplace/controller/TemplateMarketplaceController";
-import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
-import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
+} from "./templateMarketplace/adapter/in/TemplateMarketplaceController";
+import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/adapter/in/ScriptTaskCommandController";
+import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/adapter/in/FocusLintElementController";
 import {
     NEW_ELEMENT_TEMPLATE_CMD,
     OPEN_ELEMENT_TEMPLATE_EDITOR_CMD,
     TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
-} from "./modeler/elementTemplate/controller/ElementTemplateEditorController";
+} from "./modeler/elementTemplate/adapter/in/ElementTemplateEditorController";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
     TOGGLE_FORM_INPUT_VALUES_CMD,
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
-} from "./modeler/form/controller/FormValuesController";
+} from "./modeler/form/adapter/in/FormValuesController";
 import {
     BPMN_VIEW_TYPE,
     DEFAULT_MODELER_SETTINGS,
@@ -70,7 +70,7 @@ import {
     ELEMENT_TEMPLATE_FOLDER_NAME,
     ELEMENT_TEMPLATE_SCHEMA_URL,
 } from "@miragon/bpmn-modeler-types";
-import { MODELER_SETTINGS_SECTION } from "./shared/infrastructure/modelerConfiguration";
+import { MODELER_SETTINGS_SECTION } from "./shared/domain/modelerSettingsSection";
 
 const SRC_DIR = __dirname;
 
@@ -294,7 +294,7 @@ describe("package.json ↔ code contract", () => {
         // Its keys are typed `SettingKey`, so the manifest row below covers every key asked.
         const modelerConfigurationFile = resolve(
             SRC_DIR,
-            "shared/infrastructure/modelerConfiguration.ts",
+            "shared/adapter/out/modelerConfiguration.ts",
         );
         const offenders = productionSourceFiles(SRC_DIR).filter(
             (file) =>

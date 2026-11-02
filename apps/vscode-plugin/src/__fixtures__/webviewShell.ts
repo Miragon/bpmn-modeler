@@ -9,7 +9,7 @@ import { Uri, type Webview } from "vscode";
 import {
     webviewContentSecurityPolicy,
     type WebviewShell,
-} from "../shared/infrastructure/webviewContentSecurityPolicy";
+} from "../shared/domain/webviewContentSecurityPolicy";
 
 export const shellWebview: Webview = {
     options: {},
