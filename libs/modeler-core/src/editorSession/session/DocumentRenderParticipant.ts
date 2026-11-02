@@ -23,7 +23,7 @@ export class DocumentRenderParticipant implements EditorSessionParticipant {
             // document so an edit elsewhere never re-renders this editor.
             if (
                 event.hasContentChanges() &&
-                event.documentPath().endsWith(this.fileExtension) &&
+                event.documentPath().toLowerCase().endsWith(this.fileExtension) &&
                 session.editorId === event.documentUriString()
             ) {
                 this.logger.logDebug(`Document changed -> display ${this.fileExtension}`);
