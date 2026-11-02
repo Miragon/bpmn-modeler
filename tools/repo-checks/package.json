@@ -1,5 +1,6 @@
 {
     "name": "@miragon/bpmn-modeler-repo-checks",
+    "architecture": "hexagonal",
     "version": "0.0.1",
     "private": true,
     "scripts": {

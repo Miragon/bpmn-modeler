@@ -35,6 +35,13 @@ describe("readWorkspaces", () => {
         ]);
     });
 
+    it("reads the declared architecture kind", () => {
+        writeManifest("package.json", { workspaces: ["docs"] });
+        writeManifest("docs/package.json", { name: "docs", architecture: "flat" });
+
+        expect(readWorkspaces(root)).toEqual([{ name: "docs", dir: "docs", kind: "flat" }]);
+    });
+
     it("skips a manifest without a name", () => {
         writeManifest("package.json", { workspaces: ["docs"] });
         writeManifest("docs/package.json", {});

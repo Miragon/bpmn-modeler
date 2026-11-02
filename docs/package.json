@@ -1,5 +1,6 @@
 {
     "name": "@miragon/bpmn-modeler-docs",
+    "architecture": "flat",
     "private": true,
     "scripts": {
         "dev": "portless",

@@ -66,6 +66,48 @@ dependency on a less stable workspace. Fitness functions that are not static
 plug into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`), which
 reports new and existing findings and never fails a build.
 
+## Put each file in its role folder
+
+Each workspace declares its kind in the `"architecture"` field of its
+`package.json`: `hexagonal` (core, VS Code host, bridge, webviews, template
+builder, `tools/repo-checks`), `diagram-js` (feature libraries and the modeler
+packages) or `flat` (types, protocol and the rest of the tooling). A new
+workspace declares one too. Only a `hexagonal` workspace has role folders; the
+first one in a file's path is its role:
+
+```
+<context>/
+  domain/        rules as pure functions and values
+  port/          interfaces the services call
+  service/       orchestration, session participants included
+  adapter/in/    calls into the workspace: commands, message handlers, UI
+  adapter/out/   implements a port: VS Code, Node, HTTP
+  composition/   wiring (at the root in a host, per context in the core)
+testing/         the test kit
+index.ts         an entry: a file directly in src/
+```
+
+`tools/repo-checks/src/architecture.spec.ts` blocks on these, and reads no
+file or type name:
+
+1. Every file sits in a role folder or is an entry.
+2. `domain/` imports only `domain/`.
+3. `port/` imports only `domain/` and `port/`.
+4. `service/` imports no `adapter/`, `composition/`, `testing/` or entry.
+5. Only `adapter/in/`, `service/`, `composition/`, `testing/` and entries
+   import a service.
+6. `adapter/in/` and `adapter/out/` never import each other.
+7. Only `adapter/`, `composition/` and entries import `vscode`, `node:*`,
+   `fs` or `http`.
+8. Only `composition/` and entries import `composition/`.
+9. Only `testing/` imports `testing/`; nothing imports an entry.
+
+A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
+bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved
+has one blanket exception in the repo-level spec naming its migration issue.
+The rules and the reasons are in the
+[ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
+
 ## Trace host and session behavior
 
 VS Code runs the core in-process. Standalone loads that extension through

@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-02
 
 ## Context
 
@@ -14,6 +14,7 @@ depends on another host's internals.
 ## Contents
 
 - [Package boundaries](#package-boundaries)
+- [Workspace kinds and role folders](#workspace-kinds-and-role-folders)
 - [Host integrations](#host-integrations)
 - [Runtime and transport](#runtime-and-transport)
 - [Process lifecycle](#process-lifecycle)
@@ -186,9 +187,85 @@ Enforcement lives in the [core architecture tests](../../libs/modeler-core/src/a
 [BPMN package tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
 [DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts),
 the [repo-level tests](../../tools/repo-checks/src/architecture.spec.ts) (no
-import cycles and stable dependencies in every workspace), and
+import cycles, stable dependencies and the
+[role-folder rules](#workspace-kinds-and-role-folders) in every workspace), and
 [ESLint boundary rules](../../eslint.config.cjs). The specs share one
 [engine](engineering-practices.md#architecture-tests).
+
+### Workspace kinds and role folders
+
+A fitness function reads folders, imports and types, never a file or type
+name. A folder therefore states the role a file is meant to have, and its
+imports show the role it has. Each workspace declares its kind once, in the
+`"architecture"` field of its `package.json`, which `readWorkspaces` reads:
+
+| Kind | Workspaces |
+| --- | --- |
+| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the four webviews, the template builder, `tools/repo-checks` |
+| `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
+| `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
+
+The webviews and the template builder move into their role folders in their
+own migrations (#2129, #2130).
+
+In a `hexagonal` workspace the first role folder in a file's path is its role,
+and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
+`service/` of `modeler/bpmn` with no special case for nested contexts. The
+layout below a role folder is free.
+
+| Folder | Holds |
+| --- | --- |
+| `domain/` | rules as pure functions and values |
+| `port/` | interfaces the services call (driven ports) |
+| `service/` | orchestration, including the core's editor-session participants |
+| `adapter/in/` | calls into the workspace: commands, webview and RPC message handlers, UI |
+| `adapter/out/` | implementations of a port: VS Code, Node, HTTP clients |
+| `composition/` | wiring: at the workspace root in a host, `<context>/composition/` in the core |
+| `testing/` | the test kit |
+
+A file directly in `src/` is an entry (`index.ts`, `main.ts`, `server.ts`);
+that is a folder depth, not a name. Technology gets no role folder; it shows in
+the imports. Every rule below blocks, because each is static and reads only
+folders and imports:
+
+1. Every file sits in a role folder or is an entry.
+2. `domain/` imports only `domain/`, so the domain decides and does not call
+   out through a port.
+3. `port/` imports only `domain/` and `port/`.
+4. `service/` imports no `adapter/`, `composition/`, `testing/` or entry.
+5. Only `adapter/in/`, `service/`, `composition/`, `testing/` and entries
+   import a service, so `adapter/out/` never does. An entry may re-export one:
+   the core's barrel is how hosts reach its services.
+6. `adapter/in/` and `adapter/out/` never import each other, in any context.
+7. Only `adapter/`, `composition/` and entries import a host module
+   (`isHostModule`: `vscode`, `node:*`, `fs`, `http`).
+8. Only `composition/` and entries import `composition/`.
+9. Only `testing/` imports `testing/`, and nothing imports an entry.
+
+A `diagram-js` or `flat` workspace holds no role folder, so no folder there
+reads as a role nothing checks. Package imports stay out of the shared set:
+the core's domain allowlist (`@miragon/bpmn-modeler-types`, `path`) and its
+rules on contexts remain rules of the core's own spec.
+
+Rule 6 follows `adapters.dontDependOnEachOther` in Hombergs' buckpal, at the
+level of the direction rather than of each adapter package: here one
+technology spans contexts, and the rules between contexts stay per workspace.
+
+The core's session participants are in-core reactions that
+`EditorSessionLifecycle` drives, so they join `service/`; the previous core
+spec already treated `service/` and `session/` as one application layer. Webviews
+follow the same roles: the UI and host queries are `adapter/in/`, the host
+channel and the modeler-library wrappers `adapter/out/`, the reducers
+`domain/` and the bootstrap `composition/`. Each webview maps its files in its
+own migration (#2129).
+
+[`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts)
+applies each kind's rules (`RULES_BY_KIND`) to every workspace that declares
+it. A `hexagonal` workspace not yet moved into its role folders carries one
+blanket `KnownException` (`from: <dir>, to: "*"`) naming the issue that moves
+it; the stale-exception check removes it once the workspace passes, and #2127
+reads the list as remaining work. The ESLint override that bans an empty
+function in an adapter (#2053) covers `**/src/**/adapter/**/*.ts`.
 
 ### Host integrations
 
@@ -949,6 +1026,26 @@ a cached result must equal an uncached run.
 
 ## Alternatives and consequences
 
+- Hombergs nests `port/` and `service/` under `application/`. The flat
+  variant keeps the same roles with one folder less per context, and no rule
+  needs the grouping.
+- Evans keeps repository interfaces in the domain (`domain/port/`). A role
+  folder inside another makes the role ambiguous by path, and rule 2 needs
+  `domain/` and `port/` apart, so `port/` is a sibling.
+- `session/` as a role of its own would split one application layer in two
+  without a rule that tells them apart.
+- The test kit in `adapter/out/` would fit its fakes, but `createTestHost`
+  wires services, which rule 5 forbids there, so `testing/` is a role.
+- A central table of kinds in the repo-level spec would sit apart from the
+  workspace it describes; a new workspace would pass until someone listed it.
+  The manifest field travels with the workspace, and the spec fails on a
+  missing or unknown kind.
+- Detecting a port by its type (an interface a class in `adapter/out/`
+  implements) would flag a correct helper there that implements none. The
+  folder states the role; #2127 reports what it cannot catch.
+- One workspace-level composition for the core would exempt it from the rule
+  that contexts meet only through `kernel/` and `editorSession/`. Wiring sits
+  in `<context>/composition/`, where that rule still applies.
 - Leaving the core or its registries inside the VS Code plugin would couple
   other hosts to plugin internals or force them to duplicate session logic.
 - Enforcing a layer rule only once no violation remains would let new ones in
