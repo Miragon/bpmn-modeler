@@ -24,18 +24,26 @@ internal object NewElementTemplates {
     private const val FALLBACK_ID = "new-element-template"
     private val PRETTY = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
 
+    // Spelled out to match JavaScript: `\s` is ASCII-only here, `Char.isWhitespace` takes other
+    // characters, and IGNORE_CASE also folds `ſ` to `s`.
+    private const val JS_SPACE = """\t\n\u000B\f\r \u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF"""
+    private val JSON_SUFFIX = Regex("""\.[jJ][sS][oO][nN]\z""")
+    private val OUTER_SPACE = Regex("""^[$JS_SPACE]+|[$JS_SPACE]+\z""")
+    private val INNER_SPACE = Regex("""[$JS_SPACE]+""")
+
     fun identity(fileName: String): Identity {
         val id =
-            fileName.replace(Regex("""\.json$""", RegexOption.IGNORE_CASE), "")
-                .trim()
-                .replace(Regex("""\s+"""), "-")
+            fileName.replace(JSON_SUFFIX, "")
+                .replace(OUTER_SPACE, "")
+                .replace(INNER_SPACE, "-")
                 .ifEmpty { FALLBACK_ID }
         val words =
             id.substring(id.lastIndexOf('.') + 1)
                 .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
                 .split(Regex("""[-_\s]+"""))
                 .filter { it.isNotEmpty() }
-        val name = words.joinToString(" ") { word -> word.replaceFirstChar { it.uppercaseChar() } }
+        // A string, because `ß` uppercases to `SS` and no single char holds that.
+        val name = words.joinToString(" ") { word -> word.take(1).uppercase() + word.drop(1) }
         return Identity(id, name.ifEmpty { id })
     }
 
