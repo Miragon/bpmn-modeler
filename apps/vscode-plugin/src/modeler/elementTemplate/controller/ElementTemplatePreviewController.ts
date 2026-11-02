@@ -16,6 +16,8 @@ import {
     ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
     NotifierPort,
     SettingsPort,
+    ShownTemplate,
+    TemplatePreviewAutoOpen,
 } from "@miragon/bpmn-modeler-core";
 import { isElementTemplateFile } from "@miragon/bpmn-modeler-types";
 
@@ -31,8 +33,7 @@ const RECHECK_DELAY_MS = 300;
  */
 export class ElementTemplatePreviewController {
     private pendingRecheck: ReturnType<typeof setTimeout> | undefined;
-    /** Files that got their automatic preview while their editor stays open. */
-    private readonly shownFiles = new Set<string>();
+    private readonly autoOpen = new TemplatePreviewAutoOpen();
 
     constructor(
         private readonly notifier: NotifierPort,
@@ -70,27 +71,22 @@ export class ElementTemplatePreviewController {
                 this.settings.getConfigFolder(),
             );
         void commands.executeCommand("setContext", IS_ELEMENT_TEMPLATE_KEY, isTemplate);
-        if (isTemplate && this.shouldOpenOnItsOwn(editor)) {
+        if (isTemplate && this.autoOpen.onShown(this.factsOf(editor)) === "open") {
             void this.openPreview(editor.document.uri);
         }
     }
 
-    private shouldOpenOnItsOwn(editor: TextEditor): boolean {
-        const uri = editor.document.uri;
-        // Diffs, git refs and peek editors show a template without editing it.
-        if (
-            uri.scheme !== "file" ||
-            editor.viewColumn === undefined ||
-            window.tabGroups.activeTabGroup.activeTab?.input instanceof TabInputTextDiff
-        ) {
-            return false;
-        }
-        const key = uri.toString();
-        if (this.shownFiles.has(key)) {
-            return false;
-        }
-        this.shownFiles.add(key);
-        return this.openAutomatically() && !this.hasPreview(key);
+    private factsOf(editor: TextEditor): ShownTemplate {
+        const { uri } = editor.document;
+        const file = uri.toString();
+        return {
+            file,
+            isLocalFile: uri.scheme === "file",
+            inEditorArea: editor.viewColumn !== undefined,
+            isDiff: window.tabGroups.activeTabGroup.activeTab?.input instanceof TabInputTextDiff,
+            enabled: this.openAutomatically(),
+            hasPreview: this.hasPreview(file),
+        };
     }
 
     private hasPreview(key: string): boolean {
@@ -109,8 +105,9 @@ export class ElementTemplatePreviewController {
             ),
         );
         for (const { input } of closed) {
-            if (input instanceof TabInputText && !stillOpen.has(input.uri.toString())) {
-                this.shownFiles.delete(input.uri.toString());
+            if (input instanceof TabInputText) {
+                const file = input.uri.toString();
+                this.autoOpen.onClosed(file, stillOpen.has(file));
             }
         }
     }

@@ -260,7 +260,9 @@ in their own `EditorSessionStore`: a preview never becomes the target of
 modeler commands or counts towards `bpmn-modeler.openCustomEditors`. VS Code
 opens it on its own the first time a template file is shown, once per opened
 file so a preview the user closed stays closed, unless
-`elementTemplatePreview.openAutomatically` is off. Because that needs the
+`elementTemplatePreview.openAutomatically` is off. `TemplatePreviewAutoOpen` in
+the core's element template domain decides this from the facts the controller
+gathers. Because that needs the
 extension running before any diagram is open, it also activates in workspaces
 that contain an `element-templates` folder. `elementTemplateFolder` and
 `isElementTemplateFile` in `modeler-types` are the one rule for where templates
