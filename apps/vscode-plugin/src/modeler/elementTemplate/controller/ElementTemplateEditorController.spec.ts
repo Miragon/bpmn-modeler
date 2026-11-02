@@ -497,6 +497,24 @@ describe("ElementTemplateEditorController", () => {
             expect(contextKeyValues()).toEqual([true, false, false]);
         });
 
+        it("counts a file as a template only where the template loader reads", () => {
+            vscode.activeTextEditor = editorOf("/work/.camunda/element-templates/a.json", "");
+            register();
+
+            showEditor(editorOf("/work/docs/element-templates/b.json", ""));
+
+            expect(contextKeyValues()).toEqual([true, false]);
+        });
+
+        it("follows the configured config folder", () => {
+            vscode.activeTextEditor = editorOf("/work/config/element-templates/a.json", "");
+            register(new InMemorySettings({ configFolder: "config" }));
+
+            showEditor(editorOf("/work/.camunda/element-templates/b.json", ""));
+
+            expect(contextKeyValues()).toEqual([true, false]);
+        });
+
         it("rechecks the active document once typing pauses", () => {
             const editor = editorOf("/work/new.json", "{}");
             vscode.activeTextEditor = editor;
