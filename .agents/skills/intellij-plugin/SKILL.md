@@ -137,7 +137,7 @@ in the bridge README):
 
 **Handler coverage.** `ProtocolHandlerCoverageTest` registers the production
 `BridgeRouters` and fails when a core → host method in
-`apps/modeler-bridge/src/protocol/protocol.json` has no Kotlin handler, or a
+`apps/modeler-bridge/src/protocol/domain/protocol.json` has no Kotlin handler, or a
 handler serves a method the core no longer sends. Adding or removing a
 core → host method therefore changes the descriptor, `protocol.json` and the
 Kotlin router in one PR. It also compares parameter and result keys: every
@@ -219,11 +219,13 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
 Bridge (`apps/modeler-bridge/src/`):
-- `server.ts` (entrypoint, binds the process streams), `stdioBinding.ts`
-  (stdin frames, `[core]`-tagged stderr lines), `bridge.ts` (wires core to
-  adapters), `rpc.ts` (NDJSON peer),
-  `adapters.ts` (`DocumentMirror` + `Rpc*` ports), `nodeAdapters.ts` (pure-`fs`
-  `WorkspacePort`/`SettingsPort`).
+- `server.ts` (entrypoint, binds the process streams); `composition/`
+  (`bridge.ts` wires core to adapters, `stdioBinding.ts` feeds stdin frames and
+  tags stderr lines `[core]`); `transport/adapter/out/Rpc.ts` (NDJSON peer);
+  `<context>/adapter/in/*Handlers.ts` (Host→Core handler tables);
+  `<context>/adapter/out/` (`Rpc*` ports, pure-`fs` `NodeWorkspace` and
+  `BridgeSettings`); `editorSession/domain/DocumentMirror.ts`;
+  `protocol/domain/` (the wire contract).
 - `package.json`: `build` = typecheck + `compile`; `compile` = `bun build
   --compile … --outfile dist/modeler-bridge`; `compile:all` = the `--target`
   matrix (darwin-arm64/x64, linux-x64/arm64, windows-x64); `start` = run from

@@ -8,7 +8,7 @@ import { DOCUMENT_SYNC_COMMAND_TYPES } from "@miragon/bpmn-modeler-core";
 import { BPMN_EDITOR_COMMAND_TYPES, BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { hostNotification, registerParams, waitForFrame } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
+import { createBridge } from "./composition/bridge";
 
 /** How the IntelliJ host serves each command its BPMN editor webview posts. */
 const INTELLIJ_COVERAGE: Record<BpmnEditorCommandType, "handled" | "ignored"> = {

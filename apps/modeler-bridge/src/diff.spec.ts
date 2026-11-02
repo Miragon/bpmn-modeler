@@ -8,8 +8,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { hostNotification, settle } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
-import { Rpc } from "./rpc";
+import { createBridge } from "./composition/bridge";
+import { Rpc } from "./transport/adapter/out/Rpc";
 
 /** How the IntelliJ host serves each command its diff panes post. */
 const INTELLIJ_DIFF_COVERAGE: Record<

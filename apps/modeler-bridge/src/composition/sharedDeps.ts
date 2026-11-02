@@ -5,9 +5,14 @@ import {
     PendingEditsFlush,
 } from "@miragon/bpmn-modeler-core";
 
-import { DocumentMirror, RpcDocumentPort, RpcNotifier, RpcPicker, RpcStatusBar } from "../adapters";
-import { BridgeSettings, NodeWorkspace } from "../nodeAdapters";
-import { Rpc } from "../rpc";
+import { DocumentMirror } from "../editorSession/domain/DocumentMirror";
+import { RpcDocumentPort } from "../editorSession/adapter/out/RpcDocumentPort";
+import { RpcNotifier } from "../kernel/adapter/out/RpcNotifier";
+import { RpcPicker } from "../kernel/adapter/out/RpcPicker";
+import { RpcStatusBar } from "../kernel/adapter/out/RpcStatusBar";
+import { BridgeSettings } from "../kernel/adapter/out/BridgeSettings";
+import { NodeWorkspace } from "../kernel/adapter/out/NodeWorkspace";
+import { Rpc } from "../transport/adapter/out/Rpc";
 
 /**
  * The cross-cutting collaborators every bridge feature draws from: the RPC peer,

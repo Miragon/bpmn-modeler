@@ -1,4 +1,4 @@
-import { RegisterParams, StatusBarUpdateParams } from "../protocol/types";
+import { RegisterParams, StatusBarUpdateParams } from "../protocol/domain/types";
 
 /** Drains pending microtasks and one macrotask turn, so "nothing happened" can be asserted. */
 export async function settle(): Promise<void> {

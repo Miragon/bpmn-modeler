@@ -289,8 +289,7 @@ the issue that moves it.
 ESLint bans an empty function (`() => {}`) in an adapter, outside specs: a
 port adapter stubbed that way passes every spec that never calls it, so an
 intended no-op says why in a comment instead (#2053). The override covers
-`**/src/**/adapter/**/*.ts` and the core's `testing/`, and keeps a
-workspace's old adapter globs until that workspace moves.
+`**/src/**/adapter/**/*.ts` and the core's `testing/`.
 
 Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Role,
 layer and stability rules take `KnownException` entries that name the issue removing

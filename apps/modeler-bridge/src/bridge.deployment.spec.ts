@@ -19,16 +19,16 @@ import {
     StatusSlotFrame,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
+import { createBridge } from "./composition/bridge";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import { register } from "./composition/deploymentFeature";
-import { METHODS } from "./protocol/descriptor";
+import { METHODS } from "./protocol/domain/descriptor";
 import type {
     DeploymentSaveParams,
     DeploymentSeedParams,
     PickerShowParams,
     StatusBarUpdateParams,
-} from "./protocol/types";
+} from "./protocol/domain/types";
 
 /** The `deploymentState/save` that records ledger rows, the last step of an accepted deploy. */
 function isLedgerRowSave(frame: { method?: string; params?: unknown }): boolean {

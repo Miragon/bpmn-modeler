@@ -22,7 +22,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/app/formTemplate.ts`. |
-| Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/bridge.ts` and `src/composition/`; Kotlin host in `apps/intellij-plugin`. |
+| Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's
 `domain/` as pure code, or into `libs/modeler-types` when browser code applies
@@ -120,7 +120,8 @@ VS Code registers BPMN, DMN, and Forms, while IntelliJ's visual editor is BPMN.
 
 For new host functionality, update the core port and affected adapters, and
 wire handlers in composition. Inspect the bridge protocol
-in `apps/modeler-bridge/src/protocol/` when the RPC surface changes.
+in `apps/modeler-bridge/src/protocol/domain/` when the RPC surface changes;
+its Host→Core handlers are the tables in `<context>/adapter/in/`.
 
 Commands travel webview → host; Queries travel host → webview. For synchronization
 changes, trace the webview bootstrap, core modeling service, host document

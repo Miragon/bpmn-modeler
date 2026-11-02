@@ -146,11 +146,7 @@ module.exports = [
     // the repo-rooted globs matching when a nested workspace config spreads this.
     {
         basePath: __dirname,
-        files: [
-            "**/src/**/adapter/**/*.ts",
-            "libs/modeler-core/src/testing/**/*.ts",
-            "apps/modeler-bridge/src/*[aA]dapters.ts",
-        ],
+        files: ["**/src/**/adapter/**/*.ts", "libs/modeler-core/src/testing/**/*.ts"],
         ignores: ["**/*.spec.ts"],
         rules: {
             "@typescript-eslint/no-empty-function": ["error", { allow: [] }],

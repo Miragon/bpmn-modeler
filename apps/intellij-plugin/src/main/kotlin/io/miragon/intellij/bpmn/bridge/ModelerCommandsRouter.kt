@@ -115,7 +115,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
     }
 
     private companion object {
-        // Host→core METHODS of apps/modeler-bridge/src/protocol/descriptor.ts;
+        // Host→core METHODS of apps/modeler-bridge/src/protocol/domain/descriptor.ts;
         // ModelerCommandsRouterTest pins each name.
         const val METHODS_CHANGE_ENGINE_VERSION = "modeler/changeEngineVersion"
         const val METHODS_LINTING_TOGGLE = "linting/toggle"

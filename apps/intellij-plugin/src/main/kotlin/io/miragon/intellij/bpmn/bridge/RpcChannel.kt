@@ -90,7 +90,7 @@ internal class RpcChannel(
     fun reply(requestId: CoreRequestId, result: RpcResult?) =
         enqueueReply(requestId, gson.toJson(linkedMapOf("id" to requestId.value, "result" to result)))
 
-    // The bridge's `rpc.ts` turns `{id, error}` into a rejected promise, so a
+    // The bridge's `Rpc.ts` turns `{id, error}` into a rejected promise, so a
     // handler that throws still settles the core's awaiting request instead of
     // leaking it.
     fun replyError(requestId: CoreRequestId, message: String) =
