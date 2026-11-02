@@ -54,7 +54,7 @@ export class ElementTemplatesParticipant implements EditorSessionParticipant {
         // templates branch lives here because it drives a different service.
         session.onSettingChange((event, editorId) => {
             if (event.affects("configFolder")) {
-                // The watcher glob embeds the config folder.
+                // The watcher reads the config folder when it is armed.
                 armTemplateWatchers().catch((error) => this.notifier.logError(error as Error));
                 this.templatesSvc.refreshElementTemplates(editorId);
             }

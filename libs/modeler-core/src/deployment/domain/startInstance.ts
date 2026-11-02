@@ -102,8 +102,8 @@ export class StartInstanceConfig {
 /**
  * Value object representing the outcome of a start-instance attempt.
  *
- * Always returned (never thrown) from the service so callers can handle
- * success and failure uniformly.
+ * Returned, never thrown, from the service so callers can handle success and
+ * failure uniformly. A cancelled prompt yields no result.
  */
 export class StartInstanceResult {
     /**

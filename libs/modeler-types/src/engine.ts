@@ -98,7 +98,7 @@ export interface ExecutionPlatformAttributeNames {
  * to the literal `modeler` prefix.
  */
 export function executionPlatformAttributeNames(
-    attributes: readonly XmlAttribute[],
+    attributes: readonly Pick<XmlAttribute, "name" | "value">[],
 ): ExecutionPlatformAttributeNames {
     const binding = attributes.find(
         ({ name, value }) => name.startsWith("xmlns:") && value === MODELER_NAMESPACE_URI,

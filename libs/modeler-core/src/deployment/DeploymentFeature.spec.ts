@@ -12,21 +12,27 @@ import {
     FormDefaultsQuery,
     Query,
     SaveTargetCommand,
+    SelectTargetCommand,
+    StartInstanceCommand,
+    StartInstanceResultQuery,
     TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
+import { UserCancelledError } from "../kernel/domain/errors";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { DocumentFlushService } from "../editorSession/service/DocumentFlushService";
 import { PendingEditsFlush } from "../editorSession/service/PendingEditsFlush";
-import { createTestHost, PickerAnswers } from "../testing";
+import { createTestHost, PromptAnswers, RecordingNotifier } from "../testing";
 import { DeploymentFeature } from "./DeploymentFeature";
 import { CredentialRefs } from "./domain/credentialRefs";
+import { AdHocDestination, NamedDestination } from "./domain/deploymentDestination";
 import {
     contentFingerprint,
     DeployedRevision,
     DeploymentTargetIdentity,
     ledgerKeyFor,
 } from "./domain/deploymentLedger";
+import { deploymentStatusActionPrompt, deploymentTargetPrompt } from "./domain/deploymentPrompts";
 import { DeploymentTarget, serializeDeploymentTargets } from "./domain/deploymentTarget";
 import { NO_ENV_VARIABLES } from "./domain/envRef";
 import { HttpClient, HttpResponse } from "../kernel/domain/http";
@@ -34,12 +40,16 @@ import { DeploymentTargetService, toTargetPayload } from "./service/DeploymentTa
 
 const TARGETS_FILE = "/ws/.camunda/deployment-targets.json";
 const ORDER_PROCESS = "/ws/src/order-process.bpmn";
+const INVOICE_PROCESS = "/ws/src/invoice.bpmn";
 
 const target = (name: string): DeploymentTarget =>
     new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
+const namedDestination = (savedTarget: DeploymentTarget): NamedDestination =>
+    new NamedDestination(savedTarget, { filePath: TARGETS_FILE, exists: true, projectDir: "/ws" });
 
 class RecordingEngineHttp implements HttpClient {
     readonly deployments: { url: string; headers: Record<string, string>; body: string }[] = [];
+    readonly instanceStarts: string[] = [];
 
     async postMultipart(
         url: string,
@@ -59,8 +69,9 @@ class RecordingEngineHttp implements HttpClient {
         throw new Error("unexpected request");
     }
 
-    postJson(): Promise<HttpResponse> {
-        throw new Error("unexpected request");
+    async postJson(url: string): Promise<HttpResponse> {
+        this.instanceStarts.push(url);
+        return { status: 200, body: JSON.stringify({ id: "instance-1" }) };
     }
 
     postForm(): Promise<HttpResponse> {
@@ -75,7 +86,7 @@ class EngineWithoutDefinitions extends RecordingEngineHttp {
 }
 
 function createFeature(
-    answers: PickerAnswers = {},
+    promptAnswers: PromptAnswers = {},
     targets: DeploymentTarget[] = [target("dev"), target("prod")],
     extraFiles: Record<string, string> = {},
     http?: HttpClient,
@@ -83,7 +94,7 @@ function createFeature(
     const host = createTestHost({
         folders: ["/ws"],
         files: { [TARGETS_FILE]: serializeDeploymentTargets(targets), ...extraFiles },
-        answers,
+        promptAnswers,
     });
     const feature = new DeploymentFeature({
         store: host.store,
@@ -170,8 +181,8 @@ describe("DeploymentFeature target commands", () => {
 
         await feature.switchTarget();
 
-        expect(host.deploymentState.activeTargetName).toBe("prod");
-        expect(host.statusBar.deploymentTarget?.name).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
+        expect(host.statusBar.views.deploymentTarget?.text).toBe("prod");
         expect(targetListsIn(posted)).toEqual([
             expect.objectContaining({ activeTargetName: "prod", documentDir: "/ws/src" }),
         ]);
@@ -183,7 +194,7 @@ describe("DeploymentFeature target commands", () => {
 
         await feature.switchTarget();
 
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.errors).toEqual([]);
     });
 
@@ -223,7 +234,7 @@ describe("DeploymentFeature panel target commands", () => {
     ])(
         "posts the $result result before the refreshed target list",
         async ({ command, refreshedNames }) => {
-            const { host, feature } = createFeature({ confirmDestructive: true });
+            const { host, feature } = createFeature({ deleteTarget: true });
             host.openEditor(ORDER_PROCESS);
             const { panel, posted } = attach(feature, false);
 
@@ -269,19 +280,147 @@ describe("DeploymentFeature panel target commands", () => {
             keptRows: ["dev", "prod"],
         },
     ])("$behaviour", async ({ command, keptRows }) => {
-        const { host, feature } = createFeature({ confirmDestructive: true });
+        const { host, feature } = createFeature({ deleteTarget: true });
         host.openEditor(ORDER_PROCESS);
-        for (const name of ["dev", "prod"]) {
-            host.deploymentState.ledger.set(ledgerKeyOf(name), {
-                fingerprint: "f",
-                deployedAt: "2026-01-01T00:00:00.000Z",
-            });
-        }
+        host.deploymentState.seed({
+            ledger: Object.fromEntries(
+                ["dev", "prod"].map((name) => [
+                    ledgerKeyOf(name),
+                    { fingerprint: "f", deployedAt: "2026-01-01T00:00:00.000Z" },
+                ]),
+            ),
+        });
         const { panel } = attach(feature, false);
 
         await panel.handle(command);
 
-        expect([...host.deploymentState.ledger.keys()]).toEqual(keptRows.map(ledgerKeyOf));
+        expect(Object.keys(host.deploymentState.load().ledger)).toEqual(keptRows.map(ledgerKeyOf));
+    });
+
+    it("a ledger prune failure after a successful save still reports the target as saved", async () => {
+        const { host, feature } = createFeature();
+        host.openEditor(ORDER_PROCESS);
+        host.deploymentState.seed({
+            ledger: {
+                [ledgerKeyOf("dev")]: {
+                    fingerprint: "f",
+                    deployedAt: "2026-01-01T00:00:00.000Z",
+                },
+            },
+        });
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger?.remove !== undefined,
+            new Error("workspace state is read-only"),
+        );
+        const { panel, posted } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+        );
+
+        expect(
+            posted.filter(
+                (query) =>
+                    query instanceof TargetSavedQuery || query instanceof DeploymentTargetsQuery,
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                type: "TargetSavedQuery",
+                success: true,
+                message: 'Saved deployment target "staging".',
+            }),
+            expect.objectContaining({
+                type: "DeploymentTargetsQuery",
+                activeTargetName: "staging",
+            }),
+        ]);
+        expect(host.notifier.loggedErrors.map((error) => error.message)).toEqual([
+            "workspace state is read-only",
+        ]);
+    });
+
+    it("pushes the renamed list after the failure when saving the active target name fails, so the form no longer edits the old name", async () => {
+        const { host, feature } = createFeature();
+        host.openEditor(ORDER_PROCESS);
+        host.deploymentState.seed({ activeTargetName: "dev" });
+        host.deploymentState.failSaves(
+            (patch) => patch.activeTargetName !== undefined,
+            new Error("deployment state is read-only"),
+        );
+        const { panel, posted } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(toTargetPayload(target("staging")), noAuth, "dev"),
+        );
+
+        expect(
+            posted.filter(
+                (query) =>
+                    query instanceof TargetSavedQuery || query instanceof DeploymentTargetsQuery,
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                type: "TargetSavedQuery",
+                success: false,
+                message: "deployment state is read-only",
+            }),
+            expect.objectContaining({
+                type: "DeploymentTargetsQuery",
+                targets: [
+                    expect.objectContaining({ name: "prod" }),
+                    expect.objectContaining({ name: "staging" }),
+                ],
+                activeTargetName: "",
+            }),
+        ]);
+    });
+
+    it("selecting a target in the panel pushes the target list once", async () => {
+        const { host, feature } = createFeature();
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant]);
+        const { panel, posted } = attach(feature, true);
+        await settle();
+        posted.length = 0;
+
+        await panel.handle(new SelectTargetCommand("prod"));
+        await settle();
+
+        expect(targetListsIn(posted)).toEqual([
+            expect.objectContaining({ activeTargetName: "prod", documentDir: "/ws/src" }),
+        ]);
+        expect(host.statusBar.views.deploymentTarget?.text).toBe("prod");
+    });
+});
+
+describe("DeploymentFeature target picker before a deploy", () => {
+    it.each([
+        { command: "Deploy Diagram", run: (feature: DeploymentFeature) => feature.deployActive() },
+        { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
+    ])("$command shows the picked target in the open panel, then deploys", async ({ run }) => {
+        const orderXml = '<bpmn:process id="order-process"/>';
+        const timeline: string[] = [];
+        const http = new RecordingEngineHttp();
+        const postMultipart = http.postMultipart.bind(http);
+        vi.spyOn(http, "postMultipart").mockImplementation((...request) => {
+            timeline.push("deploy");
+            return postMultipart(...request);
+        });
+        const { host, feature } = createFeature(
+            { deploymentTarget: "dev", deployableFiles: [ORDER_PROCESS] },
+            [target("dev")],
+            { [ORDER_PROCESS]: orderXml },
+            http,
+        );
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: orderXml });
+        feature.attachPanel((message) => {
+            if (message instanceof DeploymentTargetsQuery) {
+                timeline.push(`panel shows "${message.activeTargetName}"`);
+            }
+        }, false);
+
+        await run(feature);
+
+        expect(timeline).toEqual(['panel shows "dev"', "deploy"]);
     });
 });
 
@@ -295,20 +434,29 @@ describe("DeploymentFeature.statusMenu", () => {
 
         await feature.statusMenu();
 
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.infos).toEqual([]);
     });
 
     it("runs the verification for the verify action", async () => {
-        const { host, feature } = createFeature({ deploymentStatusAction: "verify" });
-        host.openEditor(ORDER_PROCESS);
+        const { host, feature } = createFeature(
+            { deploymentStatusAction: "verify" },
+            [target("dev")],
+            {},
+            new EngineWithoutDefinitions(),
+        );
+        host.deploymentState.seed({ activeTargetName: "dev" });
+        host.openEditor(ORDER_PROCESS, '<bpmn:process id="order-process"/>');
 
         await feature.statusMenu();
 
-        expect(host.notifier.infos).toEqual(["Select a named Camunda 7 target to verify against."]);
-        expect(host.picker.prompts.map((prompt) => prompt.method)).toEqual([
-            "pickDeploymentStatusAction",
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "choose",
+                args: [deploymentStatusActionPrompt(namedDestination(target("dev")))],
+            },
         ]);
+        expect(host.notifier.infos).toEqual(["Process 'order-process' is not deployed on dev."]);
     });
 
     it("does nothing when the menu is dismissed", async () => {
@@ -317,11 +465,34 @@ describe("DeploymentFeature.statusMenu", () => {
 
         await feature.statusMenu();
 
-        expect(host.picker.prompts.map((prompt) => prompt.method)).toEqual([
-            "pickDeploymentStatusAction",
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "choose",
+                args: [deploymentStatusActionPrompt(new AdHocDestination("", ""))],
+            },
         ]);
-        expect(host.deploymentState.activeTargetName).toBe("");
+        expect(host.deploymentState.load().activeTargetName).toBe("");
         expect(host.notifier.infos).toEqual([]);
+    });
+
+    it("names the form values the status item shows after an ad-hoc deploy", async () => {
+        const { host, feature } = createFeature();
+        host.deploymentState.seed({
+            activeTargetName: "",
+            endpoint: "http://localhost:8080/engine-rest",
+        });
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant]);
+        await settle();
+        expect(host.statusBar.views.deploymentTarget?.text).toBe("Form values");
+
+        await feature.statusMenu();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "choose",
+                args: [expect.objectContaining({ placeholder: "Deployment with the form values" })],
+            },
+        ]);
     });
 });
 
@@ -338,26 +509,56 @@ describe("DeploymentFeature command failures", () => {
         expect(host.notifier.errors).toEqual(["Deployment command failed\ntargets file is locked"]);
     });
 
-    it("reports a secret store that cannot be read and sends nothing to the engine", async () => {
+    const basicTarget = new DeploymentTarget(
+        "dev",
+        "c7",
+        "http://localhost:8080/engine-rest",
+        "",
+        "basic",
+        "",
+        "",
+    );
+    const orderXml = '<bpmn:process id="order-process"/>';
+
+    /** The order process, focused, with an active basic-auth target; Deploy Files picks two files. */
+    async function focusOnABasicAuthTarget() {
         const http = new RecordingEngineHttp();
-        const basicTarget = new DeploymentTarget(
-            "dev",
-            "c7",
-            "http://localhost:8080/engine-rest",
-            "",
-            "basic",
-            "",
-            "",
-        );
         const { host, feature } = createFeature(
-            { workspaceFiles: [ORDER_PROCESS] },
+            { deployableFiles: [ORDER_PROCESS, INVOICE_PROCESS] },
             [basicTarget],
-            { [ORDER_PROCESS]: "<bpmn:definitions/>" },
+            { [ORDER_PROCESS]: orderXml, [INVOICE_PROCESS]: '<bpmn:process id="invoice"/>' },
             http,
         );
-        host.deploymentState.activeTargetName = "dev";
-        host.openEditor(ORDER_PROCESS);
-        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(
+        host.deploymentState.seed({ activeTargetName: "dev" });
+        await host.openSession(ORDER_PROCESS, [], { content: orderXml });
+        return { host, feature, http };
+    }
+
+    async function focusWhileTheSecretStoreRejects(rejection: Error) {
+        const focused = await focusOnABasicAuthTarget();
+        vi.spyOn(focused.host.secrets, "getBasicAuth").mockRejectedValue(rejection);
+        return focused;
+    }
+
+    /** The credentials are stored, but the user cancels the keychain read of the approved hosts. */
+    async function focusWhileTheApprovalReadIsCancelled() {
+        const focused = await focusOnABasicAuthTarget();
+        await focused.host.secrets.saveBasicAuth("deployer", "s3cret", `${TARGETS_FILE}::dev`);
+        const approvalReads = vi
+            .spyOn(focused.host.secrets, "getApprovedDestinations")
+            .mockRejectedValue(new UserCancelledError());
+        return { ...focused, approvalReads };
+    }
+
+    function expectNothingReported(notifier: RecordingNotifier): void {
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([]);
+        expect(notifier.logged("error")).toEqual([]);
+    }
+
+    it("reports a secret store that cannot be read and sends nothing to the engine", async () => {
+        const { host, feature, http } = await focusWhileTheSecretStoreRejects(
             new Error("The OS keyring is not available."),
         );
 
@@ -368,6 +569,127 @@ describe("DeploymentFeature command failures", () => {
             "Deployment command failed\nThe OS keyring is not available.",
         ]);
     });
+
+    it.each([
+        { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
+        { command: "Deploy Diagram", run: (feature: DeploymentFeature) => feature.deployActive() },
+        { command: "Verify Deployment", run: (feature: DeploymentFeature) => feature.verify() },
+    ])("does not report a cancelled prompt in $command as a failure", async ({ run }) => {
+        const { host, feature, http } = await focusWhileTheSecretStoreRejects(
+            new UserCancelledError(),
+        );
+
+        await expect(run(feature)).resolves.toBeUndefined();
+
+        expect(http.deployments).toEqual([]);
+        expect(host.notifier.transcript()).toBe("");
+    });
+
+    /** No active target yet: the picker answers "dev", then the keychain read for it rejects. */
+    async function pickABasicAuthTargetWhileTheSecretStoreRejects(rejection: Error) {
+        const http = new RecordingEngineHttp();
+        const { host, feature } = createFeature(
+            { deploymentTarget: "dev" },
+            [basicTarget],
+            { [ORDER_PROCESS]: orderXml },
+            http,
+        );
+        await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: orderXml });
+        vi.spyOn(host.secrets, "getBasicAuth").mockRejectedValue(rejection);
+        const { posted } = attach(feature, true);
+        return { host, feature, http, posted };
+    }
+
+    it.each([
+        { failure: "the user cancels the keychain prompt", rejection: new UserCancelledError() },
+        {
+            failure: "the secret store cannot be read",
+            rejection: new Error("The OS keyring is not available."),
+        },
+    ])(
+        "shows the target Deploy Diagram picked in the open panel when $failure afterwards",
+        async ({ rejection }) => {
+            const { host, feature, http, posted } =
+                await pickABasicAuthTargetWhileTheSecretStoreRejects(rejection);
+
+            await feature.deployActive();
+
+            expect(http.deployments).toEqual([]);
+            expect(targetListsIn(posted).at(-1)).toEqual(
+                expect.objectContaining({ activeTargetName: "dev", documentDir: "/ws/src" }),
+            );
+            expect(host.statusBar.views.deploymentTarget?.text).toBe("dev");
+        },
+    );
+
+    it.each([
+        { command: "Deploy Files", run: (feature: DeploymentFeature) => feature.deployFiles() },
+        { command: "Deploy Diagram", run: (feature: DeploymentFeature) => feature.deployActive() },
+    ])(
+        "ends $command quietly when the user cancels the keychain read of the approved hosts",
+        async ({ run }) => {
+            const { host, feature, http, approvalReads } =
+                await focusWhileTheApprovalReadIsCancelled();
+
+            await expect(run(feature)).resolves.toBeUndefined();
+
+            expect(approvalReads).toHaveBeenCalledOnce();
+            expect(http.deployments).toEqual([]);
+            expectNothingReported(host.notifier);
+        },
+    );
+
+    const storedBasicAuth = {
+        authType: "basic" as const,
+        username: "deployer",
+        password: "s3cret",
+    };
+
+    it.each([
+        {
+            command: "the panel's Deploy",
+            message: new DeployCommand({
+                deploymentName: "order-process",
+                tenantId: "",
+                endpoint: "http://localhost:8080/engine-rest",
+                engine: "c7",
+                mainFilePath: ORDER_PROCESS,
+                additionalFilePaths: [],
+                auth: storedBasicAuth,
+                targetName: "dev",
+            }),
+            reply: DeploymentResultQuery,
+        },
+        {
+            command: "the panel's Start Instance",
+            message: new StartInstanceCommand({
+                processDefinitionKey: "order-process",
+                endpoint: "http://localhost:8080/engine-rest",
+                engine: "c7",
+                auth: storedBasicAuth,
+                payloadFilePath: "",
+                targetName: "dev",
+            }),
+            reply: StartInstanceResultQuery,
+        },
+    ])(
+        "ends $command quietly when the user cancels the keychain read of the approved hosts, and frees the form",
+        async ({ message, reply }) => {
+            const { host, feature, http, approvalReads } =
+                await focusWhileTheApprovalReadIsCancelled();
+            const { panel, posted } = attach(feature, false);
+
+            await panel.handle(message);
+
+            expect(approvalReads).toHaveBeenCalledOnce();
+            expect(http.deployments).toEqual([]);
+            expect(http.instanceStarts).toEqual([]);
+            expect(posted.filter((query) => query instanceof reply)).toEqual([
+                expect.objectContaining({ success: false, cancelled: true }),
+            ]);
+            expectNothingReported(host.notifier);
+        },
+    );
 });
 
 describe("DeploymentFeature.activeDocumentDir", () => {
@@ -386,9 +708,9 @@ describe("DeploymentFeature.activeDocumentDir", () => {
         await feature.switchTarget();
 
         expect(host.picker.prompts).toEqual([
-            { method: "pickDeploymentTarget", args: [["dev", "prod"]] },
+            { method: "choose", args: [deploymentTargetPrompt(["dev", "prod"])] },
         ]);
-        expect(host.deploymentState.activeTargetName).toBe("prod");
+        expect(host.deploymentState.load().activeTargetName).toBe("prod");
         expect(host.notifier.errors).toEqual([]);
     });
 });
@@ -413,15 +735,15 @@ describe("DeploymentFeature with .env references", () => {
         "MIRAGON_PASSWORD=s3cret",
     ].join("\n");
 
-    function createReferencingFeature(confirmDestructive: boolean) {
+    function createReferencingFeature(approvesHost: boolean) {
         const http = new RecordingEngineHttp();
         const { host, feature } = createFeature(
-            { workspaceFiles: [ORDER_PROCESS], confirmDestructive },
+            { deployableFiles: [ORDER_PROCESS], credentialApproval: approvesHost },
             [referencingTarget],
             { "/ws/.env": dotEnv, [ORDER_PROCESS]: "<bpmn:definitions/>" },
             http,
         );
-        host.deploymentState.activeTargetName = "dev";
+        host.deploymentState.seed({ activeTargetName: "dev" });
         host.openEditor(ORDER_PROCESS);
         return { host, feature, http };
     }
@@ -439,13 +761,42 @@ describe("DeploymentFeature with .env references", () => {
         expect(http.deployments[0].headers.Authorization).toBe(
             `Basic ${Buffer.from("deployer:s3cret").toString("base64")}`,
         );
-        expect(
-            host.picker.prompts.filter(({ method }) => method === "confirmDestructive"),
-        ).toHaveLength(1);
+        expect(host.picker.prompts.filter(({ method }) => method === "confirm")).toHaveLength(1);
         await expect(host.secrets.getApprovedDestinations(`${TARGETS_FILE}::dev`)).resolves.toEqual(
             [ENGINE_ORIGIN],
         );
         expect(host.notifier.transcript()).not.toContain("s3cret");
+    });
+
+    it("drops the rows an endpoint-ref target recorded under its resolved host when the panel renames it", async () => {
+        const { host, feature } = createReferencingFeature(true);
+        const resolvedRow = ledgerKeyFor(
+            DeploymentTargetIdentity.fromTarget(referencingTarget, (name) =>
+                name === "MIRAGON_ENGINE_URL" ? `${ENGINE_ORIGIN}/engine-rest` : undefined,
+            ),
+            ORDER_PROCESS,
+        );
+        host.deploymentState.seed({
+            ledger: {
+                [resolvedRow]: { fingerprint: "f", deployedAt: "2026-01-01T00:00:00.000Z" },
+            },
+        });
+        const { panel } = attach(feature, false);
+
+        await panel.handle(
+            new SaveTargetCommand(
+                { ...toTargetPayload(referencingTarget), name: "staging" },
+                {
+                    authType: "basic",
+                    username: "${env:MIRAGON_USER}",
+                    password: "${env:MIRAGON_PASSWORD}",
+                },
+                "dev",
+            ),
+        );
+
+        expect(host.deploymentState.load().activeTargetName).toBe("staging");
+        expect(Object.keys(host.deploymentState.load().ledger)).toEqual([]);
     });
 
     it("sends nothing when the user declines the host", async () => {
@@ -480,7 +831,7 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
                 [ORDER_PROCESS]: SAVED_XML,
             },
         });
-        host.deploymentState.activeTargetName = "dev";
+        host.deploymentState.seed({ activeTargetName: "dev" });
         const flushes = new DocumentFlushService(host.store, host.notifier);
         const pendingEdits = new PendingEditsFlush(host.store, flushes, host.notifier);
         pendingEdits.serve(".bpmn", {
@@ -574,8 +925,8 @@ describe("DeploymentFeature sidebar deploy of an edited diagram", () => {
 
         await deployFromSidebar(edited);
 
-        expect(edited.host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        expect(edited.host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "success" }),
         );
     });
 });
@@ -609,14 +960,16 @@ describe("DeploymentFeature status after a ledger write", () => {
         http = new RecordingEngineHttp(),
     }: FocusOptions = {}) {
         const { host, feature } = createFeature(
-            { workspaceFiles: [ORDER_PROCESS] },
+            { deployableFiles: [ORDER_PROCESS] },
             [target("dev")],
             { [ORDER_PROCESS]: ORDER_XML },
             http,
         );
-        host.deploymentState.activeTargetName = activeTargetName;
-        host.deploymentState.endpoint = LOCAL_ENGINE;
-        for (const row of deployedRows) host.deploymentState.ledger.set(row, DEPLOYED_ORDER_XML);
+        host.deploymentState.seed({
+            activeTargetName,
+            endpoint: LOCAL_ENGINE,
+            ledger: Object.fromEntries(deployedRows.map((row) => [row, DEPLOYED_ORDER_XML])),
+        });
         await host.openSession(ORDER_PROCESS, [feature.statusParticipant], { content: ORDER_XML });
         await settle();
         return { host, feature };
@@ -627,8 +980,8 @@ describe("DeploymentFeature status after a ledger write", () => {
 
         await feature.deployActive();
 
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "success" }),
         );
     });
 
@@ -637,8 +990,8 @@ describe("DeploymentFeature status after a ledger write", () => {
 
         await feature.deployFiles();
 
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "deployed" }),
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "success" }),
         );
     });
 
@@ -647,13 +1000,13 @@ describe("DeploymentFeature status after a ledger write", () => {
             deployedRows: [devRow],
             http: new EngineWithoutDefinitions(),
         });
-        expect(host.statusBar.deploymentTarget?.freshness).toBe("deployed");
+        expect(host.statusBar.views.deploymentTarget?.tone).toBe("success");
 
         await feature.verify();
 
-        expect(host.deploymentState.ledger.has(devRow)).toBe(false);
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: "unknown" }),
+        expect(devRow in host.deploymentState.load().ledger).toBe(false);
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "dev", tone: "neutral" }),
         );
     });
 
@@ -663,8 +1016,9 @@ describe("DeploymentFeature status after a ledger write", () => {
             activeTargetName: "",
             deployedRows: [localAdHocRow],
         });
-        expect(host.statusBar.deploymentTarget?.freshness).toBe("deployed");
-        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        expect(host.statusBar.views.deploymentTarget?.tone).toBe("success");
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger?.put !== undefined,
             new Error("workspace state is read-only"),
         );
         const { panel } = attach(feature, false);
@@ -682,9 +1036,20 @@ describe("DeploymentFeature status after a ledger write", () => {
             }),
         );
 
-        expect(host.deploymentState.endpoint).toBe(stagingEngine);
-        expect(host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: undefined, freshness: "unknown" }),
+        expect(host.deploymentState.load().endpoint).toBe(stagingEngine);
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "Form values", tone: "neutral" }),
+        );
+    });
+
+    it("labels a target name the targets file no longer holds as the form values it falls back to", async () => {
+        const { host } = await focusOrderProcess({
+            activeTargetName: "renamed-by-a-teammate",
+            deployedRows: [localAdHocRow],
+        });
+
+        expect(host.statusBar.views.deploymentTarget).toEqual(
+            expect.objectContaining({ text: "Form values", tone: "success" }),
         );
     });
 });

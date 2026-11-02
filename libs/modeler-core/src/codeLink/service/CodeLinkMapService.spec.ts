@@ -265,7 +265,7 @@ describe("CodeLinkMapService — warm cache", () => {
             service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]),
         ).rejects.toThrow("listing failed");
 
-        await expect(service.onSourceFileChanged(worker, "changed", ROOT)).resolves.toBeUndefined();
+        await expect(service.onSourceFileChanged(worker, "change", ROOT)).resolves.toBeUndefined();
     });
 });
 
@@ -280,8 +280,77 @@ describe("CodeLinkMapService — live linking", () => {
         await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(true);
 
-        await service.onSourceFileChanged(worker, "deleted", ROOT);
+        await service.onSourceFileChanged(worker, "delete", ROOT);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
+    });
+
+    it("keeps a link when the saved file cannot be read", async () => {
+        const worker = "/work/proj/src/Worker.java";
+        const { service, host, editor } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        vi.spyOn(host.workspace, "readFile").mockRejectedValueOnce(
+            new Error("EBUSY: resource busy or locked"),
+        );
+
+        await service.onSourceFileChanged(worker, "change", ROOT);
+
+        expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
+        expect(host.notifier.logged("debug")).toEqual([
+            expect.stringContaining(`${worker}: EBUSY: resource busy or locked`),
+        ]);
+    });
+
+    it("unlinks the files of a folder deleted as one event", async () => {
+        const worker = "/work/proj/src/pay/Worker.java";
+        const { service, host, editor } = createService({
+            resolveMap: { pay: [worker] },
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+
+        await host.workspace.deleteDirectory("/work/proj/src/pay");
+
+        await vi.waitFor(() =>
+            expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: false }),
+        );
+    });
+
+    it("links the files of a folder created as one event", async () => {
+        const worker = "/work/proj/src/pay/sub/Worker.java";
+        const { service, host, editor } = createService({
+            fileContents: { "/work/proj/src/Other.java": "class Other {}" },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+
+        host.workspace.createDirectory("/work/proj/src/pay", {
+            [worker]: '@JobWorker(type = "pay")',
+        });
+
+        await vi.waitFor(() =>
+            expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true }),
+        );
+    });
+
+    it("reads a file once when the folders above it are created at once", async () => {
+        const worker = "/work/proj/src/pay/sub/Worker.java";
+        const { service, host, editor } = createService({
+            fileContents: { [worker]: '@JobWorker(type = "pay")' },
+        });
+        await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
+        const readFile = vi.spyOn(host.workspace, "readFile");
+
+        const created = Promise.all([
+            service.onSourceFileChanged("/work/proj/src/pay", "create", ROOT),
+            service.onSourceFileChanged("/work/proj/src/pay/sub", "create", ROOT),
+        ]);
+        await vi.runAllTimersAsync();
+        await created;
+
+        expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
+        expect(readFile.mock.calls).toEqual([[worker]]);
     });
 
     it("does not push when a changed file is irrelevant to the map", async () => {
@@ -292,7 +361,7 @@ describe("CodeLinkMapService — live linking", () => {
         await service.syncActivities(editor.id, [entry("Act", "javaClass", "com.example.A")]);
         const pushesBefore = editor.posted.length;
 
-        await service.onSourceFileChanged("/work/proj/src/Unrelated.java", "changed", ROOT);
+        await service.onSourceFileChanged("/work/proj/src/Unrelated.java", "change", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
     });
@@ -302,7 +371,7 @@ describe("CodeLinkMapService — live linking", () => {
         await service.syncActivities(editor.id, [entry("A", "jobType", "a")]);
         const pushesBefore = editor.posted.length;
 
-        await service.onSourceFileChanged("/elsewhere/x.java", "changed", "/other-root");
+        await service.onSourceFileChanged("/elsewhere/x.java", "change", "/other-root");
 
         expect(editor.posted.length).toBe(pushesBefore);
     });
@@ -318,7 +387,7 @@ describe("CodeLinkMapService — live linking", () => {
         const pushesBefore = editor.posted.length;
 
         // Were the excluded dir not filtered, this match would link and push.
-        await service.onSourceFileChanged(excluded, "created", ROOT);
+        await service.onSourceFileChanged(excluded, "create", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
         expect(lastStatus(editor)![implementationStatusKey("Act", "pay")]).toBe(false);
@@ -334,7 +403,7 @@ describe("CodeLinkMapService — live linking", () => {
         });
         await service.syncActivities(editor.id, [entry("Act", "jobType", "pay")]);
 
-        await service.onSourceFileChanged(worker, "created", root);
+        await service.onSourceFileChanged(worker, "create", root);
 
         expect(lastStatus(editor)).toEqual({ [implementationStatusKey("Act", "pay")]: true });
     });
@@ -366,8 +435,8 @@ describe("CodeLinkMapService — live linking", () => {
                 }),
         );
 
-        const first = service.onSourceFileChanged(worker, "changed", ROOT);
-        const second = service.onSourceFileChanged(worker, "changed", ROOT);
+        const first = service.onSourceFileChanged(worker, "change", ROOT);
+        const second = service.onSourceFileChanged(worker, "change", ROOT);
         await vi.advanceTimersByTimeAsync(200);
         await Promise.all([first, second]);
 
@@ -604,7 +673,7 @@ describe("CodeLinkMapService — lifecycle", () => {
             return Promise.resolve('@JobWorker(type = "pay")');
         });
 
-        await service.onSourceFileChanged(worker, "created", ROOT);
+        await service.onSourceFileChanged(worker, "create", ROOT);
 
         expect(editor.posted.length).toBe(pushesBefore);
     });

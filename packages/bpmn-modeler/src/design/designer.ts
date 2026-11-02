@@ -33,6 +33,8 @@ import {
     createSurfaceLintHandle,
     formatSurfaceDiagram,
     installClipboardSupport,
+    subscribeCommandStackChanged,
+    subscribeFormatted,
 } from "../editableSurface";
 import { SurfaceCore } from "../surfaceCore";
 import { createReporter, type SurfaceReporter } from "../reporting";
@@ -52,6 +54,8 @@ export class BpmnDesigner {
     private readonly lintHandle: LintHandleMethods;
 
     private readonly store = new DisposableStore();
+
+    private deliverPendingContentSave: () => Promise<void> = () => Promise.resolve();
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -130,7 +134,7 @@ export class BpmnDesigner {
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
-            wireContentSaved({
+            this.deliverPendingContentSave = wireContentSaved({
                 store: this.store,
                 eventBus: this.core.service("eventBus"),
                 exportDiagram: () => this.exportDiagram(),
@@ -264,6 +268,31 @@ export class BpmnDesigner {
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
         this.lintHandle.startInPageLinting(config, configToken);
+    }
+
+    /** @see BpmnDesignerHandle.onCommandStackChanged */
+    onCommandStackChanged(listener: () => void): () => void {
+        return subscribeCommandStackChanged(this.core, listener);
+    }
+
+    /** @see BpmnDesignerHandle.onFormatted */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
+        return subscribeFormatted(this.core, listener);
+    }
+
+    /** @internal See {@link PendingInputHandle.hasPendingInput}. */
+    hasPendingInput(): boolean {
+        return this.core.hasPendingInput();
+    }
+
+    /** @internal See {@link PendingInputHandle.flushPendingInput}. */
+    flushPendingInput(): void {
+        this.core.flushPendingInput();
+    }
+
+    /** @internal See {@link PendingSaveHandle.flushContentSaved}. */
+    flushContentSaved(): Promise<void> {
+        return this.deliverPendingContentSave();
     }
 
     /**

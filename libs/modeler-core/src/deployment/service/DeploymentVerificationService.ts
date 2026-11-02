@@ -1,6 +1,7 @@
 import { posix } from "path";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import {
     CredentialDestinationError,
     EngineInspectionFailedError,
@@ -40,6 +41,9 @@ export class DeploymentVerificationService {
     /**
      * Verifies the active editor's diagram against the active target's engine
      * and reconciles the ledger row. Errors never touch the ledger.
+     *
+     * @throws {UserCancelledError} when the user cancels a prompt: a dismissal,
+     *   not a failed verification, so it is not reported here.
      */
     async verifyActive(documentDir?: string): Promise<void> {
         let editorId: string;
@@ -135,6 +139,7 @@ export class DeploymentVerificationService {
                     break;
             }
         } catch (error) {
+            if (error instanceof UserCancelledError) throw error;
             if (error instanceof EngineInspectionFailedError && error.isAuthFailure) {
                 this.notifier.showError(
                     `Could not verify deployment on "${target.name}" — check the target credentials.`,

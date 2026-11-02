@@ -17,10 +17,10 @@ internal class DiffRouter(private val deps: BridgeDeps) {
     private val diffPaneUris = ConcurrentHashMap<String, List<String>>()
 
     fun register() {
-        deps.handlers.on("diff/postMessage") { params, _ ->
-            val paneUri = params.get("paneUri").asString
-            val payload = deps.gson.toJson(params.get("message"))
-            diffPanes[paneUri]?.invoke(payload)
+        deps.handlers.on("diff/postMessage") { params ->
+            val paneUri = params.string("paneUri")
+            val message = params.element("message")
+            RpcAction { diffPanes[paneUri]?.invoke(deps.gson.toJson(message)) }
         }
     }
 

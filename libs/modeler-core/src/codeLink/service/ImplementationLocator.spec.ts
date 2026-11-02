@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
+import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { InMemoryWorkspace, RecordingNotifier } from "../../testing";
 import { ImplementationKind } from "../domain/ImplementationReference";
 import { ImplementationLocator } from "./ImplementationLocator";
@@ -38,7 +39,10 @@ describe("ImplementationLocator — javaClass", () => {
 
         await locator.resolve("com.example.MyDelegate", "javaClass");
 
-        expect(findFiles).toHaveBeenCalledWith("**/com/example/MyDelegate.{java,kt,groovy,scala}");
+        expect(findFiles).toHaveBeenCalledWith(
+            "**/com/example/MyDelegate.{java,kt,groovy,scala}",
+            excludedDirsGlob(),
+        );
     });
 
     it("returns empty matches when no class file is found", async () => {
@@ -74,7 +78,10 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/src/MyBean.java"]);
         }
-        expect(findFiles).toHaveBeenCalledWith("**/MyBean.{java,kt,groovy,scala}");
+        expect(findFiles).toHaveBeenCalledWith(
+            "**/MyBean.{java,kt,groovy,scala}",
+            excludedDirsGlob(),
+        );
     });
 
     it("derives the class from the leading id of an expression", async () => {
@@ -84,7 +91,7 @@ describe("ImplementationLocator — delegateExpression / expression", () => {
         const result = await locator.resolve("${svc.run()}", "expression");
 
         expect(result.kind).toBe("matches");
-        expect(findFiles).toHaveBeenCalledWith("**/Svc.{java,kt,groovy,scala}");
+        expect(findFiles).toHaveBeenCalledWith("**/Svc.{java,kt,groovy,scala}", excludedDirsGlob());
     });
 
     it("falls back to a bean-annotation content search when no class file matches", async () => {
@@ -149,7 +156,10 @@ describe("ImplementationLocator — externalTopic / jobType", () => {
             readFailures: [],
         });
         // Source scan spans JVM + JS/TS worker extensions.
-        expect(findFiles).toHaveBeenCalledWith("**/*.{java,kt,groovy,scala,js,ts}");
+        expect(findFiles).toHaveBeenCalledWith(
+            "**/*.{java,kt,groovy,scala,js,ts}",
+            excludedDirsGlob(),
+        );
     });
 
     it("finds a JS/TS worker by its taskType literal", async () => {
@@ -528,5 +538,26 @@ describe("ImplementationLocator — navigation agrees with the code-link map", (
             readFailures: [],
         });
         expect(linked.get("Task_1")).toEqual(["/loose/MyBean.java"]);
+    });
+
+    it("resolveMany does not link a bean annotation in a file Navigate does not search", async () => {
+        const { locator } = createLocator({
+            files: {
+                "/src/PaymentService.java": '@Service("paymentBean") class PaymentService {}',
+                "/src/paymentWorker.ts": '@Service("paymentBean") export class PaymentWorker {}',
+            },
+        });
+
+        const navigated = await locator.resolve("${paymentBean}", "delegateExpression");
+        const linked = await locator.resolveMany([
+            { activityId: "Task_1", kind: "delegateExpression", reference: "${paymentBean}" },
+        ]);
+
+        expect(navigated).toEqual({
+            kind: "matches",
+            paths: ["/src/PaymentService.java"],
+            readFailures: [],
+        });
+        expect(linked.get("Task_1")).toEqual(["/src/PaymentService.java"]);
     });
 });

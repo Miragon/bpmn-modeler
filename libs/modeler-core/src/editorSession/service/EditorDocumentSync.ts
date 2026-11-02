@@ -26,7 +26,7 @@ export interface ModelerDocumentService {
  */
 export class EditorDocumentSync {
     private readonly guards = new Map<string, ModelerSession>();
-    private readonly initializations = new Map<string, object>();
+    private readonly initializations = new Map<string, DocumentSnapshot>();
 
     constructor(
         private readonly store: EditorSessionStore,
@@ -69,20 +69,18 @@ export class EditorDocumentSync {
 
     /**
      * Writes and saves the content `create` returns into an empty document.
-     * Only one initialisation runs per editor unless the host emptied the file
-     * again (`hostUpdated`): a webview reload re-requesting the file must not
-     * race the first write. `undefined` when the snapshot went stale or another
-     * initialisation is in flight.
+     * An initialisation in flight blocks another only while its snapshot is
+     * current: a webview reload re-requesting the file must not race the first
+     * write, but a host change at a newer revision supersedes it. `undefined`
+     * when the snapshot went stale or a current initialisation is in flight.
      */
     async initializeEmpty(
         editorId: string,
         snapshot: DocumentSnapshot,
-        hostUpdated: boolean,
         create: () => string | Promise<string>,
     ): Promise<string | undefined> {
-        if (!hostUpdated && this.initializations.has(editorId)) return undefined;
-        const initialization = {};
-        this.initializations.set(editorId, initialization);
+        if (this.initializations.get(editorId)?.isCurrent()) return undefined;
+        this.initializations.set(editorId, snapshot);
         try {
             const created = create();
             // A synchronous create must start its write in the same tick, so a
@@ -98,7 +96,7 @@ export class EditorDocumentSync {
             if (!snapshot.isCurrent()) return undefined;
             return content;
         } finally {
-            if (this.initializations.get(editorId) === initialization) {
+            if (this.initializations.get(editorId) === snapshot) {
                 this.initializations.delete(editorId);
             }
         }

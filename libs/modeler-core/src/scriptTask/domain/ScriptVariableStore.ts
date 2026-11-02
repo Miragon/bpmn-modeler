@@ -1,4 +1,4 @@
-import { VariableDef } from "@miragon/bpmn-modeler-shared";
+import { VariableDef } from "@miragon/bpmn-modeler-types";
 
 import { ScriptUri } from "./ScriptUri";
 

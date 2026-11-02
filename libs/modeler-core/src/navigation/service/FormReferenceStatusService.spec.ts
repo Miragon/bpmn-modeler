@@ -4,6 +4,7 @@ import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost, FakeEditorHandle, type WorkspaceWatcher } from "../../testing";
 import { FormReferenceStatusService } from "./FormReferenceStatusService";
+import { ReferencedModelLocator } from "./ReferencedModelLocator";
 
 function setup(folders = ["/work"]) {
     const host = createTestHost({ folders });
@@ -28,8 +29,25 @@ function setup(folders = ["/work"]) {
     return { service, host, watchers: host.workspace.watchers, locator };
 }
 
+/** Reads the forms of `files` from the workspace fake. */
+function setupWithForms(files: Record<string, string>) {
+    const host = createTestHost({ folders: ["/work"], files });
+    const service = new FormReferenceStatusService(
+        host.store,
+        host.documents,
+        host.workspace,
+        new ReferencedModelLocator(host.workspace, host.notifier),
+        host.notifier,
+    );
+    return { service, host, editor: host.openEditor("/work/process.bpmn") };
+}
+
+const form = (id: string) => JSON.stringify({ id });
+
 const statuses = (editor: FakeEditorHandle) =>
     editor.postedOfType<FormReferenceStatusQuery>("FormReferenceStatusQuery");
+
+const lastFormIds = (editor: FakeEditorHandle) => statuses(editor).at(-1)?.formIds;
 
 const liveWatcherRoots = (watchers: readonly WorkspaceWatcher[]) =>
     watchers.filter(({ disposed }) => !disposed).map(({ root }) => root);
@@ -43,7 +61,7 @@ describe("FormReferenceStatusService", () => {
 
         await service.requestStatus(editor.id);
 
-        expect(watchers.map(({ root, glob }) => [root, glob])).toEqual([["/work", "**/*.form"]]);
+        expect(watchers.map(({ root, glob }) => [root, glob])).toEqual([["/work", "**/*"]]);
         expect(statuses(editor)).toEqual([new FormReferenceStatusQuery(["Form_A", "Form_B"])]);
     });
 
@@ -280,5 +298,93 @@ describe("FormReferenceStatusService", () => {
         await host.workspace.writeFile("/work/a.form", "{}");
         await vi.runAllTimersAsync();
         await vi.waitFor(() => expect(host.notifier.logged("error")).toEqual([scanFailed.stack]));
+    });
+});
+
+describe("FormReferenceStatusService — folders", () => {
+    it("forgets the forms of a folder deleted as one event", async () => {
+        const { service, host, editor } = setupWithForms({
+            "/work/forms/a.form": form("Form_A"),
+            "/work/forms/sub/b.form": form("Form_B"),
+            "/work/c.form": form("Form_C"),
+        });
+        await service.requestStatus(editor.id);
+
+        await host.workspace.deleteDirectory("/work/forms");
+
+        await vi.waitFor(() => expect(lastFormIds(editor)).toEqual(["Form_C"]));
+    });
+
+    it("lists the forms of a folder created as one event", async () => {
+        const { service, host, editor } = setupWithForms({ "/work/c.form": form("Form_C") });
+        await service.requestStatus(editor.id);
+
+        host.workspace.createDirectory("/work/forms", {
+            "/work/forms/sub/a.form": form("Form_A"),
+        });
+
+        await vi.waitFor(() => expect(lastFormIds(editor)).toEqual(["Form_A", "Form_C"]));
+    });
+
+    it("walks the folders created at once from the outermost one only", async () => {
+        const { service, host, editor } = setupWithForms({ "/work/c.form": form("Form_C") });
+        await service.requestStatus(editor.id);
+        const readDirectory = vi.spyOn(host.workspace, "readDirectory");
+        const watcher = host.workspace.watchers.find(({ root }) => root === "/work")!;
+
+        host.workspace.createDirectory("/work/forms", {
+            "/work/forms/sub/a.form": form("Form_A"),
+        });
+        watcher.handlers.onCreate?.("/work/forms/sub");
+
+        await vi.waitFor(() => expect(lastFormIds(editor)).toEqual(["Form_A", "Form_C"]));
+        expect(readDirectory.mock.calls).toEqual([["/work/forms"], ["/work/forms/sub"]]);
+    });
+
+    it("does not read the forms again for files and folders without forms", async () => {
+        const { service, host, editor } = setupWithForms({
+            "/work/c.form": form("Form_C"),
+            "/work/docs/readme.md": "",
+        });
+        await service.requestStatus(editor.id);
+        const findFiles = vi.spyOn(host.workspace, "findFiles");
+
+        await host.workspace.writeFile("/work/notes.txt", "");
+        host.workspace.deleteFile("/work/notes.txt");
+        await host.workspace.deleteDirectory("/work/docs");
+        host.workspace.createDirectory("/work/drafts", { "/work/drafts/plan.md": "" });
+        await vi.runAllTimersAsync();
+
+        expect(findFiles).not.toHaveBeenCalled();
+    });
+
+    it("reads the forms again for a folder deleted while a refresh reads it", async () => {
+        const { service, host, editor } = setupWithForms({ "/work/c.form": form("Form_C") });
+        await service.requestStatus(editor.id);
+        const readFile = host.workspace.readFile.bind(host.workspace);
+        let readStarted = false;
+        let finishRead!: () => void;
+        const readHangs = new Promise<void>((resolve) => (finishRead = resolve));
+        vi.spyOn(host.workspace, "readFile").mockImplementation(async (path) => {
+            const content = await readFile(path);
+            if (path === "/work/forms/a.form") {
+                readStarted = true;
+                await readHangs;
+            }
+            return content;
+        });
+
+        host.workspace.createDirectory("/work/forms", { "/work/forms/a.form": form("Form_A") });
+        await vi.waitFor(() => expect(readStarted).toBe(true));
+        await host.workspace.deleteDirectory("/work/forms");
+        finishRead();
+
+        await vi.waitFor(() =>
+            expect(statuses(editor).map(({ formIds }) => formIds)).toEqual([
+                ["Form_C"],
+                ["Form_A", "Form_C"],
+                ["Form_C"],
+            ]),
+        );
     });
 });

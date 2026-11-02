@@ -52,34 +52,47 @@ window
 
 ## Status Bar
 
-`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) manages status bar items for element-template and engine-version feedback:
+The core shows status through `StatusBarPort` (`libs/modeler-core/src/kernel/domain/hostPorts.ts`): `show(slot, view)` and `hide(slot)`. Each slot (`elementTemplates`, `engineVersion`, `bpmnlint`, `deploymentTarget`) holds one `StatusView` (`kernel/domain/statusView.ts`) with its text, icon, tone, tooltip, click action and `transient` flag. The core writes the text; a host only places the slot and renders the view.
+
+`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) creates one item per slot on first show, at the side and priority its placement table gives. It maps each icon to a codicon, each tone to a theme colour (`warning` to `statusBarItem.warningBackground`) and each action to a command:
 
 ```typescript
-statusBar.showElementTemplatesLoading();      // "$(loading~spin) Loading element templates…"
-statusBar.showElementTemplatesReady(count);   // "$(check) Element templates (N)" — auto-hides after 3s
-statusBar.hideElementTemplatesStatus();       // Hide explicitly (used on error paths)
-statusBar.showEngineVersion(platform, ver);   // Engine version of the focused BPMN editor
+statusBar.show("elementTemplates", {
+    text: "Element templates (3)",
+    icon: "check",
+    tone: "neutral",
+    transient: true,
+});                                    // "$(check) Element templates (3)", hidden after 3 s
+statusBar.hide("elementTemplates");    // hide explicitly (used on error paths)
 ```
 
-Every template load shares one item, so **a later show or hide cancels a pending
-auto-hide**. Any status that hides itself keeps that rule. The item shows the
-latest status: a count stays 3 s after the latest ready, and a spinner stays
-until the next ready or hide. It does not track which loads still run, so when
-loads overlap, one load's count or hide ends another load's spinner.
+A feature builds its slot's view in its `domain/` as a pure function (`elementTemplatesStatusView`, `engineVersionStatusView`, `bpmnlintStatusView` in `libs/modeler-core/src/modeler/bpmn/domain/`, `deploymentStatusView` in `libs/modeler-core/src/deployment/domain/`). A time in a view is formatted in the core, in the modeler language (`timestampFormatter`), so both hosts show the same text. When the feature's own state can hide the slot, the function returns `undefined` for it, and the service hands the result to `updateStatusSlot` (`kernel/service/`), which shows the view or hides the slot. A slot that hides only when its editor blurs or closes is hidden by the session participant with `hide` (`BpmnlintParticipant`).
 
-The status bar item is lazily created. Use the **right side** for transient status and progress. Keep items concise: icon + short text, with tooltips for detail.
+A new status is a new slot: add it to `StatusSlot`, write its view function, and place it in `VsCodeStatusBar`'s table and in IntelliJ (`StatusSlot` in `StatusView.kt`, its widget id in `StatusBarSlots.kt`, a `StatusSlotWidgetFactory` subclass registered in `plugin.xml`; `StatusSlotPlacementTest` fails until it is placed). The port, the `statusBar/update` RPC and the Kotlin router stay as they are.
+
+A transient view hides itself after 3 s. Each slot reuses one item, so **a
+later show or hide of a slot cancels its pending auto-hide**. Any status that
+hides itself keeps that rule. The template loads of all editors share one
+slot, so the core tracks them in `TemplateLoadStatus`
+(`libs/modeler-core/src/modeler/bpmn/domain/`): the spinner stays while any
+load reads from disk, and when the last one ends, the slot shows that load's
+count for 3 s, or hides if it failed or was superseded.
+
+Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/api/ux-guidelines/status-bar) says: status for the whole workspace and its progress on the **left** (the element-template load, which also runs for diagrams in the background), the focused diagram's state on the **right** (engine version, BPMNlint, deployment target). Keep items concise: an icon and short text, with tooltips for detail.
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) implements the core's picker ports, so every quick pick a core service asks for goes through it, e.g. `pickNewModelEngine()` for the execution platform of a new BPMN model, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `searchAndPickLocatedFile`. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) implements the core's `PickerPort`, so every quick pick a core service asks for goes through it. A new prompt uses its `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`), the migration scope (`migrationScopePrompt`), a script's language (`scriptLanguagePrompt`), the cleanup confirmation (`confirmation`, which summarises the affected items), the choice among the files a navigation found (`locatedFileChoices`) and every deployment prompt (`libs/modeler-core/src/deployment/domain/deploymentPrompts.ts`: the payload file, the active target, the status-bar menu, the files to deploy, the additional files, and the confirmations to delete a target and to send credentials to a new host). The core orders a file list by the workspace-relative path `VsCodePicker` shows (`fileChoicesInWorkspaceOrder`), except the payload files, which stay nearest first; either way, keep the order a prompt gives. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
 
 ```typescript
 const result = await window.showQuickPick(items, {
-  placeHolder: 'Select the execution platform',
+  placeHolder: 'Select the modeler language',
 });
 ```
 
-If the user cancels (Escape), `pickNewModelEngine`, `pickMigrationScope` and `pickEngineVersion` throw a `UserCancelledError`, which callers treat as a quiet dismissal; the other picks return `undefined`, `null` or `[]`. Use quick picks for selection from a list. Don't abuse notification buttons for this.
+If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine, migration or deployment choice writes nothing and shows no message, while declining to send credentials to a new host reports that nothing was sent. Use quick picks for selection from a list. Don't abuse notification buttons for this.
+
+The one input box a core service asks for is the marketplace's personal access token. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/infrastructure/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
 
 ## Output Channel
 

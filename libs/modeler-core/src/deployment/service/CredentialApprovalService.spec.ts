@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { CredentialDestinationNotApprovedError } from "../domain/errors";
+import { ConfirmRequest } from "../../kernel/domain/prompts";
 import { createTestHost } from "../../testing";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import {
@@ -25,17 +26,11 @@ const prodTarget = new NamedDestination(
 );
 const adHoc = new AdHocDestination(`${TRUSTED_ORIGIN}/engine-rest`, "");
 
-interface Confirmation {
-    title: string;
-    confirmLabel: string;
-    details: string[];
-}
-
 async function createService(
     storedApprovals: Record<string, string[]> = {},
     { confirm = true } = {},
 ) {
-    const host = createTestHost({ answers: { confirmDestructive: confirm } });
+    const host = createTestHost({ promptAnswers: { credentialApproval: confirm } });
     for (const [slot, origins] of Object.entries(storedApprovals)) {
         await host.secrets.saveApprovedDestinations(slot, origins);
     }
@@ -45,10 +40,10 @@ async function createService(
 
     const service = new CredentialApprovalService(host.secrets, host.picker);
 
-    const confirmations = (): Confirmation[] =>
+    const confirmations = (): ConfirmRequest[] =>
         host.picker.prompts
-            .filter(({ method }) => method === "confirmDestructive")
-            .map(({ args }) => args[0] as Confirmation);
+            .filter(({ method }) => method === "confirm")
+            .map(({ args }) => args[0] as ConfirmRequest);
 
     return {
         service,
@@ -95,7 +90,8 @@ describe("CredentialApprovalService.ensureApproved", () => {
         );
 
         expect(c.confirmations()).toHaveLength(1);
-        const [{ title, confirmLabel, details }] = c.confirmations();
+        const [{ id, title, confirmLabel, details }] = c.confirmations();
+        expect(id).toBe("credentialApproval");
         expect(title).toBe(`Send credentials and .env values to ${EVIL_ORIGIN}?`);
         expect(confirmLabel).toBe("Send Credentials");
         expect(details.slice(0, 2)).toEqual([

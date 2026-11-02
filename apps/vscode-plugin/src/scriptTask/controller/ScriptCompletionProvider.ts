@@ -35,7 +35,7 @@ import {
     ScriptVariableStore,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
-import { VariableDef } from "@miragon/bpmn-modeler-shared";
+import { VariableDef } from "@miragon/bpmn-modeler-types";
 
 /**
  * Narrow view on {@link ScriptTaskService}: the provider only needs to know

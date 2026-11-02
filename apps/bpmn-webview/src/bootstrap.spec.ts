@@ -211,12 +211,12 @@ function makeViewer() {
 
 function makeDesigner() {
     const canvas = makeCanvas();
-    const eventBus = { on: vi.fn() };
     // Has newDiagram (editable) but no setMode → the designer surface.
     return {
         loadDiagram: vi.fn(async () => ({ warnings: [] })),
         exportDiagram: vi.fn(async () => "<exported />"),
         newDiagram: vi.fn(async () => ({ warnings: [] })),
+        onCommandStackChanged: vi.fn(),
         getDiagramSvg: vi.fn(),
         setFavouriteBpmnElements: vi.fn(),
         captureViewState: vi.fn(() => ({})),
@@ -226,7 +226,7 @@ function makeDesigner() {
         applyLintingDisabled: vi.fn(),
         startInPageLinting: vi.fn(),
         destroy: vi.fn(),
-        getService: vi.fn((name: string) => (name === "eventBus" ? eventBus : canvas)),
+        getService: vi.fn((_name: string) => canvas),
         viewport: { centerOnElement: vi.fn() },
     };
 }

@@ -38,15 +38,7 @@ export function coveragePreset(
     return {
         provider: "v8",
         reportsDirectory: resolve(repoRoot, "coverage", relative(repoRoot, workspaceDir)),
-        // Repo-relative lcov paths keep Codecov from confusing the many `src/index.ts`.
-        reporter: [
-            "text",
-            "html",
-            ["lcov", { projectRoot: repoRoot }],
-            "clover",
-            "json",
-            "json-summary",
-        ],
+        reporter: ["text", "html", "json", "json-summary"],
         // Without an explicit include only files a test imports are measured,
         // so a new untested module would not lower the percentage.
         include: ["src/**/*.{ts,tsx}"],

@@ -6,8 +6,8 @@ import io.miragon.intellij.bpmn.IntellijDeploymentState
 
 /**
  * Routes the deployment tool window: a single core→webview sink (one tool window
- * per project) plus the deployment-state mirror the core's synchronous getters
- * read. The mirror is (re-)seeded on every spawn and on window registration.
+ * per project) plus the deployment-state mirror the core's synchronous `load()`
+ * reads. The mirror is (re-)seeded on every spawn and on window registration.
  */
 internal class DeploymentRouter(private val deps: BridgeDeps) {
     private val log = Logger.getInstance(DeploymentRouter::class.java)
@@ -21,49 +21,21 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
 
     fun register() {
         deps.handlers
-            .on("deployment/postMessage") { params, _ ->
-                val payload = deps.gson.toJson(params.get("message"))
-                deploymentSink?.invoke(payload)
+            .on("deployment/postMessage") { params ->
+                val message = params.element("message")
+                RpcAction { deploymentSink?.invoke(deps.gson.toJson(message)) }
             }
-            // Acknowledged requests (not notifications): the bridge awaits the
+            // An acknowledged request (not a notification): the bridge awaits the
             // persist so a failure rejects the core's write instead of being
             // dropped silently. PropertiesComponent writes are thread-safe and
             // run on the reader thread here (same as the secretStore handlers);
             // the empty `reply` mirrors `secretStore/save*`.
-            .on("deploymentState/saveAuthType") { params, id ->
-                deploymentState.saveAuthType(params.get("authType").asString)
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("deploymentState/saveOAuth2Config") { params, id ->
-                deploymentState.saveOAuth2Config(
-                    params.get("tokenEndpoint").asString,
-                    params.get("audience").asString,
-                )
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("deploymentState/save") { params, id ->
-                deploymentState.save(
-                    params.get("endpoint").asString,
-                    params.get("tenantId").asString,
-                )
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("deploymentState/saveActiveTarget") { params, id ->
-                deploymentState.saveActiveTargetName(params.get("name").asString)
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("deploymentState/saveDeployedRevision") { params, id ->
-                deploymentState.saveDeployedRevision(
-                    params.get("ledgerKey").asString,
-                    params.get("revision"),
-                )
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("deploymentState/deleteDeployedRevisions") { params, id ->
-                deploymentState.deleteDeployedRevisions(
-                    params.get("ledgerKeys").asJsonArray.map { it.asString },
-                )
-                id?.let { deps.channel.reply(it, null) }
+            .on("deploymentState/save") { params ->
+                val patch = params.jsonObject("patch")
+                RpcAction { id ->
+                    deploymentState.applyPatch(patch)
+                    id?.let { deps.channel.reply(it, null) }
+                }
             }
     }
 
@@ -83,7 +55,7 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
     /** Drops the deployment sink and marks the panel closed (stops default refreshes). */
     fun unregisterDeploymentWindow() {
         deploymentSink = null
-        deps.channel.notify("deployment/open", linkedMapOf("open" to false))
+        setDeploymentOpen(false)
     }
 
     /** Forwards one raw deployment-webview message (already JSON) to the core untouched. */

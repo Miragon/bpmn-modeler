@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isInsideExcludedDirBelow, isInsideExcludedDirBelowEveryFolder } from "./excludedDirs";
+import {
+    EXCLUDED_DIRS,
+    excludedDirsGlob,
+    isExcludedDirBelow,
+    isInsideExcludedDirBelow,
+} from "./excludedDirs";
+import { globToRegExp } from "./globToRegExp";
 
 describe("isInsideExcludedDirBelow", () => {
     it.each([
@@ -74,53 +80,80 @@ describe("isInsideExcludedDirBelow", () => {
         expect(isInsideExcludedDirBelow(path, root)).toBe(excluded);
     });
 
-    it.each(["node_modules", "dist", "build", "out", "target", "bin", "coverage", ".git"])(
-        "excludes a file inside %s below the root",
-        (directory) => {
-            expect(isInsideExcludedDirBelow(`/repo/${directory}/a.bpmn`, "/repo")).toBe(true);
+    it.each([
+        "node_modules",
+        "dist",
+        "build",
+        "out",
+        "target",
+        "bin",
+        "coverage",
+        ".git",
+        ".camunda",
+        ".history",
+    ])("excludes a file inside %s below the root", (directory) => {
+        expect(isInsideExcludedDirBelow(`/repo/${directory}/a.bpmn`, "/repo")).toBe(true);
+    });
+
+    it.each(["/repo/.order.bpmn", "/repo/forms/.order.form"])(
+        "keeps the dot-file %s, as only dot-folders are excluded",
+        (path) => {
+            expect(isInsideExcludedDirBelow(path, "/repo")).toBe(false);
         },
     );
+
+    it("keeps a file of a workspace below a dot-folder", () => {
+        expect(isInsideExcludedDirBelow("/home/u/.work/repo/a.bpmn", "/home/u/.work/repo")).toBe(
+            false,
+        );
+    });
 });
 
-describe("isInsideExcludedDirBelowEveryFolder", () => {
+describe("isExcludedDirBelow", () => {
     it.each([
-        {
-            behaviour: "keeps a file of a folder below a build directory beside another folder",
-            path: "/home/u/build/repo/a.bpmn",
-            folders: ["/home/u/web", "/home/u/build/repo"],
-            excluded: false,
-        },
-        {
-            behaviour: "excludes a file in a build directory below the folder that contains it",
-            path: "/home/u/build/repo/dist/a.bpmn",
-            folders: ["/home/u/web", "/home/u/build/repo"],
-            excluded: true,
-        },
-        {
-            behaviour: "keeps a file of a folder opened inside another folder's build output",
-            path: "/x/proj/build/gen/a.bpmn",
-            folders: ["/x/proj", "/x/proj/build/gen"],
-            excluded: false,
-        },
-        {
-            behaviour: "keeps that file whichever folder comes first",
-            path: "/x/proj/build/gen/a.bpmn",
-            folders: ["/x/proj/build/gen", "/x/proj"],
-            excluded: false,
-        },
-        {
-            behaviour: "excludes the outer folder's build output beside the nested folder",
-            path: "/x/proj/build/a.bpmn",
-            folders: ["/x/proj", "/x/proj/build/gen"],
-            excluded: true,
-        },
-        {
-            behaviour: "judges a path outside every folder by all its segments",
-            path: "/elsewhere/dist/a.bpmn",
-            folders: ["/home/u/web"],
-            excluded: true,
-        },
-    ])("$behaviour", ({ path, folders, excluded }) => {
-        expect(isInsideExcludedDirBelowEveryFolder(path, folders)).toBe(excluded);
+        { folder: "/repo/node_modules", excluded: true },
+        { folder: "/repo/.history", excluded: true },
+        { folder: "/repo/web/.git/objects", excluded: true },
+        { folder: "/repo/models", excluded: false },
+        { folder: "/repo", excluded: false },
+        { folder: "/home/.work/repo", root: "/home/.work/repo", excluded: false },
+    ])("judges $folder excluded: $excluded", ({ folder, root = "/repo", excluded }) => {
+        expect(isExcludedDirBelow(folder, root)).toBe(excluded);
+    });
+});
+
+describe("excludedDirsGlob", () => {
+    it.each([
+        { path: "node_modules/pkg/a.bpmn", excluded: true },
+        { path: "web/node_modules/pkg/a.bpmn", excluded: true },
+        { path: "target/classes/a.bpmn", excluded: true },
+        { path: "src/a.bpmn", excluded: false },
+        { path: "builds/a.bpmn", excluded: false },
+        { path: "src/my-build/a.bpmn", excluded: false },
+        { path: "build.gradle", excluded: false },
+        { path: ".camunda/deployment-targets.json", excluded: true },
+        { path: ".camunda/code-link/src/order.bpmn.json", excluded: true },
+        { path: ".vscode/settings.json", excluded: true },
+        { path: "web/.history/forms/order_1.form", excluded: true },
+        { path: ".eslintrc.json", excluded: false },
+        { path: "forms/.order.form", excluded: false },
+        { path: "my.forms/order.form", excluded: false },
+    ])("leaves out $path: $excluded", ({ path, excluded }) => {
+        expect(globToRegExp(excludedDirsGlob()).test(path)).toBe(excluded);
+    });
+
+    it.each([...EXCLUDED_DIRS])("leaves out the files inside %s at any depth", (directory) => {
+        const excluded = globToRegExp(excludedDirsGlob());
+
+        expect(excluded.test(`${directory}/a.bpmn`)).toBe(true);
+        expect(excluded.test(`web/${directory}/pkg/a.bpmn`)).toBe(true);
+    });
+
+    it("leaves out a caller's own folders beside the excluded ones", () => {
+        const excluded = globToRegExp(excludedDirsGlob("element-templates"));
+
+        expect(excluded.test("config/element-templates/task.json")).toBe(true);
+        expect(excluded.test("node_modules/pkg/package.json")).toBe(true);
+        expect(excluded.test("payloads/vars.json")).toBe(false);
     });
 });

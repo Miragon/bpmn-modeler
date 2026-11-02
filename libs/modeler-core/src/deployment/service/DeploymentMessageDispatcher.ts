@@ -30,11 +30,11 @@ import {
 } from "../domain/deploymentDestination";
 import { TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
 import { DeploymentService } from "./DeploymentService";
-import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService, toAuthConfig, toTargetPayload } from "./DeploymentTargetService";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 import { StartInstanceService } from "./StartInstanceService";
@@ -70,6 +70,8 @@ type DeploymentWebviewCommand = MessageOfType<
  */
 export class DeploymentMessageDispatcher {
     private targetsGeneration = 0;
+    private runningTargetCommands = 0;
+    private targetsPushDue = false;
     /**
      * @param editorStore Active-editor registry; resolves which document to act on.
      * @param documentPort Document path/content access for the trusted main file.
@@ -84,7 +86,6 @@ export class DeploymentMessageDispatcher {
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,
-        private readonly deploymentStatusService: DeploymentStatusService,
         private readonly saveBeforeDeploy: SaveBeforeDeploy,
         private readonly notifier: NotifierPort,
         private readonly post: (message: Query) => void,
@@ -154,6 +155,15 @@ export class DeploymentMessageDispatcher {
      * the diagram a deploy acts on.
      */
     sendFormDefaults(): void {
+        this.postFormDefaults();
+
+        // The targets select follows the active diagram's workspace, so refresh
+        // it alongside the form defaults. Fire-and-forget: a targets-file read
+        // must not block the (synchronous) form seed.
+        void this.sendTargets();
+    }
+
+    private postFormDefaults(): void {
         try {
             const activeEditorId = this.editorStore.getActiveEditorId();
             const defaults = this.deploymentService.getFormDefaults(activeEditorId);
@@ -189,19 +199,40 @@ export class DeploymentMessageDispatcher {
             );
             this.post(new ProcessDefinitionKeyQuery(""));
         }
+    }
 
-        // The targets select follows the active diagram's workspace, so refresh
-        // it alongside the form defaults. Fire-and-forget: a targets-file read
-        // must not block the (synchronous) form seed.
-        void this.sendTargets();
+    /**
+     * Mirrors a target change into the form. A change this panel's own target
+     * command made is pushed after that command's reply, because the form ends
+     * its reload lock on the first list after a successful `TargetSavedQuery`.
+     */
+    async targetsChanged(): Promise<void> {
+        if (this.runningTargetCommands > 0) {
+            this.targetsPushDue = true;
+            return;
+        }
+        await this.sendTargets();
+    }
+
+    private async runTargetCommand(command: () => Promise<void>): Promise<void> {
+        this.runningTargetCommands++;
+        try {
+            await command();
+        } finally {
+            this.runningTargetCommands--;
+        }
+        if (this.runningTargetCommands === 0 && this.targetsPushDue) {
+            this.targetsPushDue = false;
+            await this.sendTargets();
+        }
     }
 
     /**
      * Posts the saved targets and the active target name so the sidebar select
      * can render. Called after {@link sendFormDefaults} and after any target
-     * mutation so the form's select always mirrors the persisted state.
+     * change so the form's select always mirrors the persisted state.
      */
-    async sendTargets(): Promise<void> {
+    private async sendTargets(): Promise<void> {
         const generation = ++this.targetsGeneration;
         const documentDir = this.activeDocumentDir();
         try {
@@ -246,88 +277,63 @@ export class DeploymentMessageDispatcher {
     }
 
     private async handleSelectTarget(name: string): Promise<void> {
-        try {
-            await this.deploymentTargetService.setActiveTarget(name);
-            await this.deploymentStatusService.refreshFocused();
-            await this.sendTargets();
-            this.sendFormDefaults();
-        } catch (error) {
-            this.notifier.notifyError(
-                "Could not switch deployment target",
-                error instanceof Error ? error : new Error(String(error)),
-            );
-            await this.sendTargets();
-        }
+        await this.runTargetCommand(async () => {
+            try {
+                await this.deploymentTargetService.setActiveTarget(name);
+                this.postFormDefaults();
+            } catch (error) {
+                this.notifier.notifyError(
+                    "Could not switch deployment target",
+                    error instanceof Error ? error : new Error(String(error)),
+                );
+                await this.sendTargets();
+            }
+        });
     }
 
     private async handleCreateTarget(message: CreateTargetCommand): Promise<void> {
-        try {
-            const documentDir = this.activeDocumentDir();
-            const edit = await this.deploymentTargetService.createTarget(
+        await this.replyToTargetEdit(`Created deployment target "${message.target.name}".`, () =>
+            this.deploymentTargetService.createTarget(
                 message.target,
                 message.auth,
-                documentDir,
-            );
-            await this.pruneRetiredTarget(edit, documentDir);
-            this.post(
-                new TargetSavedQuery(true, `Created deployment target "${message.target.name}".`),
-            );
-            await this.sendTargets();
-            await this.deploymentStatusService.refreshFocused();
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
-            this.post(new TargetSavedQuery(false, errorMessage));
-        }
+                this.activeDocumentDir(),
+            ),
+        );
     }
 
     private async handleSaveTarget(message: SaveTargetCommand): Promise<void> {
-        try {
-            const documentDir = this.activeDocumentDir();
-            const edit = await this.deploymentTargetService.saveTarget(
+        await this.replyToTargetEdit(`Saved deployment target "${message.target.name}".`, () =>
+            this.deploymentTargetService.saveTarget(
                 message.target,
                 message.auth,
                 message.previousName,
-                documentDir,
-            );
-            await this.pruneRetiredTarget(edit, documentDir);
-            this.post(
-                new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
-            );
-            await this.sendTargets();
-            await this.deploymentStatusService.refreshFocused();
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
-            this.post(new TargetSavedQuery(false, errorMessage));
-        }
+                this.activeDocumentDir(),
+            ),
+        );
     }
 
     private async handleDeleteTarget(name: string): Promise<void> {
-        try {
-            const documentDir = this.activeDocumentDir();
-            const edit = await this.deploymentTargetService.deleteTarget(name, documentDir);
-            if (edit !== undefined) {
-                await this.pruneRetiredTarget(edit, documentDir);
-                this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
-                await this.sendTargets();
-                await this.deploymentStatusService.refreshFocused();
-            }
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
-            this.post(new TargetSavedQuery(false, errorMessage));
-        }
+        await this.replyToTargetEdit(`Deleted deployment target "${name}".`, () =>
+            this.deploymentTargetService.deleteTarget(name, this.activeDocumentDir()),
+        );
     }
 
-    private async pruneRetiredTarget(
-        { retiredDestination }: TargetEdit,
-        documentDir: string | undefined,
+    /** A cancelled edit (`undefined`) gets no reply. */
+    private async replyToTargetEdit(
+        successMessage: string,
+        edit: () => Promise<TargetEdit | undefined>,
     ): Promise<void> {
-        if (retiredDestination === undefined) return;
-        await this.deploymentStatusService.pruneTarget(
-            await this.deploymentStatusService.ledgerIdentity(retiredDestination, documentDir),
-        );
+        await this.runTargetCommand(async () => {
+            try {
+                if ((await edit()) !== undefined) {
+                    this.post(new TargetSavedQuery(true, successMessage));
+                }
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
+                this.post(new TargetSavedQuery(false, errorMessage));
+            }
+        });
     }
 
     private async handleOpenTargetsFile(): Promise<void> {
@@ -414,7 +420,8 @@ export class DeploymentMessageDispatcher {
 
     /**
      * Builds the start-instance config from the webview payload, runs the request,
-     * shows a notification, and sends the result back to the webview.
+     * shows a notification, and sends the result back to the webview. A cancelled
+     * prompt shows nothing; its reply only frees the form.
      *
      * @param configPayload Raw start-instance config from the webview form.
      */
@@ -464,6 +471,17 @@ export class DeploymentMessageDispatcher {
                 ),
             );
         } catch (error) {
+            if (error instanceof UserCancelledError) {
+                this.post(
+                    new StartInstanceResultQuery(
+                        false,
+                        "Instance start cancelled.",
+                        undefined,
+                        true,
+                    ),
+                );
+                return;
+            }
             const message =
                 error instanceof DeploymentTargetChangedError
                     ? error.message
@@ -476,7 +494,8 @@ export class DeploymentMessageDispatcher {
 
     /**
      * Saves only once the config is valid and the target admitted, so a request
-     * rejected for either leaves the file on disk untouched.
+     * rejected for either leaves the file on disk untouched. A cancelled prompt
+     * shows nothing; its reply only frees the form.
      *
      * @param configPayload Raw deployment config from the webview form.
      */
@@ -536,6 +555,12 @@ export class DeploymentMessageDispatcher {
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),
             );
         } catch (error) {
+            if (error instanceof UserCancelledError) {
+                this.post(
+                    new DeploymentResultQuery(false, "Deployment cancelled.", undefined, true),
+                );
+                return;
+            }
             const message =
                 error instanceof InvalidDeploymentConfigError ||
                 error instanceof DeploymentTargetChangedError

@@ -48,12 +48,16 @@ function artifactOf(...entries: PersistedEntry[]): CodeLinkMapJson {
     };
 }
 
-function written(path: string, content: string | undefined): SourceFileChange {
+function written(path: string, content: string): SourceFileChange {
     return { kind: "written", path, content };
 }
 
 function deleted(path: string): SourceFileChange {
     return { kind: "deleted", path };
+}
+
+function unreadable(path: string): SourceFileChange {
+    return { kind: "unreadable", path };
 }
 
 describe("CodeLinkMap.admits", () => {
@@ -322,7 +326,7 @@ describe("CodeLinkMap.applyFileChange", () => {
         {
             name: "links a written class by its path alone",
             held: [linked(charge)],
-            change: written(CHARGE_CLASS, undefined),
+            change: written(CHARGE_CLASS, ""),
             links: [linked(charge, CHARGE_CLASS)],
             changed: true,
         },
@@ -362,11 +366,18 @@ describe("CodeLinkMap.applyFileChange", () => {
             changed: true,
         },
         {
-            name: "unlinks a written file whose content could not be read",
+            name: "keeps a link when the written file cannot be read",
             held: [linked(pay, WORKER)],
-            change: written(WORKER, undefined),
-            links: [linked(pay)],
-            changed: true,
+            change: unreadable(WORKER),
+            links: [linked(pay, WORKER)],
+            changed: false,
+        },
+        {
+            name: "does not link a written file that cannot be read",
+            held: [linked(charge)],
+            change: unreadable(CHARGE_CLASS),
+            links: [linked(charge)],
+            changed: false,
         },
         {
             name: "leaves the map unchanged for a written file no activity cares about",
@@ -408,6 +419,20 @@ describe("CodeLinkMap.applyFileChange", () => {
             held: [linked(pay, WORKER)],
             change: deleted(OTHER_WORKER),
             links: [linked(pay, WORKER)],
+            changed: false,
+        },
+        {
+            name: "unlinks every file below a deleted folder",
+            held: [linked(pay, WORKER, CHARGE_CLASS), linked(charge, CHARGE_CLASS)],
+            change: deleted("/work/proj/src/main"),
+            links: [linked(pay, WORKER), linked(charge)],
+            changed: true,
+        },
+        {
+            name: "keeps a file of a sibling folder whose name starts like the deleted one",
+            held: [linked(charge, CHARGE_CLASS)],
+            change: deleted("/work/proj/src/ma"),
+            links: [linked(charge, CHARGE_CLASS)],
             changed: false,
         },
     ])("$name", ({ held, change, links, changed }) => {

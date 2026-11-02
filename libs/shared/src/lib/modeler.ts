@@ -51,7 +51,6 @@
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
 import { Command, Query } from "./messages";
-import { VariableDef } from "./processVariables";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -75,6 +74,7 @@ import type {
     ReferenceKind,
     ScriptKind,
     ScriptTaskScript,
+    VariableDef,
     Viewport,
     WorkspaceDefinition,
     FormPreviewResult,
@@ -582,8 +582,8 @@ export class SetPropertiesPanelStateCommand extends Command<"SetPropertiesPanelS
  * on the disabled chip. VS Code persists the choice to the
  * `miragon.bpmnModeler.linting.enabled` User setting (the single source of
  * truth), which re-lints and pushes the new state back down, so the webview
- * never flips its own overlays optimistically. The IntelliJ bridge has no such
- * setting and keeps the choice in memory for the project instead.
+ * never flips its own overlays optimistically. IntelliJ stores the choice per
+ * user as well and pushes it to the bridge in its settings snapshot.
  */
 export class SetLintingEnabledCommand extends Command<"SetLintingEnabledCommand"> {
     public readonly enabled: boolean;
@@ -1185,11 +1185,15 @@ export class DeploymentResultQuery extends Query<"DeploymentResultQuery"> {
 
     public readonly deploymentId: string | undefined;
 
-    constructor(success: boolean, message: string, deploymentId?: string) {
+    /** The user cancelled a prompt before anything was sent; the form shows no result. */
+    public readonly cancelled: boolean;
+
+    constructor(success: boolean, message: string, deploymentId?: string, cancelled = false) {
         super("DeploymentResultQuery");
         this.success = success;
         this.message = message;
         this.deploymentId = deploymentId;
+        this.cancelled = cancelled;
     }
 }
 
@@ -1320,11 +1324,15 @@ export class StartInstanceResultQuery extends Query<"StartInstanceResultQuery"> 
 
     public readonly processInstanceId: string | undefined;
 
-    constructor(success: boolean, message: string, processInstanceId?: string) {
+    /** The user cancelled a prompt before anything was sent; the form shows no result. */
+    public readonly cancelled: boolean;
+
+    constructor(success: boolean, message: string, processInstanceId?: string, cancelled = false) {
         super("StartInstanceResultQuery");
         this.success = success;
         this.message = message;
         this.processInstanceId = processInstanceId;
+        this.cancelled = cancelled;
     }
 }
 

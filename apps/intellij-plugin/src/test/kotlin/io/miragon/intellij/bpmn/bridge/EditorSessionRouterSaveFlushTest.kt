@@ -121,7 +121,7 @@ class EditorSessionRouterSaveFlushTest {
         val params =
             linkedMapOf<String, Any>("editorId" to bpmn.file.url, "sessionId" to sessionId, "content" to content)
         expectedDocumentRevision?.let { params["expectedDocumentRevision"] = it }
-        wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, 1)
+        wired.handlers.dispatch("document/write", wired.channel.gson.toJsonTree(params).asJsonObject, wired.requestId(1))
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
 

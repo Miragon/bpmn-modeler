@@ -13,6 +13,16 @@ export type {
     CreateDesigner,
 } from "./publicApi";
 export type { ThemeMode, ClipboardOptions, ContentSavedEvent } from "../publicApi";
+export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+export type {
+    CleanupItem,
+    CleanupOutcome,
+    CleanupStatus,
+    CleanupKind,
+    LayoutDiagnostic,
+    LayoutErrorCode,
+    LayoutStatus,
+} from "@miragon/bpmn-modeler-types";
 
 export type { ModelNavigationPort, ModelReference } from "@miragon/bpmn-model-navigation";
 export type { ReferenceKind } from "@miragon/bpmn-modeler-types";

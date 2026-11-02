@@ -6,14 +6,12 @@
  * complexity that doesn't port — JCEF webviews are never "hidden" the way VS
  * Code editor panels are, so no resync machinery is needed here.
  *
- * The bridge writes each script as a real file under
- * `<configFolder>/tmp/scripting/` and hands the host its absolute path; a real
- * `VirtualFile` (rather than an in-memory `LightVirtualFile`) is what
- * re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The bridge
- * also owns the disk hygiene: a one-shot orphan sweep per base directory, a
- * `.gitignore`, and deletion on tab close / editor dispose. Paths are joined
- * with `joinWorkspacePath`, never `posix.join`, which drops the leading `//`
- * of a UNC root.
+ * The bridge writes each script as a real file into the core
+ * {@link ScriptFileStore}'s base directory and hands the host its absolute
+ * path; a real `VirtualFile` (rather than an in-memory `LightVirtualFile`) is
+ * what re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The
+ * store owns where the files go and their hygiene; this class decides when a
+ * script file is deleted.
  *
  * This class owns all BPMN/element knowledge: it addresses scripts by a stable
  * `ScriptUri` and hands the host an opaque `scriptId`; the host is a dumb
@@ -21,36 +19,31 @@
  * right webview here.
  */
 
-import { tmpdir } from "os";
-import { posix } from "path";
-
 import {
-    ArtifactService,
     beansFor,
     COMPLEX_TYPES,
     EditorSessionStore,
     globalFunctionsFor,
-    joinWorkspacePath,
+    InlineScript,
     matchScriptFile,
     methodsForBean,
     NotifierPort,
     PickerPort,
+    ScriptEditorPort,
+    ScriptFileStore,
     ScriptLanguage,
+    scriptLanguagePrompt,
     ScriptMaterialization,
+    ScriptSourceChange,
     ScriptUri,
     ScriptVariableStore,
     SettingsPort,
-    TMP_SCRIPTING_SEGMENT,
     toWorkspacePath,
-    WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import {
-    OpenScriptEditorCommand,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
-    UpdateScriptSourceCommand,
-    VariableDef,
 } from "@miragon/bpmn-modeler-shared";
 import {
     AsyncDebounced,
@@ -61,6 +54,7 @@ import {
 
 import { Rpc } from "./rpc";
 import { METHODS } from "./protocol/descriptor";
+import { ScriptOpenParams } from "./protocol/types";
 
 /** The element-addressing fields needed to route a host edit back to the webview. */
 interface TrackedScript {
@@ -76,26 +70,11 @@ interface TrackedScript {
  * instead of duplicating it, and `didChange` can be mapped back to the element
  * without the host knowing anything about BPMN.
  */
-export class BridgeScriptEditor {
+export class BridgeScriptEditor implements ScriptEditorPort {
     private readonly scripts = new Map<string, TrackedScript>();
 
     // Absolute file path per open script, retained for deletion on close.
     private readonly filePathByScript = new Map<string, string>();
-
-    /**
-     * Base `tmp/scripting` directory per editor, cached at first open so
-     * teardown deletes from the directory the files were actually written to
-     * even if the configFolder setting changed mid-session.
-     */
-    private readonly baseDirByEditor = new Map<string, string>();
-
-    /**
-     * Base directories already swept this process. The orphan sweep (files
-     * left behind by a crashed host) must run exactly once per directory and
-     * strictly before the first file is written into it — a later sweep
-     * would delete live scripts of other editors sharing the directory.
-     */
-    private readonly sweptBaseDirs = new Set<string>();
 
     /**
      * Deferred cleanups keyed by scriptId, armed when *we* send `script/close`
@@ -138,8 +117,7 @@ export class BridgeScriptEditor {
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
-        private readonly workspace: WorkspacePort,
-        private readonly artifactSvc: ArtifactService,
+        private readonly scriptFiles: ScriptFileStore,
         private readonly scriptVariables: ScriptVariableStore,
     ) {}
 
@@ -152,8 +130,8 @@ export class BridgeScriptEditor {
      * content; the host ignores it when the `scriptId` is already tracked and
      * just reveals the existing tab (so a re-open never clobbers in-flight edits).
      */
-    async open(cmd: OpenScriptEditorCommand, editorId: string): Promise<void> {
-        const target = await this.resolveScriptTarget(cmd, editorId);
+    async open(editorId: string, script: InlineScript): Promise<void> {
+        const target = await this.resolveScriptTarget(script, editorId);
         if (!target) {
             return; // language picker cancelled
         }
@@ -164,14 +142,14 @@ export class BridgeScriptEditor {
         // unsaved) document would trigger its external-change conflict dialog.
         let filePath = this.filePathByScript.get(scriptId);
         if (filePath === undefined) {
-            const baseDir = await this.prepareBaseDir(editorId);
-            filePath = joinWorkspacePath(baseDir, uri.relativePath());
             try {
-                await this.workspace.writeFile(filePath, cmd.content);
-                this.filePathByScript.set(scriptId, filePath);
+                const writtenPath = await this.scriptFiles.prepareScriptFile(editorId, uri);
+                await this.scriptFiles.writeFile(writtenPath, script.content);
+                this.filePathByScript.set(scriptId, writtenPath);
+                filePath = writtenPath;
             } catch (error) {
-                // The host falls back to a LightVirtualFile from `content`
-                // when the path doesn't resolve, so an unwritable disk
+                // Without a `filePath` the host opens a LightVirtualFile from
+                // `content`, so an unwritable disk or a failed folder lookup
                 // degrades to the pre-real-file behaviour instead of failing.
                 this.notifier.logError(error as Error);
             }
@@ -179,14 +157,10 @@ export class BridgeScriptEditor {
 
         this.scripts.set(scriptId, {
             editorId,
-            elementId: cmd.elementId,
-            kind: cmd.kind,
-            listenerIndex: cmd.listenerIndex,
+            elementId: script.elementId,
+            kind: script.kind,
+            listenerIndex: script.listenerIndex,
         });
-
-        // Seed the editor's extracted model from the open command so the host has
-        // variable completion before the first live update arrives.
-        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
 
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
@@ -195,9 +169,9 @@ export class BridgeScriptEditor {
             fileName: uri.filename,
             languageId: lang.languageId,
             filePath,
-            content: cmd.content,
-            completion: this.completionPayloadFor(cmd.kind, editorId),
-        });
+            content: script.content,
+            completion: this.completionPayloadFor(script.kind, editorId),
+        } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
         this.broadcastOpenScripts(editorId);
@@ -246,11 +220,8 @@ export class BridgeScriptEditor {
      * the panel button's rewrite-from-model semantics. A script already owned by
      * an open tab is left untouched (`alreadyOpen`) — its buffer is authoritative.
      */
-    async materialize(
-        cmd: OpenScriptEditorCommand,
-        editorId: string,
-    ): Promise<ScriptMaterialization> {
-        const target = await this.resolveScriptTarget(cmd, editorId);
+    async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
+        const target = await this.resolveScriptTarget(script, editorId);
         if (!target) {
             return { kind: "cancelled" };
         }
@@ -259,14 +230,8 @@ export class BridgeScriptEditor {
             return { kind: "alreadyOpen" };
         }
 
-        const baseDir = await this.prepareBaseDir(editorId);
-        const filePath = joinWorkspacePath(baseDir, target.uri.relativePath());
-        await this.workspace.writeFile(filePath, cmd.content);
-
-        // Seed the editor's extracted model so a later open/adoption has variables
-        // before the first live `UpdateScriptVariablesCommand`.
-        this.scriptVariables.setExtracted(editorId, cmd.variables ?? []);
-
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
+        await this.scriptFiles.writeFile(filePath, script.content);
         return { kind: "written" };
     }
 
@@ -284,26 +249,26 @@ export class BridgeScriptEditor {
      * the model content we were just handed.
      */
     private async resolveScriptTarget(
-        cmd: OpenScriptEditorCommand,
+        script: InlineScript,
         editorId: string,
     ): Promise<{ scriptId: string; uri: ScriptUri; lang: ScriptLanguage } | undefined> {
-        let effectiveFormat = cmd.scriptFormat;
-        if (!ScriptLanguage.isSupported(cmd.scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(cmd.scriptFormat);
+        let effectiveFormat = script.scriptFormat;
+        if (!ScriptLanguage.isSupported(script.scriptFormat)) {
+            const picked = await this.picker.choose(scriptLanguagePrompt(script.scriptFormat));
             if (!picked) {
                 return undefined;
             }
             effectiveFormat = picked;
-            await this.sendFormatUpdate(editorId, cmd, picked);
+            await this.sendFormatUpdate(editorId, script, picked);
         }
 
         const lang = new ScriptLanguage(effectiveFormat);
         const uri = new ScriptUri(
             editorId,
-            cmd.elementId,
-            cmd.kind,
-            cmd.listenerIndex,
-            cmd.eventName,
+            script.elementId,
+            script.kind,
+            script.listenerIndex,
+            script.eventName,
             lang.extension,
         );
         const scriptId = uri.toString();
@@ -328,8 +293,6 @@ export class BridgeScriptEditor {
      * model at adopt time: disk becomes truth on the first edit after opening. A
      * file whose editor session isn't live, that sits outside the base directory,
      * or that is an ambient sibling (`camunda.d.ts`/`jsconfig.json`) is ignored.
-     * Crucially uses {@link resolveBaseDir}, never {@link prepareBaseDir}: sweeping
-     * on adopt would delete the very file being opened.
      */
     async adoptExternalOpen(filePath: string): Promise<void> {
         const normalized = toWorkspacePath(filePath);
@@ -338,16 +301,9 @@ export class BridgeScriptEditor {
             return;
         }
 
-        // The tmp/scripting marker alone is a heuristic any same-named user
-        // directory satisfies; the resolved base dir is the exact containment.
-        const baseDir = await this.resolveBaseDir(match.editorId);
-        if (!normalized.startsWith(`${baseDir}/`)) {
+        if (!(await this.scriptFiles.adopt(match.editorId, normalized))) {
             return;
         }
-
-        // Mark the base dir swept: adoption tracks a live file in it, so a later
-        // `prepareBaseDir` for this editor must not wipe it as an orphan.
-        this.sweptBaseDirs.add(baseDir);
 
         // scriptId is the ScriptUri relative path — identical to what open() keys
         // by, so a subsequent didChange/close maps to the same tracked entry.
@@ -358,7 +314,7 @@ export class BridgeScriptEditor {
 
         let content: string;
         try {
-            content = await this.workspace.readFile(normalized);
+            content = await this.scriptFiles.readFile(normalized);
         } catch (error) {
             this.notifier.logError(error as Error);
             return;
@@ -379,70 +335,10 @@ export class BridgeScriptEditor {
             filePath: normalized,
             content,
             completion: this.completionPayloadFor(match.kind, match.editorId),
-        });
+        } satisfies ScriptOpenParams);
 
         // A tab now owns this script — lock the matching webview panel field.
         this.broadcastOpenScripts(match.editorId);
-    }
-
-    /**
-     * Resolves (and caches) the editor's `tmp/scripting` base directory without
-     * touching disk: workspace root → config folder. A document without a
-     * resolvable directory (non-file session) falls back to the OS temp dir,
-     * keeping the `tmp/scripting` marker segments intact for `parseScriptPath`.
-     *
-     * Kept apart from {@link prepareBaseDir} so adoption can containment-check an
-     * externally opened file *without* running the orphan sweep — a sweep on
-     * adopt would delete the file being opened.
-     */
-    private async resolveBaseDir(editorId: string): Promise<string> {
-        let baseDir = this.baseDirByEditor.get(editorId);
-        if (baseDir === undefined) {
-            try {
-                const handle = this.store.requireHandle(editorId);
-                if (handle.documentScheme() !== "file") {
-                    throw new Error("no document path for editor");
-                }
-                const documentDir = this.workspace.getDocumentDirectory(handle.documentFsPath());
-                const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
-                baseDir = joinWorkspacePath(
-                    workspaceRoot,
-                    this.settings.getConfigFolder(),
-                    TMP_SCRIPTING_SEGMENT,
-                );
-            } catch {
-                baseDir = joinWorkspacePath(
-                    tmpdir(),
-                    "miragon-bpmn-modeler",
-                    TMP_SCRIPTING_SEGMENT,
-                );
-            }
-            this.baseDirByEditor.set(editorId, baseDir);
-        }
-        return baseDir;
-    }
-
-    /**
-     * Resolves the base directory and, the first time a directory is used in this
-     * process, sweeps orphans and drops the `.gitignore`. The sweep runs strictly
-     * before the first file is written into the directory, so it only ever removes
-     * leftovers of a previous (crashed) host process.
-     */
-    private async prepareBaseDir(editorId: string): Promise<string> {
-        const baseDir = await this.resolveBaseDir(editorId);
-        if (!this.sweptBaseDirs.has(baseDir)) {
-            this.sweptBaseDirs.add(baseDir);
-            try {
-                await this.workspace.deleteDirectory(baseDir);
-                await this.workspace.writeFile(
-                    joinWorkspacePath(posix.dirname(baseDir), ".gitignore"),
-                    "*\n",
-                );
-            } catch (error) {
-                this.notifier.logError(error as Error);
-            }
-        }
-        return baseDir;
     }
 
     /**
@@ -451,7 +347,7 @@ export class BridgeScriptEditor {
      * `GetBpmnModelerSettingCommand` handshake, the same signal the webview
      * sends whenever it (re)initialises.
      */
-    syncLockState(editorId: string): void {
+    resync(editorId: string): void {
         this.broadcastOpenScripts(editorId);
     }
 
@@ -464,17 +360,17 @@ export class BridgeScriptEditor {
      * open document via `script/updateContent` (echo-guarded on the host);
      * the file on disk follows through IntelliJ's own save cycle.
      */
-    applyModelChange(cmd: UpdateScriptSourceCommand, editorId: string): void {
+    applyModelChange(editorId: string, change: ScriptSourceChange): void {
         for (const [scriptId, entry] of this.scripts) {
             if (
                 entry.editorId !== editorId ||
-                entry.elementId !== cmd.elementId ||
-                entry.kind !== cmd.kind ||
-                (entry.listenerIndex ?? 0) !== (cmd.listenerIndex ?? 0)
+                entry.elementId !== change.elementId ||
+                entry.kind !== change.kind ||
+                (entry.listenerIndex ?? 0) !== (change.listenerIndex ?? 0)
             ) {
                 continue;
             }
-            if (cmd.content === undefined) {
+            if (change.content === undefined) {
                 // Surface gone: drop the sender so a pending keystroke can't
                 // fire against a deleted element.
                 this.dropSender(scriptId);
@@ -487,7 +383,7 @@ export class BridgeScriptEditor {
                 this.contentSenders.get(scriptId)?.cancel();
                 this.rpc.notify(METHODS.scriptUpdateContent, {
                     scriptId,
-                    content: cmd.content,
+                    content: change.content,
                 });
             }
             return;
@@ -513,9 +409,7 @@ export class BridgeScriptEditor {
         if (filePath === undefined) {
             return Promise.resolve();
         }
-        return this.workspace
-            .deleteDirectory(posix.dirname(filePath))
-            .catch((error) => this.notifier.logError(error as Error));
+        return this.scriptFiles.deleteScript(filePath);
     }
 
     /**
@@ -543,18 +437,11 @@ export class BridgeScriptEditor {
     }
 
     /**
-     * Replaces an editor's webview-extracted model and re-pushes it to every
-     * open script tab of that editor via `script/updateVariables`, so completion
-     * goes live without reopening. Scoped to the originating editor's scripts
-     * only.
+     * Re-pushes an editor's webview-extracted model to every open script tab of
+     * that editor via `script/updateVariables`, so completion goes live without
+     * reopening. Scoped to the originating editor's scripts only.
      */
-    updateVariables(editorId: string, variables: VariableDef[]): void {
-        this.scriptVariables.setExtracted(editorId, variables);
-        this.pushVariables(editorId);
-    }
-
-    /** Pushes the editor's model to every open script tab of `editorId`. */
-    private pushVariables(editorId: string): void {
+    variablesChanged(editorId: string): void {
         const variables = this.scriptVariables.variablesFor(editorId);
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
@@ -673,13 +560,10 @@ export class BridgeScriptEditor {
             }
         }
 
-        const baseDir = this.baseDirByEditor.get(editorId);
-        this.baseDirByEditor.delete(editorId);
+        const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
         const sweepHashDir = (): void => {
-            if (baseDir !== undefined) {
-                void this.workspace
-                    .deleteDirectory(joinWorkspacePath(baseDir, ScriptUri.hashEditorId(editorId)))
-                    .catch((error) => this.notifier.logError(error as Error));
+            if (editorScriptDir !== undefined) {
+                void this.scriptFiles.deleteFolder(editorScriptDir);
             }
         };
 
@@ -703,8 +587,6 @@ export class BridgeScriptEditor {
                 });
             }
         }
-
-        this.scriptVariables.clear(editorId);
     }
 
     /**
@@ -713,16 +595,16 @@ export class BridgeScriptEditor {
      */
     private async sendFormatUpdate(
         editorId: string,
-        cmd: OpenScriptEditorCommand,
+        script: InlineScript,
         scriptFormat: string,
     ): Promise<void> {
         try {
             await this.store.postMessage(
                 editorId,
                 new UpdateScriptFormatQuery(
-                    cmd.elementId,
-                    cmd.kind,
-                    cmd.listenerIndex,
+                    script.elementId,
+                    script.kind,
+                    script.listenerIndex,
                     scriptFormat,
                 ),
             );

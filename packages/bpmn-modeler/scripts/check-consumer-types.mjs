@@ -13,7 +13,8 @@ import ts from "typescript";
 const PKG = "@miragon/bpmn-modeler";
 
 // One fixture per public entry, mirroring the documented README examples plus
-// typed handle use (exportDiagram, captureViewState/applyViewState).
+// typed handle use (exportDiagram, captureViewState/applyViewState, the
+// command-stack and format subscriptions, the layout and cleanup outcomes).
 const CONSUMER_FIXTURES = {
     "modeler.ts": `
         import { createModeler, detectEngine } from "${PKG}";
@@ -30,6 +31,10 @@ const CONSUMER_FIXTURES = {
                 linting: false,
             });
             await modeler.loadDiagram(xml);
+            const stopChanges: () => void = modeler.onCommandStackChanged(() => undefined);
+            const stopFormats = modeler.onFormatted((outcome) => void outcome.status);
+            stopChanges();
+            stopFormats();
             const state = modeler.captureViewState();
             modeler.applyViewState(state);
             const exported: string = await modeler.exportDiagram();
@@ -39,6 +44,7 @@ const CONSUMER_FIXTURES = {
     `,
     "designer.ts": `
         import { createDesigner } from "${PKG}/design";
+        import type { CleanupOutcome, CleanupStatus, LayoutOutcome } from "${PKG}/design";
 
         export async function useDesigner(
             canvas: HTMLElement,
@@ -51,6 +57,12 @@ const CONSUMER_FIXTURES = {
             });
             await designer.loadDiagram(xml);
             designer.getService("commandStack");
+            designer.onCommandStackChanged(() => undefined)();
+            designer.onFormatted((outcome: LayoutOutcome) => void outcome.diagnostics)();
+            const formatted: LayoutOutcome = await designer.formatDiagram();
+            const cleanup: CleanupOutcome = designer.cleanupDiagram();
+            const cleanupStatus: CleanupStatus = cleanup.status;
+            void [formatted, cleanup, cleanupStatus];
             designer.destroy();
         }
     `,

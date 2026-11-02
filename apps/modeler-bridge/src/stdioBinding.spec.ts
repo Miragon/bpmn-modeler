@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import { Rpc } from "./rpc";
-import { coreLogText, createStdinHandler } from "./stdioBinding";
+import { coreLogText, createStdinEndHandler, createStdinHandler } from "./stdioBinding";
 
 function errorWithStack(message: string, stack: string | undefined): Error {
     const error = new Error(message);
@@ -85,5 +85,19 @@ describe("createStdinHandler", () => {
         expect(loggedLines[0]).toMatch(/^\[core\] handler error: SyntaxError: /);
         expect(loggedLines.every((line) => line.startsWith("[core] "))).toBe(true);
         expect(frames).toEqual([JSON.stringify({ id: 1, result: "pong" })]);
+    });
+});
+
+describe("createStdinEndHandler", () => {
+    it("fails the requests the host can no longer answer, then exits", () => {
+        const steps: string[] = [];
+        const handleEnd = createStdinEndHandler(
+            { handleEnd: () => steps.push("fail requests") },
+            () => steps.push("exit"),
+        );
+
+        handleEnd();
+
+        expect(steps).toEqual(["fail requests", "exit"]);
     });
 });

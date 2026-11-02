@@ -216,6 +216,27 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle {
      * instruction. Never re-enables a user-disabled linter.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
+
+    /**
+     * Subscribe to every command-stack change, undebounced: each executed,
+     * undone or redone edit. An import resets the stack without a
+     * notification. The listener's return value is ignored. Returns a function
+     * that removes the listener; `destroy()` removes it too, and subscribing
+     * after `destroy()` throws `NoModelerError`. For the debounced XML, use
+     * {@link DesignerOptions.onContentSaved}.
+     */
+    onCommandStackChanged(listener: () => void): () => void;
+
+    /**
+     * Subscribe to the outcome of every format run, failures included:
+     * {@link formatDiagram} as well as the palette entry and the canvas
+     * shortcut. The listener receives the same {@link LayoutOutcome}
+     * `formatDiagram` resolves. A call made while a run is in flight joins
+     * that run and gets no extra notification. Returns a function that
+     * removes the listener; subscribing after `destroy()` throws
+     * `NoModelerError`.
+     */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
 }
 
 /**

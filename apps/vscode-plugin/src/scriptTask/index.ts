@@ -1,7 +1,7 @@
 /**
- * Public API of the scriptTask feature. Sibling features import the inline
- * script-editor service only through this barrel; reaching into the feature's
- * internals is rejected by the feature-isolation architecture test.
+ * Public API of the scriptTask feature; reaching into the feature's internals
+ * is rejected by the feature-isolation architecture test. The script tabs
+ * (`ScriptTaskService`) implement a core port, so only the composition root
+ * imports them.
  */
-export { ScriptTaskService } from "./controller/ScriptTaskService";
 export { ScriptTaskCommandController } from "./controller/ScriptTaskCommandController";

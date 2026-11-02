@@ -9,7 +9,10 @@ import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery }
 export interface FlushSource {
     /** Whether the modeler has finished bootstrapping. */
     isReady(): boolean;
-    /** Whether a debounced sync is scheduled or in flight. */
+    /**
+     * Whether a debounced sync is scheduled or in flight, or input the source
+     * tracks waits to reach the document.
+     */
     hasPendingSync(): boolean;
     /** Whether host-authoritative content is waiting to finish importing. */
     hasPendingHostUpdate(): boolean;
@@ -25,7 +28,7 @@ export interface FlushSource {
     beginDestructiveFlush(): void;
     /** Restores interaction when the host declines the destructive action. */
     endDestructiveFlush(): void;
-    /** Exports the current full-document content. */
+    /** Exports the full document, with the waiting input the source tracks applied. */
     exportContent(): Promise<string>;
 }
 
@@ -71,14 +74,19 @@ export function createFlushResponder(
         let hostUpdateVersion = source.hostUpdateVersion();
         const hostUpdated = (): boolean =>
             source.hasPendingHostUpdate() || source.hostUpdateVersion() !== hostUpdateVersion;
-        if (!flush.destructive && (hostUpdated() || !source.hasPendingSync())) {
+        // A host that still holds an earlier sync compares revisions to tell whether the
+        // page has imported a newer document since.
+        const postWithoutExport = (status: "clean" | "host-updated"): void =>
             post(
                 new DocumentFlushedCommand(
                     flush.token,
                     undefined,
-                    hostUpdated() ? "host-updated" : "clean",
+                    status,
+                    source.documentRevision(),
                 ),
             );
+        if (!flush.destructive && (hostUpdated() || !source.hasPendingSync())) {
+            postWithoutExport(hostUpdated() ? "host-updated" : "clean");
             return;
         }
 
@@ -92,24 +100,18 @@ export function createFlushResponder(
                     source.hasPendingSync() ||
                     (flush.exportWhenEdited && source.isEditedSinceHostImport());
                 if (hostUpdated() || !mayHoldUnsyncedEdit) {
-                    post(
-                        new DocumentFlushedCommand(
-                            flush.token,
-                            undefined,
-                            hostUpdated() ? "host-updated" : "clean",
-                        ),
-                    );
+                    postWithoutExport(hostUpdated() ? "host-updated" : "clean");
                     return;
                 }
                 await source.flushPendingSync();
                 if (hostUpdated()) {
-                    post(new DocumentFlushedCommand(flush.token, undefined, "host-updated"));
+                    postWithoutExport("host-updated");
                     return;
                 }
             }
             const content = await source.exportContent();
             if (hostUpdated()) {
-                post(new DocumentFlushedCommand(flush.token, undefined, "host-updated"));
+                postWithoutExport("host-updated");
                 return;
             }
             post(
@@ -122,7 +124,7 @@ export function createFlushResponder(
             );
         } catch {
             if (hostUpdated()) {
-                post(new DocumentFlushedCommand(flush.token, undefined, "host-updated"));
+                postWithoutExport("host-updated");
                 return;
             }
             if (flush.destructive) {

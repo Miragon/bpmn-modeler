@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
     classifyLocateResult,
     LocatedFile,
+    locatedFileChoices,
     LocateResult,
     outcomeAfterReading,
     SearchOutcome,
 } from "./locateResult";
+import { ChoiceItem } from "./prompts";
 
 describe("outcomeAfterReading", () => {
     it.each<{
@@ -146,5 +148,79 @@ describe("classifyLocateResult", () => {
         },
     ])("$behaviour", ({ result, located }) => {
         expect(classifyLocateResult(result)).toEqual(located);
+    });
+});
+
+describe("locatedFileChoices", () => {
+    const placeholder = "Select the file to open";
+    const file = (path: string, label: string): ChoiceItem<string> => ({
+        label,
+        path,
+        value: path,
+    });
+
+    it.each<{ behaviour: string; outcome: LocateResult }>([
+        { behaviour: "there is nothing to search", outcome: { kind: "no-search-scope" } },
+        {
+            behaviour: "no candidate was readable",
+            outcome: { kind: "all-unreadable", failures: ["Could not read /work/a.bpmn"] },
+        },
+        {
+            behaviour: "nothing matched",
+            outcome: { kind: "matches", paths: [], readFailures: [] },
+        },
+        {
+            behaviour: "a single file matched",
+            outcome: { kind: "matches", paths: ["/work/a.bpmn"], readFailures: [] },
+        },
+    ])("leaves no choice when $behaviour", ({ outcome }) => {
+        expect(locatedFileChoices(outcome, { placeholder, workspaceFolders: ["/work"] })).toBe(
+            undefined,
+        );
+    });
+
+    it.each<{
+        behaviour: string;
+        paths: string[];
+        workspaceFolders: string[];
+        items: ChoiceItem<string>[];
+    }>([
+        {
+            behaviour: "offers every match by its file name, ordered by its path below the folder",
+            paths: ["/work/z/order.bpmn", "/work/a/order.bpmn", "/work/m.bpmn"],
+            workspaceFolders: ["/work"],
+            items: [
+                file("/work/a/order.bpmn", "order.bpmn"),
+                file("/work/m.bpmn", "m.bpmn"),
+                file("/work/z/order.bpmn", "order.bpmn"),
+            ],
+        },
+        {
+            behaviour: "orders the matches of several folders by folder name, not by absolute path",
+            paths: ["/a-repos/lib/order.bpmn", "/z-repos/app/order.bpmn"],
+            workspaceFolders: ["/z-repos/app", "/a-repos/lib"],
+            items: [
+                file("/z-repos/app/order.bpmn", "order.bpmn"),
+                file("/a-repos/lib/order.bpmn", "order.bpmn"),
+            ],
+        },
+        {
+            behaviour: "orders the matches next to a loose file by their path",
+            paths: ["/loose/z.bpmn", "/loose/a.bpmn"],
+            workspaceFolders: [],
+            items: [file("/loose/a.bpmn", "a.bpmn"), file("/loose/z.bpmn", "z.bpmn")],
+        },
+    ])("$behaviour", ({ paths, workspaceFolders, items }) => {
+        const outcome: LocateResult = {
+            kind: "matches",
+            paths,
+            readFailures: ["Could not read /work/bad.bpmn"],
+        };
+
+        expect(locatedFileChoices(outcome, { placeholder, workspaceFolders })).toEqual({
+            id: "locatedFile",
+            placeholder,
+            items,
+        });
     });
 });

@@ -63,6 +63,7 @@ export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 export type {
     CleanupItem,
     CleanupOutcome,
+    CleanupStatus,
     CleanupKind,
     LayoutDiagnostic,
     LayoutErrorCode,
@@ -112,4 +113,6 @@ export type DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 /** @internal */
 export { BpmnModeler } from "./modeler";
 /** @internal */
-export type { CreateModelerOptions } from "./createModeler";
+export type { CreateModelerOptions } from "./publicApi";
+/** @internal */
+export type { PendingInputHandle } from "./surfaceHandle";

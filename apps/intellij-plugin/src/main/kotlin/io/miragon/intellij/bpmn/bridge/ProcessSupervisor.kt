@@ -114,7 +114,7 @@ internal class ProcessSupervisor(
             started.onExit().thenAccept { handleExit(started) }
             ensureShutdownHook()
             // Seed the deployment-state mirror up front so the bridge's synchronous
-            // getters are correct; re-runs on every (re)spawn, rebuilding the mirror.
+            // `load()` is correct; re-runs on every (re)spawn, rebuilding the mirror.
             onSpawned()
             log.info("Miragon modeler bridge started")
         } catch (e: Exception) {

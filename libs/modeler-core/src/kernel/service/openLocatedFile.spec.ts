@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { PickerAnswers, RecordingNotifier, ScriptedPicker } from "../../testing";
+import { createTestHost, TestHostOptions } from "../../testing";
 import { LocateResult } from "../domain/locateResult";
+import { SearchPrompt } from "../domain/prompts";
 import { LocatedFileRequest, openLocatedFile } from "./openLocatedFile";
 
-function setup(result: LocateResult, answers: PickerAnswers = {}) {
-    const notifier = new RecordingNotifier();
-    const picker = new ScriptedPicker(answers);
+function setup(
+    result: LocateResult,
+    options: Pick<TestHostOptions, "folders" | "promptAnswers"> = {},
+) {
+    const { notifier, picker, workspace } = createTestHost(options);
     const searches: LocateResult[] = [];
     const request: LocatedFileRequest = {
         reference: "ProcessB",
@@ -20,7 +23,7 @@ function setup(result: LocateResult, answers: PickerAnswers = {}) {
         notFoundMessage: (reference) => `Nothing declares "${reference}".`,
     };
     const open = (overrides: Partial<LocatedFileRequest> = {}) =>
-        openLocatedFile({ ...request, ...overrides }, { notifier, picker });
+        openLocatedFile({ ...request, ...overrides }, { notifier, picker, workspace });
     return { open, notifier, picker, searches };
 }
 
@@ -38,17 +41,39 @@ describe("openLocatedFile", () => {
 
         expect(picker.prompts).toEqual([
             {
-                method: "searchAndPickLocatedFile",
+                method: "searchAndChoose",
                 args: [
-                    {
+                    expect.objectContaining({
+                        id: "locateFile",
                         searchingPlaceholder: 'Searching for process "ProcessB"…',
-                        pickPlaceholder: "Select the file to open",
-                    },
+                    }),
                 ],
             },
         ]);
         // The scripted picker calls the thunk itself, so a pre-resolved result would not count.
         expect(searches).toHaveLength(1);
+    });
+
+    it("offers several matches under the request's placeholder, in workspace order", async () => {
+        const several: LocateResult = {
+            kind: "matches",
+            paths: ["/a-repos/lib/b.bpmn", "/z-repos/app/a.bpmn"],
+            readFailures: [],
+        };
+        const { open, picker } = setup(several, { folders: ["/z-repos/app", "/a-repos/lib"] });
+
+        await open();
+
+        expect(picker.prompts.map((prompt) => prompt.method)).toEqual(["searchAndChoose"]);
+        const [search] = picker.prompts[0].args as [SearchPrompt<LocateResult>];
+        expect(search.choices(several)).toEqual({
+            id: "locatedFile",
+            placeholder: "Select the file to open",
+            items: [
+                { label: "a.bpmn", path: "/z-repos/app/a.bpmn", value: "/z-repos/app/a.bpmn" },
+                { label: "b.bpmn", path: "/a-repos/lib/b.bpmn", value: "/a-repos/lib/b.bpmn" },
+            ],
+        });
     });
 
     it("shortens a long reference in the busy-list placeholder", async () => {
@@ -76,7 +101,7 @@ describe("openLocatedFile", () => {
     it("opens the user's pick when the search returns multiple matches", async () => {
         const { open, notifier } = setup(
             { kind: "matches", paths: ["/a.bpmn", "/b.bpmn"], readFailures: [] },
-            { locatedFile: "/b.bpmn" },
+            { promptAnswers: { locatedFile: "/b.bpmn" } },
         );
 
         await open();

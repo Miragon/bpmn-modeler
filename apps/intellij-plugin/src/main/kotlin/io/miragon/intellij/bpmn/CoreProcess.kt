@@ -14,6 +14,7 @@ import io.miragon.intellij.bpmn.bridge.DefaultBridgeProcessLauncher
 import io.miragon.intellij.bpmn.bridge.ProcessSupervisor
 import io.miragon.intellij.bpmn.bridge.RpcChannel
 import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
+import io.miragon.intellij.bpmn.bridge.orderedCredentialStoreExecutor
 
 /**
  * Supervises the out-of-process modeler core and bridges it to the IntelliJ host
@@ -56,7 +57,8 @@ class CoreProcess(private val project: Project) : Disposable {
     private val notifications = lazy { HostNotifications(project) }
 
     private val handlers = RpcHandlerRegistry()
-    private val channel = RpcChannel { method, params, id -> handlers.dispatch(method, params, id) }
+    private val channel =
+        RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
     private val supervisor: ProcessSupervisor =
         ProcessSupervisor(
             channel = channel,
@@ -84,6 +86,7 @@ class CoreProcess(private val project: Project) : Disposable {
             ensureStartedAsync = { supervisor.ensureStartedAsync() },
             parentDisposable = this,
             notifications = notifications,
+            credentialStoreExecutor = orderedCredentialStoreExecutor(),
         )
     private val routers = BridgeRouters(deps)
 
@@ -184,6 +187,9 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `modeler/changeEngineVersion` for the given editor session (its file url). */
     fun changeEngineVersion(editorId: String) =
         routers.modelerCommands.changeEngineVersion(editorId)
+
+    /** Fires `linting/toggle`; the bridge flips the user's lint choice. */
+    fun toggleLinting() = routers.modelerCommands.toggleLinting()
 
     /** Fires `migration/migrateAll` for the project's workspace root. */
     fun migrateAllDiagrams() = routers.modelerCommands.migrateAllDiagrams()

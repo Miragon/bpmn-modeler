@@ -9,10 +9,16 @@ import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types
 
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../kernel/domain/errors";
-import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
+import {
+    DocumentPort,
+    NotifierPort,
+    SettingsPort,
+    StatusBarPort,
+} from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
+import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
 import {
     LintAction,
     LintDropReason,
@@ -24,7 +30,7 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "../domain/LintSession";
-import { BpmnlintStatusBarPort, DiagnosticsPort, LintRunnerPort } from "../domain/ports";
+import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
 
 const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
     supersededVersion: "[bpmnlint] dropping in-page results for a superseded config version",
@@ -52,10 +58,13 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  *
  * Every rule lives in one {@link LintSession} per editor; this service stores the
  * next session, then carries out the action, so an action's awaits already see
- * the new tier. Filesystem discovery lives in {@link BpmnLintConfigLocator}.
+ * the new tier. Config runs of one editor can finish out of order, so only the
+ * newest one reaches the session. Filesystem discovery lives in
+ * {@link BpmnLintConfigLocator}.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
+    private readonly latestRuns = new Map<string, symbol>();
 
     /** Monotonic source for opaque config-version tokens; never reset. */
     private tokenCounter = 0;
@@ -66,7 +75,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly locator: BpmnLintConfigLocator,
         private readonly lintRunner: LintRunnerPort,
         private readonly diagnostics: DiagnosticsPort,
-        private readonly statusBar: BpmnlintStatusBarPort,
+        private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {}
@@ -84,6 +93,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     clearDiagnostics(editorId: string): void {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
+        this.latestRuns.delete(editorId);
     }
 
     applyWebviewLintResults(
@@ -93,50 +103,54 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         configToken?: string,
     ): void {
         const xml = this.vsDocument.getContent(editorId);
-        const action = this.transition(editorId, {
+        void this.dispatch(editorId, {
             type: "webviewLinted",
             output: { xml, results, unresolved },
             platform: this.detectPlatform(xml),
             configToken,
             lintingEnabled: this.settings.getLintingEnabled(),
         });
-        void this.carryOut(editorId, action);
     }
 
     private async lintAndPush(editorId: string): Promise<boolean> {
+        // Discovery reads the document path, which fails for a closed editor.
+        if (!this.editorStore.hasEditor(editorId)) return false;
+        // Registered first, so turning linting off also supersedes a run in flight.
+        const run = Symbol(editorId);
+        this.latestRuns.set(editorId, run);
         if (!this.settings.getLintingEnabled()) {
-            return this.carryOut(editorId, this.transition(editorId, { type: "lintingDisabled" }));
+            return this.dispatch(editorId, { type: "lintingDisabled" });
         }
 
         try {
             const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
             const configPath = await this.locator.findNearestConfig(dir);
+            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             if (!configPath) {
-                return this.carryOut(
-                    editorId,
-                    this.transition(editorId, { type: "noConfigFound" }),
-                );
+                return this.dispatch(editorId, { type: "noConfigFound" });
             }
 
             const rawConfig = await this.locator.readConfig(configPath);
+            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             const config = JSON.parse(rawConfig) as BpmnlintConfig;
-            return this.carryOut(
-                editorId,
-                this.transition(editorId, {
-                    type: "configRead",
-                    version: { configPath, rawConfig, config },
-                    freshToken: this.mintToken(),
-                }),
-            );
+            return this.dispatch(editorId, {
+                type: "configRead",
+                version: { configPath, rawConfig, config },
+                freshToken: this.mintToken(),
+            });
         } catch (error) {
+            // The newer run reads the config itself, so this failure is stale.
+            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             // A malformed .bpmnlintrc or a linter blow-up must not crash the editor.
             this.logLintFailure(error);
-            return this.carryOut(editorId, this.transition(editorId, { type: "configFailed" }));
+            return this.dispatch(editorId, { type: "configFailed" });
         }
     }
 
     /** Owns its catch, so an escalation can fire and forget it. */
     private async lintOnHost(editorId: string, negotiation: Negotiation): Promise<boolean> {
+        // Runs of one config version share its token; only the run tells their host lints apart.
+        const run = this.latestRuns.get(editorId);
         const { configPath, config, token } = negotiation;
         try {
             const xml = this.vsDocument.getContent(editorId);
@@ -145,29 +159,34 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 configPath,
                 config as Record<string, unknown>,
             );
-            return this.carryOut(
-                editorId,
-                this.transition(editorId, {
-                    type: "hostLintFinished",
-                    token,
-                    output: { xml, results, unresolved },
-                }),
-            );
+            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
+            return this.dispatch(editorId, {
+                type: "hostLintFinished",
+                token,
+                output: { xml, results, unresolved },
+            });
         } catch (error) {
             this.logLintFailure(error);
-            return this.carryOut(
-                editorId,
-                this.transition(editorId, { type: "hostLintFailed", token }),
-            );
+            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
+            return this.dispatch(editorId, { type: "hostLintFailed", token });
         }
     }
 
-    private transition(editorId: string, event: LintSessionEvent): LintAction {
-        const session = this.sessionOf(editorId);
-        const { next, action } = reduceLintSession(session, event);
-        // A dropped event must not bring back the entry of a closed editor.
-        if (next !== session) this.sessions.set(editorId, next);
-        return action;
+    private isSuperseded(editorId: string, run: symbol | undefined): boolean {
+        return this.latestRuns.get(editorId) !== run;
+    }
+
+    private dropSupersededRun(): false {
+        this.notifier.logDebug("[bpmnlint] dropping the outcome of a superseded config run");
+        return false;
+    }
+
+    private dispatch(editorId: string, event: LintSessionEvent): Promise<boolean> {
+        // A late event must not bring back the session that closing the editor deleted.
+        if (!this.editorStore.hasEditor(editorId)) return Promise.resolve(false);
+        const { next, action } = reduceLintSession(this.sessionOf(editorId), event);
+        this.sessions.set(editorId, next);
+        return this.carryOut(editorId, action);
     }
 
     private sessionOf(editorId: string): LintSession {
@@ -215,7 +234,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 this.applyFindings(editorId, action.findings);
                 return this.pushResults(editorId, action.findings.results);
             case "fail":
-                this.showStatusIfFocused(editorId, { state: "noConfig" });
+                this.showStatusIfFocused(editorId, { state: "failed" });
                 this.diagnostics.clear(editorId);
                 return this.pushResults(editorId, null);
         }
@@ -284,7 +303,9 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * is checked when the item is written, not when the run starts.
      */
     private showStatusIfFocused(editorId: string, indicator: BpmnlintIndicator): void {
-        if (this.editorStore.isFocused(editorId)) this.statusBar.showBpmnlint(indicator);
+        if (this.editorStore.isFocused(editorId)) {
+            this.statusBar.show("bpmnlint", bpmnlintStatusView(indicator));
+        }
     }
 
     /**

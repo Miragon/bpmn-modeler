@@ -6,6 +6,7 @@ import {
     DeploymentDestination,
     NamedDestination,
 } from "../domain/deploymentDestination";
+import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
@@ -23,6 +24,7 @@ import {
     InvalidDeploymentConfigError,
     UnresolvedEnvVariableError,
 } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, TestHostOptions } from "../../testing";
 
@@ -59,15 +61,15 @@ interface ServiceOptions extends TestHostOptions {
 }
 
 /**
- * Workspace folder `/work`. The approval prompt is confirmed unless `answers`
- * says otherwise.
+ * Workspace folder `/work`. The approval prompt is confirmed unless
+ * `promptAnswers` says otherwise.
  */
 function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}) {
     const host = createTestHost({
         folders: [PROJECT_DIR],
         ...options,
         files: { ...(dotEnv && { "/work/.env": dotEnvContent(dotEnv) }), ...options.files },
-        answers: { confirmDestructive: true, ...options.answers },
+        promptAnswers: { credentialApproval: true, ...options.promptAnswers },
     });
     const restClient = {
         startInstance: vi.fn(),
@@ -168,20 +170,21 @@ describe("StartInstanceService.selectPayloadFile", () => {
     });
 
     it("walks up from the document directory and delegates selection to the picker", async () => {
-        const payloads = ["/work/sub/payloads/a.json"];
-        const picked = { filePath: payloads[0], label: "a.json" };
+        const payloads = ["/work/sub/payloads/a.json", "/work/payloads/b.json"];
         const { service, host, artifactService } = createService({
-            answers: { payloadFile: picked },
+            promptAnswers: { payloadFile: payloads[0] },
         });
         const editor = host.openEditor("/work/sub/order.bpmn");
         artifactService.getPayloadPaths.mockResolvedValue(payloads);
 
         const result = await service.selectPayloadFile(editor.id);
 
-        expect(result).toBe(picked);
+        expect(result).toEqual({ filePath: payloads[0], label: "a.json" });
         // Discovery starts from the document's directory, not the file path.
         expect(artifactService.getPayloadPaths).toHaveBeenCalledWith("/work/sub");
-        expect(host.picker.prompts).toEqual([{ method: "pickPayloadFile", args: [payloads] }]);
+        expect(host.picker.prompts).toEqual([
+            { method: "choose", args: [payloadFilePrompt(payloads)] },
+        ]);
     });
 
     it("returns null when payloads exist but the user cancels the picker", async () => {
@@ -685,9 +688,10 @@ describe("StartInstanceService.startInstance credential approval", () => {
 
         expect(host.picker.prompts).toEqual([
             {
-                method: "confirmDestructive",
+                method: "confirm",
                 args: [
                     expect.objectContaining({
+                        id: "credentialApproval",
                         title: "Send credentials and .env values to https://gw.example:8443?",
                     }),
                 ],
@@ -699,7 +703,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
     it("starts nothing when the user declines the destination", async () => {
         const { service, restClient } = createService({
             dotEnv: { MIRAGON_URL: "https://moved.example/engine-rest" },
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.startInstance.mockResolvedValue(new StartInstanceResult(true, "started"));
 
@@ -777,9 +781,10 @@ describe("StartInstanceService.startInstance credential approval", () => {
 
             expect(host.picker.prompts).toEqual([
                 {
-                    method: "confirmDestructive",
+                    method: "confirm",
                     args: [
                         expect.objectContaining({
+                            id: "credentialApproval",
                             title: `Send credentials and .env values to ${origin}?`,
                         }),
                     ],
@@ -793,7 +798,7 @@ describe("StartInstanceService.startInstance credential approval", () => {
         const declinedAdHoc = new CredentialDestinationNotApprovedError("ad-hoc");
         const { service, restClient } = createService({
             dotEnv: { MIRAGON_URL: "https://from-env.example/engine-rest" },
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.startInstance.mockResolvedValue(new StartInstanceResult(true, "started"));
 
@@ -810,5 +815,30 @@ describe("StartInstanceService.startInstance credential approval", () => {
 
         expect(result).toMatchObject({ success: false, message: declinedAdHoc.message });
         expect(restClient.startInstance).not.toHaveBeenCalled();
+    });
+
+    it("lets a cancelled keychain read of the approved hosts through, starting and logging nothing", async () => {
+        const { service, host, restClient } = createService({
+            dotEnv: { MIRAGON_URL: "https://camunda.example/engine-rest" },
+        });
+        vi.spyOn(host.secrets, "getApprovedDestinations").mockRejectedValue(
+            new UserCancelledError(),
+        );
+
+        await expect(
+            service.startInstance(
+                "Process_1",
+                "${env:MIRAGON_URL}",
+                "c7",
+                new BasicAuth("admin", "s3cret"),
+                "",
+                undefined,
+                PROJECT_DIR,
+                named(NAMED_TARGET),
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(restClient.startInstance).not.toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual([]);
     });
 });

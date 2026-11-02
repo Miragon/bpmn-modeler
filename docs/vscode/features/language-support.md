@@ -22,7 +22,7 @@ Run the modeler UI (palette, context pad, properties panel) in your own language
 ## Change the language
 
 - **Command:** run **Miragon BPMN Modeler: Change Modeler Language** and pick a language. The command is available while a modeler tab is open and saves your choice in your User settings.
-- **Setting:** set `miragon.bpmnModeler.language` to one of the locale codes above. The Settings editor dropdown does not list `it`, `ja` and `ko` yet; pick those with the command or enter them in `settings.json`.
+- **Setting:** set `miragon.bpmnModeler.language` to one of the locale codes above, in the Settings editor dropdown or in `settings.json`.
 
 The change applies at once to every open modeler tab.
 

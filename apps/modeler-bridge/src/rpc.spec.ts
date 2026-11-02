@@ -1,11 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { settle } from "./__fixtures__/bridgeHarness";
+import { METHODS } from "./protocol/descriptor";
 import { Rpc } from "./rpc";
 
 /** Parses the single most-recent frame a write spy captured. */
 function lastFrame(write: ReturnType<typeof vi.fn>): any {
     const calls = write.mock.calls;
     return JSON.parse(calls[calls.length - 1][0] as string);
+}
+
+/** Records how a request settled without awaiting it, so a request that never settles fails an assertion. */
+function outcomeOf(request: Promise<unknown>): { current: string } {
+    const outcome = { current: "pending" };
+    request.then(
+        (result) => {
+            outcome.current = `answered ${JSON.stringify(result)}`;
+        },
+        (error: Error) => {
+            outcome.current = `rejected: ${error.message}`;
+        },
+    );
+    return outcome;
 }
 
 describe("Rpc framing", () => {
@@ -197,6 +213,106 @@ describe("Rpc inbound dispatch", () => {
         // Must not throw; an orphan response (e.g. after a restart) is simply ignored.
         await rpc.handleLine(JSON.stringify({ id: 999, result: 1 }));
 
+        expect(write).not.toHaveBeenCalled();
+    });
+});
+
+describe("Rpc reply deadline", () => {
+    const TWO_MINUTES_MS = 120_000;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("rejects a request the peer never answers", async () => {
+        const rpc = new Rpc(vi.fn());
+
+        const save = outcomeOf(rpc.request(METHODS.documentSave, { editorId: "e1" }));
+        await vi.advanceTimersByTimeAsync(TWO_MINUTES_MS - 1);
+        expect(save.current).toBe("pending");
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(save.current).toBe("rejected: No reply to document/save within 120 s");
+    });
+
+    it("drops the deadline of a request the peer answered", async () => {
+        const write = vi.fn();
+        const rpc = new Rpc(write);
+
+        const save = outcomeOf(rpc.request(METHODS.documentSave, { editorId: "e1" }));
+        await rpc.handleLine(JSON.stringify({ id: lastFrame(write).id, result: { saved: true } }));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(save.current).toBe('answered {"saved":true}');
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("waits for a prompt however long the user takes", async () => {
+        const write = vi.fn();
+        const rpc = new Rpc(write);
+
+        const confirm = outcomeOf(rpc.request(METHODS.confirmShow, { title: "Remove?" }));
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+        expect(confirm.current).toBe("pending");
+        await rpc.handleLine(
+            JSON.stringify({ id: lastFrame(write).id, result: { confirmed: true } }),
+        );
+
+        expect(confirm.current).toBe('answered {"confirmed":true}');
+    });
+
+    it("handles a later call for the same editor after a request timed out", async () => {
+        const rpc = new Rpc(vi.fn());
+        const handled: string[] = [];
+        rpc.on("webview/message", async (params) => {
+            if (params.step === "save") {
+                await rpc.request(METHODS.documentSave, { editorId: params.editorId });
+            }
+            handled.push(params.step);
+        });
+
+        const saving = rpc.handleLine(
+            JSON.stringify({ method: "webview/message", params: { editorId: "e1", step: "save" } }),
+        );
+        void saving.catch(() => undefined);
+        void rpc.handleLine(
+            JSON.stringify({ method: "webview/message", params: { editorId: "e1", step: "next" } }),
+        );
+        await vi.advanceTimersByTimeAsync(TWO_MINUTES_MS);
+
+        expect(handled).toEqual(["next"]);
+        await expect(saving).rejects.toThrow("No reply to document/save within 120 s");
+    });
+});
+
+describe("Rpc end of input", () => {
+    it("rejects every outstanding request when the input ends", async () => {
+        const rpc = new Rpc(vi.fn());
+
+        const confirm = outcomeOf(rpc.request(METHODS.confirmShow, { title: "Remove?" }));
+        const write = outcomeOf(rpc.request(METHODS.documentWrite, { editorId: "e1" }));
+        rpc.handleEnd();
+        await settle();
+
+        expect([confirm.current, write.current]).toEqual([
+            "rejected: No reply to confirm/show: the input ended",
+            "rejected: No reply to document/write: the input ended",
+        ]);
+    });
+
+    it("rejects a request made after the input ended without sending it", async () => {
+        const write = vi.fn();
+        const rpc = new Rpc(write);
+
+        rpc.handleEnd();
+        const save = outcomeOf(rpc.request(METHODS.documentSave, { editorId: "e1" }));
+        await settle();
+
+        expect(save.current).toBe("rejected: No reply to document/save: the input ended");
         expect(write).not.toHaveBeenCalled();
     });
 });

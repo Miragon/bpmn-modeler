@@ -360,6 +360,22 @@ describe("deployment target form", () => {
         expect(button("target-save").disabled).toBe(false);
     });
 
+    it("clears the progress without a result banner when the host reports the deploy cancelled", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([target("dev")], "dev"));
+        button("deploy-btn").click();
+        expect(button("deploy-btn").disabled).toBe(true);
+
+        c.form.showResult(
+            new DeploymentResultQuery(false, "Deployment cancelled.", undefined, true),
+        );
+
+        const banner = document.getElementById("status-banner") as HTMLDivElement;
+        expect(button("deploy-btn").disabled).toBe(false);
+        expect(banner.style.display).toBe("none");
+        expect(banner.textContent).toBe("");
+    });
+
     it("releases the credentials gate on a matching requestId for a different target", () => {
         const c = setup();
         const dev = target("dev", { authType: "basic" });

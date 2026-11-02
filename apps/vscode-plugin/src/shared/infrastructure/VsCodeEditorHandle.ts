@@ -10,7 +10,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "./bootstrapWebview";
 import { onDidChangeModelerSetting } from "./modelerConfiguration";
-import { canonicalizeDriveLetter } from "./uriPath";
+import { canonicalPath } from "./uriPath";
 
 /**
  * VS Code adapter for {@link EditorHandle}: wraps a `WebviewPanel` + the
@@ -65,11 +65,7 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     documentPath(): string {
-        // Canonicalize the drive letter so `getFilePath()`-derived paths land in
-        // the same space as the workspace root the artifact walk compares them
-        // against; VS Code's document URIs already lowercase it, but this keeps
-        // the guarantee explicit and host-boundary-local.
-        return canonicalizeDriveLetter(this.document.uri.path);
+        return canonicalPath(this.document.uri);
     }
 
     documentFsPath(): string {
@@ -139,8 +135,12 @@ export class VsCodeEditorHandle implements EditorHandle {
         bootstrapWebview(this.viewType, this.panel, this.initialPanelVisible);
     }
 
+    /**
+     * Theia can report a hidden tab's panel as active (a restored background tab
+     * it made its active widget), so only a visible panel counts as active.
+     */
     isActive(): boolean {
-        return this.panel.active;
+        return this.panel.active && this.panel.visible;
     }
 
     addSubscription(subscription: EditorSubscription): void {
@@ -164,7 +164,7 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     onDidChangeActive(callback: (active: boolean) => void): EditorSubscription {
-        return this.panel.onDidChangeViewState(() => callback(this.panel.active));
+        return this.panel.onDidChangeViewState(() => callback(this.isActive()));
     }
 
     /**
@@ -178,7 +178,7 @@ export class VsCodeEditorHandle implements EditorHandle {
             callback({
                 hasContentChanges: () => event.contentChanges.length !== 0,
                 documentUriString: () => event.document.uri.toString(),
-                documentPath: () => event.document.uri.path,
+                documentPath: () => canonicalPath(event.document.uri),
             }),
         );
     }

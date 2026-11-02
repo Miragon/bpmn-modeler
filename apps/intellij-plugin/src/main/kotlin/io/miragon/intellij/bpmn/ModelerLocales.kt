@@ -5,26 +5,25 @@ package io.miragon.intellij.bpmn
  * Settings combo ([ModelerSettingsConfigurable]) and the Tools ▸ Change Modeler
  * Language picker ([ChangeModelerLanguageAction]) so the two can never drift.
  *
- * Source of truth for the set is `libs/bpmn-i18n/src/languages/index.ts`
- * (`supportedLanguages`): the webview only renders a locale listed there, so any
- * code offered here must also exist in that registry.
+ * Mirrors the `miragon.bpmnModeler.language` setting of `apps/vscode-plugin/package.json`
+ * (ModelerLocalesTest), whose contract spec pins it to the shipped language catalogue.
  */
 internal object ModelerLocales {
-    /** Falls back to English, matching the core's default when no language is set. */
-    const val DEFAULT_LOCALE = "en"
-
-    val CODES = listOf("de", "en", "es", "fr", "nl-nl", "pt-br", "ru", "zh-Hans", "zh-Hant")
-
     val LABELS =
         mapOf(
             "de" to "Deutsch",
             "en" to "English",
             "es" to "Español",
             "fr" to "Français",
-            "nl-nl" to "Nederlands",
+            "it" to "Italiano",
+            "ja" to "日本語",
+            "ko" to "한국어",
+            "nl-nl" to "Nederlands (Netherlands)",
             "pt-br" to "Português (Brasil)",
             "ru" to "Русский",
             "zh-Hans" to "简体中文",
             "zh-Hant" to "繁体中文",
         )
+
+    val CODES = LABELS.keys.toList()
 }

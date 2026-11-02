@@ -3,7 +3,6 @@ import { posix } from "path";
 import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { DeploymentService } from "./DeploymentService";
-import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
@@ -23,7 +22,6 @@ export class DeployActiveDiagramService {
         private readonly documentPort: DocumentPort,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentService: DeploymentService,
-        private readonly deploymentStatusService: DeploymentStatusService,
         private readonly notifier: NotifierPort,
         private readonly saveBeforeDeploy: SaveBeforeDeploy,
     ) {}
@@ -49,11 +47,7 @@ export class DeployActiveDiagramService {
         }
 
         const dir = documentDir ?? posix.dirname(filePath);
-        const destination = await resolveOrPickNamedDestination(
-            this.deploymentTargetService,
-            this.deploymentStatusService,
-            dir,
-        );
+        const destination = await resolveOrPickNamedDestination(this.deploymentTargetService, dir);
         if (destination === undefined) {
             return;
         }

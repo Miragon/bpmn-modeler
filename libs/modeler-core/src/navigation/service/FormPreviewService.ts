@@ -1,6 +1,6 @@
 import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
 import type { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
-import { classifyLocateResult } from "../../kernel/domain/locateResult";
+import { classifyLocateResult, locatedFileChoices } from "../../kernel/domain/locateResult";
 import type { ReferencedModelLocator } from "./ReferencedModelLocator";
 
 export class FormPreviewService {
@@ -18,13 +18,16 @@ export class FormPreviewService {
                       outcome: await this.locator.findDeclaringFiles(id, "form", sourcePath),
                       chosen: undefined,
                   }
-                : await this.picker.searchAndPickLocatedFile(
-                      {
-                          searchingPlaceholder: "Searching for a form to preview…",
-                          pickPlaceholder: "Select a form to preview…",
-                      },
-                      () => this.locator.findDeclaringFiles(id, "form", sourcePath),
-                  );
+                : await this.picker.searchAndChoose({
+                      id: "locateFile",
+                      searchingPlaceholder: "Searching for a form to preview…",
+                      search: () => this.locator.findDeclaringFiles(id, "form", sourcePath),
+                      choices: (found) =>
+                          locatedFileChoices(found, {
+                              placeholder: "Select a form to preview…",
+                              workspaceFolders: this.workspace.getWorkspaceFolderPaths(),
+                          }),
+                  });
             const located = classifyLocateResult(outcome);
             if (located.kind === "noScope") return { kind: "unavailable", reason: "noScope" };
             if (located.kind === "unreadable") {

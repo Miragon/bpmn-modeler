@@ -1,7 +1,12 @@
 import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
-import { joinWorkspacePath, toWorkspacePath, withoutFileScheme } from "./workspacePath";
+import {
+    joinWorkspacePath,
+    parentWorkspacePath,
+    toWorkspacePath,
+    withoutFileScheme,
+} from "./workspacePath";
 
 describe("toWorkspacePath", () => {
     it.each([
@@ -161,6 +166,123 @@ describe("joinWorkspacePath", () => {
         },
     ])("$behaviour", ({ directory, segments, joined }) => {
         expect(joinWorkspacePath(directory, ...segments)).toBe(joined);
+    });
+});
+
+describe("parentWorkspacePath", () => {
+    it.each([
+        {
+            behaviour: "returns the directory holding a POSIX path",
+            path: "/repo/src",
+            parent: "/repo",
+        },
+        {
+            behaviour: "climbs from a top-level folder to the filesystem root",
+            path: "/repo",
+            parent: "/",
+        },
+        {
+            behaviour: "has no parent above the filesystem root",
+            path: "/",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the share root of a UNC path",
+            path: "//server/share/repo",
+            parent: "//server/share",
+        },
+        {
+            behaviour: "has no parent above a UNC share root",
+            path: "//server/share",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above a UNC share root with a trailing slash",
+            path: "//server/share/",
+            parent: undefined,
+        },
+        {
+            behaviour: "keeps the scheme of a URI-form path",
+            path: "file:///repo/src",
+            parent: "file:///repo",
+        },
+        {
+            behaviour: "climbs to the share root of a UNC path behind a file:// scheme",
+            path: "file:////server/share/repo",
+            parent: "file:////server/share",
+        },
+        {
+            behaviour: "has no parent above a UNC share root behind a file:// scheme",
+            path: "file:////server/share",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the share root of a UNC uri naming its server as authority",
+            path: "file://server/share/repo",
+            parent: "file://server/share",
+        },
+        {
+            behaviour: "has no parent above the share root of a UNC uri naming its server",
+            path: "file://server/share",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above the share root of a UNC uri with a trailing slash",
+            path: "file://server/share/",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs from a top-level folder to the root of a file:// uri",
+            path: "file:///repo",
+            parent: "file:///",
+        },
+        {
+            behaviour: "has no parent above the root of a file:// uri",
+            path: "file:///",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the drive root of IntelliJ's file://C:/ spelling",
+            path: "file://C:/repo",
+            parent: "file://C:",
+        },
+        {
+            behaviour: "has no parent above the drive root of IntelliJ's file://C:/ spelling",
+            path: "file://C:",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the drive root of VS Code's /c:/ spelling",
+            path: "/c:/repo",
+            parent: "/c:",
+        },
+        {
+            behaviour: "has no parent above the drive root of VS Code's /c:/ spelling",
+            path: "/c:",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above a drive root with a trailing slash",
+            path: "/c:/",
+            parent: undefined,
+        },
+        {
+            behaviour: "has no parent above the drive root of a file:/// uri",
+            path: "file:///c:",
+            parent: undefined,
+        },
+        {
+            behaviour: "climbs to the drive root of a uri with an encoded colon",
+            path: "file:///c%3A/repo",
+            parent: "file:///c%3A",
+        },
+        {
+            behaviour: "has no parent above the drive root of a uri with an encoded colon",
+            path: "file:///c%3A",
+            parent: undefined,
+        },
+    ])("$behaviour", ({ path, parent }) => {
+        expect(parentWorkspacePath(path)).toBe(parent);
     });
 });
 

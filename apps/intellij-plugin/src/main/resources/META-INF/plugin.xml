@@ -96,12 +96,17 @@
              diff. The changes view reaches the diagram viewer via DiffManager above; this is the
              hook if changes-view decoration is ever needed. -->
 
-        <!-- Engine version + element-template count, driven by the core's StatusBarPort. -->
+        <!-- One widget per status slot of the core's StatusBarPort, in VS Code's left-to-right
+             order. The ids are the placements StatusBarSlots.widgetIdFor gives each slot. -->
+        <statusBarWidgetFactory
+            id="BpmnElementTemplatesWidget"
+            implementation="io.miragon.intellij.bpmn.ElementTemplatesStatusBarWidgetFactory"/>
         <statusBarWidgetFactory
             id="BpmnEngineWidget"
             implementation="io.miragon.intellij.bpmn.EngineStatusBarWidgetFactory"/>
-
-        <!-- Active deployment target; clickable → switch-target. Driven by DeploymentStatusBarPort. -->
+        <statusBarWidgetFactory
+            id="BpmnlintWidget"
+            implementation="io.miragon.intellij.bpmn.BpmnlintStatusBarWidgetFactory"/>
         <statusBarWidgetFactory
             id="BpmnDeploymentTargetWidget"
             implementation="io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidgetFactory"/>

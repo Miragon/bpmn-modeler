@@ -15,8 +15,8 @@ import javax.swing.ListSelectionModel
  * owns only the UI: it shows the items the core supplied and reports back the
  * chosen indices, or `null` when the user dismissed the popup.
  *
- * The cancel-vs-throw convention stays core-side (TypeScript `RpcPicker`), so
- * this object is deliberately domain-agnostic — it never maps a choice to an
+ * The caller decides what a dismissal means (for the core's prompts, the core),
+ * so this object is deliberately domain-agnostic — it never maps a choice to an
  * engine, scope, or path, only to the index the core handed it.
  */
 object HostPicker {

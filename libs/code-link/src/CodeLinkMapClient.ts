@@ -17,8 +17,7 @@ import { DisposableStore, implementationStatusKey } from "@miragon/bpmn-modeler-
 import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { collectImplementations, ElementRegistryLike } from "./collectImplementations";
-import { extractImplementation } from "./extractImplementation";
-import type { Element } from "./CodeLinkContextPadProvider";
+import { Element, extractImplementation } from "./extractImplementation";
 import type { CodeLinkPort } from "./CodeLinkPort";
 
 interface EventBus {

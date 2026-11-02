@@ -32,7 +32,13 @@ import {
     TargetsLocation,
     targetSecretSlot,
 } from "../domain/deploymentDestination";
-import { DeploymentPickerPort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import {
+    DeploymentTargetsEvent,
+    DeploymentTargetsListener,
+} from "../domain/deploymentTargetsEvent";
+import { deleteTargetConfirmation, deploymentTargetPrompt } from "../domain/deploymentPrompts";
+import { DeploymentStatePort, SecretStorePort } from "../domain/ports";
+import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { storeCredentials } from "./storeCredentials";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
@@ -42,18 +48,41 @@ const TARGETS_FILE_NAME = "deployment-targets.json";
  * read, CRUD), the active target's persistence, and per-target credential
  * slots. Kept separate from {@link DeploymentService} (which owns the
  * REST call and the ad-hoc legacy path) so target lifecycle is its own concern.
- * The status bar is owned by `DeploymentStatusService`, not here.
+ * The status bar is owned by `DeploymentStatusService`, not here; it and the
+ * open panel follow the changes published through {@link onDidChange}.
  */
 export class DeploymentTargetService {
+    private readonly changeListeners = new Set<DeploymentTargetsListener>();
+
     constructor(
         private readonly artifactService: ArtifactService,
         private readonly settings: SettingsPort,
         private readonly workspace: WorkspacePort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly picker: PickerPort & DeploymentPickerPort,
+        private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
+
+    /**
+     * Once per switch and per target edit that reached the file, even when a later
+     * step of it failed; never for a rejected or cancelled one.
+     */
+    onDidChange(listener: DeploymentTargetsListener): EditorSubscription {
+        this.changeListeners.add(listener);
+        return { dispose: () => this.changeListeners.delete(listener) };
+    }
+
+    /** The change is made by then, so a failing listener must not report it as failed. */
+    private async publish(event: DeploymentTargetsEvent): Promise<void> {
+        for (const listener of [...this.changeListeners]) {
+            try {
+                await listener(event);
+            } catch (error) {
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }
+        }
+    }
 
     /**
      * Resolves the targets file for `documentDir` (nearest existing one when a
@@ -194,27 +223,75 @@ export class DeploymentTargetService {
         });
         const current = new DeploymentTargets(await this.readTargets(location));
         const change = apply(current, target);
-        await this.workspace.writeFile(
-            location.filePath,
-            serializeDeploymentTargets(change.targets),
-        );
 
-        // Refs are stored too: they overwrite any older literal, and a backend that
-        // reads an empty half back as null would drop the literal next to it.
+        // Once the file holds the new name nothing names the old slot again, so the
+        // secrets go first.
         const slot = targetSecretSlot(location, target.name);
-        await storeCredentials(this.secretStore, credentials, slot);
-        await this.approveTypedDestinations(
-            slot,
-            target,
-            change.approvalsInheritedFrom,
-            current,
-            location,
-        );
-        await this.setActiveTarget(target.name);
-        if (change.retiredSlotName !== undefined) {
-            await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
+        try {
+            // Refs are stored too: they overwrite any older literal, and a backend that
+            // reads an empty half back as null would drop the literal next to it.
+            await storeCredentials(this.secretStore, credentials, slot);
+            await this.approveTypedDestinations(
+                slot,
+                target,
+                change.approvalsInheritedFrom,
+                current,
+                location,
+            );
+            await this.workspace.writeFile(
+                location.filePath,
+                serializeDeploymentTargets(change.targets),
+            );
+        } catch (error) {
+            await this.cleanUpAfterFailure(() => this.deleteSlot(location, change.newSlotName));
+            throw error;
         }
-        return new TargetEdit(change, location);
+
+        return this.finishWrittenEdit(new TargetEdit(change, location), documentDir, () =>
+            this.saveActiveTargetName(target.name),
+        );
+    }
+
+    private async finishWrittenEdit(
+        edit: TargetEdit,
+        documentDir: string | undefined,
+        updateActiveTargetName: () => Promise<unknown>,
+    ): Promise<TargetEdit> {
+        try {
+            await this.retireSlotAfter(updateActiveTargetName, edit);
+        } finally {
+            // The file holds the edit even when a later step failed; a panel still
+            // showing the old state would send a retry of the same edit.
+            await this.publish({ kind: "targetsChanged", edit, documentDir });
+        }
+        return edit;
+    }
+
+    /** Nothing names the retired slot once the file is written, so it goes even when `step` fails. */
+    private async retireSlotAfter(step: () => Promise<unknown>, edit: TargetEdit): Promise<void> {
+        const retireSlot = () => this.deleteSlot(edit.location, edit.change.retiredSlotName);
+        try {
+            await step();
+        } catch (error) {
+            await this.cleanUpAfterFailure(retireSlot);
+            throw error;
+        }
+        await retireSlot();
+    }
+
+    /** The edit's own failure is the one to report, so a cleanup failing after it is only logged. */
+    private async cleanUpAfterFailure(cleanUp: () => Promise<void>): Promise<void> {
+        try {
+            await cleanUp();
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+
+    private async deleteSlot(location: TargetsLocation, name: string | undefined): Promise<void> {
+        if (name !== undefined) {
+            await this.secretStore.delete(targetSecretSlot(location, name));
+        }
     }
 
     /**
@@ -244,11 +321,7 @@ export class DeploymentTargetService {
 
     /** @returns `undefined` when the user cancels or there is no targets file. */
     async deleteTarget(name: string, documentDir?: string): Promise<TargetEdit | undefined> {
-        const confirmed = await this.picker.confirmDestructive({
-            title: `Delete deployment target "${name}"?`,
-            confirmLabel: "Delete",
-            details: [`Target "${name}" and its stored credentials will be removed.`],
-        });
+        const confirmed = await this.picker.confirm(deleteTargetConfirmation(name));
         if (!confirmed) {
             return undefined;
         }
@@ -263,12 +336,11 @@ export class DeploymentTargetService {
             location.filePath,
             serializeDeploymentTargets(change.targets),
         );
-        await this.secretStore.delete(targetSecretSlot(location, change.retiredSlotName));
-
-        if (this.deploymentState.getActiveTargetName() === change.name) {
-            await this.setActiveTarget("");
-        }
-        return new TargetEdit(change, location);
+        return this.finishWrittenEdit(new TargetEdit(change, location), documentDir, async () => {
+            if (this.deploymentState.load().activeTargetName === change.name) {
+                await this.saveActiveTargetName("");
+            }
+        });
     }
 
     /**
@@ -293,11 +365,8 @@ export class DeploymentTargetService {
      * that no longer resolves to a target (file hand-edited) is tolerated as ad-hoc.
      */
     async getActiveDestination(documentDir?: string): Promise<DeploymentDestination> {
-        const rememberedAdHoc = new AdHocDestination(
-            this.deploymentState.getEndpoint(),
-            this.deploymentState.getTenantId(),
-        );
-        const name = this.deploymentState.getActiveTargetName();
+        const { endpoint, tenantId, activeTargetName: name } = this.deploymentState.load();
+        const rememberedAdHoc = new AdHocDestination(endpoint, tenantId);
         if (!namesTarget(name)) {
             return rememberedAdHoc;
         }
@@ -314,16 +383,21 @@ export class DeploymentTargetService {
     }
 
     async setActiveTarget(name: string): Promise<void> {
-        await this.deploymentState.saveActiveTargetName(name.trim());
+        const activeName = await this.saveActiveTargetName(name);
+        await this.publish({ kind: "activeTargetChanged", activeName });
     }
 
-    /**
-     * Picker → persist → status bar. A dismissal is a no-op; the explicit
-     * "(none)" entry resolves to `""` (ad-hoc mode).
-     */
+    /** A target edit publishes its own change, so it stores the active name without another one. */
+    private async saveActiveTargetName(name: string): Promise<string> {
+        const activeName = name.trim();
+        await this.deploymentState.save({ activeTargetName: activeName });
+        return activeName;
+    }
+
+    /** Picker → persist → listeners. A dismissal is a no-op; the form values entry is `""`. */
     async switchActiveTarget(documentDir?: string): Promise<void> {
         const names = (await this.listTargets(documentDir)).map((target) => target.name);
-        const picked = await this.picker.pickDeploymentTarget(names);
+        const picked = await this.picker.choose(deploymentTargetPrompt(names));
         if (picked === undefined) {
             return;
         }

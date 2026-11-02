@@ -16,7 +16,6 @@ export type LintFindingsSource =
 
 /** What the bpmnlint status item shows for the focused editor. */
 export type BpmnlintIndicator =
-    | { readonly state: "hidden" }
     | { readonly state: "active"; readonly configPath: string }
     | {
           readonly state: "unresolved";
@@ -25,7 +24,7 @@ export type BpmnlintIndicator =
       }
     | { readonly state: "default"; readonly platform: Engine | undefined }
     | { readonly state: "disabled" }
-    | { readonly state: "noConfig" };
+    | { readonly state: "failed" };
 
 export function indicatorForFindings(
     source: LintFindingsSource,

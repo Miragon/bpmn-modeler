@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ScriptLanguage } from "./scriptLanguage";
+import { ScriptLanguage, scriptLanguagePrompt } from "./scriptLanguage";
 
 describe("ScriptLanguage", () => {
     describe("known formats", () => {
@@ -16,8 +16,8 @@ describe("ScriptLanguage", () => {
             expect(language.extension).toBe(extension);
         });
 
-        // Camunda models carry the format verbatim, so casing/whitespace varies;
-        // normalize() at scriptLanguage.ts:62 must canonicalize before lookup.
+        // Camunda models carry the format verbatim, so casing and whitespace
+        // vary and the lookup must canonicalize them first.
         it("normalizes mixed case and surrounding whitespace", () => {
             const language = new ScriptLanguage("  Groovy ");
 
@@ -85,4 +85,49 @@ describe("ScriptLanguage", () => {
             },
         );
     });
+});
+
+describe("scriptLanguagePrompt", () => {
+    const JAVASCRIPT = { label: "Javascript", description: ".js", value: "javascript" };
+    const GROOVY = { label: "Groovy", description: ".groovy", value: "groovy" };
+    const PYTHON = { label: "Python", description: ".py", value: "python" };
+    const RUBY = { label: "Ruby", description: ".rb", value: "ruby" };
+
+    it.each([
+        {
+            script: "a missing format",
+            currentFormat: "",
+            items: [JAVASCRIPT, GROOVY, PYTHON, RUBY],
+        },
+        {
+            script: "an unsupported format",
+            currentFormat: "cobol",
+            items: [JAVASCRIPT, GROOVY, PYTHON, RUBY],
+        },
+        {
+            script: "the format groovy",
+            currentFormat: "groovy",
+            items: [GROOVY, JAVASCRIPT, PYTHON, RUBY],
+        },
+        {
+            script: "the last supported format",
+            currentFormat: "ruby",
+            items: [RUBY, JAVASCRIPT, GROOVY, PYTHON],
+        },
+        {
+            script: "a supported format in other casing and spacing",
+            currentFormat: " Groovy ",
+            items: [GROOVY, JAVASCRIPT, PYTHON, RUBY],
+        },
+    ])(
+        "offers every supported language, the current one first, for $script",
+        ({ currentFormat, items }) => {
+            expect(scriptLanguagePrompt(currentFormat)).toEqual({
+                id: "scriptLanguage",
+                title: "Script Language",
+                placeholder: "Select the scripting language",
+                items,
+            });
+        },
+    );
 });

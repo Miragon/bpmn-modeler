@@ -34,8 +34,9 @@ class RpcChannelTest {
         openFakes.forEach { it.close() }
     }
 
-    private fun rpcChannel(dispatch: (method: String, params: JsonObject, id: Int?) -> Unit): RpcChannel =
-        RpcChannel(dispatch).also { openChannels += it }
+    private fun rpcChannel(
+        dispatch: (method: String, params: JsonObject, requestId: CoreRequestId?) -> Unit,
+    ): RpcChannel = RpcChannel(dispatch).also { openChannels += it }
 
     private fun fakeProcess(): FakeProcess = FakeProcess().also { openFakes += it }
 
@@ -177,10 +178,10 @@ class RpcChannelTest {
     @Test
     fun `inbound request is always answered even when the handler throws`() {
         var channelRef: RpcChannel? = null
-        val channel = rpcChannel { method, _, id ->
+        val channel = rpcChannel { method, _, requestId ->
             when (method) {
                 "boom" -> throw RuntimeException("handler blew up")
-                "echo" -> channelRef!!.reply(id!!, "ok")
+                "echo" -> channelRef!!.reply(requestId!!, ClipboardReadResult("ok"))
             }
         }
         channelRef = channel
@@ -196,23 +197,32 @@ class RpcChannelTest {
 
         val okReply = parse(fake.nextFrame())
         assertEquals(9, okReply.get("id").asInt)
-        assertEquals("ok", okReply.get("result").asString)
+        assertEquals("ok", okReply.getAsJsonObject("result").get("text").asString)
     }
 
-    private fun attachedChannel(): Pair<RpcChannel, FakeProcess> {
+    private data class AttachedChannel(val channel: RpcChannel, val fake: FakeProcess, val generation: Int)
+
+    private fun attachedChannel(): AttachedChannel {
         val fake = fakeProcess()
         val channel = rpcChannel { _, _, _ -> }
-        channel.attach(fake.outputStream, fake.inputStream)
-        return channel to fake
+        val generation = channel.attach(fake.outputStream, fake.inputStream)
+        return AttachedChannel(channel, fake, generation)
     }
 
     private val runInline: (Runnable) -> Unit = { it.run() }
 
+    /** Gson refuses to write NaN, so replying with this result fails. */
+    private class UnserialisableResult(val ratio: Double) : RpcResult
+
     @Test
     fun `a request answered from the EDT gets an error reply when the EDT work throws`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
-        channel.replyFromEdt(id = 5, method = "document/write", runOnEdt = runInline) {
+        channel.replyFromEdt(
+            requestId = CoreRequestId(5, generation),
+            method = "document/write",
+            runOnEdt = runInline,
+        ) {
             throw IllegalStateException("refused")
         }
 
@@ -224,10 +234,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets an error reply when the EDT work fails with an Error`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
         assertThrows(AssertionError::class.java) {
-            channel.replyFromEdt(id = 9, method = "document/write", runOnEdt = runInline) {
+            channel.replyFromEdt(
+                requestId = CoreRequestId(9, generation),
+                method = "document/write",
+                runOnEdt = runInline,
+            ) {
                 throw AssertionError("broken")
             }
         }
@@ -240,10 +254,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT rethrows a cancellation after answering it with an error`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
         assertThrows(ProcessCanceledException::class.java) {
-            channel.replyFromEdt(id = 10, method = "document/write", runOnEdt = runInline) {
+            channel.replyFromEdt(
+                requestId = CoreRequestId(10, generation),
+                method = "document/write",
+                runOnEdt = runInline,
+            ) {
                 throw ProcessCanceledException()
             }
         }
@@ -256,10 +274,14 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets an error reply when its result cannot be serialised`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
-        channel.replyFromEdt(id = 11, method = "document/write", runOnEdt = runInline) {
-            mapOf("ratio" to Double.NaN)
+        channel.replyFromEdt(
+            requestId = CoreRequestId(11, generation),
+            method = "document/write",
+            runOnEdt = runInline,
+        ) {
+            UnserialisableResult(Double.NaN)
         }
 
         val reply = parse(fake.nextFrame())
@@ -270,11 +292,15 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered from the EDT gets exactly one reply carrying the work's result`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
         val edtQueue = mutableListOf<Runnable>()
 
-        channel.replyFromEdt(id = 6, method = "document/save", runOnEdt = { edtQueue += it }) {
-            mapOf("saved" to true)
+        channel.replyFromEdt(
+            requestId = CoreRequestId(6, generation),
+            method = "document/save",
+            runOnEdt = { edtQueue += it },
+        ) {
+            DocumentSaveResult(saved = true)
         }
         assertEquals(1, edtQueue.size, "the work is handed to the EDT")
         fake.expectNoFrame()
@@ -291,9 +317,9 @@ class RpcChannelTest {
         val (channel, fake) = attachedChannel()
         var workRan = false
 
-        channel.replyFromEdt(id = null, method = "document/write", runOnEdt = runInline) {
+        channel.replyFromEdt(requestId = null, method = "document/write", runOnEdt = runInline) {
             workRan = true
-            mapOf("changed" to true)
+            DocumentWriteResult(changed = true, accepted = true)
         }
 
         assertTrue(workRan)
@@ -302,9 +328,13 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered later from the EDT gets an error reply when the work throws before answering`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
 
-        channel.replyLaterFromEdt(id = 7, method = "picker/show", runOnEdt = runInline) {
+        channel.replyLaterFromEdt(
+            requestId = CoreRequestId(7, generation),
+            method = "picker/show",
+            runOnEdt = runInline,
+        ) {
             throw IllegalStateException("popup failed")
         }
 
@@ -316,20 +346,24 @@ class RpcChannelTest {
 
     @Test
     fun `a request answered later from the EDT keeps its first answer`() {
-        val (channel, fake) = attachedChannel()
+        val (channel, fake, generation) = attachedChannel()
         var pendingReply: PendingReply? = null
 
-        channel.replyLaterFromEdt(id = 8, method = "picker/show", runOnEdt = runInline) { reply ->
+        channel.replyLaterFromEdt(
+            requestId = CoreRequestId(8, generation),
+            method = "picker/show",
+            runOnEdt = runInline,
+        ) { reply ->
             pendingReply = reply
-            reply.result("first")
+            reply.result(PickerShowResult(listOf(1)))
             throw IllegalStateException("after answering")
         }
-        pendingReply?.result("second")
+        pendingReply?.result(PickerShowResult(listOf(2)))
         pendingReply?.error("late")
 
         val reply = parse(fake.nextFrame())
         assertEquals(8, reply.get("id").asInt)
-        assertEquals("first", reply.get("result").asString)
+        assertEquals(listOf(1), reply.getAsJsonObject("result").getAsJsonArray("selected").map { it.asInt })
         fake.expectNoFrame()
     }
 
@@ -433,5 +467,59 @@ class RpcChannelTest {
         val retained = parse(second.nextFrame())
         assertEquals("document/didChange", retained.get("method").asString)
         assertEquals("authoritative", retained.getAsJsonObject("params").get("content").asString)
+    }
+
+    /** A core request as the host received it, answered through the channel that dispatched it. */
+    private class ReceivedRequest(val answer: (RpcResult) -> Unit)
+
+    private fun answerableChannel(): Pair<RpcChannel, LinkedBlockingQueue<ReceivedRequest>> {
+        val received = LinkedBlockingQueue<ReceivedRequest>()
+        var channelRef: RpcChannel? = null
+        val channel =
+            rpcChannel { _, _, requestId ->
+                received.add(ReceivedRequest { channelRef!!.reply(requestId!!, it) })
+            }
+        channelRef = channel
+        return channel to received
+    }
+
+    @Test
+    fun `does not send a reply for a dead bridge to the next one`() {
+        val (channel, received) = answerableChannel()
+        val dead = fakeProcess()
+        channel.attach(dead.outputStream, dead.inputStream)
+        dead.emit("""{"method":"picker/show","params":{},"id":1}""")
+        val pickerOfDeadBridge = received.poll(2, TimeUnit.SECONDS)!!
+
+        dead.kill()
+        channel.detach()
+        val respawned = fakeProcess()
+        channel.attach(respawned.outputStream, respawned.inputStream)
+        respawned.emit("""{"method":"clipboard/read","params":{},"id":1}""")
+        val clipboardOfRespawnedBridge = received.poll(2, TimeUnit.SECONDS)!!
+
+        pickerOfDeadBridge.answer(PickerShowResult(listOf(0)))
+        clipboardOfRespawnedBridge.answer(ClipboardReadResult("fresh"))
+
+        assertEquals(listOf("""{"id":1,"result":{"text":"fresh"}}"""), respawned.framesUntilQuiet())
+    }
+
+    @Test
+    fun `drops a reply for a dead bridge instead of keeping it for the next one`() {
+        val (channel, received) = answerableChannel()
+        val dead = fakeProcess()
+        channel.attach(dead.outputStream, dead.inputStream)
+        dead.emit("""{"method":"document/write","params":{},"id":3}""")
+        val writeOfDeadBridge = received.poll(2, TimeUnit.SECONDS)!!
+
+        dead.kill()
+        channel.detach()
+        writeOfDeadBridge.answer(DocumentWriteResult(changed = true, accepted = true))
+        dead.expectNoFrame()
+
+        val respawned = fakeProcess()
+        channel.attach(respawned.outputStream, respawned.inputStream)
+
+        respawned.expectNoFrame(500)
     }
 }

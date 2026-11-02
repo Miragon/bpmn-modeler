@@ -19,6 +19,7 @@ export interface ModelerSettingsSnapshot {
     favouriteBpmnElements: string[];
     language: string;
     scriptingSpin: boolean;
+    lintingEnabled: boolean;
     marketplaces: MarketplaceSettingsEntry[];
 }
 
@@ -33,12 +34,12 @@ const SETTING_KEY_OF_SNAPSHOT_KEY = {
     favouriteBpmnElements: "favouriteBpmnElements",
     language: "language",
     scriptingSpin: "scripting.spin",
+    lintingEnabled: "linting.enabled",
     marketplaces: "marketplaces",
 } as const satisfies Record<keyof ModelerSettingsSnapshot, string>;
 
 /** A modeler setting as VS Code names it below `miragon.bpmnModeler`, on every host. */
-export type SettingKey =
-    (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot] | "linting.enabled";
+export type SettingKey = (typeof SETTING_KEY_OF_SNAPSHOT_KEY)[keyof ModelerSettingsSnapshot];
 
 export function settingKeyOf(key: keyof ModelerSettingsSnapshot): SettingKey {
     return SETTING_KEY_OF_SNAPSHOT_KEY[key];
@@ -76,11 +77,9 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     ]),
     language: "en",
     scriptingSpin: true,
+    lintingEnabled: true,
     marketplaces: Object.freeze([]),
 });
-
-/** Outside the snapshot: IntelliJ has no lint setting, the bridge keeps the webview's toggle. */
-export const DEFAULT_LINTING_ENABLED = true;
 
 const COLOR_THEMES: readonly ColorThemeSetting[] = ["automatic", "light"];
 
@@ -103,6 +102,7 @@ const SETTING_PARSERS: {
             : [...DEFAULT_MODELER_SETTINGS.favouriteBpmnElements],
     language: (raw) => stringOr(raw, DEFAULT_MODELER_SETTINGS.language),
     scriptingSpin: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.scriptingSpin),
+    lintingEnabled: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.lintingEnabled),
     // Each entry is validated where it becomes a registration.
     marketplaces: (raw) => (Array.isArray(raw) ? raw : []),
 };
@@ -115,10 +115,6 @@ export function parseSetting<K extends keyof ModelerSettingsSnapshot>(
     raw: unknown,
 ): ModelerSettingsSnapshot[K] {
     return SETTING_PARSERS[key](raw);
-}
-
-export function parseLintingEnabled(raw: unknown): boolean {
-    return booleanOr(raw, DEFAULT_LINTING_ENABLED);
 }
 
 /** Every setting as a host must read it; keys the snapshot does not hold are dropped. */
@@ -137,6 +133,7 @@ export function normalizeSettings(raw: RawModelerSettings): ModelerSettingsSnaps
         favouriteBpmnElements: parseSetting("favouriteBpmnElements", raw.favouriteBpmnElements),
         language: parseSetting("language", raw.language),
         scriptingSpin: parseSetting("scriptingSpin", raw.scriptingSpin),
+        lintingEnabled: parseSetting("lintingEnabled", raw.lintingEnabled),
         marketplaces: parseSetting("marketplaces", raw.marketplaces),
     };
 }

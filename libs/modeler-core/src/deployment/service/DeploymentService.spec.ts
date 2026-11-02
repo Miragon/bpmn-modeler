@@ -12,6 +12,8 @@ import {
 } from "../domain/deployment";
 import { AdHocDestination, NamedDestination } from "../domain/deploymentDestination";
 import { contentFingerprint } from "../domain/deploymentLedger";
+import { additionalFilesPrompt } from "../domain/deploymentPrompts";
+import { fileChoice } from "../../kernel/domain/fileChoices";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { CamundaEnginePort } from "../domain/ports";
@@ -30,6 +32,7 @@ import {
     UnreadableDotEnvError,
     UnresolvedEnvVariableError,
 } from "../domain/errors";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { HttpTransportError } from "../../kernel/domain/http";
 import { createTestHost, Prompt, TestHostOptions } from "../../testing";
 import { Engine } from "@miragon/bpmn-modeler-types";
@@ -58,7 +61,7 @@ interface ServiceOptions extends TestHostOptions {
 /**
  * The env resolver and credential approval are real, so a test can assert what
  * the REST client vs. the secret store see and whether `.env` was read at all.
- * Every credential prompt is confirmed unless `answers` declines it.
+ * Every credential prompt is confirmed unless `promptAnswers` declines it.
  */
 function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: ServiceOptions = {}) {
     const dotEnvContents = Object.entries(dotEnvFiles).flatMap(([dir, dotEnv]) =>
@@ -77,7 +80,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         ...hostOptions,
         folders: hostOptions.folders ?? [...new Set(["/work", ...Object.keys(dotEnvFiles)])],
         files: { ...Object.fromEntries(dotEnvContents), ...hostOptions.files },
-        answers: { confirmDestructive: true, ...hostOptions.answers },
+        promptAnswers: { credentialApproval: true, ...hostOptions.promptAnswers },
     });
     const readWorkspaceFile = host.workspace.readFile.bind(host.workspace);
     const readFile = vi.spyOn(host.workspace, "readFile").mockImplementation(async (filePath) => {
@@ -105,6 +108,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         host.picker,
         host.notifier,
         envResolver,
+        host.settings,
     );
 
     const service = new DeploymentService(
@@ -118,6 +122,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         deploymentStatus,
         envResolver,
         credentialApproval,
+        host.settings,
     );
 
     return {
@@ -228,9 +233,10 @@ function refuseQuotingRequest() {
 /** The prompt asking to send `connection`'s credentials and `.env` values to `origins`. */
 function approvalPrompt(origins: string, connection: string): Prompt {
     return {
-        method: "confirmDestructive",
+        method: "confirm",
         args: [
             expect.objectContaining({
+                id: "credentialApproval",
                 title: `Send credentials and .env values to ${origins}?`,
                 details: expect.arrayContaining([`They belong to ${connection}.`]),
             }),
@@ -269,8 +275,7 @@ describe("DeploymentService.getFormDefaults", () => {
     it("derives the deployment name from the filename and auto-detects the engine", () => {
         const { service, host } = createService();
         const editor = host.openEditor("/work/order-process.bpmn", C8_XML);
-        host.deploymentState.endpoint = "https://camunda.example/api";
-        host.deploymentState.tenantId = "acme";
+        host.deploymentState.seed({ endpoint: "https://camunda.example/api", tenantId: "acme" });
 
         const defaults = service.getFormDefaults(editor.id);
 
@@ -314,7 +319,7 @@ describe("DeploymentService.getFormDefaults", () => {
 describe("DeploymentService.getStoredCredentials", () => {
     it("returns basic credentials when basic auth is stored", async () => {
         const { service, host } = createService();
-        host.deploymentState.authType = "basic";
+        host.deploymentState.seed({ authType: "basic" });
         await host.secrets.saveBasicAuth("admin", "secret");
 
         await expect(service.getStoredCredentials()).resolves.toEqual({
@@ -326,9 +331,11 @@ describe("DeploymentService.getStoredCredentials", () => {
 
     it("returns oauth2 credentials plus the stored token endpoint and audience", async () => {
         const { service, host } = createService();
-        host.deploymentState.authType = "oauth2";
-        host.deploymentState.tokenEndpoint = "https://idp/token";
-        host.deploymentState.audience = "zeebe-api";
+        host.deploymentState.seed({
+            authType: "oauth2",
+            tokenEndpoint: "https://idp/token",
+            audience: "zeebe-api",
+        });
         await host.secrets.saveOAuth2("cid", "csecret");
 
         await expect(service.getStoredCredentials()).resolves.toEqual({
@@ -342,7 +349,7 @@ describe("DeploymentService.getStoredCredentials", () => {
 
     it("returns a none payload when the auth type is basic but no secret exists", async () => {
         const { service, host } = createService();
-        host.deploymentState.authType = "basic";
+        host.deploymentState.seed({ authType: "basic" });
 
         await expect(service.getStoredCredentials()).resolves.toEqual({ authType: "none" });
     });
@@ -355,25 +362,142 @@ describe("DeploymentService.getStoredCredentials", () => {
 });
 
 describe("DeploymentService.selectAdditionalFiles", () => {
-    it("forwards the deployment-resource glob to the picker", async () => {
-        const { service, host } = createService({ answers: { workspaceFiles: ["/work/a.form"] } });
+    const RESOURCES = {
+        "/work/forms/order.form": "{}",
+        "/work/payloads/vars.json": "{}",
+        "/work/decisions/discount.dmn": "<definitions/>",
+    };
+
+    it("offers the workspace's forms, JSON files and decisions, ordered as VS Code shows them", async () => {
+        const { service, host } = createService({
+            folders: ["/work", "/archive/zeta"],
+            files: {
+                ...RESOURCES,
+                "/archive/zeta/legacy.form": "{}",
+                "/work/order.bpmn": "<definitions/>",
+                "/work/element-templates/task.json": "[]",
+            },
+            promptAnswers: {
+                additionalFiles: ["/work/forms/order.form", "/work/decisions/discount.dmn"],
+            },
+        });
 
         const result = await service.selectAdditionalFiles();
 
-        expect(result).toEqual(["/work/a.form"]);
+        expect(result).toEqual(["/work/forms/order.form", "/work/decisions/discount.dmn"]);
         expect(host.picker.prompts).toEqual([
             {
-                method: "pickWorkspaceFiles",
+                method: "chooseMany",
                 args: [
                     {
-                        glob: "**/*.{form,json,dmn}",
-                        exclude: "**/element-templates/**",
-                        placeholder: expect.any(String),
-                        limit: 20,
+                        id: "additionalFiles",
+                        placeholder: "Select additional files to include in the deployment",
+                        items: [
+                            "/work/decisions/discount.dmn",
+                            "/work/forms/order.form",
+                            "/work/payloads/vars.json",
+                            "/archive/zeta/legacy.form",
+                        ].map(fileChoice),
                     },
                 ],
             },
         ]);
+    });
+
+    it("offers no file inside node_modules or build output", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/node_modules/left-pad/package.json": "{}",
+                "/work/target/classes/discount.dmn": "<definitions/>",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers no file inside a dot-folder, such as the modeler's own config", async () => {
+        const { service, host } = createService({
+            files: {
+                ...RESOURCES,
+                "/work/.camunda/deployment-targets.json": "{}",
+                "/work/.camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/.vscode/settings.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers no file inside the modeler's config folder when its name has no dot", async () => {
+        const { service, host } = createService({
+            settings: { configFolder: "camunda" },
+            files: {
+                ...RESOURCES,
+                "/work/camunda/deployment-targets.json": "{}",
+                "/work/camunda/code-link/processes/order.bpmn.json": "{}",
+                "/work/processes/camunda/payloads/start.json": "{}",
+            },
+        });
+
+        await service.selectAdditionalFiles();
+
+        expect(host.picker.prompts).toEqual([
+            {
+                method: "chooseMany",
+                args: [
+                    additionalFilesPrompt({
+                        files: Object.keys(RESOURCES),
+                        workspaceFolders: ["/work"],
+                    }),
+                ],
+            },
+        ]);
+    });
+
+    it("offers every matching file in workspace order, the one found last first, and returns none when the user dismisses the list", async () => {
+        const foundLast = "/work/forms/a.form";
+        const forms = {
+            ...Object.fromEntries(
+                Array.from({ length: 20 }, (_, index) => [`/work/forms/z-${index}.form`, "{}"]),
+            ),
+            [foundLast]: "{}",
+        };
+        const { service, host } = createService({ files: forms });
+
+        await expect(service.selectAdditionalFiles()).resolves.toEqual([]);
+
+        const offered = additionalFilesPrompt({
+            files: Object.keys(forms),
+            workspaceFolders: ["/work"],
+        });
+        expect(offered.items).toHaveLength(21);
+        expect(offered.items[0]).toEqual(fileChoice(foundLast));
+        expect(host.picker.prompts).toEqual([{ method: "chooseMany", args: [offered] }]);
     });
 });
 
@@ -401,14 +525,14 @@ describe("DeploymentService.deploy", () => {
 
     it("persists the endpoint, tenant and auth type on success", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
-        host.deploymentState.authType = "basic";
+        host.deploymentState.seed({ authType: "basic" });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
         await deployAdHoc(service, buildConfig({ endpoint: "https://c/api", tenantId: "acme" }));
 
-        expect(host.deploymentState.endpoint).toBe("https://c/api");
-        expect(host.deploymentState.tenantId).toBe("acme");
-        expect(host.deploymentState.authType).toBe("none");
+        expect(host.deploymentState.load().endpoint).toBe("https://c/api");
+        expect(host.deploymentState.load().tenantId).toBe("acme");
+        expect(host.deploymentState.load().authType).toBe("none");
     });
 
     it("stores basic-auth credentials on success", async () => {
@@ -417,7 +541,7 @@ describe("DeploymentService.deploy", () => {
 
         await deployAdHoc(service, buildConfig({ auth: new BasicAuth("admin", "secret") }));
 
-        expect(host.deploymentState.authType).toBe("basic");
+        expect(host.deploymentState.load().authType).toBe("basic");
         await expect(host.secrets.getBasicAuth()).resolves.toEqual({
             username: "admin",
             password: "secret",
@@ -439,8 +563,8 @@ describe("DeploymentService.deploy", () => {
             clientId: "cid",
             clientSecret: "csecret",
         });
-        expect(host.deploymentState.tokenEndpoint).toBe("https://idp/token");
-        expect(host.deploymentState.audience).toBe("zeebe-api");
+        expect(host.deploymentState.load().tokenEndpoint).toBe("https://idp/token");
+        expect(host.deploymentState.load().audience).toBe("zeebe-api");
     });
 
     it("persists only credentials under the slot (not legacy state) in target mode", async () => {
@@ -457,9 +581,9 @@ describe("DeploymentService.deploy", () => {
             password: "secret",
         });
         await expect(host.secrets.getBasicAuth()).resolves.toBeUndefined();
-        expect(host.deploymentState.endpoint).toBe("");
-        expect(host.deploymentState.tenantId).toBe("");
-        expect(host.deploymentState.authType).toBe("none");
+        expect(host.deploymentState.load().endpoint).toBe("");
+        expect(host.deploymentState.load().tenantId).toBe("");
+        expect(host.deploymentState.load().authType).toBe("none");
     });
 
     it("persists a ref next to a literal to the target slot as typed, sending only the resolved value", async () => {
@@ -587,7 +711,7 @@ describe("DeploymentService.deploy", () => {
         );
 
         expect(result.success).toBe(false);
-        expect(host.deploymentState.endpoint).toBe("");
+        expect(host.deploymentState.load().endpoint).toBe("");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
 
@@ -620,7 +744,10 @@ describe("DeploymentService.deploy", () => {
     it("reports an engine-accepted ad-hoc deploy as deployed and still stores its credentials and ledger row when saving the connection settings throws", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        vi.spyOn(host.deploymentState, "save").mockRejectedValue(new Error("state locked"));
+        host.deploymentState.failSaves(
+            (patch) => patch.endpoint !== undefined,
+            new Error("state locked"),
+        );
 
         const result = await deployAdHoc(
             service,
@@ -642,12 +769,41 @@ describe("DeploymentService.deploy", () => {
             username: "admin",
             password: "secret",
         });
-        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+        expect(host.deploymentState.load().ledger).toEqual({
             "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
         });
         expect(host.notifier.logged("warning")).toEqual([
             "Deployment succeeded, but saving its connection settings failed: state locked",
         ]);
+    });
+
+    it("saves an ad-hoc deploy's connection in one write, so a failed save leaves the stored connection whole", async () => {
+        const { service, host, restClient } = createService({ files: MAIN_FILE });
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
+        const storedConnection = {
+            endpoint: "https://old.example/api",
+            tenantId: "old-tenant",
+            authType: "basic",
+            tokenEndpoint: "https://old-idp/token",
+            audience: "old-audience",
+        } as const;
+        host.deploymentState.seed(storedConnection);
+        host.deploymentState.failSaves(
+            (patch) => patch.authType !== undefined,
+            new Error("state locked"),
+        );
+
+        const result = await deployAdHoc(
+            service,
+            buildConfig({
+                endpoint: "https://new.example/api",
+                tenantId: "new-tenant",
+                auth: new OAuth2Auth("cid", "csecret", "https://new-idp/token", "new-audience"),
+            }),
+        );
+
+        expect(result.message).toBe("ok Not saved: connection settings (state locked).");
+        expect(host.deploymentState.load()).toMatchObject(storedConnection);
     });
 
     it("reports an engine-accepted deploy as deployed and still records it when storing the credentials throws", async () => {
@@ -667,8 +823,8 @@ describe("DeploymentService.deploy", () => {
         expect(result).toEqual(
             new DeploymentResult(true, "ok Not saved: credentials (no OS keyring).", "dep-1"),
         );
-        expect(host.deploymentState.endpoint).toBe("https://c.example/api");
-        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+        expect(host.deploymentState.load().endpoint).toBe("https://c.example/api");
+        expect(host.deploymentState.load().ledger).toEqual({
             "adhoc:c.example/acme::/work/order-process.bpmn": recordedRevision("dep-1"),
         });
         expect(host.notifier.logged("warning")).toEqual([
@@ -679,7 +835,8 @@ describe("DeploymentService.deploy", () => {
     it("reports an engine-accepted deploy as deployed when recording the ledger row throws", async () => {
         const { service, host, restClient } = createService({ files: MAIN_FILE });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger !== undefined,
             new Error("workspace state unavailable"),
         );
 
@@ -761,10 +918,10 @@ describe("DeploymentService.deploy", () => {
         expect(sentConfig.endpoint).toBe("https://camunda.prod.example/api");
         expect((sentConfig.auth as BasicAuth).password).toBe("s3cret");
         // Persisted state must keep the literal ref, never the resolved secret.
-        expect(host.deploymentState.endpoint).toBe(
+        expect(host.deploymentState.load().endpoint).toBe(
             "https://camunda.${env:MIRAGON_STAGE}.example/api",
         );
-        expect(host.deploymentState.tenantId).toBe("");
+        expect(host.deploymentState.load().tenantId).toBe("");
         await expect(host.secrets.getBasicAuth()).resolves.toEqual({
             username: "admin",
             password: "${env:MIRAGON_PASSWORD}",
@@ -1032,7 +1189,7 @@ describe("DeploymentService.deploy credential approval", () => {
     it("deploys, persists and records nothing when the user declines the destination", async () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: MAIN_FILE,
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
@@ -1049,8 +1206,8 @@ describe("DeploymentService.deploy credential approval", () => {
         await expect(host.secrets.getBasicAuth(TARGET_SLOT)).resolves.toBeUndefined();
         await expect(host.secrets.getOAuth2(TARGET_SLOT)).resolves.toBeUndefined();
         await expect(host.secrets.getBasicAuth()).resolves.toBeUndefined();
-        expect(host.deploymentState.endpoint).toBe("");
-        expect(host.deploymentState.authType).toBe("none");
+        expect(host.deploymentState.load().endpoint).toBe("");
+        expect(host.deploymentState.load().authType).toBe("none");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
     });
 
@@ -1111,7 +1268,7 @@ describe("DeploymentService.deploy credential approval", () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: MAIN_FILE,
             dotEnvFiles: { "/work": { MIRAGON_URL: "https://from-env.example/engine-rest" } },
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
 
@@ -1126,8 +1283,31 @@ describe("DeploymentService.deploy credential approval", () => {
         expect(result).toMatchObject({ success: false, message: declinedAdHoc.message });
         expect(restClient.deploy).not.toHaveBeenCalled();
         await expect(host.secrets.getBasicAuth()).resolves.toBeUndefined();
-        expect(host.deploymentState.endpoint).toBe("");
+        expect(host.deploymentState.load().endpoint).toBe("");
         expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
+    });
+
+    it("lets a cancelled keychain read of the approved hosts through, deploying and logging nothing", async () => {
+        const { service, host, restClient, deploymentStatus } = createService({
+            files: MAIN_FILE,
+        });
+        vi.spyOn(host.secrets, "getApprovedDestinations").mockRejectedValue(
+            new UserCancelledError(),
+        );
+
+        await expect(
+            service.deploy(
+                buildConfig({
+                    endpoint: "https://gw/engine-rest",
+                    auth: new BasicAuth("admin", "s3cret"),
+                }),
+                named(targetAt("https://gw/engine-rest")),
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(deploymentStatus.recordDeployment).not.toHaveBeenCalled();
+        expect(host.notifier.logged("error")).toEqual([]);
     });
 });
 
@@ -1185,7 +1365,7 @@ describe("DeploymentService.deployFiles", () => {
         expect(results.map((r) => r.success)).toEqual([true, false, false]);
         expect(results[1].message).toBe("b: boom");
         expect(host.notifier.errors).toEqual(['Deployed 1/3 file(s) to "dev". b: boom']);
-        expect(Object.fromEntries(host.deploymentState.ledger)).toEqual({
+        expect(host.deploymentState.load().ledger).toEqual({
             "target:dev@c::/work/a.bpmn": recordedRevision("dep-a"),
         });
     });
@@ -1202,14 +1382,15 @@ describe("DeploymentService.deployFiles", () => {
         );
 
         expect(results).toEqual([new DeploymentResult(false, "rejected by server")]);
-        expect(host.deploymentState.ledger).toEqual(new Map());
+        expect(host.deploymentState.load().ledger).toEqual({});
         expect(host.notifier.errors).toEqual(['Deployed 0/1 file(s) to "dev". rejected by server']);
     });
 
     it("counts a file the engine accepted as deployed when recording its ledger row throws", async () => {
         const { service, host, restClient } = createService({ files: xmlFiles("/work/a.bpmn") });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok", "dep-1"));
-        vi.spyOn(host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        host.deploymentState.failSaves(
+            (patch) => patch.ledger !== undefined,
             new Error("workspace state unavailable"),
         );
 
@@ -1546,7 +1727,7 @@ describe("DeploymentService.deployFiles", () => {
     it("fails every file without a single deploy when the user declines the destination", async () => {
         const { service, host, restClient, deploymentStatus } = createService({
             files: xmlFiles("/work/a.bpmn", "/work/b.bpmn"),
-            answers: { confirmDestructive: false },
+            promptAnswers: { credentialApproval: false },
         });
         restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
 
@@ -1568,5 +1749,29 @@ describe("DeploymentService.deployFiles", () => {
         expect(host.notifier.errors).toEqual([
             `Deployed 0/2 file(s) to "dev". a: ${DECLINED.message}`,
         ]);
+    });
+
+    it("stops the whole batch before the first deploy when the user cancels the keychain read of the approved hosts", async () => {
+        const { service, host, restClient } = createService({
+            files: xmlFiles("/work/a.bpmn", "/work/b.bpmn"),
+        });
+        const approvalReads = vi
+            .spyOn(host.secrets, "getApprovedDestinations")
+            .mockRejectedValue(new UserCancelledError());
+
+        await expect(
+            service.deployFiles(
+                ["/work/a.bpmn", "/work/b.bpmn"],
+                named(target),
+                new BasicAuth("admin", "s3cret"),
+                "/work",
+            ),
+        ).rejects.toBeInstanceOf(UserCancelledError);
+
+        expect(approvalReads).toHaveBeenCalledOnce();
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.notifier.logged("warning")).toEqual([]);
     });
 });

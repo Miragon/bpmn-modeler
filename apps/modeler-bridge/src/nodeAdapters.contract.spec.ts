@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 import { toWorkspacePath } from "@miragon/bpmn-modeler-core";
 import { describeWorkspaceContract } from "@miragon/bpmn-modeler-core/testing";
@@ -24,6 +24,15 @@ describeWorkspaceContract("NodeWorkspace on a real directory", async () => {
         openFolder: (folder) => workspace.registerRoot(folder),
         createDirectory: async (path) => {
             await fs.mkdir(path, { recursive: true });
+        },
+        moveDirectoryIn: async (path, files) => {
+            const staging = await fs.mkdtemp(join(tmpdir(), "workspace-contract-staging-"));
+            for (const [file, content] of Object.entries(files)) {
+                const staged = join(staging, relative(path, file));
+                await fs.mkdir(dirname(staged), { recursive: true });
+                await fs.writeFile(staged, content);
+            }
+            await fs.rename(staging, path);
         },
         removeFile: (path) => fs.rm(path),
         watchersReady: () => sleep(WATCHER_ARMING_MS),

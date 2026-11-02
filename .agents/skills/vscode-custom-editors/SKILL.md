@@ -46,7 +46,7 @@ Lifecycle is split into independently testable `EditorSessionParticipant`s (cont
 
 | Concern | Where | Notes |
 |---|---|---|
-| Webview messages | `WebviewMessageRouter.dispatch` → handler factories (host-agnostic ones in `libs/modeler-core`, VS Code-only ones in `<feature>/controller/webview-handlers/`) | Replaces the old `switch(message.type)` |
+| Webview messages | `WebviewMessageRouter.dispatch` → handler factories (host-agnostic ones in `libs/modeler-core`, VS Code-only ones in `<feature>/controller/webview-handlers/`); the BPMN router is the core `BpmnEditorFeature`'s table | Replaces the old `switch(message.type)` |
 | Render + service session | `DocumentRenderParticipant` (one per editor type, with the file extension) | `service.registerSession` + doc-change → `service.display()`; the services share `EditorDocumentSync` (echo guard, revision check, empty-file init) |
 | Element templates | `ElementTemplatesParticipant` (BPMN only) | config-folder watch via `ArtifactService.createWatcher()` |
 | Settings / language | `BpmnSettingsParticipant` (BPMN only) | subscribes `BpmnSettingsBroadcaster` (asks `SettingChange.affects` for the `SettingKey`s it pushes). The plugin reads, writes and watches settings only through `shared/infrastructure/modelerConfiguration.ts`, keyed by `SettingKey`; `manifest.contract.spec.ts` fails on a configuration call elsewhere |
@@ -68,7 +68,7 @@ When the document content changes (external edit, git checkout, etc.):
 ### Webview → Extension Host (Sync)
 
 When the user edits the diagram in the webview:
-1. `commandStack.changed` fires in bpmn-js
+1. `commandStack.changed` fires in bpmn-js and reaches the webview through the handle's `onCommandStackChanged`
 2. Webview exports current XML, sends `SyncDocumentCommand` to extension host
 3. The editor's `WebviewMessageRouter` dispatches it to `syncDocumentHandler`, which calls `service.sync(editorId, content)`
 4. Service acquires echo-prevention guard, writes XML to document via `EditorSessionDocuments`
@@ -88,12 +88,12 @@ VS Code handles dirty tracking and undo/redo integration automatically. The `wri
 
 ## BPMN vs DMN Controller Differences
 
-Both editors share `ModelerEditorController`; the difference is purely in the `options` each is wired with (in `composition/editorFeature.ts`):
+Both editors share `ModelerEditorController`; the difference is purely in the `options` each is wired with. The BPMN editor's router and participants are the core `BpmnEditorFeature`'s, the same on the IntelliJ bridge, wired in `composition/bpmnEditorFeature.ts`; the DMN editor is wired in `composition/editorFeature.ts`:
 
 | Concern | BPMN editor | DMN editor |
 |---|---|---|
-| **Router handlers** | full set (get-file, element-templates, settings + script resync, properties-panel get/set, structured + text clipboard, sync, open-script-editor, navigate-to-referenced-model) | 5 (`GetDmnFileCommand`, `GetDmnModelerSettingCommand`, `GetPropertiesPanelStateCommand`, `SetPropertiesPanelStateCommand`, `SyncDocumentCommand`) |
-| **Participants** | `DocumentRenderParticipant`, `FormReferenceStatusParticipant`, `DefinitionSearchParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `BpmnSettingsParticipant`, `EngineVersionStatusBarParticipant`, `DeploymentStatusParticipant`, `ScriptTaskTeardownParticipant`, `CodeLinkParticipant` | `DocumentRenderParticipant`, `DmnSettingsParticipant` |
+| **Router handlers** | every BPMN editor command, from a `CommandTable` (`GetDiagramAsSVGCommand` ignored with a reason) | 5 (`GetDmnFileCommand`, `GetDmnModelerSettingCommand`, `GetPropertiesPanelStateCommand`, `SetPropertiesPanelStateCommand`, `SyncDocumentCommand`) |
+| **Participants** | `DocumentRenderParticipant`, `FormReferenceStatusParticipant`, `DefinitionSearchParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `BpmnSettingsParticipant`, `EngineVersionStatusBarParticipant`, `DeploymentStatusParticipant`, `ScriptEditorParticipant`, `CodeLinkParticipant` | `DocumentRenderParticipant`, `DmnSettingsParticipant` |
 | **Diff delegation** | yes (`delegateResolve` → `BpmnDiffController`) | no |
 
 DMN files don't use element templates, BPMN settings, inline scripts, or the diff viewer, so the DMN editor simply gets fewer handlers and one participant.
@@ -104,7 +104,7 @@ Each editor instance gets its own disposable list managed by `EditorSessionStore
 
 1. `WebviewPanel.onDidDispose` fires the lifecycle's single aggregated dispose subscription
 2. `EditorSessionStore.disposeEditor()` disposes all per-editor subscriptions and removes the entry. If the closed editor was the command target, `CommandTarget` hands it back to the open editor that held it before (the newest remaining editor when none did) until the host reports the next focused one, or clears it
-3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTaskSvc.disposeForEditor(editorId)`). The lifecycle collects them and runs them **once**, after the store's bookkeeping, so the target has already moved
+3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptEditor.disposeEditor(editorId)`). The lifecycle collects them and runs them **once**, after the store's bookkeeping, so the target has already moved
 
 This per-editor cleanup prevents memory leaks when editors are opened and closed repeatedly.
 
@@ -112,7 +112,7 @@ This per-editor cleanup prevents memory leaks when editors are opened and closed
 
 Multiple editors can be open simultaneously (e.g., two `.bpmn` files side by side). `EditorSessionStore` maintains:
 - A `Map` of all open editor handles keyed by `editorId` (the full `document.uri.toString()`)
-- A command target (`CommandTarget`, read through `getActiveEditorId()`): the session focused last, not focus. `onDidChangeViewState` moves it to a panel that becomes active, and from a target panel that turns inactive to the session that has reported focus longest without blurring, if any; focusing a session drops every other report, so a target the host focused keeps it on blur. A diagram that resolves in a background group does not take it in VS Code, and gives it back in the standalone app once Theia blurs its panel. It stays on a diagram while a text editor is active, so status items ask `isFocused(editorId)` or `getFocusedEditorId()` (the handle's `panel.active`) instead
+- A command target (`CommandTarget`, read through `getActiveEditorId()`): the session focused last, not focus. `onDidChangeViewState` moves it to a panel that becomes active, and from a target panel that turns inactive to the session that has reported focus longest without blurring, if any; focusing a session drops every other report, so a target the host focused keeps it on blur. A diagram that resolves in a background group does not take it in VS Code, and gives it back in the standalone app once Theia blurs its panel. It stays on a diagram while a text editor is active, so status items ask `isFocused(editorId)` or `getFocusedEditorId()` (the handle's `panel.active && panel.visible`, because Theia can report a hidden tab active) instead
 - Per-editor isolation — each editor has its own webview, subscriptions, and session
 - An `onDidChangeActiveEditor` event that the core `DeploymentFeature` listens to for refreshing the open deployment panel's form defaults
 - A VS Code context variable (`bpmn-modeler.openCustomEditors`) tracking the count of open editors, used in keybinding/menu `when` clauses
@@ -123,8 +123,9 @@ Services operate on the active editor by default. The echo-prevention guard is p
 
 - **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
 - **Session lifecycle + participant contract**: `libs/modeler-core/src/editorSession/service/EditorSessionLifecycle.ts`, `libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts`
-- **Shared participants / handlers**: `libs/modeler-core/src/<feature>/session/`, `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch` `infrastructure/*MessageHandlers.ts`)
-- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/*/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts` (inline scripts, linting switch)
+- **BPMN editor**: `libs/modeler-core/src/modeler/bpmn/BpmnEditorFeature.ts` (services, router table, participant order); the contributing features' roots `NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`, `ScriptEditorFeature`
+- **Shared participants / handlers**: `libs/modeler-core/src/<feature>/session/`, `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch`/`scriptTask` `infrastructure/*MessageHandlers.ts`)
+- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/form/controller/editor-participants/`, `…/webview-handlers/formMessageHandlers.ts` (form values); the BPMN editor's VS Code adapters are `VsCodeLintingPreference`, `PropertiesPanelStateRepository` and the script tabs `scriptTask/infrastructure/ScriptTaskService.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts` (host-agnostic)
 - **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
@@ -133,7 +134,7 @@ Services operate on the active editor by default. The echo-prevention guard is p
 - **Session documents**: `libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store)
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`
-- **Editor wiring**: `apps/vscode-plugin/src/composition/editorFeature.ts`; **activation**: `apps/vscode-plugin/src/main.ts`
+- **Editor wiring**: `apps/vscode-plugin/src/composition/bpmnEditorFeature.ts` (BPMN), `apps/vscode-plugin/src/composition/editorFeature.ts` (DMN, Form, save flush); **activation**: `apps/vscode-plugin/src/main.ts`
 
 ## Related Skills
 

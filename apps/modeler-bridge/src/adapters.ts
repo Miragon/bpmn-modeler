@@ -14,42 +14,37 @@
  * hit a local cache instead of blocking on a round-trip.
  */
 
-import { posix } from "node:path";
-
-import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
-import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import {
-    BpmnlintStatusBarPort,
-    classifyLocateResult,
+    applyDeploymentStatePatch,
+    ChoicePrompt,
     ClipboardPort,
-    DeployedRevision,
-    DeploymentFreshness,
-    DeploymentPickerPort,
+    ConfirmRequest,
+    DEFAULT_DEPLOYMENT_STATE,
+    DeploymentState,
+    DeploymentStatePatch,
     DeploymentStatePort,
-    DeploymentStatusBarPort,
+    deploymentStateFrom,
     DocumentChangeEvent,
     DocumentPort,
     EditorHandle,
     EditorSubscription,
     errorLogText,
-    LocatePrompts,
-    LocateResult,
-    MigrationPickerPort,
-    MigrationScope,
-    NEW_MODEL_ENGINE_CHOICES,
-    NewModelEngine,
+    LintingPreferencePort,
     notifiedErrorLogText,
     notifiedErrorToastText,
     NotifierPort,
     PickerPort,
-    ScriptLanguage,
+    RawDeploymentState,
+    SearchPrompt,
     SecretStorePort,
     SettingChange,
     StatusBarPort,
-    summarizeAffectedItems,
+    StatusSlot,
+    StatusView,
+    TokenPrompt,
     TokenPromptPort,
     TokenStorePort,
-    UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeSettings } from "./nodeAdapters";
@@ -68,22 +63,13 @@ import {
     SecretApprovedDestinations,
     SecretGetApprovedDestinationsParams,
     SecretSaveApprovedDestinationsParams,
+    SessionMeta,
+    SettingsSetLintingEnabledParams,
+    StatusBarUpdateParams,
+    TokenPromptShowParams,
     TokenPromptShowResult,
     TokenStoreGetResult,
 } from "./protocol/types";
-
-/** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
-export interface SessionMeta {
-    editorId: string;
-    /** Exact host editor generation for rejecting same-URI stale traffic. */
-    sessionId?: number;
-    uriString: string;
-    path: string;
-    fsPath: string;
-    scheme: string;
-    /** Host-provided workspace root, used to seed element-template discovery. */
-    workspaceRoot?: string;
-}
 
 /**
  * Local mirror of every open document's text + identity, seeded by the host on
@@ -167,7 +153,7 @@ export class RpcEditorHandle implements EditorHandle {
     readonly id: string;
 
     private receiveCallback?: (message: Command) => void;
-    private readonly disposeCallbacks: Array<() => void> = [];
+    private readonly disposeCallbacks = new Set<() => void>();
     private readonly activeCallbacks = new Set<(active: boolean) => void>();
     private readonly subscriptions: EditorSubscription[] = [];
     private active = false;
@@ -269,8 +255,8 @@ export class RpcEditorHandle implements EditorHandle {
     }
 
     onDidDispose(callback: () => void): EditorSubscription {
-        this.disposeCallbacks.push(callback);
-        return { dispose: () => {} };
+        this.disposeCallbacks.add(callback);
+        return { dispose: () => this.disposeCallbacks.delete(callback) };
     }
 
     onDidChangeActive(callback: (active: boolean) => void): EditorSubscription {
@@ -418,54 +404,22 @@ export class RpcNotifier implements NotifierPort {
 }
 
 /**
- * Forwards every {@link StatusBarPort} and {@link DeploymentStatusBarPort} call
- * to the host, which owns the actual `StatusBarWidget`s (element-template count
- * + engine version; deployment target). The core stays the single source of
- * truth for *what* to show; the host decides *how*.
+ * Sends each status slot's view to the host, which shows every slot in its own
+ * `StatusBarWidget`. The core decides *what* a slot shows; the host only places
+ * it.
  */
-export class RpcStatusBar implements StatusBarPort, BpmnlintStatusBarPort, DeploymentStatusBarPort {
+export class RpcStatusBar implements StatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
-    showElementTemplatesLoading(): void {
-        this.rpc.notify(METHODS.statusBarTemplatesLoading, {});
+    show(slot: StatusSlot, view: StatusView): void {
+        this.rpc.notify(METHODS.statusBarUpdate, { slot, view } satisfies StatusBarUpdateParams);
     }
 
-    showElementTemplatesReady(count: number): void {
-        this.rpc.notify(METHODS.statusBarTemplatesReady, { count });
-    }
-
-    hideElementTemplatesStatus(): void {
-        this.rpc.notify(METHODS.statusBarTemplatesHide, {});
-    }
-
-    showEngineVersion(platform: Engine, version: string): void {
-        this.rpc.notify(METHODS.statusBarShowEngineVersion, { platform, version });
-    }
-
-    hideEngineVersion(): void {
-        this.rpc.notify(METHODS.statusBarHideEngineVersion, {});
-    }
-
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void {
-        this.rpc.notify(METHODS.statusBarShowDeploymentTarget, {
-            name: name ?? null,
-            freshness,
-            deployedAt: deployedAt ?? null,
-            verifiedAt: verifiedAt ?? null,
-        });
-    }
-
-    hideDeploymentTarget(): void {
-        this.rpc.notify(METHODS.statusBarHideDeploymentTarget, {});
-    }
-
-    showBpmnlint(): void {
-        /* not supported yet for intellij */
+    hide(slot: StatusSlot): void {
+        this.rpc.notify(METHODS.statusBarUpdate, {
+            slot,
+            view: null,
+        } satisfies StatusBarUpdateParams);
     }
 }
 
@@ -570,175 +524,77 @@ export class RpcTokenStore implements TokenStorePort {
     }
 }
 
-/**
- * Routes the core's {@link TokenPromptPort} to a host modal PAT-entry dialog. A
- * `null` result (decline) — or a blank one — maps to `undefined`, the port's
- * "declined" signal that keeps a background `updateAll` running. The host already
- * blank-checks, but re-guarding here keeps the contract honest independently.
- */
+/** IntelliJ's password dialog always masks, so only the text travels. */
 export class RpcTokenPrompt implements TokenPromptPort {
     constructor(private readonly rpc: Rpc) {}
 
-    async promptForToken(host: string, reason: string): Promise<string | undefined> {
+    async promptForToken(prompt: TokenPrompt): Promise<string | undefined> {
         const result = (await this.rpc.request(METHODS.tokenPromptShow, {
-            host,
-            reason,
-        })) as TokenPromptShowResult | null;
-        const token = result?.token?.trim();
-        return token ? token : undefined;
+            title: prompt.title,
+            prompt: prompt.prompt,
+        } satisfies TokenPromptShowParams)) as TokenPromptShowResult | null;
+        return result?.token ?? undefined;
     }
 }
 
-/** Snapshot of the non-secret deployment-form state the host persists across sessions. */
-export interface DeploymentStateSnapshot {
-    endpoint: string;
-    tenantId: string;
-    authType: AuthTypePayload;
-    tokenEndpoint: string;
-    audience: string;
-    activeTargetName: string;
-    ledger: Record<string, DeployedRevision>;
-}
+/**
+ * The host stores the user's lint choice and pushes it back in the settings
+ * snapshot; the bridge never flips its copy.
+ */
+export class RpcLintingPreference implements LintingPreferencePort {
+    constructor(private readonly rpc: Rpc) {}
 
-/** Render-safe defaults before the host's first seed arrives. */
-const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
-    endpoint: "",
-    tenantId: "",
-    authType: "none",
-    tokenEndpoint: "",
-    audience: "",
-    activeTargetName: "",
-    ledger: {},
-};
+    async setLintingEnabled(enabled: boolean): Promise<void> {
+        await this.rpc.request(METHODS.settingsSetLintingEnabled, {
+            enabled,
+        } satisfies SettingsSetLintingEnabledParams);
+    }
+}
 
 /**
  * RPC-backed {@link DeploymentStatePort} with a local mirror.
  *
- * The port's getters are **synchronous** (`getEndpoint(): string`, …), so the
- * bridge cannot await an RPC per read. Mirroring the {@link BridgeSettings}
- * pattern: the host seeds a snapshot once on startup (`deploymentState/seed`);
- * getters read the mirror.
+ * `load()` is synchronous, so the bridge cannot await an RPC per read.
+ * Mirroring the {@link BridgeSettings} pattern: the host seeds what it stored
+ * once on startup (`deploymentState/seed`) and `load()` reads the mirror, which
+ * the core normalises.
  *
- * Ownership is single-writer: the in-process **snapshot is authoritative** for
- * reads, and the host is a persisted replica reconciled on the next re-seed. The
- * `save*` methods update the snapshot optimistically (so in-process reads and
- * the form UX stay correct), then send an **acknowledged** request to persist.
- * A persist failure rejects so the core decides what it means. The snapshot is
- * deliberately *not* rolled back on failure — reverting mid-session would
- * surface stale form values; the next seed reconciles.
- * Secrets are out of scope here — they ride {@link RpcSecretStore} / PasswordSafe.
+ * The host is the writer of record: `save` sends the patch as one
+ * **acknowledged** `deploymentState/save` request and applies it to the mirror
+ * only once the host accepted it, so a read never shows a value the host did
+ * not store. A persist failure rejects, leaves the mirror as it was, and lets
+ * the core decide what it means. Secrets are out of scope here — they ride
+ * {@link RpcSecretStore} / PasswordSafe.
  */
 export class RpcDeploymentState implements DeploymentStatePort {
-    private snapshot: DeploymentStateSnapshot = { ...EMPTY_DEPLOYMENT_STATE };
+    private state: DeploymentState = DEFAULT_DEPLOYMENT_STATE;
 
     constructor(private readonly rpc: Rpc) {}
 
-    /** Replaces the mirror from the host's seed (sent once on startup / after persist). */
-    seed(next: Partial<DeploymentStateSnapshot>): void {
-        this.snapshot = { ...this.snapshot, ...next };
+    /** Replaces the mirror with what the host stored (sent on startup / respawn). */
+    seed(stored: RawDeploymentState): void {
+        this.state = deploymentStateFrom(stored);
     }
 
-    getEndpoint(): string {
-        return this.snapshot.endpoint;
+    load(): DeploymentState {
+        return this.state;
     }
 
-    getTenantId(): string {
-        return this.snapshot.tenantId;
-    }
-
-    getAuthType(): AuthTypePayload {
-        return this.snapshot.authType;
-    }
-
-    getTokenEndpoint(): string {
-        return this.snapshot.tokenEndpoint;
-    }
-
-    getAudience(): string {
-        return this.snapshot.audience;
-    }
-
-    async saveAuthType(authType: AuthTypePayload): Promise<void> {
-        this.snapshot = { ...this.snapshot, authType };
-        await this.rpc.request(METHODS.deploymentStateSaveAuthType, { authType });
-    }
-
-    async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
-        this.snapshot = { ...this.snapshot, tokenEndpoint, audience };
-        await this.rpc.request(METHODS.deploymentStateSaveOAuth2Config, {
-            tokenEndpoint,
-            audience,
-        });
-    }
-
-    async save(endpoint: string, tenantId: string): Promise<void> {
-        this.snapshot = { ...this.snapshot, endpoint, tenantId };
-        await this.rpc.request(METHODS.deploymentStateSave, { endpoint, tenantId });
-    }
-
-    getActiveTargetName(): string {
-        return this.snapshot.activeTargetName;
-    }
-
-    async saveActiveTargetName(name: string): Promise<void> {
-        this.snapshot = { ...this.snapshot, activeTargetName: name };
-        await this.rpc.request(METHODS.deploymentStateSaveActiveTarget, { name });
-    }
-
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
-        return this.snapshot.ledger[ledgerKey];
-    }
-
-    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
-        this.snapshot = {
-            ...this.snapshot,
-            ledger: { ...this.snapshot.ledger, [ledgerKey]: revision },
-        };
-        await this.rpc.request(METHODS.deploymentStateSaveDeployedRevision, {
-            ledgerKey,
-            revision,
-        });
-    }
-
-    listLedgerKeys(): string[] {
-        return Object.keys(this.snapshot.ledger);
-    }
-
-    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
-        const ledger = { ...this.snapshot.ledger };
-        for (const key of ledgerKeys) {
-            delete ledger[key];
-        }
-        this.snapshot = { ...this.snapshot, ledger };
-        await this.rpc.request(METHODS.deploymentStateDeleteDeployedRevisions, { ledgerKeys });
+    async save(patch: DeploymentStatePatch): Promise<void> {
+        await this.rpc.request(METHODS.deploymentStateSave, { patch });
+        // Patched onto the state at acceptance, not at send, so an overlapping save is kept.
+        this.state = applyDeploymentStatePatch(this.state, patch);
     }
 }
 
 /**
- * Narrow file-discovery dependency for {@link RpcPicker.pickWorkspaceFiles} —
- * the one picker that searches the workspace rather than receiving its
- * candidates. Typed as a slice of `WorkspacePort` so it is trivially satisfied
- * by `NodeWorkspace` and stubbable in tests.
+ * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list and
+ * replies with the chosen indices (or `null` on dismissal); this class maps them
+ * back to the prompt's values. The core builds every prompt, so the host carries
+ * no per-prompt logic.
  */
-export interface FileFinder {
-    findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
-}
-
-/**
- * Real {@link PickerPort}, {@link DeploymentPickerPort} and
- * {@link MigrationPickerPort} over RPC: the host shows a native `JBPopup` list and
- * replies with the chosen indices (or `null` on dismissal); this class keeps
- * each prompt's item array and re-applies the cancel-vs-throw convention.
- *
- * The convention lives here, not in Kotlin, so it stays byte-for-byte identical
- * to `VsCodePicker` (the contract's reference) and the host carries no
- * per-picker logic — it only renders a generic chooser.
- */
-export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPickerPort {
-    constructor(
-        private readonly rpc: Rpc,
-        private readonly fileFinder: FileFinder,
-    ) {}
+export class RpcPicker implements PickerPort {
+    constructor(private readonly rpc: Rpc) {}
 
     /** Round-trips one popup; returns the chosen indices or `null` on cancel. */
     private async show(opts: PickerShowParams): Promise<number[] | null> {
@@ -749,192 +605,59 @@ export class RpcPicker implements PickerPort, DeploymentPickerPort, MigrationPic
         return result?.selected ?? null;
     }
 
-    async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
-        const selected = await this.show({
-            placeholder: placeHolder,
-            canPickMany: false,
-            items: NEW_MODEL_ENGINE_CHOICES.map((choice) => ({
-                label: choice.label,
-                description: choice.description,
-            })),
-        });
-        if (selected === null) {
-            throw new UserCancelledError();
-        }
-        const choice = NEW_MODEL_ENGINE_CHOICES[selected[0]];
-        if (!choice) {
-            throw new Error(`No new-model engine at index ${selected[0]}`);
-        }
-        return choice.id;
+    async choose<V>(prompt: ChoicePrompt<V>): Promise<V | undefined> {
+        const [index] = (await this.show(pickerShowParams(prompt, false))) ?? [];
+        return index === undefined ? undefined : valueAt(prompt, index);
     }
 
-    async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {
-        const items = [
-            `${ENGINE_LABEL.c7} only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
-            `${ENGINE_LABEL.c8} only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
-            `Both (${c7Count + c8Count} diagram${c7Count + c8Count !== 1 ? "s" : ""})`,
-        ];
-        const selected = await this.show({
-            placeholder: "Which diagrams do you want to migrate?",
-            canPickMany: false,
-            items: items.map((label) => ({ label })),
-        });
-        if (selected === null) {
-            throw new UserCancelledError();
-        }
-        const result = items[selected[0]];
-        if (result.startsWith(ENGINE_LABEL.c7)) {
-            return "c7";
-        } else if (result.startsWith(ENGINE_LABEL.c8)) {
-            return "c8";
-        }
-        return "both";
+    async chooseMany<V>(prompt: ChoicePrompt<V>): Promise<readonly V[]> {
+        const selected = await this.show(pickerShowParams(prompt, true));
+        return selected?.map((index) => valueAt(prompt, index)) ?? [];
     }
 
-    async pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string> {
-        const label = ENGINE_LABEL[platform];
-        const selected = await this.show({
-            placeholder: `Select ${label} engine version`,
-            canPickMany: false,
-            items: versions.map((version) => ({ label: version })),
-        });
-        if (selected === null) {
-            throw new UserCancelledError();
-        }
-        return versions[selected[0]];
-    }
-
-    async pickWorkspaceFiles(opts: {
-        glob: string;
-        exclude?: string | null;
-        placeholder: string;
-        limit?: number;
-    }): Promise<string[]> {
-        const paths = await this.fileFinder.findFiles(opts.glob, opts.exclude, opts.limit);
-        const selected = await this.show({
-            placeholder: opts.placeholder,
-            canPickMany: true,
-            items: paths.map((path) => ({ label: posix.basename(path), description: path })),
-        });
-        return selected?.map((index) => paths[index]) ?? [];
-    }
-
-    async pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null> {
-        const selected = await this.show({
-            placeholder: "Select a payload file",
-            canPickMany: false,
-            items: paths.map((path) => ({ label: posix.basename(path), description: path })),
-        });
-        if (selected === null) {
-            return null;
-        }
-        const filePath = paths[selected[0]];
-        return { filePath, label: posix.basename(filePath) };
-    }
-
-    async pickScriptLanguage(currentFormat: string): Promise<string | undefined> {
-        const normalized = currentFormat.toLowerCase().trim();
-        // Pin the current format to the top so it stays the default highlighted
-        // option even when unrecognised (mirrors VsCodePicker).
-        const formats = [...ScriptLanguage.supportedFormats()].sort((a, b) => {
-            if (a === normalized) return -1;
-            if (b === normalized) return 1;
-            return 0;
-        });
-        const selected = await this.show({
-            title: "Script Language",
-            placeholder: "Select the scripting language",
-            canPickMany: false,
-            items: formats.map((format) => ({
-                label: format.charAt(0).toUpperCase() + format.slice(1),
-                description: `.${new ScriptLanguage(format).extension}`,
-            })),
-        });
-        return selected === null ? undefined : formats[selected[0]];
-    }
-
-    /**
-     * Modal confirmation, rendered natively by the host.
-     *
-     * A cancelled or failed round trip resolves to `false`: silence must never
-     * be read as consent to delete.
-     */
-    async confirmDestructive(options: {
-        title: string;
-        confirmLabel: string;
-        details: string[];
-    }): Promise<boolean> {
+    /** A cancelled round trip resolves to `false`: silence is never consent. */
+    async confirm(request: ConfirmRequest): Promise<boolean> {
         const result = (await this.rpc.request(METHODS.confirmShow, {
-            title: options.title,
-            confirmLabel: options.confirmLabel,
-            details: summarizeAffectedItems(options.details),
+            title: request.title,
+            confirmLabel: request.confirmLabel,
+            details: [...request.details],
         } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
         return result?.confirmed === true;
     }
 
-    async pickDeploymentTarget(names: string[]): Promise<string | undefined> {
-        // Index 0 is the explicit ad-hoc entry (→ ""); the rest map to `names`.
-        const labels = ["(none — use form values)", ...names];
-        const selected = await this.show({
-            placeholder: "Select the active deployment target",
-            canPickMany: false,
-            items: labels.map((label) => ({ label })),
-        });
-        if (selected === null) {
-            return undefined;
-        }
-        return selected[0] === 0 ? "" : names[selected[0] - 1];
-    }
-
-    async pickDeploymentStatusAction(opts: {
-        targetName?: string;
-        canVerify: boolean;
-    }): Promise<"switch" | "verify" | undefined> {
-        // Index 0 is always switch; index 1 (verify) only exists for a C7 target.
-        const actions: ("switch" | "verify")[] = opts.canVerify ? ["switch", "verify"] : ["switch"];
-        const labels = [
-            "Switch deployment target…",
-            ...(opts.canVerify ? [`Verify on ${opts.targetName}`] : []),
-        ];
-        const selected = await this.show({
-            placeholder: opts.targetName
-                ? `Deployment target "${opts.targetName}"`
-                : "No deployment target selected",
-            canPickMany: false,
-            items: labels.map((label) => ({ label })),
-        });
-        return selected === null ? undefined : actions[selected[0]];
-    }
-
-    async searchAndPickLocatedFile(
-        prompts: LocatePrompts,
-        search: () => Promise<LocateResult>,
-    ): Promise<{ outcome: LocateResult; chosen?: string }> {
-        // The host can't render a busy list, so it keeps its status-bar spinner:
-        // bracket the local search with the progress notifications, then open the
-        // native picker only for an ambiguous result.
-        const title = prompts.searchingPlaceholder;
+    async searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }> {
+        // The host can't render a busy list, so the search keeps its status-bar spinner.
+        const title = search.searchingPlaceholder;
         this.rpc.notify(METHODS.notifierProgressStart, { title });
-        let outcome: LocateResult;
+        let outcome: R;
         try {
-            outcome = await search();
+            outcome = await search.search();
         } finally {
             this.rpc.notify(METHODS.notifierProgressEnd, { title });
         }
 
-        const located = classifyLocateResult(outcome);
-        if (located.kind !== "ambiguous") {
-            return { outcome, chosen: undefined };
-        }
-
-        // Sort by path so nearby files surface first. The bridge has no VS Code
-        // `asRelativePath`, so the absolute path is both the detail and sort key.
-        const sorted = [...located.paths].sort((a, b) => a.localeCompare(b));
-        const selected = await this.show({
-            placeholder: prompts.pickPlaceholder,
-            canPickMany: false,
-            items: sorted.map((path) => ({ label: posix.basename(path), description: path })),
-        });
-        return { outcome, chosen: selected === null ? undefined : sorted[selected[0]] };
+        const choices = search.choices(outcome);
+        return { outcome, chosen: choices && (await this.choose(choices)) };
     }
+}
+
+// IntelliJ's list popup shows no icons, so a choice travels without one.
+function pickerShowParams<V>(prompt: ChoicePrompt<V>, canPickMany: boolean): PickerShowParams {
+    return {
+        title: prompt.title,
+        placeholder: prompt.placeholder,
+        canPickMany,
+        items: prompt.items.map((item) => ({
+            label: item.label,
+            description: item.path ?? item.description,
+        })),
+    };
+}
+
+function valueAt<V>(prompt: ChoicePrompt<V>, index: number): V {
+    const item = prompt.items[index];
+    if (!item) {
+        throw new Error(`picker/show chose index ${index} of prompt "${prompt.id}"`);
+    }
+    return item.value;
 }

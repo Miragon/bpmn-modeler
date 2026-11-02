@@ -11,16 +11,29 @@
  */
 
 import {
-    DeployedRevision,
-    DeploymentFreshness,
+    DeploymentStatePatch,
     GlobalFunctionDef,
     MethodDef,
+    RawDeploymentState,
     RawModelerSettings,
+    StatusSlot,
+    StatusView,
 } from "@miragon/bpmn-modeler-core";
-import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
-import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
+import { DiffOrigin, VariableDef } from "@miragon/bpmn-modeler-types";
 
-import { DeploymentStateSnapshot, SessionMeta } from "../adapters";
+/** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
+export interface SessionMeta {
+    editorId: string;
+    /** Exact host editor generation for rejecting same-URI stale traffic. */
+    sessionId?: number;
+    uriString: string;
+    path: string;
+    fsPath: string;
+    scheme: string;
+    /** Host-provided workspace root, used to seed element-template discovery. */
+    workspaceRoot?: string;
+}
 
 /**
  * `session/register` — the editor identity/meta plus the initial document
@@ -35,7 +48,7 @@ export interface RegisterParams extends SessionMeta {
     settings?: RawModelerSettings;
 }
 
-/** Empty-body notification/request (e.g. `clipboard/read`, `statusBar/templatesHide`). */
+/** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
 export type EmptyParams = Record<string, never>;
 
 // ── Host → Core notifications ────────────────────────────────────────────────
@@ -97,9 +110,12 @@ export interface DiffDisposeParams {
     diffId: string;
 }
 
-/** `deploymentState/seed` — the host seeds the deployment-form mirror. */
+/**
+ * `deploymentState/seed` — the host seeds the deployment-state mirror with what
+ * it stored; the core fills in the defaults.
+ */
 export interface DeploymentSeedParams {
-    state: Partial<DeploymentStateSnapshot>;
+    state: RawDeploymentState;
 }
 
 /** `deployment/webviewMessage` — a webview {@link Command} from the deployment panel. */
@@ -241,8 +257,8 @@ export interface PickerShowResult {
  * answer before deleting anything; requests only run core→host, which is the
  * direction needed here.
  *
- * `details` arrives already summarised by `summarizeAffectedItems`, so the
- * host renders it verbatim and never shortens it.
+ * `details` arrives as the core's `ConfirmRequest` holds it, already
+ * summarised, so the host renders it verbatim and never shortens it.
  */
 export interface ConfirmShowParams {
     title: string;
@@ -305,7 +321,7 @@ export interface SecretSaveApprovedDestinationsParams {
 /**
  * `marketplaceState/save` — the host persists the added registration and fans the
  * new snapshot to every open bridge. No result: the host acks an empty reply and
- * the core awaits only the round-trip (like `deploymentState/save*`).
+ * the core awaits only the round-trip (like `deploymentState/save`).
  *
  * `scope` is echoed straight back from {@link MarketplaceAddParams} — the bridge
  * never interprets it; only the host knows what its scopes mean. Absent =
@@ -331,16 +347,25 @@ export interface TokenStoreSetParams {
 }
 
 /**
- * `tokenPrompt/show` — a modal PAT-entry dialog on the host. Result carries the
- * entered token, or `null` on decline/blank (never throws — a decline is per-run
- * data, not control flow).
+ * `tokenPrompt/show` — a modal password dialog with the core's title and prompt.
+ * Result carries the answer as typed, or `null` on cancel; the core judges a
+ * blank answer.
  */
 export interface TokenPromptShowParams {
-    host: string;
-    reason: string;
+    title: string;
+    prompt: string;
 }
 export interface TokenPromptShowResult {
     token: string;
+}
+
+/**
+ * `settings/setLintingEnabled` — the user's lint choice from the webview or the
+ * BPMNlint widget. The host stores it and pushes the new snapshot to every
+ * bridge before it acks an empty reply.
+ */
+export interface SettingsSetLintingEnabledParams {
+    enabled: boolean;
 }
 
 // ── Core → Host notifications ────────────────────────────────────────────────
@@ -370,7 +395,11 @@ export interface NotifierOpenDocumentParams {
     path: string;
 }
 
-/** `notifier/log` — a leveled line to the IDE log/console. */
+/**
+ * `notifier/log` — a leveled line to the IDE log/console. `message` is the whole
+ * line: the core tags a line a webview forwarded (`[webview]` or
+ * `[webview:<source>]`), so the host adds no origin label.
+ */
 export interface NotifierLogParams {
     level: "debug" | "info" | "warn" | "error";
     message: string;
@@ -381,15 +410,10 @@ export interface NotifierProgressParams {
     title: string;
 }
 
-/** `statusBar/templatesReady` — element-template count for the status widget. */
-export interface StatusBarTemplatesReadyParams {
-    count: number;
-}
-
-/** `statusBar/showEngineVersion` — the resolved engine + version to display. */
-export interface StatusBarEngineVersionParams {
-    platform: Engine;
-    version: string;
+/** `statusBar/update` — what one status slot shows, or `null` to hide the slot. */
+export interface StatusBarUpdateParams {
+    slot: StatusSlot;
+    view: StatusView | null;
 }
 
 /** `diff/postMessage` — the core drives one diff pane's host browser. */
@@ -398,49 +422,12 @@ export interface DiffPostMessageParams {
     message: unknown;
 }
 
-/** `deploymentState/saveAuthType` — persist the chosen auth type. */
-export interface DeploymentSaveAuthTypeParams {
-    authType: AuthTypePayload;
-}
-
-/** `deploymentState/saveOAuth2Config` — persist the OAuth2 endpoint/audience. */
-export interface DeploymentSaveOAuth2ConfigParams {
-    tokenEndpoint: string;
-    audience: string;
-}
-
-/** `deploymentState/save` — persist the endpoint/tenant pair. */
-export interface DeploymentSaveParams {
-    endpoint: string;
-    tenantId: string;
-}
-
-/** `deploymentState/saveActiveTarget` — persist the active deployment-target name. */
-export interface DeploymentSaveActiveTargetParams {
-    name: string;
-}
-
-/** `deploymentState/saveDeployedRevision` — persist one ledger entry (target×file). */
-export interface DeploymentSaveDeployedRevisionParams {
-    ledgerKey: string;
-    revision: DeployedRevision;
-}
-
-/** `deploymentState/deleteDeployedRevisions` — drop ledger entries (prune / engine says "not deployed"). */
-export interface DeploymentDeleteDeployedRevisionsParams {
-    ledgerKeys: string[];
-}
-
 /**
- * `statusBar/showDeploymentTarget` — the active target name (or `null` for "no
- * target"), the freshness dot state, and the last-deploy / last-verify
- * timestamps (or `null`).
+ * `deploymentState/save` — persist exactly the fields and ledger rows the patch
+ * names; the host acks an empty reply.
  */
-export interface StatusBarDeploymentTargetParams {
-    name: string | null;
-    freshness: DeploymentFreshness;
-    deployedAt: string | null;
-    verifiedAt: string | null;
+export interface DeploymentSaveParams {
+    patch: DeploymentStatePatch;
 }
 
 /**
@@ -472,12 +459,13 @@ export interface ScriptOpenParams {
     fileName: string;
     languageId: string;
     /**
-     * Absolute path of the real script file the bridge wrote under
-     * `<configFolder>/tmp/scripting/`. The host opens this file (re-enabling
-     * IdeaVim and file-based tooling) and falls back to an in-memory
-     * `LightVirtualFile` from `content` only if the path fails to resolve.
+     * Absolute path of the real script file the bridge wrote into the editor's
+     * script folder. The host opens this file (re-enabling IdeaVim and
+     * file-based tooling). The field is absent when the folder lookup or the
+     * write failed; the host then opens an in-memory `LightVirtualFile` from
+     * `content`, as it does when the path fails to resolve.
      */
-    filePath: string;
+    filePath?: string;
     content: string;
     completion: {
         beans: readonly ScriptCompletionBean[];

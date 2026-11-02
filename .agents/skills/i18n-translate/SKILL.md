@@ -148,17 +148,18 @@ What each guard enforces (so a failure message tells you what to fix):
 A locale can only be offered if the **shared library** ships it — the QuickPick is driven by
 `supportedModelerLanguages` (the shared `supportedLanguages` catalogue re-exported from
 `libs/bpmn-i18n-extras/src/index.ts`), and the parity guard requires every offered locale to carry an
-overlay dictionary. So adding a language is two moves:
+overlay dictionary. So adding a language is three moves:
 
 1. **Upstream**: the locale must exist in `@miragon/bpmn-modeler-i18n`. If it doesn't, that is a
    contribution to the external repo first — you cannot add a whole language from here.
 2. **In this repo**: add `libs/bpmn-i18n-extras/src/languages/<locale>.ts` translating the current overlay
    key set, and register it in the generated `languages/index.ts` barrel (import + entry in `extras`).
    The QuickPick then picks it up automatically via `supportedModelerLanguages`.
-
-Optionally mirror the locale into the settings-dropdown enum in `apps/vscode-plugin/package.json` under
-`miragon.bpmnModeler.language` (`enum` + `enumItemLabels`, kept in the same order). This drives the static
-Settings-UI dropdown only; the in-modeler QuickPick already comes from `supportedModelerLanguages`.
+3. **The static copies**: add the locale with its catalogue label to `miragon.bpmnModeler.language` in
+   `apps/vscode-plugin/package.json` (`enum` + `enumItemLabels`, same position in both), to the table in
+   `docs/vscode/features/language-support.md`, and to `ModelerLocales.kt` in the IntelliJ plugin, at the
+   manifest's position. `manifest.contract.spec.ts` fails until the manifest and the docs match the
+   catalogue, and `ModelerLocalesTest` until IntelliJ matches the manifest.
 
 ## Step 5: Summary
 

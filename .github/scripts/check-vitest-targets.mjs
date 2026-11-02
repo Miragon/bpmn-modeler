@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fails when a Vitest workspace would silently drop out of CI: every
-// apps|libs|packages workspace with a Vitest config must be a target in
+// apps|libs|packages|tools workspace with a Vitest config must be a target in
 // .github/vitest-targets.json, its focused install must provide Vitest, its
 // trigger paths must cover every workspace and file its tests import, and its
 // typecheck must cover its specs.
@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const registry = readJson(".github/vitest-targets.json");
 const tsconfigPaths = readJson("tsconfig.base.json").compilerOptions.paths;
-const WORKSPACE_PARENTS = ["apps", "libs", "packages"];
+const WORKSPACE_PARENTS = ["apps", "libs", "packages", "tools"];
 const SOURCE_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 const SPEC_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/;
 const IMPORT_SPECIFIER =

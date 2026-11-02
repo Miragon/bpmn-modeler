@@ -1,6 +1,6 @@
 {
     "name": "@miragon/dmn-modeler",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "license": "Apache-2.0",
     "description": "Host-free, embeddable DMN modeler (Camunda) built on dmn-js.",
     "type": "module",
@@ -65,6 +65,7 @@
     },
     "devDependencies": {
         "@microsoft/api-extractor": "7.59.4",
+        "@miragon/architecture-testing": "workspace:*",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@types/node": "26.6.5",

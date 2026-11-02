@@ -1,9 +1,6 @@
 import type { BpmnModeler } from "@miragon/bpmn-modeler";
-import {
-    UpdateScriptVariablesCommand,
-    extractProcessVariables,
-} from "@miragon/bpmn-modeler-shared";
-import { asyncDebounce } from "@miragon/bpmn-modeler-types";
+import { UpdateScriptVariablesCommand } from "@miragon/bpmn-modeler-shared";
+import { asyncDebounce, extractProcessVariables } from "@miragon/bpmn-modeler-types";
 
 import type { BpmnDocumentSession } from "./documentSession";
 import type { HostChannel } from "./hostChannel";

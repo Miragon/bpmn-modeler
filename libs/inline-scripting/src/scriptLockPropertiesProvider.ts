@@ -3,14 +3,16 @@ import { findListenerAt } from "@miragon/bpmn-modeler-types";
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ScriptModdle } from "./bpmnTypes";
-import {
-    LISTENER_ENTRY_ID_PATTERN,
-    listenerScriptKind,
-    type PanelListenerType,
-} from "./scriptEditorButtons";
+import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptEditorEvents";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
-import { listenerScriptOpenEvent, readScriptField, scriptTaskOpenEvent } from "./scriptModel";
+import {
+    listenerScriptKind,
+    listenerScriptOpenEvent,
+    type PanelListenerType,
+    readScriptField,
+    scriptTaskOpenEvent,
+} from "./scriptModel";
 
 /**
  * Runs *below* the stock Camunda provider (which registers at priority 500).

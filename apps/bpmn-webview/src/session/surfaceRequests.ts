@@ -14,9 +14,8 @@ import {
     type UpdateOpenScriptEditorsQuery,
     type UpdateScriptContentQuery,
     type UpdateScriptFormatQuery,
-    extractProcessVariables,
 } from "@miragon/bpmn-modeler-shared";
-import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
+import { type CleanupOutcome, extractProcessVariables } from "@miragon/bpmn-modeler-types";
 
 import type { HostModelerState } from "../hostModelerState";
 import {
@@ -123,7 +122,7 @@ export function createSurfaceRequests(
                 try {
                     const surface = getSurface();
                     if (isFormattableHandle(surface)) {
-                        // The outcome is reported by the `layout.formatted`
+                        // The outcome is reported by the `onFormatted`
                         // subscription in `bindSurface`, so the keyboard
                         // shortcut and this command report through one path.
                         await surface.formatDiagram();

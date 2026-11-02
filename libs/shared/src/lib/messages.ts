@@ -92,7 +92,8 @@ export type DocumentFlushStatus = "clean" | "flushed" | "host-updated" | "unavai
  * Webview → host reply to a {@link FlushDocumentQuery}. `status` distinguishes a
  * confirmed-clean host buffer, freshly exported `content`, an authoritative host
  * update, and a modeler that could not flush. `token` lets the host drop replies
- * after timeout/supersession.
+ * after timeout/supersession. `documentRevision` is the host revision the page
+ * represents; every reply but `unavailable` carries it.
  */
 export class DocumentFlushedCommand extends Command<"DocumentFlushedCommand"> {
     public readonly token: number;

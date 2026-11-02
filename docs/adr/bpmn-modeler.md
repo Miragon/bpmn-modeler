@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-10-30
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -52,6 +52,16 @@ are composition details. Outbound notifications use individual `on*` callbacks,
 not a generic event bus. A notification cannot replace a capability that must
 resolve a target or answer a query; action ports can accept asynchronous host
 implementations through `void | Promise<void>`.
+
+The editable handles also take two subscriptions, `onCommandStackChanged` and
+`onFormatted`, each returning its unsubscribe function. They are handle methods
+rather than `on*` options because #1835 specifies them that way, matching the
+existing handle method `viewport.onViewportChanged`. `onFormatted` delivers a
+plain payload instead of the diagram-js event, `onCommandStackChanged` none at
+all, and both ignore the listener's return value: a value returned to the event
+bus stops the event before later listeners see it. Subscribing after `destroy()`
+throws `NoModelerError`, as every other member does. Hosts therefore need no event names (`commandStack.changed`,
+`layout.formatted`), which stay unstable internals.
 
 The navigation port's optional `isReferenceAvailable(reference)` is synchronous
 because context-pad construction is synchronous. Hosts with asynchronous
@@ -440,7 +450,8 @@ Concurrent format requests join the same run. Drilling into a subprocess is not
 a refusal: the registry still contains the complete diagram.
 
 `format()` resolves an outcome rather than rejecting; `layout.formatted` reports
-it through one path for palette, keyboard and host triggers. Preflight, engine
+it through one path for palette, keyboard and host triggers, and the editable
+handles publish it as `onFormatted`. Preflight, engine
 and stale-result failures apply nothing. The implementation reports an applier
 exception as `APPLY_FAILED`; it does not establish a separate rollback contract.
 
@@ -480,10 +491,18 @@ keeps it a single control that stays reachable while the panel is collapsed. Por
 Mode-strip translation keys remain on the i18n overlay's source-only allowlist
 because hosts can render the strip before a surface exists for harvesting.
 
-Tagged Design/Implement switches toggle live. Recreate transitions capture view
-state, export XML, await `beforeDestroy` (host flush), destroy the old surface,
-construct/load the new one and restore plane, viewport and selection. Bind
-recreated surfaces before loading carried XML. The surface fits a fresh open
+Tagged Design/Implement switches toggle live, so panel input still waiting in
+its debounce lands on the same surface. Recreate transitions apply the old
+surface's pending properties-panel input, capture view state, export XML,
+deliver the old surface's pending `onContentSaved` (internal
+`flushContentSaved()`, `PendingSaveHandle`), await `beforeDestroy` (host
+flush), destroy the old surface, construct/load the new one and restore plane,
+viewport and selection. The save is delivered here because the destroy would
+drop it and the new surface's import fires no change that saves the edit again.
+Awaiting it keeps the old surface's save ahead of any save from the new one,
+and a `ModeSession.destroy()` that waits for the switch resolves only after it.
+A session destroyed before the save starts drops it. Bind recreated surfaces
+before loading carried XML. The surface fits a fresh open
 itself; the host only restores its persisted plane and viewport, on first open
 and after a fallback, which carries no snapshot. Recreation loses instance undo
 and simulation state.
@@ -533,8 +552,21 @@ Editable surfaces share debounced content-out (300 ms, 1000 ms max wait).
 export/persistence failures inside each debounced run and report once through
 `onError`, or `console.error` if unset, rather than rejecting every queued
 caller. Later edits still save. Destruction cancels pending work, settles its
-callers and suppresses disposal-race errors. Raw `commandStack.changed` remains
-available to consumers that need it.
+callers and suppresses disposal-race errors. Only a recreating mode switch,
+which the embedder did not ask for as a destroy, delivers the pending save
+first. `onCommandStackChanged` reports each change undebounced to consumers
+that need it, such as the IDE webview's own document sync.
+
+Both editable surfaces replace the properties panel's `debounceInput` service
+with `libs/properties-panel`'s `FlushableDebounceInputModule`, which builds the
+flushable service from `modeler-types` (the DMN modeler and the Form webview
+use the same one). It keeps the library's 600 ms delay and tracks the input
+still waiting in it; a flush also runs input a flushed call debounces again,
+such as a number field inside a FEEL field. The modeler and designer handles
+reach it through the internal `hasPendingInput()` and `flushPendingInput()`
+(`PendingInputHandle`), which the IDE webview's flush and a recreating mode
+switch use to apply a typed value before they export. They are not public API
+yet.
 
 ## Consequences and enforcement
 
@@ -552,7 +584,8 @@ and [mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) import
 checks. [Lifecycle browser tests](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
 exercise all four surfaces, and the
 [editable-surface contract](../../packages/bpmn-modeler/src/editableSurfaceContract.browser.spec.ts)
-pins that post-destroy lint pushes throw;
+pins that post-destroy lint pushes throw and what the command-stack and format
+subscriptions deliver;
 [session tests](../../packages/bpmn-modeler/src/modeSession/modeSession.spec.ts)
 cover transition failures and teardown. The test-environment limits and upstream
 shape gates are recorded in [Engineering practices](engineering-practices.md).

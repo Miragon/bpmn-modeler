@@ -26,6 +26,16 @@ export interface BusinessObjectLike {
     extensionElements?: { values?: ExtensionElementLike[] };
 }
 
+/**
+ * The slice of a bpmn-js element this feature reads. `id` is the activity id the
+ * status map is keyed by; `businessObject` carries the Camunda binding.
+ */
+export interface Element {
+    id?: string;
+    type?: string;
+    businessObject?: BusinessObjectLike;
+}
+
 interface ExtensionElementLike {
     $type?: string;
     // `zeebe:TaskDefinition` carries the C8 job type here.

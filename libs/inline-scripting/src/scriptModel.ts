@@ -105,6 +105,16 @@ export function scriptTaskOpenEvent(
     };
 }
 
+/** The listener-type token of a properties-panel listener entry id. */
+export type PanelListenerType = "executionListener" | "taskListener";
+
+/** The script kind a properties-panel listener entry addresses. */
+export function listenerScriptKind(
+    panelListenerType: PanelListenerType,
+): Exclude<ScriptKind, "script-task"> {
+    return panelListenerType === "executionListener" ? "execution-listener" : "task-listener";
+}
+
 /** The payload that opens a listener's nested `camunda:Script` in the host editor. */
 export function listenerScriptOpenEvent(
     elementId: string,

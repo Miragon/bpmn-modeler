@@ -1,6 +1,12 @@
 import { posix } from "path";
 
-import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import {
+    DocumentPort,
+    NotifierPort,
+    PickerPort,
+    SettingsPort,
+    StatusBarPort,
+} from "../../kernel/domain/hostPorts";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
@@ -12,12 +18,11 @@ import {
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
 import { DeploymentDestination } from "../domain/deploymentDestination";
+import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
+import { deploymentStatusView, timestampFormatter } from "../domain/deploymentStatusView";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
-import {
-    DeploymentPickerPort,
-    DeploymentStatePort,
-    DeploymentStatusBarPort,
-} from "../domain/ports";
+import { DeploymentStatusAction, deploymentStatusActionPrompt } from "../domain/deploymentPrompts";
+import { DeploymentStatePort } from "../domain/ports";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvValueResolver } from "./EnvValueResolver";
 
@@ -42,10 +47,11 @@ export class DeploymentStatusService {
         private readonly documentPort: DocumentPort,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly statusBar: DeploymentStatusBarPort,
-        private readonly picker: DeploymentPickerPort,
+        private readonly statusBar: StatusBarPort,
+        private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
         private readonly envResolver: EnvValueResolver,
+        private readonly settings: SettingsPort,
     ) {}
 
     async ledgerIdentity(
@@ -90,16 +96,14 @@ export class DeploymentStatusService {
             deploymentId,
             origin: "local",
         };
-        await this.writeThenRefresh(() =>
-            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
-        );
+        await this.putRevision(ledgerKeyFor(identity, filePath), revision);
     }
 
     getRevision(
         filePath: string,
         identity: DeploymentTargetIdentity,
     ): DeployedRevision | undefined {
-        return this.deploymentState.getDeployedRevision(ledgerKeyFor(identity, filePath));
+        return this.deploymentState.load().ledger[ledgerKeyFor(identity, filePath)];
     }
 
     async adoptRevision(
@@ -107,14 +111,20 @@ export class DeploymentStatusService {
         identity: DeploymentTargetIdentity,
         revision: DeployedRevision,
     ): Promise<void> {
+        await this.putRevision(ledgerKeyFor(identity, filePath), revision);
+    }
+
+    private async putRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
         await this.writeThenRefresh(() =>
-            this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision),
+            this.deploymentState.save({ ledger: { put: { [ledgerKey]: revision } } }),
         );
     }
 
     async forgetRevision(filePath: string, identity: DeploymentTargetIdentity): Promise<void> {
         await this.writeThenRefresh(() =>
-            this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]),
+            this.deploymentState.save({
+                ledger: { remove: [ledgerKeyFor(identity, filePath)] },
+            }),
         );
     }
 
@@ -122,13 +132,23 @@ export class DeploymentStatusService {
     async pruneTarget(identity: DeploymentTargetIdentity): Promise<void> {
         const prefix = ledgerKeyPrefixFor(identity);
         await this.writeThenRefresh(async () => {
-            const keys = this.deploymentState
-                .listLedgerKeys()
-                .filter((key) => key.startsWith(prefix));
+            const keys = Object.keys(this.deploymentState.load().ledger).filter((key) =>
+                key.startsWith(prefix),
+            );
             if (keys.length > 0) {
-                await this.deploymentState.deleteDeployedRevisions(keys);
+                await this.deploymentState.save({ ledger: { remove: keys } });
             }
         });
+    }
+
+    async targetsChanged(event: DeploymentTargetsEvent): Promise<void> {
+        const retired = event.kind === "targetsChanged" ? event.edit.retiredDestination : undefined;
+        if (event.kind === "targetsChanged" && retired !== undefined) {
+            // The prune refreshes the item.
+            await this.pruneTarget(await this.ledgerIdentity(retired, event.documentDir));
+        } else {
+            await this.refreshFocused();
+        }
     }
 
     private async writeThenRefresh(writeLedger: () => Promise<void>): Promise<void> {
@@ -144,12 +164,9 @@ export class DeploymentStatusService {
      * The status-bar item's click menu, shared by both hosts: offers switching
      * the target and — for a named Camunda 7 target — engine verification.
      */
-    async pickStatusBarAction(documentDir?: string): Promise<"switch" | "verify" | undefined> {
-        const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-        return this.picker.pickDeploymentStatusAction({
-            targetName: target?.name,
-            canVerify: target?.engine === "c7",
-        });
+    async pickStatusBarAction(documentDir?: string): Promise<DeploymentStatusAction | undefined> {
+        const destination = await this.deploymentTargetService.getActiveDestination(documentDir);
+        return this.picker.choose(deploymentStatusActionPrompt(destination));
     }
 
     /**
@@ -170,15 +187,18 @@ export class DeploymentStatusService {
                 return;
             }
 
-            const revision = this.deploymentState.getDeployedRevision(
-                ledgerKeyFor(identity, filePath),
-            );
-            const freshness = freshnessFor(revision, this.documentPort.getContent(editorId));
-            this.statusBar.showDeploymentTarget(
-                destination.target?.name,
-                freshness,
-                revision?.deployedAt,
-                revision?.verifiedAt,
+            const revision = this.deploymentState.load().ledger[ledgerKeyFor(identity, filePath)];
+            this.statusBar.show(
+                "deploymentTarget",
+                deploymentStatusView(
+                    {
+                        connection: destination.statusConnection,
+                        freshness: freshnessFor(revision, this.documentPort.getContent(editorId)),
+                        deployedAt: revision?.deployedAt,
+                        verifiedAt: revision?.verifiedAt,
+                    },
+                    timestampFormatter(this.settings.getLanguage()),
+                ),
             );
         } catch (error) {
             this.notifier.logDebug(
@@ -209,6 +229,6 @@ export class DeploymentStatusService {
 
     hide(): void {
         this.refreshGeneration++;
-        this.statusBar.hideDeploymentTarget();
+        this.statusBar.hide("deploymentTarget");
     }
 }

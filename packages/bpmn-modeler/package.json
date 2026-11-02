@@ -1,6 +1,6 @@
 {
     "name": "@miragon/bpmn-modeler",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "license": "Apache-2.0",
     "description": "Host-free, embeddable BPMN modeler (Camunda 7 & 8) built on bpmn-js.",
     "type": "module",
@@ -128,6 +128,7 @@
     },
     "devDependencies": {
         "@microsoft/api-extractor": "7.59.4",
+        "@miragon/architecture-testing": "workspace:*",
         "@miragon/bpmn-model-navigation": "workspace:*",
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
         "@miragon/bpmn-modeler-clipboard": "workspace:*",

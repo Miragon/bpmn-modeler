@@ -8,7 +8,7 @@ const statMock = vi.fn();
 const deleteMock = vi.fn();
 const createFileSystemWatcherMock = vi.fn();
 const readDirectoryMock = vi.fn();
-let workspaceFolders: { uri: { path: string } }[] | undefined;
+let workspaceFolders: { uri: { scheme?: string; authority?: string; path: string } }[] | undefined;
 
 vi.mock("vscode", () => ({
     workspace: {
@@ -34,14 +34,20 @@ vi.mock("vscode", () => ({
             super(code);
         }
     },
+    // Both constructors take a UNC server as the authority, as VS Code does.
     Uri: {
-        file: (path: string) => ({ scheme: "file", path, fsPath: path }),
+        file: (path: string) => {
+            const unc = /^\/\/([^/]+)(\/.*)?$/.exec(path);
+            return unc
+                ? { scheme: "file", authority: unc[1], path: unc[2] ?? "/" }
+                : { scheme: "file", authority: "", path, fsPath: path };
+        },
         // Mirror VS Code's decode of a `file://` string so `toUri` can be shown
         // recovering `/c:/…` from the `%3A`-escaped drive colon.
-        parse: (value: string) => ({
-            scheme: "file",
-            path: decodeURIComponent(value.replace(/^file:\/\//, "")),
-        }),
+        parse: (value: string) => {
+            const [, authority, path] = /^file:\/\/([^/]*)(.*)$/.exec(value) ?? [];
+            return { scheme: "file", authority, path: decodeURIComponent(path) };
+        },
     },
     RelativePattern: class {
         constructor(
@@ -54,7 +60,13 @@ vi.mock("vscode", () => ({
 
 import { FileSystemError, FileType, workspace } from "vscode";
 
-import { DirectoryNotFound, FileNotFound } from "@miragon/bpmn-modeler-core";
+import {
+    ArtifactService,
+    BpmnLintConfigLocator,
+    DirectoryNotFound,
+    FileNotFound,
+} from "@miragon/bpmn-modeler-core";
+import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 const getWorkspaceFolderMock = workspace.getWorkspaceFolder as unknown as ReturnType<typeof vi.fn>;
@@ -89,7 +101,7 @@ describe("VsCodeWorkspace.findFiles", () => {
         const result = await sut.findFiles("**/*.bpmn");
 
         expect(result).toEqual(["/a.bpmn", "/b.bpmn"]);
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", undefined, undefined);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", undefined);
     });
 
     it("forwards a glob exclude pattern when supplied", async () => {
@@ -97,7 +109,7 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", "**/dist/**");
 
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**", undefined);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**");
     });
 
     it("forwards null as exclude to opt out of all default excludes", async () => {
@@ -108,15 +120,7 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", null);
 
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", null, undefined);
-    });
-
-    it("forwards the limit as maxResults to workspace.findFiles", async () => {
-        const sut = new VsCodeWorkspace();
-
-        await sut.findFiles("**/*.bpmn", "**/dist/**", 20);
-
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**", 20);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", null);
     });
 
     it("returns the .path of every matching Uri", async () => {
@@ -279,6 +283,70 @@ describe("VsCodeWorkspace.createWatcher", () => {
     });
 });
 
+describe("VsCodeWorkspace on a UNC share", () => {
+    const shareFolderUri = { scheme: "file", authority: "server", path: "/share/ws" };
+
+    it("keeps the server of the workspace folder holding a document", () => {
+        getWorkspaceFolderMock.mockReturnValueOnce({ uri: shareFolderUri });
+
+        expect(
+            new VsCodeWorkspace().getWorkspaceFolderForDocument("//server/share/ws/a.bpmn"),
+        ).toBe("//server/share/ws");
+        expect(getWorkspaceFolderMock).toHaveBeenCalledWith(
+            expect.objectContaining({ authority: "server", path: "/share/ws/a.bpmn" }),
+        );
+    });
+
+    it("keeps the server of an open workspace folder", () => {
+        workspaceFolders = [{ uri: shareFolderUri }];
+
+        expect(new VsCodeWorkspace().getWorkspaceFolderPaths()).toEqual(["//server/share/ws"]);
+    });
+
+    it("keeps the server in the directory of a `file://`-form document", () => {
+        expect(
+            new VsCodeWorkspace().getDocumentDirectory("file://server/share/ws/proc/order.bpmn"),
+        ).toBe("//server/share/ws/proc");
+    });
+
+    it("keeps the server of the files it finds", async () => {
+        findFilesMock.mockResolvedValueOnce([
+            { scheme: "file", authority: "server", path: "/share/ws/a.bpmn" },
+        ]);
+
+        await expect(new VsCodeWorkspace().findFiles("**/*.bpmn")).resolves.toEqual([
+            "//server/share/ws/a.bpmn",
+        ]);
+    });
+
+    it("keeps the server of the paths its watcher reports", () => {
+        const onChange = vi.fn();
+        let reportChange: (uri: unknown) => void = () => undefined;
+        createFileSystemWatcherMock.mockReturnValueOnce({
+            onDidCreate: vi.fn(),
+            onDidChange: vi.fn((listener: (uri: unknown) => void) => {
+                reportChange = listener;
+                return { dispose: vi.fn() };
+            }),
+            onDidDelete: vi.fn(),
+            dispose: vi.fn(),
+        });
+
+        new VsCodeWorkspace().createWatcher("//server/share/ws", "**/*.json", { onChange });
+        reportChange({ scheme: "file", authority: "server", path: "/share/ws/x.json" });
+
+        expect(onChange).toHaveBeenCalledWith("//server/share/ws/x.json");
+    });
+
+    it("creates the parent directory of a file on the share", async () => {
+        await new VsCodeWorkspace().writeFile("//server/share/ws/.camunda/code-link/a.json", "{}");
+
+        expect(createDirectoryMock).toHaveBeenCalledWith(
+            expect.objectContaining({ authority: "server", path: "/share/ws/.camunda/code-link" }),
+        );
+    });
+});
+
 describe("VsCodeWorkspace.deleteDirectory", () => {
     it("recursively deletes the directory", async () => {
         const sut = new VsCodeWorkspace();
@@ -394,4 +462,62 @@ describe("VsCodeWorkspace.writeFile", () => {
             writeFileMock.mock.invocationCallOrder[0],
         );
     });
+});
+
+describe("VsCodeWorkspace under the config watchers of a Windows document", () => {
+    const EDITOR_ID = "file:///c%3A/ws/proc/order.bpmn";
+
+    function reportDeletes(): (path: string) => void {
+        let reportDelete: (uri: unknown) => void = () => undefined;
+        createFileSystemWatcherMock.mockReturnValue({
+            onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidChange: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidDelete: vi.fn((listener: (uri: unknown) => void) => {
+                reportDelete = listener;
+                return { dispose: vi.fn() };
+            }),
+            dispose: vi.fn(),
+        });
+        return (path) => reportDelete({ scheme: "file", authority: "", path });
+    }
+
+    it.each([
+        {
+            watcher: "element-template",
+            arm: (workspace: VsCodeWorkspace, onLookupChange: () => void) =>
+                new ArtifactService(workspace, new InMemorySettings()).createWatcher(EDITOR_ID, {
+                    refreshElementTemplates: onLookupChange,
+                }),
+        },
+        {
+            watcher: ".bpmnlintrc",
+            arm: (workspace: VsCodeWorkspace, onLookupChange: () => void) => {
+                const settings = new InMemorySettings();
+                return new BpmnLintConfigLocator(
+                    workspace,
+                    settings,
+                    new ArtifactService(workspace, settings),
+                ).createWatcher(EDITOR_ID, {
+                    setBpmnlintConfig: async () => {
+                        onLookupChange();
+                        return true;
+                    },
+                });
+            },
+        },
+    ])(
+        "follows the $watcher lookup of a document whose URI escapes the drive colon",
+        async ({ arm }) => {
+            getWorkspaceFolderMock.mockReturnValue({ uri: { path: "/C:/ws" } });
+            const reportDelete = reportDeletes();
+            const onLookupChange = vi.fn();
+            await arm(new VsCodeWorkspace(), onLookupChange);
+
+            reportDelete("/C:/ws/other/.camunda");
+            expect(onLookupChange).not.toHaveBeenCalled();
+
+            reportDelete("/C:/ws/.camunda");
+            expect(onLookupChange).toHaveBeenCalledOnce();
+        },
+    );
 });

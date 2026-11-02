@@ -1,3 +1,5 @@
+import { ChoicePrompt } from "../../kernel/domain/prompts";
+
 /**
  * Value object that maps a Camunda `scriptFormat` string to VS Code language
  * identifiers and file extensions.
@@ -32,7 +34,7 @@ export class ScriptLanguage {
 
     /** Creates a ScriptLanguage from a Camunda `scriptFormat` value (e.g. `"javascript"`, `"groovy"`). */
     constructor(scriptFormat: string) {
-        const normalized = ScriptLanguage.normalize(scriptFormat);
+        const normalized = normalizeFormat(scriptFormat);
         const mapping = ScriptLanguage.MAPPINGS.get(normalized) ?? ScriptLanguage.FALLBACK;
         this.languageId = mapping.languageId;
         this.extension = mapping.extension;
@@ -45,7 +47,7 @@ export class ScriptLanguage {
      * prompt the user to pick a supported language.
      */
     static isSupported(scriptFormat: string): boolean {
-        return ScriptLanguage.MAPPINGS.has(ScriptLanguage.normalize(scriptFormat));
+        return ScriptLanguage.MAPPINGS.has(normalizeFormat(scriptFormat));
     }
 
     /**
@@ -63,7 +65,7 @@ export class ScriptLanguage {
      * return `undefined` and are skipped rather than tracked as scripts.
      */
     static fromExtension(extension: string): ScriptLanguage | undefined {
-        const normalized = ScriptLanguage.normalize(extension);
+        const normalized = normalizeFormat(extension);
         for (const [format, mapping] of ScriptLanguage.MAPPINGS) {
             if (mapping.extension === normalized) {
                 return new ScriptLanguage(format);
@@ -71,8 +73,28 @@ export class ScriptLanguage {
         }
         return undefined;
     }
+}
 
-    private static normalize(scriptFormat: string): string {
-        return scriptFormat.toLowerCase().trim();
-    }
+/** The current format leads the list, so the host highlights it as the default. */
+export function scriptLanguagePrompt(currentFormat: string): ChoicePrompt<string> {
+    const current = normalizeFormat(currentFormat);
+    const formats = ScriptLanguage.supportedFormats();
+    const currentFirst = [
+        ...formats.filter((format) => format === current),
+        ...formats.filter((format) => format !== current),
+    ];
+    return {
+        id: "scriptLanguage",
+        title: "Script Language",
+        placeholder: "Select the scripting language",
+        items: currentFirst.map((format) => ({
+            label: format.charAt(0).toUpperCase() + format.slice(1),
+            description: `.${new ScriptLanguage(format).extension}`,
+            value: format,
+        })),
+    };
+}
+
+function normalizeFormat(scriptFormat: string): string {
+    return scriptFormat.toLowerCase().trim();
 }

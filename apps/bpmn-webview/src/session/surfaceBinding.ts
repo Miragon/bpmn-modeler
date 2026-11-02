@@ -1,5 +1,4 @@
 import type { ModelerCapabilities } from "@miragon/bpmn-modeler";
-import { LAYOUT_FORMATTED_EVENT, type LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import {
     DiagramFormattedCommand,
     type ElementTemplatesQuery,
@@ -48,31 +47,23 @@ export function createSurfaceBinder(
 ): SurfaceBinder {
     function bindSurface(handle: SurfaceHandle): SurfaceBinding {
         // The readonly viewer never schedules a sync, so a host flush finds nothing pending.
-        if (isModelerHandle(handle)) {
+        if (isEditableHandle(handle)) {
             handle.onCommandStackChanged(() => session.scheduleSync());
-        } else if (isEditableHandle(handle)) {
-            handle
-                .getService<{ on(event: string, cb: () => void): void }>("eventBus")
-                .on("commandStack.changed", () => session.scheduleSync());
         }
 
-        // The canvas shortcut and the host command both end in `Layouter.format`,
-        // which announces every outcome here instead of returning it to either caller.
+        // One report per format, whether the host command, the palette or the
+        // canvas shortcut started it; only the host command has a caller.
         if (isFormattableHandle(handle)) {
-            handle
-                .getService<{
-                    on(event: string, cb: (outcome: LayoutOutcome) => void): void;
-                }>("eventBus")
-                .on(LAYOUT_FORMATTED_EVENT, (outcome) => {
-                    host.postMessage(
-                        new DiagramFormattedCommand(
-                            outcome.status,
-                            outcome.diagnostics,
-                            outcome.code,
-                            outcome.message,
-                        ),
-                    );
-                });
+            handle.onFormatted((outcome) => {
+                host.postMessage(
+                    new DiagramFormattedCommand(
+                        outcome.status,
+                        outcome.diagnostics,
+                        outcome.code,
+                        outcome.message,
+                    ),
+                );
+            });
         }
 
         let cancelPendingVariablePublish = (): void => {};

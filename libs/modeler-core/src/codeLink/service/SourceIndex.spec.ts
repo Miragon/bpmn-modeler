@@ -81,6 +81,15 @@ describe("SourceIndex", () => {
         expect(readsOf(WORKER)).toHaveLength(1);
     });
 
+    it("lists again after a deleted source file", async () => {
+        const { index, workspace } = createIndex({ [WORKER]: `"pay"`, [OTHER]: `"refund"` });
+        await scan(index, "editor1", DOC);
+
+        workspace.deleteFile(WORKER);
+
+        expect(await scan(index, "editor1", DOC)).toEqual([OTHER]);
+    });
+
     it("treats a create event for a listed file as a change", async () => {
         const { index, watchers, findFiles, readsOf } = createIndex({ [WORKER]: `"pay"` });
         await scan(index, "editor1", DOC);

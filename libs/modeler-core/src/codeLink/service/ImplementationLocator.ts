@@ -118,7 +118,7 @@ export class ImplementationLocator {
                 const source = await catalog.inspect(path, withContent);
                 return source
                     ? contentTargets.filter(({ target }) =>
-                          target.isDeclaredIn(source.facts, source.content),
+                          target.isDeclaredIn(path, source.facts, source.content),
                       )
                     : [];
             }),

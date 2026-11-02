@@ -14,7 +14,7 @@ import { BpmnLayoutService } from "./BpmnLayoutService";
 const NOTHING_TO_CLEAN = "Nothing to clean up — the diagram carries no leftovers.";
 
 function createService({ userConfirms = false } = {}) {
-    const host = createTestHost({ answers: { confirmDestructive: userConfirms } });
+    const host = createTestHost({ promptAnswers: { cleanupLeftovers: userConfirms } });
     const editor = host.openEditor("/work/diagram.bpmn");
     const service = new BpmnLayoutService(host.store, host.notifier, host.picker);
     return { service, editor, notifier: host.notifier, picker: host.picker };
@@ -206,9 +206,10 @@ describe("BpmnLayoutService.reportCleanup", () => {
 
         expect(picker.prompts).toEqual([
             {
-                method: "confirmDestructive",
+                method: "confirm",
                 args: [
                     {
+                        id: "cleanupLeftovers",
                         title: "Remove 2 leftover item(s) from this diagram?",
                         confirmLabel: "Clean Up",
                         details: ["Shape_1", "Label of Task_1"],
@@ -220,6 +221,29 @@ describe("BpmnLayoutService.reportCleanup", () => {
         const [query] = editor.posted;
         expect(query).toBeInstanceOf(CleanupDiagramQuery);
         expect((query as CleanupDiagramQuery).apply).toBe(true);
+    });
+
+    it("lists the first 12 leftovers and counts the rest", async () => {
+        const { service, picker, editor } = createService();
+        const many: CleanupItem[] = Array.from({ length: 14 }, (_, i) => ({
+            kind: "orphan-di",
+            id: `Shape_${i + 1}`,
+            label: `Shape_${i + 1}`,
+        }));
+
+        await service.reportCleanup(cleanupReport("reported", { items: many }), editor.id);
+
+        expect(picker.prompts).toEqual([
+            {
+                method: "confirm",
+                args: [
+                    expect.objectContaining({
+                        title: "Remove 14 leftover item(s) from this diagram?",
+                        details: [...many.slice(0, 12).map((item) => item.label), "…and 2 more"],
+                    }),
+                ],
+            },
+        ]);
     });
 
     it("removes nothing when the user declines", async () => {

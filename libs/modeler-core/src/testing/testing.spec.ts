@@ -7,11 +7,13 @@ import {
     FileNotFound,
     isHiddenEditorError,
     NoWorkspaceFolderFoundError,
-    UserCancelledError,
 } from "../kernel/domain/errors";
+import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
+import { tokenPromptFor } from "../template-marketplace/domain/tokenPrompt";
 import { createTestHost } from "./createTestHost";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
+import { RecordingStatusBar } from "./RecordingStatusBar";
 import { ScriptedPicker } from "./ScriptedPicker";
 
 describe("InMemoryWorkspace", () => {
@@ -35,7 +37,7 @@ describe("InMemoryWorkspace", () => {
         );
     });
 
-    it("finds files in the folders by glob, honouring exclude and limit", async () => {
+    it("finds files in the folders by glob, honouring exclude", async () => {
         const ws = new InMemoryWorkspace(["/work"], {
             "/work/order.bpmn": "",
             "/work/dist/stale.bpmn": "",
@@ -50,7 +52,6 @@ describe("InMemoryWorkspace", () => {
         await expect(ws.findFiles("**/*.bpmn", "**/dist/**")).resolves.toEqual([
             "/work/order.bpmn",
         ]);
-        await expect(ws.findFiles("**/*.{bpmn,form}", null, 1)).resolves.toHaveLength(1);
     });
 
     it("answers with the folders as they are after one is added or removed", async () => {
@@ -117,18 +118,47 @@ describe("InMemoryWorkspace", () => {
         await ws.writeFile("/work/new.bpmn", "<new/>");
         await ws.writeFile("/work/order.bpmn", "<order2/>");
         await ws.writeFile("/work/forms/b.form", "{}");
-        await ws.deleteDirectory("/work/dist");
+        ws.deleteFile("/work/nested/inner.bpmn");
         watcher.dispose();
         ws.deleteFile("/work/order.bpmn");
 
         expect(events).toEqual([
             "create /work/new.bpmn",
             "change /work/order.bpmn",
-            "delete /work/dist/stale.bpmn",
+            "delete /work/nested/inner.bpmn",
         ]);
         expect(ws.watchers).toEqual([
             expect.objectContaining({ root: "/work", glob: "**/*.bpmn", disposed: true }),
         ]);
+    });
+
+    it("reports a directory created or deleted as a whole by one event for the directory", async () => {
+        const ws = workspace();
+        const events: string[] = [];
+        ws.createWatcher("/work", "**/*", {
+            onCreate: (path) => events.push(`create ${path}`),
+            onChange: (path) => events.push(`change ${path}`),
+            onDelete: (path) => events.push(`delete ${path}`),
+        });
+
+        ws.createDirectory("/work/moved", { "/work/moved/sub/a.bpmn": "<a/>" });
+        ws.createDirectory("/work/moved");
+        await ws.deleteDirectory("/work/dist");
+        await ws.deleteDirectory("/work/missing");
+
+        expect(events).toEqual(["create /work/moved", "delete /work/dist"]);
+        await expect(ws.readFile("/work/moved/sub/a.bpmn")).resolves.toBe("<a/>");
+        await expect(ws.readDirectory("/work/moved")).resolves.toEqual([["sub", "directory"]]);
+        await expect(ws.readFile("/work/dist/stale.bpmn")).rejects.toThrow(FileNotFound);
+    });
+
+    it("refuses files for a directory that exists, which no host reports as one create", () => {
+        const ws = workspace();
+
+        expect(() => ws.createDirectory("/work/dist", { "/work/dist/new.bpmn": "<new/>" })).toThrow(
+            "/work/dist exists",
+        );
+        expect(ws.files.has("/work/dist/new.bpmn")).toBe(false);
     });
 });
 
@@ -144,46 +174,148 @@ describe("InMemorySettings", () => {
     });
 });
 
-describe("ScriptedPicker", () => {
-    it("dismisses unanswered prompts with each prompt's own cancel convention", async () => {
-        const picker = new ScriptedPicker();
-
-        await expect(picker.pickNewModelEngine("Engine")).rejects.toThrow(UserCancelledError);
-        await expect(picker.pickEngineVersion("c7", ["7.22"])).rejects.toThrow(UserCancelledError);
-        await expect(picker.pickMigrationScope(1, 1)).rejects.toThrow(UserCancelledError);
-        await expect(
-            picker.pickWorkspaceFiles({ glob: "**/*.bpmn", placeholder: "Pick" }),
-        ).resolves.toEqual([]);
-        await expect(picker.pickPayloadFile(["/a.json"])).resolves.toBeNull();
-        await expect(picker.pickScriptLanguage("groovy")).resolves.toBeUndefined();
-        await expect(
-            picker.confirmDestructive({ title: "Delete", confirmLabel: "Delete", details: [] }),
-        ).resolves.toBe(false);
-        await expect(picker.pickDeploymentTarget(["dev"])).resolves.toBeUndefined();
-        await expect(
-            picker.pickDeploymentStatusAction({ canVerify: true }),
-        ).resolves.toBeUndefined();
-        expect(picker.prompts.map((prompt) => prompt.method)).toHaveLength(9);
+describe("ScriptedPicker answers by prompt id", () => {
+    const engines: ChoicePrompt<string> = {
+        id: "engine",
+        placeholder: "Select the engine",
+        items: [
+            { label: "Camunda 7", value: "c7" },
+            { label: "Camunda 8", value: "c8" },
+        ],
+    };
+    const files: ChoicePrompt<string> = {
+        id: "files",
+        placeholder: "Select files",
+        items: ["/a.form", "/b.dmn", "/c.json"].map((path) => ({ label: path, path, value: path })),
+    };
+    const deleteTarget = {
+        id: "deleteTarget",
+        title: "Delete dev?",
+        confirmLabel: "Delete",
+        details: ["dev"],
+    };
+    const locate = (paths: string[]): SearchPrompt<string[]> => ({
+        id: "locate",
+        searchingPlaceholder: "Searching…",
+        search: async () => paths,
+        choices: (found) =>
+            found.length > 1
+                ? {
+                      id: "locatedFile",
+                      placeholder: "Select the file",
+                      items: found.map((path) => ({ label: path, value: path })),
+                  }
+                : undefined,
     });
 
-    it("returns scripted answers and offers the located-file choice only on a multi-match", async () => {
-        const picker = new ScriptedPicker({ engineVersion: "8.7.0", locatedFile: "/b.bpmn" });
-        const prompts = { searchingPlaceholder: "Searching", pickPlaceholder: "Pick" };
+    it("returns the scripted value of each prompt it is asked", async () => {
+        const { picker } = createTestHost({
+            promptAnswers: {
+                engine: "c8",
+                files: ["/a.form", "/c.json"],
+                deleteTarget: true,
+                locatedFile: "/w/b.bpmn",
+            },
+        });
 
-        await expect(picker.pickEngineVersion("c8", ["8.7.0"])).resolves.toBe("8.7.0");
-        const single = await picker.searchAndPickLocatedFile(prompts, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn"],
-            readFailures: [],
-        }));
-        const multi = await picker.searchAndPickLocatedFile(prompts, async () => ({
-            kind: "matches",
-            paths: ["/a.bpmn", "/b.bpmn"],
-            readFailures: [],
-        }));
+        await expect(picker.choose(engines)).resolves.toBe("c8");
+        await expect(picker.chooseMany(files)).resolves.toEqual(["/a.form", "/c.json"]);
+        await expect(picker.confirm(deleteTarget)).resolves.toBe(true);
+        await expect(picker.searchAndChoose(locate(["/w/a.bpmn", "/w/b.bpmn"]))).resolves.toEqual({
+            outcome: ["/w/a.bpmn", "/w/b.bpmn"],
+            chosen: "/w/b.bpmn",
+        });
+        expect(picker.prompts.map((prompt) => prompt.method)).toEqual([
+            "choose",
+            "chooseMany",
+            "confirm",
+            "searchAndChoose",
+        ]);
+    });
 
-        expect(single.chosen).toBeUndefined();
-        expect(multi.chosen).toBe("/b.bpmn");
+    it("dismisses an unanswered prompt", async () => {
+        const picker = new ScriptedPicker();
+
+        await expect(picker.choose(engines)).resolves.toBeUndefined();
+        await expect(picker.chooseMany(files)).resolves.toEqual([]);
+        await expect(picker.confirm(deleteTarget)).resolves.toBe(false);
+        await expect(picker.searchAndChoose(locate(["/a", "/b"]))).resolves.toEqual({
+            outcome: ["/a", "/b"],
+            chosen: undefined,
+        });
+    });
+
+    it("chooses nothing when the search outcome leaves no choice", async () => {
+        const picker = new ScriptedPicker({ locatedFile: "/w/a.bpmn" });
+
+        await expect(picker.searchAndChoose(locate(["/w/a.bpmn"]))).resolves.toEqual({
+            outcome: ["/w/a.bpmn"],
+            chosen: undefined,
+        });
+    });
+
+    it.each([
+        [
+            "a value the prompt does not offer",
+            { engine: "c9" },
+            (picker: ScriptedPicker) => picker.choose(engines),
+        ],
+        [
+            "a list with a file not offered",
+            { files: ["/a.form", "/d.bpmn"] },
+            (picker: ScriptedPicker) => picker.chooseMany(files),
+        ],
+        [
+            "a single value for a multi-choice",
+            { files: "/a.form" },
+            (picker: ScriptedPicker) => picker.chooseMany(files),
+        ],
+        [
+            "a non-boolean confirmation",
+            { deleteTarget: "yes" },
+            (picker: ScriptedPicker) => picker.confirm(deleteTarget),
+        ],
+        [
+            "a located file not among the matches",
+            { locatedFile: "/w/c.bpmn" },
+            (picker: ScriptedPicker) => picker.searchAndChoose(locate(["/w/a.bpmn", "/w/b.bpmn"])),
+        ],
+    ])("rejects %s", async (_case, promptAnswers, ask) => {
+        await expect(ask(new ScriptedPicker(promptAnswers))).rejects.toThrow(
+            /not an answer to prompt "\w+"/,
+        );
+    });
+});
+
+describe("RecordingStatusBar", () => {
+    it("holds the last view of each slot until the slot is hidden", () => {
+        const statusBar = new RecordingStatusBar();
+        const loading = {
+            text: "Loading element templates…",
+            icon: "loading",
+            tone: "neutral",
+        } as const;
+        const engine = {
+            text: "Camunda 8 (8.7)",
+            tone: "neutral",
+            action: "changeEngineVersion",
+        } as const;
+        const lint = { text: "BPMNlint: off", icon: "off", tone: "neutral" } as const;
+
+        statusBar.show("elementTemplates", loading);
+        statusBar.show("engineVersion", { text: "Camunda 7 (7.22)", tone: "neutral" });
+        statusBar.show("engineVersion", engine);
+        statusBar.show("bpmnlint", lint);
+        statusBar.show("deploymentTarget", { text: "dev", icon: "dot", tone: "success" });
+        statusBar.hide("deploymentTarget");
+        statusBar.hide("elementTemplates");
+        statusBar.show("elementTemplates", { ...loading, transient: true });
+
+        expect(statusBar.views).toEqual({
+            elementTemplates: { ...loading, transient: true },
+            engineVersion: engine,
+            bpmnlint: lint,
+        });
     });
 });
 
@@ -247,7 +379,7 @@ describe("createTestHost", () => {
         ).rejects.toSatisfy(isHiddenEditorError);
     });
 
-    it("keeps credentials per slot and treats a blank token answer as a decline", async () => {
+    it("keeps credentials per slot and answers a token prompt as typed", async () => {
         const host = createTestHost({ tokenAnswers: { "github.com": "  ", "gitlab.com": " t " } });
 
         await host.secrets.saveBasicAuth("ada", "secret", "targets.json::dev");
@@ -259,8 +391,15 @@ describe("createTestHost", () => {
             clientId: "client",
             clientSecret: "s3cret",
         });
-        await expect(host.tokenPrompt.promptForToken("github.com", "401")).resolves.toBeUndefined();
-        await expect(host.tokenPrompt.promptForToken("gitlab.com", "401")).resolves.toBe("t");
+        const promptFor = (tokenHost: string) => tokenPromptFor(tokenHost, "declaredPrivate");
+        await expect(host.tokenPrompt.promptForToken(promptFor("github.com"))).resolves.toBe("  ");
+        await expect(host.tokenPrompt.promptForToken(promptFor("gitlab.com"))).resolves.toBe(" t ");
+        await expect(
+            host.tokenPrompt.promptForToken(promptFor("gitea.com")),
+        ).resolves.toBeUndefined();
+        expect(host.tokenPrompt.prompts).toEqual(
+            ["github.com", "gitlab.com", "gitea.com"].map(promptFor),
+        );
     });
 
     it("keeps approved destinations per slot and drops them with the slot's credentials", async () => {

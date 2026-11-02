@@ -12,6 +12,13 @@ interface TargetRow {
     reference: string;
 }
 
+interface DeclaredRow extends TargetRow {
+    path: string;
+    content: string;
+    withContent: boolean;
+    declared: boolean;
+}
+
 describe("ImplementationTarget", () => {
     it.each<TargetRow & { path: string; matches: boolean }>([
         { kind: "javaClass", reference: "Foo", path: "/src/MyFoo.java", matches: false },
@@ -94,6 +101,13 @@ describe("ImplementationTarget", () => {
             path: "/src/Renamed.java",
             content: '@Component(value = "myBean")',
             implemented: true,
+        },
+        {
+            kind: "delegateExpression",
+            reference: "${myBean}",
+            path: "/src/worker.ts",
+            content: '@Service("myBean")',
+            implemented: false,
         },
         {
             kind: "delegateExpression",
@@ -297,10 +311,11 @@ describe("ImplementationTarget", () => {
         },
     );
 
-    it.each<TargetRow & { content: string; withContent: boolean; declared: boolean }>([
+    it.each<DeclaredRow>([
         {
             kind: "delegateExpression",
             reference: "${myBean}",
+            path: "/src/Renamed.java",
             content: '@Service("myBean")',
             withContent: false,
             declared: true,
@@ -308,6 +323,15 @@ describe("ImplementationTarget", () => {
         {
             kind: "delegateExpression",
             reference: "${myBean}",
+            path: "/src/worker.ts",
+            content: '@Service("myBean")',
+            withContent: true,
+            declared: false,
+        },
+        {
+            kind: "delegateExpression",
+            reference: "${myBean}",
+            path: "/src/Renamed.java",
             content: "class MyBean {}",
             withContent: true,
             declared: false,
@@ -315,6 +339,7 @@ describe("ImplementationTarget", () => {
         {
             kind: "jobType",
             reference: "pay",
+            path: "/src/worker.ts",
             content: 'type = "pay"',
             withContent: false,
             declared: true,
@@ -322,6 +347,7 @@ describe("ImplementationTarget", () => {
         {
             kind: "jobType",
             reference: "pay",
+            path: "/src/Worker.java",
             content: 'type = "payment"',
             withContent: true,
             declared: false,
@@ -329,6 +355,7 @@ describe("ImplementationTarget", () => {
         {
             kind: "externalTopic",
             reference: "pay now",
+            path: "/src/Worker.java",
             content: 'topic = "pay now"',
             withContent: true,
             declared: true,
@@ -336,6 +363,7 @@ describe("ImplementationTarget", () => {
         {
             kind: "externalTopic",
             reference: "pay now",
+            path: "/src/Worker.java",
             content: 'topic = "pay now"',
             withContent: false,
             declared: false,
@@ -343,6 +371,7 @@ describe("ImplementationTarget", () => {
         {
             kind: "javaClass",
             reference: "com.x.A",
+            path: "/src/Other.java",
             content: '@Service("com.x.A") "com.x.A"',
             withContent: true,
             declared: false,
@@ -350,17 +379,19 @@ describe("ImplementationTarget", () => {
         {
             kind: "expression",
             reference: "${1+2}",
+            path: "/src/Renamed.java",
             content: '"1+2"',
             withContent: true,
             declared: false,
         },
     ])(
-        "isDeclaredIn: $kind $reference in $content (content passed: $withContent) → $declared",
-        ({ kind, reference, content, withContent, declared }) => {
+        "isDeclaredIn: $kind $reference in $path with $content (content passed: $withContent) → $declared",
+        ({ kind, reference, path, content, withContent, declared }) => {
             const facts = SourceFileFacts.extract(content);
 
             expect(
                 ImplementationTarget.of(kind, reference).isDeclaredIn(
+                    path,
                     facts,
                     withContent ? content : undefined,
                 ),

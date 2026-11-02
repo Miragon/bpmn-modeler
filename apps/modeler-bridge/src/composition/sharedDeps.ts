@@ -3,7 +3,6 @@ import {
     DocumentFlushService,
     EditorSessionStore,
     PendingEditsFlush,
-    WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 
 import { DocumentMirror, RpcDocumentPort, RpcNotifier, RpcPicker, RpcStatusBar } from "../adapters";
@@ -12,8 +11,7 @@ import { Rpc } from "../rpc";
 
 /**
  * The cross-cutting collaborators every bridge feature draws from: the RPC peer,
- * the host-capability port adapters, the shared editor-session registry, the one
- * webview-message router each feature registers its own surface on, the
+ * the host-capability port adapters, the shared editor-session registry, the
  * stateless `artifactSvc` consumed by templates, code-link, and deployment, and
  * the flush that writes a webview's pending edits into its document.
  * Bundling them lets each feature's `register()` take a single `deps` argument
@@ -31,7 +29,6 @@ export interface BridgeSharedDeps {
     settings: BridgeSettings;
     picker: RpcPicker;
     store: EditorSessionStore;
-    router: WebviewMessageRouter;
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
     pendingEdits: PendingEditsFlush;
@@ -61,19 +58,12 @@ export function buildSharedDeps(
     const nodeWorkspace = new NodeWorkspace();
     const settings = new BridgeSettings();
 
-    // The picker reuses NodeWorkspace for its one filesystem-backed prompt
-    // (pickWorkspaceFiles); every other prompt receives its candidates inline.
-    const picker = new RpcPicker(rpc, nodeWorkspace);
+    const picker = new RpcPicker(rpc);
 
     // onOpenCountChanged is the VS Code setContext hook; irrelevant out-of-process.
     const store = new EditorSessionStore(() => {});
 
     const artifactSvc = new ArtifactService(nodeWorkspace, settings, notifier);
-
-    // One router shared across features: each feature registers its own
-    // webview-message surface on it. Handlers registered for the same type run
-    // in registration order.
-    const router = new WebviewMessageRouter();
 
     const flushSvc = new DocumentFlushService(store, notifier);
 
@@ -88,7 +78,6 @@ export function buildSharedDeps(
         settings,
         picker,
         store,
-        router,
         artifactSvc,
         flushSvc,
         pendingEdits: new PendingEditsFlush(store, flushSvc, notifier),

@@ -1,8 +1,8 @@
 /**
  * Stdio entrypoint for the out-of-process modeler core, shipped as a Node-free
  * Bun binary (`bun build --compile`). All wiring lives in {@link createBridge}
- * and {@link createStdinHandler}; this file only binds the process streams, so
- * the rest stays unit-testable.
+ * and `stdioBinding`; this file only binds the process streams, so the rest
+ * stays unit-testable.
  *
  * stdout is the RPC channel and must carry nothing else; all diagnostics go to
  * stderr (the host pipes that into the IDE log).
@@ -12,7 +12,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { createBridge } from "./bridge";
-import { coreLogText, createStdinHandler } from "./stdioBinding";
+import { coreLogText, createStdinEndHandler, createStdinHandler } from "./stdioBinding";
 
 // The host (IntelliJ) sets this to a `PathManager`-derived location segmented by
 // the project's location hash (per-project, shared only among windows on that
@@ -33,7 +33,10 @@ process.stdin.on(
     "data",
     createStdinHandler(rpc, (text) => process.stderr.write(text)),
 );
-process.stdin.on("end", () => process.exit(0));
+process.stdin.on(
+    "end",
+    createStdinEndHandler(rpc, () => process.exit(0)),
+);
 
 // stdin EOF is the normal teardown, but the host also sends SIGTERM (its
 // graceful `Process.destroy()` before a force-kill fallback). Exit promptly on

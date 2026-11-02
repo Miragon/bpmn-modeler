@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost, TestHostOptions } from "../../testing";
-import { BpmnMigrationService } from "./BpmnMigrationService";
+import { engineVersionPrompt } from "../../kernel/domain/engineVersions";
+import { ChoicePrompt } from "../../kernel/domain/prompts";
+import { createTestHost, PromptAnswers, ScriptedPicker, TestHost } from "../../testing";
+import { migrationScopePrompt } from "../domain/migrationScopePrompt";
+import { BpmnMigrationService, CoreWriteRenderer } from "./BpmnMigrationService";
 
 // ─── Sample BPMN XML ────────────────────────────────────────────────────────
 
@@ -34,31 +37,66 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:modeler="http://camunda.org/schema/modeler/1.0">
 </bpmn:definitions>`;
 
+const zeebeNamespaceOnProcessRoot = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:process xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Process_1" />`;
+
 const withUnsavedEdit = (xml: string) =>
     xml.replace("</bpmn:definitions>", `<bpmn:process id="Unsaved_Edit" />\n</bpmn:definitions>`);
 
 // ─── Host ───────────────────────────────────────────────────────────────────
 
-function createHost(files: Record<string, string>, answers: TestHostOptions["answers"] = {}) {
-    const host = createTestHost({ folders: ["/work"], files, answers });
+/** Records what each open editor's document held when the migration asked to render it. */
+class RecordingCoreWriteRenderer implements CoreWriteRenderer {
+    readonly rendered: Array<{ editorId: string; content: string }> = [];
+
+    constructor(private readonly documents: TestHost["documents"]) {}
+
+    async renderCoreWrite(editorId: string): Promise<void> {
+        this.rendered.push({ editorId, content: this.documents.getContent(editorId) });
+    }
+}
+
+function createHost(files: Record<string, string>, promptAnswers: PromptAnswers = {}) {
+    const host = createTestHost({ folders: ["/work"], files, promptAnswers });
+    const renderer = new RecordingCoreWriteRenderer(host.documents);
     const service = new BpmnMigrationService(
         host.store,
         host.documents,
         host.workspace,
         host.picker,
         host.notifier,
+        renderer,
     );
     const writtenPaths: string[] = [];
     host.workspace.createWatcher("/work", "**/*.bpmn", {
         onChange: (path) => writtenPaths.push(path),
     });
-    return { service, writtenPaths, ...host };
+    return { service, writtenPaths, renderer, ...host };
 }
 
-const promptedMethods = (picker: { prompts: { method: string }[] }) =>
-    picker.prompts.map((prompt) => prompt.method);
+/** Runs `duringChoice` while the user still chooses, then answers as scripted. */
+function whileChoosing(picker: ScriptedPicker, duringChoice: () => unknown) {
+    const choose = picker.choose.bind(picker);
+    vi.spyOn(picker, "choose").mockImplementation(async <V>(prompt: ChoicePrompt<V>) => {
+        await duringChoice();
+        return choose(prompt);
+    });
+}
 
 const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
+
+const failingOn =
+    <Rest extends unknown[], Result>(
+        failingPath: string,
+        operation: (path: string, ...rest: Rest) => Promise<Result>,
+    ) =>
+    async (path: string, ...rest: Rest): Promise<Result> => {
+        if (path === failingPath) {
+            throw new Error("Permission denied");
+        }
+        return operation(path, ...rest);
+    };
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -81,19 +119,21 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual([
             "Could not detect the engine for any BPMN file in the workspace.",
         ]);
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped 1 file(s) with undetectable engine: /work/a.bpmn",
+        ]);
     });
 
     it("should migrate C8-only workspace without scope picker", async () => {
         const { service, notifier, picker, workspace, writtenPaths } = createHost(
             { "/work/a.bpmn": c8Bpmn("8.5.0"), "/work/b.bpmn": c8Bpmn("8.6.0") },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(promptedMethods(picker)).toEqual(["pickEngineVersion"]);
-        expect(picker.prompts[0].args[0]).toBe("c8");
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c8")] }]);
         expect(writtenPaths).toEqual(["/work/a.bpmn", "/work/b.bpmn"]);
         expect(workspace.files.get("/work/a.bpmn")).toContain(
             'modeler:executionPlatformVersion="8.8.0"',
@@ -104,17 +144,48 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual(["Updated 2 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
+    it("migrates no copy of a diagram inside build output, node_modules or a dot-folder", async () => {
+        const { service, writtenPaths } = createHost(
+            {
+                "/work/src/main/resources/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/target/classes/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/node_modules/pkg/fixture.bpmn": c8Bpmn("8.5.0"),
+                "/work/.history/src/main/resources/a_20261101120000.bpmn": c8Bpmn("8.5.0"),
+            },
+            { c8EngineVersion: "8.8.0" },
+        );
+
+        await service.migrateAllDiagrams();
+
+        expect(writtenPaths).toEqual(["/work/src/main/resources/a.bpmn"]);
+    });
+
+    it("asks for no scope when only a stale copy holds the other engine", async () => {
+        const { service, picker, notifier } = createHost(
+            {
+                "/work/src/main/resources/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/build/resources/main/legacy.bpmn": c7Bpmn("7.20.0"),
+                "/work/.history/legacy_20261101120000.bpmn": c7Bpmn("7.20.0"),
+            },
+            { c8EngineVersion: "8.8.0" },
+        );
+
+        await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c8")] }]);
+        expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
+    });
+
     it("should migrate C7-only workspace without scope picker", async () => {
         const { service, picker, workspace, writtenPaths } = createHost(
             { "/work/c7.bpmn": c7Bpmn("7.20.0") },
-            { engineVersion: "7.24.0" },
+            { c7EngineVersion: "7.24.0" },
         );
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(promptedMethods(picker)).toEqual(["pickEngineVersion"]);
-        expect(picker.prompts[0].args[0]).toBe("c7");
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c7")] }]);
         expect(writtenPaths).toEqual(["/work/c7.bpmn"]);
         expect(workspace.files.get("/work/c7.bpmn")).toContain(
             'modeler:executionPlatformVersion="7.24.0"',
@@ -128,7 +199,7 @@ describe("migrateAllDiagrams", () => {
                 "/work/c7-other.bpmn": c7Bpmn("7.20.0"),
                 "/work/c8.bpmn": c8Bpmn("8.5.0"),
             },
-            { migrationScope: "c8", engineVersion: "8.8.0" },
+            { migrationScope: "c8", c8EngineVersion: "8.8.0" },
         );
 
         const result = await service.migrateAllDiagrams();
@@ -138,8 +209,8 @@ describe("migrateAllDiagrams", () => {
          * Only C8 was selected, so only one version picker
          */
         expect(picker.prompts).toEqual([
-            { method: "pickMigrationScope", args: [2, 1] },
-            { method: "pickEngineVersion", args: ["c8", expect.any(Object)] },
+            { method: "choose", args: [migrationScopePrompt({ c7Count: 2, c8Count: 1 })] },
+            { method: "choose", args: [engineVersionPrompt("c8")] },
         ]);
         expect(writtenPaths).toEqual(["/work/c8.bpmn"]);
     });
@@ -147,22 +218,24 @@ describe("migrateAllDiagrams", () => {
     it("should pick two versions when scope is 'both'", async () => {
         const { service, picker, writtenPaths } = createHost(
             { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
-            { migrationScope: "both" },
+            { migrationScope: "both", c7EngineVersion: "7.24.0", c8EngineVersion: "8.8.0" },
         );
-        const writesSeenAtVersionPick: number[] = [];
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async (platform) => {
-            writesSeenAtVersionPick.push(writtenPaths.length);
-            return platform === "c7" ? "7.24.0" : "8.8.0";
-        });
+        const writesSeenAtEachChoice: number[] = [];
+        whileChoosing(picker, () => writesSeenAtEachChoice.push(writtenPaths.length));
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
         expect(writtenPaths).toEqual(["/work/c7.bpmn", "/work/c8.bpmn"]);
 
-        // Both version picks must complete before any write occurs.
+        expect(picker.prompts).toEqual([
+            { method: "choose", args: [migrationScopePrompt({ c7Count: 1, c8Count: 1 })] },
+            { method: "choose", args: [engineVersionPrompt("c7")] },
+            { method: "choose", args: [engineVersionPrompt("c8")] },
+        ]);
+        // Every choice must complete before any write occurs.
         // This prevents document-change listeners from dismissing the QuickPick.
-        expect(writesSeenAtVersionPick).toEqual([0, 0]);
+        expect(writesSeenAtEachChoice).toEqual([0, 0, 0]);
     });
 
     it("neither writes nor counts a diagram already at the picked version", async () => {
@@ -171,7 +244,7 @@ describe("migrateAllDiagrams", () => {
                 "/work/a.bpmn": c8Bpmn("8.8.0"),
                 "/work/b.bpmn": c8Bpmn("8.5.0"),
             },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
 
         await service.migrateAllDiagrams();
@@ -183,7 +256,7 @@ describe("migrateAllDiagrams", () => {
     it("should use DocumentPort.write for files open in an editor", async () => {
         const { service, openEditor, workspace, writtenPaths } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
         const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
 
@@ -194,10 +267,22 @@ describe("migrateAllDiagrams", () => {
         expect(workspace.files.get("/work/open.bpmn")).toBe(c8Bpmn("8.5.0"));
     });
 
+    it("renders the migrated content of an open diagram once its editor accepted the write", async () => {
+        const { service, openEditor, renderer } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0"), "/work/closed.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
+
+        await service.migrateAllDiagrams();
+
+        expect(renderer.rendered).toEqual([{ editorId: editor.id, content: c8Bpmn("8.8.0") }]);
+    });
+
     it("keeps unsaved edits of an open diagram when migrating it", async () => {
         const { service, openEditor, workspace, writtenPaths } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
         const editor = openEditor("/work/open.bpmn", withUnsavedEdit(c8Bpmn("8.5.0")));
 
@@ -212,7 +297,7 @@ describe("migrateAllDiagrams", () => {
     it("decides from the open editor's content, not from disk, whether a diagram needs migrating", async () => {
         const { service, notifier, openEditor } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.8.0") },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
         const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
 
@@ -225,28 +310,24 @@ describe("migrateAllDiagrams", () => {
     it("plans an open diagram by its editor's engine while its file on disk is still empty", async () => {
         const { service, notifier, openEditor, picker } = createHost(
             { "/work/new.bpmn": "" },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
         const editor = openEditor("/work/new.bpmn", c8Bpmn("8.5.0"));
 
         await service.migrateAllDiagrams();
 
-        expect(picker.prompts).toEqual([
-            { method: "pickEngineVersion", args: ["c8", expect.any(Object)] },
-        ]);
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c8")] }]);
         expect(editor.content).toBe(c8Bpmn("8.8.0"));
         expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
     it("migrates an open diagram from the content it has when written, not when planned", async () => {
-        const { service, documents, openEditor, picker } = createHost({
-            "/work/open.bpmn": c8Bpmn("8.5.0"),
-        });
+        const { service, documents, openEditor, picker } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
         const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
-            await documents.write(editor.id, withUnsavedEdit(c8Bpmn("8.5.0")));
-            return "8.8.0";
-        });
+        whileChoosing(picker, () => documents.write(editor.id, withUnsavedEdit(c8Bpmn("8.5.0"))));
 
         await service.migrateAllDiagrams();
 
@@ -254,27 +335,30 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("migrates a closed diagram from the content it has on disk when written, not when planned", async () => {
-        const { service, picker, workspace } = createHost({ "/work/a.bpmn": c8Bpmn("8.5.0") });
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
-            workspace.files.set("/work/a.bpmn", withUnsavedEdit(c8Bpmn("8.5.0")));
-            return "8.8.0";
-        });
+        const { service, picker, workspace } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        whileChoosing(picker, () =>
+            workspace.files.set("/work/a.bpmn", withUnsavedEdit(c8Bpmn("8.5.0"))),
+        );
 
         await service.migrateAllDiagrams();
 
         expect(workspace.files.get("/work/a.bpmn")).toBe(withUnsavedEdit(c8Bpmn("8.8.0")));
     });
 
-    it("reports an open diagram whose editor rejected the write as skipped, not updated", async () => {
-        const { service, documents, notifier, openEditor } = createHost(
+    it("reports an open diagram whose editor rejected the write as skipped, not updated, and leaves it unrendered", async () => {
+        const { service, documents, notifier, openEditor, renderer } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
         openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
         vi.spyOn(documents, "write").mockResolvedValue(false);
 
         await service.migrateAllDiagrams();
 
+        expect(renderer.rendered).toEqual([]);
         expect(notifier.infos).toEqual([
             "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
         ]);
@@ -282,15 +366,12 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("reports the skipped diagrams next to the updated ones", async () => {
-        const { service, documents, notifier, openEditor, picker } = createHost(
+        const { service, documents, notifier, openEditor } = createHost(
             { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
-            { migrationScope: "both" },
+            { migrationScope: "both", c7EngineVersion: "7.24.0", c8EngineVersion: "8.8.0" },
         );
         openEditor("/work/c7.bpmn", c7Bpmn("7.20.0"));
         vi.spyOn(documents, "write").mockResolvedValue(false);
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async (platform) =>
-            platform === "c7" ? "7.24.0" : "8.8.0",
-        );
 
         await service.migrateAllDiagrams();
 
@@ -302,7 +383,7 @@ describe("migrateAllDiagrams", () => {
     it("does not report an added executionPlatform that the editor rejected", async () => {
         const { service, documents, notifier, openEditor } = createHost(
             { "/work/noversion.bpmn": c8BpmnNoVersion },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
         openEditor("/work/noversion.bpmn", c8BpmnNoVersion);
         vi.spyOn(documents, "write").mockResolvedValue(false);
@@ -315,14 +396,12 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("skips an open diagram whose engine changed while the version was being picked", async () => {
-        const { service, documents, notifier, openEditor, picker } = createHost({
-            "/work/open.bpmn": c8Bpmn("8.5.0"),
-        });
+        const { service, documents, notifier, openEditor, picker } = createHost(
+            { "/work/open.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
         const editor = openEditor("/work/open.bpmn", c8Bpmn("8.5.0"));
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
-            await documents.write(editor.id, c7Bpmn("7.20.0"));
-            return "8.8.0";
-        });
+        whileChoosing(picker, () => documents.write(editor.id, c7Bpmn("7.20.0")));
 
         await service.migrateAllDiagrams();
 
@@ -336,14 +415,11 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("skips a closed diagram deleted while the version was being picked and migrates the rest", async () => {
-        const { service, notifier, picker, workspace } = createHost({
-            "/work/a.bpmn": c8Bpmn("8.5.0"),
-            "/work/b.bpmn": c8Bpmn("8.5.0"),
-        });
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
-            workspace.deleteFile("/work/a.bpmn");
-            return "8.8.0";
-        });
+        const { service, notifier, picker, workspace } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.5.0"), "/work/b.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        whileChoosing(picker, () => workspace.deleteFile("/work/a.bpmn"));
 
         const result = await service.migrateAllDiagrams();
 
@@ -359,29 +435,171 @@ describe("migrateAllDiagrams", () => {
         ]);
     });
 
-    it("aborts with an error when a closed diagram cannot be read before it is written", async () => {
-        const { service, notifier, picker, workspace } = createHost({
-            "/work/a.bpmn": c8Bpmn("8.5.0"),
-        });
-        vi.spyOn(picker, "pickEngineVersion").mockImplementation(async () => {
-            vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("Permission denied"));
-            return "8.8.0";
+    it("skips a diagram deleted between the workspace search and its read and migrates the rest", async () => {
+        const { service, notifier, workspace } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.5.0"), "/work/b.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        const findFiles = workspace.findFiles.bind(workspace);
+        vi.spyOn(workspace, "findFiles").mockImplementation(async (...args) => {
+            const found = await findFiles(...args);
+            workspace.deleteFile("/work/a.bpmn");
+            return found;
         });
 
         const result = await service.migrateAllDiagrams();
 
-        expect(result).toBe(false);
-        expect(workspace.files.get("/work/a.bpmn")).toBe(c8Bpmn("8.5.0"));
-        expect(notifier.errors).toEqual([
-            "A problem occurred while migrating BPMN diagrams.\nPermission denied",
+        expect(Object.fromEntries(workspace.files)).toEqual({ "/work/b.bpmn": c8Bpmn("8.8.0") });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped a diagram deleted during migration: /work/a.bpmn",
         ]);
-        expect(notifier.infos).toEqual([]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
+    it("leaves a file without a definitions root undetected and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost(
+            {
+                "/work/a.bpmn": c7Bpmn("7.20.0"),
+                "/work/b.bpmn": zeebeNamespaceOnProcessRoot,
+                "/work/c.bpmn": c7Bpmn("7.20.0"),
+            },
+            { c7EngineVersion: "7.24.0" },
+        );
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c7")] }]);
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c7Bpmn("7.24.0"),
+            "/work/b.bpmn": zeebeNamespaceOnProcessRoot,
+            "/work/c.bpmn": c7Bpmn("7.24.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            "Skipped 1 file(s) with undetectable engine: /work/b.bpmn",
+        ]);
+        expect(notifier.infos).toEqual(["Updated 2 diagram(s) to Camunda 7 (7.24.0)."]);
+        expect(result).toBe(true);
+    });
+
+    it("skips a diagram it cannot read and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost(
+            {
+                "/work/a.bpmn": c8Bpmn("8.5.0"),
+                "/work/b.bpmn": c8Bpmn("8.5.0"),
+                "/work/c.bpmn": c8Bpmn("8.5.0"),
+            },
+            { c8EngineVersion: "8.8.0" },
+        );
+        const readFile = workspace.readFile.bind(workspace);
+        vi.spyOn(workspace, "readFile").mockImplementation(failingOn("/work/b.bpmn", readFile));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c8")] }]);
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8Bpmn("8.8.0"),
+            "/work/b.bpmn": c8Bpmn("8.5.0"),
+            "/work/c.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be read: \/work\/b\.bpmn: Error: Permission denied\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 2 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
+    it("reports a diagram it cannot read when no other diagram has an engine to migrate", async () => {
+        const { service, notifier, picker, workspace } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+            "/work/unknown.bpmn": unknownBpmn,
+        });
+        const readFile = workspace.readFile.bind(workspace);
+        vi.spyOn(workspace, "readFile").mockImplementation(failingOn("/work/a.bpmn", readFile));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be read: \/work\/a\.bpmn: Error: Permission denied\n/,
+            ),
+            "Skipped 1 file(s) with undetectable engine: /work/unknown.bpmn",
+        ]);
+        expect(notifier.infos).toEqual([
+            "No diagrams were updated. Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(false);
+    });
+
+    it("skips a closed diagram it cannot read when writing it and migrates the rest", async () => {
+        const { service, notifier, picker, workspace } = createHost(
+            { "/work/a.bpmn": c8Bpmn("8.5.0"), "/work/b.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        const readFile = workspace.readFile.bind(workspace);
+        whileChoosing(picker, () =>
+            vi.spyOn(workspace, "readFile").mockImplementation(failingOn("/work/a.bpmn", readFile)),
+        );
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+            "/work/b.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be migrated: \/work\/a\.bpmn: Error: Permission denied\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
+    });
+
+    it("skips a closed diagram whose file cannot be written and migrates the rest", async () => {
+        const { service, notifier, workspace } = createHost(
+            { "/work/a.bpmn": c8BpmnNoVersion, "/work/b.bpmn": c8Bpmn("8.5.0") },
+            { c8EngineVersion: "8.8.0" },
+        );
+        const writeFile = workspace.writeFile.bind(workspace);
+        vi.spyOn(workspace, "writeFile").mockImplementation(failingOn("/work/a.bpmn", writeFile));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/a.bpmn": c8BpmnNoVersion,
+            "/work/b.bpmn": c8Bpmn("8.8.0"),
+        });
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toEqual([
+            expect.stringMatching(
+                /^Skipped a diagram that could not be migrated: \/work\/a\.bpmn: Error: Permission denied\n/,
+            ),
+        ]);
+        expect(notifier.infos).toEqual([
+            "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 1 diagram(s); see the log for details.",
+        ]);
+        expect(result).toBe(true);
     });
 
     it("stamps the execution platform on a diagram without a version, declaring each attribute once", async () => {
         const { service, notifier, workspace, writtenPaths } = createHost(
             { "/work/noversion.bpmn": c8BpmnNoVersion },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
 
         await service.migrateAllDiagrams();
@@ -410,19 +628,79 @@ describe("migrateAllDiagrams", () => {
         ]);
     });
 
-    it("should return false when user cancels", async () => {
-        const { service, writtenPaths } = createHost({ "/work/a.bpmn": c8Bpmn("8.5.0") });
+    it("migrates nothing and stays quiet when the user dismisses the version prompt", async () => {
+        const { service, notifier, picker, writtenPaths } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+        });
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
+        expect(picker.prompts).toEqual([{ method: "choose", args: [engineVersionPrompt("c8")] }]);
         expect(writtenPaths).toEqual([]);
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+    });
+
+    it("migrates nothing and stays quiet when the user dismisses the scope prompt", async () => {
+        const { service, notifier, picker, writtenPaths } = createHost({
+            "/work/c7.bpmn": c7Bpmn("7.20.0"),
+            "/work/c8.bpmn": c8Bpmn("8.5.0"),
+        });
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(result).toBe(false);
+        expect(picker.prompts).toEqual([
+            { method: "choose", args: [migrationScopePrompt({ c7Count: 1, c8Count: 1 })] },
+        ]);
+        expect(writtenPaths).toEqual([]);
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+    });
+
+    it("migrates neither engine when the user dismisses the second version prompt", async () => {
+        const { service, notifier, picker, workspace } = createHost(
+            { "/work/c7.bpmn": c7Bpmn("7.20.0"), "/work/c8.bpmn": c8Bpmn("8.5.0") },
+            { migrationScope: "both", c7EngineVersion: "7.24.0" },
+        );
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(result).toBe(false);
+        expect(picker.prompts.at(-1)).toEqual({
+            method: "choose",
+            args: [engineVersionPrompt("c8")],
+        });
+        expect(Object.fromEntries(workspace.files)).toEqual({
+            "/work/c7.bpmn": c7Bpmn("7.20.0"),
+            "/work/c8.bpmn": c8Bpmn("8.5.0"),
+        });
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+    });
+
+    it("shows an error and migrates nothing when the workspace cannot be searched", async () => {
+        const { service, notifier, picker, workspace } = createHost({
+            "/work/a.bpmn": c8Bpmn("8.5.0"),
+        });
+        vi.spyOn(workspace, "findFiles").mockRejectedValue(new Error("Search failed"));
+
+        const result = await service.migrateAllDiagrams();
+
+        expect(picker.prompts).toEqual([]);
+        expect(workspace.files.get("/work/a.bpmn")).toBe(c8Bpmn("8.5.0"));
+        expect(notifier.errors).toEqual([
+            "A problem occurred while migrating BPMN diagrams.\nSearch failed",
+        ]);
+        expect(notifier.infos).toEqual([]);
+        expect(result).toBe(false);
     });
 
     it("should log undetected files as warnings", async () => {
         const { service, notifier } = createHost(
             { "/work/ok.bpmn": c8Bpmn("8.5.0"), "/work/unknown.bpmn": unknownBpmn },
-            { engineVersion: "8.8.0" },
+            { c8EngineVersion: "8.8.0" },
         );
 
         await service.migrateAllDiagrams();

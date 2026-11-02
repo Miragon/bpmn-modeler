@@ -9,6 +9,8 @@ Open the **Deploy Diagram** view from the rocket icon in the activity bar. It ha
 - **Deploy** saves the open diagram and uploads it, optionally with additional files. If the diagram cannot be saved, nothing is uploaded. Additional files go out as last saved.
 - **Start Instance** starts a process instance, optionally with a JSON payload. It fills in the id of the diagram's first executable process, which you can change.
 
+The additional files to pick from are every `.form`, `.json` and `.dmn` file in the workspace, except those in `node_modules`, build output (`dist`, `build`, `out`, `target`, `bin`, `coverage`), folders whose name starts with a dot (such as `.vscode`), `element-templates` folders and the [config folder](/vscode/configuration) (`.camunda` by default).
+
 Fill in engine, endpoint, tenant and authentication, then deploy. For a quick deploy of the open diagram use the rocket button in the editor title bar.
 
 ## Authentication
@@ -94,6 +96,10 @@ Supported fields: `username`, `password`, `clientId`, `clientSecret`, `tokenEndp
 
 The status bar shows the active target with a coloured dot. Click it to switch targets or, for Camunda 7, verify against the engine.
 
+With no target selected, the item reads **Form values** once a deploy has saved the form's connection, and its dot then refers to that connection. A target name that is no longer in `deployment-targets.json` falls back to the form values, so it reads **Form values** too. Until a deploy saves the form's connection, the item reads **No deployment target** without a freshness colour. The menu the item opens names the same connection.
+
+The tooltip shows when the diagram was last deployed and verified, in the modeler's UI language.
+
 | Dot | Meaning |
 |---|---|
 | Green | The diagram matches your last deployment to this target. |
@@ -108,7 +114,7 @@ Freshness is recorded locally per target and file, not on the engine and not in 
 | Command | Use |
 |---|---|
 | **Miragon BPMN Modeler: Deploy Diagram** | Save and deploy the open diagram to the active target. Additional files need the sidebar. |
-| **Miragon BPMN Modeler: Deploy Files…** | Deploy several `.bpmn`/`.dmn` files, one deployment each. Also in the Explorer context menu. |
+| **Miragon BPMN Modeler: Deploy Files…** | Deploy several `.bpmn`/`.dmn` files, one deployment each. It offers every such file in the workspace except those in `node_modules`, build output or folders whose name starts with a dot. Also in the Explorer context menu. |
 | **Miragon BPMN Modeler: Switch Deployment Target** | Pick the active target or ad-hoc form values. |
 | **Miragon BPMN Modeler: Verify Deployment on Engine** | Check the open diagram against a Camunda 7 engine. |
 

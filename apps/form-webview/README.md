@@ -15,6 +15,8 @@ through [`libs/shared`](../../libs/shared/README.md).
 - Invalid JSON shows a recoverable error and remains authoritative in the text editor.
 - Visual edits post their full schema immediately. A short delivery guard plus the
   shared save/close flush protocol protects edits while that message is in flight.
+- form-js's `debounce` service is the flushable one from `@miragon/bpmn-modeler-types`,
+  so a save or close applies a properties-panel value form-js still debounces.
 
 ## Local development
 

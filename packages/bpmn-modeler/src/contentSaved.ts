@@ -38,7 +38,9 @@ export function createContentSavedNotifier(
  * Subscribes the debounced content-saved notifier to `commandStack.changed` and
  * registers its teardown (unsubscribe + cancel the pending export) with the
  * surface's store, so a destroy mid-debounce settles cleanly. Disposal-race
- * suppression tracks the store, matching the surface's liveness.
+ * suppression tracks the store, matching the surface's liveness. Returns the
+ * notifier's flush, for an owner that retires the surface without the
+ * embedder asking for a destroy.
  */
 export function wireContentSaved(options: {
     store: DisposableStore;
@@ -46,7 +48,7 @@ export function wireContentSaved(options: {
     exportDiagram: () => Promise<string>;
     onContentSaved: (event: ContentSavedEvent) => void | Promise<void>;
     reporter: SurfaceReporter;
-}): void {
+}): () => Promise<void> {
     const notifier = createContentSavedNotifier({
         exportDiagram: options.exportDiagram,
         onContentSaved: options.onContentSaved,
@@ -58,4 +60,5 @@ export function wireContentSaved(options: {
         unsubscribe();
         notifier.cancel();
     });
+    return () => notifier.flush();
 }

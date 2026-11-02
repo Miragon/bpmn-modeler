@@ -11,9 +11,12 @@ interface TestWidgetOptions {
     applyNormalSyncToHost?: boolean;
     content?: string;
     flushedContent?: string;
+    flushedRevision?: number;
+    flushedStatus?: string;
     live?: boolean;
     normalSyncContent?: string;
     normalSyncDelay?: number;
+    normalSyncRevision?: number;
     reply?: boolean;
     replyDelay?: number;
     syncFailure?: boolean;
@@ -49,7 +52,13 @@ function customEditorWidget(options: TestWidgetOptions = {}) {
     const blur = vi.fn(() => {
         if (options.normalSyncContent !== undefined) {
             scheduleMessage(
-                { type: "SyncDocumentCommand", content: options.normalSyncContent },
+                {
+                    type: "SyncDocumentCommand",
+                    content: options.normalSyncContent,
+                    ...(options.normalSyncRevision === undefined
+                        ? {}
+                        : { documentRevision: options.normalSyncRevision }),
+                },
                 options.normalSyncDelay,
             );
             if (options.applyNormalSyncToHost !== false) {
@@ -83,6 +92,10 @@ function customEditorWidget(options: TestWidgetOptions = {}) {
                 ...(options.flushedContent === undefined
                     ? {}
                     : { content: options.flushedContent }),
+                ...(options.flushedStatus === undefined ? {} : { status: options.flushedStatus }),
+                ...(options.flushedRevision === undefined
+                    ? {}
+                    : { documentRevision: options.flushedRevision }),
             },
             options.replyDelay,
         );
@@ -285,6 +298,65 @@ describe("ModelerCustomEditorContribution", () => {
         expect(candidate.sendMessage).toHaveBeenCalledOnce();
         expect(candidate.pushEditOperations).toHaveBeenCalledOnce();
         expect(candidate.getContent()).toBe("<fallback/>");
+    });
+
+    it("keeps an outside change when the page answers host-updated after the core dropped its sync", async () => {
+        vi.useFakeTimers();
+        const candidate = customEditorWidget({
+            applyNormalSyncToHost: false,
+            content: "<outside/>",
+            flushedStatus: "host-updated",
+            normalSyncContent: "<page/>",
+            normalSyncRevision: 1,
+        });
+        const { command } = setup(candidate.widget);
+
+        const flushing = command();
+        await vi.runAllTimersAsync();
+
+        await expect(flushing).resolves.toBe(true);
+        expect(candidate.pushEditOperations).not.toHaveBeenCalled();
+        expect(candidate.getContent()).toBe("<outside/>");
+    });
+
+    it("keeps an outside change the page imported after the sync the core dropped", async () => {
+        vi.useFakeTimers();
+        const candidate = customEditorWidget({
+            applyNormalSyncToHost: false,
+            content: "<outside/>",
+            flushedRevision: 2,
+            flushedStatus: "clean",
+            normalSyncContent: "<page/>",
+            normalSyncRevision: 1,
+        });
+        const { command } = setup(candidate.widget);
+
+        const flushing = command();
+        await vi.runAllTimersAsync();
+
+        await expect(flushing).resolves.toBe(true);
+        expect(candidate.pushEditOperations).not.toHaveBeenCalled();
+        expect(candidate.getContent()).toBe("<outside/>");
+    });
+
+    it("writes the observed sync when a clean reply still represents the sync's revision", async () => {
+        vi.useFakeTimers();
+        const candidate = customEditorWidget({
+            applyNormalSyncToHost: false,
+            content: "<before/>",
+            flushedRevision: 1,
+            flushedStatus: "clean",
+            normalSyncContent: "<page/>",
+            normalSyncRevision: 1,
+        });
+        const { command } = setup(candidate.widget);
+
+        const flushing = command();
+        await vi.runAllTimersAsync();
+
+        await expect(flushing).resolves.toBe(true);
+        expect(candidate.pushEditOperations).toHaveBeenCalledOnce();
+        expect(candidate.getContent()).toBe("<page/>");
     });
 
     it("observes a sync failure that arrives after the debounce grace period", async () => {

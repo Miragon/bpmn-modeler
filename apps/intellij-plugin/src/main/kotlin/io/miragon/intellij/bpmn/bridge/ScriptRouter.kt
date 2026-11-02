@@ -33,12 +33,8 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
         ScriptEditorManager(
             deps.project,
             deps.parentDisposable,
-            onChange = { scriptId, content ->
-                deps.channel.notify("script/didChange", linkedMapOf("scriptId" to scriptId, "content" to content))
-            },
-            onClosed = { scriptId ->
-                deps.channel.notify("script/didClose", linkedMapOf("scriptId" to scriptId))
-            },
+            onChange = ::notifyScriptChanged,
+            onClosed = ::notifyScriptClosed,
         )
     }
 
@@ -57,36 +53,34 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
         deps.handlers
             // `completion` is optional and carries the kind-scoped catalog the
             // bridge already resolved; fromJson tolerates a missing/null member.
-            .on("script/open") { params, _ ->
-                scriptEditors.openScript(
-                    params.get("scriptId").asString,
-                    params.get("fileName").asString,
-                    // Tolerate an absent/null path (older bridge, unwritable
-                    // disk) — the manager falls back to an in-memory tab.
-                    params.get("filePath")?.takeIf { !it.isJsonNull }?.asString,
-                    params.get("content").asString,
-                    deps.gson.fromJson(params.get("completion"), ScriptCompletionModel::class.java),
-                )
+            .on("script/open") { params ->
+                val scriptId = params.string("scriptId")
+                val fileName = params.string("fileName")
+                // Tolerate an absent/null path (older bridge, unwritable
+                // disk) — the manager falls back to an in-memory tab.
+                val filePath = params.optionalString("filePath")
+                val content = params.string("content")
+                val completion = deps.gson.fromJson(params.element("completion"), ScriptCompletionModel::class.java)
+                RpcAction { scriptEditors.openScript(scriptId, fileName, filePath, content, completion) }
             }
-            .on("script/close") { params, _ -> scriptEditors.closeScript(params.get("scriptId").asString) }
+            .on("script/close") { params ->
+                val scriptId = params.string("scriptId")
+                RpcAction { scriptEditors.closeScript(scriptId) }
+            }
             // Model-side overwrite (canvas undo/redo, document reload) — echo-
             // guarded in the manager so it doesn't bounce back as didChange.
-            .on("script/updateContent") { params, _ ->
-                scriptEditors.updateContent(
-                    params.get("scriptId").asString,
-                    params.get("content").asString,
-                )
+            .on("script/updateContent") { params ->
+                val scriptId = params.string("scriptId")
+                val content = params.string("content")
+                RpcAction { scriptEditors.updateContent(scriptId, content) }
             }
             // Live variable model push: swap the script tab's completion catalog
             // so the next completion invocation sees the current variables.
-            .on("script/updateVariables") { params, _ ->
-                scriptEditors.updateVariables(
-                    params.get("scriptId").asString,
-                    deps.gson.fromJson(
-                        params.get("variables"),
-                        Array<VariableInfo>::class.java,
-                    ).orEmpty().toList(),
-                )
+            .on("script/updateVariables") { params ->
+                val scriptId = params.string("scriptId")
+                val variables =
+                    deps.gson.fromJson(params.element("variables"), Array<VariableInfo>::class.java).orEmpty().toList()
+                RpcAction { scriptEditors.updateVariables(scriptId, variables) }
             }
     }
 
@@ -101,6 +95,16 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
         val path = FileUtil.toSystemIndependentName(file.path)
         if (!path.contains("/tmp/scripting/")) return
         notifyDidOpenExternal(path)
+    }
+
+    /** Host→Core: a keystroke in a tracked script tab. */
+    internal fun notifyScriptChanged(scriptId: String, content: String) {
+        deps.channel.notify("script/didChange", linkedMapOf("scriptId" to scriptId, "content" to content))
+    }
+
+    /** Host→Core: a tracked script tab closed, by the user or as the ack of `script/close`. */
+    internal fun notifyScriptClosed(scriptId: String) {
+        deps.channel.notify("script/didClose", linkedMapOf("scriptId" to scriptId))
     }
 
     /**

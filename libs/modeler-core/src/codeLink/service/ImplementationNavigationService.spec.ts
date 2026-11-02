@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { LocateResult } from "../../kernel/domain/locateResult";
+import { SearchPrompt } from "../../kernel/domain/prompts";
 import { createTestHost, TestHostOptions } from "../../testing";
 import { ImplementationLocator } from "./ImplementationLocator";
 import { ImplementationNavigationService } from "./ImplementationNavigationService";
@@ -7,7 +9,12 @@ import { ImplementationNavigationService } from "./ImplementationNavigationServi
 function createService(options: TestHostOptions = {}) {
     const host = createTestHost(options);
     const locator = new ImplementationLocator(host.workspace, host.notifier);
-    const service = new ImplementationNavigationService(locator, host.notifier, host.picker);
+    const service = new ImplementationNavigationService(
+        locator,
+        host.notifier,
+        host.picker,
+        host.workspace,
+    );
     return { service, host };
 }
 
@@ -15,20 +22,33 @@ describe("ImplementationNavigationService.navigate", () => {
     it("searches next to a loose source document and asks which implementation to open", async () => {
         const { service, host } = createService({
             files: {
-                "/work/a/com/example/MyDelegate.java": "class MyDelegate {}",
                 "/work/b/com/example/MyDelegate.kt": "class MyDelegate",
+                "/work/a/com/example/MyDelegate.java": "class MyDelegate {}",
             },
-            answers: { locatedFile: "/work/b/com/example/MyDelegate.kt" },
+            promptAnswers: { locatedFile: "/work/b/com/example/MyDelegate.kt" },
         });
 
         await service.navigate("com.example.MyDelegate", "javaClass", "/work/process.bpmn");
 
-        expect(host.picker.prompts.map((prompt) => prompt.args[0])).toEqual([
-            {
-                searchingPlaceholder: 'Searching for class "com.example.MyDelegate"…',
-                pickPlaceholder: "Select the implementation to open",
-            },
-        ]);
+        expect(host.picker.prompts.map((prompt) => prompt.method)).toEqual(["searchAndChoose"]);
+        const [search] = host.picker.prompts[0].args as [SearchPrompt<LocateResult>];
+        expect(search.searchingPlaceholder).toBe('Searching for class "com.example.MyDelegate"…');
+        expect(search.choices(await search.search())).toEqual({
+            id: "locatedFile",
+            placeholder: "Select the implementation to open",
+            items: [
+                {
+                    label: "MyDelegate.java",
+                    path: "/work/a/com/example/MyDelegate.java",
+                    value: "/work/a/com/example/MyDelegate.java",
+                },
+                {
+                    label: "MyDelegate.kt",
+                    path: "/work/b/com/example/MyDelegate.kt",
+                    value: "/work/b/com/example/MyDelegate.kt",
+                },
+            ],
+        });
         expect(host.notifier.openedDocuments).toEqual(["/work/b/com/example/MyDelegate.kt"]);
     });
 

@@ -18,7 +18,7 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
-import { BusinessObjectLike, extractImplementation } from "./extractImplementation";
+import { Element, extractImplementation } from "./extractImplementation";
 import { IMPLEMENTABLE_TYPES } from "./collectImplementations";
 import type { CodeLinkMapClient } from "./CodeLinkMapClient";
 import type { CodeLinkPort } from "./CodeLinkPort";
@@ -29,16 +29,6 @@ interface ContextPad {
 
 interface Translate {
     (template: string): string;
-}
-
-/**
- * The slice of a bpmn-js element this feature reads. `id` is the activity id the
- * status map is keyed by; `businessObject` carries the Camunda binding.
- */
-export interface Element {
-    id?: string;
-    type?: string;
-    businessObject?: BusinessObjectLike;
 }
 
 interface ContextPadEntry {

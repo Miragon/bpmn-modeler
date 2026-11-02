@@ -35,9 +35,14 @@ export function scriptBatchOutcome(results: readonly ScriptBatchResult[]): Scrip
 /**
  * The completion toast for a batch run: names the output folder, any
  * already-open scripts left untouched and the scripts that could not be written.
- * It asks the user to open a file only when one was generated.
+ * It asks the user to open a file only when one was generated. `folder` is
+ * `undefined` when no script got as far as resolving one.
  */
-export function scriptBatchSummary(outcome: ScriptBatchOutcome, folder: string): string {
+export function scriptBatchSummary(
+    outcome: ScriptBatchOutcome,
+    folder: string | undefined,
+): string {
+    const location = folder === undefined ? "" : ` in ${folder}`;
     const skipped =
         outcome.alreadyOpen > 0 ? ` (${outcome.alreadyOpen} already open, left untouched)` : "";
     const failed =
@@ -46,7 +51,7 @@ export function scriptBatchSummary(outcome: ScriptBatchOutcome, folder: string):
             : "";
     const generated =
         outcome.generated > 0
-            ? `Generated ${outcome.generated} script file(s) in ${folder}${skipped} — open a file to edit it with live sync into the diagram.`
-            : `No script files generated in ${folder}${skipped}.`;
+            ? `Generated ${outcome.generated} script file(s)${location}${skipped} — open a file to edit it with live sync into the diagram.`
+            : `No script files generated${location}${skipped}.`;
     return `${generated}${failed}`;
 }

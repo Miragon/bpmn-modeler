@@ -19,6 +19,7 @@
                 "favouriteBpmnElements": ["bpmn:UserTask"],
                 "language": "de",
                 "scriptingSpin": false,
+                "lintingEnabled": false,
                 "marketplaces": ["https://github.com/acme/templates"]
             },
             "normalized": {
@@ -32,8 +33,14 @@
                 "favouriteBpmnElements": ["bpmn:UserTask"],
                 "language": "de",
                 "scriptingSpin": false,
+                "lintingEnabled": false,
                 "marketplaces": ["https://github.com/acme/templates"]
             }
+        },
+        {
+            "name": "keeps linting turned off",
+            "raw": { "lintingEnabled": false },
+            "normalized": { "lintingEnabled": false }
         },
         {
             "name": "reads an empty config folder as the default",

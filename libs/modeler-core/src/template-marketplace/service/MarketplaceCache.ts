@@ -1,6 +1,13 @@
 import { isSafeRepoPath, MarketplaceContentType } from "../domain/marketplace";
-import { FetchedTemplateFile } from "../domain/sourceCacheRefresh";
-import { DirectoryNotFound } from "../../kernel/domain/errors";
+import {
+    CachedSourceSlot,
+    FetchedTemplateFile,
+    formatSourceSlotRecord,
+    nextSourceSlotRecord,
+    parseSourceSlotRecord,
+    SourceSlotRecord,
+} from "../domain/sourceCacheRefresh";
+import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
 import { WorkspacePort } from "../../kernel/domain/hostPorts";
 
 /**
@@ -10,15 +17,20 @@ import { WorkspacePort } from "../../kernel/domain/hostPorts";
  */
 const ELEMENT_TEMPLATES_SEGMENT: MarketplaceContentType = "element-templates";
 
+const SLOT_RECORD = "slot.json";
+
 /**
  * Local on-disk cache of fetched template files, the bridge between a remote
  * fetch and the existing template render pipeline.
  *
- * Layout: `<cacheRoot>/<marketplaceId>/<sourceIndex>/<contentType>/<repo-relative path>`.
- * Keying by `marketplaceId` then `sourceIndex` keeps sources isolated, so two
- * templates sharing a basename never clobber each other; the `<contentType>`
- * segment keeps a future JSON content type (lint rules, palette entries) out of
- * the element-template pipeline that reads this cache.
+ * Layout: `<cacheRoot>/<marketplaceId>/<sourceIndex>/<generation>/<contentType>/<repo-relative path>`,
+ * beside `<sourceIndex>/slot.json`, the {@link SourceSlotRecord} that names the
+ * slot's source and its live generation. Keying by `marketplaceId` then
+ * `sourceIndex` keeps sources isolated, so two templates sharing a basename
+ * never clobber each other; the `<contentType>` segment keeps a future JSON
+ * content type (lint rules, palette entries) out of the element-template
+ * pipeline that reads this cache. A slot without a record, cached by an earlier
+ * version, holds its `<contentType>` directories itself.
  *
  * A refresh replaces, keeps or removes whole source slots (see
  * `planSourceCacheRefresh`). A marketplace removed from settings is pruned
@@ -26,6 +38,10 @@ const ELEMENT_TEMPLATES_SEGMENT: MarketplaceContentType = "element-templates";
  * registered.
  */
 export class MarketplaceCache {
+    // Two replaces of one slot in flight pick the same generation, or one
+    // drops the generation the other writes, so the writes run one at a time.
+    private writes: Promise<unknown> = Promise.resolve();
+
     /**
      * @param cacheRoot Absolute path to the `marketplaces/` directory under the
      *   host's global storage.
@@ -35,20 +51,28 @@ export class MarketplaceCache {
         private readonly workspace: WorkspacePort,
     ) {}
 
-    async sourceIndexes(marketplaceId: string): Promise<number[]> {
+    async cachedSlots(marketplaceId: string): Promise<CachedSourceSlot[]> {
         const marketplaceDir = `${this.cacheRoot}/${marketplaceId}`;
-        return (await this.listSubdirectories(marketplaceDir))
-            .map((sourceDir) => sourceDir.slice(marketplaceDir.length + 1))
-            .filter((name) => /^\d+$/.test(name))
-            .map(Number);
+        const slots: CachedSourceSlot[] = [];
+        for (const sourceDir of await this.listSubdirectories(marketplaceDir)) {
+            const name = sourceDir.slice(marketplaceDir.length + 1);
+            if (/^\d+$/.test(name)) {
+                const record = await this.readSlotRecord(sourceDir);
+                slots.push({ sourceIndex: Number(name), sourceIdentity: record?.sourceIdentity });
+            }
+        }
+        return slots;
     }
 
     /**
-     * Swaps the slot's files for `files`; each `repoPath` is reproduced verbatim
-     * under its content type so distinct upstream files stay distinct on disk.
+     * Swaps the slot's files for `files` and records `sourceIdentity` as their owner;
+     * each `repoPath` is reproduced verbatim under its content type so distinct
+     * upstream files stay distinct on disk. The files go into a new generation
+     * that the record names only once every write succeeded, so a failed write
+     * keeps the slot's previous files.
      *
      * @throws {Error} when a `repoPath` is absolute or contains a `..` segment,
-     *   before anything is deleted. A self-hosted `baseUrl` is untrusted
+     *   before anything is written. A self-hosted `baseUrl` is untrusted
      *   user-configured infrastructure and can return a hostile path (e.g.
      *   `../../../settings.json`); without this guard the concatenation would
      *   write attacker content outside the cache root.
@@ -56,6 +80,7 @@ export class MarketplaceCache {
     async replaceSource(
         marketplaceId: string,
         sourceIndex: number,
+        sourceIdentity: string,
         files: readonly FetchedTemplateFile[],
     ): Promise<void> {
         for (const { repoPath } of files) {
@@ -63,15 +88,54 @@ export class MarketplaceCache {
                 throw new Error(`Rejected unsafe template path "${repoPath}"`);
             }
         }
-        const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
-        await this.workspace.deleteDirectory(sourceDir);
-        for (const { contentType, repoPath, content } of files) {
-            await this.workspace.writeFile(`${sourceDir}/${contentType}/${repoPath}`, content);
-        }
+        return this.oneAtATime(() =>
+            this.writeGeneration(marketplaceId, sourceIndex, sourceIdentity, files),
+        );
     }
 
-    async removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {
-        await this.workspace.deleteDirectory(this.sourceDir(marketplaceId, sourceIndex));
+    removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {
+        return this.oneAtATime(() =>
+            this.workspace.deleteDirectory(this.sourceDir(marketplaceId, sourceIndex)),
+        );
+    }
+
+    private oneAtATime<T>(write: () => Promise<T>): Promise<T> {
+        const written = this.writes.then(write);
+        this.writes = written.catch(() => undefined);
+        return written;
+    }
+
+    private async writeGeneration(
+        marketplaceId: string,
+        sourceIndex: number,
+        sourceIdentity: string,
+        files: readonly FetchedTemplateFile[],
+    ): Promise<void> {
+        const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
+        const record = nextSourceSlotRecord(await this.readSlotRecord(sourceDir), sourceIdentity);
+        const generationDir = `${sourceDir}/${record.generation}`;
+        // A replace that failed before its record was written left this generation behind.
+        await this.workspace.deleteDirectory(generationDir);
+        for (const { contentType, repoPath, content } of files) {
+            await this.workspace.writeFile(`${generationDir}/${contentType}/${repoPath}`, content);
+        }
+        await this.workspace.writeFile(
+            `${sourceDir}/${SLOT_RECORD}`,
+            formatSourceSlotRecord(record),
+        );
+        await this.deleteOtherGenerations(sourceDir, generationDir);
+    }
+
+    /**
+     * Best-effort: the record already serves the new generation, a leftover one
+     * is never served, and the next replace of the slot deletes it again.
+     */
+    private async deleteOtherGenerations(sourceDir: string, generationDir: string): Promise<void> {
+        for (const directory of await this.listSubdirectories(sourceDir)) {
+            if (directory !== generationDir) {
+                await this.workspace.deleteDirectory(directory).catch(() => undefined);
+            }
+        }
     }
 
     private sourceDir(marketplaceId: string, sourceIndex: number): string {
@@ -88,12 +152,31 @@ export class MarketplaceCache {
         const paths: string[] = [];
         for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
             for (const sourceDir of await this.listSubdirectories(marketplaceDir)) {
+                const filesDir = await this.liveFilesDir(sourceDir);
                 paths.push(
-                    ...(await this.listJsonRecursive(`${sourceDir}/${ELEMENT_TEMPLATES_SEGMENT}`)),
+                    ...(await this.listJsonRecursive(`${filesDir}/${ELEMENT_TEMPLATES_SEGMENT}`)),
                 );
             }
         }
         return paths;
+    }
+
+    private async liveFilesDir(sourceDir: string): Promise<string> {
+        const record = await this.readSlotRecord(sourceDir);
+        return record === undefined ? sourceDir : `${sourceDir}/${record.generation}`;
+    }
+
+    private async readSlotRecord(sourceDir: string): Promise<SourceSlotRecord | undefined> {
+        try {
+            return parseSourceSlotRecord(
+                await this.workspace.readFile(`${sourceDir}/${SLOT_RECORD}`),
+            );
+        } catch (error) {
+            if (error instanceof FileNotFound) {
+                return undefined;
+            }
+            throw error;
+        }
     }
 
     /**
@@ -105,18 +188,20 @@ export class MarketplaceCache {
      *
      * @returns the ids of the slots actually deleted, for the caller to log.
      */
-    async prune(registeredIds: ReadonlySet<string>): Promise<string[]> {
-        const pruned: string[] = [];
-        for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
-            // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
-            // root prefix is the marketplaceId the slot was written under.
-            const id = marketplaceDir.slice(this.cacheRoot.length + 1);
-            if (!registeredIds.has(id)) {
-                await this.workspace.deleteDirectory(marketplaceDir);
-                pruned.push(id);
+    prune(registeredIds: ReadonlySet<string>): Promise<string[]> {
+        return this.oneAtATime(async () => {
+            const pruned: string[] = [];
+            for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+                // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
+                // root prefix is the marketplaceId the slot was written under.
+                const id = marketplaceDir.slice(this.cacheRoot.length + 1);
+                if (!registeredIds.has(id)) {
+                    await this.workspace.deleteDirectory(marketplaceDir);
+                    pruned.push(id);
+                }
             }
-        }
-        return pruned;
+            return pruned;
+        });
     }
 
     /**

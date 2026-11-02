@@ -38,7 +38,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Format Diagram (`Ctrl+Alt+L`) | Lay out the focused diagram |
 | Clean Up Diagram | List leftovers in the diagram and remove them after you confirm |
 | Change Engine Version… | Change the engine version of the focused diagram |
-| Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project |
+| Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project, except copies in `node_modules`, build output or folders whose name starts with a dot |
 | Change Modeler Language… | Switch the modeler UI language |
 | Copy Diagram as SVG / Save Diagram as SVG… | Export the focused diagram as SVG |
 | Deploy Diagram / Deploy Files… | Deploy to the active target (see the **Miragon Deployment** tool window) |
@@ -48,12 +48,21 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Add / Update / Remove Template Marketplace… | Manage [template marketplaces](/vscode/features/template-marketplace) |
 | Reload Modeler | Re-read element templates and re-render open diagrams |
 
+## Status bar
+
+The status bar shows the element-template load and, for the focused diagram, its engine version, its
+[BPMNlint status](/vscode/features/linting#status-bar) and the active deployment target, one widget each. Click the
+engine version to change it. Click `BPMNlint: off` to turn linting back on. Click the deployment target to switch
+targets or, for Camunda 7, verify against the engine.
+
 ## Settings
 
 The settings live under **Settings ▸ Tools ▸ Miragon BPMN Modeler**: default mode, language, colour theme, config
 folder, Camunda 8 API version, align to origin, transaction boundaries, SPIN completion, the code-link map, favourite
 elements and template marketplaces. They mean the same as the [VS Code settings](/vscode/configuration). The language
-list offers nine languages (no Italian, Japanese or Korean yet).
+list offers every language under [Language support](/vscode/features/language-support). Linting has no field there:
+the lint toggle in the editor and the BPMNlint widget turn it on or off for all your projects, and the IDE keeps the
+choice across restarts.
 
 ## Next steps
 

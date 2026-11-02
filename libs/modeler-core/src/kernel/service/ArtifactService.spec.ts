@@ -192,6 +192,58 @@ describe("ArtifactService.getWorkspaceRoot", () => {
         await expect(service.getWorkspaceRoot("/tmp/loose")).resolves.toBe("/");
     });
 
+    it("finds a git repository at the UNC share root", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "//server/share/.git": "directory",
+        });
+
+        await expect(service.getWorkspaceRoot("//server/share/repo/processes")).resolves.toBe(
+            "//server/share",
+        );
+    });
+
+    it("stops looking for a git root at the UNC share root", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "//server/.git": "directory",
+            "/.git": "directory",
+        });
+
+        await expect(service.getWorkspaceRoot("//server/share/repo/processes")).resolves.toBe(
+            "//server/share/repo/processes",
+        );
+    });
+
+    // VS Code spells a UNC document's editor id `file://server/share/…`.
+    it("finds a git repository at the share root of a UNC uri", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "file://server/share/.git": "directory",
+        });
+
+        await expect(service.getWorkspaceRoot("file://server/share/repo/processes")).resolves.toBe(
+            "file://server/share",
+        );
+    });
+
+    it("stops looking for a git root at the share root of a UNC uri", async () => {
+        const service = createServiceOutsideWorkspaceFolders({
+            "file://server/.git": "directory",
+            ".git": "file",
+        });
+
+        await expect(service.getWorkspaceRoot("file://server/share/repo/processes")).resolves.toBe(
+            "file://server/share/repo/processes",
+        );
+    });
+
+    // IntelliJ spells a Windows document `file://C:/…`, with no authority.
+    it("finds a git repository at the drive root of IntelliJ's Windows spelling", async () => {
+        const service = createServiceOutsideWorkspaceFolders({ "file://C:/.git": "directory" });
+
+        await expect(service.getWorkspaceRoot("file://C:/repo/processes")).resolves.toBe(
+            "file://C:",
+        );
+    });
+
     it("keeps URI-form document directories in URI form", async () => {
         const service = createServiceOutsideWorkspaceFolders({ "file:///repo/.git": "directory" });
 
@@ -417,7 +469,7 @@ describe("ArtifactService.readFile", () => {
 describe("ArtifactService.createWatcher", () => {
     const EDITOR_ID = "file:///work/proc/order.bpmn";
 
-    it("watches the config glob from the workspace folder and refreshes the editor on every event", async () => {
+    it("refreshes the editor on every event below a templates folder of its lookup", async () => {
         const { service, workspace } = createService({ folders: ["/work"] });
         const target = { refreshElementTemplates: vi.fn() };
 
@@ -426,8 +478,6 @@ describe("ArtifactService.createWatcher", () => {
         expect(result.disposables).toHaveLength(1);
         expect(result.errors).toEqual([]);
 
-        // Each event must trigger a refresh keyed by the originating editor —
-        // including for a bare, extension-less path (the folder-copy case).
         await workspace.writeFile("/work/.camunda/element-templates/copied-folder", "");
         await workspace.writeFile("/work/.camunda/element-templates/x.json", "{}");
         await workspace.writeFile("/work/.camunda/element-templates/x.json", "[]");
@@ -456,6 +506,85 @@ describe("ArtifactService.createWatcher", () => {
         expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(
             "file:///loose/order.bpmn",
         );
+    });
+
+    it("watches from a UNC document's directory when only its server holds a git repository", async () => {
+        const { service, workspace } = createService({
+            files: { "file://server/.git/HEAD": "ref: refs/heads/main" },
+        });
+
+        await service.createWatcher("file://server/share/loose/order.bpmn", {
+            refreshElementTemplates: vi.fn(),
+        });
+
+        expect(workspace.watchers.map(({ root }) => root)).toEqual(["file://server/share/loose"]);
+    });
+
+    it("refreshes the templates when the config folder is deleted as one event", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/.camunda/element-templates/payment.json": "[]" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        await workspace.deleteDirectory("/work/.camunda");
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("refreshes the templates when a folder holding the config folder is deleted as one event", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/proc/.camunda/element-templates/payment.json": "[]" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        await workspace.deleteDirectory("/work/proc");
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("refreshes the templates when the config folder is moved in as one event", async () => {
+        const { service, workspace } = createService({ folders: ["/work"] });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        workspace.createDirectory("/work/.camunda", {
+            "/work/.camunda/element-templates/payment.json": "[]",
+        });
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("refreshes the templates when the element-templates folder is moved in as one event", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/.camunda/.bpmnlintrc": "{}" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        workspace.createDirectory("/work/.camunda/element-templates", {
+            "/work/.camunda/element-templates/payment.json": "[]",
+        });
+
+        expect(target.refreshElementTemplates).toHaveBeenCalledExactlyOnceWith(EDITOR_ID);
+    });
+
+    it("ignores a config folder beside the document's lookup chain", async () => {
+        const { service, workspace } = createService({
+            folders: ["/work"],
+            files: { "/work/other/.camunda/element-templates/payment.json": "[]" },
+        });
+        const target = { refreshElementTemplates: vi.fn() };
+        await service.createWatcher(EDITOR_ID, target);
+
+        await workspace.writeFile("/work/other/.camunda/element-templates/shipping.json", "[]");
+        await workspace.deleteDirectory("/work/other/.camunda");
+
+        expect(target.refreshElementTemplates).not.toHaveBeenCalled();
     });
 
     it("watches element templates when the config folder is empty", async () => {

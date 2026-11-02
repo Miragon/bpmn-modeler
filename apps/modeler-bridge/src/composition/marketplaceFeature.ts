@@ -23,10 +23,10 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * {@link cacheRoot} from a `PathManager.getSystemPath()` root segmented by the
  * project's stable location hash, so a prune only ever evicts the current
  * project's slots (marketplaces can be project-scoped). Windows on the *same*
- * project still share one cache; concurrent updates worst-case overwrite the same
- * *deterministic* per-file paths (keyed by registration id / source index / repo
- * path), and a torn read is caught by the per-file JSON-parse guard in
- * {@link BpmnElementTemplatesService} — so no cross-window locking is needed.
+ * project still share one cache, with no cross-window locking: a slot's record
+ * names its files only once they are complete, but {@link MarketplaceCache}
+ * orders the writes of one process only, so two windows updating one slot at
+ * once can leave it incomplete until the next update.
  */
 export interface MarketplaceOptions {
     /** Absolute cache root; {@link MarketplaceCache} mkdirps it on first write. */

@@ -64,7 +64,7 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         vsSettings,
         statusBar: new VsCodeStatusBar(),
         notifier,
-        picker: new VsCodePicker(vsWorkspace),
+        picker: new VsCodePicker(),
         clipboard: new VsCodeClipboard(),
         textEditor: new VsCodeTextEditor(),
         artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),

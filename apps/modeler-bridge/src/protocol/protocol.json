@@ -182,6 +182,12 @@
         ]
     },
     {
+        "method": "linting/toggle",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "migration/migrateAll",
         "direction": "hostToCore",
         "kind": "notification",
@@ -378,54 +384,11 @@
         ]
     },
     {
-        "method": "deploymentState/saveAuthType",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "authType"
-        ]
-    },
-    {
-        "method": "deploymentState/saveOAuth2Config",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "audience",
-            "tokenEndpoint"
-        ]
-    },
-    {
         "method": "deploymentState/save",
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [
-            "endpoint",
-            "tenantId"
-        ]
-    },
-    {
-        "method": "deploymentState/saveActiveTarget",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "name"
-        ]
-    },
-    {
-        "method": "deploymentState/saveDeployedRevision",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "ledgerKey",
-            "revision"
-        ]
-    },
-    {
-        "method": "deploymentState/deleteDeployedRevisions",
-        "direction": "coreToHost",
-        "kind": "request",
-        "paramKeys": [
-            "ledgerKeys"
+            "patch"
         ]
     },
     {
@@ -462,11 +425,19 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [
-            "host",
-            "reason"
+            "prompt",
+            "title"
         ],
         "resultKeys": [
             "token"
+        ]
+    },
+    {
+        "method": "settings/setLintingEnabled",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "enabled"
         ]
     },
     {
@@ -551,56 +522,13 @@
         ]
     },
     {
-        "method": "statusBar/templatesLoading",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
-        "method": "statusBar/templatesReady",
+        "method": "statusBar/update",
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": [
-            "count"
+            "slot",
+            "view"
         ]
-    },
-    {
-        "method": "statusBar/templatesHide",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
-        "method": "statusBar/showEngineVersion",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "platform",
-            "version"
-        ]
-    },
-    {
-        "method": "statusBar/hideEngineVersion",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
-    },
-    {
-        "method": "statusBar/showDeploymentTarget",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "deployedAt",
-            "freshness",
-            "name",
-            "verifiedAt"
-        ]
-    },
-    {
-        "method": "statusBar/hideDeploymentTarget",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": []
     },
     {
         "method": "diff/postMessage",

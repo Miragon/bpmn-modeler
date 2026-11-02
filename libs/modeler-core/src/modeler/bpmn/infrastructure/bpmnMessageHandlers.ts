@@ -3,12 +3,15 @@ import {
     Command,
     DiagramFormattedCommand,
     SetClipboardCommand,
+    SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     UpdateLintResultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { MessageHandler } from "../../../editorSession/service/WebviewMessageRouter";
+import { SettingsPort } from "../../../kernel/domain/hostPorts";
+import { LintingPreferencePort } from "../domain/ports";
 import { BpmnClipboardMediator } from "../service/BpmnClipboardMediator";
 import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
 import { BpmnLayoutService } from "../service/BpmnLayoutService";
@@ -43,7 +46,7 @@ export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): Messag
 /**
  * `GetBpmnModelerSettingCommand` → broadcast settings and language.
  *
- * Paired in registration order with {@link resyncScriptTasksHandler}: the
+ * Runs before the script editor's resync in the BPMN editor's table: the
  * webview re-requests settings on (re)load, which is also the moment to reload
  * inline scripts that changed while it was hidden.
  */
@@ -80,6 +83,28 @@ export function updateLintResultsHandler(
 ): MessageHandler<UpdateLintResultsCommand> {
     return (cmd, editorId) => {
         lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved, cmd.configToken);
+    };
+}
+
+/**
+ * `SetLintingEnabledCommand` → store the user's linting choice. A changed
+ * choice re-lints through {@link BpmnlintParticipant}'s settings listener,
+ * which pushes the new state to the webview; the webview never flips its own
+ * overlays. An unchanged choice is not stored, since no host reports a
+ * settings change for it, so the lint state is pushed here instead.
+ */
+export function setLintingEnabledHandler(
+    preference: LintingPreferencePort,
+    settings: SettingsPort,
+    lintSvc: BpmnLintConfigService,
+): MessageHandler<SetLintingEnabledCommand> {
+    return async (message, editorId) => {
+        // An unchanged value means the page is out of step with the stored choice.
+        if (message.enabled === settings.getLintingEnabled()) {
+            await lintSvc.setBpmnlintConfig(editorId);
+            return;
+        }
+        await preference.setLintingEnabled(message.enabled);
     };
 }
 

@@ -24,7 +24,7 @@ flowchart TD
         jsquery["JBCefJSQuery"]
         supervisor["CoreProcess<br/>supervisor · spawns / restarts the bridge"]
         notifier["Notifier → Notifications.Bus balloons"]
-        statusbar["StatusBar → EngineStatusBarWidget"]
+        statusbar["StatusBar → one StatusSlotWidget per slot"]
     end
 
     file --> provider --> editor
@@ -69,14 +69,17 @@ flowchart TD
   received into it (the close flush), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
-  bridge's lint state. The page takes no edits until the render arrives, at
+  bridge's lint state. Last it sends `session/setActive` for the selected
+  diagram tab, so commands without an editor id keep acting on it and not on
+  the session re-registered last. The page takes no edits until the render arrives, at
   most 5 s after the replay; a crash recovery with an edit to write first waits
   for an open modal dialog to close. Tools ▸ Reload Modeler runs the same
   recovery against the running bridge. Like a tab close, recovery writes only
   diagrams edited since their last render: one you never edited keeps its text,
   even where the modeler would serialize it differently. A read-only file keeps
   its text, and its diagram re-renders from it. A tab closed while recovery
-  re-registers it is disposed in the new bridge too.
+  re-registers it is disposed in the new bridge too, and a file reopened
+  meanwhile keeps the new tab's session.
 - **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
@@ -95,7 +98,14 @@ does not answer is saved as it is. See
 ### Display ports
 
 - **Notifier → `Notifications.Bus`** balloons (+ IDE log) via `HostNotifications`.
-- **StatusBar → `EngineStatusBarWidget`**: engine version + element-template count.
+- **StatusBar → `StatusSlotWidget`s**: one widget per core status slot (element
+  templates, engine version, BPMNlint, deployment target). `HostUiRouter` reads
+  `statusBar/update` into a `StatusView`; `AutoHidingStatusSlots` hides a transient
+  view after 3 s like VS Code; `StatusBarSlots` places each slot in its widget. A
+  click runs the view's action: Change Engine Version, the lint toggle
+  (`linting/toggle`), or the deployment menu. `StatusSlotPlacementTest` fails
+  when the core's `statusView.ts` gains a slot, icon, tone or action without a
+  Kotlin counterpart.
 
 ## Build & run
 
@@ -130,8 +140,9 @@ cd apps/intellij-plugin && ./gradlew runIde
 A sandboxed IntelliJ IDEA Community launches. Open any `.bpmn` file — it opens in
 a **BPMN Modeler** tab and the diagram renders. Move/add an element, then
 `Ctrl/Cmd+S`, and switch to the plain-text tab to confirm the round-tripped XML.
-The status bar shows the engine version + template count; loading errors surface
-as balloons. Tail the IDE log for `[bridge stderr]` lines to watch the seam.
+The status bar shows the template load, the engine version, the BPMNlint status
+and the deployment target, one widget each; loading errors surface as balloons.
+Tail the IDE log for `[bridge stderr]` lines to watch the seam.
 
 > The Gradle build only repackages the artefacts `intellij:build` produced — a
 > webview/CSS change is **not** picked up until you rebuild them. Re-run
@@ -146,7 +157,7 @@ cd apps/intellij-plugin && ./gradlew check
 
 `check` runs the JUnit suite and fails below the JaCoCo floor in
 `build.gradle.kts`. The tests need no built artefacts; the report lands in
-`build/reports/jacoco/test/jacocoTestReport.xml`. After adding tests, raise the
+`build/reports/jacoco/test/html/index.html`. After adding tests, raise the
 floor to about three points below the new numbers.
 
 ### Verifying the dark-mode Token Simulation fix

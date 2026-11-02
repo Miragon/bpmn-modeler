@@ -36,3 +36,11 @@ export function createStdinHandler(
         });
     });
 }
+
+/** Once stdin ends the host can answer no request, so every request fails before the bridge exits. */
+export function createStdinEndHandler(rpc: Pick<Rpc, "handleEnd">, exit: () => void): () => void {
+    return () => {
+        rpc.handleEnd();
+        exit();
+    };
+}

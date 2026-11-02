@@ -18,6 +18,8 @@ import type { HostChannel } from "./hostChannel";
 /** The document I/O and view actions the session needs from whichever surface is live. */
 export interface BpmnDocumentSurface extends DocumentSyncSurface {
     afterSync(): void;
+    hasPendingInput(): boolean;
+    flushPendingInput(): void;
     refreshDiagram(): Promise<void>;
     centerOnElement(elementId: string): void;
 }
@@ -223,7 +225,10 @@ export class BpmnDocumentSession {
     }
 
     async flushBeforeSurfaceDestroy(): Promise<void> {
-        await this.document.flushPendingSync();
+        // The mode session applied the panel's input before it exported the next
+        // surface's XML; input applied after that export would sync a value that
+        // surface does not load.
+        await this.document.flushScheduledSync();
         this.document.cancelPendingSync();
     }
 

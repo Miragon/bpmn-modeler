@@ -2,6 +2,7 @@ import { CredentialDestinationNotApprovedError } from "../domain/errors";
 import { PickerPort } from "../../kernel/domain/hostPorts";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { DeploymentDestination } from "../domain/deploymentDestination";
+import { credentialApprovalConfirmation } from "../domain/deploymentPrompts";
 import { SecretStorePort } from "../domain/ports";
 
 /**
@@ -40,19 +41,13 @@ export class CredentialApprovalService {
             return;
         }
 
-        // The host leads: the target name comes from the shared file and must not
-        // be able to push it out of sight.
-        const confirmed = await this.picker.confirmDestructive({
-            title: `Send credentials and .env values to ${unapproved}?`,
-            confirmLabel: "Send Credentials",
-            details: [
-                `They belong to ${destination.connectionLabel}.`,
-                approved.isEmpty()
-                    ? "No host is approved for them yet."
-                    : `Approved so far: ${approved}.`,
-                "The shared deployment targets file and .env decide where they go. Continue only if you expect this host.",
-            ],
-        });
+        const confirmed = await this.picker.confirm(
+            credentialApprovalConfirmation({
+                connectionLabel: destination.connectionLabel,
+                approved,
+                unapproved,
+            }),
+        );
         if (!confirmed) {
             throw new CredentialDestinationNotApprovedError(destination.connectionName);
         }

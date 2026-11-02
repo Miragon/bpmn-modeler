@@ -2,9 +2,14 @@ import { findListenerAt, scriptPropertyName } from "@miragon/bpmn-modeler-types"
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
-import { listenerScriptKind, type PanelListenerType } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
-import { listenerScriptOpenEvent, readScriptField, scriptTaskOpenEvent } from "./scriptModel";
+import {
+    listenerScriptKind,
+    listenerScriptOpenEvent,
+    type PanelListenerType,
+    readScriptField,
+    scriptTaskOpenEvent,
+} from "./scriptModel";
 
 /**
  * Model-side entry point for opening a script in the host editor, shared by

@@ -1,19 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost, PickerAnswers } from "../../testing";
+import { StatusView } from "../../kernel/domain/statusView";
+import { createTestHost, PromptAnswers } from "../../testing";
 import { CredentialRefs } from "../domain/credentialRefs";
 import {
     AdHocDestination,
     DeploymentDestination,
     NamedDestination,
+    TargetEdit,
 } from "../domain/deploymentDestination";
-import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentTarget, DeploymentTargets, TargetChange } from "../domain/deploymentTarget";
+import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
+import { deploymentStatusActionPrompt } from "../domain/deploymentPrompts";
 import {
     contentFingerprint,
     DeploymentFreshness,
     DeploymentTargetIdentity,
     ledgerKeyFor,
 } from "../domain/deploymentLedger";
+import {
+    DeploymentStatus,
+    deploymentStatusView,
+    StatusConnection,
+    timestampFormatter,
+} from "../domain/deploymentStatusView";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";
@@ -86,7 +96,7 @@ function dotEnvContent(dotEnv: Record<string, string>): string {
 }
 
 interface ServiceOptions {
-    answers?: PickerAnswers;
+    promptAnswers?: PromptAnswers;
     /** Variables of each `.env`, keyed by its path. */
     dotEnvs?: Record<string, Record<string, string>>;
     filePath?: string;
@@ -102,22 +112,22 @@ const nestedProject = (dotEnvs: Record<string, Record<string, string>>): Service
     filePath: `${NESTED_PROJECT_DIR}/order-process.bpmn`,
 });
 
-function createService({ answers = {}, dotEnvs = {}, filePath = FILE_PATH }: ServiceOptions = {}) {
+function createService({
+    promptAnswers = {},
+    dotEnvs = {},
+    filePath = FILE_PATH,
+}: ServiceOptions = {}) {
     const files = Object.fromEntries(
         Object.entries(dotEnvs).map(([path, dotEnv]) => [path, dotEnvContent(dotEnv)]),
     );
-    const host = createTestHost({ answers, folders: ["/work"], files });
+    const host = createTestHost({ promptAnswers, folders: ["/work"], files });
     const editor = host.openEditor(filePath, "<a/>");
     editor.active = true;
     const deploymentTargetService = {
-        getActiveTarget: vi.fn().mockResolvedValue(undefined),
-        getActiveDestination: vi.fn(
-            async (): Promise<DeploymentDestination> =>
-                new AdHocDestination(
-                    host.deploymentState.getEndpoint(),
-                    host.deploymentState.getTenantId(),
-                ),
-        ),
+        getActiveDestination: vi.fn(async (): Promise<DeploymentDestination> => {
+            const { endpoint, tenantId } = host.deploymentState.load();
+            return new AdHocDestination(endpoint, tenantId);
+        }),
     };
     const dotEnvIo = {
         isSymbolicLink: vi.spyOn(host.workspace, "isSymbolicLink"),
@@ -133,6 +143,7 @@ function createService({ answers = {}, dotEnvs = {}, filePath = FILE_PATH }: Ser
         host.picker,
         host.notifier,
         new EnvValueResolver(host.workspace),
+        host.settings,
     );
     service.track(editor.id);
 
@@ -158,8 +169,7 @@ const UNREADABLE_DOT_ENVS: [string, (c: ServiceContext) => void][] = [
 ];
 
 function useAdHocConnection(c: ServiceContext, endpoint: string, tenantId: string): void {
-    c.host.deploymentState.endpoint = endpoint;
-    c.host.deploymentState.tenantId = tenantId;
+    c.host.deploymentState.seed({ endpoint, tenantId });
 }
 
 const RECORDED_REVISION = {
@@ -169,15 +179,31 @@ const RECORDED_REVISION = {
 
 /** The item shows this revision only if refresh reads the ledger under `ledgerKey`. */
 async function recordRevisionUnder(c: ServiceContext, ledgerKey: string): Promise<void> {
-    await c.host.deploymentState.saveDeployedRevision(ledgerKey, RECORDED_REVISION);
+    await c.host.deploymentState.save({ ledger: { put: { [ledgerKey]: RECORDED_REVISION } } });
 }
 
-function expectRecordedRevisionShown(c: ServiceContext, targetName: string | undefined): void {
-    expect(c.host.statusBar.deploymentTarget).toEqual({
-        name: targetName,
+const namedConnection = (name: string): StatusConnection => ({ kind: "named", name });
+const DEV_TARGET = namedConnection("dev");
+const FORM_VALUES: StatusConnection = { kind: "formValues" };
+// The language of a fresh test host.
+const formatInEnglish = timestampFormatter("en");
+/** What another refresh left in the slot. */
+const SHOWN_VIEW: StatusView = { text: "shown", icon: "dot", tone: "success" };
+
+function shownStatus(c: ServiceContext): StatusView | undefined {
+    return c.host.statusBar.views.deploymentTarget;
+}
+
+/** The texts are the view table's; this pins which connection, freshness and times the service picked. */
+function expectStatusShown(c: ServiceContext, status: DeploymentStatus): void {
+    expect(shownStatus(c)).toEqual(deploymentStatusView(status, formatInEnglish));
+}
+
+function expectRecordedRevisionShown(c: ServiceContext, connection: StatusConnection): void {
+    expectStatusShown(c, {
+        connection,
         freshness: "deployed",
         deployedAt: RECORDED_REVISION.deployedAt,
-        verifiedAt: undefined,
     });
 }
 
@@ -203,7 +229,7 @@ describe("DeploymentStatusService.recordDeployment", () => {
             "dep-42",
         );
 
-        expect(c.host.deploymentState.ledger.get(DEV_KEY)).toEqual(
+        expect(c.host.deploymentState.load().ledger[DEV_KEY]).toEqual(
             expect.objectContaining({
                 fingerprint: contentFingerprint("<a/>"),
                 deploymentId: "dep-42",
@@ -228,24 +254,36 @@ describe("DeploymentStatusService ledger writes", () => {
 
         await c.service.adoptRevision(FILE_PATH, identity(), revision);
 
-        expect(c.host.deploymentState.ledger.get(DEV_KEY)).toEqual(revision);
+        expect(c.host.deploymentState.load().ledger[DEV_KEY]).toEqual(revision);
     });
 
     it("forgets a single revision", async () => {
         const c = createService();
         const otherKey = "target:dev@localhost:8080::/work/other.bpmn";
-        await c.host.deploymentState.saveDeployedRevision(DEV_KEY, {
-            fingerprint: "a",
-            deployedAt: "",
+        await c.host.deploymentState.save({
+            ledger: {
+                put: {
+                    [DEV_KEY]: {
+                        fingerprint: "a",
+                        deployedAt: "",
+                    },
+                },
+            },
         });
-        await c.host.deploymentState.saveDeployedRevision(otherKey, {
-            fingerprint: "b",
-            deployedAt: "",
+        await c.host.deploymentState.save({
+            ledger: {
+                put: {
+                    [otherKey]: {
+                        fingerprint: "b",
+                        deployedAt: "",
+                    },
+                },
+            },
         });
 
         await c.service.forgetRevision(FILE_PATH, identity());
 
-        expect(c.host.deploymentState.listLedgerKeys()).toEqual([otherKey]);
+        expect(Object.keys(c.host.deploymentState.load().ledger)).toEqual([otherKey]);
     });
 
     it("prunes exactly the identity's rows", async () => {
@@ -257,15 +295,21 @@ describe("DeploymentStatusService ledger writes", () => {
             "target:prod@localhost:8080::/work/a.bpmn",
         ];
         for (const key of keys) {
-            await c.host.deploymentState.saveDeployedRevision(key, {
-                fingerprint: "f",
-                deployedAt: "",
+            await c.host.deploymentState.save({
+                ledger: {
+                    put: {
+                        [key]: {
+                            fingerprint: "f",
+                            deployedAt: "",
+                        },
+                    },
+                },
             });
         }
 
         await c.service.pruneTarget(identity());
 
-        expect(c.host.deploymentState.listLedgerKeys()).toEqual([
+        expect(Object.keys(c.host.deploymentState.load().ledger)).toEqual([
             "target:dev@other.example.com::/work/a.bpmn",
             "target:prod@localhost:8080::/work/a.bpmn",
         ]);
@@ -273,11 +317,11 @@ describe("DeploymentStatusService ledger writes", () => {
 
     it("skips the delete round-trip when nothing matches", async () => {
         const c = createService();
-        const deleteDeployedRevisions = vi.spyOn(c.host.deploymentState, "deleteDeployedRevisions");
+        const saves = vi.spyOn(c.host.deploymentState, "save");
 
         await c.service.pruneTarget(identity());
 
-        expect(deleteDeployedRevisions).not.toHaveBeenCalled();
+        expect(saves).not.toHaveBeenCalled();
     });
 
     it("prunes the rows an endpoint-ref target recorded under its resolved host", async () => {
@@ -294,9 +338,15 @@ describe("DeploymentStatusService ledger writes", () => {
             "/work/a.bpmn",
         );
         for (const key of [recordedRow, otherHostRow]) {
-            await c.host.deploymentState.saveDeployedRevision(key, {
-                fingerprint: "f",
-                deployedAt: "",
+            await c.host.deploymentState.save({
+                ledger: {
+                    put: {
+                        [key]: {
+                            fingerprint: "f",
+                            deployedAt: "",
+                        },
+                    },
+                },
             });
         }
 
@@ -304,7 +354,7 @@ describe("DeploymentStatusService ledger writes", () => {
             await c.service.ledgerIdentity(named(endpointRefTarget()), "/work"),
         );
 
-        expect(c.host.deploymentState.listLedgerKeys()).toEqual([otherHostRow]);
+        expect(Object.keys(c.host.deploymentState.load().ledger)).toEqual([otherHostRow]);
     });
 
     it.each(UNREADABLE_DOT_ENVS)(
@@ -317,9 +367,15 @@ describe("DeploymentStatusService ledger writes", () => {
                 DeploymentTargetIdentity.fromTarget(endpointRefTarget(), lookupOf(PROD_DOT_ENV)),
                 "/work/a.bpmn",
             );
-            await c.host.deploymentState.saveDeployedRevision(recordedRow, {
-                fingerprint: "f",
-                deployedAt: "",
+            await c.host.deploymentState.save({
+                ledger: {
+                    put: {
+                        [recordedRow]: {
+                            fingerprint: "f",
+                            deployedAt: "",
+                        },
+                    },
+                },
             });
 
             const pruning = c.service
@@ -327,7 +383,7 @@ describe("DeploymentStatusService ledger writes", () => {
                 .then((identity) => c.service.pruneTarget(identity));
 
             await expect(pruning).resolves.toBeUndefined();
-            expect(c.host.deploymentState.listLedgerKeys()).toEqual([recordedRow]);
+            expect(Object.keys(c.host.deploymentState.load().ledger)).toEqual([recordedRow]);
             expectDotEnvLoggedAsUnreadable(c);
         },
     );
@@ -382,9 +438,13 @@ describe("DeploymentStatusService status after a ledger write", () => {
 
         await writeLedger(c.service);
 
-        expect(c.host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: "dev", freshness: shown }),
-        );
+        const revision = c.host.deploymentState.load().ledger[DEV_KEY];
+        expectStatusShown(c, {
+            connection: DEV_TARGET,
+            freshness: shown,
+            deployedAt: revision?.deployedAt,
+            verifiedAt: revision?.verifiedAt,
+        });
     });
 
     it("refreshes the status bar for the saved ad-hoc connection when its ledger row cannot be written", async () => {
@@ -397,7 +457,8 @@ describe("DeploymentStatusService status after a ledger write", () => {
         await recordRevisionUnder(c, localRow);
         await c.service.refresh(c.editor.id);
         useAdHocConnection(c, PROD_URL, "");
-        vi.spyOn(c.host.deploymentState, "saveDeployedRevision").mockRejectedValue(
+        c.host.deploymentState.failSaves(
+            (patch) => patch.ledger !== undefined,
             new Error("workspace state is read-only"),
         );
 
@@ -408,10 +469,126 @@ describe("DeploymentStatusService status after a ledger write", () => {
         );
 
         await expect(recording).rejects.toThrow("workspace state is read-only");
-        expect(c.host.statusBar.deploymentTarget).toEqual(
-            expect.objectContaining({ name: undefined, freshness: "unknown" }),
-        );
+        expectStatusShown(c, { connection: FORM_VALUES, freshness: "unknown" });
     });
+});
+
+describe("DeploymentStatusService.targetsChanged", () => {
+    const LOCATION = named(target("dev")).location;
+    const SAVED = new DeploymentTargets([target("dev"), target("prod")]);
+    const rowOf = (name: string) =>
+        ledgerKeyFor(
+            DeploymentTargetIdentity.fromTarget(target(name), NO_ENV_VARIABLES),
+            FILE_PATH,
+        );
+    const edited = (change: TargetChange): DeploymentTargetsEvent => ({
+        kind: "targetsChanged",
+        edit: new TargetEdit(change, LOCATION),
+        documentDir: "/work",
+    });
+
+    /** The item shows `dev` deployed; `dev` and `prod` each have a row for the diagram. */
+    async function serviceShowingDev() {
+        const c = createService();
+        await recordRevisionUnder(c, rowOf("dev"));
+        await recordRevisionUnder(c, rowOf("prod"));
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
+        await c.service.refresh(c.editor.id);
+        return c;
+    }
+
+    it.each<{
+        change: string;
+        event: DeploymentTargetsEvent;
+        activeAfter: DeploymentDestination;
+        shownAfter: DeploymentStatus;
+        keptRows: string[];
+    }>([
+        {
+            change: "a rename",
+            event: edited(SAVED.upsert(target("staging"), "dev")),
+            activeAfter: named(target("staging")),
+            shownAfter: { connection: namedConnection("staging"), freshness: "unknown" },
+            keptRows: ["prod"],
+        },
+        {
+            change: "a delete",
+            event: edited(SAVED.remove("dev")),
+            activeAfter: new AdHocDestination("", ""),
+            shownAfter: { connection: { kind: "none" }, freshness: "unknown" },
+            keptRows: ["prod"],
+        },
+        {
+            change: "a create",
+            event: edited(SAVED.add(target("staging"))),
+            activeAfter: named(target("staging")),
+            shownAfter: { connection: namedConnection("staging"), freshness: "unknown" },
+            keptRows: ["dev", "prod"],
+        },
+        {
+            change: "a save under the same name",
+            event: edited(SAVED.upsert(target("dev"))),
+            activeAfter: named(target("dev")),
+            shownAfter: {
+                connection: DEV_TARGET,
+                freshness: "deployed",
+                deployedAt: RECORDED_REVISION.deployedAt,
+            },
+            keptRows: ["dev", "prod"],
+        },
+        {
+            change: "a switch",
+            event: { kind: "activeTargetChanged", activeName: "prod" },
+            activeAfter: named(target("prod")),
+            shownAfter: {
+                connection: namedConnection("prod"),
+                freshness: "deployed",
+                deployedAt: RECORDED_REVISION.deployedAt,
+            },
+            keptRows: ["dev", "prod"],
+        },
+    ])(
+        "drops only a retired target's rows after $change and shows the active target",
+        async ({ event, activeAfter, shownAfter, keptRows }) => {
+            const c = await serviceShowingDev();
+            c.deploymentTargetService.getActiveDestination.mockResolvedValue(activeAfter);
+
+            await c.service.targetsChanged(event);
+
+            expect(Object.keys(c.host.deploymentState.load().ledger)).toEqual(keptRows.map(rowOf));
+            expectStatusShown(c, shownAfter);
+        },
+    );
+
+    it.each([
+        { document: "inside the workspace folder", documentDir: "/work", prunesResolvedRow: true },
+        {
+            document: "outside every workspace folder",
+            documentDir: "/elsewhere",
+            prunesResolvedRow: false,
+        },
+    ])(
+        "keys a retired endpoint-ref target by the .env a document $document may read",
+        async ({ documentDir, prunesResolvedRow }) => {
+            const c = createService(workspaceDotEnv(PROD_DOT_ENV));
+            const resolvedRow = ledgerKeyFor(
+                DeploymentTargetIdentity.fromTarget(endpointRefTarget(), lookupOf(PROD_DOT_ENV)),
+                FILE_PATH,
+            );
+            await recordRevisionUnder(c, resolvedRow);
+
+            await c.service.targetsChanged({
+                kind: "targetsChanged",
+                edit: new TargetEdit(
+                    new DeploymentTargets([endpointRefTarget()]).remove("dev"),
+                    LOCATION,
+                ),
+                documentDir,
+            });
+
+            expect(resolvedRow in c.host.deploymentState.load().ledger).toBe(!prunesResolvedRow);
+        },
+    );
 });
 
 describe("DeploymentStatusService.ledgerIdentity", () => {
@@ -523,45 +700,69 @@ describe("DeploymentStatusService.ledgerIdentity", () => {
 
 describe("DeploymentStatusService.pickStatusBarAction", () => {
     it("offers verify for a named C7 target", async () => {
-        const c = createService({ answers: { deploymentStatusAction: "verify" } });
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("dev"));
+        const c = createService({ promptAnswers: { deploymentStatusAction: "verify" } });
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
 
         await expect(c.service.pickStatusBarAction("/work")).resolves.toBe("verify");
 
+        expect(c.deploymentTargetService.getActiveDestination).toHaveBeenCalledWith("/work");
         expect(c.host.picker.prompts).toEqual([
-            {
-                method: "pickDeploymentStatusAction",
-                args: [{ targetName: "dev", canVerify: true }],
-            },
+            { method: "choose", args: [deploymentStatusActionPrompt(named(target("dev")))] },
         ]);
     });
 
     it("withholds verify without a named target", async () => {
         const c = createService();
 
-        await c.service.pickStatusBarAction();
+        await expect(c.service.pickStatusBarAction()).resolves.toBeUndefined();
 
         expect(c.host.picker.prompts).toEqual([
             {
-                method: "pickDeploymentStatusAction",
-                args: [{ targetName: undefined, canVerify: false }],
+                method: "choose",
+                args: [deploymentStatusActionPrompt(new AdHocDestination("", ""))],
             },
         ]);
     });
 
     it("withholds verify for a Camunda 8 target", async () => {
-        const c = createService();
-        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
-            new DeploymentTarget("cloud", "c8", "https://c8.example.com", "", "none", "", ""),
+        const c = createService({ promptAnswers: { deploymentStatusAction: "switch" } });
+        const cloud = new DeploymentTarget(
+            "cloud",
+            "c8",
+            "https://c8.example.com",
+            "",
+            "none",
+            "",
+            "",
         );
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(cloud));
 
-        await c.service.pickStatusBarAction();
+        await expect(c.service.pickStatusBarAction()).resolves.toBe("switch");
 
         expect(c.host.picker.prompts).toEqual([
-            {
-                method: "pickDeploymentStatusAction",
-                args: [{ targetName: "cloud", canVerify: false }],
-            },
+            { method: "choose", args: [deploymentStatusActionPrompt(named(cloud))] },
+        ]);
+    });
+
+    it.each([
+        {
+            behaviour: "names the form values once a deploy saved the form's endpoint",
+            endpoint: LITERAL_ENDPOINT,
+            placeholder: "Deployment with the form values",
+        },
+        {
+            behaviour: "names no connection before a deploy saved the form's endpoint",
+            endpoint: "",
+            placeholder: "No deployment target selected",
+        },
+    ])("$behaviour", async ({ endpoint, placeholder }) => {
+        const c = createService();
+        useAdHocConnection(c, endpoint, "");
+
+        await c.service.pickStatusBarAction("/work");
+
+        expect(c.host.picker.prompts).toEqual([
+            { method: "choose", args: [expect.objectContaining({ placeholder })] },
         ]);
     });
 });
@@ -570,7 +771,7 @@ describe("DeploymentStatusService.refresh", () => {
     it("keeps the item hidden when a refresh runs after the diagram lost focus to a text editor", async () => {
         const c = createService();
         await c.service.refresh(c.editor.id);
-        expect(c.host.statusBar.deploymentTarget).toBeDefined();
+        expect(shownStatus(c)).toBeDefined();
 
         // DeploymentStatusParticipant's blur release; the store pointer stays.
         c.editor.loseFocus();
@@ -578,7 +779,7 @@ describe("DeploymentStatusService.refresh", () => {
         // e.g. Deploy Files run from the command palette.
         await c.service.refreshFocused();
 
-        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+        expect(shownStatus(c)).toBeUndefined();
     });
 
     it("refreshes the focused diagram, not one resolved behind it", async () => {
@@ -591,19 +792,19 @@ describe("DeploymentStatusService.refresh", () => {
 
         await c.service.refreshFocused();
 
-        expect(c.host.statusBar.deploymentTarget?.name).toBe("new");
+        expect(shownStatus(c)?.text).toBe("new");
     });
 
     it("hides the item when a command refreshes with no editor focused", async () => {
         const c = createService();
         await c.service.refresh(c.editor.id);
-        expect(c.host.statusBar.deploymentTarget).toBeDefined();
+        expect(shownStatus(c)).toBeDefined();
         // No participant hid it on blur.
         c.editor.loseFocus();
 
         await c.service.refreshFocused();
 
-        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+        expect(shownStatus(c)).toBeUndefined();
     });
 
     it("shows no item for a focused editor without a status participant", async () => {
@@ -614,7 +815,7 @@ describe("DeploymentStatusService.refresh", () => {
 
         await c.service.refreshFocused();
 
-        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+        expect(shownStatus(c)).toBeUndefined();
     });
 
     it("finishes the focused diagram's refresh when a background diagram asks for one meanwhile", async () => {
@@ -628,15 +829,14 @@ describe("DeploymentStatusService.refresh", () => {
         pending.resolve(named(target("dev")));
         await focusedRefresh;
 
-        expect(c.host.statusBar.deploymentTarget?.name).toBe("dev");
+        expect(shownStatus(c)?.text).toBe("dev");
     });
 
     it("ignores requests from an inactive editor", async () => {
         const c = createService();
-        c.host.statusBar.showDeploymentTarget("shown", "deployed");
-        const shown = c.host.statusBar.deploymentTarget;
+        c.host.statusBar.show("deploymentTarget", SHOWN_VIEW);
         await c.service.refresh("background");
-        expect(c.host.statusBar.deploymentTarget).toBe(shown);
+        expect(shownStatus(c)).toBe(SHOWN_VIEW);
     });
 
     it.each(["resolve", "reject"])("ignores a stale lookup that later %s", async (outcome) => {
@@ -646,11 +846,11 @@ describe("DeploymentStatusService.refresh", () => {
         const oldRefresh = c.service.refresh(c.editor.id);
         const other = focusOtherDiagram(c);
         await c.service.refresh(other.id);
-        const shown = c.host.statusBar.deploymentTarget;
+        const shown = shownStatus(c);
         if (outcome === "resolve") pending.resolve(named(target("old")));
         else pending.reject(new Error("stale error"));
         await oldRefresh;
-        expect(c.host.statusBar.deploymentTarget).toBe(shown);
+        expect(shownStatus(c)).toBe(shown);
     });
 
     it("invalidates pending refreshes when hidden, even if the active pointer is unchanged", async () => {
@@ -661,7 +861,7 @@ describe("DeploymentStatusService.refresh", () => {
         c.service.hide();
         pending.resolve(named(target("old")));
         await refresh;
-        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+        expect(shownStatus(c)).toBeUndefined();
     });
 
     it.each<{ invalidation: string; invalidate: (c: ServiceContext) => void; outcome: string }>([
@@ -681,7 +881,7 @@ describe("DeploymentStatusService.refresh", () => {
         "drops a refresh whose .env read $outcome after the item was $invalidation",
         async ({ invalidate, outcome }) => {
             const c = createService();
-            const ledgerReads = vi.spyOn(c.host.deploymentState, "getDeployedRevision");
+            const stateReads = vi.spyOn(c.host.deploymentState, "load");
             const dotEnvRead = deferred<string>();
             c.dotEnvIo.readFile.mockReturnValueOnce(dotEnvRead.promise);
             c.deploymentTargetService.getActiveDestination.mockResolvedValue(
@@ -693,14 +893,13 @@ describe("DeploymentStatusService.refresh", () => {
                 expect(c.dotEnvIo.readFile).toHaveBeenCalledWith(WORKSPACE_DOT_ENV),
             );
             invalidate(c);
-            c.host.statusBar.showDeploymentTarget("shown", "deployed");
-            const shown = c.host.statusBar.deploymentTarget;
+            c.host.statusBar.show("deploymentTarget", SHOWN_VIEW);
             if (outcome === "resolves") dotEnvRead.resolve(dotEnvContent(PROD_DOT_ENV));
             else dotEnvRead.reject(new Error("EISDIR: illegal operation"));
             await staleRefresh;
 
-            expect(ledgerReads).not.toHaveBeenCalled();
-            expect(c.host.statusBar.deploymentTarget).toBe(shown);
+            expect(stateReads).not.toHaveBeenCalled();
+            expect(shownStatus(c)).toBe(SHOWN_VIEW);
         },
     );
 
@@ -711,52 +910,57 @@ describe("DeploymentStatusService.refresh", () => {
         const old = c.service.refresh(c.editor.id);
         c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("new")));
         await c.service.refresh(c.editor.id);
-        const shown = c.host.statusBar.deploymentTarget;
+        const shown = shownStatus(c);
         pending.resolve(named(target("old")));
         await old;
-        expect(shown).toEqual({
-            name: "new",
-            freshness: "unknown",
-            deployedAt: undefined,
-            verifiedAt: undefined,
-        });
-        expect(c.host.statusBar.deploymentTarget).toBe(shown);
+        expect(shown).toEqual(
+            deploymentStatusView(
+                { connection: namedConnection("new"), freshness: "unknown" },
+                formatInEnglish,
+            ),
+        );
+        expect(shownStatus(c)).toBe(shown);
     });
 
     it("renders unknown when no revision is recorded", async () => {
         const c = createService();
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
 
         await c.service.refresh(c.editor.id);
 
-        expect(c.host.statusBar.deploymentTarget).toEqual({
-            name: undefined,
-            freshness: "unknown",
-            deployedAt: undefined,
-            verifiedAt: undefined,
-        });
+        expectStatusShown(c, { connection: DEV_TARGET, freshness: "unknown" });
+    });
+
+    it("shows the deployment time in the modeler language", async () => {
+        const c = createService();
+        c.host.settings.values.language = "de";
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
+        await recordRevisionUnder(c, DEV_KEY);
+
+        await c.service.refresh(c.editor.id);
+
+        expect(shownStatus(c)?.tooltip).toBe(
+            `Deployed — last deployed ${timestampFormatter("de")(RECORDED_REVISION.deployedAt)}`,
+        );
     });
 
     it("renders deployed (green) when content matches the recorded fingerprint", async () => {
         const c = createService();
         c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
-        await c.host.deploymentState.saveDeployedRevision(
+        await recordRevisionUnder(
+            c,
             ledgerKeyFor(
                 DeploymentTargetIdentity.fromTarget(target("dev"), NO_ENV_VARIABLES),
                 FILE_PATH,
             ),
-            {
-                fingerprint: contentFingerprint("<a/>"),
-                deployedAt: "2026-09-17T14:32:00.000Z",
-            },
         );
 
         await c.service.refresh(c.editor.id);
 
-        expect(c.host.statusBar.deploymentTarget).toEqual({
-            name: "dev",
+        expectStatusShown(c, {
+            connection: DEV_TARGET,
             freshness: "deployed",
             deployedAt: "2026-09-17T14:32:00.000Z",
-            verifiedAt: undefined,
         });
     });
 
@@ -772,7 +976,7 @@ describe("DeploymentStatusService.refresh", () => {
         await recordRevisionUnder(c, ledgerKey);
 
         await c.service.refresh(c.editor.id);
-        expectRecordedRevisionShown(c, "dev");
+        expectRecordedRevisionShown(c, DEV_TARGET);
         expect(ledgerKey).toContain("env:");
         expect(ledgerKey).not.toContain(PROD_HOST);
     });
@@ -795,7 +999,7 @@ describe("DeploymentStatusService.refresh", () => {
 
             await c.service.refresh(c.editor.id);
 
-            expectRecordedRevisionShown(c, "dev");
+            expectRecordedRevisionShown(c, DEV_TARGET);
             expectDotEnvLoggedAsUnreadable(c);
         },
     );
@@ -807,7 +1011,7 @@ describe("DeploymentStatusService.refresh", () => {
 
         await c.service.refresh(c.editor.id);
 
-        expectRecordedRevisionShown(c, "dev");
+        expectRecordedRevisionShown(c, DEV_TARGET);
         expect(c.dotEnvIo.isSymbolicLink).not.toHaveBeenCalled();
         expect(c.dotEnvIo.readFile).not.toHaveBeenCalled();
     });
@@ -824,7 +1028,7 @@ describe("DeploymentStatusService.refresh", () => {
 
             await c.service.refresh(c.editor.id);
 
-            expectRecordedRevisionShown(c, "dev");
+            expectRecordedRevisionShown(c, DEV_TARGET);
             expectNoDotEnvIo(c);
             expect(c.host.notifier.logged("debug")).toEqual([]);
         },
@@ -834,36 +1038,47 @@ describe("DeploymentStatusService.refresh", () => {
         const c = createService();
         c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         c.editor.content = "<b/>";
-        await c.host.deploymentState.saveDeployedRevision(DEV_KEY, {
-            fingerprint: contentFingerprint("<a/>"),
-            deployedAt: "2026-09-17T14:32:00.000Z",
+        await c.host.deploymentState.save({
+            ledger: {
+                put: {
+                    [DEV_KEY]: {
+                        fingerprint: contentFingerprint("<a/>"),
+                        deployedAt: "2026-09-17T14:32:00.000Z",
+                    },
+                },
+            },
         });
 
         await c.service.refresh(c.editor.id);
 
-        expect(c.host.statusBar.deploymentTarget).toEqual({
-            name: "dev",
+        expectStatusShown(c, {
+            connection: DEV_TARGET,
             freshness: "changed",
             deployedAt: "2026-09-17T14:32:00.000Z",
-            verifiedAt: undefined,
         });
     });
 
-    it("renders superseded (blue) and passes verifiedAt for an engine-origin mismatch", async () => {
+    it("renders superseded (blue) with the verification time for an engine-origin mismatch", async () => {
         const c = createService();
         c.deploymentTargetService.getActiveDestination.mockResolvedValue(named(target("dev")));
         c.editor.content = "<b/>";
-        await c.host.deploymentState.saveDeployedRevision(DEV_KEY, {
-            fingerprint: contentFingerprint("<a/>"),
-            deployedAt: "2026-09-17T14:40:00.000Z",
-            origin: "engine",
-            verifiedAt: "2026-09-17T15:00:00.000Z",
+        await c.host.deploymentState.save({
+            ledger: {
+                put: {
+                    [DEV_KEY]: {
+                        fingerprint: contentFingerprint("<a/>"),
+                        deployedAt: "2026-09-17T14:40:00.000Z",
+                        origin: "engine",
+                        verifiedAt: "2026-09-17T15:00:00.000Z",
+                    },
+                },
+            },
         });
 
         await c.service.refresh(c.editor.id);
 
-        expect(c.host.statusBar.deploymentTarget).toEqual({
-            name: "dev",
+        expectStatusShown(c, {
+            connection: DEV_TARGET,
             freshness: "superseded",
             deployedAt: "2026-09-17T14:40:00.000Z",
             verifiedAt: "2026-09-17T15:00:00.000Z",
@@ -872,18 +1087,54 @@ describe("DeploymentStatusService.refresh", () => {
 
     it("hides the item when the editor has no resolvable document", async () => {
         const c = createService();
-        c.host.statusBar.showDeploymentTarget("shown", "deployed");
+        c.host.statusBar.show("deploymentTarget", SHOWN_VIEW);
         vi.spyOn(c.host.documents, "getFilePath").mockImplementation(() => {
             throw new Error("no active editor");
         });
 
         await c.service.refresh(c.editor.id);
 
-        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+        expect(shownStatus(c)).toBeUndefined();
     });
 });
 
 describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
+    it("labels the form values connection", async () => {
+        const c = createService();
+        useAdHocConnection(c, LITERAL_ENDPOINT, "");
+        await recordRevisionUnder(
+            c,
+            ledgerKeyFor(
+                DeploymentTargetIdentity.adHoc(LITERAL_ENDPOINT, "", NO_ENV_VARIABLES),
+                FILE_PATH,
+            ),
+        );
+
+        await c.service.refresh(c.editor.id);
+
+        expect(shownStatus(c)).toEqual({
+            text: "Form values",
+            icon: "dot",
+            tooltip: `Deployed with the form values — last deployed ${formatInEnglish(RECORDED_REVISION.deployedAt)}`,
+            tone: "success",
+            action: "deploymentMenu",
+        });
+    });
+
+    it("asks for a target when no connection is saved", async () => {
+        const c = createService();
+
+        await c.service.refresh(c.editor.id);
+
+        expect(shownStatus(c)).toEqual({
+            text: "No deployment target",
+            icon: "dot",
+            tooltip: "No deployment target selected — click to choose one",
+            tone: "neutral",
+            action: "deploymentMenu",
+        });
+    });
+
     it("keys a literal endpoint and tenant without any .env IO", async () => {
         const c = createService();
         useAdHocConnection(c, LITERAL_ENDPOINT, "acme");
@@ -891,7 +1142,7 @@ describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
 
         await c.service.refresh(c.editor.id);
 
-        expectRecordedRevisionShown(c, undefined);
+        expectRecordedRevisionShown(c, FORM_VALUES);
         expectNoDotEnvIo(c);
     });
 
@@ -911,7 +1162,7 @@ describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
 
         await c.service.refresh(c.editor.id);
 
-        expectRecordedRevisionShown(c, undefined);
+        expectRecordedRevisionShown(c, FORM_VALUES);
         expect(ledgerKey).toMatch(/^adhoc:localhost:8080\/env:/);
         expect(ledgerKey).not.toContain("acme");
     });
@@ -932,7 +1183,7 @@ describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
 
         await c.service.refresh(c.editor.id);
 
-        expectRecordedRevisionShown(c, undefined);
+        expectRecordedRevisionShown(c, FORM_VALUES);
         expect(ledgerKey).toMatch(/^adhoc:env:[0-9a-f]+\/env:[0-9a-f]+::/);
         expect(ledgerKey).not.toContain(PROD_HOST);
         expect(ledgerKey).not.toContain("acme");
@@ -958,7 +1209,7 @@ describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
 
             await c.service.refresh(c.editor.id);
 
-            expectRecordedRevisionShown(c, undefined);
+            expectRecordedRevisionShown(c, FORM_VALUES);
             expectDotEnvLoggedAsUnreadable(c);
         },
     );
@@ -989,22 +1240,24 @@ describe("DeploymentStatusService.refresh in ad-hoc mode", () => {
 
         await c.service.refresh(c.editor.id);
 
-        expectRecordedRevisionShown(c, undefined);
+        expectRecordedRevisionShown(c, FORM_VALUES);
         expect(c.dotEnvIo.readFile).toHaveBeenCalledExactlyOnceWith(WORKSPACE_DOT_ENV);
     });
 
     it("hides the item on a failure other than an unreadable .env", async () => {
         const c = createService();
-        const ledgerReads = vi.spyOn(c.host.deploymentState, "getDeployedRevision");
-        useAdHocConnection(c, "${env:MIRAGON_URL}", "");
+        const stateReads = vi.spyOn(c.host.deploymentState, "load");
+        c.deploymentTargetService.getActiveDestination.mockResolvedValue(
+            new AdHocDestination("${env:MIRAGON_URL}", ""),
+        );
         vi.spyOn(c.host.workspace, "findWorkspaceFolderForDocument").mockImplementation(() => {
             throw new Error("workspace folders unavailable");
         });
-        c.host.statusBar.showDeploymentTarget("shown", "deployed");
+        c.host.statusBar.show("deploymentTarget", SHOWN_VIEW);
 
         await c.service.refresh(c.editor.id);
 
-        expect(ledgerReads).not.toHaveBeenCalled();
-        expect(c.host.statusBar.deploymentTarget).toBeUndefined();
+        expect(stateReads).not.toHaveBeenCalled();
+        expect(shownStatus(c)).toBeUndefined();
     });
 });

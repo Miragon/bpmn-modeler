@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { globToRegExp } from "./globToRegExp";
+import { coveredFolderRegExp, globToRegExp } from "./globToRegExp";
 
 describe("globToRegExp", () => {
     it("matches a leading double-star at the root and across directories", () => {
@@ -25,6 +25,17 @@ describe("globToRegExp", () => {
         expect(re.test("forms/a.form")).toBe(true);
         expect(re.test("templates/a.json")).toBe(true);
         expect(re.test("a.bpmn")).toBe(false);
+    });
+
+    it("reads each brace alternative as a glob of its own", () => {
+        const re = globToRegExp("**/{node_modules,.*,v?}/**");
+
+        expect(re.test("node_modules/pkg/a.json")).toBe(true);
+        expect(re.test(".history/a.json")).toBe(true);
+        expect(re.test("web/.git/config.json")).toBe(true);
+        expect(re.test("v2/a.json")).toBe(true);
+        expect(re.test("my.forms/a.json")).toBe(false);
+        expect(re.test("src/a.json")).toBe(false);
     });
 
     it("treats an unterminated brace and regex characters as literals", () => {
@@ -64,5 +75,26 @@ describe("globToRegExp", () => {
         ["**/.camunda/vars/order.bpmn.vars.json", "/work/.camunda/vars/order.bpmn.vars.json"],
     ])("matches the absolute path a file watcher reports for %s", (glob, absolutePath) => {
         expect(globToRegExp(glob).test(absolutePath)).toBe(true);
+    });
+});
+
+describe("coveredFolderRegExp", () => {
+    it.each([
+        { glob: "**/{node_modules,dist}/**", folder: "node_modules", covered: true },
+        { glob: "**/{node_modules,dist}/**", folder: "web/node_modules", covered: true },
+        { glob: "**/{node_modules,dist}/**", folder: "dist", covered: true },
+        { glob: "**/{node_modules,dist}/**", folder: "src", covered: false },
+        { glob: "**/{node_modules,dist}/**", folder: "node_modules_cache", covered: false },
+        { glob: "**/element-templates/**", folder: "config/element-templates", covered: true },
+        { glob: "**/{node_modules,.*}/**", folder: "web/.history", covered: true },
+        { glob: "**/{node_modules,.*}/**", folder: "my.forms", covered: false },
+        { glob: "src/**", folder: "src", covered: true },
+        { glob: "src/**", folder: "lib/src", covered: false },
+    ])("$glob covers the folder $folder: $covered", ({ glob, folder, covered }) => {
+        expect(coveredFolderRegExp(glob)?.test(folder) ?? false).toBe(covered);
+    });
+
+    it.each(["**/*.json", "**/node_modules"])("%s covers no folder as a whole", (glob) => {
+        expect(coveredFolderRegExp(glob)).toBeUndefined();
     });
 });

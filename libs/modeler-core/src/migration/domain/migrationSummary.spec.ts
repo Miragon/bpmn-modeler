@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import { PlannedWrite } from "./MigrationPlan";
-import { migrationSummary, WriteResult } from "./migrationSummary";
+import { MigrationResult, migrationSummary, nothingToMigrateSummary } from "./migrationSummary";
 
-const updatedC7: WriteResult = {
+const updatedC7: MigrationResult = {
     kind: "updated",
     write: new PlannedWrite("/work/c7.bpmn", "c7", "7.24.0"),
 };
-const updatedC8 = (path: string): WriteResult => ({
+const updatedC8 = (path: string): MigrationResult => ({
     kind: "updated",
     write: new PlannedWrite(path, "c8", "8.8.0"),
 });
-const unchanged: WriteResult = { kind: "unchanged" };
-const skipped: WriteResult = { kind: "skipped" };
+const unchanged: MigrationResult = { kind: "unchanged" };
+const skipped: MigrationResult = { kind: "skipped" };
 
 describe("migrationSummary", () => {
     it.each([
@@ -54,10 +54,24 @@ describe("migrationSummary", () => {
             expected:
                 "Updated 1 diagram(s) to Camunda 8 (8.8.0). Skipped 2 diagram(s); see the log for details.",
         },
-    ] satisfies { run: string; results: WriteResult[]; expected: string }[])(
+    ] satisfies { run: string; results: MigrationResult[]; expected: string }[])(
         "summarises $run",
         ({ results, expected }) => {
             expect(migrationSummary(results)).toBe(expected);
         },
     );
+});
+
+describe("nothingToMigrateSummary", () => {
+    it("blames engine detection when every diagram was read", () => {
+        expect(nothingToMigrateSummary(0)).toBe(
+            "Could not detect the engine for any BPMN file in the workspace.",
+        );
+    });
+
+    it("counts the diagrams it could not read instead of blaming engine detection", () => {
+        expect(nothingToMigrateSummary(2)).toBe(
+            "No diagrams were updated. Skipped 2 diagram(s); see the log for details.",
+        );
+    });
 });

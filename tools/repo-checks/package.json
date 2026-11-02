@@ -1,0 +1,18 @@
+{
+    "name": "@miragon/bpmn-modeler-repo-checks",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "test": "vitest run --coverage",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@miragon/architecture-testing": "workspace:*",
+        "@types/node": "26.6.5",
+        "@typescript/native": "npm:typescript@7.0.2",
+        "@vitest/coverage-v8": "5.0.5",
+        "typescript": "npm:@typescript/typescript6@6.0.2",
+        "vite": "8.3.4",
+        "vitest": "5.0.5"
+    }
+}

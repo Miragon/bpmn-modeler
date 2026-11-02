@@ -265,8 +265,8 @@ CI runs one test job per affected workspace, each failing below the
 thresholds in its `vitest.config.ts` or on a type error, specs included (Vitest
 itself does not type-check). A new Vitest workspace must be added to
 `.github/vitest-targets.json` with a `typecheck` script that covers its specs;
-the lint job fails otherwise. Coverage reports
-are uploaded to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-modeler).
+the lint job fails otherwise. On a PR, each leg shows its coverage report in
+the job summary of the run.
 
 ### VS Code smoke test
 
@@ -523,7 +523,7 @@ apps/vscode-plugin/src/
     editor-session/  # Generic ModelerEditorController (runs the core EditorSessionLifecycle)
     bpmn/ form/      # controller/ infrastructure/
   deployment/ diff/ scriptTask/ templateMarketplace/        # controller/ infrastructure/
-  codeLink/ definitionSearch/ migration/ navigation/        # index.ts barrel only
+  migration/                                                # index.ts barrel only
 ```
 
 The layer + feature-isolation boundaries are enforced in CI by
@@ -540,4 +540,4 @@ Key design decisions:
 - **Webview communication**: `postMessage` with typed message contracts defined in
   `libs/shared`.
 
-See `AGENTS.md` in the repository root for the full architectural reference.
+See the `architecture` skill (`.agents/skills/architecture/SKILL.md`) for where code belongs and the [architecture overview](./architecture-overview.md) for the diagrams.

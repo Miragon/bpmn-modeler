@@ -22,6 +22,33 @@ export class InMemoryMemento implements Memento {
     }
 }
 
+/**
+ * Rejects every write after `failAfter(writes)` lets that many through.
+ * `keepsRejectedValue` models VS Code's `ExtensionMemento`, which sets the value
+ * in memory before the persist that rejects; without it a rejected write changes
+ * nothing.
+ */
+export class FailingMemento extends InMemoryMemento {
+    private writesLeft = Number.POSITIVE_INFINITY;
+
+    constructor(private readonly keepsRejectedValue: boolean) {
+        super();
+    }
+
+    failAfter(writes: number): void {
+        this.writesLeft = writes;
+    }
+
+    override async update(key: string, value: unknown): Promise<void> {
+        if (this.writesLeft > 0) {
+            this.writesLeft--;
+            return super.update(key, value);
+        }
+        if (this.keepsRejectedValue) await super.update(key, value);
+        throw new Error(`cannot write ${key}`);
+    }
+}
+
 export class InMemorySecretStorage implements SecretStorage {
     readonly entries = new Map<string, string>();
 

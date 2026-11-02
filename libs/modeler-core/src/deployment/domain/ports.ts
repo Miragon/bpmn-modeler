@@ -1,15 +1,13 @@
 /**
  * Domain-level abstractions for Camunda engine interaction and the host
- * facilities only deployment uses (secrets, form state, its prompts and its
- * status-bar item).
+ * facilities only deployment uses (secrets and form state).
  *
  * Decouples business logic from transport and protocol details so that
  * services can be tested with simple in-memory stubs.
  */
 
 import { AuthConfig, DeploymentConfig, DeploymentResult } from "./deployment";
-import { DeployedRevision, DeploymentFreshness } from "./deploymentLedger";
-import { TargetAuthType } from "./deploymentTarget";
+import { DeploymentState, DeploymentStatePatch } from "./deploymentState";
 import { EngineDeploymentSnapshot } from "./deploymentVerification";
 import { StartInstanceConfig, StartInstanceResult } from "./startInstance";
 
@@ -67,49 +65,6 @@ export interface EngineInspectionPort {
     fetchLatestDefinition(request: DefinitionLookup): Promise<EngineDeploymentSnapshot | undefined>;
 }
 
-/** Deployment's own quick picks, beside the cross-cutting `PickerPort`. */
-export interface DeploymentPickerPort {
-    /** @returns the chosen payload, or `null` on dismissal. */
-    pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null>;
-
-    /**
-     * Prompts for the active deployment target. `names` are the saved targets;
-     * the picker also offers an explicit "(none — use form values)" entry for
-     * ad-hoc mode.
-     *
-     * @returns the chosen target name, `""` for the ad-hoc entry, or `undefined`
-     *   on dismissal (a no-op, mirroring the engine-version cancel convention).
-     */
-    pickDeploymentTarget(names: string[]): Promise<string | undefined>;
-
-    /**
-     * The status-bar item's click menu: switch the active target, or (for a
-     * Camunda 7 target) verify the ledger against the engine.
-     *
-     * @returns the chosen action, or `undefined` on dismissal (a no-op).
-     */
-    pickDeploymentStatusAction(opts: {
-        targetName?: string;
-        canVerify: boolean;
-    }): Promise<"switch" | "verify" | undefined>;
-}
-
-/** The active-target status-bar item, beside the cross-cutting `StatusBarPort`. */
-export interface DeploymentStatusBarPort {
-    /**
-     * `undefined` name renders "No deployment target"; a name renders the active
-     * target. `freshness` drives the coloured dot; `deployedAt` / `verifiedAt`
-     * (ISO) enrich the tooltip when a revision was recorded / engine-verified.
-     */
-    showDeploymentTarget(
-        name: string | undefined,
-        freshness: DeploymentFreshness,
-        deployedAt?: string,
-        verifiedAt?: string,
-    ): void;
-    hideDeploymentTarget(): void;
-}
-
 /**
  * Encrypted-at-rest storage for sensitive deployment credentials.
  *
@@ -120,8 +75,10 @@ export interface DeploymentStatusBarPort {
  * PasswordSafe.
  */
 export interface SecretStorePort {
+    /** Replaces both halves of the slot's pair or neither, so a deploy never sends a mixed pair. */
     saveBasicAuth(username: string, password: string, slot?: string): Promise<void>;
     getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined>;
+    /** Replaces both halves of the slot's pair or neither, like {@link saveBasicAuth}. */
     saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void>;
     getOAuth2(slot?: string): Promise<{ clientId: string; clientSecret: string } | undefined>;
     /**
@@ -136,33 +93,17 @@ export interface SecretStorePort {
 }
 
 /**
- * Persists non-secret deployment-form state (endpoint, tenant, auth type, …)
- * across sessions so the form can be pre-filled on next use.
+ * Persists the non-secret {@link DeploymentState} across sessions. The host
+ * stores what a save writes; the core owns the defaults and the shape.
  */
 export interface DeploymentStatePort {
-    getEndpoint(): string;
-    getTenantId(): string;
-    getAuthType(): TargetAuthType;
-    saveAuthType(authType: TargetAuthType): Promise<void>;
-    getTokenEndpoint(): string;
-    getAudience(): string;
-    saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void>;
-    save(endpoint: string, tenantId: string): Promise<void>;
+    /** Synchronous, so the initial webview seed and status render can read it. */
+    load(): DeploymentState;
     /**
-     * The persisted active deployment-target name, or `""` for ad-hoc mode.
-     * Synchronous so it can ride the initial webview seed.
+     * Writes only what `patch` names, and all of it or none of it, so a rejected
+     * save never leaves a connection stored in part. `load()` is guaranteed to
+     * show the patch only once this resolves; until then a host may still return
+     * the old state.
      */
-    getActiveTargetName(): string;
-    saveActiveTargetName(name: string): Promise<void>;
-    /**
-     * The recorded revision last deployed under `ledgerKey`, or `undefined` when
-     * this machine has no record. Synchronous so freshness can be
-     * resolved during the initial status-bar render.
-     */
-    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
-    saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
-    /** Every recorded ledger key. Synchronous, like the getters. */
-    listLedgerKeys(): string[];
-    /** Removes the given ledger slots (target delete/rename, engine says "not deployed"). */
-    deleteDeployedRevisions(ledgerKeys: string[]): Promise<void>;
+    save(patch: DeploymentStatePatch): Promise<void>;
 }

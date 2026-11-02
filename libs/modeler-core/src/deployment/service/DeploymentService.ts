@@ -9,22 +9,23 @@ import {
     DeploymentConfigBuilder,
     DeploymentResult,
 } from "../domain/deployment";
-import {
-    DeploymentDestination,
-    LegacyConnection,
-    NamedDestination,
-} from "../domain/deploymentDestination";
+import { DeploymentDestination, NamedDestination } from "../domain/deploymentDestination";
 import {
     DeploymentOutcome,
     RememberedPart,
     rememberedPartLabel,
 } from "../domain/deploymentOutcome";
+import { ADDITIONAL_FILES_GLOB, additionalFilesExclude } from "../domain/additionalFiles";
+import { additionalFilesPrompt } from "../domain/deploymentPrompts";
+import { connectionPatch } from "../domain/deploymentState";
 import { EnvLookup } from "../domain/envRef";
+import { UserCancelledError } from "../../kernel/domain/errors";
 import { loggableHost } from "../../kernel/domain/http";
 import {
     DocumentPort,
     NotifierPort,
     PickerPort,
+    SettingsPort,
     WorkspacePort,
 } from "../../kernel/domain/hostPorts";
 import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
@@ -43,19 +44,20 @@ import { storeCredentials } from "./storeCredentials";
  *   3. Read file contents and issue the REST deployment call.
  *   4. Persist endpoint and tenant ID on success.
  *
- * All errors from the REST call or filesystem reads are caught internally and
- * returned as a failed {@link DeploymentResult} so callers never need to
- * handle thrown exceptions from {@link deploy}.
+ * Errors from the REST call or filesystem reads are caught internally and
+ * returned as a failed {@link DeploymentResult}; only a cancelled prompt
+ * escapes {@link deploy} and {@link deployFiles}, as a dismissal.
  */
 export class DeploymentService {
     /**
      * @param vsDocument Active-document path and content helper.
      * @param vsWorkspace Filesystem and workspace-folder helper.
-     * @param deploymentState Persists/restores endpoint and tenantId.
+     * @param deploymentState Persists/restores the ad-hoc connection.
      * @param restClient HTTP client for the Camunda REST API.
      * @param notifier User-facing message and logging helper.
      * @param picker Quick-pick helper for selecting deployment resources.
      * @param secretStore Secure credential storage for Basic Auth.
+     * @param settings Names the config folder the additional files leave out.
      */
     constructor(
         private readonly vsDocument: DocumentPort,
@@ -68,6 +70,7 @@ export class DeploymentService {
         private readonly deploymentStatus: DeploymentStatusService,
         private readonly envResolver: EnvValueResolver,
         private readonly credentialApproval: CredentialApprovalService,
+        private readonly settings: SettingsPort,
     ) {}
 
     /**
@@ -94,14 +97,15 @@ export class DeploymentService {
             // No active editor or detection failed — use empty defaults.
         }
 
+        const state = this.deploymentState.load();
         return {
             deploymentName,
-            tenantId: this.deploymentState.getTenantId(),
-            endpoint: this.deploymentState.getEndpoint() || "http://localhost:8080/engine-rest",
+            tenantId: state.tenantId,
+            endpoint: state.endpoint || "http://localhost:8080/engine-rest",
             engine,
-            authType: this.deploymentState.getAuthType(),
-            tokenEndpoint: this.deploymentState.getTokenEndpoint(),
-            audience: this.deploymentState.getAudience(),
+            authType: state.authType,
+            tokenEndpoint: state.tokenEndpoint,
+            audience: state.audience,
         };
     }
 
@@ -112,7 +116,7 @@ export class DeploymentService {
      *   or a `"none"` payload if no credentials are available.
      */
     async getStoredCredentials(): Promise<AuthConfigPayload> {
-        const authType = this.deploymentState.getAuthType();
+        const { authType, tokenEndpoint, audience } = this.deploymentState.load();
 
         if (authType === "basic") {
             const creds = await this.secretStore.getBasicAuth();
@@ -130,8 +134,8 @@ export class DeploymentService {
                     authType: "oauth2",
                     clientId: creds.clientId,
                     clientSecret: creds.clientSecret,
-                    tokenEndpoint: this.deploymentState.getTokenEndpoint(),
-                    audience: this.deploymentState.getAudience(),
+                    tokenEndpoint,
+                    audience,
                 };
             }
         }
@@ -141,18 +145,24 @@ export class DeploymentService {
 
     /**
      * Opens a multi-select picker over workspace files relevant for
-     * deployment (`.form`, `.json`, `.dmn`), excluding element templates.
+     * deployment (`.form`, `.json`, `.dmn`), excluding the modeler's own files
+     * and the folders no listing offers.
      *
      * @returns Absolute paths of the selected files, or an empty array if the
      *   user cancels or no files match.
      */
     async selectAdditionalFiles(): Promise<string[]> {
-        return this.picker.pickWorkspaceFiles({
-            glob: "**/*.{form,json,dmn}",
-            exclude: "**/element-templates/**",
-            placeholder: "Select additional files to include in the deployment",
-            limit: 20,
-        });
+        const found = await this.vsWorkspace.findFiles(
+            ADDITIONAL_FILES_GLOB,
+            additionalFilesExclude(this.settings.getConfigFolder()),
+        );
+        const chosen = await this.picker.chooseMany(
+            additionalFilesPrompt({
+                files: found,
+                workspaceFolders: this.vsWorkspace.getWorkspaceFolderPaths(),
+            }),
+        );
+        return [...chosen];
     }
 
     /**
@@ -163,8 +173,8 @@ export class DeploymentService {
      *      ledger row, each on its own: a failed save is logged and named in the
      *      result's message, never turned into a failed deploy.
      *
-     * This method never throws; all other errors are captured in the returned
-     * {@link DeploymentResult} with `success: false`.
+     * Every other error is captured in the returned {@link DeploymentResult}
+     * with `success: false`.
      *
      * @param config Validated deployment configuration.
      * @param destination Decides what an accepted deploy persists: a named
@@ -172,6 +182,7 @@ export class DeploymentService {
      *   lives in the targets file; the ad-hoc connection keeps both under the
      *   legacy keys.
      * @returns The outcome of the deployment attempt.
+     * @throws {UserCancelledError} when the user cancels a prompt.
      */
     async deploy(
         config: DeploymentConfig,
@@ -202,7 +213,7 @@ export class DeploymentService {
             if (persistence.legacyConnection !== undefined) {
                 const { legacyConnection } = persistence;
                 outcome = await this.remember(outcome, "connection", () =>
-                    this.saveConnection(legacyConnection, persistence.auth),
+                    this.deploymentState.save(connectionPatch(legacyConnection, persistence.auth)),
                 );
             }
             outcome = await this.remember(outcome, "credentials", () =>
@@ -218,6 +229,7 @@ export class DeploymentService {
             );
             return outcome.toResult();
         } catch (error) {
+            if (error instanceof UserCancelledError) throw error;
             const message = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(message));
             return new DeploymentResult(false, message);
@@ -226,17 +238,20 @@ export class DeploymentService {
 
     /**
      * Deploys each path as its own single-file deployment against the target,
-     * naming the deployment after the file's basename. Never throws — a failed
-     * file yields a failed {@link DeploymentResult} so the batch always completes
-     * and the caller sees a per-file outcome. Credentials are assumed already
-     * stored on the target, so nothing is persisted here.
+     * naming the deployment after the file's basename. A failed file yields a
+     * failed {@link DeploymentResult} so the batch completes and the caller sees
+     * a per-file outcome. Credentials are assumed already stored on the target,
+     * so nothing is persisted here.
      *
      * @param documentDir The directory `destination` was resolved from. Its `.env`
      *   serves the whole batch, even for files from other workspace folders, so
      *   a target's endpoint and its variables always come from the same project.
+     * @throws {UserCancelledError} when the user cancels a prompt, which ends
+     *   the whole batch without a summary. The approval, the batch's only
+     *   prompt, is settled before any file is sent.
      */
     async deployFiles(
-        paths: string[],
+        paths: readonly string[],
         destination: NamedDestination,
         auth: AuthConfig,
         documentDir: string | undefined,
@@ -284,6 +299,7 @@ export class DeploymentService {
                 this.notifier.logInfo(`Deployed ${name}: ${result.message}`);
                 results.push(result);
             } catch (error) {
+                if (error instanceof UserCancelledError) throw error;
                 const message = error instanceof Error ? error.message : String(error);
                 this.notifier.logWarning(`Deploy of ${name} failed: ${message}`);
                 results.push(new DeploymentResult(false, `${name}: ${message}`));
@@ -315,17 +331,6 @@ export class DeploymentService {
                 `Deployment succeeded, but saving its ${rememberedPartLabel(part)} failed: ${reason}`,
             );
             return outcome.notRemembering(part, reason);
-        }
-    }
-
-    private async saveConnection(
-        { endpoint, tenantId }: LegacyConnection,
-        auth: AuthConfig,
-    ): Promise<void> {
-        await this.deploymentState.save(endpoint, tenantId);
-        await this.deploymentState.saveAuthType(auth.type);
-        if (auth.type === "oauth2") {
-            await this.deploymentState.saveOAuth2Config(auth.tokenEndpoint, auth.audience);
         }
     }
 

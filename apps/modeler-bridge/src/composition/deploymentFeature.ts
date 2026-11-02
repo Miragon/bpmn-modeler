@@ -21,7 +21,7 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * deployment/open, deployment/switchTarget, deployment/verify,
  * deployment/statusBarMenu, deployment/deployFiles, deployment/deployActive.
  */
-export function register(deps: BridgeSharedDeps): { participants: EditorSessionParticipant[] } {
+export function register(deps: BridgeSharedDeps): { statusParticipant: EditorSessionParticipant } {
     const deploymentState = new RpcDeploymentState(deps.rpc);
     const deployment = new DeploymentFeature({
         store: deps.store,
@@ -44,7 +44,7 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
     );
 
     // Seed the deployment-state mirror once at startup (and after a persisted
-    // save, if the host chooses to re-seed); getters then read it synchronously.
+    // save, if the host chooses to re-seed); `load()` then reads it synchronously.
     deps.rpc.on(METHODS.deploymentStateSeed, (params: DeploymentSeedParams) => {
         deploymentState.seed(params.state);
     });
@@ -88,5 +88,5 @@ export function register(deps: BridgeSharedDeps): { participants: EditorSessionP
         inWorkspace(params, (dir) => deployment.deployActive(dir)),
     );
 
-    return { participants: [deployment.statusParticipant] };
+    return { statusParticipant: deployment.statusParticipant };
 }

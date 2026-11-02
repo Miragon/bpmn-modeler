@@ -330,8 +330,8 @@ export class DeploymentConfigBuilder {
 /**
  * Value object representing the outcome of a deployment attempt.
  *
- * Always returned (never thrown) from {@link DeploymentService.deploy} so
- * callers can handle success and failure uniformly.
+ * Returned, never thrown, from {@link DeploymentService.deploy} so callers can
+ * handle success and failure uniformly. A cancelled prompt yields no result.
  */
 export class DeploymentResult {
     /**

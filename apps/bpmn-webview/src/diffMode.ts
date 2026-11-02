@@ -1,10 +1,8 @@
 import {
     ApplyDiffHighlightsQuery,
     asProtocolMessage,
-    Command,
     CursorChangedCommand,
     DiffReadyCommand,
-    HostApi,
     LogErrorCommand,
     Query,
     SwapCompareSidesCommand,
@@ -12,9 +10,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { DiffLegend, DiffNavigator, DiffViewer } from "@miragon/bpmn-modeler/viewer";
-import type { WebviewState } from "./webviewState";
-
-type MessageType = Query | Command;
+import type { DiffPaneChannel } from "./session/hostChannel";
 
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
@@ -51,7 +47,7 @@ export class DiffMode {
     constructor(
         canvas: HTMLElement,
         legendParent: HTMLElement,
-        private readonly host: HostApi<WebviewState, MessageType>,
+        private readonly host: DiffPaneChannel,
     ) {
         this.viewer = new DiffViewer(canvas);
         this.navigator = new DiffNavigator(this.viewer);
@@ -76,13 +72,13 @@ export class DiffMode {
      * by the time we get here the XML is in hand — no need to re-request).
      */
     async startWith(initialContent: string): Promise<void> {
-        window.addEventListener("message", (event: MessageEvent<MessageType>) => {
+        window.addEventListener("message", (event: MessageEvent<Query>) => {
             void this.onMessage(event.data);
         });
         await this.loadInitial(initialContent);
     }
 
-    private async onMessage(message: MessageType): Promise<void> {
+    private async onMessage(message: Query): Promise<void> {
         const query = asProtocolMessage(message);
         switch (query.type) {
             case "ApplyDiffHighlightsQuery":

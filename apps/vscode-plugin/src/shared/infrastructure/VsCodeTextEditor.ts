@@ -1,6 +1,7 @@
 import { commands, Tab, TabInputText, ViewColumn, window, workspace } from "vscode";
 
 import { getContext } from "./extensionContext";
+import { canonicalPath } from "./uriPath";
 
 /**
  * Toggles a standard VS Code text editor pane alongside the modeler webview.
@@ -21,7 +22,7 @@ export class VsCodeTextEditor {
             tabs.closed.forEach((tab) => {
                 if (
                     tab.input instanceof TabInputText &&
-                    tab.input.uri.path === this.activeDocumentPath
+                    canonicalPath(tab.input.uri) === this.activeDocumentPath
                 ) {
                     this.isOpen = false;
                 }
@@ -76,7 +77,10 @@ export class VsCodeTextEditor {
     private getTab(documentPath: string): Tab | undefined {
         for (const tabGroup of window.tabGroups.all) {
             for (const tab of tabGroup.tabs) {
-                if (tab.input instanceof TabInputText && tab.input.uri.path === documentPath) {
+                if (
+                    tab.input instanceof TabInputText &&
+                    canonicalPath(tab.input.uri) === documentPath
+                ) {
                     return tab;
                 }
             }

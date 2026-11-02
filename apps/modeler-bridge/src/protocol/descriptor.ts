@@ -11,9 +11,10 @@
  * pins the method set, directions, and per-method key sets against the snapshot.
  *
  * Adding a method = add a {@link METHODS} entry + a {@link PROTOCOL} entry +
- * refresh `protocol.json`; the contract test fails until all three agree. A
- * Core→Host method also needs its Kotlin handler: the IntelliJ
- * `ProtocolHandlerCoverageTest` reads `protocol.json` and fails until one exists.
+ * refresh `protocol.json`; the contract test fails until all three agree. The
+ * IntelliJ `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host
+ * method needs its Kotlin handler, a Host→Core method a Kotlin sender, both
+ * must use the param keys listed here, and a Kotlin reply the result keys.
  */
 
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
@@ -23,12 +24,7 @@ import {
     ClipboardReadResult,
     ClipboardWriteParams,
     DeploymentOpenParams,
-    DeploymentDeleteDeployedRevisionsParams,
     DeploymentPostMessageParams,
-    DeploymentSaveActiveTargetParams,
-    DeploymentSaveAuthTypeParams,
-    DeploymentSaveDeployedRevisionParams,
-    DeploymentSaveOAuth2ConfigParams,
     DeploymentSaveParams,
     DeploymentSeedParams,
     DeploymentWebviewMessageParams,
@@ -67,7 +63,6 @@ import {
     SecretSaveApprovedDestinationsParams,
     SecretSaveBasicAuthParams,
     SecretSaveOAuth2Params,
-    StatusBarDeploymentTargetParams,
     ScriptCloseNotifyParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
@@ -76,8 +71,8 @@ import {
     ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
-    StatusBarEngineVersionParams,
-    StatusBarTemplatesReadyParams,
+    SettingsSetLintingEnabledParams,
+    StatusBarUpdateParams,
     TokenPromptShowParams,
     TokenPromptShowResult,
     TokenStoreGetParams,
@@ -91,6 +86,32 @@ type Direction = "hostToCore" | "coreToHost";
 
 /** Whether a reply is expected. */
 type Kind = "notification" | "request";
+
+/**
+ * How long the core waits for the host's reply to a request:
+ * - `prompt`: the host asks the user, who takes as long as they need.
+ * - `syncedWrite`: the core keeps its own state in step with the reply (a
+ *   bridge mirror it updates on acceptance, a fetched cache it drops on
+ *   failure), so giving up on a write the host still applies would leave that
+ *   state out of step with the host.
+ * - `hostWork`: fails after {@link HOST_WORK_REPLY_DEADLINE_MS}, so a reply the
+ *   host never sends cannot hold the caller's editor queue.
+ */
+type ReplyWait = "prompt" | "syncedWrite" | "hostWork";
+
+interface ProtocolEntryShape {
+    readonly method: string;
+    readonly direction: Direction;
+    readonly paramsFixture: object;
+}
+
+type ProtocolEntry =
+    | (ProtocolEntryShape & { readonly kind: "notification" })
+    | (ProtocolEntryShape & {
+          readonly kind: "request";
+          readonly replyWait: ReplyWait;
+          readonly resultFixture?: object;
+      });
 
 /**
  * Ergonomic name constants for call-sites (`METHODS.sessionRegister`). Hand-kept
@@ -119,6 +140,7 @@ export const METHODS = {
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
     modelerChangeEngineVersion: "modeler/changeEngineVersion",
+    lintingToggle: "linting/toggle",
     migrationMigrateAll: "migration/migrateAll",
     layoutFormat: "layout/format",
     layoutCleanup: "layout/cleanup",
@@ -141,16 +163,12 @@ export const METHODS = {
     secretStoreGetApprovedDestinations: "secretStore/getApprovedDestinations",
     secretStoreSaveApprovedDestinations: "secretStore/saveApprovedDestinations",
     secretStoreDelete: "secretStore/delete",
-    deploymentStateSaveAuthType: "deploymentState/saveAuthType",
-    deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
     deploymentStateSave: "deploymentState/save",
-    deploymentStateSaveActiveTarget: "deploymentState/saveActiveTarget",
-    deploymentStateSaveDeployedRevision: "deploymentState/saveDeployedRevision",
-    deploymentStateDeleteDeployedRevisions: "deploymentState/deleteDeployedRevisions",
     marketplaceStateSave: "marketplaceState/save",
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
+    settingsSetLintingEnabled: "settings/setLintingEnabled",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -163,13 +181,7 @@ export const METHODS = {
     notifierLog: "notifier/log",
     notifierProgressStart: "notifier/progressStart",
     notifierProgressEnd: "notifier/progressEnd",
-    statusBarTemplatesLoading: "statusBar/templatesLoading",
-    statusBarTemplatesReady: "statusBar/templatesReady",
-    statusBarTemplatesHide: "statusBar/templatesHide",
-    statusBarShowEngineVersion: "statusBar/showEngineVersion",
-    statusBarHideEngineVersion: "statusBar/hideEngineVersion",
-    statusBarShowDeploymentTarget: "statusBar/showDeploymentTarget",
-    statusBarHideDeploymentTarget: "statusBar/hideDeploymentTarget",
+    statusBarUpdate: "statusBar/update",
     diffPostMessage: "diff/postMessage",
     deploymentPostMessage: "deployment/postMessage",
     scriptOpen: "script/open",
@@ -348,6 +360,12 @@ export const PROTOCOL = [
         paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
     },
     {
+        method: METHODS.lintingToggle,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
         method: METHODS.migrationMigrateAll,
         direction: "hostToCore",
         kind: "notification",
@@ -401,6 +419,7 @@ export const PROTOCOL = [
         method: METHODS.documentWrite,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "syncedWrite",
         paramsFixture: {
             editorId: "e1",
             sessionId: 1,
@@ -417,6 +436,7 @@ export const PROTOCOL = [
         method: METHODS.documentSave,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: { editorId: "e1", sessionId: 1 } satisfies DocumentSaveParams,
         resultFixture: { saved: true } satisfies DocumentSaveResult,
     },
@@ -424,6 +444,7 @@ export const PROTOCOL = [
         method: METHODS.pickerShow,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "prompt",
         paramsFixture: {
             title: "Pick",
             placeholder: "Pick one",
@@ -436,6 +457,7 @@ export const PROTOCOL = [
         method: METHODS.confirmShow,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "prompt",
         paramsFixture: {
             title: "Remove 2 leftover item(s)?",
             confirmLabel: "Clean Up",
@@ -447,6 +469,7 @@ export const PROTOCOL = [
         method: METHODS.clipboardRead,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {} satisfies EmptyParams,
         resultFixture: { text: "copied" } satisfies ClipboardReadResult,
     },
@@ -454,6 +477,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveBasicAuth,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             username: "u",
             password: "p",
@@ -465,6 +489,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreGetBasicAuth,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretGetParams,
@@ -474,6 +499,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveOAuth2,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             clientId: "id",
             clientSecret: "secret",
@@ -484,6 +510,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreGetOAuth2,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretGetParams,
@@ -493,6 +520,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreGetApprovedDestinations,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretGetApprovedDestinationsParams,
@@ -502,6 +530,7 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveApprovedDestinations,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
             origins: ["https://engine.example"],
@@ -511,65 +540,41 @@ export const PROTOCOL = [
         method: METHODS.secretStoreDelete,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             slot: "/ws/.camunda/deployment-targets.json::dev",
         } satisfies SecretDeleteParams,
     },
-    // Acknowledged persists (requests, not notifications): the bridge awaits the
+    // Acknowledged persist (a request, not a notification): the bridge awaits the
     // host's empty ack so a persist failure rejects the core's write instead of
     // diverging silently. No resultFixture (empty ack).
-    {
-        method: METHODS.deploymentStateSaveAuthType,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: { authType: "basic" } satisfies DeploymentSaveAuthTypeParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveOAuth2Config,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: {
-            tokenEndpoint: "https://token",
-            audience: "aud",
-        } satisfies DeploymentSaveOAuth2ConfigParams,
-    },
     {
         method: METHODS.deploymentStateSave,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "syncedWrite",
         paramsFixture: {
-            endpoint: "https://engine",
-            tenantId: "t1",
-        } satisfies DeploymentSaveParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveActiveTarget,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: { name: "dev" } satisfies DeploymentSaveActiveTargetParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveDeployedRevision,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: {
-            ledgerKey: "target:dev@localhost:8080::/work/order.bpmn",
-            revision: {
-                fingerprint: "0123456789abcdef",
-                deployedAt: "2026-09-17T14:32:00.000Z",
-                deploymentId: "dep-1",
-                origin: "engine",
-                verifiedAt: "2026-09-17T15:00:00.000Z",
+            patch: {
+                endpoint: "https://engine",
+                tenantId: "t1",
+                authType: "oauth2",
+                tokenEndpoint: "https://token",
+                audience: "aud",
+                activeTargetName: "dev",
+                ledger: {
+                    put: {
+                        "target:dev@localhost:8080::/work/order.bpmn": {
+                            fingerprint: "0123456789abcdef",
+                            deployedAt: "2026-09-17T14:32:00.000Z",
+                            deploymentId: "dep-1",
+                            origin: "engine",
+                            verifiedAt: "2026-09-17T15:00:00.000Z",
+                        },
+                    },
+                    remove: ["target:prod@localhost:8080::/work/order.bpmn"],
+                },
             },
-        } satisfies DeploymentSaveDeployedRevisionParams,
-    },
-    {
-        method: METHODS.deploymentStateDeleteDeployedRevisions,
-        direction: "coreToHost",
-        kind: "request",
-        paramsFixture: {
-            ledgerKeys: ["target:dev@localhost:8080::/work/order.bpmn"],
-        } satisfies DeploymentDeleteDeployedRevisionsParams,
+        } satisfies DeploymentSaveParams,
     },
     // Acknowledged persist: the host adds the entry, fans the snapshot to all
     // bridges, then acks an empty reply — the core awaits only the round-trip.
@@ -577,6 +582,7 @@ export const PROTOCOL = [
         method: METHODS.marketplaceStateSave,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "syncedWrite",
         paramsFixture: {
             location: "https://github.com/owner/repo",
             scope: "project",
@@ -586,6 +592,7 @@ export const PROTOCOL = [
         method: METHODS.tokenStoreGet,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: { host: "github.com" } satisfies TokenStoreGetParams,
         resultFixture: { token: "ghp_example" } satisfies TokenStoreGetResult,
     },
@@ -593,6 +600,7 @@ export const PROTOCOL = [
         method: METHODS.tokenStoreSet,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "hostWork",
         paramsFixture: {
             host: "github.com",
             token: "ghp_example",
@@ -602,11 +610,19 @@ export const PROTOCOL = [
         method: METHODS.tokenPromptShow,
         direction: "coreToHost",
         kind: "request",
+        replyWait: "prompt",
         paramsFixture: {
-            host: "github.com",
-            reason: "github.com denied access; enter a personal access token.",
+            title: "Personal Access Token for github.com",
+            prompt: "github.com denied access; enter a personal access token.",
         } satisfies TokenPromptShowParams,
         resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
+    },
+    {
+        method: METHODS.settingsSetLintingEnabled,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────
@@ -675,51 +691,20 @@ export const PROTOCOL = [
         paramsFixture: { title: "Working" } satisfies NotifierProgressParams,
     },
     {
-        method: METHODS.statusBarTemplatesLoading,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.statusBarTemplatesReady,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { count: 3 } satisfies StatusBarTemplatesReadyParams,
-    },
-    {
-        method: METHODS.statusBarTemplatesHide,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.statusBarShowEngineVersion,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { platform: "c7", version: "7.20" } satisfies StatusBarEngineVersionParams,
-    },
-    {
-        method: METHODS.statusBarHideEngineVersion,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.statusBarShowDeploymentTarget,
+        method: METHODS.statusBarUpdate,
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: {
-            name: "dev",
-            freshness: "deployed",
-            deployedAt: "2026-09-17T14:32:00.000Z",
-            verifiedAt: "2026-09-17T15:00:00.000Z",
-        } satisfies StatusBarDeploymentTargetParams,
-    },
-    {
-        method: METHODS.statusBarHideDeploymentTarget,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
+            slot: "engineVersion",
+            view: {
+                text: "Camunda 7 (7.20)",
+                icon: "engine",
+                tooltip: "Click to change engine version",
+                tone: "neutral",
+                action: "changeEngineVersion",
+                transient: false,
+            },
+        } satisfies StatusBarUpdateParams,
     },
     {
         method: METHODS.diffPostMessage,
@@ -767,7 +752,21 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
     },
-] as const;
+] as const satisfies readonly ProtocolEntry[];
+
+/** Generous, because host work can queue behind a modal dialog or a keychain prompt. */
+export const HOST_WORK_REPLY_DEADLINE_MS = 120_000;
+
+const HOST_WORK_REQUESTS: ReadonlySet<string> = new Set(
+    PROTOCOL.filter((entry) => "replyWait" in entry && entry.replyWait === "hostWork").map(
+        (entry) => entry.method,
+    ),
+);
+
+/** How long a request to `method` waits for its reply; `undefined` waits until the host answers. */
+export function replyDeadlineMs(method: string): number | undefined {
+    return HOST_WORK_REQUESTS.has(method) ? HOST_WORK_REPLY_DEADLINE_MS : undefined;
+}
 
 /** Language-neutral, per-method key contract — what the Kotlin host verifies against. */
 export interface ProtocolSnapshotEntry {

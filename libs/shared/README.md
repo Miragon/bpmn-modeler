@@ -2,8 +2,8 @@
 
 The **private** webview ↔ host **message protocol** for BPMN, DMN, and Camunda
 Form modeling: the `Query`/`Command` base classes and every concrete message
-type, `HostApi`, document-flush plumbing, the resolver and reply-registry
-helpers, and the process-variable types the hosts exchange.
+type, `HostApi`, document-flush plumbing, and the resolver and reply-registry
+helpers.
 
 Used by the extension host (`apps/vscode-plugin`), the modeler-bridge, and the
 webview bootstrap/host-adapter layers. It is **not** publishable: it encodes the
@@ -13,7 +13,8 @@ internal transport contract.
 
 The publishable, host-agnostic types and browser utilities
 (engine/lint/settings/scripting/implementation/diff types, `canvasResize`, the
-`isTextEditingSurface` predicate, `asyncDebounce`) live in
+`isTextEditingSurface` predicate, `asyncDebounce`) and the pure rules browser
+code shares with the core, such as process-variable extraction, live in
 [`@miragon/bpmn-modeler-types`](../modeler-types/README.md). This package
 imports those types where its message payloads reference them, but never the
 reverse — a `no-restricted-imports` eslint rule (`BND-PROTOCOL-PRIVATE`) keeps

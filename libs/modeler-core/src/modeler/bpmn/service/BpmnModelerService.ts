@@ -1,7 +1,7 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { isHiddenEditorError, UserCancelledError } from "../../../kernel/domain/errors";
-import { getVersions } from "../../../kernel/domain/engineVersions";
+import { engineVersionPrompt } from "../../../kernel/domain/engineVersions";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
     DocumentPort,
@@ -10,8 +10,11 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/domain/hostPorts";
+import { newModelEnginePrompt } from "../../../kernel/domain/newModelEngine";
+import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
+import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
@@ -50,17 +53,13 @@ export class BpmnModelerService {
             let doc = new BpmnDocument(snapshot.content);
 
             if (doc.isEmpty()) {
-                const xml = await this.documents.initializeEmpty(
-                    editorId,
-                    snapshot,
-                    hostUpdated,
-                    async () => {
-                        const choice = await this.picker.pickNewModelEngine(
-                            "Select the execution platform.",
-                        );
-                        return BpmnDocument.forNewModel(choice).xml;
-                    },
-                );
+                const xml = await this.documents.initializeEmpty(editorId, snapshot, async () => {
+                    const engine = await this.picker.choose(newModelEnginePrompt());
+                    if (engine === undefined) {
+                        throw new UserCancelledError();
+                    }
+                    return BpmnDocument.forNewModel(engine).xml;
+                });
                 if (xml === undefined) return false;
                 doc = new BpmnDocument(xml);
             }
@@ -117,9 +116,10 @@ export class BpmnModelerService {
                 );
                 return false;
             }
-            const versions = getVersions(platform);
-
-            const newVersion = await this.picker.pickEngineVersion(platform, versions);
+            const newVersion = await this.picker.choose(engineVersionPrompt(platform));
+            if (newVersion === undefined) {
+                return false;
+            }
             if (!snapshot.isCurrent()) {
                 this.reportVersionNotChanged(editorId);
                 return false;
@@ -146,9 +146,6 @@ export class BpmnModelerService {
 
             return await this.display(editorId);
         } catch (error) {
-            if (error instanceof UserCancelledError) {
-                return false;
-            }
             return this.handleError(error as Error);
         }
     }
@@ -165,12 +162,11 @@ export class BpmnModelerService {
     // the editor can also close mid-post.
     private showEngineVersionIfFocused(editorId: string, doc: BpmnDocument): void {
         if (!this.editorStore.isFocused(editorId)) return;
-        const status = doc.engineVersionStatus();
-        if (status) {
-            this.statusBar.showEngineVersion(status.platform, status.version);
-        } else {
-            this.statusBar.hideEngineVersion();
-        }
+        updateStatusSlot(
+            this.statusBar,
+            "engineVersion",
+            engineVersionStatusView(doc.engineVersionStatus()),
+        );
     }
 
     private handleError(error: Error): boolean {

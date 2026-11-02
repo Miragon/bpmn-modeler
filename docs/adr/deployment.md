@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-10-27
+- Last reviewed: 2026-11-01
 
 ## Context
 
@@ -48,18 +48,46 @@ Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing
 credentials in application-scoped IntelliJ PasswordSafe. Optional secret-store
 slots retain the legacy unnamed keys when absent; deletion/rename cleans up
-the target slot. Never write secrets into the shared file; whole-value
+the target slot. Each auth type keeps its credential pair in one entry
+(PasswordSafe `Credentials` in IntelliJ, a JSON object in VS Code), so a failed
+write leaves the old pair whole. VS Code still reads a pair from the two keys
+earlier releases stored while that entry is missing. A save removes those keys
+once the entry is stored; a failure to remove them does not fail the save,
+because the entry shadows them and the next save or the slot's delete removes
+them. Downgrading costs the pair: an earlier release reads only the two keys,
+so after the first save it finds no credentials for that target, and a pair it
+saves then stays shadowed by the entry after the next upgrade until the target
+is saved again. VS Code's delete tries every key of the slot before it reports
+the first failure. Never write secrets into the shared file; whole-value
 environment references (below) are the only credential values it may hold.
 
 Each edit of the file returns a `TargetChange` from `DeploymentTargets`
 (`created`, `saved`, `renamed` or `removed`, with the target it replaces or
 removes as `before`), the one place that decides whether a save renames. It names
 the retired slot (the old or deleted name, even when the file no longer holds
-it), the retired target whose ledger rows are pruned, and the name whose
-approvals carry over: the saved or renamed target's, none for a create
+it), the retired target whose ledger rows are pruned, the name whose
+approvals carry over (the saved or renamed target's, none for a create), and
+the new slot no saved target owns yet (a created or renamed target's)
 ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
 The services act on the change, so nothing reads a target before saving or
 deleting it.
+
+A save stores the slot's credentials and approvals before it writes the file.
+Once the file holds a new name, nothing names the old slot again, so a failure
+before that point leaves the file and the old slot as they were and empties the
+new slot. Once the file is written, a rename or a delete removes the retired
+slot even when saving or clearing the active name fails; a delete clears the
+active name first, so a failing secret store does not leave it naming the
+deleted target. The first failure is the one reported; a cleanup failing after
+it is only logged. A save of an existing target keeps what it stored in that
+target's slot when the file write fails, because the slot is still in use. That
+is a trade-off for one case: switching a stored literal to an environment
+reference leaves the reference in the slot while the file still lacks it, so
+the target sends an empty value until a save succeeds. Writing the file first
+would open the reverse case instead, a reference replaced by a literal while
+the secret store rejects writes, and a rejecting secret store is the likelier
+failure
+([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts)).
 
 Creating and updating are separate operations so a target is never overwritten
 by accident. **New** creates a target from the entered form data and rejects a
@@ -73,6 +101,27 @@ Persist the active target name in non-secret host state. The sidebar and
 status-bar target picker use the same value. With no selected target, preserve
 the legacy unnamed connection behavior and write no target file until the user
 creates a target.
+
+Every target change publishes one `DeploymentTargetsEvent` through
+`DeploymentTargetService.onDidChange`: a create, save, rename or delete carries
+its `TargetEdit`, and a sidebar select or a picked switch carries the new
+active name. A create, save, rename or delete that wrote the file publishes
+even when saving or clearing the active name or deleting the retired slot fails
+after it, so the panel reloads instead of offering a retry of the same edit. A
+rejected save, a cancelled delete or a dismissed picker publishes nothing. An
+edit stores the active name it implies without a second event. The service
+awaits the listeners in subscription order. The change is already made when
+they run, so a failing listener is logged and skipped, and the sidebar still
+reports the target as saved when the ledger prune after it fails.
+`DeploymentFeature` subscribes the status service once and each attached panel
+until it is disposed. The status service prunes a retired target's ledger rows
+and refreshes the indicator, and the panel pushes the target list, so no
+command does either by hand. A panel posts the result of its own target command
+before that push, because the form ends its reload lock on the first target
+list after a successful result. Overlapping commands push once, after the last
+result
+([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts),
+[feature tests](../../libs/modeler-core/src/deployment/DeploymentFeature.spec.ts)).
 
 A target name is resolved once per request, command or prefill into a
 `DeploymentDestination`: a blank name is the ad-hoc connection
@@ -176,7 +225,13 @@ deploy, start instance or verify sends either, the core resolves the request's
 destinations — `deployUrl`/`startInstanceUrl` (after `{processDefinitionKey}`
 substitution) or `endpoint`, plus the OAuth2 token endpoint — and
 `CredentialApprovalService` asks through the host's confirm dialog for any origin
-not yet approved; declining sends nothing. Destinations are computed from the resolved request, so a changed
+not yet approved; declining sends nothing and fails the request. A cancelled
+prompt, such as the keychain read of the approvals, is a dismissal instead: the
+services let `UserCancelledError` through, a command ends without a message,
+Deploy Files stops the whole batch because its one approval comes before any
+file is sent, and the sidebar's Deploy and Start Instance reply with a result
+marked `cancelled`, which ends the form's progress without a result banner.
+Destinations are computed from the resolved request, so a changed
 `.env` value is caught too, and a URL without a host is refused outright: what
 `https:` plus a conventional route would reach (WHATWG parsing skips the extra
 slashes and takes the route's first segment as the host) can't be checked.
@@ -239,7 +294,10 @@ rejects a missing target, and an ad-hoc destination admits any request.
 The engine's acceptance is final. Saving the ad-hoc connection, the
 credentials and the ledger row afterwards are separate steps: a failed step is
 logged and named in the result message ("Not saved: …"), and the ledger row is
-still written when the credentials fail. A live deployment is never reported as
+still written when the credentials fail. The connection is one
+`connectionPatch`: the endpoint, the tenant and the auth type, and for OAuth2
+the token endpoint and audience. It is written in one save, so the bridge sends
+it as one request, not three. A live deployment is never reported as
 failed. `DeploymentOutcome` in the core owns this rule; host adapters report
 write failures and decide nothing.
 
@@ -268,7 +326,7 @@ connections, not what this machine deployed.
 | With `${env:…}` refs | the resolved host / tenant is stored as `env:<fingerprint>` — a `.env` switch to another engine changes the key, yet no resolved value is ever persisted |
 | Ledger key | `<destination-identity>::<filePath>` |
 | Revision | `fingerprint`, `deployedAt`, optional `deploymentId`, `origin`, `verifiedAt` |
-| Host state key | `bpmn-modeler.deployment.ledger` in VS Code workspace state / IntelliJ PropertiesComponent |
+| Host state key | the `ledger` field of `bpmn-modeler.deployment.state` in VS Code workspace state / `bpmn-modeler.deployment.ledger` in IntelliJ PropertiesComponent |
 
 Fingerprints normalize line endings and concatenate two independently seeded
 32-bit FNV-1a hashes as a 16-digit hex value. This is a portable content-change
@@ -296,11 +354,28 @@ it is saved. Additional sidebar files and Deploy Files… are deployed as saved.
 (record, adopt, forget, prune) ends by refreshing the indicator, so no caller
 refreshes after a deploy or a verification. It refreshes after a failed write
 too, because an ad-hoc deploy saves the connection the indicator reads just
-before its row. Target changes, editor focus and debounced document edits
-refresh it as well. The bridge listens to its document mirror for edit-time
-refresh. Active target and ledger getters follow the
-[synchronous mirror contract](architecture-and-hosts.md#host-replicated-state)
-and are included in startup/restart seeds.
+before its row. Target changes (through the
+[targets event](#targets-and-credentials)), editor focus and debounced
+document edits refresh it as well. The bridge listens to its document mirror
+for edit-time refresh. The active target and the ledger are part of the
+deployment state's synchronous `load()`, which follows the
+[synchronous mirror contract](architecture-and-hosts.md#host-replicated-state),
+and of the startup/restart seeds.
+
+The indicator names the connection its freshness refers to. Each destination
+answers it as its `statusConnection`: a named target gives its name, the ad-hoc
+destination gives the form values once a deploy has saved the form's endpoint,
+and no connection before that. A target name that no longer resolves falls back
+to the remembered ad-hoc destination, so it is labelled as the form values too.
+`deploymentStatusView` turns the connection, the freshness and the revision's
+times into the `deploymentTarget` slot's
+[status view](architecture-and-hosts.md#host-integrations):
+the label, the dot's tone and the tooltip for both hosts
+([view table](../../libs/modeler-core/src/deployment/domain/deploymentStatusView.spec.ts)).
+Without a connection it shows "No deployment target" with no freshness. The
+core formats the times with `Intl.DateTimeFormat` in the modeler language and
+the machine's time zone, so VS Code and IntelliJ show the same text; an
+unreadable stored time is shown as stored.
 
 ### Engine reconciliation
 

@@ -25,7 +25,11 @@ vi.mock("vscode", () => ({
 
 import { ConfigurationTarget, workspace } from "vscode";
 
-import { DEFAULT_LINTING_ENABLED, DEFAULT_MODELER_SETTINGS } from "@miragon/bpmn-modeler-core";
+import {
+    DEFAULT_MODELER_SETTINGS,
+    ModelerSettingsSnapshot,
+    settingKeyOf,
+} from "@miragon/bpmn-modeler-core";
 import {
     readSettingsSnapshot,
     settingsNormalizationCases,
@@ -69,11 +73,6 @@ function stubConfiguration(userValues: Record<string, unknown>) {
     );
 }
 
-/** The configuration section VS Code stores a snapshot key under. */
-function sectionOf(key: string): string {
-    return key === "scriptingSpin" ? "scripting.spin" : key;
-}
-
 /** Toggles whether VS Code considers a workspace open. */
 function setWorkspaceOpen(open: boolean) {
     (workspace as { workspaceFolders: unknown }).workspaceFolders = open ? [{}] : undefined;
@@ -94,7 +93,10 @@ describe("VsCodeSettings reads", () => {
         ({ raw, normalized }) => {
             stubConfiguration(
                 Object.fromEntries(
-                    Object.entries(raw).map(([key, value]) => [sectionOf(key), value]),
+                    Object.entries(raw).map(([key, value]) => [
+                        settingKeyOf(key as keyof ModelerSettingsSnapshot),
+                        value,
+                    ]),
                 ),
             );
             stubInspect({ globalValue: raw.marketplaces });
@@ -112,11 +114,15 @@ describe("VsCodeSettings reads", () => {
             userValues: { "linting.enabled": false },
             enabled: false,
         },
-        { case: "the default linting flag", userValues: {}, enabled: DEFAULT_LINTING_ENABLED },
+        {
+            case: "the default linting flag",
+            userValues: {},
+            enabled: DEFAULT_MODELER_SETTINGS.lintingEnabled,
+        },
         {
             case: "a linting flag that is no boolean as the default",
             userValues: { "linting.enabled": 0 },
-            enabled: DEFAULT_LINTING_ENABLED,
+            enabled: DEFAULT_MODELER_SETTINGS.lintingEnabled,
         },
     ])("$case", ({ userValues, enabled }) => {
         stubConfiguration(userValues);

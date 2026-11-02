@@ -104,6 +104,7 @@ const surfaces: SurfaceDescriptor[] = [
         subscribeChannels: (h, onFire) => [
             (h as BpmnModeler).viewport.onViewportChanged(onFire),
             (h as BpmnModeler).onCommandStackChanged(onFire),
+            (h as BpmnModeler).onFormatted(onFire),
         ],
         triggerViewbox: (h) => (h as BpmnModeler).getService("canvas").zoom(2),
         canvas: (h) => (h as BpmnModeler).getService("canvas"),
@@ -124,7 +125,11 @@ const surfaces: SurfaceDescriptor[] = [
                 additionalModules: [POISON_MODULE] as never,
             }),
         load: async (h) => void (await (h as BpmnDesigner).loadDiagram(FAR_FROM_ORIGIN_XML)),
-        subscribeChannels: (h, onFire) => [(h as BpmnDesigner).viewport.onViewportChanged(onFire)],
+        subscribeChannels: (h, onFire) => [
+            (h as BpmnDesigner).viewport.onViewportChanged(onFire),
+            (h as BpmnDesigner).onCommandStackChanged(onFire),
+            (h as BpmnDesigner).onFormatted(onFire),
+        ],
         triggerViewbox: (h) => (h as BpmnDesigner).getService("canvas").zoom(2),
         canvas: (h) => (h as BpmnDesigner).getService("canvas"),
         deadAccessors: (h) => [

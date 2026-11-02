@@ -1,82 +1,80 @@
 package io.miragon.intellij.bpmn.bridge
 
-import com.google.gson.JsonObject
 import io.miragon.intellij.bpmn.IntellijSecretStore
 
-/**
- * Routes the core's `SecretStorePort` to IntelliJ's PasswordSafe. These are the
- * only reply-bearing inbound handlers: get/set both block, and PasswordSafe must
- * not be touched on the EDT — `onLine` runs them on the background reader thread,
- * so calling them inline is safe.
- */
+/** Routes the core's `SecretStorePort` to IntelliJ's PasswordSafe. */
 internal class SecretStoreRouter(private val deps: BridgeDeps) {
     private val secretStore by lazy { IntellijSecretStore() }
 
     fun register() {
         deps.handlers
-            .on("secretStore/saveBasicAuth") { params, id ->
-                secretStore.saveBasicAuth(
-                    params.get("username").asString,
-                    params.get("password").asString,
-                    params.slot(),
-                )
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("secretStore/getBasicAuth") { params, id ->
-                val creds = secretStore.getBasicAuth(params.slot())
-                val username = creds?.userName
-                val password = creds?.getPasswordAsString()
-                id?.let {
-                    deps.channel.reply(
-                        it,
-                        if (username != null && password != null) {
-                            mapOf("username" to username, "password" to password)
-                        } else {
-                            null
-                        },
-                    )
+            .on("secretStore/saveBasicAuth") { params ->
+                val username = params.string("username")
+                val password = params.string("password")
+                val slot = params.slot()
+                deps.credentialStoreAction("secretStore/saveBasicAuth") {
+                    secretStore.saveBasicAuth(username, password, slot)
+                    null
                 }
             }
-            .on("secretStore/saveOAuth2") { params, id ->
-                secretStore.saveOAuth2(
-                    params.get("clientId").asString,
-                    params.get("clientSecret").asString,
-                    params.slot(),
-                )
-                id?.let { deps.channel.reply(it, null) }
-            }
-            .on("secretStore/getOAuth2") { params, id ->
-                val creds = secretStore.getOAuth2(params.slot())
-                val clientId = creds?.userName
-                val clientSecret = creds?.getPasswordAsString()
-                id?.let {
-                    deps.channel.reply(
-                        it,
-                        if (clientId != null && clientSecret != null) {
-                            mapOf("clientId" to clientId, "clientSecret" to clientSecret)
-                        } else {
-                            null
-                        },
-                    )
+            .on("secretStore/getBasicAuth") { params ->
+                val slot = params.slot()
+                deps.credentialStoreAction("secretStore/getBasicAuth") {
+                    val creds = secretStore.getBasicAuth(slot)
+                    val username = creds?.userName
+                    val password = creds?.getPasswordAsString()
+                    if (username != null && password != null) {
+                        BasicAuthCredentials(username, password)
+                    } else {
+                        null
+                    }
                 }
             }
-            .on("secretStore/getApprovedDestinations") { params, id ->
-                val origins = secretStore.getApprovedDestinations(params.get("slot").asString)
-                id?.let { deps.channel.reply(it, origins?.let { mapOf("origins" to it) }) }
+            .on("secretStore/saveOAuth2") { params ->
+                val clientId = params.string("clientId")
+                val clientSecret = params.string("clientSecret")
+                val slot = params.slot()
+                deps.credentialStoreAction("secretStore/saveOAuth2") {
+                    secretStore.saveOAuth2(clientId, clientSecret, slot)
+                    null
+                }
             }
-            .on("secretStore/saveApprovedDestinations") { params, id ->
-                secretStore.saveApprovedDestinations(
-                    params.get("slot").asString,
-                    params.getAsJsonArray("origins").map { it.asString },
-                )
-                id?.let { deps.channel.reply(it, null) }
+            .on("secretStore/getOAuth2") { params ->
+                val slot = params.slot()
+                deps.credentialStoreAction("secretStore/getOAuth2") {
+                    val creds = secretStore.getOAuth2(slot)
+                    val clientId = creds?.userName
+                    val clientSecret = creds?.getPasswordAsString()
+                    if (clientId != null && clientSecret != null) {
+                        OAuth2Credentials(clientId, clientSecret)
+                    } else {
+                        null
+                    }
+                }
             }
-            .on("secretStore/delete") { params, id ->
-                secretStore.delete(params.get("slot").asString)
-                id?.let { deps.channel.reply(it, null) }
+            .on("secretStore/getApprovedDestinations") { params ->
+                val slot = params.string("slot")
+                deps.credentialStoreAction("secretStore/getApprovedDestinations") {
+                    secretStore.getApprovedDestinations(slot)?.let(::SecretApprovedDestinations)
+                }
+            }
+            .on("secretStore/saveApprovedDestinations") { params ->
+                val slot = params.string("slot")
+                val origins = params.jsonArray("origins").map { it.asString }
+                deps.credentialStoreAction("secretStore/saveApprovedDestinations") {
+                    secretStore.saveApprovedDestinations(slot, origins)
+                    null
+                }
+            }
+            .on("secretStore/delete") { params ->
+                val slot = params.string("slot")
+                deps.credentialStoreAction("secretStore/delete") {
+                    secretStore.delete(slot)
+                    null
+                }
             }
     }
 
     /** Optional `slot`; absent/null addresses the legacy unnamed (ad-hoc) keys. */
-    private fun JsonObject.slot(): String? = get("slot")?.takeIf { !it.isJsonNull }?.asString
+    private fun RpcParams.slot(): String? = optionalString("slot")
 }

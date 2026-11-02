@@ -5,7 +5,8 @@ import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
 import * as lintModule from "./bpmnlint/index";
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
-import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
+import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML, START_EVENT_XML } from "./__fixtures__/bpmnXml";
+import { MODELER_MODDLE, declaringCamunda87Under } from "./__fixtures__/modelerModdle";
 import { animationFrames, mountWithPanel, removeMounts, wait } from "./__fixtures__/surfaceMount";
 
 /**
@@ -362,6 +363,11 @@ describe("BpmnModeler element templates", () => {
         appliesTo: ["bpmn:Task"],
         properties: [],
     };
+    const C8_TEMPLATE = {
+        ...VALID_TEMPLATE,
+        $schema:
+            "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    };
 
     afterEach(removeMounts);
 
@@ -400,10 +406,42 @@ describe("BpmnModeler element templates", () => {
         modeler.destroy();
     });
 
+    it.each<{ registers: string; moddleExtensions: Record<string, object> }>([
+        { registers: "no package", moddleExtensions: {} },
+        { registers: "a modeler package", moddleExtensions: { modeler: MODELER_MODDLE } },
+    ])(
+        "gates templates on the engine version a diagram declares under any modeler prefix when moddle registers $registers",
+        async ({ moddleExtensions }) => {
+            const { container, panel } = mountWithPanel();
+            const modeler = await createModeler(container, {
+                engine: "c8",
+                propertiesPanel: { parent: panel },
+                linting: false,
+                moddleExtensions,
+                elementTemplates: [
+                    { ...C8_TEMPLATE, id: "com.example.audit-8-7", engines: { camunda: "^8.7" } },
+                    { ...C8_TEMPLATE, id: "com.example.audit-8-8", engines: { camunda: "^8.8" } },
+                ],
+            });
+
+            await modeler.loadDiagram(declaringCamunda87Under("cm", START_EVENT_XML));
+
+            expect(latestTemplateIds(modeler)).toEqual(["com.example.audit-8-7"]);
+            modeler.destroy();
+        },
+    );
+
     function templateIds(modeler: BpmnModeler): string[] {
         return modeler
             .getService<{ getAll(): Array<{ id: string }> }>("elementTemplates")
             .getAll()
+            .map((template) => template.id);
+    }
+
+    function latestTemplateIds(modeler: BpmnModeler): string[] {
+        return modeler
+            .getService<{ getLatest(): Array<{ id: string }> }>("elementTemplates")
+            .getLatest()
             .map((template) => template.id);
     }
 });

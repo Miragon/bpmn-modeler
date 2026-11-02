@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyncDocumentCommand, UpdateFormOutputValuesCommand } from "@miragon/bpmn-modeler-shared";
 
-import { FormEditorApp, FormEditorLike, FormViewerLike } from "./FormEditorApp";
+import {
+    FormEditorApp,
+    FormEditorLike,
+    FormViewerLike,
+    type PendingEditorInput,
+} from "./FormEditorApp";
 
 const ORIGINAL = '{ "components": [], "type": "default", "id": "Form_1" }';
 const IMPORTED = {
@@ -22,6 +27,25 @@ class Editor implements FormEditorLike {
     saveSchema = vi.fn(() => this.schema);
     on(_event: "changed", handler: () => void): void {
         this.handler = handler;
+    }
+}
+
+/** A field edit form-js's `debounce` service still holds. */
+class EditorInput implements PendingEditorInput {
+    private waiting: (() => void) | undefined;
+
+    hold(apply: () => void): void {
+        this.waiting = apply;
+    }
+
+    hasPending(): boolean {
+        return this.waiting !== undefined;
+    }
+
+    flush(): void {
+        const apply = this.waiting;
+        this.waiting = undefined;
+        apply?.();
     }
 }
 
@@ -48,6 +72,7 @@ function setup() {
         <button id="edit"></button><button id="preview-button"></button>
         <div id="error" hidden></div><div id="editor"></div><div id="preview" hidden></div>`;
     const editor = new Editor();
+    const editorInput = new EditorInput();
     const viewer = new Viewer();
     const host = {
         state: { mode: "edit" as const },
@@ -58,14 +83,25 @@ function setup() {
         updateState: vi.fn(),
         postMessage: vi.fn(),
     };
-    const app = new FormEditorApp(editor, viewer, host, {
-        editor: document.getElementById("editor")!,
-        preview: document.getElementById("preview")!,
-        error: document.getElementById("error")!,
-        editButton: document.getElementById("edit") as HTMLButtonElement,
-        previewButton: document.getElementById("preview-button") as HTMLButtonElement,
-    });
-    return { app, editor, viewer, host };
+    const app = new FormEditorApp(
+        editor,
+        viewer,
+        host,
+        {
+            editor: document.getElementById("editor")!,
+            preview: document.getElementById("preview")!,
+            error: document.getElementById("error")!,
+            editButton: document.getElementById("edit") as HTMLButtonElement,
+            previewButton: document.getElementById("preview-button") as HTMLButtonElement,
+        },
+        editorInput,
+    );
+    const typeDebouncedEdit = (schema: typeof IMPORTED) =>
+        editorInput.hold(() => {
+            editor.schema = schema;
+            editor.handler();
+        });
+    return { app, editor, viewer, host, typeDebouncedEdit };
 }
 
 beforeEach(() => vi.useFakeTimers());
@@ -401,6 +437,41 @@ describe("FormEditorApp", () => {
             new SyncDocumentCommand(JSON.stringify(editor.schema, null, 2)),
         );
         await flushing;
+    });
+
+    it("reports a field edit the editor still debounces as a pending sync", async () => {
+        const { app, typeDebouncedEdit } = setup();
+        await app.load(ORIGINAL, 1);
+
+        typeDebouncedEdit({ ...IMPORTED, id: "Form_Typed" });
+
+        expect(app.hasPendingSync()).toBe(true);
+    });
+
+    it("applies a field edit the editor still debounces before it exports the form", async () => {
+        const { app, host, typeDebouncedEdit } = setup();
+        await app.load(ORIGINAL, 1);
+        const typed = { ...IMPORTED, id: "Form_Typed" };
+        typeDebouncedEdit(typed);
+
+        const exported = await app.exportContent();
+
+        expect(exported).toBe(JSON.stringify(typed, null, 2));
+        expect(host.postMessage).toHaveBeenCalledWith(new SyncDocumentCommand(exported, 1));
+    });
+
+    it("posts a field edit the editor still debounces when its pending sync is flushed", async () => {
+        const { app, host, typeDebouncedEdit } = setup();
+        await app.load(ORIGINAL, 1);
+        const typed = { ...IMPORTED, id: "Form_Typed" };
+        typeDebouncedEdit(typed);
+
+        await app.flushPendingSync();
+
+        expect(host.postMessage).toHaveBeenCalledWith(
+            new SyncDocumentCommand(JSON.stringify(typed, null, 2), 1),
+        );
+        expect(app.hasPendingSync()).toBe(false);
     });
 
     it("locks interaction while a destructive flush exports immediate sync state", async () => {

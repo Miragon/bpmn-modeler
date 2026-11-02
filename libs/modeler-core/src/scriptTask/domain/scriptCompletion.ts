@@ -59,9 +59,10 @@ export interface ParsedScriptPath {
 /**
  * Recovers the `ScriptUri` segments from a filesystem path by anchoring on
  * the `tmp/scripting/` marker rather than a fixed depth: the base directory
- * varies (workspace config folder, os tmpdir fallback), so only the segments
- * *after* the marker are stable. Splits on both separators because callers
- * hand in `uri.fsPath`, which uses `\` on Windows.
+ * varies (workspace config folder, or the OS temp folder for a diagram that is
+ * not a file), so only the segments *after* the marker are stable. Splits on
+ * both separators because callers hand in `uri.fsPath`, which uses `\` on
+ * Windows.
  */
 export function parseScriptPath(path: string): ParsedScriptPath | undefined {
     const segments = path.split(/[/\\]/).filter(Boolean);

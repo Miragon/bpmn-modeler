@@ -13,6 +13,11 @@ import { Uri } from "vscode";
  * path this adapter emits through {@link canonicalizeDriveLetter} removes the
  * skew; lowercase is the canon because that is what the URIs we compare against
  * already use.
+ *
+ * A file on a UNC share keeps its server in `uri.authority`, so `uri.path` alone
+ * (`/share/…`) names a folder on the current drive on Windows. The canonical
+ * path puts the server back as `//server/share/…`, the spelling the core's
+ * `toWorkspacePath` uses and that `Uri.file` turns back into the same URI.
  */
 
 /**
@@ -39,8 +44,10 @@ export function toUri(pathOrUri: string): Uri {
 
 /**
  * Returns `uri.path` in canonical form — i.e. with a Windows drive letter
- * lowercased so paths from different VS Code sources compare equal.
+ * lowercased so paths from different VS Code sources compare equal, and led by
+ * `//server` for a file on a UNC share.
  */
 export function canonicalPath(uri: Uri): string {
-    return canonicalizeDriveLetter(uri.path);
+    const uncServer = uri.scheme === "file" && uri.authority ? `//${uri.authority}` : "";
+    return uncServer + canonicalizeDriveLetter(uri.path);
 }

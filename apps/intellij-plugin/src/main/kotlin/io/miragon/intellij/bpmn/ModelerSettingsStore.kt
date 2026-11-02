@@ -6,28 +6,6 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 
 /**
- * One snapshot of the user-controllable `miragon.bpmnModeler.*` options.
- *
- * Field names and value shapes mirror the VS Code settings 1:1 — the same
- * snapshot crosses the RPC boundary into the shared modeler core regardless of
- * host, so any divergence here would silently change behaviour on only one IDE.
- */
-data class ModelerSettings(
-    val alignToOrigin: Boolean,
-    val showTransactionBoundaries: Boolean,
-    val configFolder: String,
-    val persistCodeLinkMap: Boolean,
-    val c8ApiVersion: String,
-    val colorTheme: String,
-    val defaultMode: String,
-    val favouriteBpmnElements: List<String>,
-    val language: String,
-    val scriptingSpin: Boolean,
-    /** Pasted marketplace URLs / local paths (strings-only v1); fed to the core over RPC. */
-    val marketplaces: List<String>,
-)
-
-/**
  * Application-level persistence for the modeler settings, backed by
  * [PropertiesComponent].
  *
@@ -46,6 +24,8 @@ data class ModelerSettings(
 class ModelerSettingsStore {
     private val props get() = PropertiesComponent.getInstance()
 
+    private val writeLock = Any()
+
     /** Reads the current persisted values, falling back to the package.json defaults. */
     fun current(): ModelerSettings =
         ModelerSettings(
@@ -59,23 +39,31 @@ class ModelerSettingsStore {
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
+            lintingEnabled = props.getBoolean(LINTING_ENABLED, DEFAULT_LINTING_ENABLED),
             marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
         ).normalized()
 
-    /** Persists the snapshot normalised, so stored values stay valid. */
-    fun update(settings: ModelerSettings) {
-        val normalized = settings.normalized()
-        props.setValue(ALIGN_TO_ORIGIN, normalized.alignToOrigin, DEFAULT_ALIGN_TO_ORIGIN)
-        props.setValue(SHOW_TX_BOUNDARIES, normalized.showTransactionBoundaries, DEFAULT_SHOW_TX_BOUNDARIES)
-        props.setValue(CONFIG_FOLDER, normalized.configFolder, DEFAULT_CONFIG_FOLDER)
-        props.setValue(PERSIST_CODE_LINK_MAP, normalized.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
-        props.setValue(C8_API_VERSION, normalized.c8ApiVersion, DEFAULT_C8_API_VERSION)
-        props.setValue(COLOR_THEME, normalized.colorTheme, DEFAULT_COLOR_THEME)
-        props.setValue(DEFAULT_MODE, normalized.defaultMode, DEFAULT_DEFAULT_MODE)
-        props.setList(FAVOURITE_ELEMENTS, normalized.favouriteBpmnElements)
-        props.setValue(LANGUAGE, normalized.language, DEFAULT_LANGUAGE)
-        props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
-        props.setList(MARKETPLACES, normalized.marketplaces)
+    /**
+     * Applies [change] to the values stored at write time and persists the result
+     * normalised. The bridge's reader thread writes too, so the read and the write
+     * share one lock with the other writers.
+     */
+    fun update(change: (ModelerSettings) -> ModelerSettings) {
+        synchronized(writeLock) {
+            val normalized = change(current()).normalized()
+            props.setValue(ALIGN_TO_ORIGIN, normalized.alignToOrigin, DEFAULT_ALIGN_TO_ORIGIN)
+            props.setValue(SHOW_TX_BOUNDARIES, normalized.showTransactionBoundaries, DEFAULT_SHOW_TX_BOUNDARIES)
+            props.setValue(CONFIG_FOLDER, normalized.configFolder, DEFAULT_CONFIG_FOLDER)
+            props.setValue(PERSIST_CODE_LINK_MAP, normalized.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
+            props.setValue(C8_API_VERSION, normalized.c8ApiVersion, DEFAULT_C8_API_VERSION)
+            props.setValue(COLOR_THEME, normalized.colorTheme, DEFAULT_COLOR_THEME)
+            props.setValue(DEFAULT_MODE, normalized.defaultMode, DEFAULT_DEFAULT_MODE)
+            props.setList(FAVOURITE_ELEMENTS, normalized.favouriteBpmnElements)
+            props.setValue(LANGUAGE, normalized.language, DEFAULT_LANGUAGE)
+            props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
+            props.setValue(LINTING_ENABLED, normalized.lintingEnabled, DEFAULT_LINTING_ENABLED)
+            props.setList(MARKETPLACES, normalized.marketplaces)
+        }
     }
 
     /**
@@ -105,8 +93,16 @@ class ModelerSettingsStore {
             // `ModelerSettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
+            "lintingEnabled" to current.lintingEnabled,
             "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
         )
+    }
+
+    /** Writes the lint choice alone, so a toggle never rewrites a setting another writer just changed. */
+    fun setLintingEnabled(enabled: Boolean) {
+        synchronized(writeLock) {
+            props.setValue(LINTING_ENABLED, enabled, DEFAULT_LINTING_ENABLED)
+        }
     }
 
     /**
@@ -117,9 +113,11 @@ class ModelerSettingsStore {
      * "Register for all projects" add scope.
      */
     fun addMarketplace(location: String) {
-        val appList = props.getList(MARKETPLACES) ?: emptyList()
-        if (appList.contains(location)) return
-        props.setList(MARKETPLACES, appList + location)
+        synchronized(writeLock) {
+            val appList = props.getList(MARKETPLACES) ?: emptyList()
+            if (appList.contains(location)) return
+            props.setList(MARKETPLACES, appList + location)
+        }
     }
 
     /**
@@ -131,10 +129,12 @@ class ModelerSettingsStore {
      */
     fun removeMarketplaces(locations: Collection<String>) {
         val removeSet = locations.toSet()
-        val appList = props.getList(MARKETPLACES) ?: emptyList()
-        val remaining = appList.filterNot { it in removeSet }
-        if (remaining.size != appList.size) {
-            props.setList(MARKETPLACES, remaining)
+        synchronized(writeLock) {
+            val appList = props.getList(MARKETPLACES) ?: emptyList()
+            val remaining = appList.filterNot { it in removeSet }
+            if (remaining.size != appList.size) {
+                props.setList(MARKETPLACES, remaining)
+            }
         }
     }
 
@@ -173,6 +173,7 @@ class ModelerSettingsStore {
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
+        private const val LINTING_ENABLED = "miragon.bpmnModeler.linting.enabled"
         private const val MARKETPLACES = "miragon.bpmnModeler.marketplaces"
 
         // Defaults track apps/vscode-plugin/package.json; ModelerSettingsStoreTest compares them.
@@ -183,8 +184,9 @@ class ModelerSettingsStore {
         private const val DEFAULT_C8_API_VERSION = "v2"
         internal const val DEFAULT_COLOR_THEME = "automatic"
         internal const val DEFAULT_DEFAULT_MODE = "implement"
-        private const val DEFAULT_LANGUAGE = "en"
+        internal const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
+        private const val DEFAULT_LINTING_ENABLED = true
         private val DEFAULT_FAVOURITE_ELEMENTS =
             listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway")
     }

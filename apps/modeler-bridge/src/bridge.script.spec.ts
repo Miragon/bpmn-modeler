@@ -14,7 +14,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FOCUS_BPMN_DIAGRAM_MESSAGE, ScriptUri } from "@miragon/bpmn-modeler-core";
 
@@ -57,6 +57,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];
 
     afterEach(async () => {
+        vi.unstubAllEnvs();
         for (const cleanup of cleanups.splice(0)) {
             await cleanup();
         }
@@ -156,6 +157,33 @@ describe("bridge script editor (real core over a fake transport)", () => {
         const open = await waitForFrame(frames, (f) => f.method === "script/open");
         expect(open.params.fileName).toBe("Task_1.js");
         expect(open.params.languageId).toBe("javascript");
+    });
+
+    it("logs a language pick that fails on open and opens nothing", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "",
+            content: "",
+        });
+        const picker = await waitForFrame(
+            frames,
+            (f) => f.method === "picker/show" && f.id != null,
+        );
+        await rpc.handleLine(JSON.stringify({ id: picker.id, error: "host went away" }));
+
+        const log = await waitForFrame(
+            frames,
+            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        );
+        expect(log.params.message).toMatch(
+            /^Could not open the script of Task_1: .*host went away/,
+        );
+        expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
     });
 
     it("routes an inbound script/didChange back to the webview as UpdateScriptContentQuery", async () => {
@@ -461,6 +489,36 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(await fs.readFile(gitignore, "utf8")).toBe("*\n");
     });
 
+    it("keeps a user-edited .gitignore under <configFolder>/tmp", async () => {
+        const { rpc, frames, editorId, root, sourcePath } = await setup();
+        const script: OpenCommand = {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 1",
+        };
+        await feedOpen(rpc, editorId, script);
+        await waitForFrame(frames, (f) => f.method === "script/open");
+        const gitignore = join(root, ".camunda", "tmp", ".gitignore");
+        await fs.writeFile(gitignore, "*\n!keep.groovy\n", "utf8");
+
+        // A bridge restart: a new process opens the same diagram's script first.
+        const restartedFrames: any[] = [];
+        const { rpc: restarted } = createBridge((line) => restartedFrames.push(JSON.parse(line)));
+        await restarted.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, sourcePath, C7_XML, HOST_SESSION),
+            }),
+        );
+        await feedOpen(restarted, editorId, script);
+        await waitForFrame(restartedFrames, (f) => f.method === "script/open");
+
+        expect(await fs.readFile(gitignore, "utf8")).toBe("*\n!keep.groovy\n");
+    });
+
     it("keeps the script file on a user close and rewrites it on reopen", async () => {
         const { rpc, frames, editorId } = await setup();
         await feedOpen(rpc, editorId, {
@@ -720,6 +778,57 @@ describe("bridge script editor (real core over a fake transport)", () => {
         );
     });
 
+    it("names the OS temp folder in the summary for a diagram that is not a file", async () => {
+        const osTemp = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-os-temp-"));
+        cleanups.push(() => fs.rm(osTemp, { recursive: true, force: true }));
+        for (const variable of ["TMPDIR", "TEMP", "TMP"]) {
+            vi.stubEnv(variable, osTemp);
+        }
+        const frames: any[] = [];
+        const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
+        const editorId = "untitled:Untitled-1";
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: {
+                    editorId,
+                    uriString: editorId,
+                    path: "Untitled-1",
+                    fsPath: "Untitled-1",
+                    scheme: "untitled",
+                    content: C7_XML,
+                    ...HOST_SESSION,
+                },
+            }),
+        );
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "OpenScriptEditorsCommand",
+                        scripts: [
+                            { elementId: "Task_1", scriptFormat: "groovy", content: "x = 1" },
+                        ],
+                        variables: [],
+                    },
+                },
+            }),
+        );
+
+        const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        const folder = `${osTemp}/miragon-bpmn-modeler/tmp/scripting`;
+        expect(info.params.message).toBe(
+            `Generated 1 script file(s) in ${folder} — open a file to edit it with live sync into the diagram.`,
+        );
+        const hash = ScriptUri.hashEditorId(editorId);
+        expect(
+            await fs.readFile(join(folder, hash, "Task_1", "script-task", "Task_1.groovy"), "utf8"),
+        ).toBe("x = 1");
+    });
+
     it("adopts an externally opened generated file into live sync", async () => {
         const { rpc, frames, editorId } = await setup();
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
@@ -843,9 +952,10 @@ describe("bridge script editor (real core over a fake transport)", () => {
         );
         await rpc.handleLine(JSON.stringify({ id: picker.id, error: "host went away" }));
 
+        // No script got as far as a folder, so the summary names none.
         const info = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
         expect(info.params.message).toBe(
-            "No script files generated in .camunda/tmp/scripting. Could not write 1 script file(s); see the log for details.",
+            "No script files generated. Could not write 1 script file(s); see the log for details.",
         );
         const log = frames.find((f) => f.method === "notifier/log" && f.params?.level === "error");
         expect(log.params.message).toMatch(

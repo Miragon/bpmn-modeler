@@ -21,6 +21,8 @@ function modelerSurface() {
         loadDiagram: vi.fn(async (_xml: string) => imported),
         exportDiagram: vi.fn(async () => "<exported />"),
         alignElementsToOrigin: vi.fn(),
+        hasPendingInput: vi.fn(() => false),
+        flushPendingInput: vi.fn(),
         viewport: { centerOnElement: vi.fn() },
     };
 }
@@ -30,6 +32,8 @@ function designerSurface() {
         newDiagram: vi.fn(async () => imported),
         loadDiagram: vi.fn(async (_xml: string) => imported),
         exportDiagram: vi.fn(async () => "<designed />"),
+        hasPendingInput: vi.fn(() => false),
+        flushPendingInput: vi.fn(),
         viewport: { centerOnElement: vi.fn() },
     };
 }
@@ -209,6 +213,38 @@ describe("createSurfaceDocument", () => {
             surfaceDocument.afterSync();
 
             expect(surface.alignElementsToOrigin).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("pending panel input", () => {
+        it.each([
+            ["modeler", modelerSurface],
+            ["designer", designerSurface],
+        ])("reports the %s's pending panel input", (_case, makeSurface) => {
+            const surface = makeSurface();
+            surface.hasPendingInput.mockReturnValue(true);
+            const { surfaceDocument } = surfaceDocumentOn(surface);
+
+            expect(surfaceDocument.hasPendingInput()).toBe(true);
+        });
+
+        it("flushes the panel input of the surface that is live at the time", () => {
+            const modeler = modelerSurface();
+            const designer = designerSurface();
+            const { surfaceDocument, replaceSurface } = surfaceDocumentOn(modeler);
+            replaceSurface(designer);
+
+            surfaceDocument.flushPendingInput();
+
+            expect(designer.flushPendingInput).toHaveBeenCalledOnce();
+            expect(modeler.flushPendingInput).not.toHaveBeenCalled();
+        });
+
+        it("finds no panel input on the readonly viewer", () => {
+            const { surfaceDocument } = surfaceDocumentOn(viewerSurface());
+
+            expect(surfaceDocument.hasPendingInput()).toBe(false);
+            expect(() => surfaceDocument.flushPendingInput()).not.toThrow();
         });
     });
 

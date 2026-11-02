@@ -5,12 +5,15 @@ import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
+import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import {
     ElementTemplateSource,
     EMPTY_TEMPLATE_SOURCE,
     mergeElementTemplates,
     templatesOfFile,
 } from "../domain/elementTemplates";
+import { elementTemplatesStatusView } from "../domain/elementTemplatesStatusView";
+import { TemplateLoadStatus } from "../domain/TemplateLoadStatus";
 import { ElementTemplateCache } from "./ElementTemplateCache";
 
 const REFRESH_DEBOUNCE_MS = 150;
@@ -38,6 +41,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     private readonly templateDirsByEditor = new Map<string, readonly string[]>();
     private readonly editorsAwaitingRefresh = new Set<string>();
     private refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    private templateLoadStatus = TemplateLoadStatus.idle;
 
     /**
      * @param marketplaceSvc Absent in hosts without the marketplace feature, so
@@ -76,7 +80,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             // instant, so a progress indicator would only flash.
             const readsFromDisk = this.needsDiskRead(templateDirs);
             if (readsFromDisk) {
-                this.statusBar.showElementTemplatesLoading();
+                this.recordTemplateLoad(this.templateLoadStatus.started(request));
             }
 
             const sources = await Promise.all([
@@ -87,7 +91,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             ]);
             if (isSuperseded()) {
                 if (readsFromDisk) {
-                    this.statusBar.hideElementTemplatesStatus();
+                    this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
                 }
                 return false;
             }
@@ -97,15 +101,15 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
                 await this.editorStore.postMessage(editorId, new ElementTemplatesQuery(templates))
             ) {
                 if (readsFromDisk) {
-                    this.reportLoaded(templates.length, sources);
+                    this.reportLoaded(request, templates.length, sources);
                 }
                 return true;
             } else {
-                this.statusBar.hideElementTemplatesStatus();
+                this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
                 return this.handleError(new Error("Setting the `elementTemplates` failed."));
             }
         } catch (error) {
-            this.statusBar.hideElementTemplatesStatus();
+            this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
             if (!this.editorStore.hasEditor(editorId)) {
                 this.notifier.logDebug(
                     `Element-template load aborted; editor disposed mid-load: ${editorId}`,
@@ -209,14 +213,27 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         return { fileCount: files.length, templates: templatesPerFile.flat() };
     }
 
-    private reportLoaded(templateCount: number, sources: readonly ElementTemplateSource[]): void {
-        this.statusBar.showElementTemplatesReady(templateCount);
+    private reportLoaded(
+        request: symbol,
+        templateCount: number,
+        sources: readonly ElementTemplateSource[],
+    ): void {
+        this.recordTemplateLoad(this.templateLoadStatus.finished(request, templateCount));
         const fileCount = sources.reduce((sum, source) => sum + source.fileCount, 0);
         if (fileCount > 0) {
             this.notifier.logInfo(
                 `${templateCount} element template(s) loaded from ${fileCount} file(s).`,
             );
         }
+    }
+
+    private recordTemplateLoad(status: TemplateLoadStatus): void {
+        this.templateLoadStatus = status;
+        updateStatusSlot(
+            this.statusBar,
+            "elementTemplates",
+            elementTemplatesStatusView(status.display),
+        );
     }
 
     private handleError(error: Error): boolean {

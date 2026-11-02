@@ -15,6 +15,9 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 @TestApplication
 class ModelerSettingsStoreTest {
@@ -42,7 +45,7 @@ class ModelerSettingsStoreTest {
     fun `stores and reads settings as the core normalises them`(case: SettingsNormalizationCase) {
         val defaults = store.current()
 
-        store.update(defaults.overriddenBy(case.raw))
+        store.update { stored -> stored.overriddenBy(case.raw) }
 
         assertEquals(defaults.overriddenBy(case.normalized), store.current())
     }
@@ -82,6 +85,33 @@ class ModelerSettingsStoreTest {
         assertNull(appProperties.getList(MARKETPLACES_KEY))
     }
 
+    @ParameterizedTest
+    @MethodSource("writesDuringAnUpdate")
+    fun `a write made while an update computes its change survives the update`(write: WriteDuringUpdate) {
+        store.addMarketplace(SEEDED_MARKETPLACE)
+        val before = store.current()
+        val changeStarted = CountDownLatch(1)
+        val releaseChange = CountDownLatch(1)
+        val updater =
+            thread {
+                store.update { stored ->
+                    changeStarted.countDown()
+                    releaseChange.await(LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    stored.copy(language = "de")
+                }
+            }
+        changeStarted.await(LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+
+        val writer = thread { write.writeTo(store) }
+        // Without the shared lock the write lands inside this window and the update then overwrites it.
+        writer.join(RACE_WINDOW_MILLIS)
+        releaseChange.countDown()
+        updater.join()
+        writer.join()
+
+        assertEquals(write.expectedEffect(before.copy(language = "de")), store.current())
+    }
+
     @Test
     fun `the RPC snapshot uses the bridge's keys and the app-project marketplace union`() {
         val project = projectFixture.get()
@@ -102,6 +132,7 @@ class ModelerSettingsStoreTest {
                 "favouriteBpmnElements",
                 "language",
                 "scriptingSpin",
+                "lintingEnabled",
                 "marketplaces",
             ),
             snapshot.keys.toList(),
@@ -109,8 +140,20 @@ class ModelerSettingsStoreTest {
         assertEquals(listOf("https://app", "https://project"), snapshot["marketplaces"])
     }
 
+    @Test
+    fun `the RPC snapshot carries the lint choice stored for the user`() {
+        appProperties.setValue("${NAMESPACE}linting.enabled", false, true)
+
+        assertEquals(false, store.snapshotMap(projectFixture.get())["lintingEnabled"])
+    }
+
     /** A row of the core's `settingsNormalization.cases.json`; every key left out of `normalized` reads its default. */
     class SettingsNormalizationCase(val raw: JsonObject, val normalized: JsonObject)
+
+    class WriteDuringUpdate(
+        val writeTo: (ModelerSettingsStore) -> Unit,
+        val expectedEffect: (ModelerSettings) -> ModelerSettings,
+    )
 
     companion object {
         private const val NAMESPACE = "miragon.bpmnModeler."
@@ -129,9 +172,40 @@ class ModelerSettingsStoreTest {
                 "defaultMode",
                 "language",
                 "scripting.spin",
+                "linting.enabled",
             ).map { NAMESPACE + it }
 
         private val GSON = Gson()
+
+        private const val SEEDED_MARKETPLACE = "https://github.com/acme/seeded"
+        private const val LATCH_TIMEOUT_SECONDS = 5L
+        private const val RACE_WINDOW_MILLIS = 200L
+
+        @JvmStatic
+        fun writesDuringAnUpdate(): List<Named<WriteDuringUpdate>> =
+            listOf(
+                Named.of(
+                    "an app-wide marketplace add",
+                    WriteDuringUpdate(
+                        writeTo = { it.addMarketplace("https://github.com/acme/added") },
+                        expectedEffect = { it.copy(marketplaces = it.marketplaces + "https://github.com/acme/added") },
+                    ),
+                ),
+                Named.of(
+                    "an app-wide marketplace removal",
+                    WriteDuringUpdate(
+                        writeTo = { it.removeMarketplaces(listOf(SEEDED_MARKETPLACE)) },
+                        expectedEffect = { it.copy(marketplaces = emptyList()) },
+                    ),
+                ),
+                Named.of(
+                    "a lint toggle",
+                    WriteDuringUpdate(
+                        writeTo = { it.setLintingEnabled(false) },
+                        expectedEffect = { it.copy(lintingEnabled = false) },
+                    ),
+                ),
+            )
 
         @JvmStatic
         fun settingsNormalizationCases(): List<Named<SettingsNormalizationCase>> =
@@ -143,7 +217,7 @@ class ModelerSettingsStoreTest {
                 )
             }
 
-        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names; IntelliJ has no lint setting. */
+        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names. */
         private fun manifestDefaults(): JsonObject {
             val properties =
                 readJson("miragon.vscodeManifest")
@@ -154,7 +228,6 @@ class ModelerSettingsStoreTest {
                 properties.entrySet()
                     .filter { (key, _) -> key.startsWith(NAMESPACE) }
                     .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
-                    .filter { (name, _) -> name != "lintingEnabled" }
                     .forEach { (name, default) -> add(name, default) }
             }
         }
