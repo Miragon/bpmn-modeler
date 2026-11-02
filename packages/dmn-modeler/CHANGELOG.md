@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.5.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.4.0...dmn-modeler-v0.5.0) (2026-11-01)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** translate popup-menu search keywords ([#1781](https://github.com/Miragon/bpmn-modeler/issues/1781)) [sync cae0009] ([432bbd7](https://github.com/Miragon/bpmn-modeler/commit/432bbd773e762ffa383631020639f90004f1b8e5))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** flush panel input on save and read the bound engine ([#2064](https://github.com/Miragon/bpmn-modeler/issues/2064)) [sync 33c466b] ([66e60bb](https://github.com/Miragon/bpmn-modeler/commit/66e60bb7c28f0bd7e6b0dfe5b4ff367edf83d4ec))
+* **bpmn-modeler:** keep theme in step across destroy and mode switches ([#1734](https://github.com/Miragon/bpmn-modeler/issues/1734)) ([6fb3ba9](https://github.com/Miragon/bpmn-modeler/commit/6fb3ba91f490f0c7e065cdf63d585a2d7d7971bd))
+* **element-template-chooser:** show "1 property" for a single template property ([#1794](https://github.com/Miragon/bpmn-modeler/issues/1794)) [sync abfa4ee] ([965a8e8](https://github.com/Miragon/bpmn-modeler/commit/965a8e8ad927a1c07ca32b94fa2cff4899b799d4))
+* **i18n:** offer every shipped language in the language settings ([#2006](https://github.com/Miragon/bpmn-modeler/issues/2006)) [sync bf9de92] ([fa0344d](https://github.com/Miragon/bpmn-modeler/commit/fa0344df48c474092b5f094b4d2461bdd90ee297))
+* **modeler-core:** read the executable process id under any bpmn prefix ([#1949](https://github.com/Miragon/bpmn-modeler/issues/1949)) [sync db53e2e] ([52b0e3f](https://github.com/Miragon/bpmn-modeler/commit/52b0e3ff93e954fa59447237cc37a82d7b41cf6f))
+* **modeler-core:** stop migration from stamping duplicate execution-platform attributes ([#1862](https://github.com/Miragon/bpmn-modeler/issues/1862)) [sync 18c157a] ([6aab597](https://github.com/Miragon/bpmn-modeler/commit/6aab5979a4576ee7190b6239f273a68c480931c6))
+* **modeler-types:** flush pending edits before a save or a mode switch ([#2114](https://github.com/Miragon/bpmn-modeler/issues/2114)) ([a7eb551](https://github.com/Miragon/bpmn-modeler/commit/a7eb55170672bec09ab03dc7386a3b20eccb95b2))
+* **modeler-types:** scan xml comments and cdata in document order ([#1970](https://github.com/Miragon/bpmn-modeler/issues/1970)) [sync 249398c] ([7d61046](https://github.com/Miragon/bpmn-modeler/commit/7d610469dd8abdf246f37f26ca9643a180dd385e))
+* **shared:** hold a quickly narrowed properties panel at its minimum width ([#1698](https://github.com/Miragon/bpmn-modeler/issues/1698)) [sync f92e122] ([74417fa](https://github.com/Miragon/bpmn-modeler/commit/74417fac1d705768bac5a2fce16e30ca200f8e23))
+
+
+### 🔨 Refactoring
+
+* **modeler-core:** share document sync and surface lifecycles ([#1776](https://github.com/Miragon/bpmn-modeler/issues/1776)) ([f4c099f](https://github.com/Miragon/bpmn-modeler/commit/f4c099fbeef9c8ab0bc09338ad959569bf55614f))
+
+
+### 📔 Documentation
+
+* **bpmn-modeler:** document yarn berry resolutions for upstream carets ([#1782](https://github.com/Miragon/bpmn-modeler/issues/1782)) ([0246c4d](https://github.com/Miragon/bpmn-modeler/commit/0246c4d2595866a8cb86197ab3ad5e405295267e))
+
+
+### 🛠️ Misc
+
+* **architecture-testing:** keep the architecture spec under the test timeout on CI ([#2122](https://github.com/Miragon/bpmn-modeler/issues/2122)) ([2f8e905](https://github.com/Miragon/bpmn-modeler/commit/2f8e905b61eea0179f037257e7811747cb372731))
+* **architecture-testing:** run the modeler package specs on the engine ([#2085](https://github.com/Miragon/bpmn-modeler/issues/2085)) ([286c9e0](https://github.com/Miragon/bpmn-modeler/commit/286c9e0302f5068bb1bb0e1eed7b02f8236aca02))
+* **ci:** gate coverage reports on code changes and enforce thresholds ([#1682](https://github.com/Miragon/bpmn-modeler/issues/1682)) ([e2bf365](https://github.com/Miragon/bpmn-modeler/commit/e2bf3650949daf8d445466ace1eb769a89a87b4f))
+* **ci:** raise drifted coverage floors and type-check spec files ([#1796](https://github.com/Miragon/bpmn-modeler/issues/1796)) ([88359d4](https://github.com/Miragon/bpmn-modeler/commit/88359d4ef080929e369a6736134e1cd282f0e17b))
+* **ci:** run every vitest workspace from one target registry ([#1687](https://github.com/Miragon/bpmn-modeler/issues/1687)) ([b0c1940](https://github.com/Miragon/bpmn-modeler/commit/b0c19402c84b2a1f496fa20728e97f9a254b8885))
+* **deps:** bump @bpmn-io/properties-panel from 3.56.1 to 3.57.0 in the bpmn-io group ([#1665](https://github.com/Miragon/bpmn-modeler/issues/1665)) ([00808c7](https://github.com/Miragon/bpmn-modeler/commit/00808c70f667d6eb6848e943ead9d7a2577105ca))
+* **deps:** bump the npm-minor-patch group across 1 directory with 10 updates ([#1667](https://github.com/Miragon/bpmn-modeler/issues/1667)) ([4fb5db5](https://github.com/Miragon/bpmn-modeler/commit/4fb5db55c3e1f5891598189d720ed292691634ca))
+* **deps:** bump the npm-minor-patch group across 1 directory with 8 updates ([#1758](https://github.com/Miragon/bpmn-modeler/issues/1758)) ([c1a1cd3](https://github.com/Miragon/bpmn-modeler/commit/c1a1cd3279cbf9137b337422ed71f05d416c9347))
+
 ## [0.4.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.3.1...dmn-modeler-v0.4.0) (2026-10-16)
 
 
