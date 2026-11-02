@@ -64,6 +64,56 @@ const C8_STATUS_EVENT = {
     ],
 };
 
+const C7_ALL_GROUPS = {
+    ...C7_MAIL_TASK,
+    properties: [
+        ...C7_MAIL_TASK.properties,
+        {
+            label: "Subject",
+            type: "String",
+            binding: { type: "camunda:inputParameter", name: "subject" },
+        },
+        {
+            label: "Untyped input",
+            binding: { type: "camunda:inputParameter", name: "untypedInput" },
+        },
+        {
+            label: "Untyped output",
+            binding: { type: "camunda:outputParameter", source: "result" },
+        },
+    ],
+    scopes: [
+        {
+            type: "camunda:Connector",
+            connectorId: "mail-connector",
+            properties: [
+                {
+                    label: "Connector field",
+                    type: "String",
+                    binding: { type: "camunda:inputParameter", name: "connectorField" },
+                },
+            ],
+        },
+    ],
+};
+
+const C7_EXTERNAL_TASK = {
+    $schema: C7_SCHEMA,
+    name: "External task",
+    id: "com.example.external",
+    appliesTo: ["bpmn:ServiceTask"],
+    properties: [
+        { type: "Hidden", value: "external", binding: { type: "property", name: "camunda:type" } },
+        { type: "Hidden", value: "topic", binding: { type: "property", name: "camunda:topic" } },
+        {
+            label: "Failure",
+            value: "failure",
+            binding: { type: "camunda:errorEventDefinition", errorRef: "error-1" },
+        },
+    ],
+    scopes: [{ type: "bpmn:Error", id: "error-1", properties: [] }],
+};
+
 const previews: TemplatePreviewHandle[] = [];
 
 async function openPreview() {
@@ -79,6 +129,16 @@ function groupLabels(panel: HTMLElement): (string | null)[] {
         panel.querySelectorAll(".bio-properties-panel-group-header-title"),
         (title) => title.textContent,
     );
+}
+
+function groupHeader(panel: HTMLElement, groupId: string): HTMLElement | null {
+    return panel.querySelector(
+        `[data-group-id="group-${groupId}"] .bio-properties-panel-group-header`,
+    );
+}
+
+function isOpen(panel: HTMLElement, groupId: string): boolean | undefined {
+    return groupHeader(panel, groupId)?.classList.contains("open");
 }
 
 afterEach(async () => {
@@ -184,6 +244,111 @@ describe("createTemplatePreview", () => {
             });
         },
     );
+
+    describe("the template's groups", () => {
+        it.each([
+            ["a template group", "ElementTemplates__CustomProperties-mail"],
+            ["fields without a group", "ElementTemplates__CustomProperties"],
+            ["a scope", "ElementTemplates__CustomGroup-camunda-Connector"],
+            ["untyped inputs", "ElementTemplates__Input"],
+            ["untyped outputs", "ElementTemplates__Output"],
+        ])("opens %s of a C7 template", async (_, groupId) => {
+            const { panel, preview } = await openPreview();
+
+            await preview.show(C7_ALL_GROUPS, "c7");
+            await afterPaint();
+
+            expect(isOpen(panel, groupId)).toBe(true);
+        });
+
+        it("opens an external task template's errors", async () => {
+            const { panel, preview } = await openPreview();
+
+            const outcome = await preview.show(C7_EXTERNAL_TASK, "c7");
+            await afterPaint();
+
+            expect(outcome).toEqual({ rendered: true, errors: [] });
+            expect(isOpen(panel, "ElementTemplates__Error")).toBe(true);
+        });
+
+        it.each([
+            ["without openByDefault", {}],
+            ["with openByDefault off", { openByDefault: false }],
+        ])("opens a C8 template's group %s", async (_, group) => {
+            const { panel, preview } = await openPreview();
+
+            await preview.show(
+                {
+                    ...C8_STATUS_EVENT,
+                    groups: [{ id: "status", label: "Status settings", ...group }],
+                },
+                "c8",
+            );
+            await afterPaint();
+
+            expect(isOpen(panel, "ElementTemplates__CustomProperties-status")).toBe(true);
+        });
+
+        it("leaves the panel's other groups as they are", async () => {
+            const { panel, preview } = await openPreview();
+
+            await preview.show(C7_MAIL_TASK, "c7");
+            await afterPaint();
+
+            expect(isOpen(panel, "documentation")).toBe(false);
+        });
+
+        it("keeps a group the user collapsed collapsed while the template is edited", async () => {
+            const { panel, preview } = await openPreview();
+            const groupId = "ElementTemplates__CustomProperties-mail";
+            await preview.show(C7_MAIL_TASK, "c7");
+            await afterPaint();
+
+            groupHeader(panel, groupId)?.click();
+            await expect.poll(() => isOpen(panel, groupId)).toBe(false);
+
+            await preview.show({ ...C7_MAIL_TASK, name: "Edited mail task" }, "c7");
+            await afterPaint();
+
+            expect(panel.textContent).toContain("Edited mail task");
+            expect(isOpen(panel, groupId)).toBe(false);
+        });
+
+        it("opens a group that appears while the template is edited", async () => {
+            const { panel, preview } = await openPreview();
+            await preview.show(C7_MAIL_TASK, "c7");
+            await afterPaint();
+
+            await preview.show(
+                {
+                    ...C7_MAIL_TASK,
+                    groups: [{ id: "extra", label: "Extra" }],
+                    properties: [
+                        {
+                            label: "Recipient",
+                            group: "extra",
+                            type: "String",
+                            binding: { type: "camunda:inputParameter", name: "recipient" },
+                        },
+                    ],
+                },
+                "c7",
+            );
+            await afterPaint();
+
+            expect(isOpen(panel, "ElementTemplates__CustomProperties-extra")).toBe(true);
+        });
+
+        it("opens them again after switching engines", async () => {
+            const { panel, preview } = await openPreview();
+
+            await preview.show(C7_MAIL_TASK, "c7");
+            await preview.show(C8_STATUS_EVENT, "c8");
+            await afterPaint();
+
+            expect(isOpen(panel, "ElementTemplates__CustomProperties-status")).toBe(true);
+        });
+    });
 
     it("renders the last of overlapping calls", async () => {
         const { panel, preview } = await openPreview();

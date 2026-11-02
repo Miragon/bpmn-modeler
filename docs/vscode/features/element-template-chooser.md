@@ -113,6 +113,7 @@ A template is a `.json` file whose `$schema` names an element template schema, o
 
 - `$schema` decides the engine: `…/element-templates-json-schema/…` for Camunda 7, `…/zeebe-element-templates-json-schema/…` for Camunda 8. Without it, the preview reads the engine from `camunda:` or `zeebe:` bindings.
 - A file with several templates gets a picker to choose which one to preview.
+- The template's groups start open, so you see its fields right away. In the modeler they start collapsed, unless a Camunda 8 group sets `openByDefault`.
 - While the JSON is broken or the template is invalid, the preview says why and keeps showing the last template that worked.
 - Templates for a process or a sequence flow cannot be previewed yet.
 

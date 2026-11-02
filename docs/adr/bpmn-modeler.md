@@ -281,6 +281,13 @@ template the validator rejects is reported as messages, and the panel restores
 the last template that rendered rather than going blank. The language is
 page-global like the modeler's; `setLocale` re-renders the shown template.
 
+Upstream collapses a template's groups, which reads as an empty preview, so a
+low-priority properties provider marks them `shouldOpen`. That is only a group's
+default: the panel's layout state wins once the user toggles a group and
+survives the re-import of each `show`, so an edit does not reopen what the user
+collapsed. It deliberately overrides a C8 group's `openByDefault: false`, because
+a preview that hides its own fields misses its purpose.
+
 Templates for a process or a sequence flow are reported as not previewable:
 selecting such a templated element throws inside create-append-anything's
 remove-template replace entry. That also affects the modeler itself and needs

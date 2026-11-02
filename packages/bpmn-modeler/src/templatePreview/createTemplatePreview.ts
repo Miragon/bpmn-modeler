@@ -4,6 +4,7 @@ import type { Engine } from "@miragon/bpmn-modeler-types";
 import { createModeler } from "../createModeler";
 import type { BpmnModeler } from "../modeler";
 import type { ThemeMode } from "../publicApi";
+import { openTemplateGroups } from "./openTemplateGroups";
 import { previewTargetOf } from "./previewTarget";
 
 export interface TemplatePreviewOptions {
@@ -86,6 +87,7 @@ export async function createTemplatePreview(
                 reportedErrors.push(...errors);
             },
         });
+        openTemplateGroups(modeler.getService("propertiesPanel"));
         current = { engine, modeler };
         return modeler;
     }
