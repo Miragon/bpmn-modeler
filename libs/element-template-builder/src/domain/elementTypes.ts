@@ -1,3 +1,5 @@
+import type { Translate } from "./translate";
+
 // The shared translations' own spellings: `translate()` looks keys up exactly.
 const NAMES: Readonly<Record<string, string>> = {
     "bpmn:ServiceTask": "Service task",
@@ -9,6 +11,9 @@ const NAMES: Readonly<Record<string, string>> = {
     "bpmn:ReceiveTask": "Receive Task",
     "bpmn:CallActivity": "Call activity",
     "bpmn:Task": "Task",
+    "bpmn:Activity": "Activity",
+    "bpmn:Event": "Event",
+    "bpmn:Gateway": "Gateway",
     "bpmn:StartEvent": "Start event",
     "bpmn:IntermediateThrowEvent": "Intermediate throw event",
     "bpmn:IntermediateCatchEvent": "Intermediate Catch Event",
@@ -20,6 +25,7 @@ const NAMES: Readonly<Record<string, string>> = {
 };
 
 /** What people call an element type, or its identifier for one the builder does not know. */
-export function elementTypeName(type: string): string {
-    return NAMES[type] ?? type;
+export function elementTypeName(type: string, translate: Translate): string {
+    const name = NAMES[type];
+    return name ? translate(name) : type;
 }

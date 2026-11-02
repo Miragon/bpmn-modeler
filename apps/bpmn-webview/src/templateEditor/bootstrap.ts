@@ -18,7 +18,6 @@ import {
     type TemplateBuilderHandle,
     type TemplateEdit,
     type TemplateEditResult,
-    templateNameOf,
     type TextOrigin,
     withSchema,
 } from "@miragon/bpmn-modeler-element-template-builder";
@@ -35,6 +34,7 @@ import {
     type MessageOfType,
     resolveHostThemeKind,
 } from "@miragon/bpmn-modeler-shared";
+import { templateIdentity } from "@miragon/bpmn-modeler-types";
 
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
 import { TemplateDocumentSession } from "./documentSession";
@@ -108,6 +108,7 @@ export async function bootstrapTemplateEditor(
     themeAdapter.setMode("automatic");
 
     let page = EMPTY_PAGE;
+    let fileName: string | undefined;
     let pendingCheck: ReturnType<typeof setTimeout> | undefined;
 
     const say = ({ text, replacements, verbatim }: PageMessage) =>
@@ -191,7 +192,7 @@ export async function bootstrapTemplateEditor(
         refresh("select", pageForSelection(page, session.text, position));
     });
     view.onCreate((engine, elementType, name) => {
-        session.edit(newTemplateText(engine, { name, elementType }));
+        session.edit(newTemplateText(engine, { name, elementType, fileName }));
     });
     view.onChooseEngine((engine) => {
         if (page.file.kind === "unknownEngine") {
@@ -205,7 +206,8 @@ export async function bootstrapTemplateEditor(
                 preview.setLocale(query.locale);
             }
             if (query.fileName) {
-                view.suggestName(templateNameOf(query.fileName));
+                fileName = query.fileName;
+                view.suggestName(templateIdentity(fileName).name);
             }
             return session.receive(query);
         },

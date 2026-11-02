@@ -141,7 +141,7 @@ export function mountEditorView(
         createButton,
     );
     const elementTypeLabel = (type: string) => {
-        const named = `${translate(elementTypeName(type))} (${type})`;
+        const named = `${elementTypeName(type, translate)} (${type})`;
         return isPreviewableElementType(type)
             ? named
             : translate("{type}: no preview yet", { type: named });

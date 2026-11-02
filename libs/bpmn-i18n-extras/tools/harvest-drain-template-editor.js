@@ -94,7 +94,8 @@ window.__harvestDrainTemplateEditor = async function harvestDrainTemplateEditor(
     await type($('[data-entry-id="template-version"] input'), "one");
     const elementTypeSetting = () =>
         select("template-elementType") ?? select("template-elementType-value");
-    for (const elementType of optionsOf(elementTypeSetting())) {
+    // The empty option last: it removes the value, whatever shape the JSON gave it.
+    for (const elementType of optionsOf(elementTypeSetting()).reverse()) {
         await choose(elementTypeSetting(), elementType);
     }
     await click($("#etb-tab-groups"));

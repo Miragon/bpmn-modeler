@@ -26,7 +26,7 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
             <ul class="etb-chips">
                 {values.map((value, index) => (
                     <li class="etb-chip" key={value} title={value}>
-                        <span>{translate(elementTypeName(value))}</span>
+                        <span>{elementTypeName(value, translate)}</span>
                         <button
                             type="button"
                             class="etb-chip__remove"
@@ -55,7 +55,7 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
                 <option value="">{translate("Add an element type…")}</option>
                 {addable.map((option) => (
                     <option value={option} key={option}>
-                        {translate(elementTypeName(option))} ({option})
+                        {elementTypeName(option, translate)} ({option})
                     </option>
                 ))}
             </select>

@@ -414,7 +414,7 @@ describe("bootstrapTemplateEditor", () => {
 
     it("creates a template from the wizard in an empty file", async () => {
         await start();
-        receive("");
+        receive("", undefined, "send-mail.json");
         await vi.advanceTimersByTimeAsync(0);
         expect(query(".template-editor__wizard")?.hidden).toBe(false);
         expect(query(".template-editor__builder")?.hidden).toBe(true);

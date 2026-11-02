@@ -1,40 +1,27 @@
-import { ELEMENT_TEMPLATE_SCHEMA_URL, type Engine } from "@miragon/bpmn-modeler-types";
+import {
+    ELEMENT_TEMPLATE_SCHEMA_URL,
+    type Engine,
+    templateIdentity,
+} from "@miragon/bpmn-modeler-types";
 
 import { applyTemplateEdits, type JsonPath, type TemplateEditResult } from "./templateText";
 
-/** A template id from its name: lower-case words joined by dashes. */
-export function templateIdOf(name: string): string {
-    return (
-        name
-            .toLowerCase()
-            .match(/[a-z0-9]+/g)
-            ?.join("-") ?? "template"
-    );
-}
-
 /**
- * A template's name from the file it is in: drops a reverse-domain prefix and
- * splits kebab, snake and camel case into words.
+ * The text of a new, valid template without properties. Its id comes from the
+ * file it is in, as IntelliJ's stub's does, so a file gets one id on every host.
  */
-export function templateNameOf(fileName: string): string {
-    const base = fileName.replace(/\.json$/i, "").trim();
-    const words = base
-        .slice(base.lastIndexOf(".") + 1)
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .split(/[-_\s]+/)
-        .filter((word) => word !== "");
-    return words.map((word) => word[0].toUpperCase() + word.slice(1)).join(" ") || base;
-}
-
-/** The text of a new, valid template without properties. */
 export function newTemplateText(
     engine: Engine,
-    { name, elementType }: { name: string; elementType: string },
+    {
+        name,
+        elementType,
+        fileName = name,
+    }: { name: string; elementType: string; fileName?: string },
 ): string {
     const template = {
         $schema: ELEMENT_TEMPLATE_SCHEMA_URL[engine],
         name,
-        id: templateIdOf(name),
+        id: templateIdentity(fileName).id,
         version: 1,
         appliesTo: [elementType],
         properties: [],

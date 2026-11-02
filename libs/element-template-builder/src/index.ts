@@ -22,7 +22,7 @@ export type {
 export type { Diagnostic } from "./domain/diagnostics";
 export type { TemplateChoice } from "./domain/templateFile";
 export { elementTypeName } from "./domain/elementTypes";
-export { newTemplateText, templateIdOf, templateNameOf, withSchema } from "./domain/skeleton";
+export { newTemplateText, withSchema } from "./domain/skeleton";
 export { applyTemplateEdits } from "./domain/templateText";
 export type { TemplateEdit, TemplateEditResult } from "./domain/templateText";
 export { createTemplateBuilder } from "./ui/createTemplateBuilder";

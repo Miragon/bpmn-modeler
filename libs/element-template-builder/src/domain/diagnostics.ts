@@ -14,7 +14,6 @@ import {
 import { bindingFits } from "./bindingOptions";
 import { bindingSpecOf } from "./bindingRules";
 import { deprecationAdvice } from "./deprecations";
-import { elementTypeName } from "./elementTypes";
 import { arrayOf, objectOf, type Json } from "./json";
 import { fixRequirement } from "./transforms";
 import { conditionComparisons } from "./conditions";
@@ -191,7 +190,7 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
                 path: at("binding", "type"),
                 severity: "warning",
                 message: "This binding only works on: {types}.",
-                replacements: { types: spec.elements.map(elementTypeName).join(", ") },
+                replacements: { types: spec.elements.join(", ") },
             });
         }
         return diagnostics;

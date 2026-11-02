@@ -75,7 +75,7 @@ export interface Setting {
 
 /** The name people use, and the identifier the JSON holds. */
 function elementTypeOption(type: string, translate: Translate): readonly [string, string] {
-    return [type, `${translate(elementTypeName(type))} (${type})`];
+    return [type, `${elementTypeName(type, translate)} (${type})`];
 }
 
 export function templateEntries(ctx: EntryContext, ids: Set<string>): Setting[] {
