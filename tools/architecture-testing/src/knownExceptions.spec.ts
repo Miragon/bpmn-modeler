@@ -114,4 +114,13 @@ describe("directivesWithoutIssue", () => {
     ])("ignores a comment that disables no such rule: %s", (comment) => {
         expect(directivesWithoutIssue([comment], rule)).toEqual([]);
     });
+
+    it("reads a directive with a long whitespace run in linear time", () => {
+        const comment = `// eslint-disable-next-line a${" ".repeat(100_000)}b`;
+        const start = performance.now();
+
+        directivesWithoutIssue([comment], rule);
+
+        expect(performance.now() - start).toBeLessThan(500);
+    });
 });
