@@ -439,6 +439,25 @@ describe("ElementTemplateEditorController", () => {
             );
         });
 
+        it("never empties an existing file the save dialog confirmed", async () => {
+            const content = new TextEncoder().encode("{}");
+            vscode.files.set("/home/me/mail.json", content);
+            register();
+            showSaveDialog.mockResolvedValue({
+                ...uriOf("/home/me/mail.json"),
+                with: ({ path }: { path: string }) => uriOf(path),
+            });
+
+            await run(NEW_ELEMENT_TEMPLATE_CMD);
+
+            expect(vscode.files.get("/home/me/mail.json")).toBe(content);
+            expect(executeCommand).not.toHaveBeenCalledWith(
+                "vscode.openWith",
+                expect.anything(),
+                ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
+            );
+        });
+
         it("creates nothing when the save dialog is dismissed", async () => {
             register();
             showSaveDialog.mockResolvedValue(undefined);
