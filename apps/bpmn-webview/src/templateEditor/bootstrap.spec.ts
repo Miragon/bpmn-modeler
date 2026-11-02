@@ -202,6 +202,75 @@ describe("bootstrapTemplateEditor", () => {
         expect(JSON.parse(syncs()[0].content)).toEqual([STATUS, { ...MAIL, name: "Post" }]);
     });
 
+    it("stays on the selected template while its id is edited", async () => {
+        await start();
+        receive(JSON.stringify([STATUS, MAIL]));
+        await vi.advanceTimersByTimeAsync(0);
+        choice().selectedIndex = 1;
+        choice().dispatchEvent(new Event("change"));
+
+        mocks.onEdit!([{ kind: "set", path: ["id"], value: "m" }]);
+        expect(lastBuilderState().template).toMatchObject({ id: "m", name: "Mail" });
+        mocks.onEdit!([{ kind: "set", path: ["id"], value: "ma" }]);
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(JSON.parse(syncs()[0].content)).toEqual([STATUS, { ...MAIL, id: "ma" }]);
+    });
+
+    it("stays on the selected template of two with the same id and version", async () => {
+        await start();
+        receive(JSON.stringify([MAIL, { ...MAIL, name: "Second" }, STATUS]));
+        await vi.advanceTimersByTimeAsync(0);
+        choice().selectedIndex = 1;
+        choice().dispatchEvent(new Event("change"));
+
+        expect(lastBuilderState().template).toMatchObject({ name: "Second" });
+        mocks.onEdit!([{ kind: "set", path: ["id"], value: "m" }]);
+
+        expect(lastBuilderState().template).toMatchObject({ id: "m", name: "Second" });
+    });
+
+    it("follows a template that moved in the file", async () => {
+        await start();
+        receive(JSON.stringify([STATUS, MAIL]));
+        await vi.advanceTimersByTimeAsync(0);
+        choice().selectedIndex = 1;
+        choice().dispatchEvent(new Event("change"));
+
+        receive(JSON.stringify([MAIL, STATUS]));
+        await vi.advanceTimersByTimeAsync(150);
+
+        expect(lastBuilderState().template).toMatchObject({ id: "mail" });
+        expect(choice().selectedIndex).toBe(0);
+    });
+
+    it("says so and writes nothing when the JSON cannot take an edit", async () => {
+        await start();
+        receive(JSON.stringify({ ...STATUS, elementType: "bpmn:ServiceTask" }));
+        await vi.advanceTimersByTimeAsync(0);
+
+        mocks.onEdit!([{ kind: "set", path: ["elementType", "value"], value: "bpmn:UserTask" }]);
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(syncs()).toEqual([]);
+        expect(messages()).toEqual([
+            "This change was not written: elementType in the JSON has a different shape than the builder expects. Fix it in the JSON editor.",
+        ]);
+        expect(lastBuilderState().editable).toBe(true);
+    });
+
+    it("drops that message once an edit goes through", async () => {
+        await start();
+        receive(JSON.stringify({ ...STATUS, elementType: "bpmn:ServiceTask" }));
+        await vi.advanceTimersByTimeAsync(0);
+        mocks.onEdit!([{ kind: "set", path: ["elementType", "value"], value: "bpmn:UserTask" }]);
+
+        mocks.onEdit!([{ kind: "set", path: ["name"], value: "Renamed" }]);
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(messages()).toEqual([]);
+    });
+
     it("checks the template and hands the findings to the builder", async () => {
         await start();
 
