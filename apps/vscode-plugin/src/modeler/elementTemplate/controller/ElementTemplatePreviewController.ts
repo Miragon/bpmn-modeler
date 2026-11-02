@@ -12,7 +12,11 @@ import {
     workspace,
 } from "vscode";
 
-import { ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE, NotifierPort } from "@miragon/bpmn-modeler-core";
+import {
+    ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+    NotifierPort,
+    SettingsPort,
+} from "@miragon/bpmn-modeler-core";
 import { isElementTemplateFile } from "@miragon/bpmn-modeler-types";
 
 export const OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD = "bpmn-modeler.openElementTemplatePreview";
@@ -32,6 +36,7 @@ export class ElementTemplatePreviewController {
 
     constructor(
         private readonly notifier: NotifierPort,
+        private readonly settings: Pick<SettingsPort, "getConfigFolder">,
         private readonly openAutomatically: () => boolean,
     ) {}
 
@@ -59,7 +64,11 @@ export class ElementTemplatePreviewController {
     private onActiveEditor(editor: TextEditor | undefined): void {
         const isTemplate =
             editor !== undefined &&
-            isElementTemplateFile(editor.document.fileName, editor.document.getText());
+            isElementTemplateFile(
+                editor.document.fileName,
+                editor.document.getText(),
+                this.settings.getConfigFolder(),
+            );
         void commands.executeCommand("setContext", IS_ELEMENT_TEMPLATE_KEY, isTemplate);
         if (isTemplate && this.shouldOpenOnItsOwn(editor)) {
             void this.openPreview(editor.document.uri);

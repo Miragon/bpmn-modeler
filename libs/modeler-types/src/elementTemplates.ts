@@ -16,8 +16,9 @@ const C7_SCHEMA_PACKAGE = "element-templates-json-schema";
 // large data-URI icons out of a per-keystroke check.
 const TEXT_HEAD_LENGTH = 4096;
 const SCHEMA_PROPERTY = /"\$schema"\s*:\s*"[^"]*element-templates-json-schema[^"]*"/;
-// The `<configFolder>/element-templates/` convention the template loader reads.
-const TEMPLATE_FOLDER = /[\\/]element-templates[\\/]/;
+
+/** The name of a template folder, wherever it sits. */
+export const ELEMENT_TEMPLATE_FOLDER_NAME = "element-templates";
 
 /** A template file holds either a single template or an array of them. */
 export function templatesOfFile(parsedFile: unknown): ElementTemplate[] {
@@ -44,9 +45,21 @@ export function isElementTemplateText(text: string): boolean {
     return SCHEMA_PROPERTY.test(text.slice(0, TEXT_HEAD_LENGTH));
 }
 
-/** A JSON file that names a template schema, or sits in an `element-templates` folder. */
-export function isElementTemplateFile(path: string, text: string): boolean {
-    return path.endsWith(".json") && (TEMPLATE_FOLDER.test(path) || isElementTemplateText(text));
+/** Where the template loader reads and new templates go, below any directory of a project. */
+export function elementTemplateFolder(configFolder: string): string {
+    return [...pathSegments(configFolder), ELEMENT_TEMPLATE_FOLDER_NAME].join("/");
+}
+
+/** A JSON file that names a template schema, or sits where the template loader reads. */
+export function isElementTemplateFile(path: string, text: string, configFolder: string): boolean {
+    const inTemplateFolder = `/${pathSegments(path).join("/")}`.includes(
+        `/${elementTemplateFolder(configFolder)}/`,
+    );
+    return path.endsWith(".json") && (inTemplateFolder || isElementTemplateText(text));
+}
+
+function pathSegments(path: string): string[] {
+    return path.split(/[\\/]+/).filter((segment) => segment !== "" && segment !== ".");
 }
 
 function engineOfTemplate(template: Record<string, unknown>): Engine | undefined {

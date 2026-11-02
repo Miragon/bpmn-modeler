@@ -9,10 +9,10 @@ import {
     PickerPort,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
+import { elementTemplateFolder } from "@miragon/bpmn-modeler-types";
 import { promptNewFileTarget } from "../../../shared/infrastructure/newFileTarget";
 
 export const NEW_ELEMENT_TEMPLATE_CMD = "bpmn-modeler.newElementTemplate";
-const TEMPLATE_FOLDER = "element-templates";
 
 /**
  * Scaffolds an element template for either engine and opens its JSON, which
@@ -67,7 +67,10 @@ export class NewElementTemplateController {
         if (!root) {
             return undefined;
         }
-        const folder = Uri.joinPath(root.uri, this.settings.getConfigFolder(), TEMPLATE_FOLDER);
+        const folder = Uri.joinPath(
+            root.uri,
+            elementTemplateFolder(this.settings.getConfigFolder()),
+        );
         await workspace.fs.createDirectory(folder);
         return Uri.joinPath(folder, "new-element-template.json");
     }

@@ -50,7 +50,7 @@ class NewElementTemplateAction : DumbAwareAction() {
         val configFolder = ModelerSettingsStore.getInstance().current().configFolder
         return runCatching {
             WriteAction.computeAndWait<VirtualFile?, Throwable> {
-                VfsUtil.createDirectoryIfMissing(root, "$configFolder/element-templates")
+                VfsUtil.createDirectoryIfMissing(root, ElementTemplateFiles.folder(configFolder))
             }
         }.getOrNull()
     }

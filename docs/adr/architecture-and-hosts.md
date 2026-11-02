@@ -262,11 +262,13 @@ opens it on its own the first time a template file is shown, once per opened
 file so a preview the user closed stays closed, unless
 `elementTemplatePreview.openAutomatically` is off. Because that needs the
 extension running before any diagram is open, it also activates in workspaces
-that contain an `element-templates` folder. `isElementTemplateFile` in
-`modeler-types` is the one rule for what counts as a template file; the
-manifest's `when` clause repeats only its folder half, which needs no
-activation, and IntelliJ's editor provider keeps a Kotlin copy that runs the
-rule's `elementTemplateFile.cases.json` rows.
+that contain an `element-templates` folder. `elementTemplateFolder` and
+`isElementTemplateFile` in `modeler-types` are the one rule for where templates
+live and what counts as a template file, so a file previews as a template only
+if it names a template schema or the loader reads it. The manifest's `when`
+clause cannot read the config folder, so it leaves the decision to a context
+key the extension sets, and IntelliJ's editor provider keeps a Kotlin copy that
+runs the rules' `elementTemplateFile.cases.json` rows.
 
 A new template starts from `newElementTemplate` in the core's element template
 domain: a service task stub per engine whose `id`, `name` and task type come

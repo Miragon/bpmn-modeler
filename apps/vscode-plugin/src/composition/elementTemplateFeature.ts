@@ -55,8 +55,10 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
             new PreviewLanguageParticipant(previewStore, deps.vsSettings, deps.notifier),
         ],
     }).register(context);
-    new ElementTemplatePreviewController(deps.notifier, openTemplatePreviewAutomatically).register(
-        context,
-    );
+    new ElementTemplatePreviewController(
+        deps.notifier,
+        deps.vsSettings,
+        openTemplatePreviewAutomatically,
+    ).register(context);
     new NewElementTemplateController(deps.picker, deps.vsSettings, deps.notifier).register(context);
 }

@@ -64,6 +64,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
+import { ELEMENT_TEMPLATE_FOLDER_NAME } from "@miragon/bpmn-modeler-types";
 import { MODELER_SETTINGS_SECTION } from "./shared/infrastructure/modelerConfiguration";
 
 const SRC_DIR = __dirname;
@@ -157,10 +158,11 @@ describe("package.json ↔ code contract", () => {
         );
     });
 
-    // The preview opens on its own only once the extension runs.
+    // The preview opens on its own only once the extension runs. A glob cannot read the
+    // configured config folder, so this wakes it for any template folder.
     it("activates where element templates live", () => {
         expect(manifest.activationEvents).toContain(
-            "workspaceContains:**/element-templates/**/*.json",
+            `workspaceContains:**/${ELEMENT_TEMPLATE_FOLDER_NAME}/**/*.json`,
         );
     });
 

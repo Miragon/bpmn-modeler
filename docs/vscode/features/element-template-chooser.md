@@ -109,7 +109,7 @@ The new file holds a service task template to build on. Its `id` and `name` come
 
 Open a template's `.json` file: the preview opens beside the JSON editor and shows the properties panel the template produces, updating as you type. The JSON editor stays the one you edit in, with completion from the template's `$schema`.
 
-A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in an `element-templates` folder. The preview opens on its own the first time such a file is shown; once you close it, it stays closed until you open the file again. To open it by hand, click **Open Element Template Preview** in the editor title or run it from the Command Palette. Turn the automatic opening off with `miragon.bpmnModeler.elementTemplatePreview.openAutomatically`.
+A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in the template folder the chooser loads from (`.camunda/element-templates/` unless `miragon.bpmnModeler.configFolder` names another folder). The preview opens on its own the first time such a file is shown; once you close it, it stays closed until you open the file again. To open it by hand, click **Open Element Template Preview** in the editor title or run it from the Command Palette. Turn the automatic opening off with `miragon.bpmnModeler.elementTemplatePreview.openAutomatically`.
 
 - `$schema` decides the engine: `…/element-templates-json-schema/…` for Camunda 7, `…/zeebe-element-templates-json-schema/…` for Camunda 8. Without it, the preview reads the engine from `camunda:` or `zeebe:` bindings.
 - A file with several templates gets a picker to choose which one to preview.

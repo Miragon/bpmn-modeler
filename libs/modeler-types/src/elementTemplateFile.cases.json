@@ -1,74 +1,173 @@
-[
-    {
-        "name": "a JSON file naming the C7 schema",
-        "path": "/work/status.json",
-        "text": "{\n  \"$schema\": \"https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json\",\n  \"name\": \"T\"\n}",
-        "isTemplate": true
-    },
-    {
-        "name": "a JSON file naming the C8 schema",
-        "path": "/work/status.json",
-        "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
-        "isTemplate": true
-    },
-    {
-        "name": "an array file with spaces around the colon",
-        "path": "/work/status.json",
-        "text": "[\n  {\n    \"$schema\" : \"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"\n  }\n]",
-        "isTemplate": true
-    },
-    {
-        "name": "any JSON file in an element-templates folder",
-        "path": "/work/.camunda/element-templates/x.json",
-        "text": "{}",
-        "isTemplate": true
-    },
-    {
-        "name": "a nested element-templates folder",
-        "path": "/work/element-templates/mail/mail.json",
-        "text": "",
-        "isTemplate": true
-    },
-    {
-        "name": "a Windows path",
-        "path": "C:\\work\\element-templates\\x.json",
-        "text": "{}",
-        "isTemplate": true
-    },
-    {
-        "name": "a JSON file without a template schema",
-        "path": "/work/package.json",
-        "text": "{\"name\":\"x\"}",
-        "isTemplate": false
-    },
-    {
-        "name": "an unrelated schema",
-        "path": "/work/package.json",
-        "text": "{\"$schema\":\"https://json.schemastore.org/package.json\"}",
-        "isTemplate": false
-    },
-    {
-        "name": "a template schema outside $schema",
-        "path": "/work/status.json",
-        "text": "{\"description\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
-        "isTemplate": false
-    },
-    {
-        "name": "a non-JSON file naming a template schema",
-        "path": "/work/notes.md",
-        "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
-        "isTemplate": false
-    },
-    {
-        "name": "a folder that only starts like element-templates",
-        "path": "/work/element-templates-old/x.json",
-        "text": "{}",
-        "isTemplate": false
-    },
-    {
-        "name": "a JSON file named like the folder",
-        "path": "/work/element-templates.json",
-        "text": "{}",
-        "isTemplate": false
-    }
-]
+{
+    "folders": [
+        {
+            "configFolder": ".camunda",
+            "folder": ".camunda/element-templates"
+        },
+        {
+            "configFolder": "config",
+            "folder": "config/element-templates"
+        },
+        {
+            "configFolder": "config/camunda",
+            "folder": "config/camunda/element-templates"
+        },
+        {
+            "configFolder": "config\\camunda",
+            "folder": "config/camunda/element-templates"
+        },
+        {
+            "configFolder": "./.camunda/",
+            "folder": ".camunda/element-templates"
+        }
+    ],
+    "files": [
+        {
+            "name": "a JSON file naming the C7 schema",
+            "path": "/work/status.json",
+            "configFolder": ".camunda",
+            "text": "{\n  \"$schema\": \"https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json\",\n  \"name\": \"T\"\n}",
+            "isTemplate": true
+        },
+        {
+            "name": "a JSON file naming the C8 schema",
+            "path": "/work/status.json",
+            "configFolder": ".camunda",
+            "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+            "isTemplate": true
+        },
+        {
+            "name": "an array file with spaces around the colon",
+            "path": "/work/status.json",
+            "configFolder": ".camunda",
+            "text": "[\n  {\n    \"$schema\" : \"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"\n  }\n]",
+            "isTemplate": true
+        },
+        {
+            "name": "a file naming a template schema in any folder",
+            "path": "/work/docs/element-templates/x.json",
+            "configFolder": ".camunda",
+            "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+            "isTemplate": true
+        },
+        {
+            "name": "any JSON file in the template folder",
+            "path": "/work/.camunda/element-templates/x.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
+            "name": "a subfolder of the template folder",
+            "path": "/work/.camunda/element-templates/mail/mail.json",
+            "configFolder": ".camunda",
+            "text": "",
+            "isTemplate": true
+        },
+        {
+            "name": "the template folder of a nested project",
+            "path": "/work/sub/.camunda/element-templates/x.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
+            "name": "a Windows path",
+            "path": "C:\\work\\.camunda\\element-templates\\x.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
+            "name": "a configured config folder",
+            "path": "/work/config/element-templates/x.json",
+            "configFolder": "config",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
+            "name": "a nested config folder",
+            "path": "/work/config/camunda/element-templates/x.json",
+            "configFolder": "config/camunda",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
+            "name": "a config folder spelled with dots and slashes",
+            "path": "/work/.camunda/element-templates/x.json",
+            "configFolder": "./.camunda/",
+            "text": "{}",
+            "isTemplate": true
+        },
+        {
+            "name": "a JSON file without a template schema",
+            "path": "/work/package.json",
+            "configFolder": ".camunda",
+            "text": "{\"name\":\"x\"}",
+            "isTemplate": false
+        },
+        {
+            "name": "an unrelated schema",
+            "path": "/work/package.json",
+            "configFolder": ".camunda",
+            "text": "{\"$schema\":\"https://json.schemastore.org/package.json\"}",
+            "isTemplate": false
+        },
+        {
+            "name": "a template schema outside $schema",
+            "path": "/work/status.json",
+            "configFolder": ".camunda",
+            "text": "{\"description\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+            "isTemplate": false
+        },
+        {
+            "name": "a non-JSON file naming a template schema",
+            "path": "/work/notes.md",
+            "configFolder": ".camunda",
+            "text": "{\"$schema\":\"https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json\"}",
+            "isTemplate": false
+        },
+        {
+            "name": "a non-JSON file in the template folder",
+            "path": "/work/.camunda/element-templates/notes.md",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": false
+        },
+        {
+            "name": "an element-templates folder outside the config folder",
+            "path": "/work/docs/element-templates/x.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": false
+        },
+        {
+            "name": "the template folder of another config folder",
+            "path": "/work/.camunda/element-templates/x.json",
+            "configFolder": "config",
+            "text": "{}",
+            "isTemplate": false
+        },
+        {
+            "name": "a folder that only ends like the config folder",
+            "path": "/work/x.camunda/element-templates/x.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": false
+        },
+        {
+            "name": "a folder that only starts like element-templates",
+            "path": "/work/.camunda/element-templates-old/x.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": false
+        },
+        {
+            "name": "a JSON file named like the folder",
+            "path": "/work/.camunda/element-templates.json",
+            "configFolder": ".camunda",
+            "text": "{}",
+            "isTemplate": false
+        }
+    ]
+}

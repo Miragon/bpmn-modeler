@@ -1,7 +1,7 @@
 import * as path from "path";
 
 import { AuthConfigPayload, DeploymentFormDefaults } from "@miragon/bpmn-modeler-shared";
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { ELEMENT_TEMPLATE_FOLDER_NAME, Engine } from "@miragon/bpmn-modeler-types";
 
 import {
     AuthConfig,
@@ -148,7 +148,7 @@ export class DeploymentService {
     async selectAdditionalFiles(): Promise<string[]> {
         const found = await this.vsWorkspace.findFiles(
             "**/*.{form,json,dmn}",
-            "**/element-templates/**",
+            `**/${ELEMENT_TEMPLATE_FOLDER_NAME}/**`,
             20,
         );
         const chosen = await this.picker.chooseMany(

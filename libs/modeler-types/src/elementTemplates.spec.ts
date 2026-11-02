@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import FILE_CASES from "./elementTemplateFile.cases.json";
+import CASES from "./elementTemplateFile.cases.json";
 import {
     detectTemplateEngine,
     ELEMENT_TEMPLATE_SCHEMA_URL,
+    elementTemplateFolder,
     isElementTemplateFile,
     isElementTemplateText,
     templatesOfFile,
@@ -125,9 +126,15 @@ describe("isElementTemplateText", () => {
     });
 });
 
-// The IntelliJ host's copy of the rule runs the same rows.
+// The IntelliJ host's copy of these rules runs the same rows.
+describe("elementTemplateFolder", () => {
+    it.each(CASES.folders)("reads $configFolder as $folder", ({ configFolder, folder }) => {
+        expect(elementTemplateFolder(configFolder)).toBe(folder);
+    });
+});
+
 describe("isElementTemplateFile", () => {
-    it.each(FILE_CASES)("$name", ({ path, text, isTemplate }) => {
-        expect(isElementTemplateFile(path, text)).toBe(isTemplate);
+    it.each(CASES.files)("$name", ({ path, configFolder, text, isTemplate }) => {
+        expect(isElementTemplateFile(path, text, configFolder)).toBe(isTemplate);
     });
 });

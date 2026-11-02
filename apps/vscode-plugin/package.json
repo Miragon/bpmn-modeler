@@ -582,7 +582,7 @@
                 {
                     "command": "bpmn-modeler.openElementTemplatePreview",
                     "group": "navigation",
-                    "when": "resourceExtname == .json && !activeCustomEditorId && (bpmn-modeler.isElementTemplate || resourcePath =~ /element-templates/)"
+                    "when": "resourceExtname == .json && !activeCustomEditorId && bpmn-modeler.isElementTemplate"
                 },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",
@@ -641,7 +641,7 @@
                 "miragon.bpmnModeler.elementTemplatePreview.openAutomatically": {
                     "type": "boolean",
                     "default": true,
-                    "markdownDescription": "Open the element template preview beside a template's JSON editor the first time it is shown. A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in an `element-templates` folder. You can always open it with **Open Element Template Preview**."
+                    "markdownDescription": "Open the element template preview beside a template's JSON editor the first time it is shown. A template is a `.json` file whose `$schema` names an element template schema, or any `.json` file in the `element-templates` folder of the config folder. You can always open it with **Open Element Template Preview**."
                 },
                 "miragon.bpmnModeler.configFolder": {
                     "type": "string",

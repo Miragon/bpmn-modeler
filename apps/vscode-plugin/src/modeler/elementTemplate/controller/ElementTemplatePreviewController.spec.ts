@@ -72,7 +72,7 @@ vi.mock("vscode", () => {
 import { TabInputCustom, TabInputText, TabInputTextDiff } from "vscode";
 
 import { ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
-import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
+import { InMemorySettings, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import {
     ElementTemplatePreviewController,
@@ -120,11 +120,13 @@ const showEditor = (editor: unknown) => {
 
 let notifier: RecordingNotifier;
 
-function register({ openAutomatically = true } = {}) {
+function register({ openAutomatically = true, configFolder = ".camunda" } = {}) {
     notifier = new RecordingNotifier();
-    new ElementTemplatePreviewController(notifier, () => openAutomatically).register({
-        subscriptions: [],
-    } as never);
+    new ElementTemplatePreviewController(
+        notifier,
+        new InMemorySettings({ configFolder }),
+        () => openAutomatically,
+    ).register({ subscriptions: [] } as never);
 }
 
 beforeEach(() => {
@@ -231,12 +233,21 @@ describe("ElementTemplatePreviewController", () => {
             );
         });
 
-        it("opens it for any JSON file in an element-templates folder, even an empty one", () => {
+        it("opens it for any JSON file in the template folder, even an empty one", () => {
             register();
 
             showEditor(editorOf("/work/.camunda/element-templates/new.json", ""));
 
             expect(openedPreviews()).toEqual(["/work/.camunda/element-templates/new.json"]);
+        });
+
+        it("follows the configured config folder", () => {
+            register({ configFolder: "config" });
+
+            showEditor(editorOf("/work/.camunda/element-templates/old.json", ""));
+            showEditor(editorOf("/work/config/element-templates/new.json", ""));
+
+            expect(openedPreviews()).toEqual(["/work/config/element-templates/new.json"]);
         });
 
         it("opens it once a template is pasted into the file", () => {
@@ -276,13 +287,16 @@ describe("ElementTemplatePreviewController", () => {
             expect(openedPreviews()).toHaveLength(2);
         });
 
-        it("leaves other JSON files alone", () => {
-            register();
+        it.each(["/work/package.json", "/work/docs/element-templates/x.json"])(
+            "leaves %s alone",
+            (path) => {
+                register();
 
-            showEditor(editorOf("/work/package.json", '{"name":"x"}'));
+                showEditor(editorOf(path, '{"name":"x"}'));
 
-            expect(openedPreviews()).toEqual([]);
-        });
+                expect(openedPreviews()).toEqual([]);
+            },
+        );
 
         it("stays off when the user turned it off", () => {
             register({ openAutomatically: false });
