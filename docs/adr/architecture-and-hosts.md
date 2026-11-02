@@ -329,8 +329,9 @@ its `id` and suggested name from `templateIdentity` beside it. VS Code's
 template editor, whose start form asks for the engine and the element type and
 starts the name from the file name; until then the template loader reads the empty
 file as holding no templates. IntelliJ has no command for it until it gets the
-builder: a stub would be a second scaffold in Kotlin, and the bridge protocol has no
-request from host to core that could ask for the one in TypeScript.
+builder: a stub would be a second scaffold in Kotlin, and asking for the one in
+TypeScript would take a new request type, since host-to-core methods on the bridge
+are notifications today.
 
 VS Code only downloads a JSON schema from a trusted domain, and unpkg is not a
 default one. Its JSON client also trusts a URL an extension contributes through
