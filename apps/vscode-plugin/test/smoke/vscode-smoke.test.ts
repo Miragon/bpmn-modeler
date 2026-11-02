@@ -24,6 +24,9 @@ const BPMN_FILE = "smoke.bpmn";
 const DMN_FILE = "smoke.dmn";
 const FORM_FILE = "smoke.form";
 const TEMPLATE_FILE = "smoke-template.json";
+const UPPER_CASE_TEMPLATE_FILE = "smoke-upper-case.JSON";
+const INVALID_TEMPLATE_FILE = "smoke-template-invalid.json";
+const INVALID_TEMPLATE_ERROR = 'Incorrect type. Expected "integer".';
 const PINNED_TEMPLATE_FILE = "smoke-template-pinned.json";
 const TEMPLATE_SCHEMA =
     "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
@@ -349,9 +352,7 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
-    it("previews a template beside its JSON with the template's groups open", async () => {
-        await vscode().keepOpenFromExplorer(TEMPLATE_FILE);
-
+    const expectTemplatePreview = async () => {
         const group = vscode()
             .webview()
             .locator(
@@ -370,22 +371,41 @@ describe("the packaged extension in a real VS Code", () => {
             )
             .toBeGreaterThan(0);
         await settle(vscode().webview());
+    };
+
+    it("previews a template beside its JSON with the template's groups open", async () => {
+        await vscode().keepOpenFromExplorer(TEMPLATE_FILE);
+
+        await expectTemplatePreview();
         await vscode().screenshot(join(RESULTS_DIRECTORY, "template-preview.png"));
         expectNoCspViolations();
     });
 
-    // The pinned file is the control: its warning proves the JSON server reported on both.
-    it("trusts the published template schemas, and only those", async () => {
+    // Closes the other template first, whose title button would pass for this file's.
+    it("previews a template saved with an upper-case extension", async () => {
+        await vscode().runCommand("View: Close All Editors");
+        await vscode().keepOpenFromExplorer(UPPER_CASE_TEMPLATE_FILE);
+
+        await expectTemplatePreview();
+        expectNoCspViolations();
+    });
+
+    // Only a schema that loaded can report the deliberate violation, so this holds
+    // however the two files' diagnostics are ordered. A preview left open would
+    // fail every later step, so the cleanup also runs when this one fails.
+    it("trusts the published template schemas, and only those", async ({ onTestFinished }) => {
+        onTestFinished(() => vscode().runCommand("View: Close Editors in Other Groups"));
+        await vscode().keepOpenFromExplorer(INVALID_TEMPLATE_FILE);
         await vscode().keepOpenFromExplorer(PINNED_TEMPLATE_FILE);
         await vscode().page.keyboard.press(`${COMMAND_KEY}+Shift+M`);
 
         const problems = vscode().page.locator(".markers-panel");
+        const reported = () => problems.innerText().catch(() => "");
         await expect
-            .poll(() => problems.innerText().catch(() => ""), { timeout: TIMEOUT_MS })
+            .poll(reported, { timeout: TIMEOUT_MS })
             .toContain(`${PINNED_TEMPLATE_SCHEMA} is untrusted`);
-        expect(await problems.innerText()).not.toContain(`${TEMPLATE_SCHEMA} is untrusted`);
-
-        await vscode().runCommand("View: Close Editors in Other Groups");
+        await expect.poll(reported, { timeout: TIMEOUT_MS }).toContain(INVALID_TEMPLATE_ERROR);
+        expect(await reported()).not.toContain(TEMPLATE_SCHEMA);
     });
 
     describe("linked saved form preview", () => {
