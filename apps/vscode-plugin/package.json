@@ -475,7 +475,7 @@
                 },
                 {
                     "command": "bpmn-modeler.openElementTemplatePreview",
-                    "when": "resourceExtname == .json"
+                    "when": "resourceExtname =~ /^\\.json$/i"
                 },
                 {
                     "command": "bpmn-modeler.openLoggingConsole",
@@ -590,7 +590,7 @@
                 {
                     "command": "bpmn-modeler.openElementTemplatePreview",
                     "group": "navigation",
-                    "when": "resourceExtname == .json && !activeCustomEditorId && bpmn-modeler.isElementTemplate"
+                    "when": "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && bpmn-modeler.isElementTemplate"
                 },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",

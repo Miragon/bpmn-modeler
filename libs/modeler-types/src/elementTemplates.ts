@@ -20,6 +20,8 @@ const SCHEMA_PROPERTY = /"\$schema"\s*:\s*"[^"]*element-templates-json-schema[^"
 /** The name of a template folder, wherever it sits. */
 export const ELEMENT_TEMPLATE_FOLDER_NAME = "element-templates";
 
+const JSON_FILE = /\.json$/i;
+
 /** A template file holds either a single template or an array of them. */
 export function templatesOfFile(parsedFile: unknown): ElementTemplate[] {
     return [parsedFile].flat() as ElementTemplate[];
@@ -55,7 +57,7 @@ export function isElementTemplateFile(path: string, text: string, configFolder: 
     const inTemplateFolder = `/${pathSegments(path).join("/")}`.includes(
         `/${elementTemplateFolder(configFolder)}/`,
     );
-    return path.endsWith(".json") && (inTemplateFolder || isElementTemplateText(text));
+    return JSON_FILE.test(path) && (inTemplateFolder || isElementTemplateText(text));
 }
 
 function pathSegments(path: string): string[] {

@@ -247,7 +247,7 @@ export class ArtifactService {
         for (const [name, type] of entries) {
             if (type === "directory") {
                 files.push(...(await this.readDirectory(`${folder}/${name}`, extension)));
-            } else if (type === "file" && name.endsWith(extension)) {
+            } else if (type === "file" && name.toLowerCase().endsWith(extension)) {
                 files.push(`${folder}/${name}`);
             }
         }

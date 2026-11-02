@@ -15,11 +15,14 @@ internal object ElementTemplateFiles {
     private val SCHEMA_PROPERTY = Regex(""""\${'$'}schema"\s*:\s*"[^"]*element-templates-json-schema[^"]*"""")
     private val PATH_SEPARATORS = Regex("""[\\/]+""")
 
+    // Spelled out to match JavaScript's `/\.json$/i`: ignoring case here also folds `ſ` to `s`.
+    private val JSON_FILE = Regex("""\.[jJ][sS][oO][nN]\z""")
+
     fun folder(configFolder: String): String = (pathSegments(configFolder) + "element-templates").joinToString("/")
 
     fun isTemplateFile(path: String, text: CharSequence, configFolder: String): Boolean {
         val inTemplateFolder = "/${pathSegments(path).joinToString("/")}".contains("/${folder(configFolder)}/")
-        return path.endsWith(".json") &&
+        return JSON_FILE.containsMatchIn(path) &&
             (inTemplateFolder || SCHEMA_PROPERTY.containsMatchIn(text.take(TEXT_HEAD_LENGTH)))
     }
 
@@ -28,7 +31,7 @@ internal object ElementTemplateFiles {
 
     /** Reads an open document's unsaved text in preference to the file on disk. */
     fun isTemplateFile(file: VirtualFile): Boolean {
-        if (file.isDirectory || !file.name.endsWith(".json")) return false
+        if (file.isDirectory || !JSON_FILE.containsMatchIn(file.name)) return false
         val text =
             FileDocumentManager.getInstance().getCachedDocument(file)?.charsSequence
                 ?: runCatching { file.inputStream.use { String(it.readNBytes(TEXT_HEAD_LENGTH), file.charset) } }
