@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-10-31
+- Last reviewed: 2026-11-02
 
 ## Context
 
@@ -18,6 +18,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Mutation testing](#mutation-testing)
 - [CI test targets](#ci-test-targets)
 - [Architecture tests](#architecture-tests)
+- [Fitness function report](#fitness-function-report)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -306,6 +307,76 @@ Alternatives considered:
   would either repeat the spec rules or move them out of Vitest, losing the
   issue-named exceptions and the stale check.
 
+### Fitness function report
+
+A fitness function that never fires on correct code is static and blocks the
+build, as the architecture tests do. Every other one is reported: it plugs into
+[`tools/repo-checks/src/fitness`](../../tools/repo-checks/src/fitness/composition/fitnessFunctions.ts)
+and never fails a build. `corepack yarn fitness` prints the report of the
+current checkout against `git merge-base HEAD origin/main` as Markdown, or as
+JSON with `--format json` for the review agent. It exits non-zero only on
+broken input: no `origin/main`, no merge base (a shallow clone), a corrupt
+snapshot, or a fitness function that throws or returns a malformed finding.
+
+**Contract.** A fitness function declares `id`, `version`, its categories
+(scope atomic or holistic, cadence triggered, result static or dynamic), what
+it measures, the skill and rule it relies on, what it misses, what it reports
+wrongly, its evidence (published work or a trial on this repository) and
+`findFindings`. `defineFitnessFunction` makes a missing field, an empty list
+or a `""` literal a type error and throws on whatever the types let through.
+The report prints every one of those fields, so the limits travel with the
+findings instead of living in a document that drifts. The rule it relies on
+lands in a skill in the same PR and names the function's id; a static spec over
+the registry checks both, and that ids are unique.
+
+**Identity and delta.** A finding has a `path:line`, a message and a `key` the
+fitness function builds from what the finding is about (paths, a symbol, a
+value), never the line, like SARIF `partialFingerprints`. The delta matches
+`key`s as a multiset: per key, as many head findings are existing as the base
+held, the rest are new, and the base's leftovers are resolved. An old finding
+stays visible as existing, so no fitness function keeps an allowlist. A finding
+in a renamed file shows as new.
+
+**Base findings.** Per fitness function, the stored snapshot of the merge base
+when it holds the same `id` and `version`; otherwise today's code of the
+function runs on a temporary `git worktree --detach` of the merge base, one
+worktree for all such functions. Deterministic functions give the same result
+either way, and running today's code keeps a version bump consistent. The tree
+is 1,825 files and 17 MB; adding and removing the worktree took 0.4 s on a
+laptop. No install is needed: the code runs from the checkout and only reads
+the worktree.
+
+**Snapshot store.** The orphan branch `fitness-history` holds one
+`snapshots/<sha>.json` per first-parent `main` commit. `fitness-history.yml`
+writes it on every push to `main` through the Git Data API with
+`GITHUB_TOKEN`, so GitHub signs the commits and the ref moves by fast-forward
+only. The `main` ruleset targets only the default branch. The report reads the
+branch from `origin/fitness-history` as last fetched, with `git show`, offline.
+Alternatives considered:
+
+- **Workflow artifacts** expire after at most 90 days and need the network and
+  a token to read.
+- **Recomputing on demand** only is deterministic too, but a trend over a long
+  history would cost one worktree and one run per commit, and a series git
+  cannot recompute, such as a mutation score, would have no history at all.
+
+**Versions and backfill.** A snapshot entry is `{ version, findings }` or
+`{ version, unmeasurable }` per id. An entry of another version is not used for
+the delta or a series. The push job measures HEAD on its checkout, then fills
+missing `id@version` entries newest first over the last 500 first-parent
+commits (back to 2026-09-04 at the time of writing), at most 100 commits per
+run, so a version bump refills its series within a few pushes. A function that
+throws `InsufficientHistory` is stored as unmeasurable at that commit and its
+series ends there; older commits are not measured for it.
+
+**Runner.** `tools/repo-checks/bin/fitness.mjs` loads the TypeScript entry with
+Vite's `runnerImport` and the workspace's `vitest.config.ts` aliases; Vite is
+already a dev dependency of the workspace, so no dependency is added. Node's
+type stripping cannot resolve the engine's extensionless imports or the
+alias-only `@miragon/architecture-testing`. `runnerImport` is marked
+experimental, so a spec boots the bin; the fallback is a `vite build --ssr`
+into a cache directory. Startup takes about 0.6 s.
+
 ### Private upstream APIs
 
 Confine access to undocumented upstream members behind small typed adapters.
@@ -442,6 +513,10 @@ The compiler transition temporarily retains two TypeScript implementations and
 requires checking both CLI compilation and API-based tooling when upgrading.
 The mutation run is one more workflow to keep green, and its score says
 little until rules move from services into `domain/`.
+Reported fitness functions never block a merge, so reviewers and the review
+agent read their new findings; the report is as complete as the functions
+plugged into it. The data branch is one more ref to keep: deleting it costs a
+backfill, and nothing but convention keeps people from pushing to it.
 Rules move into `domain/` before or together with the feature that needs
 them, so services shrink to orchestration. No gate enforces test-first;
 reviewers check the failing output in the PR description.

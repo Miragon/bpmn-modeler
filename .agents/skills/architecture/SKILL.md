@@ -62,7 +62,9 @@ nothing outside itself) and `editorSession/` (which imports only `kernel/`)
 against known exceptions that may only shrink. VS Code checks cover host
 isolation, port adapters, and selected feature-barrel boundaries. The
 repo-level spec bans import cycles in and between every workspace and a
-dependency on a less stable workspace.
+dependency on a less stable workspace. Fitness functions that are not static
+plug into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`), which
+reports new and existing findings and never fails a build.
 
 ## Trace host and session behavior
 

@@ -105,6 +105,10 @@
                 "tiny-svg"
             ]
         },
+        "tools/repo-checks": {
+            // bin/fitness.mjs loads it through Vite's runner by path, which knip cannot follow.
+            "entry": ["src/fitness/composition/main.ts"]
+        },
         "packages/dmn-modeler": {
             // `src/index.ts` is the public `@miragon/dmn-modeler` entry (in
             // package.json exports), so list it as the entry.
