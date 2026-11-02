@@ -12,7 +12,7 @@ import {
 type HostChannel = Pick<HostApi<unknown, Command>, "postMessage">;
 
 /** Where the text came from: the host's document, or an edit in this page. */
-export type TextOrigin = "host" | "edit";
+type SessionTextOrigin = "host" | "edit";
 
 /**
  * The template editor's copy of the document text. The page edits it directly
@@ -30,7 +30,7 @@ export class TemplateDocumentSession {
 
     constructor(
         private readonly host: HostChannel,
-        private readonly onText: (text: string, origin: TextOrigin) => void,
+        private readonly onText: (text: string, origin: SessionTextOrigin) => void,
     ) {
         this.document = new WebviewDocumentSync(host, {
             surface: {

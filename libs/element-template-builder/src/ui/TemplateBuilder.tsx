@@ -1,12 +1,11 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
 import type { ComponentChildren, ComponentType } from "@bpmn-io/properties-panel/preact";
 import { useEffect, useRef, useState } from "@bpmn-io/properties-panel/preact/hooks";
-import type { Engine } from "@miragon/bpmn-modeler-types";
 
 import { catalogFor, type BindingField, type EngineCatalog } from "../catalog";
 import { allowedTypes, bindingSpecOf } from "../domain/bindingRules";
 import { conditionOf, conditionRows } from "../domain/conditions";
-import type { Diagnostic } from "../domain/diagnostics";
+import type { TemplateBuilderState } from "../domain/editorPage";
 import { normalizedNumberText, readNumberText } from "../domain/numberText";
 import {
     propertyCapabilities,
@@ -59,14 +58,6 @@ import {
 
 type Json = Record<string, unknown>;
 type Tab = "template" | "groups" | "properties";
-
-export interface TemplateBuilderState {
-    template: Json;
-    engine: Engine;
-    /** Whether edits are allowed; while the file's JSON is broken they are not. */
-    editable: boolean;
-    diagnostics: readonly Diagnostic[];
-}
 
 export interface TemplateBuilderProps {
     state: TemplateBuilderState;

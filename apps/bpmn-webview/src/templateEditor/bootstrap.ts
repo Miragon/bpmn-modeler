@@ -1,15 +1,25 @@
 import { createTemplatePreview } from "@miragon/bpmn-modeler";
 import {
     applyTemplateEdits,
+    builderStateOf,
+    choicesOf,
     createTemplateBuilder,
-    type Diagnostic,
+    EMPTY_PAGE,
+    engineOf,
+    mainOf,
+    messagesOf,
     newTemplateText,
-    templateDiagnostics,
-    templateNameOf,
+    type PageMessage,
+    pageForSelection,
+    pageForText,
+    pageWithDiagnostics,
+    pageWithPreview,
+    pageWithRefusal,
     type TemplateBuilderHandle,
-    type TemplateBuilderState,
     type TemplateEdit,
     type TemplateEditResult,
+    templateNameOf,
+    type TextOrigin,
     withSchema,
 } from "@miragon/bpmn-modeler-element-template-builder";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
@@ -27,9 +37,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
-import { TemplateDocumentSession, type TextOrigin } from "./documentSession";
-import { type EditorMain, mountEditorView } from "./editorView";
-import { readTemplateFile, type TemplateFileState, type TemplateSelection } from "./templateFile";
+import { TemplateDocumentSession } from "./documentSession";
+import { mountEditorView } from "./editorView";
 
 type EditorHost = Pick<HostApi<unknown, Command>, "postMessage">;
 type Translate = (template: string, replacements?: Record<string, string>) => string;
@@ -88,90 +97,63 @@ export async function bootstrapTemplateEditor(
     });
     themeAdapter.setMode("automatic");
 
-    let state: TemplateFileState = { kind: "empty" };
-    let selected: TemplateSelection | undefined;
-    let diagnostics: Diagnostic[] = [];
-    // While the JSON is broken, the builder keeps showing this, read-only.
-    let lastShown: TemplateBuilderState | undefined;
+    let page = EMPTY_PAGE;
     let pendingCheck: ReturnType<typeof setTimeout> | undefined;
 
-    // What the last edit could not do, until the next edit goes through.
-    let refusal: string | undefined;
+    const say = ({ text, replacements, verbatim }: PageMessage) =>
+        verbatim ? text : translate(text, replacements);
 
     const session = new TemplateDocumentSession(host, (_text, origin) => refresh(origin));
-    /** Takes a change of the page into the file, or says why the file cannot take it. */
-    function write(result: TemplateEditResult): void {
-        if (result.kind === "applied") {
-            refusal = undefined;
-            session.edit(result.text);
-            return;
-        }
-        refusal = translate(
-            "This change was not written: the JSON around {path} is not what the builder expects. Fix it in the JSON editor.",
-            { path: result.path.join(".") },
-        );
-        refresh("select");
-    }
     const stopRelabelling = i18n.onChange(() => {
         view.relabel();
         // The first file brings the language just before its text; it renders itself.
         if (session.hasDocument) {
-            refresh("select");
+            render();
         }
     });
+    /** Takes a change of the page into the file, or says why the file cannot take it. */
+    function write(result: TemplateEditResult): void {
+        if (result.kind === "applied") {
+            session.edit(result.text);
+        } else {
+            page = pageWithRefusal(page, result.path);
+            render();
+        }
+    }
     const builder: TemplateBuilderHandle = previewOnly
         ? { show: () => undefined, destroy: () => undefined }
         : createTemplateBuilder(view.builderRoot, {
               translate,
               onEdit: (edits: TemplateEdit[]) => {
-                  if (state.kind === "template") {
-                      write(applyTemplateEdits(session.text, state.path, edits));
+                  if (page.file.kind === "template") {
+                      write(applyTemplateEdits(session.text, page.file.path, edits));
                   }
               },
           });
 
-    function showBuilder(next: TemplateBuilderState): void {
-        lastShown = next;
-        builder.show(next);
-    }
-
-    /** Shows the text at once; the preview and the validation follow when editing pauses. */
-    function refresh(origin: TextOrigin | "select"): void {
-        // The page's own edits keep a template in its place, but can change its id.
-        state = readTemplateFile(
-            session.text,
-            origin === "edit" && selected ? { position: selected.position } : selected,
-        );
-        if (state.kind === "template" || state.kind === "unknownEngine") {
-            selected = state.selected;
-            view.showChoices(state.choices, state.selected.position);
-        } else {
-            view.showChoices([], undefined);
-        }
-        const main = mainFor(state, lastShown !== undefined);
+    function render(): void {
+        const { choices, selected } = choicesOf(page);
+        view.showChoices(choices, selected?.position);
+        const main = mainOf(page);
         if (!previewOnly) {
             view.showMain(main);
         }
         view.showPreview(main === "builder");
-        if (state.kind !== "template") {
-            view.showEngine(undefined);
-            view.showMessages(
-                previewOnly
-                    ? previewMessagesFor(state, translate, lastShown !== undefined)
-                    : messagesFor(state, translate),
-            );
-            if (lastShown) {
-                builder.show({ ...lastShown, editable: false });
-            }
+        view.showEngine(engineOf(page));
+        view.showMessages(messagesOf(page, { previewOnly }).map(say));
+        const state = builderStateOf(page);
+        if (state) {
+            builder.show(state);
+        }
+    }
+
+    /** Shows the text at once; the preview and the validation follow when editing pauses. */
+    function refresh(origin: TextOrigin, next = pageForText(page, session.text, origin)): void {
+        page = next;
+        render();
+        if (page.file.kind !== "template") {
             return;
         }
-        view.showEngine(state.engine);
-        showBuilder({
-            template: state.template,
-            engine: state.engine,
-            editable: true,
-            diagnostics,
-        });
         clearTimeout(pendingCheck);
         pendingCheck = setTimeout(
             () =>
@@ -185,41 +167,25 @@ export async function bootstrapTemplateEditor(
     }
 
     async function check(): Promise<void> {
-        if (state.kind !== "template") {
+        if (page.file.kind !== "template") {
             return;
         }
-        const { template, engine } = state;
-        const shownRefusal = refusal;
-        diagnostics = templateDiagnostics(template, engine);
-        showBuilder({ template, engine, editable: true, diagnostics });
-        const outcome = await preview.show(template, engine);
-        if (shownRefusal) {
-            view.showMessages([shownRefusal]);
-        } else if (outcome.rendered) {
-            view.showMessages([]);
-        } else if (outcome.unsupportedType) {
-            view.showMessages([
-                translate("Templates for {type} cannot be previewed yet.", {
-                    type: outcome.unsupportedType,
-                }),
-            ]);
-        } else if (diagnostics.length > 0) {
-            view.showMessages([translate("The preview shows the last template without errors.")]);
-        } else {
-            view.showMessages(outcome.errors);
-        }
+        const { template, engine } = page.file;
+        page = pageWithDiagnostics(page);
+        render();
+        page = pageWithPreview(page, await preview.show(template, engine));
+        view.showMessages(messagesOf(page, { previewOnly }).map(say));
     }
 
     view.onSelect((position) => {
-        selected = { position };
-        refresh("select");
+        refresh("select", pageForSelection(page, session.text, position));
     });
     view.onCreate((engine, elementType, name) => {
         session.edit(newTemplateText(engine, { name, elementType }));
     });
     view.onChooseEngine((engine) => {
-        if (state.kind === "unknownEngine") {
-            write(withSchema(session.text, state.path, engine));
+        if (page.file.kind === "unknownEngine") {
+            write(withSchema(session.text, page.file.path, engine));
         }
     });
 
@@ -258,58 +224,4 @@ export async function bootstrapTemplateEditor(
         builder.destroy();
         preview.destroy();
     };
-}
-
-/** While the JSON is broken, the builder stays on the last template it showed, if any. */
-function mainFor(state: TemplateFileState, shownBefore: boolean): EditorMain {
-    switch (state.kind) {
-        case "empty":
-            return "wizard";
-        case "unknownEngine":
-            return "engineChoice";
-        case "template":
-            return "builder";
-        default:
-            return shownBefore ? "builder" : "placeholder";
-    }
-}
-
-function messagesFor(
-    state: Exclude<TemplateFileState, { kind: "template" }>,
-    translate: Translate,
-): string[] {
-    switch (state.kind) {
-        case "empty":
-            return [];
-        case "invalidJson":
-            return [
-                translate("The JSON is invalid: {message}", { message: state.message }),
-                translate("Fix it in the JSON editor; until then the builder is read-only."),
-            ];
-        case "notATemplate":
-            return [translate("This file does not contain an element template.")];
-        case "unknownEngine":
-            return [translate('The template has no "$schema" that names its engine.')];
-    }
-}
-
-/** The preview alone cannot write the file, so it only says what it cannot show. */
-function previewMessagesFor(
-    state: Exclude<TemplateFileState, { kind: "template" }>,
-    translate: Translate,
-    showsLastTemplate: boolean,
-): string[] {
-    switch (state.kind) {
-        case "invalidJson":
-            return [
-                translate("The JSON is invalid: {message}", { message: state.message }),
-                ...(showsLastTemplate
-                    ? [translate("The preview shows the last template without errors.")]
-                    : []),
-            ];
-        case "unknownEngine":
-            return [translate('The template has no "$schema" that names its engine.')];
-        default:
-            return [translate("This file does not contain an element template.")];
-    }
 }

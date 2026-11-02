@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { applyTemplateEdits } from "@miragon/bpmn-modeler-element-template-builder";
-
 import { readTemplateFile } from "./templateFile";
+import { applyTemplateEdits } from "./templateText";
 
 const C7_SCHEMA = "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json";
 const C8_SCHEMA =

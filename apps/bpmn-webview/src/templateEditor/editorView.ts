@@ -1,4 +1,9 @@
-import { catalogFor, elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
+import {
+    catalogFor,
+    type EditorMain,
+    elementTypeName,
+    type TemplateChoice,
+} from "@miragon/bpmn-modeler-element-template-builder";
 import {
     ENGINE_LABEL,
     ENGINES,
@@ -6,8 +11,6 @@ import {
     isEngine,
     isPreviewableElementType,
 } from "@miragon/bpmn-modeler-types";
-
-import type { TemplateChoice } from "./templateFile";
 
 type Translate = (template: string, replacements?: Record<string, string>) => string;
 
@@ -21,6 +24,8 @@ export interface EditorView {
     /** Whether there is a template to preview; without one the preview column is left out. */
     showPreview(available: boolean): void;
     showMain(main: EditorMain): void;
+    /** Starts the start form's name with this, unless the user typed one. */
+    suggestName(name: string): void;
     /** Reports the place in the file of the template the user picked. */
     onSelect(listener: (position: number) => void): void;
     onCreate(listener: (engine: Engine, elementType: string, name: string) => void): void;
@@ -28,9 +33,6 @@ export interface EditorView {
     /** Sets the page's own texts again, in the language now chosen. */
     relabel(): void;
 }
-
-/** The builder, the new-template wizard, the engine choice, or a note while nothing can be built. */
-export type EditorMain = "builder" | "wizard" | "engineChoice" | "placeholder";
 
 // The newest engine first: the one a new template is most likely for.
 const OFFERED_ENGINES: readonly Engine[] = [...ENGINES].reverse();

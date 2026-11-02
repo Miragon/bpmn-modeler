@@ -1,4 +1,4 @@
-import { buildImportGraph, readSourceTree } from "@miragon/architecture-testing";
+import { buildImportGraph, readSourceTree, stripComments } from "@miragon/architecture-testing";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -41,7 +41,8 @@ describe("the template builder's layers", () => {
     it("keeps the domain free of the DOM", () => {
         const browserGlobal = /\b(document|window|HTMLElement|navigator)\b/;
         const offenders = tree.filter(
-            ({ path, text }) => isIn(path, "domain") && browserGlobal.test(text),
+            ({ path, text }) =>
+                isIn(path, "domain") && browserGlobal.test(stripComments(path, text)),
         );
 
         expect(offenders.map(({ path }) => path)).toEqual([]);
