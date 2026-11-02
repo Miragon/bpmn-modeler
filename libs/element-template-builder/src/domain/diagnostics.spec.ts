@@ -93,6 +93,19 @@ describe("schemaDiagnostics", () => {
 });
 
 describe("ruleDiagnostics", () => {
+    it("finds a group id that another group already has", () => {
+        const template = c8Template([], { groups: [{ id: "a" }, { id: "b" }, { id: "a" }] });
+
+        expect(ruleDiagnostics(template, C8)).toEqual([
+            {
+                path: ["groups", 2, "id"],
+                severity: "error",
+                message: 'Another group already has the id "{id}".',
+                replacements: { id: "a" },
+            },
+        ]);
+    });
+
     it("finds nothing wrong with a well-formed template", () => {
         const template = c8Template(
             [

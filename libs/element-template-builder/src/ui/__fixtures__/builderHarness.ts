@@ -1,8 +1,9 @@
 import { act } from "@bpmn-io/properties-panel/preact/test-utils";
 import { vi } from "vitest";
 
-import type { Diagnostic } from "../../domain/diagnostics";
-import type { TemplateEdit } from "../../domain/templateText";
+import { ruleDiagnostics, type Diagnostic } from "../../domain/diagnostics";
+import { catalogFor } from "../../catalog";
+import { applyTemplateEdits, type TemplateEdit } from "../../domain/templateText";
 import {
     createTemplateBuilder,
     type TemplateBuilderHandle,
@@ -95,3 +96,43 @@ export function mountBuilder({ translate }: Pick<TemplateBuilderOptions, "transl
 }
 
 export type BuilderHarness = ReturnType<typeof mountBuilder>;
+
+/**
+ * A builder over a file's text, as the page runs it: each edit goes through
+ * {@link applyTemplateEdits} and the changed template comes back. Only this
+ * shows what a keystroke does to the next one.
+ */
+export function mountFile(initial: string, { engine = "c8" as "c7" | "c8" } = {}) {
+    const builder = mountBuilder();
+    let text = initial;
+    const show = () => {
+        const template = JSON.parse(text) as Json;
+        builder.show(template, {
+            engine,
+            diagnostics: ruleDiagnostics(template, catalogFor(engine)),
+        });
+    };
+    builder.onEdit.mockImplementation((edits) => {
+        text = applyTemplateEdits(text, [], edits);
+        show();
+    });
+    show();
+    return {
+        ...builder,
+        text: () => text,
+        template: () => JSON.parse(text) as Json,
+        /** Types `value` as a person does: one character, one input event. */
+        typeKeys(target: string | Element, value: string) {
+            const field = () =>
+                (typeof target === "string" ? builder.control(target) : target) as HTMLInputElement;
+            for (const character of value) {
+                builder.typeInto(field(), field().value + character);
+            }
+        },
+        /** Deletes the last character of what the field shows. */
+        backspace(target: string | Element) {
+            const field = (typeof target === "string" ? builder.control(target) : target) as HTMLInputElement;
+            builder.typeInto(field, field.value.slice(0, -1));
+        },
+    };
+}

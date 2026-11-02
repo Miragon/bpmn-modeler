@@ -165,3 +165,37 @@ describe("applyTemplateEdits", () => {
         expect(JSON.parse(edited).name).toBe("Two");
     });
 });
+
+describe("applyTemplateEdits on a file that breaks the schema", () => {
+    const BROKEN = `{
+  "name": "Broken",
+  "elementType": "bpmn:ServiceTask",
+  "properties": {"keep": true}
+}
+`;
+
+    it.each([
+        ["a value below a string", { kind: "set", path: ["elementType", "value"], value: "x" }],
+        ["removing below a string", { kind: "remove", path: ["elementType", "value"] }],
+        ["an item in an object", { kind: "insert", path: ["properties", 0], value: {} }],
+        ["a key of a list item that is no list", { kind: "set", path: ["properties", 0, "a"], value: 1 }],
+    ] as const)("refuses %s and leaves the text alone", (_, edit) => {
+        expect(applyTemplateEdits(BROKEN, [], [edit])).toEqual({
+            kind: "refused",
+            path: edit.path,
+        });
+    });
+
+    it("applies nothing when one edit of a batch cannot be written", () => {
+        const result = applyTemplateEdits(
+            BROKEN,
+            [],
+            [
+                { kind: "set", path: ["name"], value: "Renamed" },
+                { kind: "set", path: ["elementType", "value"], value: "x" },
+            ],
+        );
+
+        expect(result).toEqual({ kind: "refused", path: ["elementType", "value"] });
+    });
+});

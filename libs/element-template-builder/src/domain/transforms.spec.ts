@@ -381,7 +381,93 @@ describe("setConstraint", () => {
     });
 });
 
+describe("transforms on a template that breaks the schema", () => {
+    const refused = (template: Json, edits: TemplateEdit[]) =>
+        applyTemplateEdits(`${JSON.stringify(template, null, 2)}\n`, [], edits);
+
+    it.each([
+        ["properties", { properties: { keep: true } }, addProperty, ["properties", 0]],
+        ["properties", { properties: "keep" }, addProperty, ["properties", 0]],
+        ["groups", { groups: { keep: true } }, addGroup, ["groups", 0]],
+    ] as const)("does not replace %s that are no list when adding to them", (_, extra, add, path) => {
+        const template = { ...c8Template(), ...extra };
+
+        expect(refused(template, add(template, C8))).toEqual({ kind: "refused", path });
+    });
+
+    it("does not replace choices that are no list when adding one", () => {
+        const template = c8Template([{ type: "Dropdown", choices: "keep" }]);
+
+        expect(refused(template, addChoice(template, 0))).toEqual({
+            kind: "refused",
+            path: ["properties", 0, "choices", 0],
+        });
+    });
+
+    it("keeps a list entry that is no object when it moves", () => {
+        const template = { ...c8Template(), properties: ["keep", { label: "B" }] };
+
+        const result = edited(template, moveProperty(template, 0, 1));
+
+        expect(result.properties).toEqual([{ label: "B" }, "keep"]);
+    });
+});
+
+describe("renameGroup", () => {
+    const grouped = (groups: string[], members: string[]) =>
+        c8Template(
+            members.map((group) => ({ group })),
+            { groups: groups.map((id) => ({ id })) },
+        );
+
+    it("writes nothing for an id another group has", () => {
+        expect(renameGroup(grouped(["a", "ab"], ["a", "ab"]), 1, "a")).toEqual([]);
+    });
+
+    it("writes nothing for an empty id", () => {
+        expect(renameGroup(grouped(["a"], ["a"]), 0, "")).toEqual([]);
+    });
+
+    it("moves no properties when two groups already share the id", () => {
+        const template = grouped(["a", "a"], ["a"]);
+
+        const result = edited(template, renameGroup(template, 1, "b"));
+
+        expect(result.groups).toEqual([{ id: "a" }, { id: "b" }]);
+        expect(result.properties).toEqual([{ group: "a" }]);
+    });
+});
+
 describe("fixRequirement", () => {
+    it.each([
+        ["applies to", { appliesTo: ["bpmn:IntermediateCatchEvent"] }],
+        [
+            "already creates",
+            { appliesTo: ["bpmn:Task"], elementType: { value: "bpmn:IntermediateCatchEvent" } },
+        ],
+    ])("keeps the element type the template %s", (_, extra) => {
+        const template = c8Template([], extra);
+
+        const result = edited(
+            template,
+            fixRequirement(template, C8, {
+                kind: "elementType",
+                oneOf: [
+                    { value: "bpmn:ReceiveTask" },
+                    {
+                        value: "bpmn:IntermediateCatchEvent",
+                        eventDefinition: "bpmn:MessageEventDefinition",
+                    },
+                ],
+            }),
+        );
+
+        expect(result.elementType).toEqual({
+            value: "bpmn:IntermediateCatchEvent",
+            eventDefinition: "bpmn:MessageEventDefinition",
+        });
+    });
+
     it("sets the element type a binding needs", () => {
         const template = c8Template();
 
