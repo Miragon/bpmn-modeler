@@ -515,7 +515,7 @@ describe("the index", () => {
             { type: "Hidden", value: "3", binding: { type: "zeebe:taskHeader", key: "retries" } },
             "Task header (retries)",
         ],
-        [{ binding: { type: "zeebe:taskDefinition:type" } }, "zeebe:taskDefinition:type"],
+        [{ binding: { type: "zeebe:taskDefinition:type" } }, "Task Type"],
         [{}, "Unlabeled property"],
     ])("titles %j as %s", (property, title) => {
         builder.show(template([property]));

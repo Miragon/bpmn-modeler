@@ -15,7 +15,8 @@ export function bindingTargets(binding: Json): unknown[] {
 function bindingTitle(binding: Json, catalog: EngineCatalog, translate: Translate): string {
     const spec = bindingSpecOf(catalog, binding.type);
     if (!spec) {
-        return stringOf(binding.type);
+        const label = catalog.jsonOnlyBindingLabels?.[stringOf(binding.type)];
+        return label ? translate(label) : stringOf(binding.type);
     }
     const target = bindingTargets(binding).map(stringOf).find(Boolean);
     return target ? `${translate(spec.label)} (${target})` : translate(spec.label);

@@ -67,6 +67,8 @@ export interface EngineCatalog {
     bindings: readonly BindingSpec[];
     /** Binding types the schema knows and the builder only shows, to be edited in the JSON. */
     jsonOnlyBindings: readonly string[];
+    /** What to call a JSON-only binding that many templates use. */
+    jsonOnlyBindingLabels?: Readonly<Record<string, string>>;
     /** Element types offered for `appliesTo`, most common first. */
     elementTypes: readonly string[];
     /** Whether properties may carry C8's `id`, `condition`, `tooltip`, `feel` and `optional`. */

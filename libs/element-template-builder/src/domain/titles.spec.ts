@@ -26,6 +26,11 @@ describe("propertyTitle", () => {
             "Camunda user task",
         ],
         ["a binding it does not know", { binding: { type: "zeebe:new" } }, "zeebe:new"],
+        [
+            "the name of a binding only the JSON edits",
+            { binding: { type: "zeebe:taskDefinition:type" } },
+            "Task Type",
+        ],
         ["nothing else", { type: "String" }, "Unlabeled property"],
     ])("names a property by %s", (_, property, title) => {
         expect(propertyTitle(property, C8, translate)).toBe(title);

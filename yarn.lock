@@ -3149,6 +3149,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
   dependencies:
+    "@bpmn-io/element-templates-validator": "npm:2.26.0"
     "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"

@@ -226,6 +226,7 @@ export class VsCodeSession {
             .getByText(fileName, { exact: true })
             .first()
             .click();
+        await this.leaveExplorer();
     }
 
     /** A double click keeps the tab, where a single click opens one the next file replaces. */
@@ -235,6 +236,12 @@ export class VsCodeSession {
             .getByText(fileName, { exact: true })
             .first()
             .dblclick();
+        await this.leaveExplorer();
+    }
+
+    /** A pointer left on a row shows the file's hover, which can cover what a later step clicks. */
+    private async leaveExplorer(): Promise<void> {
+        await this.page.mouse.move(0, 0);
     }
 
     /** Webviews forward keybindings, so F1 reaches the palette without moving the focus first. */

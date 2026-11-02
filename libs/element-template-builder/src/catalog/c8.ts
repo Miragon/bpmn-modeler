@@ -44,6 +44,7 @@ export const C8_CATALOG: EngineCatalog = {
         "bpmn:ConditionalEventDefinition#property",
         "bpmn:ConditionalEventDefinition#zeebe:conditionalFilter#property",
     ],
+    jsonOnlyBindingLabels: { "zeebe:taskDefinition:type": "Task Type" },
     elementTypes: [
         "bpmn:ServiceTask",
         "bpmn:UserTask",

@@ -2,7 +2,7 @@ import type { BindingSpec, EngineCatalog } from "../catalog";
 import { arrayOf, objectOf, type Json } from "./json";
 
 /** The element types a binding works on; `undefined` for any. */
-export function elementsOfBinding(spec: BindingSpec): readonly string[] | undefined {
+function elementsOfBinding(spec: BindingSpec): readonly string[] | undefined {
     if (spec.elements) {
         return spec.elements;
     }

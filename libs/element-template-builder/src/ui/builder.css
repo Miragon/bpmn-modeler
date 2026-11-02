@@ -288,7 +288,7 @@
 }
 
 .etb-builder .etb-empty {
-    padding: 16px 0;
+    padding: 16px 14px;
 }
 
 .etb-builder .etb-other-matches {
@@ -296,7 +296,11 @@
     flex-wrap: wrap;
     gap: 4px 12px;
     margin: 0;
-    padding: 16px 0;
+    padding: 16px 14px;
+}
+
+.etb-builder .etb-empty + .etb-other-matches {
+    padding-top: 0;
 }
 
 .etb-builder .etb-pane {
