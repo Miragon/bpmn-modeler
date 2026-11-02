@@ -5,32 +5,37 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
+/** Runs `elementTemplatePreviewMessages.cases.json`, which `libs/shared` pins to its message classes. */
 class ElementTemplatePreviewMessagesTest {
+    private val messages = readTypeScriptJson("miragon.elementTemplatePreviewMessages").asJsonObject
+
     @Test
     fun `hands the page the file with the locale to render it in`() {
-        val query = JsonParser.parseString(ElementTemplatePreviewMessages.fileQuery("{\"a\":\"<b>\"}", "de")).asJsonObject
+        val expected = messages.getAsJsonObject("fileQuery")
 
-        assertEquals("ElementTemplateFileQuery", query.get("type").asString)
-        assertEquals("{\"a\":\"<b>\"}", query.get("content").asString)
-        assertEquals("de", query.get("locale").asString)
+        val query = ElementTemplatePreviewMessages.fileQuery(expected.get("content").asString, expected.get("locale").asString)
+
+        assertEquals(expected, JsonParser.parseString(query))
     }
 
     @Test
     fun `tells the page a new language`() {
-        val query = JsonParser.parseString(ElementTemplatePreviewMessages.languageQuery("fr")).asJsonObject
+        val expected = messages.getAsJsonObject("languageQuery")
 
-        assertEquals("LanguageQuery", query.get("type").asString)
-        assertEquals("fr", query.get("locale").asString)
+        val query = ElementTemplatePreviewMessages.languageQuery(expected.get("locale").asString)
+
+        assertEquals(expected, JsonParser.parseString(query))
     }
 
     @Test
     fun `reads what the page sends`() {
-        val message = ElementTemplatePreviewMessages.parse("""{"type":"LogErrorCommand","log":"boom"}""")
-
-        assertEquals(ElementTemplatePreviewMessages.PageMessage("LogErrorCommand", "boom"), message)
         assertEquals(
-            ElementTemplatePreviewMessages.PageMessage("GetElementTemplateFileCommand", null),
-            ElementTemplatePreviewMessages.parse("""{"type":"GetElementTemplateFileCommand"}"""),
+            ElementTemplatePreviewMessages.PageMessage(ElementTemplatePreviewMessages.GET_FILE, null),
+            ElementTemplatePreviewMessages.parse(messages.get("getFile").toString()),
+        )
+        assertEquals(
+            ElementTemplatePreviewMessages.PageMessage(ElementTemplatePreviewMessages.LOG_ERROR, "boom"),
+            ElementTemplatePreviewMessages.parse(messages.get("logError").toString()),
         )
     }
 
@@ -38,6 +43,6 @@ class ElementTemplatePreviewMessagesTest {
     fun `ignores what is not a page message`() {
         assertNull(ElementTemplatePreviewMessages.parse("not json"))
         assertNull(ElementTemplatePreviewMessages.parse("[]"))
-        assertNull(ElementTemplatePreviewMessages.parse("""{"log":"no type"}"""))
+        assertNull(ElementTemplatePreviewMessages.parse("""{"message":"no type"}"""))
     }
 }

@@ -1,0 +1,10 @@
+{
+    "fileQuery": {
+        "type": "ElementTemplateFileQuery",
+        "content": "{\"a\":\"<b>\"}",
+        "locale": "de"
+    },
+    "languageQuery": { "type": "LanguageQuery", "locale": "fr" },
+    "getFile": { "type": "GetElementTemplateFileCommand" },
+    "logError": { "type": "LogErrorCommand", "message": "boom" }
+}

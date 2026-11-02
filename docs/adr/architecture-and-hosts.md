@@ -253,7 +253,11 @@ IntelliJ answers the page itself: a template's JSON opens in a
 `TextEditorWithPreview` holding the IDE's JSON editor and the page, and the
 settings broadcast reaches the page over an application message-bus topic.
 Its provider builds the split editor directly, because the platform's provider
-base class is experimental API on the 2024.2 floor. In VS Code the preview is a
+base class is experimental API on the 2024.2 floor. The preview therefore has
+two host wirings: the core's service and participant in VS Code, Kotlin in
+IntelliJ. `elementTemplatePreviewMessages.cases.json` in `libs/shared` pins the
+messages they exchange with the page to its message classes, and IntelliJ's
+test reads the same rows. In VS Code the preview is a
 custom editor with `option` priority on `*.json`, so it never takes JSON files
 over, and its sessions live
 in their own `EditorSessionStore`: a preview never becomes the target of

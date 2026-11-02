@@ -82,6 +82,8 @@ val elementTemplateFileCases =
     layout.projectDirectory.file("../../libs/modeler-types/src/elementTemplateFile.cases.json")
 val newElementTemplateCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/modeler/elementTemplate/domain/newElementTemplate.cases.json")
+val elementTemplatePreviewMessages =
+    layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -89,8 +91,9 @@ tasks.test {
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows and the VS Code
     // manifest's defaults, ModelerLocalesTest the manifest's languages, StatusSlotPlacementTest
     // the core's status slots and view values, ElementTemplateFilesTest and NewElementTemplatesTest
-    // the rows the TypeScript template rules run. As declared inputs, a change on the TypeScript
-    // side alone reruns the tests instead of restoring them from the build cache.
+    // the rows the TypeScript template rules run, ElementTemplatePreviewMessagesTest the preview
+    // page's messages. As declared inputs, a change on the TypeScript side alone reruns the tests
+    // instead of restoring them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
@@ -98,6 +101,7 @@ tasks.test {
         "statusViewTypes" to statusViewTypes,
         "elementTemplateFileCases" to elementTemplateFileCases,
         "newElementTemplateCases" to newElementTemplateCases,
+        "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

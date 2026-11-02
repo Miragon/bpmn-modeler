@@ -11,6 +11,7 @@ import com.google.gson.JsonParser
  */
 internal object ElementTemplatePreviewMessages {
     const val GET_FILE = "GetElementTemplateFileCommand"
+    const val LOG_ERROR = "LogErrorCommand"
 
     data class PageMessage(val type: String, val log: String?)
 
