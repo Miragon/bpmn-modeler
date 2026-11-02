@@ -371,7 +371,7 @@ describe("the packaged extension in a real VS Code", () => {
         const name = page.locator(".quick-input-widget .quick-input-box input");
         await expect.poll(() => name.inputValue(), { timeout: TIMEOUT_MS }).toBe("new-template");
         await name.fill(NEW_TEMPLATE_ID);
-        await page.keyboard.press("Enter");
+        await name.press("Enter");
 
         await vscode().showInCustomEditor(NEW_TEMPLATE_FILE, (webview) =>
             webview.locator(".template-editor__wizard").isVisible(),
@@ -479,16 +479,18 @@ describe("the packaged extension in a real VS Code", () => {
         await webview.locator(".bio-properties-panel-select-template-button").click();
 
         await webview.locator(".etc-modal .etc-card-name", { hasText: TEMPLATE_NAME }).waitFor();
-        // The overlay takes the focus just after it shows, so a first Escape can come too early.
+        // The overlay starts listening for keys when it takes the focus, just after it shows.
         await expect
             .poll(
-                async () => {
-                    await vscode().page.keyboard.press("Escape");
-                    return webview.locator(".etc-modal").count();
-                },
+                () =>
+                    webview
+                        .locator("html")
+                        .evaluate(() => Boolean(document.activeElement?.closest(".etc-modal"))),
                 { timeout: TIMEOUT_MS },
             )
-            .toBe(0);
+            .toBe(true);
+        await vscode().page.keyboard.press("Escape");
+        await webview.locator(".etc-modal").waitFor({ state: "detached" });
     });
 
     // Only a schema that loaded can report the deliberate violation, so this holds

@@ -246,39 +246,28 @@ export class VsCodeSession {
         await this.page.mouse.move(0, 0);
     }
 
-    /** Webviews forward keybindings, so F1 reaches the palette without moving the focus first. */
+    /**
+     * Webviews forward keybindings, so F1 reaches the palette without moving the focus first.
+     * A webview that was just opened can still take the focus, which closes the palette at any
+     * point. So the title goes into the palette's input, never the focused element, and a palette
+     * that closed starts over.
+     */
     async runCommand(title: string): Promise<void> {
-        await this.openPalette();
-        await this.page.keyboard.type(title);
-        await this.page
-            .locator(".quick-input-widget .quick-input-list-entry")
-            .filter({ hasText: title })
-            .first()
-            .waitFor();
-        await this.page.keyboard.press("Enter");
-    }
-
-    /** A webview that was just opened can still take the focus, which closes the palette again. */
-    private async openPalette(): Promise<void> {
+        const palette = this.page.locator(".quick-input-widget");
+        const input = palette.locator(".quick-input-box input");
+        // Enter runs the focused row, which is another command's until the list has filtered.
+        const row = palette.locator(".monaco-list-row.focused").filter({ hasText: title });
         for (let attempt = 1; ; attempt++) {
             await this.page.keyboard.press("F1");
-            const opened = await this.page
-                .waitForFunction(
-                    () => document.activeElement?.closest(".quick-input-widget"),
-                    undefined,
-                    {
-                        timeout: PALETTE_ATTEMPT_MS,
-                    },
-                )
-                .then(
-                    () => true,
-                    () => false,
-                );
-            if (opened) {
+            try {
+                await input.fill(`>${title}`, { timeout: PALETTE_ATTEMPT_MS });
+                await row.waitFor({ timeout: PALETTE_ATTEMPT_MS });
+                await input.press("Enter", { timeout: PALETTE_ATTEMPT_MS });
                 return;
-            }
-            if (attempt === PALETTE_ATTEMPTS) {
-                throw new Error(`F1 opened no palette in ${PALETTE_ATTEMPTS} attempts`);
+            } catch (error) {
+                if (attempt === PALETTE_ATTEMPTS) {
+                    throw error;
+                }
             }
         }
     }
