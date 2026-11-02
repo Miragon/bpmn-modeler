@@ -2,7 +2,6 @@ import { basename } from "path";
 
 import { ElementTemplateFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { isHiddenEditorError } from "../../../kernel/domain/errors";
 import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
 import {
     EditorDocumentSync,
@@ -39,7 +38,7 @@ export class ElementTemplateEditorService implements ModelerDocumentService {
         try {
             const snapshot = this.documents.read(editorId, hostUpdated);
             if (!snapshot) return false;
-            return await this.editorStore.postMessage(
+            const outcome = await this.editorStore.postUnlessHidden(
                 editorId,
                 new ElementTemplateFileQuery(
                     snapshot.content,
@@ -48,10 +47,8 @@ export class ElementTemplateEditorService implements ModelerDocumentService {
                     basename(this.document.getFilePath(editorId)),
                 ),
             );
+            return outcome === "sent";
         } catch (error) {
-            if (isHiddenEditorError(error)) {
-                return false;
-            }
             this.notifier.notifyError(
                 "A problem occurred while trying to display the element template preview.",
                 error as Error,

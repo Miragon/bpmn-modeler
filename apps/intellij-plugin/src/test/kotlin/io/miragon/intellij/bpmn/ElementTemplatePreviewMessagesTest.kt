@@ -2,6 +2,7 @@ package io.miragon.intellij.bpmn
 
 import com.google.gson.JsonParser
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
@@ -28,6 +29,18 @@ class ElementTemplatePreviewMessagesTest {
     }
 
     @Test
+    fun `knows what to do with every command the page may post`() {
+        messages.getAsJsonArray("commands").map { it.asString }.forEach { type ->
+            assertNotEquals(ElementTemplatePreviewMessages.PageRoute.UNKNOWN, ElementTemplatePreviewMessages.routeOf(type), type)
+        }
+    }
+
+    @Test
+    fun `reports a command the protocol has added since`() {
+        assertEquals(ElementTemplatePreviewMessages.PageRoute.UNKNOWN, ElementTemplatePreviewMessages.routeOf("NewCommand"))
+    }
+
+    @Test
     fun `reads what the page sends`() {
         assertEquals(
             ElementTemplatePreviewMessages.PageMessage(ElementTemplatePreviewMessages.GET_FILE, null),
@@ -45,4 +58,5 @@ class ElementTemplatePreviewMessagesTest {
         assertNull(ElementTemplatePreviewMessages.parse("[]"))
         assertNull(ElementTemplatePreviewMessages.parse("""{"message":"no type"}"""))
     }
+
 }

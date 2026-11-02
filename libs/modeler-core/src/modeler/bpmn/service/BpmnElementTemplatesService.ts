@@ -2,7 +2,6 @@ import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { isHiddenEditorError } from "../../../kernel/domain/errors";
 import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
@@ -98,28 +97,29 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             }
             const templates = mergeElementTemplates(sources);
 
-            if (
-                await this.editorStore.postMessage(editorId, new ElementTemplatesQuery(templates))
-            ) {
+            const outcome = await this.editorStore.postUnlessHidden(
+                editorId,
+                new ElementTemplatesQuery(templates),
+            );
+            if (outcome === "sent") {
                 if (readsFromDisk) {
                     this.reportLoaded(request, templates.length, sources);
                 }
                 return true;
-            } else {
-                this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
-                return this.handleError(new Error("Setting the `elementTemplates` failed."));
             }
+            this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
+            if (outcome === "hidden") {
+                // Shown again, the webview restarts and asks for its templates itself.
+                this.notifier.logDebug(`Element templates not sent to hidden editor: ${editorId}`);
+                return false;
+            }
+            return this.handleError(new Error("Setting the `elementTemplates` failed."));
         } catch (error) {
             this.recordTemplateLoad(this.templateLoadStatus.abandoned(request));
             if (!this.editorStore.hasEditor(editorId)) {
                 this.notifier.logDebug(
                     `Element-template load aborted; editor disposed mid-load: ${editorId}`,
                 );
-                return false;
-            }
-            // Shown again, the webview restarts and asks for its templates itself.
-            if (isHiddenEditorError(error)) {
-                this.notifier.logDebug(`Element templates not sent to hidden editor: ${editorId}`);
                 return false;
             }
             return this.handleError(error as Error);

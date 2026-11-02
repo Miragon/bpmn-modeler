@@ -1,0 +1,21 @@
+{
+    "fileQuery": {
+        "type": "ElementTemplateFileQuery",
+        "content": "{\"a\":\"<b>\"}",
+        "documentRevision": 0,
+        "locale": "de"
+    },
+    "languageQuery": {
+        "type": "LanguageQuery",
+        "locale": "fr"
+    },
+    "commands": [
+        "GetElementTemplateFileCommand",
+        "SyncDocumentCommand",
+        "DocumentFlushedCommand",
+        "LogDebugCommand",
+        "LogInfoCommand",
+        "LogWarningCommand",
+        "LogErrorCommand"
+    ]
+}

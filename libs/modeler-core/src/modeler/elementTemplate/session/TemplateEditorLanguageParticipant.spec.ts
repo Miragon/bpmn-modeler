@@ -33,13 +33,13 @@ describe("TemplateEditorLanguageParticipant", () => {
         expect(editor.postedOfType<LanguageQuery>("LanguageQuery")).toEqual([]);
     });
 
-    it("logs a language the hidden preview cannot take", async () => {
+    it("passes a hidden editor by quietly: its page asks for the file again when shown", async () => {
         const { host, editor } = await openPreview();
         editor.hidden = true;
 
         editor.changeSetting("language");
         await Promise.resolve();
 
-        expect(host.notifier.loggedErrors).toHaveLength(1);
+        expect(host.notifier.loggedErrors).toEqual([]);
     });
 });

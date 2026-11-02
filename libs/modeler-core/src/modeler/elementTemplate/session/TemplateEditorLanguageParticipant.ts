@@ -1,5 +1,3 @@
-import { LanguageQuery } from "@miragon/bpmn-modeler-shared";
-
 import type {
     EditorSessionContext,
     EditorSessionParticipant,
@@ -23,11 +21,7 @@ export class TemplateEditorLanguageParticipant implements EditorSessionParticipa
             if (!event.affects("language")) {
                 return;
             }
-            this.editorStore
-                .postMessage(editorId, new LanguageQuery(this.settings.getLanguage()))
-                .catch((error: unknown) =>
-                    this.logger.logError(error instanceof Error ? error : new Error(String(error))),
-                );
+            this.editorStore.pushLanguage(editorId, this.settings.getLanguage(), this.logger);
         });
     }
 }

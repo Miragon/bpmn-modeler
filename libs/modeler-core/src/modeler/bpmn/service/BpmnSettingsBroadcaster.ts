@@ -1,4 +1,4 @@
-import { BpmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
+import { BpmnModelerSettingQuery } from "@miragon/bpmn-modeler-shared";
 
 import { SettingBuilder } from "../domain/model";
 import { NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
@@ -58,10 +58,7 @@ export class BpmnSettingsBroadcaster {
     }
 
     setLanguage(editorId: string): void {
-        const locale = this.settings.getLanguage();
-        this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-        });
+        this.editorStore.pushLanguage(editorId, this.settings.getLanguage(), this.notifier);
     }
 
     /**

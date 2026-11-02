@@ -241,7 +241,7 @@ describe("createTemplatePreview", () => {
             expect(outcome).toEqual({
                 rendered: false,
                 errors: [],
-            unsupportedType: type,
+                unsupportedType: type,
             });
         },
     );

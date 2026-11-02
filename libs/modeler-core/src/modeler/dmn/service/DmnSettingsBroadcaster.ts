@@ -1,4 +1,4 @@
-import { DmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
+import { DmnModelerSettingQuery } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
@@ -10,7 +10,7 @@ import { EditorSessionStore } from "../../../editorSession/service/EditorSession
  * Mirrors {@link BpmnSettingsBroadcaster}. The DMN surfaces honour only
  * `colorTheme` among the modeler settings, so `setSettings` carries just that
  * (reusing the shared `miragon.bpmnModeler.colorTheme` config key); the UI
- * language is pushed separately via {@link LanguageQuery}, exactly as BPMN does.
+ * language is pushed separately via `LanguageQuery`, exactly as BPMN does.
  * The subscription is delivered through {@link EditorSessionStore} as a
  * host-agnostic setting change, so no `vscode` leaks into the service.
  */
@@ -43,10 +43,7 @@ export class DmnSettingsBroadcaster {
     }
 
     setLanguage(editorId: string): void {
-        const locale = this.settings.getLanguage();
-        this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-        });
+        this.editorStore.pushLanguage(editorId, this.settings.getLanguage(), this.notifier);
     }
 
     /**
