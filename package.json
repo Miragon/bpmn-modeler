@@ -54,6 +54,7 @@
         "perf:lint": "node scripts/perf/bench-lint-rules.mjs",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
+        "fitness": "corepack yarn workspace @miragon/bpmn-modeler-repo-checks fitness",
         "knip": "knip",
         "knip:fix": "knip --fix",
         "format": "prettier \"**/*.{ts,tsx,cts,mts,js,jsx,cjs,mjs,vue}\" --write",
