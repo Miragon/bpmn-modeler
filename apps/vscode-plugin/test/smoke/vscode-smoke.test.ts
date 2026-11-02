@@ -17,6 +17,12 @@ const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url)
 const BPMN_FILE = "smoke.bpmn";
 const DMN_FILE = "smoke.dmn";
 const FORM_FILE = "smoke.form";
+const TEMPLATE_FILE = "smoke-template.json";
+const PINNED_TEMPLATE_FILE = "smoke-template-pinned.json";
+const TEMPLATE_SCHEMA =
+    "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
+const PINNED_TEMPLATE_SCHEMA =
+    "https://unpkg.com/@camunda/zeebe-element-templates-json-schema@0.9.0/resources/schema.json";
 const CSP_FILE = "smoke-csp.bpmn";
 const HTTPS_ICON = "https://icons.invalid/smoke-template.svg";
 const TASK_ID = "Task_Check";
@@ -321,6 +327,45 @@ describe("the packaged extension in a real VS Code", () => {
         await settle(vscode().webview());
         await vscode().screenshot(join(RESULTS_DIRECTORY, "form.png"));
         expectNoCspViolations();
+    });
+
+    it("previews a template beside its JSON with the template's groups open", async () => {
+        await vscode().keepOpenFromExplorer(TEMPLATE_FILE);
+
+        const group = vscode()
+            .webview()
+            .locator(
+                '[data-group-id="group-ElementTemplates__CustomProperties-input"] .bio-properties-panel-group-header',
+            );
+        await expect
+            .poll(() => group.getAttribute("class").catch(() => ""), { timeout: TIMEOUT_MS })
+            .toContain("open");
+        await expect
+            .poll(
+                () =>
+                    vscode()
+                        .page.getByRole("button", { name: "Open Element Template Preview" })
+                        .count(),
+                { timeout: TIMEOUT_MS },
+            )
+            .toBeGreaterThan(0);
+        await settle(vscode().webview());
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "template-preview.png"));
+        expectNoCspViolations();
+    });
+
+    // The pinned file is the control: its warning proves the JSON server reported on both.
+    it("trusts the published template schemas, and only those", async () => {
+        await vscode().keepOpenFromExplorer(PINNED_TEMPLATE_FILE);
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+Shift+M`);
+
+        const problems = vscode().page.locator(".markers-panel");
+        await expect
+            .poll(() => problems.innerText().catch(() => ""), { timeout: TIMEOUT_MS })
+            .toContain(`${PINNED_TEMPLATE_SCHEMA} is untrusted`);
+        expect(await problems.innerText()).not.toContain(`${TEMPLATE_SCHEMA} is untrusted`);
+
+        await vscode().runCommand("View: Close Editors in Other Groups");
     });
 
     // Runs last: proves the collector sees violations, so the empty lists above mean something.
