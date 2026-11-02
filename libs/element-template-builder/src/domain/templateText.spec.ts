@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyTemplateEdits, textFormatOf } from "./templateText";
+import { applyTemplateEdits, textFormatOf, type JsonPath, type TemplateEdit } from "./templateText";
 
 const TEMPLATE = `{
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
@@ -18,6 +18,14 @@ const TEMPLATE = `{
   ]
 }
 `;
+
+function appliedText(text: string, path: JsonPath, edits: readonly TemplateEdit[]): string {
+    const result = applyTemplateEdits(text, path, edits);
+    if (result.kind === "refused") {
+        throw new Error(`Refused an edit at ${result.path.join(".")}`);
+    }
+    return result.text;
+}
 
 describe("textFormatOf", () => {
     it.each([
@@ -37,7 +45,7 @@ describe("textFormatOf", () => {
 
 describe("applyTemplateEdits", () => {
     it("changes only the edited value", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [{ kind: "set", path: ["properties", 0, "label"], value: "New status" }],
@@ -47,7 +55,7 @@ describe("applyTemplateEdits", () => {
     });
 
     it("keeps keys it does not know about", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [{ kind: "set", path: ["name"], value: "Renamed" }],
@@ -57,7 +65,7 @@ describe("applyTemplateEdits", () => {
     });
 
     it("adds a new key where it belongs instead of at the end", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [{ kind: "set", path: ["description"], value: "Sets a status" }],
@@ -77,7 +85,7 @@ describe("applyTemplateEdits", () => {
     });
 
     it("orders new property and binding keys the same way", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [
@@ -96,7 +104,7 @@ describe("applyTemplateEdits", () => {
     });
 
     it("creates missing objects on the way to a value", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [{ kind: "set", path: ["properties", 0, "constraints", "notEmpty"], value: true }],
@@ -106,14 +114,14 @@ describe("applyTemplateEdits", () => {
     });
 
     it("removes a key", () => {
-        const edited = applyTemplateEdits(TEMPLATE, [], [{ kind: "remove", path: ["version"] }]);
+        const edited = appliedText(TEMPLATE, [], [{ kind: "remove", path: ["version"] }]);
 
         expect(JSON.parse(edited)).not.toHaveProperty("version");
         expect(edited).toContain('"id": "status",\n  "x-custom"');
     });
 
     it("inserts into an array at an index", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [{ kind: "insert", path: ["properties", 0], value: { label: "First" } }],
@@ -128,11 +136,7 @@ describe("applyTemplateEdits", () => {
     it("edits the selected template of an array file", () => {
         const file = `[\n  { "name": "A", "id": "a" },\n  { "name": "B", "id": "b" }\n]\n`;
 
-        const edited = applyTemplateEdits(
-            file,
-            [1],
-            [{ kind: "set", path: ["name"], value: "Bee" }],
-        );
+        const edited = appliedText(file, [1], [{ kind: "set", path: ["name"], value: "Bee" }]);
 
         expect(edited).toBe(file.replace('"name": "B"', '"name": "Bee"'));
     });
@@ -141,7 +145,7 @@ describe("applyTemplateEdits", () => {
         ["CRLF line endings", TEMPLATE.replaceAll("\n", "\r\n"), "\r\n"],
         ["tab indentation", TEMPLATE.replaceAll("  ", "\t"), "\t"],
     ])("keeps %s in inserted text", (_, text, marker) => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             text,
             [],
             [{ kind: "set", path: ["description"], value: "Sets a status" }],
@@ -153,7 +157,7 @@ describe("applyTemplateEdits", () => {
     });
 
     it("applies edits in order", () => {
-        const edited = applyTemplateEdits(
+        const edited = appliedText(
             TEMPLATE,
             [],
             [
@@ -174,12 +178,15 @@ describe("applyTemplateEdits on a file that breaks the schema", () => {
 }
 `;
 
-    it.each([
+    it.each<[string, TemplateEdit]>([
         ["a value below a string", { kind: "set", path: ["elementType", "value"], value: "x" }],
         ["removing below a string", { kind: "remove", path: ["elementType", "value"] }],
         ["an item in an object", { kind: "insert", path: ["properties", 0], value: {} }],
-        ["a key of a list item that is no list", { kind: "set", path: ["properties", 0, "a"], value: 1 }],
-    ] as const)("refuses %s and leaves the text alone", (_, edit) => {
+        [
+            "a key of a list item that is no list",
+            { kind: "set", path: ["properties", 0, "a"], value: 1 },
+        ],
+    ])("refuses %s and leaves the text alone", (_, edit) => {
         expect(applyTemplateEdits(BROKEN, [], [edit])).toEqual({
             kind: "refused",
             path: edit.path,

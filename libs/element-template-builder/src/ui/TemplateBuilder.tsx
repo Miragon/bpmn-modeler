@@ -14,6 +14,7 @@ import {
 } from "../catalog";
 import { conditionOf, conditionRows } from "../domain/conditions";
 import type { Diagnostic } from "../domain/diagnostics";
+import { normalizedNumberText, readNumberText } from "../domain/numberText";
 import type { JsonPath, TemplateEdit } from "../domain/templateText";
 import {
     addChoice,
@@ -24,6 +25,7 @@ import {
     changePropertyType,
     duplicateProperty,
     fixRequirement,
+    groupIdProblem,
     moveProperty,
     removeChoice,
     removeGroup,
@@ -725,14 +727,22 @@ function templateEntries(ctx: Context, ids: Set<string>): Setting[] {
 }
 
 function groupEntries(ctx: Context, ids: Set<string>, group: Json, index: number): Setting[] {
-    const { template } = ctx;
+    const { template, translate } = ctx;
+    const idMessages = {
+        empty: () => translate("Enter an id."),
+        taken: (id: string) => translate('Another group already has the id "{id}".', { id }),
+    };
     return [
         {
             ...textEntry(ctx, ids, ["groups", index, "id"], "Id", {
                 mono: true,
                 description: "Properties join the group with this id.",
             }),
-            setValue: (value: string) => value && ctx.edit(renameGroup(template, index, value)),
+            validate: (value: string) => {
+                const problem = groupIdProblem(template, index, value);
+                return problem ? idMessages[problem](value) : null;
+            },
+            setValue: (value: string) => ctx.edit(renameGroup(template, index, value)),
         },
         textEntry(ctx, ids, ["groups", index, "label"], "Label", {
             description: "The group's heading in the properties panel.",
@@ -887,6 +897,7 @@ function propertyEntries(
             label: translate("Show only when"),
             description: translate("The field shows only while all these conditions hold."),
             rows: conditionRows(property.condition),
+            typeOf,
             properties: properties.flatMap((candidate) =>
                 typeof candidate.id === "string" && candidate !== property ? [candidate.id] : [],
             ),
@@ -1086,8 +1097,17 @@ function constraintEntries(
                 value === "" ? undefined : message ? { value, message } : value,
             ),
         );
-    const length = (key: string) => (value: string) =>
-        ctx.edit(setConstraint(template, index, key, value === "" ? undefined : Number(value)));
+    const length = (key: string) => (value: string) => {
+        const parsed = readNumberText(value);
+        ctx.edit(
+            setConstraint(
+                template,
+                index,
+                key,
+                parsed.kind === "number" ? parsed.value : undefined,
+            ),
+        );
+    };
     const settings: Setting[] = [];
     if (offered("notEmpty", property.type !== "Boolean")) {
         settings.push(
@@ -1185,10 +1205,15 @@ function numberEntry(
 ): Setting {
     return {
         ...textEntry(ctx, ids, path, label, { description }),
+        normalize: normalizedNumberText,
         validate: (value: string) =>
-            value === "" || !Number.isNaN(Number(value)) ? null : ctx.translate("Enter a number."),
-        setValue: (value: string) =>
-            ctx.edit(setField(path, value === "" ? undefined : Number(value), ctx.template)),
+            readNumberText(value).kind === "invalid" ? ctx.translate("Enter a number.") : null,
+        setValue: (value: string) => {
+            const parsed = readNumberText(value);
+            ctx.edit(
+                setField(path, parsed.kind === "number" ? parsed.value : undefined, ctx.template),
+            );
+        },
     };
 }
 

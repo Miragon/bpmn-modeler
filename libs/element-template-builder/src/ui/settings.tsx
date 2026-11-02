@@ -1,6 +1,6 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
 import { type ComponentChildren, createContext } from "@bpmn-io/properties-panel/preact";
-import { useContext, useEffect, useState } from "@bpmn-io/properties-panel/preact/hooks";
+import { useContext, useState } from "@bpmn-io/properties-panel/preact/hooks";
 
 import type { EntryDiagnostic } from "./entryIds";
 
@@ -81,36 +81,59 @@ function labelling({ id, description }: SettingProps) {
     };
 }
 
-export interface TextSettingProps extends SettingProps {
+export interface DraftOptions {
+    /** What text means once written, such as `1` for `1.`; the file holds that, the field the text. */
+    normalize?: (text: string) => string;
+    /** A message for text that must not reach the template; the field keeps it until it is fixed. */
+    validate?: (text: string) => string | null;
+}
+
+/**
+ * The text a field shows for the file's `value`. What was typed stays while it
+ * still means that value, so the file's spelling of it (`1` for `1.`, `a` for
+ * `a,`) does not eat the next keystroke; a change from elsewhere replaces it.
+ */
+export function useDraft(
+    value: string,
+    { normalize = (text) => text, validate }: DraftOptions = {},
+): { text: string; error: string | null; onType: (text: string, write: () => void) => void } {
+    const [draft, setDraft] = useState<{ text: string; base: string }>();
+    const message = draft ? (validate?.(draft.text) ?? null) : null;
+    const current =
+        draft && (message ? draft.base === value : normalize(draft.text) === value)
+            ? draft
+            : undefined;
+    return {
+        text: current?.text ?? value,
+        error: current ? message : null,
+        onType(text, write) {
+            setDraft({ text, base: value });
+            if (!validate?.(text)) {
+                write();
+            }
+        },
+    };
+}
+
+export interface TextSettingProps extends SettingProps, DraftOptions {
     area?: boolean;
     mono?: boolean;
     placeholder?: string;
     getValue: () => string;
     setValue: (value: string) => void;
-    /** A message for text that must not reach the template; the field keeps it until it is fixed. */
-    validate?: (value: string) => string | null;
 }
 
 export function TextSetting(props: TextSettingProps) {
-    const { area, mono, placeholder, disabled, getValue, setValue, validate } = props;
-    const value = getValue();
-    const [draft, setDraft] = useState<{ text: string; error: string }>();
-    // Text from the file replaces whatever invalid text was typed.
-    useEffect(() => setDraft(undefined), [value]);
+    const { area, mono, placeholder, disabled, getValue, setValue, normalize, validate } = props;
+    const { text, error, onType } = useDraft(getValue(), { normalize, validate });
     const onInput = (event: Event) => {
-        const text = (event.currentTarget as HTMLInputElement).value;
-        const error = validate?.(text);
-        if (error) {
-            setDraft({ text, error });
-            return;
-        }
-        setDraft(undefined);
-        setValue(text);
+        const typed = (event.currentTarget as HTMLInputElement).value;
+        onType(typed, () => setValue(typed));
     };
     const control = {
         ...labelling(props),
         class: `etb-input${mono ? " etb-input--mono" : ""}${area ? " etb-input--area" : ""}`,
-        value: draft?.text ?? value,
+        value: text,
         placeholder,
         disabled,
         spellcheck: false,
@@ -119,7 +142,7 @@ export function TextSetting(props: TextSettingProps) {
     return (
         <SettingRow
             {...props}
-            message={draft ? { severity: "error", message: draft.error } : props.message}
+            message={error ? { severity: "error", message: error } : props.message}
         >
             {area ? <textarea rows={2} {...control} /> : <input type="text" {...control} />}
         </SettingRow>

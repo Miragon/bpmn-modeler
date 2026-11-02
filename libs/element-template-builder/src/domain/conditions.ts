@@ -1,3 +1,6 @@
+import { readNumberText } from "./numberText";
+import type { JsonPath } from "./templateText";
+
 export type ConditionOperator = "equals" | "oneOf" | "isActive" | "isEmpty";
 
 /** One comparison of a C8 property condition, as the builder edits it. */
@@ -8,18 +11,50 @@ export interface ConditionRow {
     value: string;
 }
 
-const OPERATORS: readonly ConditionOperator[] = ["equals", "oneOf", "isActive", "isEmpty"];
+export const CONDITION_OPERATORS: readonly ConditionOperator[] = [
+    "equals",
+    "oneOf",
+    "isActive",
+    "isEmpty",
+];
+
+/** How a row's value is entered: a yes or no, a comma-separated list, or plain text. */
+export type ConditionValueKind = "flag" | "list" | "text";
 
 type Json = Record<string, unknown>;
 
-/** The rows of a condition: itself, or each comparison of its `allMatch`. */
-export function conditionRows(condition: unknown): ConditionRow[] {
+export function conditionValueKind(
+    operator: ConditionOperator,
+    type: string | undefined,
+): ConditionValueKind {
+    if (operator === "isActive" || operator === "isEmpty") {
+        return "flag";
+    }
+    if (operator === "oneOf") {
+        return "list";
+    }
+    return type === "Boolean" ? "flag" : "text";
+}
+
+/** A condition's comparisons with their paths inside it: itself, or each of its `allMatch`. */
+export function conditionComparisons(condition: unknown): { comparison: Json; path: JsonPath }[] {
     if (!isObject(condition)) {
         return [];
     }
-    const comparisons = Array.isArray(condition.allMatch) ? condition.allMatch : [condition];
-    return comparisons.filter(isObject).map((comparison) => {
-        const operator = OPERATORS.find((candidate) => candidate in comparison) ?? "equals";
+    if (Array.isArray(condition.allMatch)) {
+        return condition.allMatch.map((comparison, index) => ({
+            comparison: isObject(comparison) ? comparison : {},
+            path: ["allMatch", index],
+        }));
+    }
+    return [{ comparison: condition, path: [] }];
+}
+
+/** The rows of a condition: itself, or each comparison of its `allMatch`. */
+export function conditionRows(condition: unknown): ConditionRow[] {
+    return conditionComparisons(condition).map(({ comparison }) => {
+        const operator =
+            CONDITION_OPERATORS.find((candidate) => candidate in comparison) ?? "equals";
         const value = comparison[operator];
         return {
             property: typeof comparison.property === "string" ? comparison.property : "",
@@ -51,6 +86,12 @@ export function conditionOf(
     return comparisons.length === 1 ? comparisons[0] : { allMatch: comparisons };
 }
 
+/** The text a row's value will show once written: `a,` is a list of `a`, `1.` the number 1. */
+export function normalizedRowValue(row: ConditionRow, type: string | undefined): string {
+    const [comparison] = conditionRows(conditionOf([row], () => type));
+    return comparison.value;
+}
+
 function valueOf(row: ConditionRow, type: string | undefined): unknown {
     if (row.operator === "isActive" || row.operator === "isEmpty") {
         return row.value === "true";
@@ -69,10 +110,8 @@ function typed(value: string, type: string | undefined): unknown {
     if (type === "Boolean") {
         return value === "true";
     }
-    if (type === "Number" && value.trim() !== "" && !Number.isNaN(Number(value))) {
-        return Number(value);
-    }
-    return value;
+    const number = type === "Number" ? readNumberText(value) : undefined;
+    return number?.kind === "number" ? number.value : value;
 }
 
 function isObject(value: unknown): value is Json {

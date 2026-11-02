@@ -41,12 +41,13 @@ describe("withSchema", () => {
         const text = '[\n  { "name": "A", "id": "a" },\n  { "name": "B", "id": "b" }\n]\n';
 
         const result = withSchema(text, [1], "c8");
+        const templates = result.kind === "applied" ? JSON.parse(result.text) : [];
 
-        expect(JSON.parse(result)[1]).toEqual({
+        expect(templates[1]).toEqual({
             $schema: ELEMENT_TEMPLATE_SCHEMA_URL.c8,
             name: "B",
             id: "b",
         });
-        expect(JSON.parse(result)[0]).toEqual({ name: "A", id: "a" });
+        expect(templates[0]).toEqual({ name: "A", id: "a" });
     });
 });

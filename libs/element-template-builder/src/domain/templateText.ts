@@ -9,6 +9,11 @@ export type TemplateEdit =
     /** Inserts into the array at the path's last segment, an index. */
     | { kind: "insert"; path: JsonPath; value: unknown };
 
+export type TemplateEditResult =
+    | { kind: "applied"; text: string }
+    /** The JSON around `path` is not the object or list the edit needs; the text stays as it was. */
+    | { kind: "refused"; path: JsonPath };
+
 export interface TextFormat {
     insertSpaces: boolean;
     tabSize: number;
@@ -76,23 +81,31 @@ export function textFormatOf(text: string): TextFormat {
 /**
  * Applies `edits` to the template at `templatePath` (`[]` for a file holding one
  * template, `[index]` in an array file). Only the edited ranges change, so the
- * file keeps its formatting and every key the edits do not touch.
+ * file keeps its formatting and every key the edits do not touch. All edits go
+ * through, or none does.
  */
 export function applyTemplateEdits(
     text: string,
     templatePath: JsonPath,
     edits: readonly TemplateEdit[],
-): string {
+): TemplateEditResult {
     const formattingOptions = textFormatOf(text);
-    return edits.reduce((current, edit) => {
+    let current = text;
+    for (const edit of edits) {
         const value = edit.kind === "remove" ? undefined : edit.value;
-        const changes = modify(current, [...templatePath, ...edit.path], value, {
-            formattingOptions,
-            isArrayInsertion: edit.kind === "insert",
-            getInsertionIndex: insertionIndexFor(edit.path),
-        });
-        return applyEdits(current, changes);
-    }, text);
+        try {
+            const changes = modify(current, [...templatePath, ...edit.path], value, {
+                formattingOptions,
+                isArrayInsertion: edit.kind === "insert",
+                getInsertionIndex: insertionIndexFor(edit.path),
+            });
+            current = applyEdits(current, changes);
+        } catch {
+            // jsonc-parser throws when a value on the path is not the container the path needs.
+            return { kind: "refused", path: edit.path };
+        }
+    }
+    return { kind: "applied", text: current };
 }
 
 function insertionIndexFor(path: JsonPath): ((keys: string[]) => number) | undefined {

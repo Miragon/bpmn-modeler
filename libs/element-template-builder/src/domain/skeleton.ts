@@ -1,6 +1,6 @@
 import { ELEMENT_TEMPLATE_SCHEMA_URL, type Engine } from "@miragon/bpmn-modeler-types";
 
-import { applyTemplateEdits, type JsonPath } from "./templateText";
+import { applyTemplateEdits, type JsonPath, type TemplateEditResult } from "./templateText";
 
 /** A template id from its name: lower-case words joined by dashes. */
 export function templateIdOf(name: string): string {
@@ -29,7 +29,11 @@ export function newTemplateText(
 }
 
 /** Names the engine of the template at `templatePath` through its `$schema`. */
-export function withSchema(text: string, templatePath: JsonPath, engine: Engine): string {
+export function withSchema(
+    text: string,
+    templatePath: JsonPath,
+    engine: Engine,
+): TemplateEditResult {
     return applyTemplateEdits(text, templatePath, [
         { kind: "set", path: ["$schema"], value: ELEMENT_TEMPLATE_SCHEMA_URL[engine] },
     ]);

@@ -113,7 +113,10 @@ export function mountFile(initial: string, { engine = "c8" as "c7" | "c8" } = {}
         });
     };
     builder.onEdit.mockImplementation((edits) => {
-        text = applyTemplateEdits(text, [], edits);
+        const result = applyTemplateEdits(text, [], edits);
+        if (result.kind === "applied") {
+            text = result.text;
+        }
         show();
     });
     show();
@@ -131,7 +134,9 @@ export function mountFile(initial: string, { engine = "c8" as "c7" | "c8" } = {}
         },
         /** Deletes the last character of what the field shows. */
         backspace(target: string | Element) {
-            const field = (typeof target === "string" ? builder.control(target) : target) as HTMLInputElement;
+            const field = (
+                typeof target === "string" ? builder.control(target) : target
+            ) as HTMLInputElement;
             builder.typeInto(field, field.value.slice(0, -1));
         },
     };

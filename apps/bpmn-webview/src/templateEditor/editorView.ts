@@ -10,12 +10,13 @@ export interface EditorView {
     readonly previewPanel: HTMLElement;
     readonly builderRoot: HTMLElement;
     showEngine(engine: Engine | undefined): void;
-    showChoices(choices: readonly TemplateChoice[], selected: string | undefined): void;
+    showChoices(choices: readonly TemplateChoice[], selected: number | undefined): void;
     showMessages(messages: readonly string[]): void;
     /** Whether there is a template to preview; without one the preview column is left out. */
     showPreview(available: boolean): void;
     showMain(main: EditorMain): void;
-    onSelect(listener: (key: string) => void): void;
+    /** Reports the place in the file of the template the user picked. */
+    onSelect(listener: (position: number) => void): void;
     onCreate(listener: (engine: Engine, elementType: string, name: string) => void): void;
     onChooseEngine(listener: (engine: Engine) => void): void;
     /** Sets the page's own texts again, in the language now chosen. */
@@ -191,13 +192,13 @@ export function mountEditorView(
         },
         showChoices(choices, selected) {
             choice.replaceChildren(
-                ...choices.map(({ key, label }) => {
+                ...choices.map(({ position, label }) => {
                     const option = element("option", "", label);
-                    option.value = key;
+                    option.value = String(position);
                     return option;
                 }),
             );
-            choice.value = selected ?? "";
+            choice.value = String(selected ?? "");
             choice.hidden = choices.length < 2;
             fitToolbar();
         },
@@ -219,7 +220,7 @@ export function mountEditorView(
             }
         },
         onSelect(listener) {
-            choice.addEventListener("change", () => listener(choice.value));
+            choice.addEventListener("change", () => listener(Number(choice.value)));
         },
         onCreate(listener) {
             wizard.addEventListener("submit", (event) => {

@@ -193,7 +193,7 @@ describe("bootstrapTemplateEditor", () => {
         await start();
         receive(JSON.stringify([STATUS, MAIL]));
         await vi.advanceTimersByTimeAsync(0);
-        choice().value = "mail@";
+        choice().selectedIndex = 1;
         choice().dispatchEvent(new Event("change"));
 
         mocks.onEdit!([{ kind: "set", path: ["name"], value: "Post" }]);
@@ -254,7 +254,7 @@ describe("bootstrapTemplateEditor", () => {
 
         expect(syncs()).toEqual([]);
         expect(messages()).toEqual([
-            "This change was not written: elementType in the JSON has a different shape than the builder expects. Fix it in the JSON editor.",
+            "This change was not written: the JSON around elementType.value is not what the builder expects. Fix it in the JSON editor.",
         ]);
         expect(lastBuilderState().editable).toBe(true);
     });

@@ -1,6 +1,12 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
-import type { ConditionOperator, ConditionRow } from "../domain/conditions";
-import { Icon, SettingRow, type SettingProps, type Translate } from "./settings";
+import {
+    CONDITION_OPERATORS,
+    conditionValueKind,
+    normalizedRowValue,
+    type ConditionOperator,
+    type ConditionRow,
+} from "../domain/conditions";
+import { Icon, SettingRow, useDraft, type SettingProps, type Translate } from "./settings";
 
 export interface AppliesToEntryProps extends SettingProps {
     values: readonly string[];
@@ -138,15 +144,47 @@ export interface ConditionEntryProps extends SettingProps {
     rows: readonly ConditionRow[];
     /** Ids of the properties a condition may depend on. */
     properties: readonly string[];
+    /** The type of the property with this id, which decides how its value is written. */
+    typeOf: (propertyId: string) => string | undefined;
     onChange: (rows: ConditionRow[]) => void;
     translate: Translate;
 }
 
-const OPERATORS: readonly ConditionOperator[] = ["equals", "oneOf", "isActive", "isEmpty"];
+/** The value of one condition row; what it types stays while it still means what the file holds. */
+function ConditionValueInput({
+    row,
+    type,
+    disabled,
+    onChange,
+    translate,
+}: {
+    row: ConditionRow;
+    type: string | undefined;
+    disabled?: boolean;
+    onChange: (value: string) => void;
+    translate: Translate;
+}) {
+    const { text, onType } = useDraft(row.value, {
+        normalize: (typed) => normalizedRowValue({ ...row, value: typed }, type),
+    });
+    return (
+        <input
+            class="etb-input"
+            aria-label={translate("Value")}
+            placeholder={row.operator === "oneOf" ? translate("a, b, c") : ""}
+            value={text}
+            disabled={disabled}
+            onInput={(event: Event) => {
+                const typed = (event.currentTarget as HTMLInputElement).value;
+                onType(typed, () => onChange(typed));
+            }}
+        />
+    );
+}
 
 /** When the property shows: every row must match. */
 export function ConditionEntry(props: ConditionEntryProps) {
-    const { rows, properties, disabled, onChange, translate } = props;
+    const { rows, properties, typeOf, disabled, onChange, translate } = props;
     const update = (index: number, change: Partial<ConditionRow>) =>
         onChange(rows.map((row, at) => (at === index ? { ...row, ...change } : row)));
     const operatorLabels: Record<ConditionOperator, string> = {
@@ -191,13 +229,13 @@ export function ConditionEntry(props: ConditionEntryProps) {
                                 })
                             }
                         >
-                            {OPERATORS.map((operator) => (
+                            {CONDITION_OPERATORS.map((operator) => (
                                 <option value={operator} key={operator}>
                                     {operatorLabels[operator]}
                                 </option>
                             ))}
                         </select>,
-                        row.operator === "isActive" || row.operator === "isEmpty" ? (
+                        conditionValueKind(row.operator, typeOf(row.property)) === "flag" ? (
                             <select
                                 key={`flag-${index}`}
                                 class="etb-select"
@@ -214,18 +252,13 @@ export function ConditionEntry(props: ConditionEntryProps) {
                                 <option value="false">{translate("No")}</option>
                             </select>
                         ) : (
-                            <input
+                            <ConditionValueInput
                                 key={`value-${index}`}
-                                class="etb-input"
-                                aria-label={translate("Value")}
-                                placeholder={row.operator === "oneOf" ? translate("a, b, c") : ""}
-                                value={row.value}
+                                row={row}
+                                type={typeOf(row.property)}
                                 disabled={disabled}
-                                onInput={(event: Event) =>
-                                    update(index, {
-                                        value: (event.currentTarget as HTMLInputElement).value,
-                                    })
-                                }
+                                translate={translate}
+                                onChange={(value) => update(index, { value })}
                             />
                         ),
                         <button

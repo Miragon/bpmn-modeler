@@ -228,7 +228,8 @@ describe("ruleDiagnostics", () => {
                 message: "This binding needs the element type {type}.",
                 replacements: { type: "bpmn:UserTask" },
                 fix: {
-                    label: "Set the element type",
+                    label: "Set the element type to {type}",
+                    replacements: { type: "bpmn:UserTask" },
                     requirement: expect.objectContaining({ kind: "elementType" }),
                 },
             }),

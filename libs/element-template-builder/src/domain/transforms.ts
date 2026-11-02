@@ -9,6 +9,7 @@ import {
     type PropertyType,
     type Requirement,
 } from "../catalog";
+import { elementTypeChoiceFor } from "./requirements";
 import type { JsonPath, TemplateEdit } from "./templateText";
 
 type Json = Record<string, unknown>;
@@ -46,17 +47,17 @@ export function moveProperty(template: Json, from: number, to: number): Template
     }
     return [
         { kind: "remove", path: ["properties", from] },
-        { kind: "insert", path: ["properties", to], value: propertyAt(template, from) },
+        { kind: "insert", path: ["properties", to], value: arrayAt(template, "properties")[from] },
     ];
 }
 
 /** Inserts a copy right after the property, with a label and an id that tell it apart. */
 export function duplicateProperty(template: Json, index: number): TemplateEdit[] {
-    const copy: Json = structuredClone(propertyAt(template, index));
-    if (typeof copy.label === "string") {
+    const copy: unknown = structuredClone(arrayAt(template, "properties")[index]);
+    if (isObject(copy) && typeof copy.label === "string") {
         copy.label = `${copy.label} (copy)`;
     }
-    if (typeof copy.id === "string") {
+    if (isObject(copy) && typeof copy.id === "string") {
         const ids = propertiesOf(template).map((property) => property.id);
         copy.id = unused(`${copy.id}-copy`, ids);
     }
@@ -151,18 +152,35 @@ export function removeChoice(index: number, choice: number): TemplateEdit[] {
 }
 
 export function addGroup(template: Json): TemplateEdit[] {
-    const groups = arrayAt(template, "groups");
-    const ids = groups.map((group) => (isObject(group) ? group.id : undefined));
-    const id = unused(`group-${groups.length + 1}`, ids);
+    const ids = groupIdsOf(template);
+    const id = unused(`group-${ids.length + 1}`, ids);
     return appendTo(template, ["groups"], { id, label: "New group" });
 }
 
-/** Renames a group and moves its properties along. */
+export type GroupIdProblem = "empty" | "taken";
+
+/** Why a group cannot have `id`: typed into its field, it must not reach the file. */
+export function groupIdProblem(
+    template: Json,
+    index: number,
+    id: string,
+): GroupIdProblem | undefined {
+    if (id === "") {
+        return "empty";
+    }
+    return groupIdsOf(template).some((other, at) => at !== index && other === id)
+        ? "taken"
+        : undefined;
+}
+
+/** Renames a group and moves its properties along; an id it cannot have writes nothing. */
 export function renameGroup(template: Json, index: number, id: string): TemplateEdit[] {
-    const previous = objectAt(template, "groups", index).id;
+    if (groupIdProblem(template, index, id)) {
+        return [];
+    }
     return [
         { kind: "set", path: ["groups", index, "id"], value: id },
-        ...propertyIndexesIn(template, previous).map((property): TemplateEdit => ({
+        ...propertyIndexesOfGroup(template, index).map((property): TemplateEdit => ({
             kind: "set",
             path: ["properties", property, "group"],
             value: id,
@@ -172,9 +190,8 @@ export function renameGroup(template: Json, index: number, id: string): Template
 
 /** Removes a group; its properties move to the default group. */
 export function removeGroup(template: Json, index: number): TemplateEdit[] {
-    const id = objectAt(template, "groups", index).id;
     return [
-        ...propertyIndexesIn(template, id).map((property): TemplateEdit => ({
+        ...propertyIndexesOfGroup(template, index).map((property): TemplateEdit => ({
             kind: "remove",
             path: ["properties", property, "group"],
         })),
@@ -198,14 +215,14 @@ export function setConstraint(
     return [{ kind: "remove", path: remaining.length === 0 ? path : [...path, key] }];
 }
 
-/** Makes the template meet a binding's requirement with the first way the catalog lists. */
+/** Makes the template meet a binding's requirement, staying with the element it is for if it can. */
 export function fixRequirement(
     template: Json,
     catalog: EngineCatalog,
     requirement: Requirement,
 ): TemplateEdit[] {
     if (requirement.kind === "elementType") {
-        const [choice] = requirement.oneOf;
+        const choice = elementTypeChoiceFor(template, requirement.oneOf);
         const appliesTo = arrayAt(template, "appliesTo");
         return [
             { kind: "set", path: ["elementType"], value: { ...choice } },
@@ -302,17 +319,26 @@ function diffEdits(path: JsonPath, before: Json, after: Json): TemplateEdit[] {
     return edits;
 }
 
+/** Anything but a list or nothing at the path is left for applyTemplateEdits to refuse, not replaced. */
 function appendTo(owner: Json, path: JsonPath, value: unknown): TemplateEdit[] {
     const list = valueAt(owner, path.slice(-1));
-    return Array.isArray(list)
-        ? [{ kind: "insert", path: [...path, list.length], value }]
-        : [{ kind: "set", path, value: [value] }];
+    return list === undefined
+        ? [{ kind: "set", path, value: [value] }]
+        : [{ kind: "insert", path: [...path, Array.isArray(list) ? list.length : 0], value }];
 }
 
-function propertyIndexesIn(template: Json, group: unknown): number[] {
-    return propertiesOf(template).flatMap((property, index) =>
-        group !== undefined && property.group === group ? [index] : [],
-    );
+function groupIdsOf(template: Json): unknown[] {
+    return arrayAt(template, "groups").map((group) => (isObject(group) ? group.id : undefined));
+}
+
+/** The properties in a group; two groups sharing an id cannot tell whose they are, so neither owns any. */
+function propertyIndexesOfGroup(template: Json, index: number): number[] {
+    const ids = groupIdsOf(template);
+    const id = ids[index];
+    if (id === undefined || ids.filter((other) => other === id).length > 1) {
+        return [];
+    }
+    return propertiesOf(template).flatMap((property, at) => (property.group === id ? [at] : []));
 }
 
 function propertiesOf(template: Json): Json[] {

@@ -11,6 +11,8 @@ import {
     type EngineCatalog,
     type Requirement,
 } from "../catalog";
+import { conditionComparisons } from "./conditions";
+import { elementTypeChoiceFor, meetsRequirement } from "./requirements";
 import type { JsonPath } from "./templateText";
 
 type Json = Record<string, unknown>;
@@ -25,7 +27,7 @@ export interface Diagnostic {
     /** The validator's own English text, which no translation knows. */
     verbatim?: true;
     /** A requirement the builder can meet in one step. */
-    fix?: { label: string; requirement: Requirement };
+    fix?: { label: string; replacements?: Record<string, string>; requirement: Requirement };
 }
 
 /** The official validator's findings, one per field and without its root-level noise. */
@@ -68,7 +70,20 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
         bindingIs(objectOf(property), "zeebe:formDefinition", "formId"),
     );
 
-    return properties.flatMap((value, index) => {
+    const groupDiagnostics = groupIds.flatMap((id, index): Diagnostic[] =>
+        typeof id === "string" && groupIds.indexOf(id) < index
+            ? [
+                  {
+                      path: ["groups", index, "id"],
+                      severity: "error",
+                      message: 'Another group already has the id "{id}".',
+                      replacements: { id },
+                  },
+              ]
+            : [],
+    );
+
+    const propertyDiagnostics = properties.flatMap((value, index) => {
         const property = objectOf(value);
         const at = (...path: JsonPath): JsonPath => ["properties", index, ...path];
         const binding = objectOf(property.binding);
@@ -91,8 +106,8 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
                 replacements: { id: property.id },
             });
         }
-        for (const { condition, path } of conditionsOf(property.condition)) {
-            const target = condition.property;
+        for (const { comparison, path } of conditionComparisons(property.condition)) {
+            const target = comparison.property;
             if (typeof target !== "string") {
                 continue;
             }
@@ -138,15 +153,22 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
             });
         }
         for (const requirement of spec?.requires ?? []) {
-            if (!meets(template, properties, requirement)) {
-                diagnostics.push(requirementDiagnostic(at("binding", "type"), requirement));
+            if (!meetsRequirement(template, requirement)) {
+                diagnostics.push(
+                    requirementDiagnostic(template, at("binding", "type"), requirement),
+                );
             }
         }
         return diagnostics;
     });
+    return [...groupDiagnostics, ...propertyDiagnostics];
 }
 
-function requirementDiagnostic(path: JsonPath, requirement: Requirement): Diagnostic {
+function requirementDiagnostic(
+    template: Json,
+    path: JsonPath,
+    requirement: Requirement,
+): Diagnostic {
     if (requirement.kind === "binding") {
         return {
             path,
@@ -168,42 +190,18 @@ function requirementDiagnostic(path: JsonPath, requirement: Requirement): Diagno
                   message: "This binding needs one of the element types {types}.",
                   replacements: { types: choices.join(", ") },
               }),
-        fix: { label: "Set the element type", requirement },
+        fix: {
+            label: "Set the element type to {type}",
+            replacements: {
+                type: describeElementType(elementTypeChoiceFor(template, requirement.oneOf)),
+            },
+            requirement,
+        },
     };
-}
-
-function meets(template: Json, properties: unknown[], requirement: Requirement): boolean {
-    if (requirement.kind === "binding") {
-        return properties.some((property) => {
-            const binding = objectOf(objectOf(property).binding);
-            return Object.entries(requirement.binding).every(
-                ([key, value]) => binding[key] === value,
-            );
-        });
-    }
-    const elementType = objectOf(template.elementType);
-    return requirement.oneOf.some(
-        (choice) =>
-            elementType.value === choice.value &&
-            (choice.eventDefinition === undefined ||
-                elementType.eventDefinition === choice.eventDefinition),
-    );
 }
 
 function describeElementType(choice: ElementTypeChoice): string {
     return choice.eventDefinition ? `${choice.value} (${choice.eventDefinition})` : choice.value;
-}
-
-/** A condition and its path inside `condition`: itself, or each of `allMatch`. */
-function conditionsOf(condition: unknown): { condition: Json; path: JsonPath }[] {
-    const object = objectOf(condition);
-    if (Array.isArray(object.allMatch)) {
-        return object.allMatch.map((nested, index) => ({
-            condition: objectOf(nested),
-            path: ["allMatch", index],
-        }));
-    }
-    return condition === undefined ? [] : [{ condition: object, path: [] }];
 }
 
 function bindingIs(property: Json, type: string, attribute: string): boolean {

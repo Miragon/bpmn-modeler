@@ -5,7 +5,7 @@ import { validate, validateZeebe } from "@bpmn-io/element-templates-validator";
 import c7Samples from "../__fixtures__/c7-samples.json";
 import c8Samples from "../__fixtures__/c8-samples.json";
 import { catalogFor, type EngineCatalog } from "../catalog";
-import { applyTemplateEdits, type TemplateEdit } from "./templateText";
+import { applyTemplateEdits, type JsonPath, type TemplateEdit } from "./templateText";
 import { addGroup, addProperty, moveProperty, setField } from "./transforms";
 
 /**
@@ -14,6 +14,14 @@ import { addGroup, addProperty, moveProperty, setField } from "./transforms";
  */
 
 type Json = Record<string, unknown>;
+
+function appliedText(text: string, path: JsonPath, edits: readonly TemplateEdit[]): string {
+    const result = applyTemplateEdits(text, path, edits);
+    if (result.kind === "refused") {
+        throw new Error(`Refused an edit at ${result.path.join(".")}`);
+    }
+    return result.text;
+}
 
 const TRANSFORMS: Record<string, (template: Json, catalog: EngineCatalog) => TemplateEdit[]> = {
     "a rename": () => setField(["name"], "Renamed"),
@@ -45,7 +53,7 @@ describe.each(SAMPLES)("transforms on the $engine samples", ({ engine, samples, 
     describe.each(Object.entries(TRANSFORMS))("%s", (_, transform) => {
         it.each(valid)("keeps $name valid and its neighbours untouched", ({ index }) => {
             const result = JSON.parse(
-                applyTemplateEdits(text, [index], transform(samples[index], catalog)),
+                appliedText(text, [index], transform(samples[index], catalog)),
             ) as Json[];
 
             const errors = check(result[index]).errors ?? [];
@@ -57,7 +65,7 @@ describe.each(SAMPLES)("transforms on the $engine samples", ({ engine, samples, 
     });
 
     it.each(valid)("renames $name by changing one line", ({ index }) => {
-        const edited = applyTemplateEdits(text, [index], setField(["name"], "Renamed"));
+        const edited = appliedText(text, [index], setField(["name"], "Renamed"));
 
         const before = text.split("\n");
         const changed = edited.split("\n").filter((line, number) => line !== before[number]);

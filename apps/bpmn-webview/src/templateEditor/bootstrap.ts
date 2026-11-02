@@ -10,6 +10,7 @@ import {
     type TemplateBuilderHandle,
     type TemplateBuilderState,
     type TemplateEdit,
+    type TemplateEditResult,
     withSchema,
 } from "@miragon/bpmn-modeler-element-template-builder";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
@@ -29,7 +30,7 @@ import {
 import { createHostMessageRouter, type HostMessage } from "../session/messageRouter";
 import { TemplateDocumentSession, type TextOrigin } from "./documentSession";
 import { type EditorMain, mountEditorView } from "./editorView";
-import { readTemplateFile, type TemplateFileState } from "./templateFile";
+import { readTemplateFile, type TemplateFileState, type TemplateSelection } from "./templateFile";
 
 type EditorHost = Pick<HostApi<unknown, Command>, "postMessage">;
 type Translate = (template: string, replacements?: Record<string, string>) => string;
@@ -89,13 +90,29 @@ export async function bootstrapTemplateEditor(
     themeAdapter.setMode("automatic");
 
     let state: TemplateFileState = { kind: "empty" };
-    let selected: string | undefined;
+    let selected: TemplateSelection | undefined;
     let diagnostics: Diagnostic[] = [];
     // While the JSON is broken, the builder keeps showing this, read-only.
     let lastShown: TemplateBuilderState | undefined;
     let pendingCheck: ReturnType<typeof setTimeout> | undefined;
 
+    // What the last edit could not do, until the next edit goes through.
+    let refusal: string | undefined;
+
     const session = new TemplateDocumentSession(host, (_text, origin) => refresh(origin));
+    /** Takes a change of the page into the file, or says why the file cannot take it. */
+    function write(result: TemplateEditResult): void {
+        if (result.kind === "applied") {
+            refusal = undefined;
+            session.edit(result.text);
+            return;
+        }
+        refusal = translate(
+            "This change was not written: the JSON around {path} is not what the builder expects. Fix it in the JSON editor.",
+            { path: result.path.join(".") },
+        );
+        refresh("select");
+    }
     const stopRelabelling = i18n.onChange(() => {
         view.relabel();
         // The first file brings the language just before its text; it renders itself.
@@ -109,7 +126,7 @@ export async function bootstrapTemplateEditor(
               translate,
               onEdit: (edits: TemplateEdit[]) => {
                   if (state.kind === "template") {
-                      session.edit(applyTemplateEdits(session.text, state.path, edits));
+                      write(applyTemplateEdits(session.text, state.path, edits));
                   }
               },
           });
@@ -121,10 +138,14 @@ export async function bootstrapTemplateEditor(
 
     /** Shows the text at once; the preview and the validation follow when editing pauses. */
     function refresh(origin: TextOrigin | "select"): void {
-        state = readTemplateFile(session.text, selected);
+        // The page's own edits keep a template in its place, but can change its id.
+        state = readTemplateFile(
+            session.text,
+            origin === "edit" && selected ? { position: selected.position } : selected,
+        );
         if (state.kind === "template" || state.kind === "unknownEngine") {
             selected = state.selected;
-            view.showChoices(state.choices, state.selected);
+            view.showChoices(state.choices, state.selected.position);
         } else {
             view.showChoices([], undefined);
         }
@@ -169,13 +190,16 @@ export async function bootstrapTemplateEditor(
             return;
         }
         const { template, engine } = state;
+        const shownRefusal = refusal;
         diagnostics = [
             ...schemaDiagnostics(engine, template),
             ...ruleDiagnostics(template, catalogFor(engine)),
         ];
         showBuilder({ template, engine, editable: true, diagnostics });
         const outcome = await preview.show(template, engine);
-        if (outcome.rendered) {
+        if (shownRefusal) {
+            view.showMessages([shownRefusal]);
+        } else if (outcome.rendered) {
             view.showMessages([]);
         } else if (diagnostics.length > 0) {
             view.showMessages([translate("The preview shows the last template without errors.")]);
@@ -184,8 +208,8 @@ export async function bootstrapTemplateEditor(
         }
     }
 
-    view.onSelect((key) => {
-        selected = key;
+    view.onSelect((position) => {
+        selected = { position };
         refresh("select");
     });
     view.onCreate((engine, elementType, name) => {
@@ -193,7 +217,7 @@ export async function bootstrapTemplateEditor(
     });
     view.onChooseEngine((engine) => {
         if (state.kind === "unknownEngine") {
-            session.edit(withSchema(session.text, state.path, engine));
+            write(withSchema(session.text, state.path, engine));
         }
     });
 

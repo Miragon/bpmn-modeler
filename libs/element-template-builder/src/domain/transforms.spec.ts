@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { catalogFor } from "../catalog";
-import { applyTemplateEdits, type TemplateEdit } from "./templateText";
+import { applyTemplateEdits, type JsonPath, type TemplateEdit } from "./templateText";
 import {
     addChoice,
     addGroup,
@@ -40,7 +40,11 @@ function c8Template(properties: Json[] = [], extra: Json = {}): Json {
 
 /** Applies the edits to the template's text and parses the result back. */
 function edited(template: Json, edits: TemplateEdit[]): Json {
-    return JSON.parse(applyTemplateEdits(JSON.stringify(template, null, 2), [], edits));
+    const result = applyTemplateEdits(JSON.stringify(template, null, 2), [], edits);
+    if (result.kind === "refused") {
+        throw new Error(`Refused an edit at ${result.path.join(".")}`);
+    }
+    return JSON.parse(result.text);
 }
 
 const input = (extra: Json = {}): Json => ({
@@ -385,11 +389,11 @@ describe("transforms on a template that breaks the schema", () => {
     const refused = (template: Json, edits: TemplateEdit[]) =>
         applyTemplateEdits(`${JSON.stringify(template, null, 2)}\n`, [], edits);
 
-    it.each([
+    it.each<[string, Json, (template: Json, catalog: typeof C8) => TemplateEdit[], JsonPath]>([
         ["properties", { properties: { keep: true } }, addProperty, ["properties", 0]],
         ["properties", { properties: "keep" }, addProperty, ["properties", 0]],
-        ["groups", { groups: { keep: true } }, addGroup, ["groups", 0]],
-    ] as const)("does not replace %s that are no list when adding to them", (_, extra, add, path) => {
+        ["groups", { groups: { keep: true } }, (template) => addGroup(template), ["groups", 0]],
+    ])("does not replace %s that are no list when adding to them", (_, extra, add, path) => {
         const template = { ...c8Template(), ...extra };
 
         expect(refused(template, add(template, C8))).toEqual({ kind: "refused", path });

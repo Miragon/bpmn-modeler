@@ -96,7 +96,7 @@ export function ProblemsBar({ problems, disabled, onFix, onShow, translate }: Pr
                                     disabled={disabled}
                                     onClick={() => onFix(problem)}
                                 >
-                                    {translate(problem.fix.label)}
+                                    {translate(problem.fix.label, problem.fix.replacements)}
                                 </button>
                             ) : null}
                         </li>
