@@ -304,9 +304,13 @@
         "element-template-builder": {
             "dir": "libs/element-template-builder",
             "package": "@miragon/bpmn-modeler-element-template-builder",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "libs/element-template-builder/**",
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "tools/architecture-testing/**"
             ],
             "typecheck": "build"
         },
