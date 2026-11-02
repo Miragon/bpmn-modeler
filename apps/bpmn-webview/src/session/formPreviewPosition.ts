@@ -5,8 +5,9 @@ export function positionFormPreview(
     desiredWidth: number,
     desiredHeight: number,
     minimumHeight = Math.min(80, desiredHeight),
+    explicit = false,
 ) {
-    const edge = 8;
+    const edge = Math.min(8, canvas.width / 4, canvas.height / 4);
     const gap = 12;
     const left = canvas.x + edge;
     const top = canvas.y + edge;
@@ -14,8 +15,17 @@ export function positionFormPreview(
     const bottom = canvas.y + canvas.height - edge;
     const width = Math.min(desiredWidth, Math.max(0, right - left));
     const height = Math.min(desiredHeight, Math.max(0, bottom - top));
-    if (height < minimumHeight) return undefined;
     const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
+    const fallback = () =>
+        explicit && width > 0 && height > 0
+            ? {
+                  left: clamp(task.x, left, right - width),
+                  top: clamp(task.y, top, bottom - height),
+                  width,
+                  maxHeight: height,
+              }
+            : undefined;
+    if (height < minimumHeight) return fallback();
     const after =
         Math.max(task.x + task.width, contextPad ? contextPad.x + contextPad.width : 0) + gap;
     const before = Math.min(task.x, contextPad?.x ?? task.x) - gap - width;
@@ -37,7 +47,8 @@ export function positionFormPreview(
                   { x: task.x, y: above - height },
                   { x: task.x, y: below },
               ]),
-        ...obstacles.flatMap((box) => [
+        // A fixed search budget keeps collision checks linear in the obstacle count.
+        ...obstacles.slice(0, 16).flatMap((box) => [
             { x: after, y: box.y + box.height + gap },
             { x: after, y: box.y - height - gap },
             { x: box.x + box.width + gap, y: task.y },
@@ -69,16 +80,15 @@ export function positionFormPreview(
     for (const candidate of candidates) {
         const x = clamp(candidate.x, left, right - width);
         const y = clamp(candidate.y, top, bottom);
-        const end = Math.min(
-            bottom,
-            ...blockers
-                .filter((box) => x < box.x + box.width && x + width > box.x && box.y >= y)
-                .map((box) => box.y - gap),
-        );
+        let end = bottom;
+        for (const box of blockers) {
+            if (x < box.x + box.width && x + width > box.x && box.y >= y)
+                end = Math.min(end, box.y - gap);
+        }
         const available = Math.min(height, end - y);
         if (available < minimumHeight) continue;
         const position = place(x, y, available);
         if (position) return position;
     }
-    return undefined;
+    return fallback();
 }

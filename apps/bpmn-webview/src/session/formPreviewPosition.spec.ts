@@ -3,6 +3,73 @@ import { positionFormPreview } from "./formPreviewPosition";
 
 const canvas = { x: 20, y: 30, width: 1000, height: 700 };
 describe("anchored preview placement", () => {
+    it.each([
+        { width: 600, height: 400 },
+        { width: 120, height: 60 },
+        { width: 12, height: 12 },
+    ])(
+        "honors an explicit request in a crowded $width by $height viewport",
+        ({ width, height }) => {
+            const anchor = {
+                canvas: { x: 20, y: 30, width, height },
+                task: { x: 20, y: 30, width, height },
+                obstacles: [{ x: 20, y: 30, width, height }],
+            };
+            expect(positionFormPreview(anchor, 340, 400, 120)).toBeUndefined();
+            const position = positionFormPreview(anchor, 340, 400, 120, true)!;
+            expect(position).toBeDefined();
+            expect(position.width).toBeGreaterThan(0);
+            expect(position.maxHeight).toBeGreaterThan(0);
+            expect(position.left).toBeGreaterThanOrEqual(20);
+            expect(position.top).toBeGreaterThanOrEqual(30);
+            expect(position.left + position.width).toBeLessThanOrEqual(20 + width);
+            expect(position.top + position.maxHeight).toBeLessThanOrEqual(30 + height);
+        },
+    );
+    it("bounds candidate collision work linearly even with 1000 nearby overlapping obstacles", () => {
+        let reads = 0;
+        const obstacles = Array.from({ length: 1000 }, () => ({
+            get x() {
+                reads++;
+                return 0;
+            },
+            y: 0,
+            width: 1000,
+            height: 700,
+        }));
+        expect(
+            positionFormPreview(
+                { canvas, task: { x: 200, y: 200, width: 100, height: 80 }, obstacles },
+                340,
+                400,
+            ),
+        ).toBeUndefined();
+        expect(reads).toBeLessThan(300_000);
+    });
+    it("checks a decisive collision blocker beyond the candidate-generation budget", () => {
+        const task = { x: 200, y: 200, width: 100, height: 80 };
+        const obstacles = Array.from({ length: 17 }, () => ({
+            x: -1000,
+            y: -1000,
+            width: 10,
+            height: 10,
+        }));
+        const unobstructed = positionFormPreview({ canvas, task, obstacles }, 340, 300)!;
+        expect(unobstructed).toEqual({ left: 312, top: 200, width: 340, maxHeight: 300 });
+        const blocker = { x: 400, y: 200, width: 100, height: 80 };
+        const position = positionFormPreview(
+            { canvas, task, obstacles: [...obstacles, blocker] },
+            340,
+            300,
+        )!;
+        expect(position).toBeDefined();
+        expect(
+            position.left + position.width <= blocker.x ||
+                position.left >= blocker.x + blocker.width ||
+                position.top + position.maxHeight <= blocker.y ||
+                position.top >= blocker.y + blocker.height,
+        ).toBe(true);
+    });
     it("rejects a constrained preview that cannot fit its chrome and usable content viewport", () => {
         expect(
             positionFormPreview(

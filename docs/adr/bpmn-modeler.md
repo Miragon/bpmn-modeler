@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-02
 
 ## Context
 
@@ -102,6 +102,10 @@ one; an unavailable preview request renders status only, without reading a file.
 
 **Consequences.** Automatic adjacency keeps the saved form in context but competes
 with diagram space; obstacle-aware placement can constrain the scrollable preview.
+Automatic previews yield when no readable nearby space is found. Explicit opens
+and refreshes instead allow viewport-clamped overlap: a requested preview must
+respond visibly and retain a reachable close control. A bounded local search
+favors predictable interaction cost over finding every possible empty region.
 Saved-byte resolution avoids coupling to open form editors at the cost of not
 reflecting unsaved changes. The index cannot distinguish missing from malformed
 JSON, so lightweight feedback names both without another scan. Explicit attempts

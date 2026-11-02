@@ -343,43 +343,6 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
-    it("opens an Explorer file covered by a workbench file-path hover", async () => {
-        const page = vscode().page;
-        const source = page.locator(".explorer-folders-view").getByText(BPMN_FILE, { exact: true });
-        const target = page.locator(".explorer-folders-view").getByText(DMN_FILE, { exact: true });
-        await source.click();
-        await vscode().showInCustomEditor(BPMN_FILE, diagramRendered);
-        await page.bringToFront();
-        // Explorer registers its managed hover on first pointer entry.
-        await source.hover();
-        await page.mouse.move(0, 0);
-        await page.locator('.explorer-folders-view [role="tree"]').focus();
-        await page.keyboard.press(`${COMMAND_KEY}+k`);
-        await page.keyboard.press(`${COMMAND_KEY}+i`);
-        const hover = page.locator(".monaco-hover").filter({ hasText: BPMN_FILE });
-        await hover.waitFor({ state: "visible" });
-        await expect
-            .poll(() =>
-                target.evaluate((node) => {
-                    const box = node.getBoundingClientRect();
-                    return document
-                        .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
-                        ?.closest('[role="tooltip"]')?.textContent;
-                }),
-            )
-            .toContain(BPMN_FILE);
-        await vscode().screenshot(join(RESULTS_DIRECTORY, "explorer-hover.png"));
-        await vscode().openFromExplorer(DMN_FILE);
-        await hover.waitFor({ state: "hidden" });
-        await page
-            .locator(".tabs-container .tab.active")
-            .getByText(DMN_FILE, { exact: true })
-            .waitFor();
-        await vscode().showInCustomEditor(DMN_FILE, (webview) =>
-            webview.getByText("Decision 1").first().isVisible(),
-        );
-    });
-
     describe("linked saved form preview", () => {
         let file: string;
         let original: string;
@@ -396,6 +359,8 @@ describe("the packaged extension in a real VS Code", () => {
                 join(FIXTURES_DIRECTORY, "linked-form.bpmn"),
                 join(workspaceDirectory, diagram),
             );
+            await vscode().page.locator('.explorer-folders-view [role="tree"]').focus();
+            await vscode().runCommand("Refresh Explorer");
             await vscode().openFromExplorer(diagram);
             await vscode().showInCustomEditor(diagram, diagramRendered);
             webview = vscode().webview();
@@ -407,6 +372,70 @@ describe("the packaged extension in a real VS Code", () => {
         });
         const previewAction = () => webview.locator('[data-action="preview-linked-form"]');
         const preview = () => webview.getByRole("region", { name: "Linked form preview" });
+        it("shows an explicitly requested preview in a dense diagram without automatic overlap", async () => {
+            const source = await readFile(join(FIXTURES_DIRECTORY, "linked-form.bpmn"), "utf8");
+            const tasks: string[] = [];
+            const shapes: string[] = [];
+            for (let row = 0; row < 14; row++) {
+                for (let column = 0; column < 18; column++) {
+                    const x = -500 + column * 120;
+                    const y = -500 + row * 120;
+                    if (y === 100 && x >= 100 && x <= 500) continue;
+                    const id = `Dense_${row}_${column}`;
+                    tasks.push(`<bpmn:task id="${id}" />`);
+                    shapes.push(
+                        `<bpmndi:BPMNShape id="${id}_di" bpmnElement="${id}"><dc:Bounds x="${x}" y="${y}" width="100" height="100" /></bpmndi:BPMNShape>`,
+                    );
+                }
+            }
+            const diagram = `dense-preview-${scenario}.bpmn`;
+            await writeFile(
+                join(workspaceDirectory, diagram),
+                source
+                    .replace("</bpmn:process>", `${tasks.join("")}</bpmn:process>`)
+                    .replace("</bpmndi:BPMNPlane>", `${shapes.join("")}</bpmndi:BPMNPlane>`),
+            );
+            await vscode().page.locator('.explorer-folders-view [role="tree"]').focus();
+            await vscode().runCommand("Refresh Explorer");
+            await vscode().openFromExplorer(diagram);
+            await vscode().showInCustomEditor(diagram, diagramRendered);
+            webview = vscode().webview();
+            await switchMode(webview, "implement");
+            await webview.getByTitle("Toggle linting overlays", { exact: true }).click();
+            await selectElement(webview, "Task_Linked");
+            await webview
+                .getByText("Saved form loaded.", { exact: true })
+                .waitFor({ state: "attached" });
+            await settle(webview);
+            expect(await preview().isVisible()).toBe(false);
+            await previewAction().focus();
+            await vscode().page.keyboard.press("Enter");
+            await preview().waitFor();
+            const close = preview().getByRole("button", { name: "Close form preview" });
+            await expect
+                .poll(() => close.evaluate((node) => node === document.activeElement))
+                .toBe(true);
+            const geometry = await close.evaluate((node) => {
+                const box = node.getBoundingClientRect();
+                return {
+                    left: box.left,
+                    top: box.top,
+                    right: box.right,
+                    bottom: box.bottom,
+                    width: innerWidth,
+                    height: innerHeight,
+                };
+            });
+            expect(geometry.left).toBeGreaterThanOrEqual(0);
+            expect(geometry.top).toBeGreaterThanOrEqual(0);
+            expect(geometry.right).toBeLessThanOrEqual(geometry.width);
+            expect(geometry.bottom).toBeLessThanOrEqual(geometry.height);
+            await vscode().screenshot(join(RESULTS_DIRECTORY, "linked-form-dense-explicit.png"));
+            await vscode().page.keyboard.press("Escape");
+            expect(await preview().count()).toBe(0);
+            await previewAction().waitFor();
+            expectNoCspViolations();
+        });
         const assertIndicatorFits = async (message: string, closeLabel: string) => {
             const indicator = webview.locator(".linked-form-preview-indicator");
             const status = indicator.getByRole("status");

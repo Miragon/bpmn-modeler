@@ -9,6 +9,10 @@ afterEach(() => vi.unstubAllGlobals());
 
 function task(id = "Form_1") {
     return {
+        x: 100,
+        y: 200,
+        width: 100,
+        height: 80,
         type: "bpmn:UserTask",
         businessObject: {
             get: () => undefined,
@@ -49,6 +53,7 @@ function setup(available = true) {
     };
     const contextPad = { isOpen: () => true, open: vi.fn() };
     const canvas = {
+        viewbox: vi.fn(() => ({ x: 0, y: 0, scale: 1 })),
         getContainer: () => ({
             getBoundingClientRect: () => ({ x: 50, y: 60, width: 800, height: 600 }),
             querySelector: () => null,
@@ -56,7 +61,12 @@ function setup(available = true) {
         getAbsoluteBBox: vi.fn(
             (element?: { x?: number; y?: number; width?: number; height?: number }) =>
                 element?.x !== undefined
-                    ? (element as { x: number; y: number; width: number; height: number })
+                    ? {
+                          x: element.x,
+                          y: element.y!,
+                          width: element.width!,
+                          height: element.height!,
+                      }
                     : { x: 100, y: 200, width: 100, height: 80 },
         ),
         focus: vi.fn(),
@@ -96,6 +106,22 @@ function setup(available = true) {
 }
 
 describe("automatic linked form preview", () => {
+    it("reads only the task bbox and uses the latest viewbox for 1000 distant nodes", () => {
+        const fixture = setup();
+        const root = task();
+        const target = { ...task(), parent: root };
+        fixture.elements.push(
+            ...Array.from({ length: 1000 }, () => ({ ...task(), parent: root, x: 10000 })),
+        );
+        fixture.select(target);
+        const request = fixture.open.mock.calls[0][0];
+        expect(request.anchor().obstacles).toEqual([]);
+        expect(fixture.canvas.getAbsoluteBBox).toHaveBeenCalledOnce();
+        fixture.elements[0].x = 300;
+        fixture.canvas.viewbox.mockReturnValue({ x: 50, y: 60, scale: 2 });
+        expect(request.anchor().obstacles).toEqual([{ x: 550, y: 340, width: 200, height: 160 }]);
+        expect(fixture.canvas.getAbsoluteBBox).toHaveBeenCalledTimes(2);
+    });
     it("uses narrow boxes for each bent flow segment instead of its enclosing box", () => {
         const fixture = setup();
         const root = task();
@@ -226,14 +252,6 @@ describe("automatic linked form preview", () => {
     it("observes container resize, accepts optional availability hooks, and exposes canvas focus", () => {
         const handlers = new Map<string, (event?: unknown) => void>();
         let resized = () => {};
-        let frame = () => {};
-        const schedule = vi.fn((callback: () => void) => {
-            frame = callback;
-            return 1;
-        });
-        const cancel = vi.fn();
-        vi.stubGlobal("requestAnimationFrame", schedule);
-        vi.stubGlobal("cancelAnimationFrame", cancel);
         const observe = vi.fn();
         const disconnect = vi.fn();
         vi.stubGlobal(
@@ -262,7 +280,12 @@ describe("automatic linked form preview", () => {
                 },
             },
             { get: () => [element] },
-            { getContainer: () => container, getAbsoluteBBox: () => pad, focus },
+            {
+                getContainer: () => container,
+                getAbsoluteBBox: () => pad,
+                viewbox: () => ({ x: 0, y: 0, scale: 1 }),
+                focus,
+            },
             { isOpen: () => false, open: vi.fn() },
             { openReference: vi.fn(), formPreview: { open } },
             { isResolved: () => true },
@@ -276,21 +299,20 @@ describe("automatic linked form preview", () => {
         expect(focus).toHaveBeenCalledOnce();
         request.onVisibilityChanged(true);
         handlers.get("canvas.resized")!();
+        for (let i = 0; i < 100; i++) handlers.get("canvas.viewbox.changed")!();
         resized();
         resized();
-        expect(schedule).toHaveBeenCalledOnce();
-        expect(handle.reposition).not.toHaveBeenCalled();
-        frame();
-        expect(handle.reposition).toHaveBeenCalledOnce();
+        expect(handle.reposition).toHaveBeenCalledTimes(103);
         expect(observe).toHaveBeenCalledWith(container);
         resized();
         handlers.get("diagram.destroy")!();
         expect(disconnect).toHaveBeenCalledOnce();
-        expect(cancel).toHaveBeenCalledWith(1);
+        expect(handle.close).toHaveBeenCalledOnce();
     });
     it("leaves hosts without the anchored capability unchanged", () => {
         const callbacks: Array<() => void> = [];
         const canvas = {
+            viewbox: () => ({ x: 0, y: 0, scale: 1 }),
             getContainer: () => ({
                 getBoundingClientRect: () => ({ x: 0, y: 0, width: 0, height: 0 }),
                 querySelector: () => null,

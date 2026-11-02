@@ -18,6 +18,7 @@ export interface PreviewRect {
 }
 export interface FormPreviewAnchor {
     task: PreviewRect;
+    /** Allowed preview area in viewport coordinates. */
     canvas: PreviewRect;
     contextPad?: PreviewRect;
     /** Visible diagram shapes, labels and narrow connection segments in viewport coordinates. */
@@ -37,6 +38,7 @@ export interface FormPreviewRequest {
 }
 export interface FormPreviewHandle {
     close(): void;
+    /** Queue a live-anchor update; coalesce repeated geometry events until the next frame. */
     reposition(): void;
 }
 export interface FormPreviewPort {

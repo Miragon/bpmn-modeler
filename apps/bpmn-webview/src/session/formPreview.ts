@@ -38,6 +38,7 @@ export function createFormPreview(
         let frame: number | undefined;
         let measuredHeight = 0;
         let minimumHeight = 0;
+        let explicit = !request.automatic;
         const panel = document.createElement("div");
         panel.className = "linked-form-preview";
         panel.style.width = "340px";
@@ -106,15 +107,29 @@ export function createFormPreview(
                 number(style.paddingBottom) +
                 number(style.borderTopWidth) +
                 number(style.borderBottomWidth);
-            if (!panel.hidden) {
+            if (!panel.hidden && !panel.classList.contains("linked-form-preview-compact")) {
                 measuredHeight = chromeHeight + (indicator ? 0 : content.scrollHeight);
                 minimumHeight = chromeHeight + (viewer ? 64 : 0);
             }
+            const anchor = request.anchor();
+            // An explicit request still needs reachable chrome when the canvas is collapsed.
+            if (explicit && (anchor.canvas.width < 160 || anchor.canvas.height < 80))
+                anchor.canvas = {
+                    x: 0,
+                    y: 0,
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                };
             const position = positionFormPreview(
-                request.anchor(),
+                anchor,
                 340,
                 Math.max(indicator ? 48 : 120, measuredHeight, minimumHeight),
                 minimumHeight,
+                explicit,
+            );
+            panel.classList.toggle(
+                "linked-form-preview-compact",
+                !!position && position.maxHeight < minimumHeight,
             );
             if (panel.hidden !== !position) panel.hidden = !position;
             if (position) {
@@ -148,7 +163,7 @@ export function createFormPreview(
             observer?.disconnect();
             if (frame !== undefined) cancelAnimationFrame(frame);
             unsubscribe();
-            window.removeEventListener("resize", reposition);
+            window.removeEventListener("resize", scheduleReposition);
             panel.remove();
             viewer?.destroy();
             viewer = undefined;
@@ -161,6 +176,7 @@ export function createFormPreview(
             if (restoreFocus) request.focusCanvas();
         }
         async function load(automatic: boolean): Promise<void> {
+            if (!automatic) explicit = true;
             if (!automatic) request.onExplicitRequest?.();
             const token = ++generation;
             const wasVisible = visible;
@@ -240,8 +256,8 @@ export function createFormPreview(
                 dismiss();
             }
         });
-        window.addEventListener("resize", reposition);
-        active = { close, reposition };
+        window.addEventListener("resize", scheduleReposition);
+        active = { close, reposition: scheduleReposition };
         if (request.unavailable)
             indicate("The linked form is missing or invalid. Check the form reference.");
         else void load(request.automatic);

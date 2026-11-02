@@ -13,6 +13,12 @@
     font-size: var(--vscode-font-size, 13px);
 }
 .linked-form-preview[hidden] { display: none; }
+.linked-form-preview-compact { padding: 4px; overflow: auto; }
+.linked-form-preview-compact h2,
+.linked-form-preview-compact [data-refresh],
+.linked-form-preview-compact [data-description],
+.linked-form-preview-compact .linked-form-preview-content { display: none; }
+.linked-form-preview-compact header { justify-content: flex-end; }
 .linked-form-preview-indicator { padding: 8px; flex-direction: row-reverse; gap: 8px; align-items: center; }
 .linked-form-preview-indicator [hidden] { display: none; }
 .linked-form-preview-indicator .linked-form-preview-content { display: none; }
