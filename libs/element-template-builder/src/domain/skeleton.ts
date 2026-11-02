@@ -8,7 +8,7 @@ import { applyTemplateEdits, type JsonPath, type TemplateEditResult } from "./te
 
 /**
  * The text of a new, valid template without properties. Its id comes from the
- * file it is in, as IntelliJ's stub's does, so a file gets one id on every host.
+ * file it is in, so two new templates do not collide on a name they share.
  */
 export function newTemplateText(
     engine: Engine,
