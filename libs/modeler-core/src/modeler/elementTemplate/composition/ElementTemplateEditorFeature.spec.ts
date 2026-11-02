@@ -11,14 +11,12 @@ import {
 
 import { MessageRoute } from "../../../editorSession/service/WebviewMessageRouter";
 import { DocumentRenderParticipant } from "../../../editorSession/service/DocumentRenderParticipant";
-import { FakeEditorHandle, InMemorySettings, RecordingNotifier } from "../../../testing";
+import { FakeEditorHandle, HANDLED, InMemorySettings, RecordingNotifier } from "../../../testing";
 import { ElementTemplateEditorFeature } from "./ElementTemplateEditorFeature";
 import { TemplateEditorLanguageParticipant } from "../service/TemplateEditorLanguageParticipant";
 
 const PATH = "/work/.camunda/element-templates/status.json";
 const TEXT = '{"id":"status"}';
-
-const HANDLED: MessageRoute = { kind: "handled" };
 
 /** Every command the page may post; a new one fails to compile until it has a row. */
 const ROUTES: Record<TemplateEditorCommandType, MessageRoute> = {

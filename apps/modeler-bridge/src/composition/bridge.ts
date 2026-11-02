@@ -35,7 +35,8 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { RouteLookup } from "@miragon/bpmn-modeler-core";
+import { WebviewSurface } from "@miragon/bpmn-modeler-shared";
 
 import { Rpc } from "../transport/adapter/out/Rpc";
 import { buildSharedDeps } from "./sharedDeps";
@@ -71,8 +72,8 @@ export interface BridgeOptions {
  * @param log   Diagnostic sink (stderr in production; a spy in tests). Kept off
  *              the RPC `write` so it can never corrupt the stdout frame stream.
  * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
- *   and the routes of the BPMN editor and the diff panes, which the coverage
- *   specs read.
+ *   and the routes of each webview surface the bridge serves, which the
+ *   coverage spec reads.
  */
 export function createBridge(
     write: (line: string) => void,
@@ -80,8 +81,7 @@ export function createBridge(
     options: BridgeOptions = {},
 ): {
     rpc: Rpc;
-    editorRoutes: Pick<WebviewMessageRouter, "routeOf">;
-    diffPaneRoutes: Pick<WebviewMessageRouter, "routeOf">;
+    surfaceRoutes: Partial<Record<WebviewSurface, RouteLookup>>;
 } {
     const deps = buildSharedDeps(write, log);
 
@@ -118,7 +118,10 @@ export function createBridge(
 
     return {
         rpc: deps.rpc,
-        editorRoutes: editor.router,
-        diffPaneRoutes: diff.paneRoutes,
+        surfaceRoutes: {
+            bpmnEditor: editor.router,
+            bpmnDiffPane: diff.paneRoutes,
+            deploymentSidebar: deployment.panelRoutes,
+        },
     };
 }

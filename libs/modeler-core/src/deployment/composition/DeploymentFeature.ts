@@ -14,6 +14,7 @@ import { UserCancelledError } from "../../kernel/domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
+import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
 import { DeploymentStatePort, SecretStorePort } from "../port/deploymentPorts";
 import { HttpClient } from "../../kernel/port/HttpClient";
 import { AuthHeaderResolver } from "../adapter/out/camunda/AuthHeaderResolver";
@@ -64,6 +65,9 @@ export interface DeploymentPanel {
  */
 export class DeploymentFeature {
     readonly statusParticipant: DeploymentStatusParticipant;
+
+    /** The routes of every panel, readable before one attaches. */
+    readonly panelRoutes: RouteLookup;
 
     private readonly targets: DeploymentTargetService;
     private readonly status: DeploymentStatusService;
@@ -166,6 +170,8 @@ export class DeploymentFeature {
                 ports.notifier,
                 post,
             );
+        // Every panel's dispatcher has the same table, so one that posts nowhere answers for all.
+        this.panelRoutes = this.createDispatcher(() => undefined);
         this.statusParticipant = new DeploymentStatusParticipant(this.status);
         this.targets.onDidChange((event) => this.status.targetsChanged(event));
     }

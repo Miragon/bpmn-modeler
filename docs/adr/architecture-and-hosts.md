@@ -136,10 +136,9 @@ host switches narrow on `type` instead of casting, so a misspelt type or a
 payload mismatch fails to compile. Inbound messages stay untrusted JSON: a
 switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
 handler table finds no entry for them. Code that owns a closed set makes a
-missing type a compile error. A switch ends in `exhaustiveMessageGuard` (the
-deployment dispatcher). A handler table has a mapped type that needs an entry
-for every type (the BPMN webview's session messages in
-`apps/bpmn-webview/src/session/messageRouter.ts`). TypeScript does not check
+missing type a compile error: a handler table has a mapped type that needs an
+entry for every type (the BPMN webview's session messages in
+`apps/bpmn-webview/src/session/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
 the keys a table gets through spreads, so a spec checks that no two spread
 handler groups name the same type. The classes remain the constructors and the
 wire format is unchanged: the same `type` strings and fields, which the
@@ -166,9 +165,8 @@ and ignores the settings and panel-state requests, which a read-only pane does
 not use. A `DiffPaneHostExtensions` entry a host leaves out makes its command
 ignored: both hosts supply the pane log; VS Code also supplies the swap, and
 the bridge does not, because IntelliJ's diff viewer swaps the sides before it
-forwards a message. Each host pins these
-routes in a coverage spec, a `Record` over both lists, and the preview host's
-spec posts every command of the editor and diff-pane lists.
+forwards a message. The preview host's spec posts every command of the editor
+and diff-pane lists.
 
 The DMN and Form editors, the element-template editor and the deployment
 sidebar have closed lists of their own (`dmnEditorCommands.ts`,
@@ -188,7 +186,23 @@ libraries included, by base type rather than by name. A construction whose
 `path:line`. A new surface therefore registers in
 `WEBVIEW_SURFACE_COMMAND_TYPES` before its webview can post anything. The scan
 misses a message posted without a construction, such as an object literal or a
-command the page echoes back. A host's router still
+command the page echoes back.
+
+The deployment sidebar's commands reach the core's `DeploymentMessageDispatcher`
+through a `CommandTable` over its list, as the editor's and the diff pane's do;
+its log rows share `routeWebviewLogCommand`. `DeploymentFeature.panelRoutes`
+reads that table before any panel attaches. Each host keeps one coverage spec
+over every surface, typed `HostSurfaceCoverage` (`libs/modeler-core/src/testing/`):
+per surface a `Record` of every listed command to `HANDLED` or
+`ignored(reason)`, or `absent(reason)` for a surface the host does not offer, as
+IntelliJ does for the DMN and Form editors and for the element-template page,
+which it answers itself. A new surface or a new command on a
+list fails to compile until every host's table names it. The spec reads the
+routes the host's composition builds (`createBridge`'s `surfaceRoutes` in
+`apps/modeler-bridge/src/bridge.surfaceCoverage.spec.ts`, the VS Code features
+in `apps/vscode-plugin/src/composition/webviewSurfaceCoverage.spec.ts`) and
+compares them in full, ignore reasons included, and a surface is absent exactly
+when the host has no routes for it. A host's router still
 dispatches an unrouted type as a no-op, but records a type it drops on purpose
 with `ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
 reports a type as handled, ignored with that reason, or unrouted, and a type is
@@ -346,9 +360,8 @@ out every flush, so a save or deploy could miss the last debounced edit. A host
 with its own document plumbing leaves `documentSync` out and answers the three
 on its own channel. Both hosts run the feature from their
 `composition/bpmnEditorFeature.ts`, so their routes and participant order are
-the same, and each pins its routes in a coverage spec, a
-`Record<BpmnEditorCommandType, "handled" | "ignored">`, with a row that the
-document group is handled or ignored as a whole. VS Code supplies every
+the same, and each pins its routes in its surface coverage spec, with a row
+that the document group is handled or ignored as a whole. VS Code supplies every
 extension; the bridge leaves out the panel visibility.
 
 A host supplies adapters and maps its own surface (VS Code commands and views,

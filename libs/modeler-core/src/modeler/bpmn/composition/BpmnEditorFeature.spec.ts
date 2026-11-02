@@ -14,12 +14,9 @@ import {
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import { DocumentFlushService } from "../../../editorSession/service/DocumentFlushService";
-import {
-    MessageRoute,
-    WebviewMessageRouter,
-} from "../../../editorSession/service/WebviewMessageRouter";
+import { MessageRoute } from "../../../editorSession/service/WebviewMessageRouter";
 import { DocumentRenderParticipant } from "../../../editorSession/service/DocumentRenderParticipant";
-import { createTestHost, FakeEditorHandle } from "../../../testing";
+import { createTestHost, FakeEditorHandle, HANDLED, ignored, routesOf } from "../../../testing";
 import {
     BpmnEditorContributions,
     BpmnEditorFeature,
@@ -41,9 +38,6 @@ class RecordedCommand extends Command {
         super(type);
     }
 }
-
-const HANDLED: MessageRoute = { kind: "handled" };
-const ignored = (reason: string): MessageRoute => ({ kind: "ignored", reason });
 
 /** Every BPMN editor command on a host that supplies every capability. */
 const FULL_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
@@ -194,12 +188,6 @@ function createFeature(
     return { host, feature, calls, contributions, lintingPreference, servedExtensions };
 }
 
-function routesOf(router: WebviewMessageRouter): Record<string, MessageRoute> {
-    return Object.fromEntries(
-        BPMN_EDITOR_COMMAND_TYPES.map((type) => [type, router.routeOf(type)]),
-    );
-}
-
 async function settle(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -208,13 +196,13 @@ describe("BpmnEditorFeature", () => {
     it("routes or explicitly ignores every BPMN editor command", () => {
         const { feature } = createFeature("full");
 
-        expect(routesOf(feature.router)).toEqual(FULL_HOST_ROUTES);
+        expect(routesOf(feature.router, BPMN_EDITOR_COMMAND_TYPES)).toEqual(FULL_HOST_ROUTES);
     });
 
     it("ignores the commands of each capability a host leaves out, with its reason", () => {
         const { feature } = createFeature("bare");
 
-        expect(routesOf(feature.router)).toEqual(BARE_HOST_ROUTES);
+        expect(routesOf(feature.router, BPMN_EDITOR_COMMAND_TYPES)).toEqual(BARE_HOST_ROUTES);
     });
 
     it.each<HostCapabilities>(["full", "bare"])(

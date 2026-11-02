@@ -219,11 +219,3 @@ export function isMessageOfType<TType extends ProtocolMessageType>(
 export function asProtocolMessage(message: { type: string }): ProtocolMessage {
     return message as ProtocolMessage;
 }
-
-/**
- * Compile-time exhaustiveness check for a switch over a closed message union.
- * At runtime it is a no-op: a message outside the union is ignored, not an error.
- */
-export function exhaustiveMessageGuard(message: never): void {
-    void message;
-}

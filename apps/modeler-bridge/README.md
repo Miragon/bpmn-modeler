@@ -126,8 +126,9 @@ The bridge follows the role folders of the
   adapters and binds the slice's handler table (`bindHandlers.ts`). The BPMN
   editor module builds the core `BpmnEditorFeature`, which routes every BPMN
   editor webview command and lists the session participants in VS Code's
-  order; `bridge.editor.spec.ts` pins its coverage table. The marketplace cache
-  root arrives via the `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
+  order; `bridge.surfaceCoverage.spec.ts` pins its routes with every other
+  webview surface's. The marketplace cache root arrives via the
+  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
   `stdioBinding.ts` feeds stdin frames to the `Rpc` and tags every stderr line
   with `[core]`.
 - `src/<context>/adapter/in/*Handlers.ts` — the Host→Core handler tables.
