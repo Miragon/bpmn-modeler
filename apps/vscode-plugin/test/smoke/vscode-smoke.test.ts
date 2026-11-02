@@ -387,6 +387,9 @@ describe("the packaged extension in a real VS Code", () => {
         await vscode().keepOpenFromExplorer(UPPER_CASE_TEMPLATE_FILE);
 
         await expectTemplatePreview();
+        const file = join(workspaceDirectory, UPPER_CASE_TEMPLATE_FILE);
+        await writeFile(file, (await readFile(file, "utf8")).replace("Recipient", "Addressee"));
+        await vscode().webview().getByText("Addressee", { exact: true }).waitFor();
         expectNoCspViolations();
     });
 
