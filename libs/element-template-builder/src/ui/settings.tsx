@@ -2,9 +2,10 @@
 import { type ComponentChildren, createContext } from "@bpmn-io/properties-panel/preact";
 import { useContext, useState } from "@bpmn-io/properties-panel/preact/hooks";
 
+import type { Translate } from "../domain/translate";
 import type { EntryDiagnostic } from "./entryIds";
 
-export type Translate = (template: string, replacements?: Record<string, string>) => string;
+export type { Translate };
 
 /** What a setting's title names first, like the "Editor:" in VS Code's "Editor: Font Size". */
 export const SettingScope = createContext<string | undefined>(undefined);
@@ -149,14 +150,33 @@ export function TextSetting(props: TextSettingProps) {
     );
 }
 
+export interface SelectOption {
+    value: string;
+    label: string;
+    /** The heading it comes under, after the options without one. */
+    group?: string;
+    /** There only to say that it exists. */
+    disabled?: boolean;
+}
+
 export interface SelectSettingProps extends SettingProps {
     getValue: () => string;
-    getOptions: () => { value: string; label: string }[];
+    getOptions: () => SelectOption[];
     setValue: (value: string) => void;
+}
+
+function optionOf({ value, label, disabled }: SelectOption) {
+    return (
+        <option value={value} key={value} disabled={disabled}>
+            {label}
+        </option>
+    );
 }
 
 export function SelectSetting(props: SelectSettingProps) {
     const { disabled, getValue, getOptions, setValue } = props;
+    const options = getOptions();
+    const groups = [...new Set(options.flatMap(({ group }) => (group ? [group] : [])))];
     return (
         <SettingRow {...props}>
             <select
@@ -168,10 +188,11 @@ export function SelectSetting(props: SelectSettingProps) {
                     setValue((event.currentTarget as HTMLSelectElement).value)
                 }
             >
-                {getOptions().map(({ value, label }) => (
-                    <option value={value} key={value}>
-                        {label}
-                    </option>
+                {options.filter(({ group }) => !group).map(optionOf)}
+                {groups.map((group) => (
+                    <optgroup label={group} key={group}>
+                        {options.filter((option) => option.group === group).map(optionOf)}
+                    </optgroup>
                 ))}
             </select>
         </SettingRow>

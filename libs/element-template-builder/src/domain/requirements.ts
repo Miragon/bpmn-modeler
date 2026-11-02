@@ -1,6 +1,5 @@
 import type { ElementTypeChoice, Requirement } from "../catalog";
-
-type Json = Record<string, unknown>;
+import { arrayOf, objectOf, type Json } from "./json";
 
 /** Whether the template holds what a binding needs elsewhere. */
 export function meetsRequirement(template: Json, requirement: Requirement): boolean {
@@ -30,14 +29,4 @@ export function elementTypeChoiceFor(
     return (
         current.flatMap((value) => oneOf.filter((choice) => choice.value === value))[0] ?? oneOf[0]
     );
-}
-
-function arrayOf(value: unknown): unknown[] {
-    return Array.isArray(value) ? value : [];
-}
-
-function objectOf(value: unknown): Json {
-    return typeof value === "object" && value !== null && !Array.isArray(value)
-        ? (value as Json)
-        : {};
 }

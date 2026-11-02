@@ -1,6 +1,4 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
-import { useState } from "@bpmn-io/properties-panel/preact/hooks";
-
 import type { Diagnostic } from "../domain/diagnostics";
 import type { Translate } from "./settings";
 
@@ -13,7 +11,11 @@ export interface Problem extends Diagnostic {
 
 export interface ProblemsBarProps {
     problems: readonly Problem[];
+    /** The chip's words. */
+    summary: string;
+    open: boolean;
     disabled: boolean;
+    onToggle: () => void;
     onFix: (problem: Problem) => void;
     onShow: (problem: Problem) => void;
     translate: Translate;
@@ -58,8 +60,16 @@ export function SeverityIcon({ kind }: { kind: IconKind }) {
 }
 
 /** A summary chip at the bottom of the form that opens the list of problems above itself. */
-export function ProblemsBar({ problems, disabled, onFix, onShow, translate }: ProblemsBarProps) {
-    const [open, setOpen] = useState(false);
+export function ProblemsBar({
+    problems,
+    summary,
+    open,
+    disabled,
+    onToggle,
+    onFix,
+    onShow,
+    translate,
+}: ProblemsBarProps) {
     const errors = problems.filter((problem) => problem.severity === "error").length;
     const warnings = problems.filter((problem) => problem.severity === "warning").length;
     const state: IconKind = errors ? "error" : warnings ? "warning" : "success";
@@ -108,15 +118,10 @@ export function ProblemsBar({ problems, disabled, onFix, onShow, translate }: Pr
                 class={`etb-problems__chip etb-problems__chip--${state}`}
                 aria-expanded={expanded}
                 disabled={problems.length === 0}
-                onClick={() => setOpen(!open)}
+                onClick={onToggle}
             >
                 <SeverityIcon kind={state} />
-                <span>
-                    {translate(
-                        errors || warnings ? "{errors} Errors, {warnings} Warnings" : "No Issues",
-                        { errors: String(errors), warnings: String(warnings) },
-                    )}
-                </span>
+                <span>{summary}</span>
             </button>
         </div>
     );

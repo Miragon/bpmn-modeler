@@ -291,6 +291,14 @@
     padding: 16px 0;
 }
 
+.etb-builder .etb-other-matches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin: 0;
+    padding: 16px 0;
+}
+
 .etb-builder .etb-pane {
     flex: 1;
     min-width: 0;
@@ -551,7 +559,6 @@
     border-radius: 3px;
     background: var(--etb-badge-bg);
     color: var(--etb-badge-fg);
-    font-family: var(--etb-mono);
     font-size: 12px;
 }
 
@@ -685,7 +692,7 @@
 
 .etb-builder .etb-problems__list {
     width: min(720px, 100%);
-    max-height: min(40vh, 320px);
+    max-height: min(30vh, 240px);
     margin: 0;
     padding: 2px 0;
     overflow-y: auto;

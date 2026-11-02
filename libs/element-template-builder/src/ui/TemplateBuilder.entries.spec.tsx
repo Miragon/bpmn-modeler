@@ -445,7 +445,7 @@ describe("the problems", () => {
             ],
         });
 
-        expect(chip()?.textContent).toBe("1 Errors, 2 Warnings");
+        expect(chip()?.textContent).toBe("1 Error, 2 Warnings");
         expect(chip()?.classList).toContain("etb-problems__chip--error");
         expect(chip()?.getAttribute("aria-expanded")).toBe("false");
         expect(rows()).toEqual([]);
@@ -513,7 +513,7 @@ describe("the index", () => {
         [input({ label: undefined, id: "in-id" }), "in-id"],
         [
             { type: "Hidden", value: "3", binding: { type: "zeebe:taskHeader", key: "retries" } },
-            "Hidden · retries",
+            "Task header (retries)",
         ],
         [{ binding: { type: "zeebe:taskDefinition:type" } }, "zeebe:taskDefinition:type"],
         [{}, "Unlabeled property"],

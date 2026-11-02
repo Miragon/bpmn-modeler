@@ -52,8 +52,11 @@ describe("schemaDiagnostics", () => {
                 path: ["properties", 0],
                 severity: "warning",
                 message:
-                    "'optional' with 'zeebe:input' binding is deprecated; an empty input mapping (resolved to 'null') should be used for Camunda 8.8+",
-                verbatim: true,
+                    "Optional on an input mapping is deprecated; from Camunda 8.8 an empty input mapping is null.",
+                fix: {
+                    label: "Remove Optional",
+                    edits: [{ kind: "remove", path: ["properties", 0, "optional"] }],
+                },
             },
         ]);
     });
@@ -230,12 +233,21 @@ describe("ruleDiagnostics", () => {
                 fix: {
                     label: "Set the element type to {type}",
                     replacements: { type: "bpmn:UserTask" },
-                    requirement: expect.objectContaining({ kind: "elementType" }),
+                    edits: expect.arrayContaining([
+                        {
+                            kind: "set",
+                            path: ["elementType"],
+                            value: { value: "bpmn:UserTask" },
+                        },
+                    ]),
                 },
             }),
             expect.objectContaining({
                 message: "This binding needs a zeebe:userTask property.",
-                fix: { label: "Add it", requirement: expect.objectContaining({ kind: "binding" }) },
+                fix: {
+                    label: "Add it",
+                    edits: [expect.objectContaining({ kind: "insert", path: ["properties", 1] })],
+                },
             }),
         ]);
     });

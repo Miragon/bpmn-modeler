@@ -43,7 +43,10 @@ export const BINDING_KEY_ORDER: readonly string[] = [
     "name",
     "property",
     "key",
+    "target",
     "source",
+    "sourceExpression",
+    "variables",
     "scriptFormat",
     "expression",
 ];

@@ -6,6 +6,7 @@ import {
     type ConditionOperator,
     type ConditionRow,
 } from "../domain/conditions";
+import { elementTypeName } from "../domain/elementTypes";
 import { Icon, SettingRow, useDraft, type SettingProps, type Translate } from "./settings";
 
 export interface AppliesToEntryProps extends SettingProps {
@@ -24,8 +25,8 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
         <SettingRow {...props}>
             <ul class="etb-chips">
                 {values.map((value, index) => (
-                    <li class="etb-chip" key={value}>
-                        <span>{value}</span>
+                    <li class="etb-chip" key={value} title={value}>
+                        <span>{translate(elementTypeName(value))}</span>
                         <button
                             type="button"
                             class="etb-chip__remove"
@@ -54,7 +55,7 @@ export function AppliesToEntry(props: AppliesToEntryProps) {
                 <option value="">{translate("Add an element type…")}</option>
                 {addable.map((option) => (
                     <option value={option} key={option}>
-                        {option}
+                        {translate(elementTypeName(option))} ({option})
                     </option>
                 ))}
             </select>

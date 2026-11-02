@@ -49,6 +49,8 @@ export interface BindingSpec {
     /** Whether the property may be `optional` (C8 only). */
     optional?: boolean;
     requires?: readonly Requirement[];
+    /** The element types the binding works on, where no requirement already says so. */
+    elements?: readonly string[];
     /** A valid value for a String, Text or Hidden property of this binding. */
     sample?: string | boolean;
 }
@@ -63,6 +65,8 @@ export interface EngineCatalog {
     engine: Engine;
     propertyTypes: readonly PropertyType[];
     bindings: readonly BindingSpec[];
+    /** Binding types the schema knows and the builder only shows, to be edited in the JSON. */
+    jsonOnlyBindings: readonly string[];
     /** Element types offered for `appliesTo`, most common first. */
     elementTypes: readonly string[];
     /** Whether properties may carry C8's `id`, `condition`, `tooltip`, `feel` and `optional`. */

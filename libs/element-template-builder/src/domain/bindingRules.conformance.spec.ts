@@ -35,10 +35,11 @@ function bindingCases(catalog: EngineCatalog): BindingCase[] {
         const values = selector?.options ?? [undefined];
         return values.map((value) => {
             const binding = initialBinding(spec);
-            if (selector && value !== undefined) {
+            // An empty option stands for leaving the field out.
+            if (selector && value) {
                 binding[selector.key] = value;
             }
-            const name = value === undefined ? spec.type : `${spec.type} (${value})`;
+            const name = value ? `${spec.type} (${value})` : spec.type;
             return { catalog, spec, binding, name };
         });
     });

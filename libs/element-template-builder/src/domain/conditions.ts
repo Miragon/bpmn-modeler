@@ -1,3 +1,4 @@
+import { isObject, type Json } from "./json";
 import { readNumberText } from "./numberText";
 import type { JsonPath } from "./templateText";
 
@@ -20,8 +21,6 @@ export const CONDITION_OPERATORS: readonly ConditionOperator[] = [
 
 /** How a row's value is entered: a yes or no, a comma-separated list, or plain text. */
 export type ConditionValueKind = "flag" | "list" | "text";
-
-type Json = Record<string, unknown>;
 
 export function conditionValueKind(
     operator: ConditionOperator,
@@ -112,8 +111,4 @@ function typed(value: string, type: string | undefined): unknown {
     }
     const number = type === "Number" ? readNumberText(value) : undefined;
     return number?.kind === "number" ? number.value : value;
-}
-
-function isObject(value: unknown): value is Json {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,10 +1,10 @@
 import type { BindingSpec, EngineCatalog, PropertyType, Requirement } from "../catalog";
+import { bindingOptions } from "./bindingOptions";
 import { allowedTypes, bindingSpecOf, initialBinding, sampleValue } from "./bindingRules";
+import { isObject, objectOf, valueAt, type Json } from "./json";
 import { propertyCapabilities, typeCapabilities } from "./propertyCapabilities";
 import { elementTypeChoiceFor } from "./requirements";
 import type { JsonPath, TemplateEdit } from "./templateText";
-
-type Json = Record<string, unknown>;
 
 /**
  * Sets the value at `path`. An empty text or `undefined` removes the key; when
@@ -17,9 +17,9 @@ export function setField(path: JsonPath, value: unknown, template?: Json): Templ
     return [{ kind: "set", path, value }];
 }
 
-/** Appends a property with the engine's default binding. */
+/** Appends a property with the first binding that works on the template's element. */
 export function addProperty(template: Json, catalog: EngineCatalog): TemplateEdit[] {
-    const spec = catalog.bindings[0];
+    const [spec] = bindingOptions(catalog, template).fitting;
     const binding = initialBinding(spec);
     const property = fitted({ label: "New property", binding }, spec, binding);
     return appendTo(template, ["properties"], property);
@@ -340,23 +340,12 @@ function propertyAt(template: Json, index: number): Json {
 }
 
 function objectAt(owner: Json, ...path: JsonPath): Json {
-    const value = valueAt(owner, path);
-    return isObject(value) ? value : {};
+    return objectOf(valueAt(owner, path));
 }
 
 function arrayAt(owner: Json, key: string): unknown[] {
     const value = owner[key];
     return Array.isArray(value) ? value : [];
-}
-
-function valueAt(owner: unknown, path: JsonPath): unknown {
-    return path.reduce<unknown>(
-        (current, segment) =>
-            current !== null && typeof current === "object"
-                ? (current as Record<string | number, unknown>)[segment]
-                : undefined,
-        owner,
-    );
 }
 
 function unused(candidate: string, taken: readonly unknown[]): string {
@@ -365,8 +354,4 @@ function unused(candidate: string, taken: readonly unknown[]): string {
         id = `${candidate}-${suffix}`;
     }
     return id;
-}
-
-function isObject(value: unknown): value is Json {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
 }

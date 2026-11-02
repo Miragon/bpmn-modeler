@@ -24,11 +24,26 @@ const USER_TASK_BINDING: Requirement = {
     message: "This binding needs a zeebe:userTask property.",
 };
 
-/** Camunda 8 bindings the builder edits, the default for a new property first; `catalog.coverage.spec.ts` lists the rest. */
+/** Camunda 8 bindings the builder edits, the default for a new property first. */
 export const C8_CATALOG: EngineCatalog = {
     engine: "c8",
     propertyTypes: ALL,
     propertyExtras: true,
+    jsonOnlyBindings: [
+        "zeebe:taskDefinition:type",
+        "zeebe:linkedResource",
+        "zeebe:adHoc",
+        "zeebe:agentDefinition",
+        "zeebe:jobPriorityDefinition",
+        "zeebe:priorityDefinition",
+        "zeebe:taskSchedule",
+        "zeebe:executionListener",
+        "zeebe:taskListener",
+        "bpmn:Signal#property",
+        "bpmn:TimerEventDefinition#property",
+        "bpmn:ConditionalEventDefinition#property",
+        "bpmn:ConditionalEventDefinition#zeebe:conditionalFilter#property",
+    ],
     elementTypes: [
         "bpmn:ServiceTask",
         "bpmn:UserTask",

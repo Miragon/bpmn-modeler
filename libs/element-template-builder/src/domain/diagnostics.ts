@@ -11,12 +11,15 @@ import {
     type EngineCatalog,
     type Requirement,
 } from "../catalog";
+import { bindingFits } from "./bindingOptions";
 import { bindingSpecOf } from "./bindingRules";
+import { deprecationAdvice } from "./deprecations";
+import { elementTypeName } from "./elementTypes";
+import { arrayOf, objectOf, type Json } from "./json";
+import { fixRequirement } from "./transforms";
 import { conditionComparisons } from "./conditions";
 import { elementTypeChoiceFor, meetsRequirement } from "./requirements";
-import type { JsonPath } from "./templateText";
-
-type Json = Record<string, unknown>;
+import type { JsonPath, TemplateEdit } from "./templateText";
 
 /** Something to tell about the value at `path`, relative to the template. */
 export interface Diagnostic {
@@ -27,8 +30,8 @@ export interface Diagnostic {
     replacements?: Record<string, string>;
     /** The validator's own English text, which no translation knows. */
     verbatim?: true;
-    /** A requirement the builder can meet in one step. */
-    fix?: { label: string; replacements?: Record<string, string>; requirement: Requirement };
+    /** What fixes it in one step. */
+    fix?: { label: string; replacements?: Record<string, string>; edits: TemplateEdit[] };
 }
 
 const VALIDATORS: Readonly<Record<Engine, typeof validate>> = { c7: validate, c8: validateZeebe };
@@ -65,7 +68,20 @@ export function schemaDiagnostics(engine: Engine, template: unknown): Diagnostic
         const key = `${JSON.stringify(path)} ${error.message}`;
         if (!seen.has(key)) {
             seen.add(key);
-            diagnostics.push({ path, severity, message: error.message, verbatim: true });
+            const advice =
+                error.keyword === "deprecated"
+                    ? deprecationAdvice(objectOf(template), path)
+                    : undefined;
+            diagnostics.push(
+                advice
+                    ? {
+                          path,
+                          severity,
+                          message: advice.message,
+                          ...(advice.fix && { fix: advice.fix }),
+                      }
+                    : { path, severity, message: error.message, verbatim: true },
+            );
         }
     }
     return diagnostics;
@@ -165,9 +181,18 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
         for (const requirement of spec?.requires ?? []) {
             if (!meetsRequirement(template, requirement)) {
                 diagnostics.push(
-                    requirementDiagnostic(template, at("binding", "type"), requirement),
+                    requirementDiagnostic(template, catalog, at("binding", "type"), requirement),
                 );
             }
+        }
+        // A requirement already says which element it needs, and offers to set it.
+        if (spec?.elements && !bindingFits(spec, template)) {
+            diagnostics.push({
+                path: at("binding", "type"),
+                severity: "warning",
+                message: "This binding only works on: {types}.",
+                replacements: { types: spec.elements.map(elementTypeName).join(", ") },
+            });
         }
         return diagnostics;
     });
@@ -176,15 +201,17 @@ export function ruleDiagnostics(template: Json, catalog: EngineCatalog): Diagnos
 
 function requirementDiagnostic(
     template: Json,
+    catalog: EngineCatalog,
     path: JsonPath,
     requirement: Requirement,
 ): Diagnostic {
+    const edits = fixRequirement(template, catalog, requirement);
     if (requirement.kind === "binding") {
         return {
             path,
             severity: "error",
             message: requirement.message,
-            fix: { label: "Add it", requirement },
+            fix: { label: "Add it", edits },
         };
     }
     const choices = requirement.oneOf.map(describeElementType);
@@ -205,7 +232,7 @@ function requirementDiagnostic(
             replacements: {
                 type: describeElementType(elementTypeChoiceFor(template, requirement.oneOf)),
             },
-            requirement,
+            edits,
         },
     };
 }
@@ -250,14 +277,4 @@ function missingKeyOf(error: ValidationError): string | undefined {
     const keys = new Set(raw.map((nested: ValidationError) => missingKeyOf(nested)));
     const [key] = keys;
     return keys.size === 1 ? key : undefined;
-}
-
-function arrayOf(value: unknown): unknown[] {
-    return Array.isArray(value) ? value : [];
-}
-
-function objectOf(value: unknown): Json {
-    return typeof value === "object" && value !== null && !Array.isArray(value)
-        ? (value as Json)
-        : {};
 }

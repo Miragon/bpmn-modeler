@@ -69,18 +69,18 @@ describe("createTemplateBuilder", () => {
     });
 
     it("lists problems and fixes one in a click", () => {
-        const requirement = {
+        const edits = fixRequirement(C8_TEMPLATE, catalogFor("c8"), {
             kind: "binding" as const,
             binding: { type: "zeebe:userTask" },
             message: "This binding needs a zeebe:userTask property.",
-        };
+        });
         builder.show(C8_TEMPLATE, {
             diagnostics: [
                 {
                     path: ["properties", 1, "binding", "type"],
                     severity: "error",
                     message: "This binding needs a zeebe:userTask property.",
-                    fix: { label: "Add it", requirement },
+                    fix: { label: "Add it", edits },
                 },
             ],
         });
@@ -91,9 +91,7 @@ describe("createTemplateBuilder", () => {
         );
         builder.click(builder.buttonLabelled("Add it"));
 
-        expect(builder.onEdit).toHaveBeenLastCalledWith(
-            fixRequirement(C8_TEMPLATE, catalogFor("c8"), requirement),
-        );
+        expect(builder.onEdit).toHaveBeenLastCalledWith(edits);
     });
 
     it("translates its own messages and shows the validator's as they are", () => {
