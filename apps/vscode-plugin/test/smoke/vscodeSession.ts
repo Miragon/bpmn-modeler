@@ -17,6 +17,8 @@ const runFile = promisify(execFile);
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
 export const COMMAND_KEY = process.platform === "darwin" ? "Meta" : "Control";
+const PALETTE_ATTEMPT_MS = 5_000;
+const PALETTE_ATTEMPTS = 6;
 
 const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
@@ -246,10 +248,7 @@ export class VsCodeSession {
 
     /** Webviews forward keybindings, so F1 reaches the palette without moving the focus first. */
     async runCommand(title: string): Promise<void> {
-        await this.page.keyboard.press("F1");
-        await this.page.waitForFunction(() =>
-            document.activeElement?.closest(".quick-input-widget"),
-        );
+        await this.openPalette();
         await this.page.keyboard.type(title);
         await this.page
             .locator(".quick-input-widget .quick-input-list-entry")
@@ -257,6 +256,31 @@ export class VsCodeSession {
             .first()
             .waitFor();
         await this.page.keyboard.press("Enter");
+    }
+
+    /** A webview that was just opened can still take the focus, which closes the palette again. */
+    private async openPalette(): Promise<void> {
+        for (let attempt = 1; ; attempt++) {
+            await this.page.keyboard.press("F1");
+            const opened = await this.page
+                .waitForFunction(
+                    () => document.activeElement?.closest(".quick-input-widget"),
+                    undefined,
+                    {
+                        timeout: PALETTE_ATTEMPT_MS,
+                    },
+                )
+                .then(
+                    () => true,
+                    () => false,
+                );
+            if (opened) {
+                return;
+            }
+            if (attempt === PALETTE_ATTEMPTS) {
+                throw new Error(`F1 opened no palette in ${PALETTE_ATTEMPTS} attempts`);
+            }
+        }
     }
 
     clipboardText(): Promise<string> {
