@@ -5,13 +5,12 @@ import {
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 
-import { RpcTokenPrompt, RpcTokenStore } from "../adapters";
-import { METHODS } from "../protocol/descriptor";
-import {
-    MarketplaceAddParams,
-    MarketplaceRemoveParams,
-    MarketplaceUpdateParams,
-} from "../protocol/types";
+import { RpcTokenPrompt } from "../templateMarketplace/adapter/out/RpcTokenPrompt";
+import { RpcTokenStore } from "../templateMarketplace/adapter/out/RpcTokenStore";
+import { METHODS } from "../protocol/domain/descriptor";
+import { MarketplaceAddParams } from "../protocol/domain/types";
+import { marketplaceHandlers } from "../templateMarketplace/adapter/in/marketplaceHandlers";
+import { bindHandlers } from "./bindHandlers";
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
@@ -64,13 +63,7 @@ export function register(
     return { marketplaceSvc };
 }
 
-/**
- * Registers the Host→Core marketplace notifications. Each carries the host's
- * fresh settings snapshot, applied first: the flows read the marketplace list
- * and the config folder from `SettingsPort`, even before any editor opened.
- *
- * RPC (Host → Core): marketplace/add, marketplace/update, marketplace/remove.
- */
+/** Registers the Host→Core marketplace notifications, once the templates service exists. */
 export function registerHandlers(
     deps: BridgeSharedDeps,
     handles: {
@@ -79,31 +72,20 @@ export function registerHandlers(
         homeDir: string;
     },
 ): void {
-    const commands = new MarketplaceCommands(
-        handles.marketplaceSvc,
-        handles.templatesSvc,
-        deps.notifier,
-        handles.homeDir,
+    bindHandlers(
+        deps.rpc,
+        marketplaceHandlers({
+            commands: new MarketplaceCommands(
+                handles.marketplaceSvc,
+                handles.templatesSvc,
+                deps.notifier,
+                handles.homeDir,
+            ),
+            settingsMirror: deps.settings,
+            notifier: deps.notifier,
+            persistRegistration: (location, scope) => persistRegistration(deps, location, scope),
+        }),
     );
-
-    deps.rpc.on(METHODS.marketplaceAdd, (params: MarketplaceAddParams) => {
-        deps.settings.apply(params.settings);
-        deps.notifier.logInfo("Add Marketplace command invoked");
-        void commands.add(params.location, (location) =>
-            persistRegistration(deps, location, params.scope),
-        );
-    });
-    deps.rpc.on(METHODS.marketplaceUpdate, (params: MarketplaceUpdateParams) => {
-        deps.settings.apply(params.settings);
-        void commands.update();
-    });
-    // The host already unregistered the entries; the applied snapshot is the
-    // post-removal list the prune reads.
-    deps.rpc.on(METHODS.marketplaceRemove, (params: MarketplaceRemoveParams) => {
-        deps.settings.apply(params.settings);
-        deps.notifier.logInfo("Remove Marketplace command invoked");
-        void commands.remove(params.removedCount);
-    });
 }
 
 /**

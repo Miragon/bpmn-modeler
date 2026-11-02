@@ -223,7 +223,7 @@ layout below a role folder is free.
 | Folder | Holds |
 | --- | --- |
 | `domain/` | rules as pure functions and values |
-| `port/` | interfaces the services call (driven ports) |
+| `port/` | interfaces the services and inbound adapters call, which outbound adapters implement (driven ports) |
 | `service/` | orchestration, including the core's editor-session participants |
 | `adapter/in/` | calls into the workspace: commands, webview and RPC message handlers, UI |
 | `adapter/out/` | implementations of a port: VS Code, Node, HTTP clients |
@@ -265,6 +265,19 @@ follow the same roles: the UI and host queries are `adapter/in/`, the host
 channel and the modeler-library wrappers `adapter/out/`, the reducers
 `domain/` and the bootstrap `composition/`. Each webview maps its files in its
 own migration (#2129).
+
+The bridge serves the host's RPC through handler tables in
+`<context>/adapter/in/` (`editorSessionHandlers`, `deploymentHandlers`, …),
+plain maps from method to handler that `composition/bindHandlers` binds to the
+`Rpc` peer, so no handler imports the transport. The out adapters that mirror
+host state (`BridgeSettings`, `NodeWorkspace`'s roots, `RpcDeploymentState`,
+`RpcEditorHandle`, `BridgeScriptEditor`'s tabs) implement a port the handlers
+take (`HostSettingsMirror`, `WorkspaceRoots`, `DeploymentStateMirror`,
+`HostEditorHandleFactory`, `ScriptTabEvents`), so a handler keeps its order
+against the core, such as applying the settings snapshot before a session's
+participants run. `DocumentMirror` is plain state both directions use, so it
+sits in `editorSession/domain/`, and the wire protocol, which both directions
+speak, in `protocol/domain/`.
 
 [`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts)
 applies each kind's rules (`RULES_BY_KIND`) to every workspace that declares
@@ -765,9 +778,9 @@ The bridge embeds no HTTP/WebSocket server and opens no TCP port. The JVM's
 separate loopback asset server serves static resources, not per-document state.
 
 Keep protocol methods, parameter types and directions in the
-[protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts).
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts).
 Update its committed snapshot when the private wire contract changes; the
-[contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts) guard
+[contract tests](../../apps/modeler-bridge/src/protocol/domain/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
 reads that snapshot and registers the production `BridgeRouters`: each core→host
@@ -838,7 +851,7 @@ error when its handler throws, also when the handler leaves the reader thread
 for the EDT or a background thread (`RpcChannel.replyFrom`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
 How long the bridge's `Rpc.request` waits is data on each request in the
-[protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts)
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts)
 (`replyWait`). Host work, such as a save, a clipboard read or a secret, fails
 after two minutes, so a reply the host never sends cannot hold the caller's
 per-editor queue; the caller's own error handling runs. The limit is generous

@@ -73,7 +73,7 @@ kotlin {
     }
 }
 
-val protocolDescriptor = layout.projectDirectory.file("../modeler-bridge/src/protocol/protocol.json")
+val protocolDescriptor = layout.projectDirectory.file("../modeler-bridge/src/protocol/domain/protocol.json")
 val settingsNormalizationCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json")
 val vscodeManifest = layout.projectDirectory.file("../vscode-plugin/package.json")

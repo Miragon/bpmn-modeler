@@ -450,7 +450,7 @@ states and timestamps.
 - Core target validation and webview regression tests cover stale replies,
   readiness and context changes; [deployment tests](../../libs/modeler-core/src/deployment)
   cover identity, freshness and reconciliation, and the
-  [bridge contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts)
+  [bridge contract tests](../../apps/modeler-bridge/src/protocol/domain/protocol.spec.ts)
   pin the protocol descriptor, and the IntelliJ
   [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
   checks that the Kotlin host handles each of its core→host methods.

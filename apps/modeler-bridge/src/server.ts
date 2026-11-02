@@ -11,8 +11,8 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { createBridge } from "./bridge";
-import { coreLogText, createStdinEndHandler, createStdinHandler } from "./stdioBinding";
+import { createBridge } from "./composition/bridge";
+import { coreLogText, createStdinEndHandler, createStdinHandler } from "./composition/stdioBinding";
 
 // The host (IntelliJ) sets this to a `PathManager`-derived location segmented by
 // the project's location hash (per-project, shared only among windows on that

@@ -39,10 +39,10 @@ import {
     StatusSlotFrame,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
-import { NodeWorkspace } from "./nodeAdapters";
-import { StatusBarUpdateParams } from "./protocol/types";
-import { Rpc } from "./rpc";
+import { createBridge } from "./composition/bridge";
+import { NodeWorkspace } from "./kernel/adapter/out/NodeWorkspace";
+import { StatusBarUpdateParams } from "./protocol/domain/types";
+import { Rpc } from "./transport/adapter/out/Rpc";
 
 // A process with a task but no start/end event, so bpmnlint:recommended reports
 // (start-event-required, end-event-required, …) — proving the host actually linted.
