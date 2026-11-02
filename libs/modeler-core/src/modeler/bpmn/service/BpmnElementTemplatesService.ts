@@ -2,7 +2,7 @@ import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";

@@ -1,4 +1,4 @@
-import { PickerPort } from "../kernel/domain/hostPorts";
+import { PickerPort } from "../kernel/port/hostPorts";
 import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "../kernel/domain/prompts";
 
 /** Scripted answers to the prompts, keyed by prompt id. */

@@ -4,7 +4,7 @@ import {
     DeploymentState,
     DeploymentStatePatch,
 } from "../deployment/domain/deploymentState";
-import { DeploymentStatePort } from "../deployment/domain/ports";
+import { DeploymentStatePort } from "../deployment/port/deploymentPorts";
 
 interface SaveFailure {
     readonly matches: (patch: DeploymentStatePatch) => boolean;

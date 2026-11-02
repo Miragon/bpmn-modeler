@@ -1,4 +1,4 @@
-import { StatusBarPort } from "../domain/hostPorts";
+import { StatusBarPort } from "../port/hostPorts";
 import { StatusSlot, StatusView } from "../domain/statusView";
 
 export function updateStatusSlot(

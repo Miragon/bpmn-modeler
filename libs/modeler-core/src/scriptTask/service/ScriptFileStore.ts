@@ -3,7 +3,7 @@ import { posix } from "path";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { notifiedErrorLogText } from "../../kernel/domain/errorLogText";
 import { FileNotFound } from "../../kernel/domain/errors";
-import { LoggerPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { LoggerPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import {

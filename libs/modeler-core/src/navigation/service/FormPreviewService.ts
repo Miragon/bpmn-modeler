@@ -1,5 +1,5 @@
 import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
-import type { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import type { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { classifyLocateResult, locatedFileChoices } from "../../kernel/domain/locateResult";
 import type { ReferencedModelLocator } from "./ReferencedModelLocator";
 

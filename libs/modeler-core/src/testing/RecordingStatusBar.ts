@@ -1,4 +1,4 @@
-import { StatusBarPort } from "../kernel/domain/hostPorts";
+import { StatusBarPort } from "../kernel/port/hostPorts";
 import { StatusSlot, StatusView } from "../kernel/domain/statusView";
 
 /**

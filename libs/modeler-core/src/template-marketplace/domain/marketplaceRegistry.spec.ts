@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MarketplaceSettingsEntry } from "../../kernel/domain/hostPorts";
+import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { CachePrune, MarketplaceEntryFailure, MarketplaceRegistry } from "./marketplaceRegistry";
 
 const GITHUB_ONE = "https://github.com/acme/one";

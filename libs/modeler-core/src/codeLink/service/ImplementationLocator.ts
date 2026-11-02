@@ -1,6 +1,6 @@
 import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
-import { NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { LocateResult } from "../../kernel/domain/locateResult";
 import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
 import { findFilesExcluding, searchFilesContent } from "../../kernel/service/workspaceFileSearch";

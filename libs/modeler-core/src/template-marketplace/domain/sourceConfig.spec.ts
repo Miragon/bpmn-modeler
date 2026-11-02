@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MarketplaceLocation, TemplateSource } from "./marketplace";
-import { RepositorySourceConfig } from "./ports";
+import { RepositorySourceConfig } from "./repositorySourceConfig";
 import {
     declaredPrivateHosts,
     describeSourceConfig,

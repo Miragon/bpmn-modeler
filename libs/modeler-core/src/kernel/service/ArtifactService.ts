@@ -4,7 +4,7 @@ import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { configFolderPath } from "../domain/configArtifacts";
 import { changesConfigLookup, ConfigLookup } from "../domain/configLookup";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
-import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
+import { LoggerPort, SettingsPort, WorkspacePort } from "../port/hostPorts";
 import { EVERY_PATH_GLOB } from "../domain/watchedFiles";
 import { joinWorkspacePath, parentWorkspacePath } from "../domain/workspacePath";
 

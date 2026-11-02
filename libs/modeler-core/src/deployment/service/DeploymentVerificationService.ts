@@ -7,10 +7,10 @@ import {
     EngineInspectionFailedError,
     EnvReferenceError,
 } from "../domain/errors";
-import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { reconcile } from "../domain/deploymentVerification";
-import { EngineInspectionPort } from "../domain/ports";
+import { EngineInspectionPort } from "../port/deploymentPorts";
 import { sensitiveDestinations } from "../domain/deployment";
 import { recordingLookup } from "../domain/envRef";
 import { CredentialApprovalService } from "./CredentialApprovalService";

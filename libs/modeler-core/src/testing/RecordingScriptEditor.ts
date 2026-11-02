@@ -1,4 +1,5 @@
-import { InlineScript, ScriptEditorPort, ScriptSourceChange } from "../scriptTask/domain/ports";
+import { InlineScript, ScriptSourceChange } from "../scriptTask/domain/inlineScript";
+import { ScriptEditorPort } from "../scriptTask/port/ScriptEditorPort";
 import { ScriptMaterialization } from "../scriptTask/domain/scriptBatchSummary";
 
 export interface ScriptEditorCall<TScript> {

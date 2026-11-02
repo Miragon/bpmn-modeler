@@ -4,7 +4,7 @@ import {
     GitLabSourceConfig,
     hostForConfig,
     RepositorySourceConfig,
-} from "./ports";
+} from "./repositorySourceConfig";
 
 type RemoteLocation = Exclude<MarketplaceLocation, { readonly kind: "local" }>;
 

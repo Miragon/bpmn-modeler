@@ -17,10 +17,10 @@ import { contentFingerprint, DeploymentTargetIdentity } from "../domain/deployme
 import { DeploymentTarget, parseDeploymentTargetsFile } from "../domain/deploymentTarget";
 import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
-import { EngineInspectionPort } from "../domain/ports";
-import { FetchHttpClient } from "../../kernel/infrastructure/FetchHttpClient";
-import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
-import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
+import { EngineInspectionPort } from "../port/deploymentPorts";
+import { FetchHttpClient } from "../../kernel/adapter/out/FetchHttpClient";
+import { AuthHeaderResolver } from "../adapter/out/camunda/AuthHeaderResolver";
+import { Camunda7RestClient } from "../adapter/out/camunda/Camunda7RestClient";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentVerificationService } from "./DeploymentVerificationService";
 import { EnvValueResolver } from "./EnvValueResolver";

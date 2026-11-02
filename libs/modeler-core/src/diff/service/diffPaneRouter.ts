@@ -2,8 +2,9 @@ import { DiffPaneCommandType, DiffPaneHandshakeCommandType } from "@miragon/bpmn
 
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
 import { WebviewMessageRouter } from "../../editorSession/service/WebviewMessageRouter";
-import { LoggerPort } from "../../kernel/domain/hostPorts";
-import { DiffPaneHandle, basenameOfUriString } from "../domain/DiffSession";
+import { LoggerPort } from "../../kernel/port/hostPorts";
+import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { basenameOfUriString } from "../domain/basenameOfUriString";
 import { BpmnDiffService } from "./BpmnDiffService";
 
 /**

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { type Command, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
-import type { LoggerPort } from "../../kernel/domain/hostPorts";
+import type { LoggerPort } from "../../kernel/port/hostPorts";
 import { FakeEditorHandle } from "../../testing";
 import type { DocumentChangeEvent, SettingChange } from "../domain/EditorSession";
 import { EditorSessionStore } from "./EditorSessionStore";

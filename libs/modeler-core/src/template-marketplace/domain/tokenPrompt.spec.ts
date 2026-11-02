@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AccessDenial } from "./accessDenial";
-import { RepositoryAccessError } from "./ports";
+import { RepositoryAccessError } from "./repositoryAccessError";
 import { enteredToken, TokenPromptReason, tokenPromptFor } from "./tokenPrompt";
 
 describe("tokenPromptFor", () => {

@@ -7,7 +7,7 @@ import {
 import { LayoutErrorCode } from "@miragon/bpmn-modeler-types";
 
 import { confirmation } from "../../../kernel/domain/affectedItems";
-import { NotifierPort, PickerPort } from "../../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort } from "../../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /** What each refusal means, in words a user can act on. */

@@ -31,7 +31,7 @@ import {
 import { TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
 import { UserCancelledError } from "../../kernel/domain/errors";
-import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
 import { DeploymentService } from "./DeploymentService";

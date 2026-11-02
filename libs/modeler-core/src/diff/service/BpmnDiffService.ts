@@ -9,8 +9,10 @@ import {
 import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
-import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
-import { NotifierPort, SettingsPort } from "../../kernel/domain/hostPorts";
+import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { DiffSession } from "./DiffSession";
+import { basenameOfUriString } from "../domain/basenameOfUriString";
+import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 
 /**

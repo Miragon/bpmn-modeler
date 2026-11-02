@@ -21,7 +21,7 @@ export default defineConfig({
                 ...overallThresholds,
                 "**/domain/**": { statements: 94, branches: 92, functions: 96, lines: 94 },
                 "**/service/**": { statements: 91, branches: 84, functions: 90, lines: 91 },
-                "**/infrastructure/**": { statements: 91, branches: 85, functions: 89, lines: 92 },
+                "**/adapter/**": { statements: 97, branches: 91, functions: 97, lines: 97 },
             },
         },
     },

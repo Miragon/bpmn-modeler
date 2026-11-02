@@ -14,7 +14,7 @@ import {
     NotifierPort,
     SettingsPort,
     StatusBarPort,
-} from "../../../kernel/domain/hostPorts";
+} from "../../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
@@ -30,7 +30,7 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "../domain/LintSession";
-import { DiagnosticsPort, LintRunnerPort } from "../domain/ports";
+import { DiagnosticsPort, LintRunnerPort } from "../port/bpmnPorts";
 
 const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
     supersededVersion: "[bpmnlint] dropping in-page results for a superseded config version",

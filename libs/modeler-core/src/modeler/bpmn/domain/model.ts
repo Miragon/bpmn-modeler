@@ -1,4 +1,4 @@
-import { ColorThemeSetting } from "../../../kernel/domain/hostPorts";
+import { ColorThemeSetting } from "../../../kernel/domain/modelerSettings";
 import { DEFAULT_MODELER_SETTINGS } from "../../../kernel/domain/modelerSettings";
 
 export class BpmnModelerSetting {

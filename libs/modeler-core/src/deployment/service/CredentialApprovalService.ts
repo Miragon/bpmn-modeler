@@ -1,9 +1,9 @@
 import { CredentialDestinationNotApprovedError } from "../domain/errors";
-import { PickerPort } from "../../kernel/domain/hostPorts";
+import { PickerPort } from "../../kernel/port/hostPorts";
 import { CredentialDestinations } from "../domain/credentialDestinations";
 import { DeploymentDestination } from "../domain/deploymentDestination";
 import { credentialApprovalConfirmation } from "../domain/deploymentPrompts";
-import { SecretStorePort } from "../domain/ports";
+import { SecretStorePort } from "../port/deploymentPorts";
 
 /**
  * Keeps a named target's credentials and `.env` values from following its

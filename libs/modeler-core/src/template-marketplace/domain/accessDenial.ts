@@ -1,4 +1,4 @@
-import { RepositoryAccessError } from "./ports";
+import { RepositoryAccessError } from "./repositoryAccessError";
 
 /**
  * How an auth-shaped refusal reads to the user. The wording turns on whether

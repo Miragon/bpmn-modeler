@@ -1,5 +1,5 @@
 import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
-import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { deployableFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";

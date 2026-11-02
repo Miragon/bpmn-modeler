@@ -11,7 +11,7 @@ import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
 import { createTestHost, FakeEditorHandle, TestHost } from "../../../testing";
 import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
-import { BpmnlintParticipant } from "../session/BpmnlintParticipant";
+import { BpmnlintParticipant } from "./BpmnlintParticipant";
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
 const PATH = "/work/diagram.bpmn";

@@ -39,14 +39,15 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
   and the pure rules browser code shares with the core, such as script-surface
   addressing, the XML comment and CDATA scan and process-variable extraction;
   DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
-- Add host-independent logic to the core's feature-oriented domain/service
-  layers. Reach host facilities through ports and editor handles. Cross-cutting
-  host ports live in the core's `kernel/domain/hostPorts.ts`; a port one
-  feature owns lives in that feature's `domain/ports.ts`, and the prompts it
-  asks are built in its `domain/`, the marketplace's masked token prompt
-  (`tokenPrompt.ts`) included. A host only renders a prompt and returns the
-  answer; the core reads it, and takes a blank token for no token. Wire
-  concrete adapters in the applications using constructor composition.
+- Add host-independent logic to the core's feature-oriented `domain/` and
+  `service/` folders. Reach host facilities through ports and editor handles.
+  Cross-cutting host ports live in the core's `kernel/port/hostPorts.ts`; a
+  port one feature owns lives in that feature's `port/`, which holds only
+  interfaces, and the prompts it asks are built in its `domain/`, the
+  marketplace's masked token prompt (`tokenPrompt.ts`) included. A host only
+  renders a prompt and returns the answer; the core reads it, and takes a
+  blank token for no token. Wire concrete adapters in the applications using
+  constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.
@@ -56,8 +57,8 @@ Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 `eslint.config.cjs`. All specs read sources through the shared engine
 `@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
 protect import direction and theme isolation. Core checks reject VS Code and
-transitive host-module imports (the core is still not browser-safe), and
-enforce layer direction and feature isolation through `kernel/` (which imports
+transitive host-module imports (the core is still not browser-safe), its
+domain package allowlist, and context isolation through `kernel/` (which imports
 nothing outside itself) and `editorSession/` (which imports only `kernel/`)
 against known exceptions that may only shrink. VS Code checks cover host
 isolation, port adapters, and selected feature-barrel boundaries. The

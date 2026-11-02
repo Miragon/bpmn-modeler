@@ -1,6 +1,6 @@
 import { DmnModelerSettingQuery } from "@miragon/bpmn-modeler-shared";
 
-import { NotifierPort, SettingsPort } from "../../../kernel/domain/hostPorts";
+import { NotifierPort, SettingsPort } from "../../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 
 /**

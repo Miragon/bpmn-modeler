@@ -6,7 +6,7 @@ import {
     PickerPort,
     SettingsPort,
     StatusBarPort,
-} from "../../kernel/domain/hostPorts";
+} from "../../kernel/port/hostPorts";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
@@ -22,7 +22,7 @@ import { DeploymentTargetsEvent } from "../domain/deploymentTargetsEvent";
 import { deploymentStatusView, timestampFormatter } from "../domain/deploymentStatusView";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import { DeploymentStatusAction, deploymentStatusActionPrompt } from "../domain/deploymentPrompts";
-import { DeploymentStatePort } from "../domain/ports";
+import { DeploymentStatePort } from "../port/deploymentPorts";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvValueResolver } from "./EnvValueResolver";
 

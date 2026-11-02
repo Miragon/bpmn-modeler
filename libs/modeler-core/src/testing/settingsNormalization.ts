@@ -1,4 +1,4 @@
-import { SettingsPort } from "../kernel/domain/hostPorts";
+import { SettingsPort } from "../kernel/port/hostPorts";
 import { ModelerSettingsSnapshot, RawModelerSettings } from "../kernel/domain/modelerSettings";
 
 /** A row of `kernel/domain/settingsNormalization.cases.json`. */
