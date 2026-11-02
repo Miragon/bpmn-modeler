@@ -262,7 +262,9 @@ opens it on its own the first time a template file is shown, once per opened
 file so a preview the user closed stays closed, unless
 `elementTemplatePreview.openAutomatically` is off. `TemplatePreviewAutoOpen` in
 the core's element template domain decides this from the facts the controller
-gathers. Because that needs the
+gathers. The setting stays in the VS Code adapter and out of the core's
+`SettingKey`, because IntelliJ's split editor always shows the preview. Because
+opening on its own needs the
 extension running before any diagram is open, it also activates in workspaces
 that contain an `element-templates` folder. `elementTemplateFolder` and
 `isElementTemplateFile` in `modeler-types` are the one rule for where templates

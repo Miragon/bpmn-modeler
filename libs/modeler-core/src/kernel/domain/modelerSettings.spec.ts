@@ -7,10 +7,8 @@ import { settingsNormalizationCases, TYPESCRIPT_ONLY_SETTINGS_CASES } from "../.
 import {
     changedSettingKeys,
     DEFAULT_MODELER_SETTINGS,
-    DEFAULT_OPEN_TEMPLATE_PREVIEW,
     ModelerSettingsSnapshot,
     normalizeSettings,
-    parseOpenTemplatePreview,
     SettingKey,
     settingKeyOf,
 } from "./modelerSettings";
@@ -68,21 +66,6 @@ describe("normalizeSettings", () => {
         const raw: Record<string, unknown> = { propertiesPanelVisible: false };
 
         expect(normalizeSettings(raw)).toEqual(DEFAULT_MODELER_SETTINGS);
-    });
-});
-
-describe("parseOpenTemplatePreview", () => {
-    it.each([
-        { case: "an enabled flag", raw: true, open: true },
-        { case: "a disabled flag", raw: false, open: false },
-        { case: "no flag as the default", raw: undefined, open: DEFAULT_OPEN_TEMPLATE_PREVIEW },
-        { case: "a text as the default", raw: "false", open: DEFAULT_OPEN_TEMPLATE_PREVIEW },
-    ])("reads $case", ({ raw, open }) => {
-        expect(parseOpenTemplatePreview(raw)).toBe(open);
-    });
-
-    it("opens the preview unless told otherwise", () => {
-        expect(DEFAULT_OPEN_TEMPLATE_PREVIEW).toBe(true);
     });
 });
 

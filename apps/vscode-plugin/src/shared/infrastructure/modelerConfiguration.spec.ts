@@ -26,6 +26,8 @@ import { DEFAULT_MODELER_SETTINGS, SettingChange } from "@miragon/bpmn-modeler-c
 import {
     lintingEnabled,
     onDidChangeModelerSetting,
+    OPEN_TEMPLATE_PREVIEW_DEFAULT,
+    openTemplatePreviewAutomatically,
     setLanguage,
     setLintingEnabled,
 } from "./modelerConfiguration";
@@ -35,6 +37,24 @@ beforeEach(() => {
     getMock.mockReset();
     updateMock.mockReset();
     updateMock.mockResolvedValue(undefined);
+});
+
+describe("openTemplatePreviewAutomatically", () => {
+    it.each([
+        { case: "an enabled flag", raw: true, open: true },
+        { case: "a disabled flag", raw: false, open: false },
+        { case: "no flag as the default", raw: undefined, open: OPEN_TEMPLATE_PREVIEW_DEFAULT },
+        { case: "a text as the default", raw: "false", open: OPEN_TEMPLATE_PREVIEW_DEFAULT },
+    ])("reads $case", ({ raw, open }) => {
+        getMock.mockReturnValue(raw);
+
+        expect(openTemplatePreviewAutomatically()).toBe(open);
+        expect(getMock).toHaveBeenCalledWith("elementTemplatePreview.openAutomatically");
+    });
+
+    it("opens the preview unless told otherwise", () => {
+        expect(OPEN_TEMPLATE_PREVIEW_DEFAULT).toBe(true);
+    });
 });
 
 describe("modelerConfiguration", () => {

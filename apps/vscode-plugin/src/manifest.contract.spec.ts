@@ -55,7 +55,6 @@ import {
 import {
     BPMN_VIEW_TYPE,
     DEFAULT_MODELER_SETTINGS,
-    DEFAULT_OPEN_TEMPLATE_PREVIEW,
     DMN_VIEW_TYPE,
     ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
     FORM_VIEW_TYPE,
@@ -65,7 +64,11 @@ import {
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import { ELEMENT_TEMPLATE_FOLDER_NAME } from "@miragon/bpmn-modeler-types";
-import { MODELER_SETTINGS_SECTION } from "./shared/infrastructure/modelerConfiguration";
+import {
+    MODELER_SETTINGS_SECTION,
+    OPEN_TEMPLATE_PREVIEW_DEFAULT,
+    OPEN_TEMPLATE_PREVIEW_SETTING,
+} from "./shared/infrastructure/modelerConfiguration";
 
 const SRC_DIR = __dirname;
 
@@ -281,10 +284,11 @@ describe("package.json ↔ code contract", () => {
             "scripting.spin": true,
             "marketplaces": true,
             "linting.enabled": true,
-            "elementTemplatePreview.openAutomatically": true,
         };
 
-        expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));
+        expect(new Set([...Object.keys(settingKeys), OPEN_TEMPLATE_PREVIEW_SETTING])).toEqual(
+            new Set(declaredKeys),
+        );
     });
 
     it("gives the core and its in-memory settings the defaults the manifest declares", () => {
@@ -302,7 +306,7 @@ describe("package.json ↔ code contract", () => {
         // Only VS Code reads it, so it stays outside the core's snapshot.
         const { elementTemplatePreviewOpenAutomatically, ...snapshotDefaults } = manifestDefaults;
 
-        expect(elementTemplatePreviewOpenAutomatically).toBe(DEFAULT_OPEN_TEMPLATE_PREVIEW);
+        expect(elementTemplatePreviewOpenAutomatically).toBe(OPEN_TEMPLATE_PREVIEW_DEFAULT);
         expect(DEFAULT_MODELER_SETTINGS).toEqual(snapshotDefaults);
         expect(new InMemorySettings().values).toEqual(snapshotDefaults);
     });

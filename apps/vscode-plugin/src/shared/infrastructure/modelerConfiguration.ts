@@ -1,14 +1,13 @@
 import { ConfigurationChangeEvent, ConfigurationTarget, Disposable, workspace } from "vscode";
 
-import {
-    parseOpenTemplatePreview,
-    parseSetting,
-    SettingChange,
-    SettingKey,
-} from "@miragon/bpmn-modeler-core";
+import { parseSetting, SettingChange, SettingKey } from "@miragon/bpmn-modeler-core";
 
 /** The section VS Code stores every modeler setting below. */
 export const MODELER_SETTINGS_SECTION = "miragon.bpmnModeler";
+
+/** Only VS Code opens the template preview on its own, so this stays out of the core's settings. */
+export const OPEN_TEMPLATE_PREVIEW_SETTING = "elementTemplatePreview.openAutomatically";
+export const OPEN_TEMPLATE_PREVIEW_DEFAULT = true;
 
 /** VS Code's configuration of the modeler, asked only by the keys the manifest declares. */
 export interface ModelerConfiguration {
@@ -30,9 +29,10 @@ export function lintingEnabled(): boolean {
 }
 
 export function openTemplatePreviewAutomatically(): boolean {
-    return parseOpenTemplatePreview(
-        modelerConfiguration().get("elementTemplatePreview.openAutomatically"),
-    );
+    const raw = workspace
+        .getConfiguration(MODELER_SETTINGS_SECTION)
+        .get(OPEN_TEMPLATE_PREVIEW_SETTING);
+    return typeof raw === "boolean" ? raw : OPEN_TEMPLATE_PREVIEW_DEFAULT;
 }
 
 export function setLintingEnabled(enabled: boolean): Thenable<void> {
