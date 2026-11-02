@@ -24,7 +24,8 @@ import {
     templateFilePrompt,
     templateFileTaken,
 } from "@miragon/bpmn-modeler-core";
-import { ELEMENT_TEMPLATES_FOLDER, isElementTemplateFile } from "@miragon/bpmn-modeler-types";
+import { elementTemplateFolder, isElementTemplateFile } from "@miragon/bpmn-modeler-types";
+import { promptNewFileTarget } from "../../../shared/infrastructure/newFileTarget";
 
 export const OPEN_ELEMENT_TEMPLATE_EDITOR_CMD = "bpmn-modeler.openElementTemplateEditor";
 export const TOGGLE_ELEMENT_TEMPLATE_JSON_CMD = "bpmn-modeler.toggleElementTemplateJson";
@@ -37,8 +38,8 @@ const RECHECK_DELAY_MS = 300;
  * The commands around the element template editor: creating a template,
  * opening a JSON file in the editor, and showing or hiding its JSON beside it,
  * as the BPMN editor does with XML. Also marks JSON editors that hold a
- * template so their editor title offers the editor; files in an
- * `element-templates` folder open in it by default.
+ * template so their editor title offers the editor; files in a template folder
+ * open in it by default.
  */
 export class ElementTemplateEditorController {
     private pendingRecheck: ReturnType<typeof setTimeout> | undefined;
@@ -113,7 +114,7 @@ export class ElementTemplateEditorController {
             return undefined;
         }
 
-        const folderLabel = `${this.settings.getConfigFolder()}/${ELEMENT_TEMPLATES_FOLDER}`;
+        const folderLabel = elementTemplateFolder(this.settings.getConfigFolder());
         const folder = Uri.joinPath(root.uri, folderLabel);
         const name = await window.showInputBox({
             title: NEW_TEMPLATE_TEXTS.title,
@@ -209,7 +210,11 @@ export class ElementTemplateEditorController {
     private updateContextKey(editor: TextEditor | undefined): void {
         const isTemplate =
             editor !== undefined &&
-            isElementTemplateFile(editor.document.fileName, editor.document.getText());
+            isElementTemplateFile(
+                editor.document.fileName,
+                editor.document.getText(),
+                this.settings.getConfigFolder(),
+            );
         void commands.executeCommand("setContext", IS_ELEMENT_TEMPLATE_KEY, isTemplate);
         void commands.executeCommand(
             "setContext",

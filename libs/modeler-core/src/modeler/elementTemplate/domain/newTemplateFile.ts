@@ -21,7 +21,6 @@ export function templateFileName(input: string): TemplateFileName {
         };
     }
     const base = /\s/.test(name) ? name.toLowerCase().split(/\s+/).join("-") : name;
-    // The template loader only reads files ending in a lower-case `.json`.
     return { kind: "valid", fileName: `${base}.json` };
 }
 

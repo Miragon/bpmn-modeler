@@ -56,7 +56,7 @@ export class TemplateDocumentSession {
     }
 
     async receive(query: ElementTemplateFileQuery): Promise<void> {
-        const revision = query.documentRevision;
+        const revision = query.documentRevision ?? 0;
         try {
             switch (this.document.receive(revision)) {
                 case "initial":

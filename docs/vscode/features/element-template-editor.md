@@ -16,7 +16,7 @@ The template is saved like any other file. Diagrams that load templates from tha
 
 ## Open a template
 
-- A `.json` file in an `element-templates` folder opens in the template editor.
+- A `.json` file in a folder named `element-templates` opens in the template editor. The chooser only loads templates from the one below the config folder.
 - A template elsewhere, a `.json` file whose `$schema` names an element template schema, opens as JSON. Click **Open in Element Template Editor** in its editor title, or use **Open With…**.
 - `$schema` decides the engine: `…/element-templates-json-schema/…` for Camunda 7, `…/zeebe-element-templates-json-schema/…` for Camunda 8. A template without `$schema` asks for the engine and writes the matching `$schema`.
 - A file with several templates gets a picker in the toolbar to choose which one to edit, which also says where you are, such as **3 of 15**.
@@ -30,7 +30,7 @@ The editor is laid out like VS Code's settings editor:
 - The **list on the left** shows the groups or properties; click one to edit its settings.
 - Each **setting** is titled like *Hostname: **Label***, with a short description below. A bar marks the values the JSON sets.
 
-The **preview** on the right shows the properties panel the template produces. Drag its divider to resize it, or click the arrow on the divider to hide and show it. A narrow editor, for example one next to the JSON, starts with the preview hidden.
+The **preview** on the right shows the properties panel the template produces, with the template's groups open so you see its fields right away; in the modeler they start collapsed, unless a Camunda 8 group sets `openByDefault`. Drag its divider to resize it, or click the arrow on the divider to hide and show it. The preview closes when the editor gets narrow, for example with the JSON next to it, and comes back when it widens.
 
 ## Edit the template
 
@@ -67,7 +67,7 @@ While the template has errors, the preview keeps showing the last template witho
 
 ## The JSON
 
-The JSON stays the source of truth. Click **Toggle JSON Editor** in the editor title to open it next to the template editor, with completion from its `$schema`; click it again in the template editor to close it.
+The JSON stays the source of truth. Click **Toggle JSON Editor** in the editor title to open it next to the template editor, with completion from its `$schema`; click it again in the template editor to close it. The extension marks the two published schema URLs as trusted, so VS Code downloads them without further setup. A version-pinned URL (`…-json-schema@0.9.0/…`) or another CDN still warns that the location is untrusted; the quick fix **Configure Trusted Domains…** covers those.
 
 - Every change in the form edits only the part of the file it concerns. Your formatting and keys the editor does not know stay as they are, and **Undo** takes back one change at a time.
 - Changes in the JSON show up in the form right away.

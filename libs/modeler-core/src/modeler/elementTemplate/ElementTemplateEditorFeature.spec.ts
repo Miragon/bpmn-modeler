@@ -65,7 +65,7 @@ describe("ElementTemplateEditorFeature", () => {
         await feature.router.dispatch(new GetElementTemplateFileCommand(), editor.id);
 
         expect(editor.postedOfType("ElementTemplateFileQuery")).toEqual([
-            new ElementTemplateFileQuery(TEXT, 0, "de", "status.json"),
+            new ElementTemplateFileQuery(TEXT, "de", 0, "status.json"),
         ]);
     });
 

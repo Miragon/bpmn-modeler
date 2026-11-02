@@ -33,27 +33,37 @@ const syncs = () => posted.filter((message) => message instanceof SyncDocumentCo
 
 describe("TemplateDocumentSession", () => {
     it("shows the host's file at once and later host edits shortly after", async () => {
-        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', 1));
+        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', undefined, 1));
         expect(shown).toEqual([{ text: '{"id":"a"}', origin: "host" }]);
         expect(session.text).toBe('{"id":"a"}');
 
-        const update = session.receive(new ElementTemplateFileQuery('{"id":"b"}', 2));
+        const update = session.receive(new ElementTemplateFileQuery('{"id":"b"}', undefined, 2));
         await vi.advanceTimersByTimeAsync(100);
         await update;
         expect(shown.at(-1)).toEqual({ text: '{"id":"b"}', origin: "host" });
     });
 
-    it("ignores a file older than the one it shows", async () => {
-        await session.receive(new ElementTemplateFileQuery('{"id":"new"}', 3));
+    it("takes every file of a host that sends no revision, like IntelliJ's preview", async () => {
+        await session.receive(new ElementTemplateFileQuery("one"));
 
-        await session.receive(new ElementTemplateFileQuery('{"id":"old"}', 2));
+        const update = session.receive(new ElementTemplateFileQuery("two"));
+        await vi.advanceTimersByTimeAsync(200);
+        await update;
+
+        expect(session.text).toBe("two");
+    });
+
+    it("ignores a file older than the one it shows", async () => {
+        await session.receive(new ElementTemplateFileQuery('{"id":"new"}', undefined, 3));
+
+        await session.receive(new ElementTemplateFileQuery('{"id":"old"}', undefined, 2));
         await vi.advanceTimersByTimeAsync(200);
 
         expect(session.text).toBe('{"id":"new"}');
     });
 
     it("shows an edit at once and sends it to the host once editing pauses", async () => {
-        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', 4));
+        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', undefined, 4));
 
         session.edit('{"id":"ab"}');
         session.edit('{"id":"abc"}');
@@ -65,10 +75,12 @@ describe("TemplateDocumentSession", () => {
     });
 
     it("drops a pending edit when the host's file changes first", async () => {
-        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', 1));
+        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', undefined, 1));
 
         session.edit('{"id":"mine"}');
-        const update = session.receive(new ElementTemplateFileQuery('{"id":"theirs"}', 2));
+        const update = session.receive(
+            new ElementTemplateFileQuery('{"id":"theirs"}', undefined, 2),
+        );
         await vi.advanceTimersByTimeAsync(400);
         await update;
 
@@ -77,7 +89,7 @@ describe("TemplateDocumentSession", () => {
     });
 
     it("hands a pending edit to the host when it saves", async () => {
-        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', 1));
+        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', undefined, 1));
         session.edit('{"id":"saved"}');
 
         await session.respondToFlush(new FlushDocumentQuery(7, false));

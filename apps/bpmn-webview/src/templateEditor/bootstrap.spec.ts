@@ -534,7 +534,7 @@ describe("bootstrapTemplateEditor", () => {
         );
         await vi.advanceTimersByTimeAsync(0);
 
-        expect(posted).toContainEqual(new DocumentFlushedCommand(3, undefined, "clean"));
+        expect(posted).toContainEqual(new DocumentFlushedCommand(3, undefined, "clean", 1));
     });
 
     it("reports a failing preview to the host log", async () => {
