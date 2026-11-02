@@ -17,7 +17,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      * active-editor pointer so the right session is targeted with several open.
      */
     fun changeEngineVersion(editorId: String) {
-        deps.channel.notify(METHODS_CHANGE_ENGINE_VERSION, linkedMapOf("editorId" to editorId))
+        deps.channel.notify(HostToCoreMethod.MODELER_CHANGE_ENGINE_VERSION, linkedMapOf("editorId" to editorId))
         deps.ensureStartedAsync()
     }
 
@@ -26,7 +26,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      * flipped choice back over `settings/setLintingEnabled`, which [SettingsRouter] stores.
      */
     fun toggleLinting() {
-        deps.channel.notify(METHODS_LINTING_TOGGLE, linkedMapOf<String, Any>())
+        deps.channel.notify(HostToCoreMethod.LINTING_TOGGLE, linkedMapOf<String, Any>())
         deps.ensureStartedAsync()
     }
 
@@ -37,7 +37,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun migrateAllDiagrams() {
         val workspaceRoot = deps.project.basePath ?: return
-        deps.channel.notify(METHODS_MIGRATE_ALL, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.channel.notify(HostToCoreMethod.MIGRATION_MIGRATE_ALL, linkedMapOf("workspaceRoot" to workspaceRoot))
         deps.ensureStartedAsync()
     }
 
@@ -49,7 +49,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      * has focus.
      */
     fun formatDiagram() {
-        deps.channel.notify(METHODS_LAYOUT_FORMAT, linkedMapOf<String, Any>())
+        deps.channel.notify(HostToCoreMethod.LAYOUT_FORMAT, linkedMapOf<String, Any>())
         deps.ensureStartedAsync()
     }
 
@@ -58,7 +58,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      * confirmation over `confirm/show` before anything is removed.
      */
     fun cleanupDiagram() {
-        deps.channel.notify(METHODS_LAYOUT_CLEANUP, linkedMapOf<String, Any>())
+        deps.channel.notify(HostToCoreMethod.LAYOUT_CLEANUP, linkedMapOf<String, Any>())
         deps.ensureStartedAsync()
     }
 
@@ -70,7 +70,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun switchDeploymentTarget() {
         val workspaceRoot = deps.project.basePath ?: return
-        deps.channel.notify(METHODS_SWITCH_TARGET, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_SWITCH_TARGET, linkedMapOf("workspaceRoot" to workspaceRoot))
         deps.ensureStartedAsync()
     }
 
@@ -80,7 +80,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun deployFiles() {
         val workspaceRoot = deps.project.basePath ?: return
-        deps.channel.notify(METHODS_DEPLOY_FILES, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_DEPLOY_FILES, linkedMapOf("workspaceRoot" to workspaceRoot))
         deps.ensureStartedAsync()
     }
 
@@ -90,7 +90,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun deployDiagram() {
         val workspaceRoot = deps.project.basePath ?: return
-        deps.channel.notify(METHODS_DEPLOY_ACTIVE, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE, linkedMapOf("workspaceRoot" to workspaceRoot))
         deps.ensureStartedAsync()
     }
 
@@ -100,7 +100,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun verifyDeployment() {
         val workspaceRoot = deps.project.basePath ?: return
-        deps.channel.notify(METHODS_VERIFY, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_VERIFY, linkedMapOf("workspaceRoot" to workspaceRoot))
         deps.ensureStartedAsync()
     }
 
@@ -110,22 +110,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
      */
     fun deploymentStatusMenu() {
         val workspaceRoot = deps.project.basePath ?: return
-        deps.channel.notify(METHODS_STATUS_BAR_MENU, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU, linkedMapOf("workspaceRoot" to workspaceRoot))
         deps.ensureStartedAsync()
-    }
-
-    private companion object {
-        // Host→core METHODS of apps/modeler-bridge/src/protocol/domain/descriptor.ts;
-        // ModelerCommandsRouterTest pins each name.
-        const val METHODS_CHANGE_ENGINE_VERSION = "modeler/changeEngineVersion"
-        const val METHODS_LINTING_TOGGLE = "linting/toggle"
-        const val METHODS_MIGRATE_ALL = "migration/migrateAll"
-        const val METHODS_LAYOUT_FORMAT = "layout/format"
-        const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"
-        const val METHODS_SWITCH_TARGET = "deployment/switchTarget"
-        const val METHODS_DEPLOY_FILES = "deployment/deployFiles"
-        const val METHODS_DEPLOY_ACTIVE = "deployment/deployActive"
-        const val METHODS_VERIFY = "deployment/verify"
-        const val METHODS_STATUS_BAR_MENU = "deployment/statusBarMenu"
     }
 }

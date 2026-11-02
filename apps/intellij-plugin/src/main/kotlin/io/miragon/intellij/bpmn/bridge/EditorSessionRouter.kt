@@ -192,7 +192,7 @@ internal class EditorSessionRouter(
         entry.forgetUnmirroredContent()
         val content = readDocumentText(session.file)
         deps.channel.notify(
-            "session/register",
+            HostToCoreMethod.SESSION_REGISTER,
             linkedMapOf(
                 "editorId" to session.editorId,
                 "sessionId" to entry.sessionId,
@@ -220,7 +220,7 @@ internal class EditorSessionRouter(
      */
     fun pushSettings() {
         if (!deps.isProcessAlive()) return
-        deps.channel.notify("settings/didChange", linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)))
+        deps.channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)))
     }
 
     /**
@@ -276,12 +276,11 @@ internal class EditorSessionRouter(
         val coalesceKey = if (isSyncCommand) "sync:$editorId" else null
         // Splice the raw message in as the `message` value rather than parse →
         // re-serialise. editorId goes through gson so it is correctly JSON-escaped.
-        val frame =
-             "{\"method\":\"webview/message\",\"params\":{\"editorId\":" +
-                deps.gson.toJson(editorId) +
+        val params =
+            "{\"editorId\":" + deps.gson.toJson(editorId) +
                 ",\"sessionId\":" + entry.sessionId +
-                ",\"message\":" + rawMessage + "}}"
-        deps.channel.notifyRaw(frame, coalesceKey)
+                ",\"message\":" + rawMessage + "}"
+        deps.channel.notifyRaw(HostToCoreMethod.WEBVIEW_MESSAGE, params, coalesceKey)
     }
 
     /**
@@ -346,7 +345,7 @@ internal class EditorSessionRouter(
         val editorId = entry.session.editorId
         hostUpdatesAwaitingWebview[editorId] = PendingHostUpdate(content, documentRevision)
         deps.channel.notify(
-            "document/didChange",
+            HostToCoreMethod.DOCUMENT_DID_CHANGE,
             linkedMapOf(
                 "editorId" to editorId,
                 "sessionId" to entry.sessionId,
@@ -369,7 +368,7 @@ internal class EditorSessionRouter(
     fun setActiveEditor(editorId: String) {
         val entry = sessions[editorId] ?: return
         deps.channel.notify(
-            "session/setActive",
+            HostToCoreMethod.SESSION_SET_ACTIVE,
             linkedMapOf("editorId" to editorId, "sessionId" to entry.sessionId),
         )
     }
@@ -399,7 +398,7 @@ internal class EditorSessionRouter(
 
     private fun sendDispose(entry: SessionEntry) {
         deps.channel.notify(
-            "session/dispose",
+            HostToCoreMethod.SESSION_DISPOSE,
             linkedMapOf("editorId" to entry.session.editorId, "sessionId" to entry.sessionId),
         )
     }

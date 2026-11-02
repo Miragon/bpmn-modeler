@@ -99,12 +99,12 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
 
     /** Host→Core: a keystroke in a tracked script tab. */
     internal fun notifyScriptChanged(scriptId: String, content: String) {
-        deps.channel.notify("script/didChange", linkedMapOf("scriptId" to scriptId, "content" to content))
+        deps.channel.notify(HostToCoreMethod.SCRIPT_DID_CHANGE, linkedMapOf("scriptId" to scriptId, "content" to content))
     }
 
     /** Host→Core: a tracked script tab closed, by the user or as the ack of `script/close`. */
     internal fun notifyScriptClosed(scriptId: String) {
-        deps.channel.notify("script/didClose", linkedMapOf("scriptId" to scriptId))
+        deps.channel.notify(HostToCoreMethod.SCRIPT_DID_CLOSE, linkedMapOf("scriptId" to scriptId))
     }
 
     /**
@@ -114,7 +114,7 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
      * core side matches regardless of the host OS's separator.
      */
     internal fun notifyDidOpenExternal(filePath: String) {
-        deps.channel.notify("script/didOpenExternal", linkedMapOf("filePath" to filePath))
+        deps.channel.notify(HostToCoreMethod.SCRIPT_DID_OPEN_EXTERNAL, linkedMapOf("filePath" to filePath))
     }
 
     /**
@@ -126,7 +126,7 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
      * it spawns.
      */
     fun openAllScriptTasks() {
-        deps.channel.notify("script/openAll", linkedMapOf<String, Any>())
+        deps.channel.notify(HostToCoreMethod.SCRIPT_OPEN_ALL, linkedMapOf<String, Any>())
         deps.ensureStartedAsync()
     }
 }

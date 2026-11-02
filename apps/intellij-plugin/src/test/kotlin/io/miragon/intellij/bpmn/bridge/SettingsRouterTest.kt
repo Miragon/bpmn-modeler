@@ -45,7 +45,7 @@ class SettingsRouterTest {
         val project = projectFixture.get()
         val wired = wireChannel().also { this.wired = it }
         SettingsRouter(bridgeDeps(project, wired.channel, wired.handlers)) {
-            wired.channel.notify("settings/didChange", linkedMapOf("settings" to emptyMap<String, Any>()))
+            wired.channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, linkedMapOf("settings" to emptyMap<String, Any>()))
         }.register()
 
         wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), wired.requestId(REQUEST_ID))

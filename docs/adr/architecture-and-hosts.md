@@ -817,8 +817,13 @@ descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
 reads that snapshot and registers the production `BridgeRouters`: each core→host
 method needs exactly one Kotlin handler, and a handler for a method the core no
-longer sends fails it. It also compares parameter and result keys. Each
-host→core sender runs once, and its frame must carry the keys the snapshot lists.
+longer sends fails it. The host names a host→core method only through the
+`HostToCoreMethod` enum, which `RpcChannel.notify` and `notifyRaw` take in
+place of a string; the test holds its wire names equal to the snapshot's
+host→core methods in both directions, so the host cannot send a method the core
+does not handle. It also compares parameter and result keys. Each host→core
+sender runs once, and its frame must carry the keys the snapshot lists; a
+snapshot method that no sender drives fails it.
 Each core→host handler reads its params before it acts, through `RpcParams`, so
 the test lets every handler read without acting and fails on a key the snapshot
 does not list. The registry seals the params once that read returns, so a handler
