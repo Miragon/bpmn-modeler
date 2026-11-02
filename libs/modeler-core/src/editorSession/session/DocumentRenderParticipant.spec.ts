@@ -36,6 +36,18 @@ describe("DocumentRenderParticipant", () => {
         );
     });
 
+    it("re-renders a document saved with an upper-case extension", async () => {
+        const { editor } = await openDmnSession("/work/DECISION.DMN");
+
+        editor.changeDocument(EDITED_DMN);
+
+        await vi.waitFor(() =>
+            expect(editor.postedOfType<DmnFileQuery>("DmnFileQuery")).toEqual([
+                new DmnFileQuery(EDITED_DMN, 1),
+            ]),
+        );
+    });
+
     it("ignores a change to a document of another type", async () => {
         const { editor } = await openDmnSession("/work/decision.bpmn");
 

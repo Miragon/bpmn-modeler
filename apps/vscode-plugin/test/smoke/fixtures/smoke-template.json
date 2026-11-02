@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "Smoke Template",
+  "id": "smoke-template",
+  "version": 1,
+  "appliesTo": ["bpmn:Task"],
+  "elementType": { "value": "bpmn:ServiceTask" },
+  "groups": [{ "id": "input", "label": "Input" }],
+  "properties": [
+    {
+      "type": "Hidden",
+      "value": "smoke-template",
+      "binding": { "type": "zeebe:taskDefinition", "property": "type" }
+    },
+    {
+      "label": "Recipient",
+      "group": "input",
+      "type": "String",
+      "binding": { "type": "zeebe:input", "name": "recipient" }
+    }
+  ]
+}

@@ -82,6 +82,12 @@ class WebviewServer : Disposable {
         return "${origin}/deployment.html"
     }
 
+    /** The element template preview: a second entry of the bpmn bundle, rendered into `#app`. */
+    fun templatePreviewUrl(): String {
+        ensureStarted()
+        return "${origin}/templatePreview.html"
+    }
+
     private fun handle(exchange: HttpExchange) {
         try {
             val path = exchange.requestURI.path
@@ -89,6 +95,8 @@ class WebviewServer : Disposable {
                 WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
                 WebviewRoute.DeploymentShell ->
                     respondHtml(exchange, deploymentHtml(), WebviewContentSecurityPolicy.DEPLOYMENT_SHELL)
+                WebviewRoute.TemplatePreviewShell ->
+                    respondHtml(exchange, templatePreviewHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
                 is WebviewRoute.ClasspathAsset -> {
                     val bytes = javaClass.getResourceAsStream(route.resourcePath)?.use { it.readBytes() }
                     if (bytes == null) {
@@ -178,6 +186,29 @@ class WebviewServer : Disposable {
             "<body class=\"${signal.bodyClass()}\">",
             "  <div id=\"app\"></div>",
             "  <script type=\"module\" src=\"/deployment/index.js\"></script>",
+            "</body>",
+            "</html>",
+        ).joinToString("\n")
+    }
+
+    /** The preview shell, themed like [indexHtml]; the page builds its own DOM. */
+    private fun templatePreviewHtml(): String {
+        val signal = service<IdeThemeSignal>()
+        val themeKind = if (signal.isDark()) "dark" else "light"
+        return listOf(
+            "<!DOCTYPE html>",
+            "<html lang=\"en\" data-bpmn-theme=\"$themeKind\">",
+            "<head>",
+            "  <meta charset=\"UTF-8\"/>",
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+            "  <link href=\"/index.css\" rel=\"stylesheet\"/>",
+            "  <title>Element Template Preview</title>",
+            "  <style id=\"ide-theme-vars\">${signal.themeVarsCss()}</style>",
+            "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
+            "</head>",
+            "<body class=\"${signal.bodyClass()}\">",
+            "  <div id=\"app\"></div>",
+            "  <script type=\"module\" src=\"/templatePreview.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")

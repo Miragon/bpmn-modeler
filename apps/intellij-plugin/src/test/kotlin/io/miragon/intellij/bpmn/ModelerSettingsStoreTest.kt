@@ -217,7 +217,7 @@ class ModelerSettingsStoreTest {
                 )
             }
 
-        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names. */
+        /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names; only VS Code opens the template preview on its own. */
         private fun manifestDefaults(): JsonObject {
             val properties =
                 readJson("miragon.vscodeManifest")
@@ -228,6 +228,7 @@ class ModelerSettingsStoreTest {
                 properties.entrySet()
                     .filter { (key, _) -> key.startsWith(NAMESPACE) }
                     .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
+                    .filter { (name, _) -> name != "elementTemplatePreviewOpenAutomatically" }
                     .forEach { (name, default) -> add(name, default) }
             }
         }

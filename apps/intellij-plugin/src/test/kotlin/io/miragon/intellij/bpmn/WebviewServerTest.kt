@@ -68,6 +68,20 @@ class WebviewServerTest {
     }
 
     @Test
+    fun `the template preview shell boots the preview entry of the bpmn bundle`() {
+        val url = server.templatePreviewUrl()
+        val response = get(url)
+
+        assertEquals("${origin()}/templatePreview.html", url)
+        assertEquals(200, response.status)
+        assertTrue(response.body.contains("""<link href="/index.css" rel="stylesheet"/>"""))
+        assertTrue(response.body.contains("""<body class="vscode-light">"""))
+        assertTrue(response.body.contains("""<div id="app"></div>"""))
+        assertTrue(response.body.contains("window.acquireVsCodeApi"))
+        assertTrue(response.body.contains("""<script type="module" src="/templatePreview.js"></script>"""))
+    }
+
+    @Test
     fun `the deployment shell loads the deployment bundle with its own theme vars`() {
         val response = get(server.deploymentUrl())
 

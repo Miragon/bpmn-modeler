@@ -228,6 +228,15 @@ export class VsCodeSession {
             .click();
     }
 
+    /** A double click keeps the tab, where a single click opens one the next file replaces. */
+    async keepOpenFromExplorer(fileName: string): Promise<void> {
+        await this.page
+            .locator(".explorer-folders-view")
+            .getByText(fileName, { exact: true })
+            .first()
+            .dblclick();
+    }
+
     /** Webviews forward keybindings, so F1 reaches the palette without moving the focus first. */
     async runCommand(title: string): Promise<void> {
         await this.page.keyboard.press("F1");

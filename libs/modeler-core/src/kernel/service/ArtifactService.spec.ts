@@ -308,6 +308,12 @@ describe("ArtifactService.readDirectory", () => {
             "/root/nested/c.json",
         ]);
     });
+
+    it("finds a file saved with an upper-case extension", async () => {
+        const { service } = createService({ files: { "/root/Mail.JSON": "{}" } });
+
+        await expect(service.readDirectory("/root", ".json")).resolves.toEqual(["/root/Mail.JSON"]);
+    });
 });
 
 describe("ArtifactService.collectTemplateDirs", () => {

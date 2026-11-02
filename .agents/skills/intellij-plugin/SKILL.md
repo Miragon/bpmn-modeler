@@ -181,7 +181,7 @@ To add a new synchronous port, follow
 | EP | Implementation |
 |---|---|
 | `fileType` (`.bpmn`) | `BpmnFileType` |
-| `fileEditorProvider` | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF) |
+| `fileEditorProvider` | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF); `ElementTemplatePreviewEditorProvider` → JSON editor + `ElementTemplatePreviewEditor` in a `TextEditorWithPreview` (bridge-free) |
 | `postStartupActivity` | `BridgeWarmupActivity` (pre-warm the bridge off-EDT) |
 | `diff.DiffTool` | `BpmnDiffTool` (two-pane JCEF diagram diff) |
 | `statusBarWidgetFactory` | one `StatusSlotWidgetFactory` subclass per slot (element templates, engine, BPMNlint, deployment target) |
@@ -207,6 +207,8 @@ stopped publishing as a standalone artifact in 2025.3; for 261+ use the unified
 Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **Supervisor / composition root**: `CoreProcess.kt`; warmup `BridgeWarmupActivity.kt`
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
+- **Element templates**: `ElementTemplatePreviewEditor(Provider).kt` and `ElementTemplatePreviewMessages.kt` (the page's protocol, answered in Kotlin);
+  `ElementTemplateFiles.kt` and `NewElementTemplates.kt` copy the TypeScript rules and run their `*.cases.json` rows in tests
 - **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
   inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`

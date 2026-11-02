@@ -44,6 +44,8 @@ import {
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
+import { OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD } from "./modeler/elementTemplate/controller/ElementTemplatePreviewController";
+import { NEW_ELEMENT_TEMPLATE_CMD } from "./modeler/elementTemplate/controller/NewElementTemplateController";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -54,13 +56,22 @@ import {
     BPMN_VIEW_TYPE,
     DEFAULT_MODELER_SETTINGS,
     DMN_VIEW_TYPE,
+    ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
     FORM_VIEW_TYPE,
     parseSetting,
     SettingKey,
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { MODELER_SETTINGS_SECTION } from "./shared/infrastructure/modelerConfiguration";
+import {
+    ELEMENT_TEMPLATE_FOLDER_NAME,
+    ELEMENT_TEMPLATE_SCHEMA_URL,
+} from "@miragon/bpmn-modeler-types";
+import {
+    MODELER_SETTINGS_SECTION,
+    OPEN_TEMPLATE_PREVIEW_DEFAULT,
+    OPEN_TEMPLATE_PREVIEW_SETTING,
+} from "./shared/infrastructure/modelerConfiguration";
 
 const SRC_DIR = __dirname;
 
@@ -83,7 +94,7 @@ interface Manifest {
             selector: { filenamePattern: string }[];
         }[];
         configurationDefaults: Record<string, Record<string, string>>;
-        jsonValidation: { fileMatch: string; url: string }[];
+        jsonValidation: { fileMatch: string | string[]; url: string }[];
         configuration: {
             properties: Record<
                 string,
@@ -124,6 +135,8 @@ const CODE_COMMAND_IDS = [
     FOCUS_LINT_ELEMENT_CMD,
     TOGGLE_FORM_INPUT_VALUES_CMD,
     TOGGLE_FORM_OUTPUT_VALUES_CMD,
+    OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD,
+    NEW_ELEMENT_TEMPLATE_CMD,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -151,6 +164,14 @@ describe("package.json ↔ code contract", () => {
         );
     });
 
+    // The preview opens on its own only once the extension runs. A glob cannot read the
+    // configured config folder, so this wakes it for any template folder.
+    it("activates where element templates live", () => {
+        expect(manifest.activationEvents).toContain(
+            `workspaceContains:**/${ELEMENT_TEMPLATE_FOLDER_NAME}/**/*.json`,
+        );
+    });
+
     it("declares exactly the commands the controllers register", () => {
         const declared = manifest.contributes.commands.map((c) => c.command);
 
@@ -174,7 +195,45 @@ describe("package.json ↔ code contract", () => {
     it("declares exactly the custom-editor viewTypes the code uses", () => {
         const declared = manifest.contributes.customEditors.map((e) => e.viewType);
 
-        expect(new Set(declared)).toEqual(new Set([BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE]));
+        expect(new Set(declared)).toEqual(
+            new Set([
+                BPMN_VIEW_TYPE,
+                DMN_VIEW_TYPE,
+                FORM_VIEW_TYPE,
+                ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+            ]),
+        );
+    });
+
+    // VS Code downloads a schema only from a trusted domain or a URL an extension contributes.
+    // No `fileMatch`, because a template's folder does not tell C7 from C8; its `$schema` does.
+    it("trusts exactly the template schemas without assigning them to any file", () => {
+        const unassigned = manifest.contributes.jsonValidation.filter(
+            ({ fileMatch }) => fileMatch.length === 0,
+        );
+
+        expect(new Set(unassigned)).toEqual(
+            new Set(
+                Object.values(ELEMENT_TEMPLATE_SCHEMA_URL).map((url) => ({ fileMatch: [], url })),
+            ),
+        );
+    });
+
+    it("offers the template preview for JSON files without taking them over", () => {
+        expect(manifest.contributes.customEditors).toContainEqual(
+            expect.objectContaining({
+                viewType: ELEMENT_TEMPLATE_PREVIEW_VIEW_TYPE,
+                priority: "option",
+                selector: [{ filenamePattern: "*.json" }],
+            }),
+        );
+        // A `when` clause cannot read the config folder, so it leaves the rule to the context key.
+        expect(manifest.contributes.menus["editor/title"]).toContainEqual(
+            expect.objectContaining({
+                command: OPEN_ELEMENT_TEMPLATE_PREVIEW_CMD,
+                when: "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && bpmn-modeler.isElementTemplate",
+            }),
+        );
     });
 
     it("associates forms with JSON validation and the visual editor", () => {
@@ -244,7 +303,9 @@ describe("package.json ↔ code contract", () => {
             "linting.enabled": true,
         };
 
-        expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));
+        expect(new Set([...Object.keys(settingKeys), OPEN_TEMPLATE_PREVIEW_SETTING])).toEqual(
+            new Set(declaredKeys),
+        );
     });
 
     it("gives the core and its in-memory settings the defaults the manifest declares", () => {
@@ -259,8 +320,12 @@ describe("package.json ↔ code contract", () => {
                 .map(([key, property]) => [settingsValueName(key), property.default]),
         );
 
-        expect(DEFAULT_MODELER_SETTINGS).toEqual(manifestDefaults);
-        expect(new InMemorySettings().values).toEqual(manifestDefaults);
+        // Only VS Code reads it, so it stays outside the core's snapshot.
+        const { elementTemplatePreviewOpenAutomatically, ...snapshotDefaults } = manifestDefaults;
+
+        expect(elementTemplatePreviewOpenAutomatically).toBe(OPEN_TEMPLATE_PREVIEW_DEFAULT);
+        expect(DEFAULT_MODELER_SETTINGS).toEqual(snapshotDefaults);
+        expect(new InMemorySettings().values).toEqual(snapshotDefaults);
     });
 
     it.each(
@@ -371,6 +436,7 @@ describe("package.json ↔ code contract", () => {
         const contextKeys = [
             "bpmn-modeler.openCustomEditors",
             "bpmn-modeler.compareSelectionActive",
+            "bpmn-modeler.isElementTemplate",
         ];
 
         const sources = productionSourceFiles(SRC_DIR).map((file) => readFileSync(file, "utf-8"));

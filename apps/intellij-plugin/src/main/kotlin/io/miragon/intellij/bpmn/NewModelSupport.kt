@@ -10,12 +10,13 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import java.io.File
 import java.io.IOException
 
 /**
- * Shared "create a new model file and open it" flow behind the New BPMN / New DMN
- * actions. Both prompt for a save target the same way and only differ in the seed
- * bytes, so the save-dialog + VFS-create + open sequence lives here once.
+ * Shared "create a new model file and open it" flow behind the New BPMN / New DMN /
+ * New Element Template actions. They prompt for a save target the same way and only
+ * differ in the seed bytes, so the save-dialog + VFS-create + open sequence lives here once.
  */
 internal object NewModelSupport {
     /**
@@ -36,24 +37,43 @@ internal object NewModelSupport {
         content: String,
     ) {
         val project = event.project ?: return
+        val target =
+            chooseTarget(project, dialogTitle, dialogDescription, extension, defaultDir(event, project), defaultName)
+                ?: return // user cancelled the dialog
+        createAndOpen(project, target, content)
+    }
+
+    /** The file named in the save dialog, with [extension] appended when it was left out; `null` on cancel. */
+    fun chooseTarget(
+        project: Project,
+        dialogTitle: String,
+        dialogDescription: String,
+        extension: String,
+        dir: VirtualFile?,
+        defaultName: String,
+    ): File? {
         val descriptor = FileSaverDescriptor(dialogTitle, dialogDescription, extension)
-        val wrapper =
+        val target =
             FileChooserFactory.getInstance()
                 .createSaveFileDialog(descriptor, project)
-                .save(defaultDir(event, project), defaultName)
-                ?: return // user cancelled the dialog
+                .save(dir, defaultName)
+                ?.file
+                ?: return null
+        return if (target.name.endsWith(".$extension", ignoreCase = true)) {
+            target
+        } else {
+            File(target.parentFile, "${target.name}.$extension")
+        }
+    }
 
-        val target = wrapper.file
-        val name =
-            if (target.name.endsWith(".$extension", ignoreCase = true)) target.name
-            else "${target.name}.$extension"
-
+    /** Creates [target] seeded with [content] (left empty when blank) and opens it. */
+    fun createAndOpen(project: Project, target: File, content: String) {
         val created =
             WriteCommandAction.writeCommandAction(project).compute<VirtualFile, IOException> {
                 val parent =
                     VfsUtil.createDirectoryIfMissing(target.parentFile.path)
                         ?: throw IOException("Could not resolve the target directory: ${target.parentFile.path}")
-                val file = parent.findChild(name) ?: parent.createChildData(NewModelSupport, name)
+                val file = parent.findChild(target.name) ?: parent.createChildData(NewModelSupport, target.name)
                 if (content.isNotEmpty()) file.setBinaryContent(content.toByteArray(Charsets.UTF_8))
                 file
             }
@@ -64,7 +84,7 @@ internal object NewModelSupport {
      * The directory the save dialog opens in: the selected item's folder when
      * invoked from the Project view, else the project root.
      */
-    private fun defaultDir(event: AnActionEvent, project: Project): VirtualFile? {
+    fun defaultDir(event: AnActionEvent, project: Project): VirtualFile? {
         val context = event.getData(CommonDataKeys.VIRTUAL_FILE) ?: return project.guessProjectDir()
         return if (context.isDirectory) context else context.parent
     }

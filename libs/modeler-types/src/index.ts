@@ -11,6 +11,7 @@ export * from "./asyncDebounce";
 export * from "./flushableDebounceInput";
 export * from "./engine";
 export * from "./engineVersions";
+export * from "./elementTemplates";
 export * from "./surfaceMode";
 export * from "./lint";
 export * from "./settings";

@@ -80,6 +80,8 @@
             extensions="bpmn"/>
 
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
+        <!-- Element template JSON opens split with its read-only preview; runs without the bridge. -->
+        <fileEditorProvider implementation="io.miragon.intellij.bpmn.ElementTemplatePreviewEditorProvider"/>
 
         <!-- Pre-warms the bridge + asset server off the EDT after project open, so the first
              `.bpmn` tab renders against a live process instead of a cold spawn. -->
@@ -286,6 +288,14 @@
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Dmn"
                 text="New DMN Model…"
                 description="Create a new DMN decision file">
+                <add-to-group group-id="NewGroup" anchor="last"/>
+            </action>
+            <action
+                id="io.miragon.bpmn-modeler.newElementTemplate"
+                class="io.miragon.intellij.bpmn.NewElementTemplateAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
+                text="New Element Template…"
+                description="Create an element template for Camunda 7 or Camunda 8 and preview it">
                 <add-to-group group-id="NewGroup" anchor="last"/>
             </action>
         </group>

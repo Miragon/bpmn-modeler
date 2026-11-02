@@ -1,12 +1,12 @@
 import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
 import { LoggerPort } from "../../kernel/domain/hostPorts";
-import { ModelerDocumentService } from "../service/EditorDocumentSync";
+import { ModelerDocumentService, RenderedDocumentService } from "../service/EditorDocumentSync";
 import { MessageHandler } from "../service/WebviewMessageRouter";
 
-/** `GetBpmnFileCommand` / `GetDmnFileCommand` / `GetFormFileCommand` → render the document. */
+/** `GetBpmnFileCommand` / `GetDmnFileCommand` / `GetFormFileCommand` / `GetElementTemplateFileCommand` → render the document. */
 export function displayDocumentHandler(
-    service: ModelerDocumentService,
+    service: RenderedDocumentService,
     logger: LoggerPort,
     readyMessage: string,
 ): MessageHandler {

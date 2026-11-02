@@ -23,6 +23,15 @@ const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url)
 const BPMN_FILE = "smoke.bpmn";
 const DMN_FILE = "smoke.dmn";
 const FORM_FILE = "smoke.form";
+const TEMPLATE_FILE = "smoke-template.json";
+const UPPER_CASE_TEMPLATE_FILE = "smoke-upper-case.JSON";
+const INVALID_TEMPLATE_FILE = "smoke-template-invalid.json";
+const INVALID_TEMPLATE_ERROR = 'Incorrect type. Expected "integer".';
+const PINNED_TEMPLATE_FILE = "smoke-template-pinned.json";
+const TEMPLATE_SCHEMA =
+    "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json";
+const PINNED_TEMPLATE_SCHEMA =
+    "https://unpkg.com/@camunda/zeebe-element-templates-json-schema@0.9.0/resources/schema.json";
 const CSP_FILE = "smoke-csp.bpmn";
 const HTTPS_ICON = "https://icons.invalid/smoke-template.svg";
 const TASK_ID = "Task_Check";
@@ -341,6 +350,65 @@ describe("the packaged extension in a real VS Code", () => {
         await settle(vscode().webview());
         await vscode().screenshot(join(RESULTS_DIRECTORY, "form.png"));
         expectNoCspViolations();
+    });
+
+    const expectTemplatePreview = async () => {
+        const group = vscode()
+            .webview()
+            .locator(
+                '[data-group-id="group-ElementTemplates__CustomProperties-input"] .bio-properties-panel-group-header',
+            );
+        await expect
+            .poll(() => group.getAttribute("class").catch(() => ""), { timeout: TIMEOUT_MS })
+            .toContain("open");
+        await expect
+            .poll(
+                () =>
+                    vscode()
+                        .page.getByRole("button", { name: "Open Element Template Preview" })
+                        .count(),
+                { timeout: TIMEOUT_MS },
+            )
+            .toBeGreaterThan(0);
+        await settle(vscode().webview());
+    };
+
+    it("previews a template beside its JSON with the template's groups open", async () => {
+        await vscode().keepOpenFromExplorer(TEMPLATE_FILE);
+
+        await expectTemplatePreview();
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "template-preview.png"));
+        expectNoCspViolations();
+    });
+
+    // Closes the other template first, whose title button would pass for this file's.
+    it("previews a template saved with an upper-case extension", async () => {
+        await vscode().runCommand("View: Close All Editors");
+        await vscode().keepOpenFromExplorer(UPPER_CASE_TEMPLATE_FILE);
+
+        await expectTemplatePreview();
+        const file = join(workspaceDirectory, UPPER_CASE_TEMPLATE_FILE);
+        await writeFile(file, (await readFile(file, "utf8")).replace("Recipient", "Addressee"));
+        await vscode().webview().getByText("Addressee", { exact: true }).waitFor();
+        expectNoCspViolations();
+    });
+
+    // Only a schema that loaded can report the deliberate violation, so this holds
+    // however the two files' diagnostics are ordered. A preview left open would
+    // fail every later step, so the cleanup also runs when this one fails.
+    it("trusts the published template schemas, and only those", async ({ onTestFinished }) => {
+        onTestFinished(() => vscode().runCommand("View: Close Editors in Other Groups"));
+        await vscode().keepOpenFromExplorer(INVALID_TEMPLATE_FILE);
+        await vscode().keepOpenFromExplorer(PINNED_TEMPLATE_FILE);
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+Shift+M`);
+
+        const problems = vscode().page.locator(".markers-panel");
+        const reported = () => problems.innerText().catch(() => "");
+        await expect
+            .poll(reported, { timeout: TIMEOUT_MS })
+            .toContain(`${PINNED_TEMPLATE_SCHEMA} is untrusted`);
+        await expect.poll(reported, { timeout: TIMEOUT_MS }).toContain(INVALID_TEMPLATE_ERROR);
+        expect(await reported()).not.toContain(TEMPLATE_SCHEMA);
     });
 
     describe("linked saved form preview", () => {

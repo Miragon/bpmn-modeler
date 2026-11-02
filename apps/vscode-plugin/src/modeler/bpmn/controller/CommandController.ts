@@ -21,6 +21,7 @@ import {
     setLanguage,
     setLintingEnabled,
 } from "../../../shared/infrastructure/modelerConfiguration";
+import { promptNewFileTarget } from "../../../shared/infrastructure/newFileTarget";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
 import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
@@ -245,28 +246,20 @@ export class CommandController {
         });
     }
 
-    /**
-     * Single native prompt for name + location. Works without a workspace folder
-     * open (the `defaultUri` is simply omitted); the OS dialog owns overwrite
-     * confirmation. Appends the extension when the dialog did not (some Linux
-     * dialogs don't enforce the filter), so `openWith` matches the custom editor.
-     */
-    private async promptNewModelTarget(
+    /** Works without a workspace folder open: the `defaultUri` is simply omitted. */
+    private promptNewModelTarget(
         title: string,
         filterLabel: string,
         ext: string,
         defaultName = "new-diagram",
     ): Promise<Uri | undefined> {
         const folder = workspace.workspaceFolders?.[0];
-        const uri = await window.showSaveDialog({
+        return promptNewFileTarget({
             title,
+            filterLabel,
+            extension: ext,
             defaultUri: folder ? Uri.joinPath(folder.uri, `${defaultName}.${ext}`) : undefined,
-            filters: { [filterLabel]: [ext] },
         });
-        if (!uri) {
-            return undefined;
-        }
-        return uri.path.endsWith(`.${ext}`) ? uri : uri.with({ path: `${uri.path}.${ext}` });
     }
 
     /**

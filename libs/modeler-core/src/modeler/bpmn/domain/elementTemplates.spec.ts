@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeElementTemplates, templatesOfFile } from "./elementTemplates";
-
-describe("templatesOfFile", () => {
-    it("accepts a single template or an array of them", () => {
-        expect(templatesOfFile({ name: "One" })).toEqual([{ name: "One" }]);
-        expect(templatesOfFile([{ name: "A" }, { name: "B" }])).toEqual([
-            { name: "A" },
-            { name: "B" },
-        ]);
-    });
-});
+import { mergeElementTemplates } from "./elementTemplates";
 
 describe("mergeElementTemplates", () => {
     it("sorts by name and keeps source order for equal names", () => {
