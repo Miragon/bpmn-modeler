@@ -153,16 +153,22 @@ export class FormFileQuery extends Query<"FormFileQuery"> {
     }
 }
 
-/** The raw text of an element-template file; the preview parses it, so a broken edit still arrives. */
+/** The raw text of an element-template file; the page parses it, so a broken edit still arrives. */
 export class ElementTemplateFileQuery extends Query<"ElementTemplateFileQuery"> {
     public readonly content: string;
     /** The configured UI locale, applied before the first render; later changes come as {@link LanguageQuery}. */
     public readonly locale?: string;
+    /** The revision the builder's edits are made on; a read-only preview has no use for it. */
+    public readonly documentRevision?: number;
+    /** The file's name, which a new template's name starts from. */
+    public readonly fileName?: string;
 
-    constructor(content: string, locale?: string) {
+    constructor(content: string, locale?: string, documentRevision?: number, fileName?: string) {
         super("ElementTemplateFileQuery");
         this.content = content;
         this.locale = locale;
+        this.documentRevision = documentRevision;
+        this.fileName = fileName;
     }
 }
 

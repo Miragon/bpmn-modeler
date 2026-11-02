@@ -22,6 +22,18 @@ export const ELEMENT_TEMPLATE_FOLDER_NAME = "element-templates";
 
 const JSON_FILE = /\.json$/i;
 
+// Selecting a templated process or flow throws inside create-append-anything's
+// remove-template replace entry, so these cannot be shown until that is fixed.
+const NOT_PREVIEWABLE_ELEMENT_TYPES: ReadonlySet<string> = new Set([
+    "bpmn:Process",
+    "bpmn:SequenceFlow",
+]);
+
+/** Whether the template preview can show a template that creates this element type. */
+export function isPreviewableElementType(type: string): boolean {
+    return !NOT_PREVIEWABLE_ELEMENT_TYPES.has(type);
+}
+
 /** A template file holds either a single template or an array of them. */
 export function templatesOfFile(parsedFile: unknown): ElementTemplate[] {
     return [parsedFile].flat() as ElementTemplate[];

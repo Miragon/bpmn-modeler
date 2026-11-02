@@ -5,6 +5,7 @@ import {
     type Diagnostic,
     newTemplateText,
     templateDiagnostics,
+    templateNameOf,
     type TemplateBuilderHandle,
     type TemplateBuilderState,
     type TemplateEdit,
@@ -196,6 +197,12 @@ export async function bootstrapTemplateEditor(
             view.showMessages([shownRefusal]);
         } else if (outcome.rendered) {
             view.showMessages([]);
+        } else if (outcome.unsupportedType) {
+            view.showMessages([
+                translate("Templates for {type} cannot be previewed yet.", {
+                    type: outcome.unsupportedType,
+                }),
+            ]);
         } else if (diagnostics.length > 0) {
             view.showMessages([translate("The preview shows the last template without errors.")]);
         } else {
@@ -220,6 +227,9 @@ export async function bootstrapTemplateEditor(
         ElementTemplateFileQuery: (query) => {
             if (query.locale) {
                 preview.setLocale(query.locale);
+            }
+            if (query.fileName) {
+                view.suggestName(templateNameOf(query.fileName));
             }
             return session.receive(query);
         },

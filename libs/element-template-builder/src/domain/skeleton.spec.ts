@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { validate, validateZeebe } from "@bpmn-io/element-templates-validator";
 import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
 
-import { newTemplateText, templateIdOf, withSchema } from "./skeleton";
+import { newTemplateText, templateIdOf, templateNameOf, withSchema } from "./skeleton";
 
 describe("templateIdOf", () => {
     it.each([
@@ -13,6 +13,23 @@ describe("templateIdOf", () => {
         ["***", "template"],
     ])("derives an id from %j", (name, id) => {
         expect(templateIdOf(name)).toBe(id);
+    });
+});
+
+describe("templateNameOf", () => {
+    it.each([
+        ["send-mail.json", "Send Mail"],
+        ["io.camunda.send-mail.json", "Send Mail"],
+        ["sendMail.json", "Send Mail"],
+        ["payment_check.JSON", "Payment Check"],
+        [" Send  Mail .json", "Send Mail"],
+        ["invoice", "Invoice"],
+        ["HTTPConnector.json", "HTTPConnector"],
+        ["io.json.reader.json", "Reader"],
+        ["io.camunda..json", "io.camunda."],
+        [".json", ""],
+    ])("names a template in %j", (fileName, name) => {
+        expect(templateNameOf(fileName)).toBe(name);
     });
 });
 

@@ -17,7 +17,11 @@ import {
 
 const mocks = vi.hoisted(() => ({
     shown: [] as { template: Record<string, unknown>; engine: string }[],
-    outcome: { rendered: true, errors: [] as string[] } as { rendered: boolean; errors: string[] },
+    outcome: { rendered: true, errors: [] as string[] } as {
+        rendered: boolean;
+        errors: string[];
+        unsupportedType?: string;
+    },
     failure: undefined as Error | undefined,
     setTheme: vi.fn(),
     setLocale: vi.fn(),
@@ -92,10 +96,10 @@ async function start(): Promise<void> {
     dispose = await bootstrapTemplateEditor({ postMessage: (message) => posted.push(message) });
 }
 
-function receive(content: string, locale?: string): void {
+function receive(content: string, locale?: string, fileName?: string): void {
     window.dispatchEvent(
         new MessageEvent("message", {
-            data: new ElementTemplateFileQuery(content, locale, ++revision),
+            data: new ElementTemplateFileQuery(content, locale, ++revision, fileName),
         }),
     );
 }
@@ -269,6 +273,73 @@ describe("bootstrapTemplateEditor", () => {
         await vi.advanceTimersByTimeAsync(300);
 
         expect(messages()).toEqual([]);
+    });
+
+    it("starts a new template's name from its file name", async () => {
+        await start();
+
+        receive("", undefined, "send-invoice-mail.json");
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect((query(".template-editor__wizard-name") as HTMLInputElement).value).toBe(
+            "Send Invoice Mail",
+        );
+    });
+
+    it("leaves a name the user typed alone when the file arrives again", async () => {
+        await start();
+        receive("", undefined, "send-mail.json");
+        await vi.advanceTimersByTimeAsync(0);
+        const name = query(".template-editor__wizard-name") as HTMLInputElement;
+        name.value = "Mine";
+        name.dispatchEvent(new Event("input"));
+
+        receive("", undefined, "send-mail.json");
+
+        expect(name.value).toBe("Mine");
+    });
+
+    it("lists element types by name and says which ones have no preview", async () => {
+        await start();
+        receive("");
+        await vi.advanceTimersByTimeAsync(0);
+        const labels = Array.from(
+            (query(".template-editor__wizard-element-type") as HTMLSelectElement).options,
+            (option) => option.textContent,
+        );
+
+        expect(labels).toContain("Service task (bpmn:ServiceTask)");
+        expect(labels).toContain("Process (bpmn:Process): no preview yet");
+    });
+
+    it("keeps the chosen element type when another engine also has it", async () => {
+        await start();
+        receive("");
+        await vi.advanceTimersByTimeAsync(0);
+        const engine = query(".template-editor__wizard-engine") as HTMLSelectElement;
+        const elementType = query(".template-editor__wizard-element-type") as HTMLSelectElement;
+        elementType.value = "bpmn:UserTask";
+
+        engine.value = "c7";
+        engine.dispatchEvent(new Event("change"));
+        expect(elementType.value).toBe("bpmn:UserTask");
+
+        engine.value = "c8";
+        engine.dispatchEvent(new Event("change"));
+        elementType.value = "bpmn:ReceiveTask";
+        engine.value = "c7";
+        engine.dispatchEvent(new Event("change"));
+        expect(elementType.value).toBe("bpmn:ServiceTask");
+    });
+
+    it("says why a template that is fine cannot be previewed", async () => {
+        await start();
+        mocks.outcome = { rendered: false, errors: [], unsupportedType: "bpmn:Process" };
+
+        receive(JSON.stringify(STATUS));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(messages()).toEqual(["Templates for bpmn:Process cannot be previewed yet."]);
     });
 
     it("checks the template and hands the findings to the builder", async () => {

@@ -1,5 +1,11 @@
-import { catalogFor } from "@miragon/bpmn-modeler-element-template-builder";
-import { ENGINE_LABEL, ENGINES, type Engine, isEngine } from "@miragon/bpmn-modeler-types";
+import { catalogFor, elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
+import {
+    ENGINE_LABEL,
+    ENGINES,
+    type Engine,
+    isEngine,
+    isPreviewableElementType,
+} from "@miragon/bpmn-modeler-types";
 
 import type { TemplateChoice } from "./templateFile";
 
@@ -106,6 +112,10 @@ export function mountEditorView(
     const nameInput = element("input", "template-editor__wizard-name");
     nameInput.required = true;
     label(() => (nameInput.placeholder = translate("For example: Send mail")));
+    let nameTouched = false;
+    nameInput.addEventListener("input", () => {
+        nameTouched = true;
+    });
     const createButton = element("button", "template-editor__wizard-create");
     label(() => (createButton.textContent = translate("Create template")));
     createButton.type = "submit";
@@ -124,17 +134,29 @@ export function mountEditorView(
         labelled("Name", nameInput),
         createButton,
     );
+    const elementTypeLabel = (type: string) => {
+        const named = `${translate(elementTypeName(type))} (${type})`;
+        return isPreviewableElementType(type)
+            ? named
+            : translate("{type}: no preview yet", { type: named });
+    };
     const fillElementTypes = () => {
+        const selected = elementTypeSelect.value;
         elementTypeSelect.replaceChildren(
             ...catalogFor(engineSelect.value as Engine).elementTypes.map((type) => {
-                const option = element("option", "", type);
+                const option = element("option", "", elementTypeLabel(type));
                 option.value = type;
                 return option;
             }),
         );
+        elementTypeSelect.value = selected;
+        // The engine just changed to one without that element type.
+        if (elementTypeSelect.selectedIndex === -1) {
+            elementTypeSelect.selectedIndex = 0;
+        }
     };
     engineSelect.addEventListener("change", fillElementTypes);
-    fillElementTypes();
+    label(fillElementTypes);
 
     const engineChoice = element("div", "template-editor__engine-choice");
     const engineButtons = element("div", "template-editor__engine-buttons");
@@ -218,6 +240,11 @@ export function mountEditorView(
             placeholder.hidden = shown !== "placeholder";
             if (opensWizard) {
                 nameInput.focus({ preventScroll: true });
+            }
+        },
+        suggestName(name) {
+            if (!nameTouched) {
+                nameInput.value = name;
             }
         },
         onSelect(listener) {

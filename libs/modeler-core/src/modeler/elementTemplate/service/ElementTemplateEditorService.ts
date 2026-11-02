@@ -1,3 +1,5 @@
+import { basename } from "path";
+
 import { ElementTemplateFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { isHiddenEditorError } from "../../../kernel/domain/errors";
@@ -18,7 +20,7 @@ export class ElementTemplateEditorService implements ModelerDocumentService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        document: DocumentPort,
+        private readonly document: DocumentPort,
         private readonly settings: Pick<SettingsPort, "getLanguage">,
         private readonly notifier: NotifierPort,
     ) {
@@ -39,7 +41,12 @@ export class ElementTemplateEditorService implements ModelerDocumentService {
             if (!snapshot) return false;
             return await this.editorStore.postMessage(
                 editorId,
-                new ElementTemplateFileQuery(snapshot.content, this.settings.getLanguage()),
+                new ElementTemplateFileQuery(
+                    snapshot.content,
+                    this.settings.getLanguage(),
+                    snapshot.revision,
+                    basename(this.document.getFilePath(editorId)),
+                ),
             );
         } catch (error) {
             if (isHiddenEditorError(error)) {

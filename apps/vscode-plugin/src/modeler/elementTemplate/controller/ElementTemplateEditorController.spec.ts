@@ -48,6 +48,7 @@ vi.mock("vscode", () => {
         TabInputCustom,
         TabInputText,
         ViewColumn: { Beside: -2 },
+        InputBoxValidationSeverity: { Info: 1 },
         Uri: {
             joinPath: (base: { path: string }, ...segments: string[]) =>
                 uriOf([base.path, ...segments].join("/")),
@@ -282,8 +283,10 @@ describe("ElementTemplateEditorController", () => {
         /** Answers the input box as a user would; it only accepts a name its validation passes. */
         function typeName(name: string) {
             showInputBox.mockImplementation(
-                async (options: { validateInput: (value: string) => Promise<unknown> }) =>
-                    (await options.validateInput(name)) ? undefined : name,
+                async (options: { validateInput: (value: string) => Promise<unknown> }) => {
+                    const answer = await options.validateInput(name);
+                    return typeof answer === "string" ? undefined : name;
+                },
             );
         }
 
@@ -323,7 +326,7 @@ describe("ElementTemplateEditorController", () => {
             expect(showInputBox).toHaveBeenCalledWith(
                 expect.objectContaining({
                     value: "new-template",
-                    prompt: "The file goes into config/camunda/element-templates.",
+                    prompt: "The file name of the new template. It goes into config/camunda/element-templates.",
                 }),
             );
         });
@@ -342,7 +345,10 @@ describe("ElementTemplateEditorController", () => {
             expect(await validationOf("a/b")).toBe(
                 'A file name cannot contain any of these characters: / \\ : * ? " < > |',
             );
-            expect(await validationOf("refund")).toBeUndefined();
+            expect(await validationOf("Refund Mail")).toEqual({
+                message: "Creates refund-mail.json.",
+                severity: 1,
+            });
         });
 
         it("creates nothing when the name is dismissed", async () => {

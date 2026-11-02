@@ -12,6 +12,20 @@ export function templateIdOf(name: string): string {
     );
 }
 
+/**
+ * A template's name from the file it is in: drops a reverse-domain prefix and
+ * splits kebab, snake and camel case into words.
+ */
+export function templateNameOf(fileName: string): string {
+    const base = fileName.replace(/\.json$/i, "").trim();
+    const words = base
+        .slice(base.lastIndexOf(".") + 1)
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .split(/[-_\s]+/)
+        .filter((word) => word !== "");
+    return words.map((word) => word[0].toUpperCase() + word.slice(1)).join(" ") || base;
+}
+
 /** The text of a new, valid template without properties. */
 export function newTemplateText(
     engine: Engine,

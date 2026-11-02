@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import {
     commands,
     ExtensionContext,
+    InputBoxValidationSeverity,
     TabInputCustom,
     TabInputText,
     TextEditor,
@@ -14,11 +15,14 @@ import {
 } from "vscode";
 
 import {
-    DEFAULT_TEMPLATE_FILE_NAME,
     ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
+    NEW_TEMPLATE_TEXTS,
     NotifierPort,
     SettingsPort,
+    templateFileCreated,
     templateFileName,
+    templateFilePrompt,
+    templateFileTaken,
 } from "@miragon/bpmn-modeler-core";
 import { ELEMENT_TEMPLATES_FOLDER, isElementTemplateFile } from "@miragon/bpmn-modeler-types";
 
@@ -27,7 +31,6 @@ export const TOGGLE_ELEMENT_TEMPLATE_JSON_CMD = "bpmn-modeler.toggleElementTempl
 export const NEW_ELEMENT_TEMPLATE_CMD = "bpmn-modeler.newElementTemplate";
 const IS_ELEMENT_TEMPLATE_KEY = "bpmn-modeler.isElementTemplate";
 const RECHECK_DELAY_MS = 300;
-const NEW_TEMPLATE_TITLE = "New Element Template";
 
 /**
  * The commands around the element template editor: creating a template,
@@ -102,7 +105,7 @@ export class ElementTemplateEditorController {
             folders.length === 1
                 ? folders[0]
                 : await window.showWorkspaceFolderPick({
-                      placeHolder: "Workspace folder for the new element template",
+                      placeHolder: NEW_TEMPLATE_TEXTS.folderPlaceholder,
                   });
         if (!root) {
             return undefined;
@@ -110,19 +113,22 @@ export class ElementTemplateEditorController {
 
         const folderLabel = `${this.settings.getConfigFolder()}/${ELEMENT_TEMPLATES_FOLDER}`;
         const folder = Uri.joinPath(root.uri, folderLabel);
-        const taken = (fileName: string) => `${fileName} already exists in ${folderLabel}.`;
         const name = await window.showInputBox({
-            title: NEW_TEMPLATE_TITLE,
-            prompt: `The file goes into ${folderLabel}.`,
-            value: DEFAULT_TEMPLATE_FILE_NAME,
+            title: NEW_TEMPLATE_TEXTS.title,
+            prompt: templateFilePrompt(folderLabel),
+            value: NEW_TEMPLATE_TEXTS.defaultFileName,
             validateInput: async (input) => {
                 const file = templateFileName(input);
                 if (file.kind === "invalid") {
                     return file.message;
                 }
-                return (await exists(Uri.joinPath(folder, file.fileName)))
-                    ? taken(file.fileName)
-                    : undefined;
+                if (await exists(Uri.joinPath(folder, file.fileName))) {
+                    return templateFileTaken(file.fileName, folderLabel);
+                }
+                return {
+                    message: templateFileCreated(file.fileName),
+                    severity: InputBoxValidationSeverity.Info,
+                };
             },
         });
         const file = name === undefined ? undefined : templateFileName(name);
@@ -132,7 +138,7 @@ export class ElementTemplateEditorController {
 
         const target = Uri.joinPath(folder, file.fileName);
         if (await exists(target)) {
-            this.notifier.showInfo(taken(file.fileName));
+            this.notifier.showInfo(templateFileTaken(file.fileName, folderLabel));
             return undefined;
         }
         await workspace.fs.createDirectory(folder);
@@ -142,13 +148,13 @@ export class ElementTemplateEditorController {
     /** The OS dialog lets the user confirm overwriting, but this command only creates files. */
     private async newTemplateTargetOutsideWorkspace(): Promise<Uri | undefined> {
         const target = await promptNewFileTarget({
-            title: NEW_TEMPLATE_TITLE,
-            filterLabel: "Element Template",
+            title: NEW_TEMPLATE_TEXTS.title,
+            filterLabel: NEW_TEMPLATE_TEXTS.fileFilter,
             extension: "json",
             defaultUri: undefined,
         });
         if (target && (await exists(target))) {
-            this.notifier.showInfo(`${basename(target.path)} already exists.`);
+            this.notifier.showInfo(templateFileTaken(basename(target.path)));
             return undefined;
         }
         return target;

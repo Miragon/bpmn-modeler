@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { templateFileName } from "./newTemplateFile";
+import {
+    templateFileCreated,
+    templateFileName,
+    templateFilePrompt,
+    templateFileTaken,
+} from "./newTemplateFile";
 
 describe("templateFileName", () => {
     it.each([
@@ -8,7 +13,10 @@ describe("templateFileName", () => {
         ["payment.json", "payment.json"],
         ["  payment  ", "payment.json"],
         ["Payment.JSON", "Payment.json"],
-        ["send mail", "send mail.json"],
+        ["send mail", "send-mail.json"],
+        ["Send  Invoice Mail", "send-invoice-mail.json"],
+        ["sendMail", "sendMail.json"],
+        ["io.camunda.SendMail", "io.camunda.SendMail.json"],
         ["v1.2", "v1.2.json"],
         ["mapping.jsonata", "mapping.jsonata.json"],
     ])("names the file for %j %j", (input, fileName) => {
@@ -31,4 +39,23 @@ describe("templateFileName", () => {
             });
         },
     );
+});
+
+describe("what the prompt says", () => {
+    it("asks for a file name and names the folder", () => {
+        expect(templateFilePrompt(".camunda/element-templates")).toBe(
+            "The file name of the new template. It goes into .camunda/element-templates.",
+        );
+    });
+
+    it("names the folder a taken name is in, if there is one", () => {
+        expect(templateFileTaken("a.json", ".camunda/element-templates")).toBe(
+            "a.json already exists in .camunda/element-templates.",
+        );
+        expect(templateFileTaken("a.json")).toBe("a.json already exists.");
+    });
+
+    it("names the file a typed name creates", () => {
+        expect(templateFileCreated("send-mail.json")).toBe("Creates send-mail.json.");
+    });
 });
