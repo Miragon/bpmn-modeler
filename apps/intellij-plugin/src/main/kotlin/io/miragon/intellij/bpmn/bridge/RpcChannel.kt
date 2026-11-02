@@ -71,21 +71,22 @@ internal class RpcChannel(
 
     // ── outbound ──────────────────────────────────────────────────────────────
 
-    fun notify(method: String, params: Any?, coalesceKey: String? = null, reliable: Boolean = false) =
+    fun notify(method: HostToCoreMethod, params: Any?, coalesceKey: String? = null, reliable: Boolean = false) =
         enqueue(
-            gson.toJson(linkedMapOf("method" to method, "params" to params)),
+            gson.toJson(linkedMapOf("method" to method.wireName, "params" to params)),
             coalesceKey,
             reliable,
         )
 
     /**
-     * Enqueues an already-serialised NDJSON frame verbatim, coalescing by
-     * [coalesceKey] like [notify]. Lets a caller that has the raw webview JSON in
-     * hand splice it into the frame instead of parsing and re-serialising it — the
-     * JSON work then never touches the CEF query thread. [line] must be a single
-     * line of valid JSON; the framing appends the trailing newline.
+     * Enqueues a frame whose params are already-serialised JSON, spliced in
+     * verbatim and coalesced by [coalesceKey] like [notify]. Lets a caller that
+     * has the raw webview JSON in hand splice it into the frame instead of parsing
+     * and re-serialising it — the JSON work then never touches the CEF query
+     * thread. [rawParams] must be a single line holding one JSON object.
      */
-    fun notifyRaw(line: String, coalesceKey: String? = null) = enqueue(line, coalesceKey, false)
+    fun notifyRaw(method: HostToCoreMethod, rawParams: String, coalesceKey: String? = null) =
+        enqueue("{\"method\":" + gson.toJson(method.wireName) + ",\"params\":" + rawParams + "}", coalesceKey, false)
 
     fun reply(requestId: CoreRequestId, result: RpcResult?) =
         enqueueReply(requestId, gson.toJson(linkedMapOf("id" to requestId.value, "result" to result)))

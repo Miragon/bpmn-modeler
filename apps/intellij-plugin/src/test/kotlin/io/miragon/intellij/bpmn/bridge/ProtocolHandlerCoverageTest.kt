@@ -18,6 +18,9 @@ import org.junit.jupiter.api.Test
  * A second handler for the same method already throws in [RpcHandlerRegistry.on],
  * so together the host has exactly one handler per core→host method.
  *
+ * Every host→core method the host can send is a [HostToCoreMethod], and those
+ * equal the descriptor's host→core methods.
+ *
  * It also pins the param and result keys. Each host→core sender runs once and
  * its frame must carry the keys the descriptor lists; each core→host handler
  * reads its params once and may read only the keys the descriptor lists; and
@@ -50,6 +53,14 @@ class ProtocolHandlerCoverageTest {
         val stale = registeredMethods() - descriptor.coreToHostMethods()
 
         assertEquals(emptySet<String>(), stale, "Kotlin handlers for no core→host method")
+    }
+
+    @Test
+    fun `can send exactly the host-to-core methods of the protocol descriptor`() {
+        val sendable = HostToCoreMethod.entries.map { it.wireName }.toSet()
+
+        assertEquals(emptySet<String>(), sendable - descriptor.hostToCoreMethods(), "host→core methods the core does not handle")
+        assertEquals(emptySet<String>(), descriptor.hostToCoreMethods() - sendable, "host→core methods the host cannot send")
     }
 
     @Test
@@ -129,43 +140,43 @@ class ProtocolHandlerCoverageTest {
         val file = LightVirtualFile("process.bpmn", "<definitions/>")
         val session = CoreSession(file.url, file, projectFixture.get()) {}
         val senders =
-            linkedMapOf<String, BridgeRouters.() -> Unit>(
-                "session/register" to { editor.registerSession(session) },
-                "webview/message" to { editor.forwardWebviewMessage(session, """{"type":"GetBpmnFileCommand"}""") },
-                "document/didChange" to { editor.notifyDocumentChanged(session) { "<definitions />" } },
-                "session/setActive" to { editor.setActiveEditor(session.editorId) },
-                "settings/didChange" to { editor.pushSettings() },
-                "session/dispose" to { editor.disposeSession(session) },
-                "diff/open" to {
+            linkedMapOf<HostToCoreMethod, BridgeRouters.() -> Unit>(
+                HostToCoreMethod.SESSION_REGISTER to { editor.registerSession(session) },
+                HostToCoreMethod.WEBVIEW_MESSAGE to { editor.forwardWebviewMessage(session, """{"type":"GetBpmnFileCommand"}""") },
+                HostToCoreMethod.DOCUMENT_DID_CHANGE to { editor.notifyDocumentChanged(session) { "<definitions />" } },
+                HostToCoreMethod.SESSION_SET_ACTIVE to { editor.setActiveEditor(session.editorId) },
+                HostToCoreMethod.SETTINGS_DID_CHANGE to { editor.pushSettings() },
+                HostToCoreMethod.SESSION_DISPOSE to { editor.disposeSession(session) },
+                HostToCoreMethod.DIFF_OPEN to {
                     diff.openDiff("diff-1", "vcs", BEFORE_URI, "<before/>", {}, AFTER_URI, "<after/>", {})
                 },
-                "diff/webviewMessage" to { diff.forwardDiffMessage(BEFORE_URI, """{"type":"GetDiffCommand"}""") },
-                "diff/dispose" to { diff.disposeDiff("diff-1") },
-                "deploymentState/seed" to { deployment.sendSeed() },
-                "deployment/webviewMessage" to { deployment.forwardDeploymentMessage("""{"type":"DeployCommand"}""") },
-                "deployment/open" to { deployment.setDeploymentOpen(true) },
-                "script/didChange" to { script.notifyScriptChanged("script-1", "x") },
-                "script/didClose" to { script.notifyScriptClosed("script-1") },
-                "script/openAll" to { script.openAllScriptTasks() },
-                "script/didOpenExternal" to { script.notifyDidOpenExternal("/ws/.camunda/tmp/scripting/h/T/T.js") },
-                "marketplace/add" to { marketplace.addMarketplace("https://github.com/owner/repo", appWide = false) },
-                "marketplace/update" to { marketplace.updateMarketplaces() },
-                "marketplace/remove" to { marketplace.removeMarketplaces(1) },
-                "modeler/changeEngineVersion" to { modelerCommands.changeEngineVersion(session.editorId) },
-                "linting/toggle" to { modelerCommands.toggleLinting() },
-                "migration/migrateAll" to { modelerCommands.migrateAllDiagrams() },
-                "layout/format" to { modelerCommands.formatDiagram() },
-                "layout/cleanup" to { modelerCommands.cleanupDiagram() },
-                "deployment/switchTarget" to { modelerCommands.switchDeploymentTarget() },
-                "deployment/deployFiles" to { modelerCommands.deployFiles() },
-                "deployment/deployActive" to { modelerCommands.deployDiagram() },
-                "deployment/verify" to { modelerCommands.verifyDeployment() },
-                "deployment/statusBarMenu" to { modelerCommands.deploymentStatusMenu() },
+                HostToCoreMethod.DIFF_WEBVIEW_MESSAGE to { diff.forwardDiffMessage(BEFORE_URI, """{"type":"GetDiffCommand"}""") },
+                HostToCoreMethod.DIFF_DISPOSE to { diff.disposeDiff("diff-1") },
+                HostToCoreMethod.DEPLOYMENT_STATE_SEED to { deployment.sendSeed() },
+                HostToCoreMethod.DEPLOYMENT_WEBVIEW_MESSAGE to { deployment.forwardDeploymentMessage("""{"type":"DeployCommand"}""") },
+                HostToCoreMethod.DEPLOYMENT_OPEN to { deployment.setDeploymentOpen(true) },
+                HostToCoreMethod.SCRIPT_DID_CHANGE to { script.notifyScriptChanged("script-1", "x") },
+                HostToCoreMethod.SCRIPT_DID_CLOSE to { script.notifyScriptClosed("script-1") },
+                HostToCoreMethod.SCRIPT_OPEN_ALL to { script.openAllScriptTasks() },
+                HostToCoreMethod.SCRIPT_DID_OPEN_EXTERNAL to { script.notifyDidOpenExternal("/ws/.camunda/tmp/scripting/h/T/T.js") },
+                HostToCoreMethod.MARKETPLACE_ADD to { marketplace.addMarketplace("https://github.com/owner/repo", appWide = false) },
+                HostToCoreMethod.MARKETPLACE_UPDATE to { marketplace.updateMarketplaces() },
+                HostToCoreMethod.MARKETPLACE_REMOVE to { marketplace.removeMarketplaces(1) },
+                HostToCoreMethod.MODELER_CHANGE_ENGINE_VERSION to { modelerCommands.changeEngineVersion(session.editorId) },
+                HostToCoreMethod.LINTING_TOGGLE to { modelerCommands.toggleLinting() },
+                HostToCoreMethod.MIGRATION_MIGRATE_ALL to { modelerCommands.migrateAllDiagrams() },
+                HostToCoreMethod.LAYOUT_FORMAT to { modelerCommands.formatDiagram() },
+                HostToCoreMethod.LAYOUT_CLEANUP to { modelerCommands.cleanupDiagram() },
+                HostToCoreMethod.DEPLOYMENT_SWITCH_TARGET to { modelerCommands.switchDeploymentTarget() },
+                HostToCoreMethod.DEPLOYMENT_DEPLOY_FILES to { modelerCommands.deployFiles() },
+                HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE to { modelerCommands.deployDiagram() },
+                HostToCoreMethod.DEPLOYMENT_VERIFY to { modelerCommands.verifyDeployment() },
+                HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
             )
         val framesBySentMethod = linkedMapOf<String, SentFrame>()
         for ((method, send) in senders) {
             routers.send()
-            framesBySentMethod[method] = SentFrame.of(wired.fake.nextFrame())
+            framesBySentMethod[method.wireName] = SentFrame.of(wired.fake.nextFrame())
         }
         return framesBySentMethod
     }

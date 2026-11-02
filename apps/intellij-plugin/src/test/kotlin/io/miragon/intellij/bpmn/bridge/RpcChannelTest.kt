@@ -53,45 +53,50 @@ class RpcChannelTest {
         val fake = fakeProcess()
         val channel = rpcChannel { _, _, _ -> }
 
-        channel.notify("sync", mapOf("v" to 1), coalesceKey = "sync:x")
-        channel.notify("sync", mapOf("v" to 2), coalesceKey = "sync:x")
-        channel.notify("other", mapOf("v" to 99))
-        channel.notify("sync", mapOf("v" to 3), coalesceKey = "sync:x")
+        channel.notify(HostToCoreMethod.WEBVIEW_MESSAGE, mapOf("v" to 1), coalesceKey = "sync:x")
+        channel.notify(HostToCoreMethod.WEBVIEW_MESSAGE, mapOf("v" to 2), coalesceKey = "sync:x")
+        channel.notify(HostToCoreMethod.SESSION_SET_ACTIVE, mapOf("v" to 99))
+        channel.notify(HostToCoreMethod.WEBVIEW_MESSAGE, mapOf("v" to 3), coalesceKey = "sync:x")
 
         channel.attach(fake.outputStream, fake.inputStream)
 
         val first = parse(fake.nextFrame())
         val second = parse(fake.nextFrame())
-        assertEquals("other", first.get("method").asString)
+        assertEquals("session/setActive", first.get("method").asString)
         assertEquals(99, first.getAsJsonObject("params").get("v").asInt)
-        assertEquals("sync", second.get("method").asString)
+        assertEquals("webview/message", second.get("method").asString)
         assertEquals(3, second.getAsJsonObject("params").get("v").asInt, "only the latest sync:x frame survives")
         fake.expectNoFrame()
     }
 
     /**
-     * `notifyRaw` enqueues a pre-serialised frame verbatim yet still coalesces by
+     * `notifyRaw` splices pre-serialised params verbatim yet still coalesces by
      * key exactly like `notify` — the property `EditorSessionRouter` relies on to
      * collapse spliced document-sync frames without re-serialising them. Enqueuing
      * before attach makes the flood coalesce in the deque deterministically.
      */
     @Test
-    fun `notifyRaw enqueues verbatim and coalesces by key like notify`() {
+    fun `notifyRaw splices its params verbatim and coalesces by key like notify`() {
         val fake = fakeProcess()
         val channel = rpcChannel { _, _, _ -> }
 
-        channel.notifyRaw("""{"method":"webview/message","params":{"v":1}}""", coalesceKey = "sync:x")
-        channel.notifyRaw("""{"method":"webview/message","params":{"v":2}}""", coalesceKey = "sync:x")
-        channel.notifyRaw("""{"method":"other"}""", coalesceKey = null)
-        channel.notifyRaw("""{"method":"webview/message","params":{"v":3}}""", coalesceKey = "sync:x")
+        channel.notifyRaw(HostToCoreMethod.WEBVIEW_MESSAGE, """{"v":1}""", coalesceKey = "sync:x")
+        channel.notifyRaw(HostToCoreMethod.WEBVIEW_MESSAGE, """{"v":2}""", coalesceKey = "sync:x")
+        channel.notifyRaw(HostToCoreMethod.SESSION_SET_ACTIVE, """{"v":99}""", coalesceKey = null)
+        channel.notifyRaw(HostToCoreMethod.WEBVIEW_MESSAGE, """{"v": 3}""", coalesceKey = "sync:x")
 
         channel.attach(fake.outputStream, fake.inputStream)
 
-        val first = parse(fake.nextFrame())
-        val second = parse(fake.nextFrame())
-        assertEquals("other", first.get("method").asString, "the non-coalesced frame survives in order")
-        assertEquals("webview/message", second.get("method").asString)
-        assertEquals(3, second.getAsJsonObject("params").get("v").asInt, "only the latest sync:x frame survives")
+        assertEquals(
+            """{"method":"session/setActive","params":{"v":99}}""",
+            fake.nextFrame(),
+            "the non-coalesced frame survives in order",
+        )
+        assertEquals(
+            """{"method":"webview/message","params":{"v": 3}}""",
+            fake.nextFrame(),
+            "only the latest sync:x frame survives, its params untouched",
+        )
         fake.expectNoFrame()
     }
 
@@ -101,7 +106,7 @@ class RpcChannelTest {
         val channel = rpcChannel { _, _, _ -> }
         val xml = "<bpmn:task id='t' name=\"A & B\"/>".repeat(1_000)
 
-        channel.notify("document/didChange", mapOf("content" to xml))
+        channel.notify(HostToCoreMethod.DOCUMENT_DID_CHANGE, mapOf("content" to xml))
         channel.attach(fake.outputStream, fake.inputStream)
 
         val frame = fake.nextFrame()
@@ -123,7 +128,7 @@ class RpcChannelTest {
         val fake = fakeProcess()
         val channel = rpcChannel { _, _, _ -> }
 
-        for (i in 0..capacity) channel.notify("m", i) // capacity + 1 frames
+        for (i in 0..capacity) channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, i) // capacity + 1 frames
 
         channel.attach(fake.outputStream, fake.inputStream)
 
@@ -141,18 +146,18 @@ class RpcChannelTest {
         val channel = rpcChannel { _, _, _ -> }
 
         channel.notify(
-            "document/didChange",
+            HostToCoreMethod.DOCUMENT_DID_CHANGE,
             mapOf("content" to "authoritative"),
             coalesceKey = "document:e1",
             reliable = true,
         )
-        for (i in 0 until capacity) channel.notify("m", i)
+        for (i in 0 until capacity) channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, i)
 
         channel.attach(fake.outputStream, fake.inputStream)
 
         val frames = (0 until capacity).map { parse(fake.nextFrame()) }
         assertTrue(frames.any { it.get("method").asString == "document/didChange" })
-        assertEquals(capacity - 1, frames.count { it.get("method").asString == "m" })
+        assertEquals(capacity - 1, frames.count { it.get("method").asString == "settings/didChange" })
         fake.expectNoFrame()
     }
 
@@ -431,19 +436,19 @@ class RpcChannelTest {
         val channel = rpcChannel { _, _, _ -> }
         channel.attach(first.outputStream, first.inputStream)
 
-        channel.notify("before", 1)
-        assertEquals("before", parse(first.nextFrame()).get("method").asString)
+        channel.notify(HostToCoreMethod.SESSION_REGISTER, 1)
+        assertEquals("session/register", parse(first.nextFrame()).get("method").asString)
 
         channel.detach()
-        channel.notify("dropped", 2)
+        channel.notify(HostToCoreMethod.SESSION_SET_ACTIVE, 2)
         first.expectNoFrame() // the writer wakes, sees no target, and drops the frame
 
         val second = fakeProcess()
         channel.attach(second.outputStream, second.inputStream)
-        channel.notify("after", 3)
+        channel.notify(HostToCoreMethod.SESSION_DISPOSE, 3)
 
         val resumed = parse(second.nextFrame())
-        assertEquals("after", resumed.get("method").asString, "the surviving writer resumed on the new stream")
+        assertEquals("session/dispose", resumed.get("method").asString, "the surviving writer resumed on the new stream")
     }
 
     @Test
@@ -454,7 +459,7 @@ class RpcChannelTest {
         channel.detach()
 
         channel.notify(
-            "document/didChange",
+            HostToCoreMethod.DOCUMENT_DID_CHANGE,
             mapOf("content" to "authoritative"),
             coalesceKey = "document:e1",
             reliable = true,

@@ -71,17 +71,17 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
                 log.warn("Discarding malformed deployment message (body withheld: may contain credentials)", e)
                 return
             }
-        deps.channel.notify("deployment/webviewMessage", linkedMapOf("message" to parsed))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_WEBVIEW_MESSAGE, linkedMapOf("message" to parsed))
     }
 
     /** Tells the core whether the deployment panel is visible (drives form-default refresh). */
     fun setDeploymentOpen(open: Boolean) {
-        deps.channel.notify("deployment/open", linkedMapOf("open" to open))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_OPEN, linkedMapOf("open" to open))
     }
 
     fun sendSeed() {
         if (!deps.isProcessAlive()) return
-        deps.channel.notify("deploymentState/seed", linkedMapOf("state" to deploymentState.snapshotMap()))
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_STATE_SEED, linkedMapOf("state" to deploymentState.snapshotMap()))
     }
 
     fun clear() {
