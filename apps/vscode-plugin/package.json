@@ -1,5 +1,6 @@
 {
     "name": "vs-code-bpmn-modeler",
+    "architecture": "hexagonal",
     "scripts": {
         "build": "webpack --mode production",
         "dev": "webpack --mode development --watch",

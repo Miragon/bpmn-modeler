@@ -6,10 +6,13 @@ export interface Workspace {
     readonly name: string;
     /** POSIX path relative to the repo root. */
     readonly dir: string;
+    /** The manifest's `architecture` field, unchecked; see `isWorkspaceKind`. */
+    readonly kind?: string;
 }
 
 interface Manifest {
     readonly name?: string;
+    readonly architecture?: string;
     readonly workspaces?: readonly string[];
 }
 
@@ -22,8 +25,13 @@ export function readWorkspaces(repoRoot: string): Workspace[] {
     return patterns
         .flatMap((pattern) => workspaceDirsOf(repoRoot, pattern))
         .flatMap((dir) => {
-            const name = readManifest(repoRoot, join(dir, "package.json"))?.name;
-            return name === undefined ? [] : [{ name, dir }];
+            const manifest = readManifest(repoRoot, join(dir, "package.json"));
+            if (manifest?.name === undefined) {
+                return [];
+            }
+            return manifest.architecture === undefined
+                ? [{ name: manifest.name, dir }]
+                : [{ name: manifest.name, dir, kind: manifest.architecture }];
         });
 }
 

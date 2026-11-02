@@ -267,18 +267,34 @@ exact path) and maps a package import to a workspace by its package name. It
 also finds import cycles, host reach, implemented interfaces, port adapters
 outside their homes or imported from outside them, and comments. Only
 `sourceTree.ts` touches the file system; the rest are pure functions over
-source text. Each spec keeps its own classifier, since feature and layer layout
-differ per workspace.
+source text. The engine also holds one rule set per workspace kind
+(`HEXAGONAL_RULES`, `FLAT_RULES`) over role folders that `roleOf` reads from
+the path, so no rule reads a file or type name (see
+[Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders)).
+A workspace's own spec keeps only the rules specific to it, such as the core's
+domain package allowlist.
 
 [`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts) holds
 the rules over every root workspace with a `src/`: no import cycle inside a
 workspace (type-only imports count), every relative import resolves (assets
 aside, so no edge drops silently out of the cycle rule), no cycle between
 workspaces, and no workspace depends on a less stable one. Instability is
-I = Ce / (Ca + Ce) over workspace dependencies, compared on integers.
+I = Ce / (Ca + Ce) over workspace dependencies, compared on integers. It also
+applies the rule set of each workspace's kind, which the workspace declares in
+the `"architecture"` field of its `package.json`; a missing or unknown kind
+fails. The role rules read the default source tree, so `__fixtures__` stay out:
+they are test inputs, not code with a role. A workspace not yet moved into its
+role folders has one blanket `KnownException` (`from: <dir>, to: "*"`) naming
+the issue that moves it.
 
-Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Layer
-and stability rules take `KnownException` entries that name the issue removing
+ESLint bans an empty function (`() => {}`) in an adapter, outside specs: a
+port adapter stubbed that way passes every spec that never calls it, so an
+intended no-op says why in a comment instead (#2053). The override covers
+`**/src/**/adapter/**/*.ts` and the core's `testing/`, and keeps a
+workspace's old adapter globs until that workspace moves.
+
+Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Role,
+layer and stability rules take `KnownException` entries that name the issue removing
 them, and a stale or unnamed entry fails the gate, so the lists only shrink. A
 rule scoped to a folder or file set fails when the scope matches nothing
 (`requireMatches`), so a renamed folder cannot make it pass vacuously; the VS
