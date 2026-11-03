@@ -1,5 +1,6 @@
+import type { MarkedFinding } from "./delta";
 import type { Finding } from "./finding";
-import type { Evidence } from "./fitnessFunction";
+import type { Evidence, FindingGroup } from "./fitnessFunction";
 import type { FitnessReport, FunctionReport } from "./report";
 
 const SHORT_COMMIT_LENGTH = 12;
@@ -36,6 +37,39 @@ function baseLine(report: FunctionReport): string {
         : `- **Base:** ${source}, not measurable there (${report.base.unmeasurable}); every finding counts as new`;
 }
 
+function findingTable(findings: readonly MarkedFinding[]): string[] {
+    if (findings.length === 0) {
+        return [];
+    }
+    return [
+        "",
+        "| Status | Location | Message |",
+        "| --- | --- | --- |",
+        ...findings.map(
+            (finding) =>
+                `| ${finding.status} | ${location(finding)} | ${tableCell(finding.message)} |`,
+        ),
+    ];
+}
+
+function groupLines(group: FindingGroup, findings: readonly MarkedFinding[]): string[] {
+    const inGroup = findings.filter((finding) => finding.group === group.id);
+    if (inGroup.length === 0) {
+        return [];
+    }
+    // GitHub renders a table inside <details> only with a blank line before it.
+    return group.collapsed === true
+        ? [
+              "",
+              "<details>",
+              `<summary>${group.title} (${inGroup.length})</summary>`,
+              ...findingTable(inGroup),
+              "",
+              "</details>",
+          ]
+        : ["", `### ${group.title}`, ...findingTable(inGroup)];
+}
+
 function outcomeLines(report: FunctionReport): string[] {
     const { outcome } = report;
     if (outcome.kind === "unmeasurable") {
@@ -45,16 +79,10 @@ function outcomeLines(report: FunctionReport): string[] {
     const lines = [
         `**${newCount} new, ${outcome.findings.length - newCount} existing, ${outcome.resolved.length} resolved**`,
     ];
-    if (outcome.findings.length > 0) {
-        lines.push(
-            "",
-            "| Status | Location | Message |",
-            "| --- | --- | --- |",
-            ...outcome.findings.map(
-                (finding) =>
-                    `| ${finding.status} | ${location(finding)} | ${tableCell(finding.message)} |`,
-            ),
-        );
+    if (report.groups === undefined) {
+        lines.push(...findingTable(outcome.findings));
+    } else {
+        lines.push(...report.groups.flatMap((group) => groupLines(group, outcome.findings)));
     }
     if (outcome.resolved.length > 0) {
         lines.push(

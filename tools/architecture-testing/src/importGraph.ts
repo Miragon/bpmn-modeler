@@ -39,7 +39,10 @@ export function resolveRelativeImport(
     specifier: string,
     known: ReadonlySet<string>,
 ): string | undefined {
-    const base = posix.join(posix.dirname(fromFile), specifier);
+    return resolveWithSuffixes(posix.join(posix.dirname(fromFile), specifier), known);
+}
+
+export function resolveWithSuffixes(base: string, known: ReadonlySet<string>): string | undefined {
     return RESOLUTION_SUFFIXES.map((suffix) => `${base}${suffix}`).find((candidate) =>
         known.has(candidate),
     );

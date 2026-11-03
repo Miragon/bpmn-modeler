@@ -33,6 +33,41 @@ describe("the findings a fitness function returns", () => {
 
     it.each([
         {
+            case: "a group the function does not declare",
+            output: [{ ...VALID, group: "other" }],
+            groups: ["hidden"],
+            problem: "finding 0 has group other, which the function does not declare",
+        },
+        {
+            case: "a group from a function that declares none",
+            output: [{ ...VALID, group: "hidden" }],
+            groups: [],
+            problem: "finding 0 has group hidden, which the function does not declare",
+        },
+        {
+            case: "no group from a function that declares groups",
+            output: [VALID],
+            groups: ["hidden"],
+            problem: "finding 0 has no group",
+        },
+    ])("are broken input when they hold $case", ({ output, groups, problem }) => {
+        expect(() => parseFindings("fitness function x", output, groups)).toThrow(problem);
+    });
+
+    it("keep a declared group", () => {
+        const grouped = { ...VALID, group: "hidden" };
+
+        expect(parseFindings("x", [grouped], ["explained", "hidden"])).toEqual([grouped]);
+    });
+
+    it("of a stored snapshot keep whatever group they name", () => {
+        const grouped = { ...VALID, group: "retired" };
+
+        expect(parseFindings("snapshot", [grouped, VALID], undefined)).toEqual([grouped, VALID]);
+    });
+
+    it.each([
+        {
             case: "path",
             left: { ...VALID, path: "src/b.ts" },
             right: { ...VALID, path: "src/a.ts" },

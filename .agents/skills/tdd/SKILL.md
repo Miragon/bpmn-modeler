@@ -24,7 +24,9 @@ Pull any decision out of such code first; the decision itself is not exempt.
 
 1. Find the rule's home (see step 2) and search for copies of the rule
    elsewhere: other services, the other host, Kotlin, the webview. The spec
-   targets the one home; the copies go in step 3.
+   targets the one home; the copies go in step 3. `corepack yarn fitness`
+   lists, as `change-coupling`, file pairs that keep changing together
+   without an import; a hidden pair naming your file is a candidate copy.
 2. Write the spec first. For a bug, reproduce the report in the smallest setup
    that shows it.
 3. Run only that spec: `corepack yarn test <path/to/file.spec.ts>`.

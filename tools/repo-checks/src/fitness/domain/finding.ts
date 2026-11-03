@@ -4,6 +4,8 @@ export interface Finding {
     readonly path: string;
     readonly line: number;
     readonly message: string;
+    /** One of the groups its fitness function declares; set exactly when it declares any. */
+    readonly group?: string;
 }
 
 // Code-unit order, not localeCompare: the report must not depend on the machine's locale.
@@ -31,11 +33,14 @@ function isNonBlankText(value: unknown): value is string {
     return typeof value === "string" && value.trim() !== "";
 }
 
-function findingProblem(value: unknown): string | undefined {
+function findingProblem(
+    value: unknown,
+    declaredGroups: readonly string[] | undefined,
+): string | undefined {
     if (typeof value !== "object" || value === null) {
         return "is not an object";
     }
-    const { key, path, line, message } = value as Record<string, unknown>;
+    const { key, path, line, message, group } = value as Record<string, unknown>;
     if (!isNonBlankText(key)) {
         return "has no key";
     }
@@ -52,22 +57,41 @@ function findingProblem(value: unknown): string | undefined {
     if (!isNonBlankText(message)) {
         return "has no message";
     }
-    return undefined;
+    return declaredGroups === undefined ? undefined : groupProblem(group, declaredGroups);
 }
 
-/** Throws on broken output: a fitness function that returns garbage is broken input, not a finding. */
-export function parseFindings(source: string, value: unknown): Finding[] {
+function groupProblem(group: unknown, declaredGroups: readonly string[]): string | undefined {
+    if (group === undefined) {
+        return declaredGroups.length === 0 ? undefined : "has no group";
+    }
+    return declaredGroups.includes(group as string)
+        ? undefined
+        : `has group ${String(group)}, which the function does not declare`;
+}
+
+/**
+ * Throws on broken output: a fitness function that returns garbage is broken input, not a finding.
+ * `declaredGroups` is unset for a stored snapshot, whose groups were checked when it was measured.
+ */
+export function parseFindings(
+    source: string,
+    value: unknown,
+    declaredGroups?: readonly string[],
+): Finding[] {
     if (!Array.isArray(value)) {
         throw new Error(`${source} returned no list of findings`);
     }
     return sortFindings(
         value.map((candidate: unknown, index) => {
-            const problem = findingProblem(candidate);
+            const problem = findingProblem(candidate, declaredGroups);
             if (problem !== undefined) {
                 throw new Error(`${source}: finding ${index} ${problem}`);
             }
-            const { key, path, line, message } = candidate as Finding;
-            return { key, path, line, message };
+            return findingFields(candidate as Finding);
         }),
     );
+}
+
+export function findingFields({ key, path, line, message, group }: Finding): Finding {
+    return group === undefined ? { key, path, line, message } : { key, path, line, message, group };
 }

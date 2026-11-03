@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-02
+- Last reviewed: 2026-11-03
 
 ## Context
 
@@ -19,6 +19,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [CI test targets](#ci-test-targets)
 - [Architecture tests](#architecture-tests)
 - [Fitness function report](#fitness-function-report)
+- [Change coupling](#change-coupling)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -279,6 +280,18 @@ type name (see
 A workspace's own spec keeps only the rules specific to it, such as the core's
 domain package allowlist.
 
+The import graph links a file to the file it names. `buildDeclarationGraph`
+links it to the file that declares each imported name instead: it resolves
+`@miragon/*` specifiers through the `tsconfig.base.json` paths (exact and `/*`
+entries, the same suffix list), then follows named, default, local and
+namespace re-exports and `export *` through any chain, with a cycle guard. A
+direct import of a module that declares something also links to that module;
+a barrel, a file with nothing but imports and re-exports (`readModuleSymbols`),
+gets no edge of its own. A namespace or dynamic import of a barrel links to
+every file it reaches, a name no file declares falls back to the module, and a
+JSON import links to the JSON file. The blocking specs keep the plain import
+graph; the declaration graph serves the change-coupling report.
+
 The type-checked rule does not need a full install. Workspace imports resolve
 through the `tsconfig.base.json` paths to sources, so with every third-party
 package hidden, as in the focused CI install, the webview command scan finds
@@ -391,7 +404,12 @@ wrongly, its evidence (published work or a trial on this repository) and
 `findFindings`. `defineFitnessFunction` makes a missing field, an empty list
 or a `""` literal a type error and throws on whatever the types let through.
 The report prints every one of those fields, so the limits travel with the
-findings instead of living in a document that drifts. The rule it relies on
+findings instead of living in a document that drifts. A function may declare
+finding groups (`id`, `title`, `collapsed`); then every finding names one of
+them, a finding naming an undeclared group is broken input, and the Markdown
+prints one table per non-empty group in the declared order, a collapsed one
+inside `<details>`. Within a table the rows are sorted by path. The delta stays
+key-based, so a pair that moves between groups stays existing. The rule it relies on
 lands in a skill in the same PR and names the function's id; a static spec over
 the registry checks both, and that ids are unique.
 
@@ -442,6 +460,79 @@ type stripping cannot resolve the engine's extensionless imports or the
 alias-only `@miragon/architecture-testing`. `runnerImport` is marked
 experimental, so a spec boots the bin; the fallback is a `vite build --ssr`
 into a cache directory. Startup takes about 0.6 s.
+
+### Change coupling
+
+`change-coupling` (#2094) is the first registered fitness function: holistic,
+triggered, dynamic, reported. It lists pairs of files that keep changing in
+the same PRs without an import between them, the Common Closure Principle's
+signal for a rule kept in two places (Gall 1998, Zimmermann 2004, code-maat).
+The pure measure lives in `tools/repo-checks/src/changeCoupling/domain`, the
+history reader in `tools/repo-checks/src/history`, which #2095 and the
+hotspots of #2057 reuse.
+
+- **Window.** The 924 most recent first-parent commits, one squash-merged PR
+  each. A commit count, not a date: the dates of the older history were
+  rewritten on 2026-03-09. The function reads one commit more, which proves
+  the oldest has a parent; fewer in a full clone throw `InsufficientHistory`
+  and end the series there (378 commits are measurable today). A shallow clone
+  with too few commits is broken input: it fails with `git fetch --unshallow`
+  instead of printing an empty report.
+- **Renames.** `git log --first-parent --diff-merges=first-parent -M -l0 -z
+  --no-ext-diff --no-show-signature`, pinned so `diff.renames`,
+  `diff.renameLimit` or `log.showSignature` in the user's config cannot change
+  the result. Each historical path maps to today's path, newest commit first,
+  through every commit, the uncounted ones included: the 12 commits with more
+  than 30 read files carry 285 renames. Files that no longer exist drop out.
+- **Read files.** Non-spec `.ts`/`.tsx` under a workspace's `src/`, Kotlin
+  under `src/main/`, `.mjs` anywhere in a workspace except build configs
+  (`*.config.*`) and test folders, `*.schema.json`, `*.cases.json` and a
+  manifest that declares `contributes` (today `apps/vscode-plugin/package.json`).
+  Specs, `__fixtures__`, `test/`, `languages/` and barrels are not read.
+  Workspaces are the dirs the root `workspaces` entries match, with or without
+  a `package.json`, so the Gradle-built IntelliJ plugin is read. Read literally,
+  the issue's "outside `src/`" exclusion would have read no `.mjs` file at
+  all; reading them catches the `check-*.mjs` scripts and the `LOCALES` copy in
+  `libs/bpmn-i18n-extras/tools/build-overlay.mjs`.
+- **Counted commits.** `chore(deps)`, `chore(main)`, `chore(format)` and
+  `style` commits and commits with more than 30 read files are not counted.
+  The size counts read files, as code-maat counts the entities of its log;
+  counting every file instead drops the known lint-config copy and leaves 14
+  hidden pairs.
+- **Thresholds.** code-maat's defaults: at least 5 shared changes and a degree
+  (shared ÷ mean revisions × 100) of at least 30 %, compared in integers
+  (`shared × 200 ≥ 30 × (rₐ + r_b)`). Each file then has at least 5 revisions,
+  so min-revs needs no check of its own. In the recount, 6 shared changes or a
+  degree of 35 % lose the lint-config copy, 4 or 25 % raise the hidden pairs
+  from 33 to 58 and 61, and a changeset limit of 8 leaves 2 hidden pairs
+  without the copy.
+- **Classification.** Linked: one file imports the other in the declaration
+  graph; not reported. Explained: a file both import changed in at least half
+  of their shared changes, the one with most co-changes winning, ties by path;
+  listed in a collapsed group, because such a pair can still hide a copy.
+  Hidden: grouped as Kotlin only, across languages (Kotlin, JSON,
+  TypeScript/JavaScript as one), across workspaces, within a workspace.
+- **Composition roots.** A file in a `composition/` role folder, an entry a
+  workspace's `package.json` or a build config at its root names (any string
+  literal that resolves to a file of the workspace), or a contributing
+  manifest. A pair with one is marked in its message, never dropped.
+
+Recount at `7d0ba862`: 129 coupled pairs, 64 linked, 32 explained, 33 hidden
+(6 across languages, 14 across workspaces, 9 within a workspace, 4 Kotlin only;
+11 with a composition root), against 127, 63, 36 and 28 in the trial of
+2026-10-31. `BpmnLintConfigService.ts` ↔ `LintConfigService.ts` is listed, and
+no port and adapter linked through `hostPorts.ts` is hidden. Counting each
+skipped commit type changes no pair in this window; the types stay skipped
+because a release or formatting commit under 30 read files would otherwise add
+pairs for no shared reason. A run on this checkout, HEAD and the merge-base
+worktree, takes 2.3 s; one backfill step takes about 1 s.
+
+Alternatives considered:
+
+- **A failing gate with an exception list.** A replay of 200 PRs had 50 edit
+  the list and 9 fail on files they did not touch, because the window slid.
+- **code-maat itself** needs a JVM and reads no imports, so it cannot tell a
+  linked pair from a hidden one.
 
 ### Private upstream APIs
 
