@@ -20,6 +20,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Architecture tests](#architecture-tests)
 - [Fitness function report](#fitness-function-report)
 - [Change coupling](#change-coupling)
+- [Convention coverage](#convention-coverage)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -264,8 +265,14 @@ Every `architecture.spec.ts` reads its sources through one engine,
 tree, so comments, JSDoc `import()` and strings never count, and marks an
 import type-only where TypeScript would elide it. It resolves a relative import
 through a fixed suffix list (`.ts`, `.tsx`, `/index.ts`, `/index.tsx`, then the
-exact path) and maps a package import to a workspace by its package name. It
-also finds import cycles, host reach, implemented interfaces and comments. A
+exact path) and maps a package import to a workspace by its package name, and
+keeps the line each import starts on. It also finds import cycles, host reach
+and comments. `findImplementations` lists each class with an `implements`
+clause and the files that declare its interfaces: it follows the file's import
+bindings (named, renamed, `ns.X`) and then the declaration graph through barrels
+and aliases; a local interface resolves to the file itself, a global or
+package one to none. It reads syntax only, so a checkout without
+`node_modules` gives the same result. A
 rule that needs types, not syntax, gets a type-checked `ts.Program`:
 `readTypeProgram` builds one from a tsconfig, and `findSubclassConstructions`
 finds every `new` of a subclass of a named base class, through intermediate and
@@ -290,7 +297,8 @@ a barrel, a file with nothing but imports and re-exports (`readModuleSymbols`),
 gets no edge of its own. A namespace or dynamic import of a barrel links to
 every file it reaches, a name no file declares falls back to the module, and a
 JSON import links to the JSON file. The blocking specs keep the plain import
-graph; the declaration graph serves the change-coupling report.
+graph; the declaration graph serves the change-coupling report and
+`findImplementations`.
 
 The type-checked rule does not need a full install. Workspace imports resolve
 through the `tsconfig.base.json` paths to sources, so with every third-party
@@ -533,6 +541,52 @@ Alternatives considered:
   the list and 9 fail on files they did not touch, because the window slid.
 - **code-maat itself** needs a JVM and reads no imports, so it cannot tell a
   linked pair from a hidden one.
+
+### Convention coverage
+
+`convention-coverage` (#2127) reports the code the role-folder convention does
+not cover: atomic, triggered, dynamic, reported. Every other fitness function
+reads the role folders, so a file outside one, or in one its imports
+contradict, escapes all of them. In reflexion-model terms (Murphy, Notkin,
+Sullivan 1995) the folders are the mapping and the rules the high-level model;
+the function reports the files the mapping misses and the divergences. The pure
+measure lives in `tools/repo-checks/src/conventionCoverage/domain`.
+
+- **Read files.** Tracked `.ts` and `.tsx` under the `src/` of every workspace
+  whose manifest declares `"architecture": "hexagonal"`, without specs,
+  declaration files and `__fixtures__`, as the blocking spec reads them. No
+  such workspace, as before #2138, throws `InsufficientHistory`.
+- **Rules.** The nine `HEXAGONAL_RULES` run without the blanket exceptions of
+  the blocking spec: the files those excuse are the remaining migration work,
+  and a migrated workspace shows none. One finding per file and rule, at the
+  first offending import; the placement rule points at line 1. The type rule
+  no spec blocks: a class whose `implements` clause names an interface declared
+  in a `port/` of any hexagonal workspace, outside `adapter/out/` and
+  `testing/`, one finding per file at its first such class. `testing/` may
+  implement a port: its fakes do.
+- **Groups.** Outside every role folder (`unmapped`), imports that contradict
+  the folder (`divergent-import`), a port implemented outside `adapter/out/`
+  (`misplaced-port-implementation`).
+
+First run at `03b31896`: 62 findings. Unmapped: 42 (`apps/bpmn-webview` 22,
+`libs/element-template-builder` 12, `apps/form-webview` 4,
+`apps/deployment-webview` 4). Divergent imports: 19, of which 12 are
+“nothing imports an entry” in the flat `src/` roots of the four webviews and 7
+are template-builder `domain/` files importing its `catalog/`. Misplaced port
+implementations: 1, `EditorSessionDocuments` in `editorSession/service`
+implementing `DocumentPort`. Of 87 implementing classes, 46 sit in
+`adapter/out/` and 14 in the core's `testing/`; 4 implement only `vscode`
+interfaces. The migrated workspaces show none. Reading and measuring 451 files
+in 9 workspaces takes about 0.5 s per tree.
+
+Alternatives considered:
+
+- **A blocking rule for port implementations.** Detecting a role by type is
+  what the role folders were chosen over (see
+  [Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders));
+  reported, the rule informs without overriding the folder.
+- **A second, report-only rule list.** One rule set, run with the exceptions in
+  the blocking spec and without them here, cannot drift between the two.
 
 ### Private upstream APIs
 

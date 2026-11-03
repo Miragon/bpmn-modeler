@@ -61,7 +61,9 @@ describe("readModuleImports", () => {
             typeOnly: true,
         },
     ])("reads $form", ({ source, typeOnly }) => {
-        expect(readModuleImports("module.ts", source)).toEqual([{ specifier: "./a", typeOnly }]);
+        expect(readModuleImports("module.ts", source)).toEqual([
+            { specifier: "./a", typeOnly, line: 1 },
+        ]);
     });
 
     it.each([
@@ -87,7 +89,7 @@ describe("readModuleImports", () => {
         },
     ])("ignores $form", ({ source }) => {
         expect(readModuleImports("module.ts", source)).toEqual([
-            { specifier: "./a", typeOnly: false },
+            { specifier: "./a", typeOnly: false, line: 2 },
         ]);
     });
 
@@ -105,7 +107,13 @@ describe("readModuleImports", () => {
         const source = 'const view = <p>import "./x";</p>;\nimport { a } from "./a";';
 
         expect(readModuleImports("view.tsx", source)).toEqual([
-            { specifier: "./a", typeOnly: false },
+            { specifier: "./a", typeOnly: false, line: 2 },
         ]);
+    });
+
+    it("reads the line an import starts on, after leading comments", () => {
+        const source = '/** Header. */\n\nimport {\n    a,\n} from "./a";\nexport * from "./b";';
+
+        expect(readModuleImports("module.ts", source).map(({ line }) => line)).toEqual([3, 6]);
     });
 });

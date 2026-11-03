@@ -24,8 +24,9 @@ export interface ModuleSymbols {
     readonly declaresNothing: boolean;
 }
 
-interface ImportedBinding {
+export interface ImportedBinding {
     readonly specifier: string;
+    /** Unset for a namespace import. */
     readonly imported?: string;
 }
 
@@ -74,7 +75,7 @@ function isImport(statement: ts.Statement): boolean {
     );
 }
 
-function importedBindings(sourceFile: ts.SourceFile): Map<string, ImportedBinding> {
+export function importedBindings(sourceFile: ts.SourceFile): Map<string, ImportedBinding> {
     const bindings = new Map<string, ImportedBinding>();
     for (const statement of sourceFile.statements) {
         if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {

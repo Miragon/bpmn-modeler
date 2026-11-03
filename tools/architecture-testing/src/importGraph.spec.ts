@@ -54,11 +54,22 @@ describe("buildImportGraph", () => {
                     from: "feature/service/A.ts",
                     specifier: "../domain/b",
                     typeOnly: false,
+                    line: 1,
                     to: "feature/domain/b.ts",
                 },
-                { from: "feature/service/A.ts", specifier: "bpmnlint", typeOnly: true },
-                { from: "feature/service/A.ts", specifier: "./theme.css", typeOnly: false },
-                { from: "feature/service/A.ts", specifier: "../domain/gone", typeOnly: false },
+                { from: "feature/service/A.ts", specifier: "bpmnlint", typeOnly: true, line: 2 },
+                {
+                    from: "feature/service/A.ts",
+                    specifier: "./theme.css",
+                    typeOnly: false,
+                    line: 3,
+                },
+                {
+                    from: "feature/service/A.ts",
+                    specifier: "../domain/gone",
+                    typeOnly: false,
+                    line: 4,
+                },
             ],
         });
     });
@@ -81,7 +92,7 @@ describe("unresolvedRelativeImports", () => {
         ]);
 
         expect(unresolvedRelativeImports(graph, [".css", ".json"])).toEqual([
-            { from: "a.ts", specifier: "./missing", typeOnly: false },
+            { from: "a.ts", specifier: "./missing", typeOnly: false, line: 4 },
         ]);
     });
 });

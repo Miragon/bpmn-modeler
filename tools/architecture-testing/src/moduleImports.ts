@@ -5,6 +5,7 @@ import { parseSource } from "./parseSource";
 export interface ModuleImport {
     readonly specifier: string;
     readonly typeOnly: boolean;
+    readonly line: number;
 }
 
 /**
@@ -12,19 +13,23 @@ export interface ModuleImport {
  * as imports. The file name picks the scanner: `.tsx` needs the TSX one.
  */
 export function readModuleImports(fileName: string, text: string): ModuleImport[] {
+    const sourceFile = parseSource(fileName, text);
     const imports: ModuleImport[] = [];
     const visit = (node: ts.Node): void => {
         const moduleImport = moduleImportOf(node);
         if (moduleImport !== undefined) {
-            imports.push(moduleImport);
+            const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+            imports.push({ ...moduleImport, line: start.line + 1 });
         }
         ts.forEachChild(node, visit);
     };
-    visit(parseSource(fileName, text));
+    visit(sourceFile);
     return imports;
 }
 
-function moduleImportOf(node: ts.Node): ModuleImport | undefined {
+type ImportForm = Omit<ModuleImport, "line">;
+
+function moduleImportOf(node: ts.Node): ImportForm | undefined {
     if (ts.isImportDeclaration(node)) {
         return literalImport(node.moduleSpecifier, isTypeOnlyImport(node.importClause));
     }
@@ -43,7 +48,7 @@ function moduleImportOf(node: ts.Node): ModuleImport | undefined {
     return undefined;
 }
 
-function literalImport(literal: ts.Node | undefined, typeOnly: boolean): ModuleImport | undefined {
+function literalImport(literal: ts.Node | undefined, typeOnly: boolean): ImportForm | undefined {
     return literal !== undefined && ts.isStringLiteralLike(literal)
         ? { specifier: literal.text, typeOnly }
         : undefined;

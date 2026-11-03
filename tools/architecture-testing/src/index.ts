@@ -1,12 +1,12 @@
 export type { ArchitectureRule } from "./architectureRule";
-export { readClassDeclarations } from "./classDeclarations";
-export type { ClassDeclaration } from "./classDeclarations";
 export { readComments, stripComments } from "./comments";
 export { buildDeclarationGraph } from "./declarationGraph";
 export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGraph";
 export { filesReaching, isHostModule } from "./hostReach";
 export { FLAT_RULES } from "./flatRules";
 export { HEXAGONAL_RULES } from "./hexagonalRules";
+export { findImplementations } from "./implementations";
+export type { ClassImplementation, ImplementationOptions } from "./implementations";
 export { findImportCycles } from "./importCycles";
 export type { DirectedEdge } from "./importCycles";
 export {
