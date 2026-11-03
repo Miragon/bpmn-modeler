@@ -54,7 +54,7 @@ function wildcardTargets(specifier: string, aliases: readonly PathAlias[]): stri
             return [];
         }
         const captured = specifier.slice(prefix.length, specifier.length - suffix.length);
-        return [{ prefix, targets: targets.map((target) => target.replace("*", captured)) }];
+        return [{ prefix, targets: targets.map((target) => target.replaceAll("*", captured)) }];
     });
     const longest = matches.sort((left, right) => right.prefix.length - left.prefix.length)[0];
     return longest?.targets ?? [];
