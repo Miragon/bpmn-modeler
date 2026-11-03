@@ -6,7 +6,7 @@ import {
     SettingChange,
     settingChangeNaming,
 } from "../editorSession/domain/EditorSession";
-import { EditorHandle } from "../editorSession/service/EditorHandle";
+import { EditorHandle } from "../editorSession/port/EditorHandle";
 import { SettingKey } from "../kernel/domain/modelerSettings";
 
 class Listeners<T> {

@@ -1,4 +1,4 @@
-import { WorkspacePort } from "../../kernel/domain/hostPorts";
+import { WorkspacePort } from "../../kernel/port/hostPorts";
 import { ScopeMembership } from "../../kernel/domain/ScopeMembership";
 import { SearchScope, searchScopeKey } from "../../kernel/domain/searchScope";
 import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";

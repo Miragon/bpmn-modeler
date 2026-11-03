@@ -1,3 +1,4 @@
+import { AuthConfig } from "./deployment";
 import { contentFingerprint, DeployedRevision } from "./deploymentLedger";
 
 /**
@@ -60,4 +61,14 @@ export function reconcile(
 /** C7 returns the stored resource bytes, which may carry a UTF-8 BOM the editor buffer lacks. */
 function stripBom(content: string): string {
     return content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
+}
+
+/** Addresses the latest deployed version of one process on an engine. */
+export interface DefinitionLookup {
+    readonly endpoint: string;
+    readonly tenantId: string;
+    readonly processKey: string;
+    readonly auth: AuthConfig;
+    /** The `.env` values the lookup may carry, which an error must never echo. */
+    readonly envValues: readonly string[];
 }

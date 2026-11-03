@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";

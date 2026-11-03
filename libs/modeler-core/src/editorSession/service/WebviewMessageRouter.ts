@@ -14,6 +14,9 @@ export type MessageRoute =
     | { readonly kind: "ignored"; readonly reason: string }
     | { readonly kind: "unrouted" };
 
+/** What a coverage check reads of a router, whatever sender its handlers take. */
+export type RouteLookup = Pick<WebviewMessageRouter<never>, "routeOf">;
+
 /** A command's handlers in run order, or the reason its editor drops it. */
 export type CommandRoute<TType extends ProtocolCommandType, TSource = string> =
     | readonly [

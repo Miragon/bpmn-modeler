@@ -1,6 +1,7 @@
 {
   "private": true,
   "name": "@miragon/bpmn-modeler-standalone",
+  "architecture": "flat",
   "description": "Miragon BPMN Modeler — standalone Theia-based Electron desktop app",
   "productName": "Miragon BPMN Modeler",
   "desktopName": "io.miragon.BpmnModeler.desktop",

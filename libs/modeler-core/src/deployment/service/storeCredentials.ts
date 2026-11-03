@@ -1,5 +1,5 @@
 import { AuthConfig } from "../domain/deployment";
-import { SecretStorePort } from "../domain/ports";
+import { SecretStorePort } from "../port/deploymentPorts";
 
 /** Without a `slot` the credentials stay under the legacy unnamed keys. */
 export async function storeCredentials(

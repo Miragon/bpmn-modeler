@@ -117,7 +117,7 @@ cache".)
 ## The RPC contract (bridge ⇄ host)
 
 Single NDJSON JSON-RPC duplex. The host (Kotlin) implements the core's host
-ports (`hostPorts.ts` and the feature `domain/ports.ts` files) as RPC handlers;
+ports (`kernel/port/hostPorts.ts` and the feature `port/` folders) as RPC handlers;
 the core never knows it isn't talking to VS Code. Selected methods (full table
 in the bridge README):
 
@@ -137,7 +137,7 @@ in the bridge README):
 
 **Handler coverage.** `ProtocolHandlerCoverageTest` registers the production
 `BridgeRouters` and fails when a core → host method in
-`apps/modeler-bridge/src/protocol/protocol.json` has no Kotlin handler, or a
+`apps/modeler-bridge/src/protocol/domain/protocol.json` has no Kotlin handler, or a
 handler serves a method the core no longer sends. Adding or removing a
 core → host method therefore changes the descriptor, `protocol.json` and the
 Kotlin router in one PR. It also compares parameter and result keys: every
@@ -181,7 +181,7 @@ To add a new synchronous port, follow
 | EP | Implementation |
 |---|---|
 | `fileType` (`.bpmn`) | `BpmnFileType` |
-| `fileEditorProvider` | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF) |
+| `fileEditorProvider` | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF); `ElementTemplatePreviewEditorProvider` → JSON editor + `ElementTemplatePreviewEditor` in a `TextEditorWithPreview` (bridge-free) |
 | `postStartupActivity` | `BridgeWarmupActivity` (pre-warm the bridge off-EDT) |
 | `diff.DiffTool` | `BpmnDiffTool` (two-pane JCEF diagram diff) |
 | `statusBarWidgetFactory` | one `StatusSlotWidgetFactory` subclass per slot (element templates, engine, BPMNlint, deployment target) |
@@ -207,6 +207,8 @@ stopped publishing as a standalone artifact in 2025.3; for 261+ use the unified
 Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **Supervisor / composition root**: `CoreProcess.kt`; warmup `BridgeWarmupActivity.kt`
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
+- **Element templates**: `ElementTemplatePreviewEditor(Provider).kt` and `ElementTemplatePreviewMessages.kt` (the page's protocol, answered in Kotlin);
+  `ElementTemplateFiles.kt` and `NewElementTemplates.kt` copy the TypeScript rules and run their `*.cases.json` rows in tests
 - **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
   inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`
@@ -217,11 +219,13 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
 Bridge (`apps/modeler-bridge/src/`):
-- `server.ts` (entrypoint, binds the process streams), `stdioBinding.ts`
-  (stdin frames, `[core]`-tagged stderr lines), `bridge.ts` (wires core to
-  adapters), `rpc.ts` (NDJSON peer),
-  `adapters.ts` (`DocumentMirror` + `Rpc*` ports), `nodeAdapters.ts` (pure-`fs`
-  `WorkspacePort`/`SettingsPort`).
+- `server.ts` (entrypoint, binds the process streams); `composition/`
+  (`bridge.ts` wires core to adapters, `stdioBinding.ts` feeds stdin frames and
+  tags stderr lines `[core]`); `transport/adapter/out/Rpc.ts` (NDJSON peer);
+  `<context>/adapter/in/*Handlers.ts` (Host→Core handler tables);
+  `<context>/adapter/out/` (`Rpc*` ports, pure-`fs` `NodeWorkspace` and
+  `BridgeSettings`); `editorSession/domain/DocumentMirror.ts`;
+  `protocol/domain/` (the wire contract).
 - `package.json`: `build` = typecheck + `compile`; `compile` = `bun build
   --compile … --outfile dist/modeler-bridge`; `compile:all` = the `--target`
   matrix (darwin-arm64/x64, linux-x64/arm64, windows-x64); `start` = run from

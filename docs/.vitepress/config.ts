@@ -46,6 +46,7 @@ export default miragonDocs({
                 { text: "Append menu", link: "/vscode/features/append-menu" },
                 { text: "Flow navigation", link: "/vscode/features/flow-navigation" },
                 { text: "Element templates", link: "/vscode/features/element-template-chooser" },
+                { text: "Element template editor", link: "/vscode/features/element-template-editor" },
                 { text: "Template marketplace", link: "/vscode/features/template-marketplace" },
                 { text: "Forms", link: "/vscode/features/form-editing" },
                 { text: "Language support", link: "/vscode/features/language-support" },

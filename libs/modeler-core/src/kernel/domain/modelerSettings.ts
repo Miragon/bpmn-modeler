@@ -1,6 +1,24 @@
 import { SURFACE_MODES, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { ColorThemeSetting, MarketplaceSettingsEntry } from "./hostPorts";
+/**
+ * A bare string is a pasted GitHub/GitLab URL (or local folder path). The object
+ * form exists to name a self-hosted host via `baseUrl` (GitHub Enterprise
+ * `/api/v3`, or self-hosted GitLab), which a dotted-host URL string cannot
+ * express unambiguously. `repo` is the full `group/subgroup/project` path for
+ * GitLab, since nested subgroups make a two-field owner/repo split lossy.
+ * Validated defensively at parse time since a user hand-edits `settings.json`.
+ */
+export type MarketplaceSettingsEntry =
+    | string
+    | {
+          readonly provider: "github" | "gitlab";
+          readonly repo: string;
+          readonly baseUrl?: string;
+          readonly ref?: string;
+      };
+
+/** Follow the host's theme, or keep the modeler light. */
+export type ColorThemeSetting = "automatic" | "light";
 
 /**
  * The `miragon.bpmnModeler.*` values the core reads through `SettingsPort`, as

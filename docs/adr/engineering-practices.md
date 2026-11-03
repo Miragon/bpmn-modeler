@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-02
+- Last reviewed: 2026-11-03
 
 ## Context
 
@@ -19,6 +19,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [CI test targets](#ci-test-targets)
 - [Architecture tests](#architecture-tests)
 - [Fitness function report](#fitness-function-report)
+- [Change coupling](#change-coupling)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -264,28 +265,103 @@ tree, so comments, JSDoc `import()` and strings never count, and marks an
 import type-only where TypeScript would elide it. It resolves a relative import
 through a fixed suffix list (`.ts`, `.tsx`, `/index.ts`, `/index.tsx`, then the
 exact path) and maps a package import to a workspace by its package name. It
-also finds import cycles, host reach, implemented interfaces, port adapters
-outside their homes or imported from outside them, and comments. Only
-`sourceTree.ts` touches the file system; the rest are pure functions over
-source text. Each spec keeps its own classifier, since feature and layer layout
-differ per workspace.
+also finds import cycles, host reach, implemented interfaces and comments. A
+rule that needs types, not syntax, gets a type-checked `ts.Program`:
+`readTypeProgram` builds one from a tsconfig, and `findSubclassConstructions`
+finds every `new` of a subclass of a named base class, through intermediate and
+generic bases, with the literal type of a discriminant property. It throws when
+the base class is not declared in the named file, so a moved base cannot match
+nothing and pass. Only `sourceTree.ts` and `typeProgram.ts` touch the file
+system; the rest are pure functions over source text or a program. The engine
+also holds one rule set per workspace kind (`HEXAGONAL_RULES`, `FLAT_RULES`)
+over role folders that `roleOf` reads from the path, so no rule reads a file or
+type name (see
+[Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders)).
+A workspace's own spec keeps only the rules specific to it, such as the core's
+domain package allowlist.
+
+The import graph links a file to the file it names. `buildDeclarationGraph`
+links it to the file that declares each imported name instead: it resolves
+`@miragon/*` specifiers through the `tsconfig.base.json` paths (exact and `/*`
+entries, the same suffix list), then follows named, default, local and
+namespace re-exports and `export *` through any chain, with a cycle guard. A
+direct import of a module that declares something also links to that module;
+a barrel, a file with nothing but imports and re-exports (`readModuleSymbols`),
+gets no edge of its own. A namespace or dynamic import of a barrel links to
+every file it reaches, a name no file declares falls back to the module, and a
+JSON import links to the JSON file. The blocking specs keep the plain import
+graph; the declaration graph serves the change-coupling report.
+
+The type-checked rule does not need a full install. Workspace imports resolve
+through the `tsconfig.base.json` paths to sources, so with every third-party
+package hidden, as in the focused CI install, the webview command scan finds
+the same 112 constructions it finds with them. A missing third-party type only
+turns a value into `any`, which no `Command` construction depends on, so the
+rule does not demand zero diagnostics. Building and scanning the four webview
+programs takes 2 to 4 s.
 
 [`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts) holds
 the rules over every root workspace with a `src/`: no import cycle inside a
 workspace (type-only imports count), every relative import resolves (assets
 aside, so no edge drops silently out of the cycle rule), no cycle between
 workspaces, and no workspace depends on a less stable one. Instability is
-I = Ce / (Ca + Ce) over workspace dependencies, compared on integers.
+I = Ce / (Ca + Ce) over workspace dependencies, compared on integers. It also
+applies the rule set of each workspace's kind, which the workspace declares in
+the `"architecture"` field of its `package.json`; a missing or unknown kind
+fails. The role rules read the default source tree, so `__fixtures__` stay out:
+they are test inputs, not code with a role. A workspace not yet moved into its
+role folders has one blanket `KnownException` (`from: <dir>, to: "*"`) naming
+the issue that moves it.
 
-Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Layer
-and stability rules take `KnownException` entries that name the issue removing
+ESLint bans an empty function (`() => {}`) in an adapter, outside specs: a
+port adapter stubbed that way passes every spec that never calls it, so an
+intended no-op says why in a comment instead (#2053). The override covers
+`**/src/**/adapter/**/*.ts` and the core's `testing/`.
+
+Two exception regimes apply. Cycles take no exceptions; a cycle is fixed. Role,
+layer and stability rules take `KnownException` entries that name the issue removing
 them, and a stale or unnamed entry fails the gate, so the lists only shrink. A
 rule scoped to a folder or file set fails when the scope matches nothing
-(`requireMatches`), so a renamed folder cannot make it pass vacuously; the VS
-Code host-isolation rule is exempt because its empty scope is the goal.
+(`requireMatches`), so a renamed folder cannot make it pass vacuously.
 
 The engine lives under `tools/`, not `libs/`: it is dev-only tooling that no
 host or webview ships.
+
+A domain value that describes the world, such as `Engine`, keeps its rules in
+one home module. The typed ESLint rule `miragon/no-guarded-value-comparison`
+([`tools/repo-checks/eslint`](../../tools/repo-checks/eslint/noGuardedValueComparison.cjs))
+reports `===`, `!==`, `==`, `!=` and each `case` that compares such a value
+with a string literal outside its home, in every folder. Code elsewhere asks
+the home: a capability in the `Record<Engine, …>` table of
+`libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after the
+rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
+lookup, so the compiler reports a missing engine. Each registry entry in
+`eslint.config.cjs` names the type, its module, its homes and an error message
+that names the fix.
+
+- **Typed, not name-based.** The rule reads the type checker through the parser
+  services typescript-eslint already provides, so it sees the value under any
+  name: a local, a parameter, a type parameter (resolved to its constraint),
+  with `null` and `undefined` removed. A value of raw `string` or `unknown` is
+  invisible; it is parsed with `isEngine` first (parse, don't validate).
+- **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
+  `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
+  registry when review or the change-coupling report shows a decision on it in
+  two places.
+- **Never vacuous.** The registry is resolved against the program on every run:
+  a missing module, a missing export or a type that is no string-literal union
+  throws, and so does a file without type information.
+- **Exceptions.** An exception is an `eslint-disable-next-line` directive whose
+  description reads `-- #<issue>: <reason>`;
+  [`guardedValueComparison.spec.ts`](../../tools/repo-checks/src/guardedValueComparison.spec.ts)
+  fails on one without, and `reportUnusedDisableDirectives: "error"` fails a
+  directive that silences nothing. None exists today.
+- **Cost.** `eslint .` took 10.1 s before and 9.2 to 10.4 s after, within
+  run-to-run noise: the type program was built anyway for
+  `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
+  root, so a run from a workspace directory gets type information too.
+- **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
+  value typed `string`, and Kotlin.
 
 Alternatives considered:
 
@@ -306,6 +382,9 @@ Alternatives considered:
 - **Sheriff** adds editor feedback through ESLint, but its tag and barrel rules
   would either repeat the spec rules or move them out of Vitest, losing the
   issue-named exceptions and the stale check.
+- **A name-based `no-restricted-syntax` selector** on `engine` and `platform`
+  instead of the typed guarded-value rule misses every alias, such as
+  `const e = target.engine`.
 
 ### Fitness function report
 
@@ -325,7 +404,12 @@ wrongly, its evidence (published work or a trial on this repository) and
 `findFindings`. `defineFitnessFunction` makes a missing field, an empty list
 or a `""` literal a type error and throws on whatever the types let through.
 The report prints every one of those fields, so the limits travel with the
-findings instead of living in a document that drifts. The rule it relies on
+findings instead of living in a document that drifts. A function may declare
+finding groups (`id`, `title`, `collapsed`); then every finding names one of
+them, a finding naming an undeclared group is broken input, and the Markdown
+prints one table per non-empty group in the declared order, a collapsed one
+inside `<details>`. Within a table the rows are sorted by path. The delta stays
+key-based, so a pair that moves between groups stays existing. The rule it relies on
 lands in a skill in the same PR and names the function's id; a static spec over
 the registry checks both, and that ids are unique.
 
@@ -377,10 +461,84 @@ alias-only `@miragon/architecture-testing`. `runnerImport` is marked
 experimental, so a spec boots the bin; the fallback is a `vite build --ssr`
 into a cache directory. Startup takes about 0.6 s.
 
+### Change coupling
+
+`change-coupling` (#2094) is the first registered fitness function: holistic,
+triggered, dynamic, reported. It lists pairs of files that keep changing in
+the same PRs without an import between them, the Common Closure Principle's
+signal for a rule kept in two places (Gall 1998, Zimmermann 2004, code-maat).
+The pure measure lives in `tools/repo-checks/src/changeCoupling/domain`, the
+history reader in `tools/repo-checks/src/history`, which #2095 and the
+hotspots of #2057 reuse.
+
+- **Window.** The 924 most recent first-parent commits, one squash-merged PR
+  each. A commit count, not a date: the dates of the older history were
+  rewritten on 2026-03-09. The function reads one commit more, which proves
+  the oldest has a parent; fewer in a full clone throw `InsufficientHistory`
+  and end the series there (378 commits are measurable today). A shallow clone
+  with too few commits is broken input: it fails with `git fetch --unshallow`
+  instead of printing an empty report.
+- **Renames.** `git log --first-parent --diff-merges=first-parent -M -l0 -z
+  --no-ext-diff --no-show-signature`, pinned so `diff.renames`,
+  `diff.renameLimit` or `log.showSignature` in the user's config cannot change
+  the result. Each historical path maps to today's path, newest commit first,
+  through every commit, the uncounted ones included: the 12 commits with more
+  than 30 read files carry 285 renames. Files that no longer exist drop out.
+- **Read files.** Non-spec `.ts`/`.tsx` under a workspace's `src/`, Kotlin
+  under `src/main/`, `.mjs` anywhere in a workspace except build configs
+  (`*.config.*`) and test folders, `*.schema.json`, `*.cases.json` and a
+  manifest that declares `contributes` (today `apps/vscode-plugin/package.json`).
+  Specs, `__fixtures__`, `test/`, `languages/` and barrels are not read.
+  Workspaces are the dirs the root `workspaces` entries match, with or without
+  a `package.json`, so the Gradle-built IntelliJ plugin is read. Read literally,
+  the issue's "outside `src/`" exclusion would have read no `.mjs` file at
+  all; reading them catches the `check-*.mjs` scripts and the `LOCALES` copy in
+  `libs/bpmn-i18n-extras/tools/build-overlay.mjs`.
+- **Counted commits.** `chore(deps)`, `chore(main)`, `chore(format)` and
+  `style` commits and commits with more than 30 read files are not counted.
+  The size counts read files, as code-maat counts the entities of its log;
+  counting every file instead drops the known lint-config copy and leaves 14
+  hidden pairs.
+- **Thresholds.** code-maat's defaults: at least 5 shared changes and a degree
+  (shared ÷ mean revisions × 100) of at least 30 %, compared in integers
+  (`shared × 200 ≥ 30 × (rₐ + r_b)`). Each file then has at least 5 revisions,
+  so min-revs needs no check of its own. In the recount, 6 shared changes or a
+  degree of 35 % lose the lint-config copy, 4 or 25 % raise the hidden pairs
+  from 33 to 58 and 61, and a changeset limit of 8 leaves 2 hidden pairs
+  without the copy.
+- **Classification.** Linked: one file imports the other in the declaration
+  graph; not reported. Explained: a file both import changed in at least half
+  of their shared changes, the one with most co-changes winning, ties by path;
+  listed in a collapsed group, because such a pair can still hide a copy.
+  Hidden: grouped as Kotlin only, across languages (Kotlin, JSON,
+  TypeScript/JavaScript as one), across workspaces, within a workspace.
+- **Composition roots.** A file in a `composition/` role folder, an entry a
+  workspace's `package.json` or a build config at its root names (any string
+  literal that resolves to a file of the workspace), or a contributing
+  manifest. A pair with one is marked in its message, never dropped.
+
+Recount at `7d0ba862`: 129 coupled pairs, 64 linked, 32 explained, 33 hidden
+(6 across languages, 14 across workspaces, 9 within a workspace, 4 Kotlin only;
+11 with a composition root), against 127, 63, 36 and 28 in the trial of
+2026-10-31. `BpmnLintConfigService.ts` ↔ `LintConfigService.ts` is listed, and
+no port and adapter linked through `hostPorts.ts` is hidden. Counting each
+skipped commit type changes no pair in this window; the types stay skipped
+because a release or formatting commit under 30 read files would otherwise add
+pairs for no shared reason. A run on this checkout, HEAD and the merge-base
+worktree, takes 2.3 s; one backfill step takes about 1 s.
+
+Alternatives considered:
+
+- **A failing gate with an exception list.** A replay of 200 PRs had 50 edit
+  the list and 9 fail on files they did not touch, because the window slid.
+- **code-maat itself** needs a JVM and reads no imports, so it cannot tell a
+  linked pair from a hidden one.
+
 ### Private upstream APIs
 
-Confine access to undocumented upstream members behind small typed adapters.
-Validate runtime shape and report a descriptive error naming the dependency and
+Confine access to undocumented upstream members behind small typed adapters,
+each in an `upstreamInternals/` folder of its library (the package's lint
+adapter in `src/bpmnlint/upstreamInternals/`). Validate runtime shape and report a descriptive error naming the dependency and
 pinned expectation. Callers use narrow public concepts rather than spreading
 private member names through feature code.
 
@@ -393,11 +551,13 @@ private member names through feature code.
 
 The [package architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts)
 scan the package and inlined libraries to reject new private-member reaches
-outside approved adapters, excluding the vendored panel fork. Installed-package
+outside an `upstreamInternals/` folder, excluding the vendored panel fork. They
+read the folder, not the adapters' file names, as do the package's rules on
+`mode/` and `reporting/`. Installed-package
 tests make a dependency bump fail where its shape changed:
 [upstream shapes](../../packages/bpmn-modeler/src/upstreamShape.browser.spec.ts),
 [engine groups](../../packages/bpmn-modeler/src/engineGroupData.upstream.browser.spec.ts),
-[differ results](../../libs/bpmn-diff/src/differResult.spec.ts), and
+[differ results](../../libs/bpmn-diff/src/upstreamInternals/differResult.spec.ts), and
 [template prefixes](../../libs/properties-panel/src/modeFilter/engineGroupData.upstream.spec.ts).
 The `bpmn-diff` and `properties-panel` targets list `yarn.lock` among their
 trigger paths so a lockfile-only bump re-runs those pins.

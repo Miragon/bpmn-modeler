@@ -1,9 +1,14 @@
 import { ExtensionContext } from "vscode";
 
-import { DeploymentFeature, DeploymentStatusParticipant } from "@miragon/bpmn-modeler-core";
-import { VsCodeDeploymentState } from "../deployment/infrastructure/VsCodeDeploymentState";
-import { VsCodeSecretStore } from "../deployment/infrastructure/VsCodeSecretStore";
-import { DeploymentController } from "../deployment/controller/DeploymentController";
+import {
+    DeploymentFeature,
+    DeploymentStatusParticipant,
+    RouteLookup,
+} from "@miragon/bpmn-modeler-core";
+import { VsCodeDeploymentState } from "../deployment/adapter/out/VsCodeDeploymentState";
+import { VsCodeSecretStore } from "../deployment/adapter/out/VsCodeSecretStore";
+import { createWebviewNonce } from "../shared/adapter/out/webviewNonce";
+import { DeploymentController } from "../deployment/adapter/in/DeploymentController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -14,6 +19,7 @@ import { SharedDeps } from "./sharedDeps";
  */
 export interface DeploymentHandles {
     deploymentStatusParticipant: DeploymentStatusParticipant;
+    deploymentSidebarRoutes: RouteLookup;
 }
 
 /**
@@ -34,7 +40,12 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         state: new VsCodeDeploymentState(context.workspaceState),
         pendingEdits: deps.pendingEdits,
     });
-    new DeploymentController(deployment).register(context);
+    new DeploymentController(deployment, context.extensionUri, createWebviewNonce).register(
+        context,
+    );
 
-    return { deploymentStatusParticipant: deployment.statusParticipant };
+    return {
+        deploymentStatusParticipant: deployment.statusParticipant,
+        deploymentSidebarRoutes: deployment.panelRoutes,
+    };
 }

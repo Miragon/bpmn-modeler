@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeElementTemplates, templatesOfFile } from "./elementTemplates";
-
-describe("templatesOfFile", () => {
-    it("accepts a single template or an array of them", () => {
-        expect(templatesOfFile({ name: "One" })).toEqual([{ name: "One" }]);
-        expect(templatesOfFile([{ name: "A" }, { name: "B" }])).toEqual([
-            { name: "A" },
-            { name: "B" },
-        ]);
-    });
-});
+import { mergeElementTemplates, templatesOfFileText } from "./elementTemplates";
 
 describe("mergeElementTemplates", () => {
     it("sorts by name and keeps source order for equal names", () => {
@@ -25,5 +15,29 @@ describe("mergeElementTemplates", () => {
             { name: "Task", id: "near" },
             { name: "Task", id: "root" },
         ]);
+    });
+
+    it("sorts an unnamed template before a named one from a later source", () => {
+        const merged = mergeElementTemplates([
+            { fileCount: 1, templates: [{ id: "unnamed" }] },
+            { fileCount: 1, templates: [{ name: "Alpha" }] },
+        ]);
+
+        expect(merged).toEqual([{ id: "unnamed" }, { name: "Alpha" }]);
+    });
+});
+
+describe("templatesOfFileText", () => {
+    it.each([
+        ["", []],
+        [" \n\t", []],
+        ['{"name":"Task"}', [{ name: "Task" }]],
+        ['[{"name":"A"},{"name":"B"}]', [{ name: "A" }, { name: "B" }]],
+    ])("reads the templates of %j", (text, templates) => {
+        expect(templatesOfFileText(text)).toEqual(templates);
+    });
+
+    it("throws for text that is not JSON", () => {
+        expect(() => templatesOfFileText("{ not json")).toThrow(SyntaxError);
     });
 });

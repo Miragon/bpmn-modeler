@@ -18,6 +18,11 @@ class WebviewRouteTest {
     }
 
     @Test
+    fun `templatePreview html serves the element template preview shell`() {
+        assertEquals(WebviewRoute.TemplatePreviewShell, WebviewRoute.forPath("/templatePreview.html"))
+    }
+
+    @Test
     fun `assets resolve under the bpmn bundle root`() {
         assertEquals(
             WebviewRoute.ClasspathAsset("/webview/index.js", "text/javascript; charset=utf-8"),

@@ -87,18 +87,15 @@ describe("BpmnSettingsBroadcaster.setLanguage", () => {
         expect((msg as LanguageQuery).locale).toBe("fr");
     });
 
-    it("logs when the language post is rejected", async () => {
+    it("passes a hidden editor by quietly: its webview asks again when shown", async () => {
         const { broadcaster, host, editor } = createBroadcaster();
         editor.hidden = true;
 
         broadcaster.setLanguage(editor.id);
-        // The `.catch` handler runs on a later microtask; flush before asserting.
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(host.notifier.logged("error")).toEqual([
-            expect.stringContaining("Error: The active editor is hidden.\n"),
-        ]);
+        expect(host.notifier.logged("error")).toEqual([]);
     });
 });
 

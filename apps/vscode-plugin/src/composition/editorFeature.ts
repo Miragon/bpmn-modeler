@@ -2,8 +2,8 @@ import { basename } from "node:path";
 
 import { ExtensionContext } from "vscode";
 
-import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
-import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
+import { RouteLookup, WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewNotificationHandlers } from "@miragon/bpmn-modeler-core";
 import { registerWebviewFocusHandlers } from "@miragon/bpmn-modeler-core";
@@ -17,10 +17,10 @@ import {
     getDmnModelerSettingHandler,
 } from "@miragon/bpmn-modeler-core";
 import { FormModelerService } from "@miragon/bpmn-modeler-core";
-import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
-import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
-import { FormValuesParticipant } from "../modeler/form/controller/editor-participants/FormValuesParticipant";
-import { FormValuesController } from "../modeler/form/controller/FormValuesController";
+import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
+import { DocumentSaveFlushController } from "../modeler/editor-session/adapter/in/DocumentSaveFlushController";
+import { FormValuesParticipant } from "../modeler/form/adapter/in/editor-participants/FormValuesParticipant";
+import { FormValuesController } from "../modeler/form/adapter/in/FormValuesController";
 import {
     getPropertiesPanelStateHandler,
     setPropertiesPanelStateHandler,
@@ -29,7 +29,7 @@ import {
 import {
     getFormInputValuesHandler,
     updateFormOutputValuesHandler,
-} from "../modeler/form/controller/webview-handlers/formMessageHandlers";
+} from "../modeler/form/adapter/in/webview-handlers/formMessageHandlers";
 import { DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 import { SharedDeps } from "./sharedDeps";
 
@@ -38,7 +38,10 @@ import { SharedDeps } from "./sharedDeps";
  * per-document services and message routers behind them, and the save flush
  * that every editor format shares. The BPMN editor is `bpmnEditorFeature`'s.
  */
-export function register(context: ExtensionContext, deps: SharedDeps): void {
+export function register(
+    context: ExtensionContext,
+    deps: SharedDeps,
+): { dmnEditorRoutes: RouteLookup; formEditorRoutes: RouteLookup } {
     // DMN keeps its own default under a distinct key; the panel service is
     // engine-agnostic, so the BPMN implementation is reused.
     const dmnPanelStateRepo = new PropertiesPanelStateRepository(
@@ -97,7 +100,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     registerWebviewLogHandlers(formMessageRouter, deps.notifier, resolveSource);
     registerWebviewNotificationHandlers(formMessageRouter, deps.notifier);
 
-    new ModelerEditorController(deps.editorStore, deps.notifier, {
+    new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: DMN_VIEW_TYPE,
         messageRouter: dmnMessageRouter,
         participants: [
@@ -106,7 +109,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
         ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
-    new ModelerEditorController(deps.editorStore, deps.notifier, {
+    new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: FORM_VIEW_TYPE,
         messageRouter: formMessageRouter,
         participants: [
@@ -120,4 +123,6 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
     // Flush pending webview changes into the buffer before every save so a
     // persist never trails the live model.
     new DocumentSaveFlushController(deps.editorStore, deps.pendingEdits).register(context);
+
+    return { dmnEditorRoutes: dmnMessageRouter, formEditorRoutes: formMessageRouter };
 }

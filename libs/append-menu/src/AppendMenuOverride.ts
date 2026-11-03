@@ -11,7 +11,7 @@ import { render, h } from "preact";
 import { AppendMenuOverlay } from "./components/AppendMenuOverlay";
 import { classifyEntries, executeEntryAction } from "./types";
 import { executeTemplateTypeAction } from "./templateTypeAction";
-import { getPopupMenuContext } from "./popupMenuInternals";
+import { getPopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 import type { PopupMenuEntryAction, Translate } from "./types";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/types";

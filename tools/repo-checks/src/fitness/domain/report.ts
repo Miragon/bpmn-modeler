@@ -1,6 +1,6 @@
 import { type Delta, markDelta, type MarkedFinding } from "./delta";
 import type { Finding } from "./finding";
-import type { Evidence, FitnessCategories, FitnessFunction } from "./fitnessFunction";
+import type { Evidence, FindingGroup, FitnessCategories, FitnessFunction } from "./fitnessFunction";
 import { isMeasured, type Measurement } from "./snapshot";
 
 export type BaseSource = "snapshot" | "checkout";
@@ -22,6 +22,7 @@ export interface FunctionReport {
     readonly misses: readonly string[];
     readonly reportsWrongly: readonly string[];
     readonly evidence: readonly Evidence[];
+    readonly groups?: readonly FindingGroup[];
     readonly base: { readonly source: BaseSource; readonly unmeasurable?: string };
     readonly outcome: FunctionOutcome;
 }
@@ -51,6 +52,7 @@ export function functionReport(
         misses: fitnessFunction.misses,
         reportsWrongly: fitnessFunction.reportsWrongly,
         evidence: fitnessFunction.evidence,
+        ...(fitnessFunction.groups === undefined ? {} : { groups: fitnessFunction.groups }),
         base: isMeasured(base.measurement)
             ? { source: base.source }
             : { source: base.source, unmeasurable: base.measurement.unmeasurable },

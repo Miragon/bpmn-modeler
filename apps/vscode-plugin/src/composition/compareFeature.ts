@@ -1,8 +1,8 @@
 import { ExtensionContext } from "vscode";
 
-import { CompareSelectionStore } from "../diff/infrastructure/CompareSelectionStore";
-import { BpmnCompareController } from "../diff/controller/BpmnCompareController";
-import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
+import { CompareSelectionStore } from "../diff/adapter/in/CompareSelectionStore";
+import { BpmnCompareController } from "../diff/adapter/in/BpmnCompareController";
+import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { SharedDeps } from "./sharedDeps";
 
 /**

@@ -1,7 +1,7 @@
 import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
 import { excludedDirsGlob, isExcludedDirName } from "../domain/excludedDirs";
-import { WorkspacePort } from "../domain/hostPorts";
+import { WorkspacePort } from "../port/hostPorts";
 import { LocateResult, outcomeAfterReading, SearchOutcome } from "../domain/locateResult";
 import { SearchScope } from "../domain/searchScope";
 import { joinWorkspacePath } from "../domain/workspacePath";

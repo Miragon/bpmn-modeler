@@ -1,4 +1,4 @@
-import { LoggerPort } from "../../kernel/domain/hostPorts";
+import { LoggerPort } from "../../kernel/port/hostPorts";
 import { ModelerDocumentService } from "./EditorDocumentSync";
 import { EditorSessionStore } from "./EditorSessionStore";
 import { DocumentFlushService } from "./DocumentFlushService";
@@ -6,7 +6,7 @@ import { DocumentFlushService } from "./DocumentFlushService";
 export type PendingEditsFlushResult =
     { status: "safe"; session: object } | { status: "unavailable" } | { status: "closed" };
 
-export type ModelerFileExtension = ".bpmn" | ".dmn" | ".form";
+export type ModelerFileExtension = ".bpmn" | ".dmn" | ".form" | ".json";
 
 export interface PendingEditsFlushOptions {
     destructive?: boolean;

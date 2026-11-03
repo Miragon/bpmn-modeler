@@ -1,4 +1,4 @@
-import { compareText, type Finding, parseFindings } from "./finding";
+import { compareText, type Finding, findingFields, parseFindings } from "./finding";
 import type { FitnessFunction } from "./fitnessFunction";
 
 export type Measurement =
@@ -41,12 +41,7 @@ function normalizedEntry(entry: SnapshotEntry): SnapshotEntry {
     return isMeasured(entry)
         ? {
               version: entry.version,
-              findings: entry.findings.map(({ key, path, line, message }) => ({
-                  key,
-                  path,
-                  line,
-                  message,
-              })),
+              findings: entry.findings.map(findingFields),
           }
         : { version: entry.version, unmeasurable: entry.unmeasurable };
 }

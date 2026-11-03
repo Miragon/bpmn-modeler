@@ -24,7 +24,7 @@ Pick the lightest channel that gets the job done. Heavier channels interrupt the
 
 ## Notifications
 
-`VsCodeNotifier` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeNotifier.ts`) wraps notification calls with fire-and-forget methods:
+`VsCodeNotifier` (`apps/vscode-plugin/src/shared/adapter/out/VsCodeNotifier.ts`) wraps notification calls with fire-and-forget methods:
 
 ```typescript
 // Simple notifications — no action buttons, returns void
@@ -52,9 +52,9 @@ window
 
 ## Status Bar
 
-The core shows status through `StatusBarPort` (`libs/modeler-core/src/kernel/domain/hostPorts.ts`): `show(slot, view)` and `hide(slot)`. Each slot (`elementTemplates`, `engineVersion`, `bpmnlint`, `deploymentTarget`) holds one `StatusView` (`kernel/domain/statusView.ts`) with its text, icon, tone, tooltip, click action and `transient` flag. The core writes the text; a host only places the slot and renders the view.
+The core shows status through `StatusBarPort` (`libs/modeler-core/src/kernel/port/hostPorts.ts`): `show(slot, view)` and `hide(slot)`. Each slot (`elementTemplates`, `engineVersion`, `bpmnlint`, `deploymentTarget`) holds one `StatusView` (`kernel/domain/statusView.ts`) with its text, icon, tone, tooltip, click action and `transient` flag. The core writes the text; a host only places the slot and renders the view.
 
-`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) creates one item per slot on first show, at the side and priority its placement table gives. It maps each icon to a codicon, each tone to a theme colour (`warning` to `statusBarItem.warningBackground`) and each action to a command:
+`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts`) creates one item per slot on first show, at the side and priority its placement table gives. It maps each icon to a codicon, each tone to a theme colour (`warning` to `statusBarItem.warningBackground`) and each action to a command:
 
 ```typescript
 statusBar.show("elementTemplates", {
@@ -82,7 +82,7 @@ Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/a
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) implements the core's `PickerPort`, so every quick pick a core service asks for goes through it. A new prompt uses its `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`), the migration scope (`migrationScopePrompt`), a script's language (`scriptLanguagePrompt`), the cleanup confirmation (`confirmation`, which summarises the affected items), the choice among the files a navigation found (`locatedFileChoices`) and every deployment prompt (`libs/modeler-core/src/deployment/domain/deploymentPrompts.ts`: the payload file, the active target, the status-bar menu, the files to deploy, the additional files, and the confirmations to delete a target and to send credentials to a new host). The core orders a file list by the workspace-relative path `VsCodePicker` shows (`fileChoicesInWorkspaceOrder`), except the payload files, which stay nearest first; either way, keep the order a prompt gives. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/adapter/out/VsCodePicker.ts`) implements the core's `PickerPort`, so every quick pick a core service asks for goes through it. A new prompt uses its `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`), the migration scope (`migrationScopePrompt`), a script's language (`scriptLanguagePrompt`), the cleanup confirmation (`confirmation`, which summarises the affected items), the choice among the files a navigation found (`locatedFileChoices`) and every deployment prompt (`libs/modeler-core/src/deployment/domain/deploymentPrompts.ts`: the payload file, the active target, the status-bar menu, the files to deploy, the additional files, and the confirmations to delete a target and to send credentials to a new host). The core orders a file list by the workspace-relative path `VsCodePicker` shows (`fileChoicesInWorkspaceOrder`), except the payload files, which stay nearest first; either way, keep the order a prompt gives. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
 
 ```typescript
 const result = await window.showQuickPick(items, {
@@ -92,7 +92,7 @@ const result = await window.showQuickPick(items, {
 
 If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine, migration or deployment choice writes nothing and shows no message, while declining to send credentials to a new host reports that nothing was sent. Use quick picks for selection from a list. Don't abuse notification buttons for this.
 
-The one input box a core service asks for is the marketplace's personal access token. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/infrastructure/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
+The one input box a core service asks for is the marketplace's personal access token. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
 
 ## Output Channel
 
@@ -128,14 +128,14 @@ Two separate host round-trips: **element** clipboard (BPMN shapes as JSON) and
 
 ### Extension Host Side
 
-`VsCodeClipboard` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeClipboard.ts`) exposes async clipboard methods:
+`VsCodeClipboard` (`apps/vscode-plugin/src/shared/adapter/out/VsCodeClipboard.ts`) exposes async clipboard methods:
 
 ```typescript
 async readClipboard(): Promise<string>   // vscode.env.clipboard.readText()
 async writeClipboard(text: string): Promise<void>  // vscode.env.clipboard.writeText()
 ```
 
-The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
+The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `libs/modeler-core/src/modeler/bpmn/adapter/in/bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
 
 ### Webview Side: Two DI Modules
 

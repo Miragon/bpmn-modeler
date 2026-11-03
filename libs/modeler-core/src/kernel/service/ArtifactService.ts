@@ -1,12 +1,12 @@
+import { ELEMENT_TEMPLATE_FOLDER_NAME, elementTemplateFolder } from "@miragon/bpmn-modeler-types";
+
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { configFolderPath } from "../domain/configArtifacts";
 import { changesConfigLookup, ConfigLookup } from "../domain/configLookup";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
-import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
+import { LoggerPort, SettingsPort, WorkspacePort } from "../port/hostPorts";
 import { EVERY_PATH_GLOB } from "../domain/watchedFiles";
 import { joinWorkspacePath, parentWorkspacePath } from "../domain/workspacePath";
-
-const ELEMENT_TEMPLATES_FOLDER = "element-templates";
 
 /**
  * Implemented by {@link import("../../modeler/bpmn/service/BpmnElementTemplatesService").BpmnElementTemplatesService}
@@ -89,7 +89,7 @@ export class ArtifactService {
             documentDir,
             workspaceRoot,
             configFolder,
-            ELEMENT_TEMPLATES_FOLDER,
+            ELEMENT_TEMPLATE_FOLDER_NAME,
         );
     }
 
@@ -170,7 +170,7 @@ export class ArtifactService {
         );
         if (templateDirs.length === 0) {
             this.logger?.logDebug(
-                `No "${configFolder}/element-templates" directory found between ` +
+                `No "${elementTemplateFolder(configFolder)}" directory found between ` +
                     `${documentDir} and ${workspaceRoot}.`,
             );
         }
@@ -210,7 +210,11 @@ export class ArtifactService {
             documentDirectory,
             workspaceRoot,
             entries: [
-                configFolderPath("", this.vsSettings.getConfigFolder(), ELEMENT_TEMPLATES_FOLDER),
+                configFolderPath(
+                    "",
+                    this.vsSettings.getConfigFolder(),
+                    ELEMENT_TEMPLATE_FOLDER_NAME,
+                ),
             ],
         };
 
@@ -243,7 +247,7 @@ export class ArtifactService {
         for (const [name, type] of entries) {
             if (type === "directory") {
                 files.push(...(await this.readDirectory(`${folder}/${name}`, extension)));
-            } else if (type === "file" && name.endsWith(extension)) {
+            } else if (type === "file" && name.toLowerCase().endsWith(extension)) {
                 files.push(`${folder}/${name}`);
             }
         }

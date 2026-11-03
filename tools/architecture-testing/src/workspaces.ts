@@ -6,10 +6,13 @@ export interface Workspace {
     readonly name: string;
     /** POSIX path relative to the repo root. */
     readonly dir: string;
+    /** The manifest's `architecture` field, unchecked; see `isWorkspaceKind`. */
+    readonly kind?: string;
 }
 
 interface Manifest {
     readonly name?: string;
+    readonly architecture?: string;
     readonly workspaces?: readonly string[];
 }
 
@@ -18,13 +21,21 @@ const PLAIN_DIR = /^[^*?[\]{}!]+$/;
 
 /** The root `workspaces` entries: `dir/*` and plain dirs; any other glob throws rather than silently matching less. */
 export function readWorkspaces(repoRoot: string): Workspace[] {
+    return readWorkspaceDirs(repoRoot).flatMap((dir) => {
+        const manifest = readManifest(repoRoot, join(dir, "package.json"));
+        if (manifest?.name === undefined) {
+            return [];
+        }
+        return manifest.architecture === undefined
+            ? [{ name: manifest.name, dir }]
+            : [{ name: manifest.name, dir, kind: manifest.architecture }];
+    });
+}
+
+/** The dirs the root `workspaces` entries match, with or without a manifest of their own. */
+export function readWorkspaceDirs(repoRoot: string): string[] {
     const patterns = readManifest(repoRoot, "package.json")?.workspaces ?? [];
-    return patterns
-        .flatMap((pattern) => workspaceDirsOf(repoRoot, pattern))
-        .flatMap((dir) => {
-            const name = readManifest(repoRoot, join(dir, "package.json"))?.name;
-            return name === undefined ? [] : [{ name, dir }];
-        });
+    return patterns.flatMap((pattern) => workspaceDirsOf(repoRoot, pattern));
 }
 
 /** A specifier names a workspace by its exact package name or a subpath of it. */

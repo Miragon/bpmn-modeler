@@ -1,4 +1,4 @@
-import { NotifierPort, PickerPort, WorkspacePort } from "../domain/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../port/hostPorts";
 import { classifyLocateResult, locatedFileChoices, LocateResult } from "../domain/locateResult";
 import { referenceForDisplay, truncateForDisplay } from "../domain/truncateForDisplay";
 

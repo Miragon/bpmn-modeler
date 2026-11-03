@@ -11,7 +11,7 @@ import {
 import { SecretRedactor } from "./secretRedactor";
 import { expandUrlTemplate } from "./urlTemplate";
 
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine, isEngine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
 /**
  * Value object representing a validated configuration for starting a process instance.
  *
@@ -37,7 +37,11 @@ export class StartInstanceConfig {
         readonly payload: Record<string, unknown> | null = null,
         readonly startInstanceUrl?: string,
         readonly envValues: readonly string[] = [],
-    ) {}
+    ) {
+        if (!isEngine(engine)) {
+            throw new UnsupportedEngineError(engine);
+        }
+    }
 
     referencesEnv(): boolean {
         return (

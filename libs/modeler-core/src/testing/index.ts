@@ -11,3 +11,4 @@ export * from "./RecordingStatusBar";
 export * from "./ScriptedPicker";
 export * from "./settingsNormalization";
 export * from "./workspaceContract";
+export * from "./surfaceCoverage";

@@ -22,7 +22,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/app/formTemplate.ts`. |
-| Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/bridge.ts` and `src/composition/`; Kotlin host in `apps/intellij-plugin`. |
+| Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's
 `domain/` as pure code, or into `libs/modeler-types` when browser code applies
@@ -39,14 +39,15 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
   and the pure rules browser code shares with the core, such as script-surface
   addressing, the XML comment and CDATA scan and process-variable extraction;
   DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
-- Add host-independent logic to the core's feature-oriented domain/service
-  layers. Reach host facilities through ports and editor handles. Cross-cutting
-  host ports live in the core's `kernel/domain/hostPorts.ts`; a port one
-  feature owns lives in that feature's `domain/ports.ts`, and the prompts it
-  asks are built in its `domain/`, the marketplace's masked token prompt
-  (`tokenPrompt.ts`) included. A host only renders a prompt and returns the
-  answer; the core reads it, and takes a blank token for no token. Wire
-  concrete adapters in the applications using constructor composition.
+- Add host-independent logic to the core's feature-oriented `domain/` and
+  `service/` folders. Reach host facilities through ports and editor handles.
+  Cross-cutting host ports live in the core's `kernel/port/hostPorts.ts`; a
+  port one feature owns lives in that feature's `port/`, which holds only
+  interfaces, and the prompts it asks are built in its `domain/`, the
+  marketplace's masked token prompt (`tokenPrompt.ts`) included. A host only
+  renders a prompt and returns the answer; the core reads it, and takes a
+  blank token for no token. Wire concrete adapters in the applications using
+  constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.
@@ -56,15 +57,64 @@ Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 `eslint.config.cjs`. All specs read sources through the shared engine
 `@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
 protect import direction and theme isolation. Core checks reject VS Code and
-transitive host-module imports (the core is still not browser-safe), and
-enforce layer direction and feature isolation through `kernel/` (which imports
+transitive host-module imports (the core is still not browser-safe), its
+domain package allowlist, and context isolation through `kernel/` (which imports
 nothing outside itself) and `editorSession/` (which imports only `kernel/`)
-against known exceptions that may only shrink. VS Code checks cover host
-isolation, port adapters, and selected feature-barrel boundaries. The
-repo-level spec bans import cycles in and between every workspace and a
-dependency on a less stable workspace. Fitness functions that are not static
+against known exceptions that may only shrink. VS Code checks that a context
+reaches another only through `shared/`. The repo-level spec bans import cycles
+in and between every workspace and a dependency on a less stable workspace, and
+applies the role-folder rules below. Fitness functions that are not static
 plug into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`), which
 reports new and existing findings and never fails a build.
+
+A webview posts only the commands of its surface list in `libs/shared`, and
+narrows its host channel to that list. A new webview surface registers in
+`WEBVIEW_SURFACE_COMMAND_TYPES` (`webviewSurfaces.ts`) and gets a row in each
+host's surface coverage. `tools/repo-checks/src/webviewCommands.spec.ts`
+type-checks every `apps/*-webview` program and fails on a constructed command
+that is on no list.
+
+## Put each file in its role folder
+
+Each workspace declares its kind in the `"architecture"` field of its
+`package.json`: `hexagonal` (core, VS Code host, bridge, webviews, template
+builder, `tools/repo-checks`), `diagram-js` (feature libraries and the modeler
+packages) or `flat` (types, protocol and the rest of the tooling). A new
+workspace declares one too. Only a `hexagonal` workspace has role folders; the
+first one in a file's path is its role:
+
+```
+<context>/
+  domain/        rules as pure functions and values
+  port/          interfaces the services call
+  service/       orchestration, session participants included
+  adapter/in/    calls into the workspace: commands, message handlers, UI
+  adapter/out/   implements a port: VS Code, Node, HTTP
+  composition/   wiring (at the root in a host, per context in the core)
+testing/         the test kit
+index.ts         an entry: a file directly in src/
+```
+
+`tools/repo-checks/src/architecture.spec.ts` blocks on these, and reads no
+file or type name:
+
+1. Every file sits in a role folder or is an entry.
+2. `domain/` imports only `domain/`.
+3. `port/` imports only `domain/` and `port/`.
+4. `service/` imports no `adapter/`, `composition/`, `testing/` or entry.
+5. Only `adapter/in/`, `service/`, `composition/`, `testing/` and entries
+   import a service.
+6. `adapter/in/` and `adapter/out/` never import each other.
+7. Only `adapter/`, `composition/` and entries import `vscode`, `node:*`,
+   `fs` or `http`.
+8. Only `composition/` and entries import `composition/`.
+9. Only `testing/` imports `testing/`; nothing imports an entry.
+
+A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
+bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved
+has one blanket exception in the repo-level spec naming its migration issue.
+The rules and the reasons are in the
+[ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
 
 ## Trace host and session behavior
 
@@ -77,7 +127,8 @@ VS Code registers BPMN, DMN, and Forms, while IntelliJ's visual editor is BPMN.
 
 For new host functionality, update the core port and affected adapters, and
 wire handlers in composition. Inspect the bridge protocol
-in `apps/modeler-bridge/src/protocol/` when the RPC surface changes.
+in `apps/modeler-bridge/src/protocol/domain/` when the RPC surface changes;
+its Host→Core handlers are the tables in `<context>/adapter/in/`.
 
 Commands travel webview → host; Queries travel host → webview. For synchronization
 changes, trace the webview bootstrap, core modeling service, host document

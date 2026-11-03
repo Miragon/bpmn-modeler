@@ -12,7 +12,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost, RecordingNotifier } from "../../testing";
-import { DiffPaneHandle } from "../domain/DiffSession";
+import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { BpmnDiffService } from "./BpmnDiffService";
 import { DiffPaneHostExtensions, createDiffPaneRouter } from "./diffPaneRouter";
 import { DiffPaneStore } from "./DiffPaneStore";

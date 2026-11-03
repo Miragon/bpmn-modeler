@@ -1,5 +1,7 @@
 import { posix } from "path";
 
+import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
+
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { UserCancelledError } from "../../kernel/domain/errors";
 import {
@@ -7,10 +9,10 @@ import {
     EngineInspectionFailedError,
     EnvReferenceError,
 } from "../domain/errors";
-import { DocumentPort, NotifierPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { reconcile } from "../domain/deploymentVerification";
-import { EngineInspectionPort } from "../domain/ports";
+import { EngineInspectionPort } from "../port/deploymentPorts";
 import { sensitiveDestinations } from "../domain/deployment";
 import { recordingLookup } from "../domain/envRef";
 import { CredentialApprovalService } from "./CredentialApprovalService";
@@ -63,8 +65,10 @@ export class DeploymentVerificationService {
             return;
         }
         const { target } = destination;
-        if (target.engine !== "c7") {
-            this.notifier.showInfo("Verification is not available for Camunda 8 targets.");
+        if (!target.verifiesDeployments()) {
+            this.notifier.showInfo(
+                `Verification is not available for ${ENGINE_LABEL[target.engine]} targets.`,
+            );
             return;
         }
 

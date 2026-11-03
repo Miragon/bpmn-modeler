@@ -28,6 +28,14 @@ Open any `.bpmn` or `.bpmn20.xml` file. The modeler is its default editor. To st
 
 The plugin edits BPMN only. **New DMN Model…** creates a `.dmn` file, which opens in the IDE's own editor.
 
+## Element templates
+
+An element template's JSON opens split, with the
+[preview](/vscode/features/element-template-editor) of its properties panel
+beside the IDE's JSON editor; the buttons in the editor's top right switch between editor, split and preview.
+Templates live in the template folder under the config folder (`.camunda/element-templates/` by default). The form
+that creates and edits them is in VS Code so far.
+
 ## Actions
 
 Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under **Tools ▸ Miragon BPMN Modeler**.

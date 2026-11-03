@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DiffPaneHandle } from "../domain/DiffSession";
+import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffPaneStore } from "./DiffPaneStore";
 
 function fakeHandle(uri: string): DiffPaneHandle {

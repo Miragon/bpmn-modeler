@@ -10,7 +10,7 @@ import {
     type WorkspaceDefinition,
 } from "@miragon/bpmn-modeler-types";
 
-import type { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import type { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { toWorkspacePath } from "../../kernel/domain/workspacePath";
 import type { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import type { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";

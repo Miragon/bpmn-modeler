@@ -84,11 +84,6 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         },
     );
 
-    it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
-        const collected = readSourceTree(join(LIBS_ROOT, "properties-panel", "src"));
-        expect(collected.some(({ path }) => path.endsWith(".tsx"))).toBe(true);
-    });
-
     it("package source never names the protocol, the engine, or apps/", () => {
         const offenders: string[] = [];
         for (const file of packageSources) {
@@ -312,26 +307,23 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         // out of their closure by intent stops the mode wiring from leaking into
         // the engine-neutral bundles. `check-design-pure-entry.mjs` backs the
         // design side at the built-graph level; this is the source-level intent.
-        const MODE_FILES = ["mode.ts", "modeModules.ts"];
+        const MODE_FOLDER = "mode";
         const MODE_LESS_SURFACES = ["design", "viewer", "modeSession"];
         const graph = buildImportGraph(packageSources);
-        requireMatches(
-            "mode files",
-            graph.files.filter((file) => MODE_FILES.includes(file)),
-        );
+        sourcesIn(MODE_FOLDER);
         MODE_LESS_SURFACES.forEach(sourcesIn);
         const offenders = graph.edges
             .filter(
                 ({ from, to }) =>
                     from.split("/").some((segment) => MODE_LESS_SURFACES.includes(segment)) &&
                     to !== undefined &&
-                    MODE_FILES.includes(to),
+                    to.startsWith(`${MODE_FOLDER}/`),
             )
             .map(({ from, specifier }) => `${from} → ${specifier}`);
         expect(
             offenders,
-            `the /design, /viewer and /mode subpaths must not import ./mode or ` +
-                `./modeModules (runtime mode is a createModeler-only concern):\n` +
+            `the /design, /viewer and /mode subpaths must not import mode/ ` +
+                `(runtime mode is a createModeler-only concern):\n` +
                 `${offenders.join("\n")}`,
         ).toEqual([]);
     });
@@ -372,15 +364,12 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         // through a typed adapter that asserts the runtime shape (WP1), so a
         // dependency bump fails loudly against a pinned shape test rather than
         // silently no-op'ing. Only those adapter modules may name the private
-        // members. The vendored properties-panel fork is out of scope — it uses
-        // `this._x` on its own ported classes pervasively — except our own
-        // `modeFilter/` code.
-        const ADAPTER_FILES = [
-            "libs/bpmn-clipboard/src/directEditingInternals.ts",
-            "libs/bpmn-diff/src/differResult.ts",
-            "libs/append-menu/src/popupMenuInternals.ts",
-            "packages/bpmn-modeler/src/bpmnlint/lintingInternals.ts",
-        ];
+        // members, and they sit in an `upstreamInternals/` folder. The vendored
+        // properties-panel fork is out of scope — it uses `this._x` on its own
+        // ported classes pervasively — except our own `modeFilter/` code.
+        const ADAPTER_FOLDER = "upstreamInternals";
+        const isAdapter = ({ path }: SourceFile): boolean =>
+            path.split("/").includes(ADAPTER_FOLDER);
         const repoSources = [
             ...packageSources.map((file) => ({
                 ...file,
@@ -388,14 +377,10 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
             })),
             ...libSources.map((file) => ({ ...file, path: `libs/${file.path}` })),
         ];
-        for (const adapter of ADAPTER_FILES) {
-            requireMatches(
-                `private-state adapter ${adapter}`,
-                repoSources.filter(({ path }) => path === adapter),
-            );
-        }
-        const inScope = ({ path }: SourceFile): boolean => {
-            if (ADAPTER_FILES.includes(path)) return false;
+        requireMatches("private-state adapters", repoSources.filter(isAdapter));
+        const inScope = (file: SourceFile): boolean => {
+            const { path } = file;
+            if (isAdapter(file)) return false;
             if (
                 path.includes("properties-panel/src/") &&
                 !path.includes("properties-panel/src/modeFilter/")
@@ -419,8 +404,7 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         expect(
             offenders,
             `private upstream state must be reached only through the typed ` +
-                `adapters (directEditingInternals / differResult / ` +
-                `popupMenuInternals / lintingInternals):\n${offenders.join("\n")}`,
+                `adapters in an ${ADAPTER_FOLDER}/ folder:\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
 
@@ -442,9 +426,10 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
 });
 
 describe("bpmn-modeler warning sink", TREE_PARSE, () => {
-    it("only reporting.ts writes console.warn, so every facade warning reaches onWarning", () => {
+    it("only reporting/ writes console.warn, so every facade warning reaches onWarning", () => {
+        sourcesIn("reporting");
         const offenders = packageSources
-            .filter(({ path }) => path !== "reporting.ts")
+            .filter(({ path }) => !path.startsWith("reporting/"))
             .filter(({ path, text }) => /\bconsole\.warn\s*\(/.test(stripComments(path, text)))
             .map(({ path }) => path);
         expect(

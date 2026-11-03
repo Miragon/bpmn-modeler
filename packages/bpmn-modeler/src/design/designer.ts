@@ -37,7 +37,7 @@ import {
     subscribeFormatted,
 } from "../editableSurface";
 import { SurfaceCore } from "../surfaceCore";
-import { createReporter, type SurfaceReporter } from "../reporting";
+import { createReporter, type SurfaceReporter } from "../reporting/reporting";
 import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";

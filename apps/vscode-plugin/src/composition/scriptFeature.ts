@@ -9,10 +9,10 @@ import {
     ScriptVariableStore,
     ScriptXmlService,
 } from "@miragon/bpmn-modeler-core";
-import { canonicalPath } from "../shared/infrastructure/uriPath";
-import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptCompletionProvider";
-import { ScriptTaskService } from "../scriptTask/infrastructure/ScriptTaskService";
-import { ScriptTaskCommandController } from "../scriptTask/controller/ScriptTaskCommandController";
+import { canonicalPath } from "../shared/domain/canonicalPath";
+import { ScriptCompletionProvider } from "../scriptTask/adapter/in/ScriptCompletionProvider";
+import { ScriptTaskService } from "../scriptTask/adapter/out/ScriptTaskService";
+import { ScriptTaskCommandController } from "../scriptTask/adapter/in/ScriptTaskCommandController";
 import { SharedDeps } from "./sharedDeps";
 
 /**

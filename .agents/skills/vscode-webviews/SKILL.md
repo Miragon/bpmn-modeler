@@ -9,7 +9,7 @@ This skill covers how this project serves, secures, and communicates with webvie
 
 ## HTML Generation
 
-Webview HTML is generated at runtime by functions in the infrastructure layer, not served from static files.
+Webview HTML is generated at runtime by functions in the host adapters, not served from static files.
 
 ### BPMN/DMN Webviews (`WebviewHtml.ts`)
 
@@ -39,7 +39,7 @@ limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
 for the editors (DMN also gets `assets/` for `reset.css`), and
 `DeploymentController.resolveWebviewView` for the deployment sidebar.
 `webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
-`apps/vscode-plugin/src/shared/infrastructure/webviewContentSecurityPolicy.ts`
+`apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 builds all four policies: the directives every shell shares are written once,
 and its `BUNDLE_SOURCES` table lists what each bundle adds. A table entry may
 only widen `script-src` and the load directives (`img-src`, `font-src`,
@@ -146,7 +146,7 @@ narrowed channel would fit a helper that posts any message.
 
 **Host receives Commands:** the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The core `EditorSessionLifecycle` (run by `ModelerEditorController` in VS Code and by the IntelliJ bridge) forwards every message into the router; handlers are small factories, host-agnostic ones in `libs/modeler-core`. VS Code registers the DMN and Form routers one handler at a time in `composition/editorFeature.ts`:
 ```typescript
-// handler factory (libs/modeler-core/src/editorSession/infrastructure/documentMessageHandlers.ts),
+// handler factory (libs/modeler-core/src/editorSession/adapter/in/documentMessageHandlers.ts),
 // shared by the BPMN, DMN and Form editors
 export function syncDocumentHandler(service: ModelerDocumentService): MessageHandler<SyncDocumentCommand> {
   return async (sync, editorId) => {
@@ -165,9 +165,9 @@ editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(m
 ```
 Adding a webview command is "register one more handler", with no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order. A host that drops a command on purpose says so with `router.ignore(type, reason)`, once and with a non-blank reason, instead of leaving it unrouted; `router.routeOf(type)` reports `handled`, `ignored` (with the reason) or `unrouted`, and a type is never both handled and ignored.
 
-The BPMN editor's router comes from a table instead: the core `BpmnEditorFeature` (`libs/modeler-core/src/modeler/bpmn/`) passes `WebviewMessageRouter.fromTable` a `CommandTable<BpmnEditorCommandType>`, whose entry per command is its handlers in run order or `{ ignored: reason }`, so a new BPMN editor command does not compile until it has one. Another feature's commands arrive as its `EditorContribution`; a host capability that is absent from `BpmnEditorHostExtensions` turns its commands into ignored entries, and the three document commands are handled or ignored together. Both hosts build this feature in their `composition/bpmnEditorFeature.ts`, and each pins the routes it gets in a coverage spec (`apps/vscode-plugin/src/composition/bpmnEditorFeature.spec.ts`, `apps/modeler-bridge/src/bridge.editor.spec.ts`).
+The BPMN editor's router comes from a table instead: the core `BpmnEditorFeature` (`libs/modeler-core/src/modeler/bpmn/composition/`) passes `WebviewMessageRouter.fromTable` a `CommandTable<BpmnEditorCommandType>`, whose entry per command is its handlers in run order or `{ ignored: reason }`, so a new BPMN editor command does not compile until it has one. Another feature's commands arrive as its `EditorContribution`; a host capability that is absent from `BpmnEditorHostExtensions` turns its commands into ignored entries, and the three document commands are handled or ignored together. Both hosts build this feature in their `composition/bpmnEditorFeature.ts`, and each pins the routes it gets in its surface coverage spec (`apps/vscode-plugin/src/composition/webviewSurfaceCoverage.spec.ts`, `apps/modeler-bridge/src/bridge.surfaceCoverage.spec.ts`).
 
-Diff panes are not editor sessions. Both hosts route their commands through the core `createDiffPaneRouter` (`libs/modeler-core/src/diff/service/`), a `CommandTable` over `DiffPaneCommandType` and `DiffPaneHandshakeCommandType` (the editor requests the page posts before it knows it is a diff pane) whose handlers get the pane instead of an editor id; an entry missing from `DiffPaneHostExtensions` (swap, pane log) turns its command into an ignored entry. Each host pins those routes in a coverage spec (`apps/vscode-plugin/src/diff/controller/BpmnDiffController.spec.ts`, `apps/modeler-bridge/src/diff.spec.ts`).
+Diff panes are not editor sessions. Both hosts route their commands through the core `createDiffPaneRouter` (`libs/modeler-core/src/diff/service/`), a `CommandTable` over `DiffPaneCommandType` and `DiffPaneHandshakeCommandType` (the editor requests the page posts before it knows it is a diff pane) whose handlers get the pane instead of an editor id; an entry missing from `DiffPaneHostExtensions` (swap, pane log) turns its command into an ignored entry. Each host pins those routes in the same surface coverage spec.
 
 **Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
 ```typescript
@@ -314,13 +314,13 @@ const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(baseUri, 'index.js'))
 ```
 
 This converts `file://` paths to `vscode-resource:` URIs that pass the webview's CSP.
-See `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`.
+See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 
 ## Key Files
 
-- **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`
-- **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
-- **Shell CSP builder**: `apps/vscode-plugin/src/shared/infrastructure/webviewContentSecurityPolicy.ts`
+- **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`
+- **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
+- **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`)
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`

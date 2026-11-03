@@ -1,7 +1,7 @@
 import type { BpmnlintConfig, Engine } from "@miragon/bpmn-modeler-types";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
-import type { ModelerMode } from "../mode";
+import type { ModelerMode } from "../mode/mode";
 
 /**
  * A per-mode lint config map: a consumer can lint Design and Implement

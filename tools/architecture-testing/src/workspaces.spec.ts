@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { readWorkspaces, workspaceOfSpecifier } from "./workspaces";
+import { readWorkspaceDirs, readWorkspaces, workspaceOfSpecifier } from "./workspaces";
 
 describe("readWorkspaces", () => {
     let root: string;
@@ -33,6 +33,21 @@ describe("readWorkspaces", () => {
             { name: "@scope/b", dir: "libs/b" },
             { name: "docs", dir: "docs" },
         ]);
+    });
+
+    it("lists every matching dir, a manifest or not, for a build outside Yarn such as Gradle", () => {
+        writeManifest("package.json", { workspaces: ["apps/*", "docs"] });
+        writeManifest("apps/web/package.json", { name: "web" });
+        mkdirSync(join(root, "apps/gradle-plugin"));
+
+        expect(readWorkspaceDirs(root)).toEqual(["apps/gradle-plugin", "apps/web", "docs"]);
+    });
+
+    it("reads the declared architecture kind", () => {
+        writeManifest("package.json", { workspaces: ["docs"] });
+        writeManifest("docs/package.json", { name: "docs", architecture: "flat" });
+
+        expect(readWorkspaces(root)).toEqual([{ name: "docs", dir: "docs", kind: "flat" }]);
     });
 
     it("skips a manifest without a name", () => {

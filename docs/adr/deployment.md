@@ -121,7 +121,7 @@ before that push, because the form ends its reload lock on the first target
 list after a successful result. Overlapping commands push once, after the last
 result
 ([target service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts),
-[feature tests](../../libs/modeler-core/src/deployment/DeploymentFeature.spec.ts)).
+[feature tests](../../libs/modeler-core/src/deployment/composition/DeploymentFeature.spec.ts)).
 
 A target name is resolved once per request, command or prefill into a
 `DeploymentDestination`: a blank name is the ad-hoc connection
@@ -450,7 +450,7 @@ states and timestamps.
 - Core target validation and webview regression tests cover stale replies,
   readiness and context changes; [deployment tests](../../libs/modeler-core/src/deployment)
   cover identity, freshness and reconciliation, and the
-  [bridge contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts)
+  [bridge contract tests](../../apps/modeler-bridge/src/protocol/domain/protocol.spec.ts)
   pin the protocol descriptor, and the IntelliJ
   [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
   checks that the Kotlin host handles each of its core→host methods.

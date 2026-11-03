@@ -22,6 +22,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Surfaces and modes](#surfaces-and-modes)
 - [Document identity and creation](#document-identity-and-creation)
 - [Properties panel](#properties-panel)
+- [Element template preview](#element-template-preview)
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
 - [Transaction boundaries](#transaction-boundaries)
@@ -308,6 +309,42 @@ remove most of the fork. The mode filter and custom-group registry can remain
 ordinary providers. Private-shape enforcement belongs to
 [Engineering practices](engineering-practices.md#private-upstream-apis).
 
+### Element template preview
+
+Template authors need to see the properties panel a template produces without
+applying it in a diagram, for C7 and C8 alike. `createTemplatePreview(panelParent,
+options)` renders that panel and nothing else. It is exported from the package
+root rather than a subpath, because it only composes `createModeler` and adds no
+dependency to the module graph.
+
+The preview keeps one modeler per engine on an offscreen canvas and replaces it
+when the engine changes, after the panel's deferred effects have run. Each
+`show(template, engine)` imports a fresh diagram, loads the template as the only
+one, and creates an element with `elementTemplates.createElement`, so an
+`elementType` (such as a message throw event) builds the right type. It clears
+the engine-version gate the fresh diagram pins, so a template written for
+another version still shows. Calls are queued, because each re-imports. A
+template the validator rejects is reported as messages, and the panel restores
+the last template that rendered rather than going blank. The language is
+page-global like the modeler's; `setLocale` re-renders the shown template.
+
+Upstream collapses a template's groups, which reads as an empty preview, so a
+low-priority properties provider marks them `shouldOpen`. That is only a group's
+default: the panel's layout state wins once the user toggles a group and
+survives the re-import of each `show`, so an edit does not reopen what the user
+collapsed. It deliberately overrides a C8 group's `openByDefault: false`, because
+a preview that hides its own fields misses its purpose.
+
+Templates for a process or a sequence flow are reported as not previewable, by
+naming the type (`unsupportedType`) so that the page can say so in its language:
+selecting such a templated element throws inside create-append-anything's
+remove-template replace entry. That also affects the modeler itself and needs
+an upstream or local fix before the preview can show them.
+
+The IDE page that hosts the preview parses the template file itself, so a host
+only pushes the raw text; see
+[Architecture and hosts](architecture-and-hosts.md#host-integrations).
+
 ### Themes and locale
 
 Each instance's `ThemeController` sets `data-bpmn-theme="light" | "dark"` on
@@ -377,7 +414,7 @@ Before 11.15.0, bpmnlint's `no-overlapping-elements` and `no-bpmndi` scaled
 quadratically with model size and dominated every lint pass on large models.
 Since 11.15.0 both are near-linear; every host and npm consumers of
 `@miragon/bpmn-modeler` get that through its pinned `bpmnlint` dependency. The
-[equivalence spec](../../libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnlint/coreRuleEquivalence.spec.ts)
+[equivalence spec](../../libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/coreRuleEquivalence.spec.ts)
 pins their reports and order, so a bpmnlint bump that changes either rule's
 output fails. 11.15.0 reports the same elements as 11.14.0, but
 `no-overlapping-elements` lists them in element order instead of detection order.
@@ -609,5 +646,7 @@ exercise all four surfaces, and the
 pins that post-destroy lint pushes throw and what the command-stack and format
 subscriptions deliver;
 [session tests](../../packages/bpmn-modeler/src/modeSession/modeSession.spec.ts)
-cover transition failures and teardown. The test-environment limits and upstream
+cover transition failures and teardown. The
+[template preview browser tests](../../packages/bpmn-modeler/src/templatePreview/templatePreview.browser.spec.ts)
+pin both engines, rejected templates and the engine switch. The test-environment limits and upstream
 shape gates are recorded in [Engineering practices](engineering-practices.md).

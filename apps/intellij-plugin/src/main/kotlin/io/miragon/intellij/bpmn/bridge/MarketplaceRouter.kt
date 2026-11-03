@@ -103,7 +103,7 @@ internal class MarketplaceRouter(
      */
     fun addMarketplace(location: String, appWide: Boolean) {
         deps.channel.notify(
-            "marketplace/add",
+            HostToCoreMethod.MARKETPLACE_ADD,
             linkedMapOf(
                 "location" to location,
                 // Opaque to the core: it rides the round trip and comes back on
@@ -118,7 +118,7 @@ internal class MarketplaceRouter(
     /** Fires `marketplace/update`; the core re-reads the piggybacked marketplace list. */
     fun updateMarketplaces() {
         deps.channel.notify(
-            "marketplace/update",
+            HostToCoreMethod.MARKETPLACE_UPDATE,
             linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)),
         )
         deps.ensureStartedAsync()
@@ -134,7 +134,7 @@ internal class MarketplaceRouter(
      */
     fun removeMarketplaces(removedCount: Int) {
         deps.channel.notify(
-            "marketplace/remove",
+            HostToCoreMethod.MARKETPLACE_REMOVE,
             linkedMapOf(
                 "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
                 "removedCount" to removedCount,

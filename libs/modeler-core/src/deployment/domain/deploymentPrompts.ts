@@ -28,7 +28,7 @@ export function deploymentTargetPrompt(names: readonly string[]): ChoicePrompt<s
     };
 }
 
-/** The status-bar item's click menu. Only Camunda 7 has a deployment lookup to verify against. */
+/** The status-bar item's click menu. */
 export function deploymentStatusActionPrompt(
     activeDestination: Pick<DeploymentDestination, "statusConnection" | "target">,
 ): ChoicePrompt<DeploymentStatusAction> {
@@ -36,7 +36,7 @@ export function deploymentStatusActionPrompt(
     const items: ChoiceItem<DeploymentStatusAction>[] = [
         { label: "Switch deployment target…", icon: "swap", value: "switch" },
     ];
-    if (target?.engine === "c7") {
+    if (target?.verifiesDeployments()) {
         items.push({ label: `Verify on ${target.name}`, icon: "cloud", value: "verify" });
     }
     return {

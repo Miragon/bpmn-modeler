@@ -1,6 +1,6 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { isHiddenEditorError, UserCancelledError } from "../../../kernel/domain/errors";
+import { UserCancelledError } from "../../../kernel/domain/errors";
 import { engineVersionPrompt } from "../../../kernel/domain/engineVersions";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
@@ -9,7 +9,7 @@ import {
     PickerPort,
     SettingsPort,
     StatusBarPort,
-} from "../../../kernel/domain/hostPorts";
+} from "../../../kernel/port/hostPorts";
 import { newModelEnginePrompt } from "../../../kernel/domain/newModelEngine";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
@@ -69,7 +69,7 @@ export class BpmnModelerService {
                 // `undefined` rather than throwing, and the webview routes to
                 // Design. The default mode seeds the editor's initial surface.
                 const engine = doc.detectEngine();
-                const sent = await this.editorStore.postMessage(
+                const outcome = await this.editorStore.postUnlessHidden(
                     editorId,
                     new BpmnFileQuery(
                         doc.xml,
@@ -80,13 +80,13 @@ export class BpmnModelerService {
                         this.settings.getLanguage(),
                     ),
                 );
-
-                this.showEngineVersionIfFocused(editorId, doc);
-                return sent;
-            } catch (error) {
-                if (isHiddenEditorError(error)) {
+                if (outcome === "hidden") {
                     return false;
                 }
+
+                this.showEngineVersionIfFocused(editorId, doc);
+                return outcome === "sent";
+            } catch (error) {
                 return this.handleError(error as Error);
             }
         } catch (error) {

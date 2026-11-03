@@ -2,12 +2,6 @@ declare module "bpmn-js-properties-panel" {
     export const useService;
 }
 
-declare module "@bpmn-io/properties-panel" {
-    export const isSelectEntryEdited;
-    export const SelectEntry;
-    export const TextAreaEntry;
-}
-
 declare module "@bpmn-io/properties-panel/preact/jsx-runtime" {
     export const jsx: (type: any, props: any, key?: any) => any;
     export const jsxs: (type: any, props: any, key?: any) => any;

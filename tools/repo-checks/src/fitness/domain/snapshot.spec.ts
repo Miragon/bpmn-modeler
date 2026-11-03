@@ -66,6 +66,16 @@ describe("a snapshot", () => {
         expect(serializeSnapshot(ab).endsWith("}\n")).toBe(true);
     });
 
+    it("keeps a finding's group when it reads back what it wrote", () => {
+        const grouped = { ...FINDING, group: "hidden" };
+        const snapshot = withEntry(emptySnapshot(COMMIT), "a", { version: 1, findings: [grouped] });
+
+        expect(parseSnapshot(COMMIT, serializeSnapshot(snapshot)).entries.a).toEqual({
+            version: 1,
+            findings: [grouped],
+        });
+    });
+
     it("reads back what it wrote", () => {
         const snapshot = withEntry(
             withEntry(emptySnapshot(COMMIT), "a", { version: 1, findings: [FINDING] }),

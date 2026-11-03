@@ -18,7 +18,7 @@ import {
     settle,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
+import { createBridge } from "./composition/bridge";
 
 const BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">

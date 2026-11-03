@@ -36,6 +36,54 @@ export function exceptionsWithoutIssue(exceptions: readonly KnownException[]): K
     return exceptions.filter(({ until }) => !ISSUE_REFERENCE.test(until));
 }
 
+const DISABLE_DIRECTIVE = /^eslint-disable(?:-next-line|-line)?(?=\s|$)/;
+const DESCRIPTION_SEPARATOR = /\s--/;
+const ISSUE_AND_REASON = /^#\d+:\s*\S/;
+
+interface DisableDirective {
+    readonly ruleList: string;
+    readonly description: string;
+}
+
+/** The comments that disable `rule` without a `-- #<issue>: <reason>` description. */
+export function directivesWithoutIssue(comments: readonly string[], rule: string): string[] {
+    return comments.filter((comment) => {
+        const directive = parseDisableDirective(commentBody(comment));
+        if (!directive) {
+            return false;
+        }
+        return disables(directive, rule) && !ISSUE_AND_REASON.test(directive.description);
+    });
+}
+
+// A directive that names no rule turns off every rule.
+function disables(directive: DisableDirective, rule: string): boolean {
+    const ruleNames = directive.ruleList.split(",").map((name) => name.trim());
+    return ruleNames.every((name) => name === "") || ruleNames.includes(rule);
+}
+
+// One regex over rule list and description backtracks quadratically on long whitespace runs.
+function parseDisableDirective(body: string): DisableDirective | undefined {
+    const keyword = DISABLE_DIRECTIVE.exec(body);
+    if (!keyword) {
+        return undefined;
+    }
+    const rest = body.slice(keyword[0].length);
+    const separator = DESCRIPTION_SEPARATOR.exec(rest);
+    if (!separator) {
+        return { ruleList: rest, description: "" };
+    }
+    return {
+        ruleList: rest.slice(0, separator.index),
+        description: rest.slice(separator.index + separator[0].length).trim(),
+    };
+}
+
+function commentBody(comment: string): string {
+    const body = comment.startsWith("//") ? comment.slice(2) : comment.slice(2, -2);
+    return body.trim();
+}
+
 function excuses(exception: KnownException, violation: Violation): boolean {
     return inScope(exception.from, violation.from) && inScope(exception.to, violation.to);
 }

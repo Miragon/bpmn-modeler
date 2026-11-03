@@ -18,20 +18,19 @@ export default defineConfig({
         server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         coverage: {
             ...coveragePreset(__dirname, {
-                // Wiring only; the Extension-Host smoke test (test/e2e) covers it,
-                // and feature barrels are re-exports enforced by architecture.spec.
-                exclude: ["src/main.ts", "src/composition/**", "src/**/index.ts"],
+                // Wiring only; the Extension-Host smoke test (test/e2e) covers it.
+                exclude: ["src/main.ts", "src/composition/**"],
             }),
             // Per-layer gates, tiered by how much logic each layer carries and
-            // how cheaply it can be tested. Controllers mix routing with vscode
-            // glue; infrastructure is thin adapter code where only a floor is
+            // how cheaply it can be tested. Inbound adapters mix routing with
+            // vscode glue; outbound adapters are thin code where only a floor is
             // worth enforcing (the complex parts — Camunda REST — have their own
-            // integration tests).
+            // integration tests in the core).
             thresholds: {
                 ...overallThresholds,
-                "**/controller/**": { statements: 88, branches: 80, functions: 87, lines: 89 },
+                "**/adapter/in/**": { statements: 88, branches: 80, functions: 87, lines: 89 },
                 "**/editor-session/**": { statements: 76, branches: 66, functions: 78, lines: 83 },
-                "**/infrastructure/**": { statements: 87, branches: 84, functions: 78, lines: 88 },
+                "**/adapter/out/**": { statements: 87, branches: 84, functions: 78, lines: 88 },
             },
         },
     },

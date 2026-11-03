@@ -73,24 +73,32 @@ kotlin {
     }
 }
 
-val protocolDescriptor = layout.projectDirectory.file("../modeler-bridge/src/protocol/protocol.json")
+val protocolDescriptor = layout.projectDirectory.file("../modeler-bridge/src/protocol/domain/protocol.json")
 val settingsNormalizationCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json")
 val vscodeManifest = layout.projectDirectory.file("../vscode-plugin/package.json")
 val statusViewTypes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/statusView.ts")
+val elementTemplateFileCases =
+    layout.projectDirectory.file("../../libs/modeler-types/src/elementTemplateFile.cases.json")
+val elementTemplatePreviewMessages =
+    layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 
 tasks.test {
     useJUnitPlatform()
     // The tests read these TypeScript-side files: ProtocolHandlerCoverageTest the bridge's
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows and the VS Code
     // manifest's defaults, ModelerLocalesTest the manifest's languages, StatusSlotPlacementTest
-    // the core's status slots and view values. As declared inputs, a change on the TypeScript
-    // side alone reruns the tests instead of restoring them from the build cache.
+    // the core's status slots and view values, ElementTemplateFilesTest the rows the TypeScript
+    // template rule runs, ElementTemplatePreviewMessagesTest the preview page's messages. As
+    // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
+    // them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
         "vscodeManifest" to vscodeManifest,
         "statusViewTypes" to statusViewTypes,
+        "elementTemplateFileCases" to elementTemplateFileCases,
+        "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

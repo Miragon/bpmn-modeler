@@ -1,5 +1,6 @@
 {
     "name": "@miragon/bpmn-modeler",
+    "architecture": "diagram-js",
     "version": "1.4.0",
     "license": "Apache-2.0",
     "description": "Host-free, embeddable BPMN modeler (Camunda 7 & 8) built on bpmn-js.",
@@ -94,7 +95,7 @@
         "@camunda/example-data-properties-provider": "1.5.2",
         "@lezer/lr": "1.4.11",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
-        "@miragon/bpmnlint-plugin-rules": "0.15.0",
+        "@miragon/bpmnlint-plugin-rules": "0.19.0",
         "@miragon/create-append-c7": "1.0.1",
         "bpmn-auto-layout": "2.0.0-alpha.2",
         "bpmn-js": "18.31.0",

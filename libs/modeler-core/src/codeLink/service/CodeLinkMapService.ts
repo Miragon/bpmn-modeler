@@ -3,12 +3,12 @@ import { posix } from "path";
 import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import { asyncDebounce, ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
-import { EditorHandle } from "../../editorSession/service/EditorHandle";
+import { EditorHandle } from "../../editorSession/port/EditorHandle";
 import {
     configArtifactLocation,
     ConfigArtifactLocation,
 } from "../../kernel/domain/configArtifacts";
-import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
 import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";

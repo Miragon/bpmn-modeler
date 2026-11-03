@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Command } from "@miragon/bpmn-modeler-shared";
+import { type Command, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
+import type { LoggerPort } from "../../kernel/port/hostPorts";
 import { FakeEditorHandle } from "../../testing";
 import type { DocumentChangeEvent, SettingChange } from "../domain/EditorSession";
 import { EditorSessionStore } from "./EditorSessionStore";
@@ -602,5 +603,83 @@ describe("EditorSessionStore", () => {
         const [[event, editorId]] = received.mock.calls;
         expect(editorId).toBe(subscribed.id);
         expect(event.affects("language")).toBe(true);
+    });
+
+    // ─── postUnlessHidden ──────────────────────────────────────────────────
+
+    describe("posting to an editor that may be hidden", () => {
+        function open() {
+            const store = new EditorSessionStore(vi.fn());
+            const handle = new FakeEditorHandle(A_PATH);
+            store.register(handle);
+            return { store, handle };
+        }
+
+        it("reports a delivered message as sent", async () => {
+            const { store, handle } = open();
+
+            await expect(store.postUnlessHidden(A_ID, aCommand)).resolves.toBe("sent");
+            expect(handle.posted).toEqual([aCommand]);
+        });
+
+        it("keeps a message back from a hidden editor without failing", async () => {
+            const { store, handle } = open();
+            handle.hidden = true;
+
+            await expect(store.postUnlessHidden(A_ID, aCommand)).resolves.toBe("hidden");
+        });
+
+        it("tells a message the host dropped apart from a hidden editor", async () => {
+            const { store, handle } = open();
+            vi.spyOn(handle, "postMessage").mockResolvedValue(false);
+
+            await expect(store.postUnlessHidden(A_ID, aCommand)).resolves.toBe("undelivered");
+        });
+
+        it("still fails on any other error", async () => {
+            const { store, handle } = open();
+            const failure = new Error("Webview disposed");
+            vi.spyOn(handle, "postMessage").mockRejectedValue(failure);
+
+            await expect(store.postUnlessHidden(A_ID, aCommand)).rejects.toBe(failure);
+        });
+    });
+
+    describe("pushing the language", () => {
+        function open() {
+            const store = new EditorSessionStore(vi.fn());
+            const handle = new FakeEditorHandle(A_PATH);
+            store.register(handle);
+            const logger = { logError: vi.fn() } as unknown as LoggerPort;
+            return { store, handle, logger };
+        }
+
+        it("tells the editor the language", () => {
+            const { store, handle, logger } = open();
+
+            store.pushLanguage(A_ID, "de", logger);
+
+            expect(handle.posted).toEqual([new LanguageQuery("de")]);
+        });
+
+        it("passes a hidden editor by quietly", async () => {
+            const { store, handle, logger } = open();
+            handle.hidden = true;
+
+            store.pushLanguage(A_ID, "de", logger);
+            await vi.waitFor(() => Promise.resolve());
+
+            expect(logger.logError).not.toHaveBeenCalled();
+        });
+
+        it("logs any other failure", async () => {
+            const { store, handle, logger } = open();
+            const failure = new Error("Webview disposed");
+            vi.spyOn(handle, "postMessage").mockRejectedValue(failure);
+
+            store.pushLanguage(A_ID, "de", logger);
+
+            await vi.waitFor(() => expect(logger.logError).toHaveBeenCalledWith(failure));
+        });
     });
 });

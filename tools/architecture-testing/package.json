@@ -1,5 +1,6 @@
 {
     "name": "@miragon/architecture-testing",
+    "architecture": "flat",
     "types": "./src/index.ts",
     "version": "0.0.1",
     "private": true,

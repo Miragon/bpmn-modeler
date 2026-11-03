@@ -84,9 +84,6 @@ local hook checks commits. Use the `commit` skill to create one.
 - **Body/footer:** optional. Explain the *why* when the subject does not.
   Reference PRs/issues in the footer (`(#1056)`). Mark a breaking change with
   `!` after the type/scope or a `BREAKING CHANGE:` footer.
-- **No agent attribution.** No `Co-Authored-By` or generated-by lines in
-  commits or PRs, whatever the agent or model. `.claude/settings.json`
-  disables Claude's automatic attribution; it does not configure Codex.
 
 Examples from the history:
 
@@ -112,6 +109,6 @@ this shape. If there's nothing to add, add nothing.
 The deployment form's DOM lives only in
 `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which
 `main.ts` injects into `#app`. The host shells (`apps/deployment-webview/index.html`,
-`apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`,
+`apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
 IntelliJ's `WebviewServer.kt`) ship an empty `<div id="app"></div>`. Edit form
 markup only in `formTemplate.ts`.

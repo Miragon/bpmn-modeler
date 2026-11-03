@@ -35,7 +35,6 @@ Run these in parallel and read the output:
   72 characters.
 - Treat any scope hint or extra user context as guidance, not literal message
   text.
-- Add no `Co-Authored-By` or generated-by attribution for any agent or model.
 
 ## Commit
 

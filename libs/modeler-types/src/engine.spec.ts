@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
     detectEngine,
+    ENGINE_EXECUTION_PLATFORM,
+    ENGINE_LABEL,
+    ENGINES,
+    engineSupports,
     executionPlatformAttributeNames,
+    isEngine,
     readDefinitionsStartTag,
     readStartTag,
+    type EngineCapability,
 } from "./engine";
 
 const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
@@ -12,6 +18,29 @@ const MODELER_NS = "http://camunda.org/schema/modeler/1.0";
 function definitions(attributes: string): string {
     return `<bpmn:definitions xmlns:modeler="${MODELER_NS}" ${attributes} />`;
 }
+
+describe("ENGINES", () => {
+    it("names the engines every per-engine table has an entry for", () => {
+        expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_LABEL).sort());
+        expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_EXECUTION_PLATFORM).sort());
+    });
+});
+
+describe("isEngine", () => {
+    it.each([
+        ["c7", true],
+        ["c8", true],
+        ["c9", false],
+        ["C8", false],
+        ["", false],
+        ["toString", false],
+        [undefined, false],
+        [null, false],
+        [8, false],
+    ])("judges %j", (value, expected) => {
+        expect(isEngine(value)).toBe(expected);
+    });
+});
 
 describe("detectEngine", () => {
     it("detects c7 from the Camunda Platform execution-platform name", () => {
@@ -229,5 +258,29 @@ describe("executionPlatformAttributeNames", () => {
     ])("names the attributes under $given", ({ xml, expected }) => {
         const attributes = readDefinitionsStartTag(xml)?.attributes ?? [];
         expect(executionPlatformAttributeNames(attributes)).toEqual(expected);
+    });
+});
+
+describe("engineSupports", () => {
+    it.each([
+        { engine: "c7", capability: "verifiesDeployments", supported: true },
+        { engine: "c8", capability: "verifiesDeployments", supported: false },
+        { engine: "c7", capability: "inlineScripting", supported: true },
+        { engine: "c8", capability: "inlineScripting", supported: false },
+        { engine: "c7", capability: "transactionBoundaries", supported: true },
+        { engine: "c8", capability: "transactionBoundaries", supported: false },
+        { engine: "c7", capability: "formReferenceStatus", supported: false },
+        { engine: "c8", capability: "formReferenceStatus", supported: true },
+    ] as const)("$engine supports $capability: $supported", ({ engine, capability, supported }) => {
+        expect(engineSupports(engine, capability)).toBe(supported);
+    });
+
+    it.each<EngineCapability>([
+        "verifiesDeployments",
+        "inlineScripting",
+        "transactionBoundaries",
+        "formReferenceStatus",
+    ])("an undetected engine supports no %s", (capability) => {
+        expect(engineSupports(undefined, capability)).toBe(false);
     });
 });

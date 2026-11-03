@@ -1,7 +1,7 @@
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { isHiddenEditorError, UserCancelledError } from "../../../kernel/domain/errors";
-import { DocumentPort, NotifierPort } from "../../../kernel/domain/hostPorts";
+import { UserCancelledError } from "../../../kernel/domain/errors";
+import { DocumentPort, NotifierPort } from "../../../kernel/port/hostPorts";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { EMPTY_DMN_DIAGRAM } from "../domain/emptyDmn";
@@ -38,12 +38,13 @@ export class DmnModelerService {
                 );
                 if (content === undefined) return false;
             }
-            return await this.editorStore.postMessage(
+            const outcome = await this.editorStore.postUnlessHidden(
                 editorId,
                 new DmnFileQuery(content, snapshot.revision),
             );
+            return outcome === "sent";
         } catch (error) {
-            if (error instanceof UserCancelledError || isHiddenEditorError(error)) {
+            if (error instanceof UserCancelledError) {
                 return false;
             }
             this.notifier.notifyError(

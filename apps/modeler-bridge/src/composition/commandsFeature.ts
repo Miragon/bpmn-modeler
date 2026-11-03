@@ -3,10 +3,10 @@ import {
     BpmnMigrationService,
     BpmnModelerService,
     CoreWriteRenderer,
-    FOCUS_BPMN_DIAGRAM_MESSAGE,
 } from "@miragon/bpmn-modeler-core";
-import { METHODS } from "../protocol/descriptor";
-import { EditorRefParams, MigrateAllParams } from "../protocol/types";
+
+import { modelerCommandHandlers } from "../modeler/bpmn/adapter/in/modelerCommandHandlers";
+import { bindHandlers } from "./bindHandlers";
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
@@ -31,13 +31,10 @@ export function register(
         coreWriteRenderer: CoreWriteRenderer;
     },
 ): void {
-    // Both services swallow their own errors (a dismissed prompt → silent, others →
-    // a notifier balloon), so these handlers just await and never need a try/catch.
-    deps.rpc.on(METHODS.modelerChangeEngineVersion, async (params: EditorRefParams) => {
-        await handles.bpmnService.changeEngineVersion(params.editorId);
-    });
-
-    const migrationSvc = new BpmnMigrationService(
+    // `confirm/show` is the one Core→Host request layout cleanup needs — deleting
+    // on the user's behalf has to wait for an answer, and requests only run in
+    // that direction.
+    const migration = new BpmnMigrationService(
         deps.store,
         deps.documentPort,
         deps.nodeWorkspace,
@@ -45,35 +42,15 @@ export function register(
         deps.notifier,
         handles.coreWriteRenderer,
     );
-    // Formatting and cleanup: the host fires them as notifications and the
-    // outcome comes back over the webview channel, which the BPMN editor routes.
-    // `confirm/show` is the one new Core→Host request the pair needs — deleting
-    // on the user's behalf has to wait for an answer, and requests only run in
-    // that direction.
-    const layoutSvc = handles.layout;
-
-    const withActiveEditor = async (action: (editorId: string) => Promise<void>): Promise<void> => {
-        try {
-            await action(deps.store.getActiveEditorId());
-        } catch (error) {
-            deps.notifier.logError(error as Error);
-            deps.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
-        }
-    };
-
-    deps.rpc.on(METHODS.layoutFormat, () => withActiveEditor((id) => layoutSvc.format(id)));
-    deps.rpc.on(METHODS.layoutCleanup, () =>
-        withActiveEditor((id) => layoutSvc.inspectCleanup(id)),
+    bindHandlers(
+        deps.rpc,
+        modelerCommandHandlers({
+            bpmnService: handles.bpmnService,
+            layout: handles.layout,
+            migration,
+            store: deps.store,
+            notifier: deps.notifier,
+            workspaceRoots: deps.nodeWorkspace,
+        }),
     );
-
-    deps.rpc.on(METHODS.migrationMigrateAll, async (params: MigrateAllParams) => {
-        // Migrate can fire with no editor open, so temporarily register its root.
-        // NodeWorkspace reference-counts roots, preserving any live session claim.
-        deps.nodeWorkspace.registerRoot(params.workspaceRoot);
-        try {
-            await migrationSvc.migrateAllDiagrams();
-        } finally {
-            deps.nodeWorkspace.unregisterRoot(params.workspaceRoot);
-        }
-    });
 }

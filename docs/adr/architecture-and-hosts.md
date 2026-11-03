@@ -14,6 +14,7 @@ depends on another host's internals.
 ## Contents
 
 - [Package boundaries](#package-boundaries)
+- [Workspace kinds and role folders](#workspace-kinds-and-role-folders)
 - [Host integrations](#host-integrations)
 - [Runtime and transport](#runtime-and-transport)
 - [Process lifecycle](#process-lifecycle)
@@ -74,44 +75,51 @@ file reaches a host module (`node:*`, `fs`, `http`), directly or transitively.
 This does not make the whole core browser-safe: portable Node utilities such as
 `path` remain valid there.
 
-Inside the core, each feature folder (`modeler/<editor>` for the editors)
-splits into `domain/`, an application layer of `service/` and `session/` (the
-editor-session participants), `infrastructure/` and root files that compose the
-feature. `domain/` imports only domain modules, `@miragon/bpmn-modeler-types`
-and Node `path`. Two folders are shared, and features reach each other only
-through them. A feature's `domain/` may import only its own `domain/` and the
-`domain/` of `kernel/` and `editorSession/`.
+Inside the core, each feature folder (`modeler/<editor>` for the editors) is a
+context with the [role folders](#workspace-kinds-and-role-folders) it needs:
+`domain/`, `port/`, `service/` (the editor-session participants included),
+`adapter/in/` (the `*MessageHandlers` tables), `adapter/out/` and
+`composition/`, where the `*Feature` module wires the context. `domain/`
+imports only domain modules, `@miragon/bpmn-modeler-types` and Node `path`.
+Two contexts are shared, and the others reach each other only through them,
+composition included. A context's `domain/` may import only its own `domain/`
+and the `domain/` of `kernel/` and `editorSession/`.
 
 - `kernel/` holds the vocabulary several features build on: `BpmnDocument`,
   engine versions, the workspace path, config-folder, glob, containment and
-  watcher rules, the cross-cutting errors and host ports, and the HTTP
-  contract (`HttpClient`, `HttpTransportError`, `loggableHost`) with its fetch
+  watcher rules, the cross-cutting errors, the host ports
+  (`kernel/port/hostPorts.ts`), and the HTTP contract (`HttpClient` in
+  `port/`, `HttpTransportError` and `loggableHost` in `domain/`) with its fetch
   adapter. A service joins `kernel/service/` only when at least two features
   use it, as `ArtifactService` and the workspace file search do. `kernel/`
   imports no other folder, so it stays the bottom layer.
 - `editorSession/` is the application core every editor runs on. Its
   `service/` holds the store, lifecycle, router, document sync, ordered
-  dispatch, flush services and webview log routing, `session/` the render
-  participant, and `infrastructure/` only the inbound document, focus, log and
-  notification handlers. Its `domain/` keeps the session events, the
-  participant contract, the echo guard and status-item ownership.
-  `EditorHandle` sits in `service/` because its `postMessage` speaks the
-  private protocol; `EditorSessionDocuments` implements `DocumentPort` on top
-  of the store, so it is a service, not an adapter. `editorSession/` imports
-  only `kernel/`, which the cross-feature rule already implies.
+  dispatch, flush services, webview log routing and the render participant,
+  and `adapter/in/` the inbound document, focus, log and notification
+  handlers. Its `domain/` keeps the session events, the participant contract,
+  the echo guard and status-item ownership. `EditorHandle` is a port: the host
+  implements it, and its `postMessage` speaks the private protocol.
+  `EditorSessionDocuments` implements `DocumentPort` on top of the store, so
+  it is a service, not an adapter. `editorSession/` imports only `kernel/`,
+  which the cross-feature rule already implies.
 
-Services and participants import no infrastructure; in infrastructure only the
-inbound `*MessageHandlers` adapters import services. A relative import resolves
-to a feature module, never to the package entry or the test kit, and the core
-has no import cycles. The core architecture test enforces these rules.
-Cross-cutting host ports live in `kernel/domain/hostPorts.ts`; a port, prompt
-or error one feature owns lives in that feature's `domain/` (`ports.ts`,
-`errors.ts`), so `kernel/` names no feature.
+The shared role-folder rules keep services off adapters, outbound adapters off
+services, and every import away from the package entry and the test kit; the
+core has no import cycles. A port file holds only interfaces: the value types,
+errors and pure functions a port names stay in `domain/`, so the domain never
+imports a port. A port, prompt or error one feature owns lives in that
+feature's `port/` or `domain/`, so `kernel/` names no feature.
+`EditorSessionParticipant` stays in `editorSession/domain/`: it is an in-core
+extension point the lifecycle drives, not a port a host implements.
 A store that holds application state and reaches the host, if at all, only
 through ports, such as `MarketplaceCache` and `DiffPaneStore`, lives in its
-feature's `service/` with no port of its own. The test lists no exception
-today. A new one names the issue that removes it, and the test fails when one
-is no longer needed, so the lists only shrink.
+feature's `service/` with no port of its own, and so does `DiffSession`, which
+holds the panes' `DiffPaneHandle` port. The core architecture test enforces
+the core's own rules (no host module, the domain package allowlist, the
+context rules) and lists no exception today. A new one names the issue that
+removes it, and the test fails when one is no longer needed, so the lists only
+shrink.
 
 The core/host seam and the host/webview seam are distinct. The core reaches
 documents, settings, notifications, pickers, secrets and other host facilities
@@ -128,10 +136,9 @@ host switches narrow on `type` instead of casting, so a misspelt type or a
 payload mismatch fails to compile. Inbound messages stay untrusted JSON: a
 switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
 handler table finds no entry for them. Code that owns a closed set makes a
-missing type a compile error. A switch ends in `exhaustiveMessageGuard` (the
-deployment dispatcher). A handler table has a mapped type that needs an entry
-for every type (the BPMN webview's session messages in
-`apps/bpmn-webview/src/session/messageRouter.ts`). TypeScript does not check
+missing type a compile error: a handler table has a mapped type that needs an
+entry for every type (the BPMN webview's session messages in
+`apps/bpmn-webview/src/session/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
 the keys a table gets through spreads, so a spec checks that no two spread
 handler groups name the same type. The classes remain the constructors and the
 wire format is unchanged: the same `type` strings and fields, which the
@@ -158,11 +165,44 @@ and ignores the settings and panel-state requests, which a read-only pane does
 not use. A `DiffPaneHostExtensions` entry a host leaves out makes its command
 ignored: both hosts supply the pane log; VS Code also supplies the swap, and
 the bridge does not, because IntelliJ's diff viewer swaps the sides before it
-forwards a message. Each host pins these
-routes in a coverage spec, a `Record` over both lists, and the preview host's
-spec posts every command of the editor and diff-pane lists. The DMN and Form editors
-and the deployment sidebar post their own commands, and a spec fails when a
-protocol command belongs to none of the lists. A host's router still
+forwards a message. The preview host's spec posts every command of the editor
+and diff-pane lists.
+
+The DMN and Form editors, the element-template editor and the deployment
+sidebar have closed lists of their own (`dmnEditorCommands.ts`,
+`formEditorCommands.ts`, `templateEditorCommands.ts`,
+`deploymentSidebarCommands.ts`), and each of these pages narrows its host
+channel to its list, so a page cannot post a command of another surface.
+`WEBVIEW_SURFACE_COMMAND_TYPES` (`libs/shared/src/lib/webviewSurfaces.ts`)
+registers every surface with its list; the diff pane's entry is the handshake
+plus the pane list. A spec in `libs/shared` fails when a protocol command is on
+no surface, so a command no webview posts is deleted, not kept routed. A
+command may be on several surfaces: the log commands and the document sync
+are. A repo-level spec ties the lists to the code: it type-checks each
+`apps/*-webview` program from its `tsconfig.app.json` and finds every
+construction of a `Command` subclass in a workspace source of that program, its
+libraries included, by base type rather than by name. A construction whose
+`type` is not a string literal, or whose type is on no surface, fails with its
+`path:line`. A new surface therefore registers in
+`WEBVIEW_SURFACE_COMMAND_TYPES` before its webview can post anything. The scan
+misses a message posted without a construction, such as an object literal or a
+command the page echoes back.
+
+The deployment sidebar's commands reach the core's `DeploymentMessageDispatcher`
+through a `CommandTable` over its list, as the editor's and the diff pane's do;
+its log rows share `routeWebviewLogCommand`. `DeploymentFeature.panelRoutes`
+reads that table before any panel attaches. Each host keeps one coverage spec
+over every surface, typed `HostSurfaceCoverage` (`libs/modeler-core/src/testing/`):
+per surface a `Record` of every listed command to `HANDLED` or
+`ignored(reason)`, or `absent(reason)` for a surface the host does not offer, as
+IntelliJ does for the DMN and Form editors and for the element-template page,
+which it answers itself. A new surface or a new command on a
+list fails to compile until every host's table names it. The spec reads the
+routes the host's composition builds (`createBridge`'s `surfaceRoutes` in
+`apps/modeler-bridge/src/bridge.surfaceCoverage.spec.ts`, the VS Code features
+in `apps/vscode-plugin/src/composition/webviewSurfaceCoverage.spec.ts`) and
+compares them in full, ignore reasons included, and a surface is absent exactly
+when the host has no routes for it. A host's router still
 dispatches an unrouted type as a no-op, but records a type it drops on purpose
 with `ignore(type, reason)`, once and with a non-blank reason. `routeOf(type)`
 reports a type as handled, ignored with that reason, or unrouted, and a type is
@@ -186,9 +226,99 @@ Enforcement lives in the [core architecture tests](../../libs/modeler-core/src/a
 [BPMN package tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
 [DMN package tests](../../packages/dmn-modeler/src/architecture.spec.ts),
 the [repo-level tests](../../tools/repo-checks/src/architecture.spec.ts) (no
-import cycles and stable dependencies in every workspace), and
+import cycles, stable dependencies and the
+[role-folder rules](#workspace-kinds-and-role-folders) in every workspace), the
+[webview command scan](../../tools/repo-checks/src/webviewCommands.spec.ts), and
 [ESLint boundary rules](../../eslint.config.cjs). The specs share one
 [engine](engineering-practices.md#architecture-tests).
+
+### Workspace kinds and role folders
+
+A fitness function reads folders, imports and types, never a file or type
+name. A folder therefore states the role a file is meant to have, and its
+imports show the role it has. Each workspace declares its kind once, in the
+`"architecture"` field of its `package.json`, which `readWorkspaces` reads:
+
+| Kind | Workspaces |
+| --- | --- |
+| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the four webviews, the template builder, `tools/repo-checks` |
+| `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
+| `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
+
+The webviews and the template builder move into their role folders in their
+own migrations (#2129, #2130).
+
+In a `hexagonal` workspace the first role folder in a file's path is its role,
+and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
+`service/` of `modeler/bpmn` with no special case for nested contexts. The
+layout below a role folder is free.
+
+| Folder | Holds |
+| --- | --- |
+| `domain/` | rules as pure functions and values |
+| `port/` | interfaces the services and inbound adapters call, which outbound adapters implement (driven ports) |
+| `service/` | orchestration, including the core's editor-session participants |
+| `adapter/in/` | calls into the workspace: commands, webview and RPC message handlers, UI |
+| `adapter/out/` | implementations of a port: VS Code, Node, HTTP clients |
+| `composition/` | wiring: at the workspace root in a host, `<context>/composition/` in the core |
+| `testing/` | the test kit |
+
+A file directly in `src/` is an entry (`index.ts`, `main.ts`, `server.ts`);
+that is a folder depth, not a name. Technology gets no role folder; it shows in
+the imports. Every rule below blocks, because each is static and reads only
+folders and imports:
+
+1. Every file sits in a role folder or is an entry.
+2. `domain/` imports only `domain/`, so the domain decides and does not call
+   out through a port.
+3. `port/` imports only `domain/` and `port/`.
+4. `service/` imports no `adapter/`, `composition/`, `testing/` or entry.
+5. Only `adapter/in/`, `service/`, `composition/`, `testing/` and entries
+   import a service, so `adapter/out/` never does. An entry may re-export one:
+   the core's barrel is how hosts reach its services.
+6. `adapter/in/` and `adapter/out/` never import each other, in any context.
+7. Only `adapter/`, `composition/` and entries import a host module
+   (`isHostModule`: `vscode`, `node:*`, `fs`, `http`).
+8. Only `composition/` and entries import `composition/`.
+9. Only `testing/` imports `testing/`, and nothing imports an entry.
+
+A `diagram-js` or `flat` workspace holds no role folder, so no folder there
+reads as a role nothing checks. Package imports stay out of the shared set:
+the core's domain allowlist (`@miragon/bpmn-modeler-types`, `path`) and its
+rules on contexts remain rules of the core's own spec.
+
+Rule 6 follows `adapters.dontDependOnEachOther` in Hombergs' buckpal, at the
+level of the direction rather than of each adapter package: here one
+technology spans contexts, and the rules between contexts stay per workspace.
+
+The core's session participants are in-core reactions that
+`EditorSessionLifecycle` drives, so they sit in `service/`, which the core
+always treated as one application layer with them. Webviews
+follow the same roles: the UI and host queries are `adapter/in/`, the host
+channel and the modeler-library wrappers `adapter/out/`, the reducers
+`domain/` and the bootstrap `composition/`. Each webview maps its files in its
+own migration (#2129).
+
+The bridge serves the host's RPC through handler tables in
+`<context>/adapter/in/` (`editorSessionHandlers`, `deploymentHandlers`, …),
+plain maps from method to handler that `composition/bindHandlers` binds to the
+`Rpc` peer, so no handler imports the transport. The out adapters that mirror
+host state (`BridgeSettings`, `NodeWorkspace`'s roots, `RpcDeploymentState`,
+`RpcEditorHandle`, `BridgeScriptEditor`'s tabs) implement a port the handlers
+take (`HostSettingsMirror`, `WorkspaceRoots`, `DeploymentStateMirror`,
+`HostEditorHandleFactory`, `ScriptTabEvents`), so a handler keeps its order
+against the core, such as applying the settings snapshot before a session's
+participants run. `DocumentMirror` is plain state both directions use, so it
+sits in `editorSession/domain/`, and the wire protocol, which both directions
+speak, in `protocol/domain/`.
+
+[`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts)
+applies each kind's rules (`RULES_BY_KIND`) to every workspace that declares
+it. A `hexagonal` workspace not yet moved into its role folders carries one
+blanket `KnownException` (`from: <dir>, to: "*"`) naming the issue that moves
+it; the stale-exception check removes it once the workspace passes, and #2127
+reads the list as remaining work. The ESLint override that bans an empty
+function in an adapter (#2053) covers `**/src/**/adapter/**/*.ts`.
 
 ### Host integrations
 
@@ -196,24 +326,26 @@ VS Code runs the core in-process. The standalone app loads that extension in
 Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
 Its host also integrates diff, deployment and scripting; its visual editor does
-not currently provide DMN or Forms parity.
+not currently provide DMN or Forms parity, nor the element-template editor.
 
 A feature both hosts offer is built once in the core from ports, not wired per
 host. `EditorSessionLifecycle` runs every editor session: it routes webview
 messages in document order, tracks focus, and runs each
 `EditorSessionParticipant` in isolation, so one failing participant cannot skip
 the others or their teardown. Participants see focus, document, setting,
-re-seed and dispose events, never a host panel. The host-free participants
+re-seed and dispose events, never a host panel. A hidden editor is no failure:
+`EditorSessionStore.postUnlessHidden` keeps back what a webview asks for again
+once it is shown, and reports `"hidden"` for what must be replayed. The host-free participants
 (element templates, bpmnlint, settings, engine version, deployment status,
 code-link, form-reference status, definition search, script editor) and the
 webview message handlers live in the core. `DeploymentFeature` and
 `MarketplaceCommands` own the deployment and marketplace flows.
-`BpmnEditorFeature` (`modeler/bpmn/`) builds the BPMN editor: its services, one
+`BpmnEditorFeature` (`modeler/bpmn/composition/`) builds the BPMN editor: its services, one
 router from a `CommandTable` that has an entry for every type in
 `BPMN_EDITOR_COMMAND_TYPES` (`WebviewMessageRouter.fromTable`), and its
 participants in one order. The
-cross-feature rule holds for it as for every feature, with no exempt
-composition folder: navigation, definition search, code-link and the script
+cross-feature rule holds for it as for every feature, its `composition/`
+included: navigation, definition search, code-link and the script
 editor each export their handlers and participant as an `EditorContribution`
 (`NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`,
 `ScriptEditorFeature`), and the host's composition hands them to the editor
@@ -228,9 +360,8 @@ out every flush, so a save or deploy could miss the last debounced edit. A host
 with its own document plumbing leaves `documentSync` out and answers the three
 on its own channel. Both hosts run the feature from their
 `composition/bpmnEditorFeature.ts`, so their routes and participant order are
-the same, and each pins its routes in a coverage spec, a
-`Record<BpmnEditorCommandType, "handled" | "ignored">`, with a row that the
-document group is handled or ignored as a whole. VS Code supplies every
+the same, and each pins its routes in its surface coverage spec, with a row
+that the document group is handled or ignored as a whole. VS Code supplies every
 extension; the bridge leaves out the panel visibility.
 
 A host supplies adapters and maps its own surface (VS Code commands and views,
@@ -239,9 +370,112 @@ VS Code's input UI, settings writes and reload hint; the bridge's
 workspace-root registration, acknowledged marketplace persistence and
 rendering on `document/didChange`, because the host owns the document revision
 there. Host classes depend on the core ports, not
-on concrete adapters, so the in-memory test kit fits every one of them; the VS
-Code architecture test lets only the composition root and infrastructure
-import a class that implements a port.
+on concrete adapters, so the in-memory test kit fits every one of them. Inbound
+adapters never import outbound ones (rule 6 of the
+[role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
+port (`ModelerPreferences`), a factory (`EditorHandleFactory`,
+`DiffPaneFactory`) or a value (the extension URI, the nonce source) from the
+composition root, and a helper both directions use is pure and sits in
+`domain/` (`canonicalPath` reads only the parts of a `Uri`). A context of the
+VS Code host reaches another only through `shared/`, which the VS Code
+architecture test checks.
+
+The element-template editor is the main editor for template files in VS Code:
+files in an `element-templates` folder open in it through a default editor
+association, as `*.form` files open in the Form editor, and any other `.json`
+file can be opened in it with **Open With…**. Its main area is the builder
+(`@miragon/bpmn-modeler-element-template-builder`), a form over the template laid
+out like VS Code's settings editor: a search, tabs for the template, its groups
+and its properties, an index and the chosen item's settings. Because it is shown
+inside the IDE, it is drawn with its own Preact components and coloured only by
+the `--vscode-*` theme tokens, so it follows light, dark and high-contrast
+themes; Light and Dark Modern values stand in where a host sets no tokens. The
+properties panel the template produces sits on the right as a preview, and what
+the official validator and the builder's own rules find docks under the form as
+a lint-style summary whose list opens upwards without covering a field. The JSON
+stays one toggle away beside it, where the host's own JSON support (`$schema`
+IntelliSense, undo, diagnostics) applies.
+
+The builder library keeps its layers pointing one way, and its
+`architecture.spec.ts` enforces it: `catalog/` is the engines' data, `domain/` the
+rules over it as pure code, `ui/` renders both. The catalog's conformance and
+coverage specs hold it to the official schemas in both directions, so a schema bump
+fails until someone decides what the builder does with a new binding. It depends
+on `jsonc-parser`, because an edit must keep the file's formatting, comments and
+unknown keys, so it changes the text rather than reprinting a parsed template, and
+on `@bpmn-io/element-templates-validator`, so it does not restate the schemas.
+Its Preact is the one `@bpmn-io/properties-panel` bundles, so the page ships no
+second copy. `applyTemplateEdits` returns a result instead of throwing: valid JSON
+that breaks the schema can make an edit impossible, and the page then writes
+nothing and says where. Fields keep what was typed while it still means the file's
+value, because the file only holds its normal form (`1` for `1.`). A template in
+an array file is selected by its place in the file, since an edit can change its
+id; a host's text can also move it, so that one is followed by id and version.
+The page's state is one `EditorPage` value in the library's domain, with pure
+transitions, which the page's bootstrap renders.
+
+Its page is a second entry
+of the BPMN webview bundle and parses the file itself: a host pushes the raw
+text with the configured locale (`ElementTemplateFileQuery`) and later language
+changes (`LanguageQuery`), so no host needs a bridge session for it. The page's
+own edits go back like a modeler's: `SyncDocumentCommand`
+with the document revision it was made on, a host revision that overtakes a
+pending edit wins, and a save flushes the pending edit first.
+`ElementTemplateEditorFeature` (`modeler/elementTemplate/`) builds the editor in
+the core, like `BpmnEditorFeature`: its service, one router from a
+`CommandTable` over `TEMPLATE_EDITOR_COMMAND_TYPES`, its participants and, because
+the template store is not the modelers' store, its own `DocumentFlushService`
+and `PendingEditsFlush` (serving `.json`). VS Code only adds the save-flush
+controller and its commands. VS Code writes only the changed range of a document
+(`minimalReplacement`, never splitting a CRLF or a surrogate pair), so the JSON
+editor open beside keeps its cursor and undo restores one edit. In VS Code its custom editor has `option` priority on `*.json`,
+so it never takes other JSON files over, and its sessions live in their own
+`EditorSessionStore`: a template editor never becomes the target of modeler
+commands or counts towards `bpmn-modeler.openCustomEditors`. The extension also
+activates in workspaces that contain an `element-templates` folder, so a JSON
+editor's title offers the template editor before any diagram is open.
+`elementTemplateFolder` and `isElementTemplateFile` in `modeler-types` are the
+one rule for where templates live and what counts as a template file, so a file
+counts as a template only if it names a template schema or the loader reads it.
+The manifest's `when` clause cannot read the config folder, so it leaves the
+decision to a context key the extension sets, and IntelliJ's editor provider
+keeps a Kotlin copy that runs the rules' `elementTemplateFile.cases.json` rows.
+The default editor association cannot read it either, so it opens any folder of
+that name; a file there that holds no template gets the start form or a note.
+
+IntelliJ has no builder yet and shows the same page as a preview only: its
+shell marks `#app` with `data-view="preview"`, so the page leaves out the
+builder, the start form and the engine choice and never sends an edit. A
+template's JSON opens in a `TextEditorWithPreview` holding the IDE's JSON editor
+and the page, and the settings broadcast reaches it over an application
+message-bus topic. Its provider builds the split editor directly, because the
+platform's provider base class is experimental API on the 2024.2 floor. The page
+therefore has two host wirings: the core's feature in VS Code, Kotlin in
+IntelliJ. `elementTemplatePreviewMessages.cases.json` in `libs/shared` pins the
+messages they exchange with the page to its message classes and lists the
+commands it may post; IntelliJ's test reads the same rows, and a command it does
+not know is logged as a warning. IntelliJ sends no document revision, since a
+preview makes no edits to base on one.
+
+A new template has one scaffold: `newTemplateText` in the builder library, with
+its `id` and suggested name from `templateIdentity` beside it. VS Code's
+**New Element Template** writes an empty file into
+`<configFolder>/element-templates/` of a workspace folder and opens it in the
+template editor, whose start form asks for the engine and the element type and
+starts the name from the file name; until then the template loader reads the empty
+file as holding no templates. IntelliJ has no command for it until it gets the
+builder: a stub would be a second scaffold in Kotlin, and asking for the one in
+TypeScript would take a new request type, since host-to-core methods on the bridge
+are notifications today.
+
+VS Code only downloads a JSON schema from a trusted domain, and unpkg is not a
+default one. Its JSON client also trusts a URL an extension contributes through
+`jsonValidation`, so the manifest contributes the two published template schema
+URLs with an empty `fileMatch`: that trusts exactly those URLs and leaves the
+user's `json.schemaDownload.trustedDomains` alone. It assigns them to no file,
+because a template folder does not tell C7 from C8. This relies on how the
+client works rather than on documented API, so the VS Code smoke test pins it,
+with a version-pinned URL as the control that must still warn.
 
 Inline scripts still open and sync their tabs per host, behind the core
 `ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab
@@ -345,7 +579,7 @@ workspace-wide status on the left (element templates, whose loads also run for
 background diagrams), the focused diagram's state on the right (engine
 version, BPMNlint, deployment target). A transient view hides itself after
 3 s, and a later show or hide of its slot cancels that
-([`VsCodeStatusBar.spec.ts`](../../apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.spec.ts)).
+([`VsCodeStatusBar.spec.ts`](../../apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.spec.ts)).
 The bridge sends a slot as one `statusBar/update {slot, view}` frame, with
 `view: null` to hide it. IntelliJ follows VS Code as far as its status bar
 allows: one widget per slot, the same text and tooltip, the same 3 s rule, and
@@ -576,15 +810,20 @@ The bridge embeds no HTTP/WebSocket server and opens no TCP port. The JVM's
 separate loopback asset server serves static resources, not per-document state.
 
 Keep protocol methods, parameter types and directions in the
-[protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts).
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts).
 Update its committed snapshot when the private wire contract changes; the
-[contract tests](../../apps/modeler-bridge/src/protocol/protocol.spec.ts) guard
+[contract tests](../../apps/modeler-bridge/src/protocol/domain/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ
 [handler coverage test](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/ProtocolHandlerCoverageTest.kt)
 reads that snapshot and registers the production `BridgeRouters`: each core→host
 method needs exactly one Kotlin handler, and a handler for a method the core no
-longer sends fails it. It also compares parameter and result keys. Each
-host→core sender runs once, and its frame must carry the keys the snapshot lists.
+longer sends fails it. The host names a host→core method only through the
+`HostToCoreMethod` enum, which `RpcChannel.notify` and `notifyRaw` take in
+place of a string; the test holds its wire names equal to the snapshot's
+host→core methods in both directions, so the host cannot send a method the core
+does not handle. It also compares parameter and result keys. Each host→core
+sender runs once, and its frame must carry the keys the snapshot lists; a
+snapshot method that no sender drives fails it.
 Each core→host handler reads its params before it acts, through `RpcParams`, so
 the test lets every handler read without acting and fails on a key the snapshot
 does not list. The registry seals the params once that read returns, so a handler
@@ -649,7 +888,7 @@ error when its handler throws, also when the handler leaves the reader thread
 for the EDT or a background thread (`RpcChannel.replyFrom`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
 How long the bridge's `Rpc.request` waits is data on each request in the
-[protocol descriptor](../../apps/modeler-bridge/src/protocol/descriptor.ts)
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts)
 (`replyWait`). Host work, such as a save, a clipboard read or a secret, fails
 after two minutes, so a reply the host never sends cannot hold the caller's
 per-editor queue; the caller's own error handling runs. The limit is generous
@@ -863,6 +1102,26 @@ a cached result must equal an uncached run.
 
 ## Alternatives and consequences
 
+- Hombergs nests `port/` and `service/` under `application/`. The flat
+  variant keeps the same roles with one folder less per context, and no rule
+  needs the grouping.
+- Evans keeps repository interfaces in the domain (`domain/port/`). A role
+  folder inside another makes the role ambiguous by path, and rule 2 needs
+  `domain/` and `port/` apart, so `port/` is a sibling.
+- `session/` as a role of its own would split one application layer in two
+  without a rule that tells them apart.
+- The test kit in `adapter/out/` would fit its fakes, but `createTestHost`
+  wires services, which rule 5 forbids there, so `testing/` is a role.
+- A central table of kinds in the repo-level spec would sit apart from the
+  workspace it describes; a new workspace would pass until someone listed it.
+  The manifest field travels with the workspace, and the spec fails on a
+  missing or unknown kind.
+- Detecting a port by its type (an interface a class in `adapter/out/`
+  implements) would flag a correct helper there that implements none. The
+  folder states the role; #2127 reports what it cannot catch.
+- One workspace-level composition for the core would exempt it from the rule
+  that contexts meet only through `kernel/` and `editorSession/`. Wiring sits
+  in `<context>/composition/`, where that rule still applies.
 - Leaving the core or its registries inside the VS Code plugin would couple
   other hosts to plugin internals or force them to duplicate session logic.
 - Enforcing a layer rule only once no violation remains would let new ones in

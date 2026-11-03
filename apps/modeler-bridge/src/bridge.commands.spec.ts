@@ -26,8 +26,8 @@ import {
     settle,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
-import { Rpc } from "./rpc";
+import { createBridge } from "./composition/bridge";
+import { Rpc } from "./transport/adapter/out/Rpc";
 
 const C7_VERSION = "7.20.0";
 const BPMN_C7_XML = `<?xml version="1.0" encoding="UTF-8"?>

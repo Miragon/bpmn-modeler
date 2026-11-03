@@ -12,6 +12,12 @@ import "./styles/canvasFocusIndicator.css";
 import "./styles/themes.css";
 
 export { createModeler } from "./createModeler";
+export { createTemplatePreview } from "./templatePreview/createTemplatePreview";
+export type {
+    TemplatePreviewHandle,
+    TemplatePreviewOptions,
+    TemplatePreviewOutcome,
+} from "./templatePreview/createTemplatePreview";
 export type {
     ThemeMode,
     ModelerMode,

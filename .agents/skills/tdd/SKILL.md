@@ -24,7 +24,9 @@ Pull any decision out of such code first; the decision itself is not exempt.
 
 1. Find the rule's home (see step 2) and search for copies of the rule
    elsewhere: other services, the other host, Kotlin, the webview. The spec
-   targets the one home; the copies go in step 3.
+   targets the one home; the copies go in step 3. `corepack yarn fitness`
+   lists, as `change-coupling`, file pairs that keep changing together
+   without an import; a hidden pair naming your file is a candidate copy.
 2. Write the spec first. For a bug, reproduce the report in the smallest setup
    that shows it.
 3. Run only that spec: `corepack yarn test <path/to/file.spec.ts>`.
@@ -38,13 +40,19 @@ Pull any decision out of such code first; the decision itself is not exempt.
 
 - Pure code in `libs/modeler-core/src/<feature>/domain/`: no ports, fakes,
   timers, DOM, `vscode`, Node host modules or `@miragon/bpmn-modeler-shared`
-  imports. The core's `architecture.spec.ts` enforces the layer direction.
+  imports. `tools/repo-checks/src/architecture.spec.ts` enforces the role
+  folders' import direction; the domain imports no `port/`.
 - Aggregates and value objects own their invariants: a factory that validates,
   no public mutation, derived state computed instead of stored.
 - Return decisions as values, as discriminated unions such as
   `{ kind: "alreadyDeclared" } | { kind: "declared"; manifestText: string }`,
   and let the service act on them. The domain decides; it does not call out.
 - Services in `service/` only orchestrate ports around those decisions.
+- A service never decides on a domain value's raw data (`target.engine === "c7"`);
+  it asks the home, a capability or method named after the rule (for example
+  `verifiesDeployments`). Acting on a decision a domain function returned is
+  fine. `miragon/no-guarded-value-comparison` enforces it for the registered
+  types.
 - Rules that browser code and the core both apply live in `libs/modeler-types`
   (pure, protocol-free). Webview-only rules go into a pure reducer module next
   to the bootstrap, not into DOM handlers.

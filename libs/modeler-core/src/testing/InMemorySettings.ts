@@ -1,10 +1,7 @@
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import {
-    ColorThemeSetting,
-    MarketplaceSettingsEntry,
-    SettingsPort,
-} from "../kernel/domain/hostPorts";
+import { ColorThemeSetting, MarketplaceSettingsEntry } from "../kernel/domain/modelerSettings";
+import { SettingsPort } from "../kernel/port/hostPorts";
 import { ModelerSettingsSnapshot, normalizeSettings } from "../kernel/domain/modelerSettings";
 
 /**

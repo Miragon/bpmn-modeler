@@ -32,6 +32,7 @@ import type {
     DiffReadyCommand,
     DmnFileQuery,
     DmnModelerSettingQuery,
+    ElementTemplateFileQuery,
     ElementTemplatesQuery,
     FocusElementQuery,
     FormDefaultsQuery,
@@ -49,6 +50,7 @@ import type {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetElementTemplatesCommand,
+    GetElementTemplateFileCommand,
     GetFormFileCommand,
     GetFormInputValuesCommand,
     GetFormReferenceStatusCommand,
@@ -67,7 +69,6 @@ import type {
     RequestAdditionalFilesCommand,
     RequestFormDefaultsCommand,
     RequestPayloadFilesCommand,
-    RequestProcessDefinitionKeyCommand,
     RequestStoredCredentialsCommand,
     SaveTargetCommand,
     SearchWorkspaceDefinitionsCommand,
@@ -105,6 +106,7 @@ export type ProtocolQuery =
     | DmnFileQuery
     | FormFileQuery
     | FormInputValuesQuery
+    | ElementTemplateFileQuery
     | ElementTemplatesQuery
     | BpmnlintResultsQuery
     | BpmnLintDisabledQuery
@@ -154,6 +156,7 @@ export type ProtocolCommand =
     | GetFormFileCommand
     | GetFormInputValuesCommand
     | UpdateFormOutputValuesCommand
+    | GetElementTemplateFileCommand
     | GetElementTemplatesCommand
     | GetBpmnlintConfigCommand
     | GetBpmnModelerSettingCommand
@@ -189,7 +192,6 @@ export type ProtocolCommand =
     | OpenTargetsFileCommand
     | StartInstanceCommand
     | RequestPayloadFilesCommand
-    | RequestProcessDefinitionKeyCommand
     | ViewportChangedCommand
     | CursorChangedCommand
     | DiffReadyCommand
@@ -216,12 +218,4 @@ export function isMessageOfType<TType extends ProtocolMessageType>(
 /** Inbound messages are untrusted JSON; narrowing happens per `case` on the result. */
 export function asProtocolMessage(message: { type: string }): ProtocolMessage {
     return message as ProtocolMessage;
-}
-
-/**
- * Compile-time exhaustiveness check for a switch over a closed message union.
- * At runtime it is a no-op: a message outside the union is ignored, not an error.
- */
-export function exhaustiveMessageGuard(message: never): void {
-    void message;
 }

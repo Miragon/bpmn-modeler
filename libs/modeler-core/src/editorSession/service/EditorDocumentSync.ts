@@ -1,5 +1,5 @@
 import { ModelerSession } from "../domain/session";
-import { DocumentPort } from "../../kernel/domain/hostPorts";
+import { DocumentPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 
 /** The document as one display call found it; async work re-checks it before acting. */
@@ -10,11 +10,15 @@ export interface DocumentSnapshot {
     isCurrent(): boolean;
 }
 
-/** What the shared document handlers and render participant need from a modeler service. */
-export interface ModelerDocumentService {
+/** What rendering a document takes; a read-only editor's service stops here. */
+export interface RenderedDocumentService {
     registerSession(editorId: string): void;
     disposeSession(editorId: string): void;
     display(editorId: string, hostUpdated?: boolean): Promise<boolean>;
+}
+
+/** What the shared document handlers and render participant need from a modeler service. */
+export interface ModelerDocumentService extends RenderedDocumentService {
     sync(editorId: string, content: string, documentRevision?: number): Promise<boolean>;
 }
 

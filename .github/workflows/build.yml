@@ -34,7 +34,7 @@ jobs:
             intellij-plugin:
               - 'apps/intellij-plugin/**'
               # ProtocolHandlerCoverageTest checks the Kotlin handlers against it.
-              - 'apps/modeler-bridge/src/protocol/protocol.json'
+              - 'apps/modeler-bridge/src/protocol/domain/protocol.json'
               # ModelerSettingsStoreTest runs the core's settings rows and checks
               # the Kotlin defaults against the VS Code manifest, ModelerLocalesTest
               # the Kotlin languages.
@@ -227,7 +227,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - name: Run unit tests with coverage
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestReport --no-daemon

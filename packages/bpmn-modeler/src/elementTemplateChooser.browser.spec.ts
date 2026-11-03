@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { createModeler } from "./createModeler";
-import type { ModelerMode } from "./mode";
+import type { ModelerMode } from "./mode/mode";
 import type { BpmnModeler } from "./modeler";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";

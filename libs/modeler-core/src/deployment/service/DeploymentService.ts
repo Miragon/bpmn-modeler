@@ -27,8 +27,8 @@ import {
     PickerPort,
     SettingsPort,
     WorkspacePort,
-} from "../../kernel/domain/hostPorts";
-import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../domain/ports";
+} from "../../kernel/port/hostPorts";
+import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../port/deploymentPorts";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";

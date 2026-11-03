@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { type Engine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
+
 import {
     DisallowedEnvReferenceError,
     InvalidCredentialDestinationError,
@@ -182,6 +184,14 @@ describe("DeploymentConfigBuilder", () => {
             expect(() => clear(completeBuilder()).build()).toThrow(
                 new InvalidDeploymentConfigError([field]),
             );
+        });
+
+        it("refuses an engine outside the known engines", () => {
+            expect(() =>
+                completeBuilder()
+                    .withEngine("c9" as Engine)
+                    .build(),
+            ).toThrow(new UnsupportedEngineError("c9"));
         });
 
         // Whitespace-only values are functionally empty: build() trims before

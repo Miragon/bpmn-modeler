@@ -1,6 +1,6 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/domain/hostPorts";
+import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { searchScopeKey, searchScopeRoots } from "../../kernel/domain/searchScope";
 import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";

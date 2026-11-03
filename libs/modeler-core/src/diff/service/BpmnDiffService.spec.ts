@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestHost } from "../../testing";
-import { DiffPaneHandle } from "../domain/DiffSession";
+import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { BpmnDiffService } from "./BpmnDiffService";
 

@@ -21,6 +21,7 @@ import {
     describeScriptSurface,
     DisposableStore,
     Engine,
+    engineSupports,
     getLatestVersion,
     LintResults,
     OpenScriptEditorRef,
@@ -55,7 +56,7 @@ import {
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "./editableSurface";
-import { createReporter, type SurfaceReporter } from "./reporting";
+import { createReporter, type SurfaceReporter } from "./reporting/reporting";
 import { SurfaceCore } from "./surfaceCore";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
@@ -65,8 +66,14 @@ import { deriveEngines } from "./engines";
 import { executionPlatformAttributes } from "./executionPlatformAttributes";
 import { loadEngineStack } from "./engineStacks";
 import { initialDiagram } from "./initialDiagram";
-import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
-import { ModeUiModule } from "./modeModules";
+import {
+    applyMode,
+    normalizeMode,
+    MODE_ATTRIBUTE,
+    type ModePorts,
+    type ModelerMode,
+} from "./mode/mode";
+import { ModeUiModule } from "./mode/modeModules";
 import { DrilldownFitModule } from "./viewState";
 import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -415,7 +422,10 @@ export class BpmnModeler {
 
     // Import clears the overlays, so every import re-renders the boundaries.
     private showTransactionBoundariesIfEnabled(): void {
-        if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
+        if (
+            engineSupports(this.engine, "transactionBoundaries") &&
+            this.settings.showTransactionBoundaries
+        ) {
             this.getModeler().get<TransactionBoundariesService>("transactionBoundaries").show();
         }
     }
@@ -462,7 +472,10 @@ export class BpmnModeler {
         // colorTheme stays inert here; the host controls theme through setTheme.
 
         const showTransactionBoundaries = settings.showTransactionBoundaries;
-        if (this.engine === "c7" && showTransactionBoundaries !== undefined) {
+        if (
+            engineSupports(this.engine, "transactionBoundaries") &&
+            showTransactionBoundaries !== undefined
+        ) {
             const transactionBoundaries =
                 this.getModeler().get<TransactionBoundariesService>("transactionBoundaries");
             // Hosts re-send every setting on any change; upstream show() is not idempotent.

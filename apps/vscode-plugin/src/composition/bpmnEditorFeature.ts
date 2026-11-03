@@ -10,15 +10,15 @@ import {
     EditorSessionParticipant,
     NavigationFeature,
 } from "@miragon/bpmn-modeler-core";
-import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
+import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import {
     FocusLintElementController,
     FOCUS_LINT_ELEMENT_CMD,
-} from "../modeler/bpmn/controller/FocusLintElementController";
-import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
-import { VsCodeLintingPreference } from "../modeler/bpmn/infrastructure/VsCodeLintingPreference";
-import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
-import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
+} from "../modeler/bpmn/adapter/in/FocusLintElementController";
+import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
+import { VsCodeLintingPreference } from "../modeler/bpmn/adapter/out/VsCodeLintingPreference";
+import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
+import { VsCodeDiagnostics } from "../shared/adapter/out/VsCodeDiagnostics";
 import { SharedDeps } from "./sharedDeps";
 
 interface BpmnEditorHandles {
@@ -70,7 +70,7 @@ export function register(
     );
     context.subscriptions.push(editor, navigation, definitionSearch, codeLink);
 
-    new ModelerEditorController(deps.editorStore, deps.notifier, {
+    new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: BPMN_VIEW_TYPE,
         messageRouter: editor.router,
         participants: editor.participants,

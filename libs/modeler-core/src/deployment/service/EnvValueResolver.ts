@@ -1,6 +1,6 @@
 import { FileNotFound } from "../../kernel/domain/errors";
 import { UnreadableDotEnvError } from "../domain/errors";
-import { WorkspacePort } from "../../kernel/domain/hostPorts";
+import { WorkspacePort } from "../../kernel/port/hostPorts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { DeploymentDestination } from "../domain/deploymentDestination";
 import { parseDotEnv } from "../domain/dotEnv";

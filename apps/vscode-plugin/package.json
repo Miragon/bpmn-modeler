@@ -1,5 +1,6 @@
 {
     "name": "vs-code-bpmn-modeler",
+    "architecture": "hexagonal",
     "scripts": {
         "build": "webpack --mode production",
         "dev": "webpack --mode development --watch",
@@ -92,7 +93,8 @@
     "main": "main.js",
     "activationEvents": [
         "onFileSystem:bpmn-form-input-values",
-        "onFileSystem:bpmn-form-output-values"
+        "onFileSystem:bpmn-form-output-values",
+        "workspaceContains:**/element-templates/**/*.json"
     ],
     "contributes": {
         "walkthroughs": [
@@ -145,6 +147,14 @@
             {
                 "fileMatch": "**/deployment-targets.json",
                 "url": "./schemas/deployment-targets.schema.json"
+            },
+            {
+                "fileMatch": [],
+                "url": "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json"
+            },
+            {
+                "fileMatch": [],
+                "url": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json"
             }
         ],
         "languages": [
@@ -225,13 +235,25 @@
                     }
                 ],
                 "priority": "default"
+            },
+            {
+                "id": "bpmn-modeler.elementTemplateEditor",
+                "viewType": "bpmn-modeler.elementTemplateEditor",
+                "displayName": "Element Template Editor",
+                "selector": [
+                    {
+                        "filenamePattern": "*.json"
+                    }
+                ],
+                "priority": "option"
             }
         ],
         "configurationDefaults": {
             "workbench.editorAssociations": {
                 "*.bpmn": "bpmn-modeler.bpmn",
                 "*.dmn": "bpmn-modeler.dmn",
-                "*.form": "bpmn-modeler.form"
+                "*.form": "bpmn-modeler.form",
+                "**/element-templates/**/*.json": "bpmn-modeler.elementTemplateEditor"
             },
             "files.associations": {
                 "*.form": "json"
@@ -274,6 +296,18 @@
                 "title": "Toggle Form Output Values",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(output)"
+            },
+            {
+                "command": "bpmn-modeler.openElementTemplateEditor",
+                "title": "Open in Element Template Editor",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(open-preview)"
+            },
+            {
+                "command": "bpmn-modeler.toggleElementTemplateJson",
+                "title": "Toggle JSON Editor",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(notebook-mimetype)"
             },
             {
                 "command": "bpmn-modeler.openLoggingConsole",
@@ -397,6 +431,12 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.newElementTemplate",
+                "title": "New Element Template",
+                "shortTitle": "Element Template",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.reloadModeler",
                 "title": "Reload Modeler",
                 "category": "Miragon BPMN Modeler",
@@ -445,6 +485,14 @@
                 {
                     "command": "bpmn-modeler.toggleFormOutputValues",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
+                    "command": "bpmn-modeler.openElementTemplateEditor",
+                    "when": "resourceExtname =~ /^\\.json$/i"
+                },
+                {
+                    "command": "bpmn-modeler.toggleElementTemplateJson",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.elementTemplateEditor'"
                 },
                 {
                     "command": "bpmn-modeler.openLoggingConsole",
@@ -557,6 +605,16 @@
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
                 },
                 {
+                    "command": "bpmn-modeler.toggleElementTemplateJson",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.elementTemplateEditor'"
+                },
+                {
+                    "command": "bpmn-modeler.openElementTemplateEditor",
+                    "group": "navigation",
+                    "when": "resourceExtname =~ /^\\.json$/i && !activeCustomEditorId && !bpmn-modeler.templateEditorShowsFile && bpmn-modeler.isElementTemplate"
+                },
+                {
                     "command": "bpmn-modeler.toggleTextEditor",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' || activeWebviewPanelId == 'bpmn-modeler.dmn' || activeWebviewPanelId == 'bpmn-modeler.form'"
@@ -583,6 +641,10 @@
                 },
                 {
                     "command": "bpmn-modeler.newFormModel",
+                    "group": "file"
+                },
+                {
+                    "command": "bpmn-modeler.newElementTemplate",
                     "group": "file"
                 }
             ]

@@ -1,6 +1,6 @@
 import { Command, LogMessageCommand } from "@miragon/bpmn-modeler-shared";
 
-import { LoggerPort } from "../../kernel/domain/hostPorts";
+import { LoggerPort } from "../../kernel/port/hostPorts";
 
 /** Command types this module recognises, mapped to the logger method each drives. */
 const LOG_LEVELS = {
@@ -10,7 +10,7 @@ const LOG_LEVELS = {
     LogErrorCommand: "logError",
 } as const;
 
-function isLogMessageCommand(
+export function isWebviewLogCommand(
     command: Command,
 ): command is LogMessageCommand<keyof typeof LOG_LEVELS> {
     return command.type in LOG_LEVELS;
@@ -22,8 +22,8 @@ function isLogMessageCommand(
  *
  * The sandboxed webview cannot write to the output channel / `idea.log`, so it
  * forwards log entries as commands. Callers outside
- * `registerWebviewLogHandlers` (the deployment dispatcher's `switch`, the diff
- * pane router's log route) use this to get the same routing, without
+ * `registerWebviewLogHandlers` (the deployment dispatcher's and the diff pane
+ * router's log routes) use this to get the same routing, without
  * duplicating the formatter or the four-way level fan-out — so the transports
  * can't drift.
  *
@@ -38,7 +38,7 @@ export function routeWebviewLogCommand(
     command: Command,
     source?: string,
 ): boolean {
-    if (!isLogMessageCommand(command)) {
+    if (!isWebviewLogCommand(command)) {
         return false;
     }
     const method = LOG_LEVELS[command.type];

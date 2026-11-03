@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "Smoke Invalid",
+  "id": "smoke-template-invalid",
+  "version": "one",
+  "appliesTo": ["bpmn:Task"],
+  "elementType": { "value": "bpmn:ServiceTask" },
+  "properties": [
+    {
+      "type": "Hidden",
+      "value": "smoke-template-invalid",
+      "binding": { "type": "zeebe:taskDefinition", "property": "type" }
+    }
+  ]
+}

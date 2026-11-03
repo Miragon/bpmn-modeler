@@ -46,19 +46,8 @@ const ENGINE_NAMESPACE: Record<
     c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
 };
 
-const ENGINES_BY_DETECTION_PRIORITY: readonly Engine[] = ["c7", "c8"];
-
-export class BpmnDocument {
-    constructor(readonly xml: string) {}
-
-    /**
-     * Returns an empty BPMN diagram for the given engine and version — the
-     * minimal structure bpmn-js needs to open and render a new diagram without
-     * errors.
-     */
-    static empty(engine: Engine, version: string): BpmnDocument {
-        if (engine === "c7") {
-            return new BpmnDocument(`
+const EMPTY_DIAGRAM: Record<Engine, (version: string) => string> = {
+    c7: (version) => `
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1d2hcmz" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="${version}">
   <bpmn:process id="Process_0gjrx3e" isExecutable="true" camunda:historyTimeToLive="180">
@@ -72,9 +61,8 @@ export class BpmnDocument {
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
-`);
-        }
-        return new BpmnDocument(`
+`,
+    c8: (version) => `
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1ksue5u" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="${version}">
   <bpmn:process id="Process_0vf1lkj" isExecutable="true">
@@ -88,7 +76,21 @@ export class BpmnDocument {
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
-`);
+`,
+};
+
+const ENGINES_BY_DETECTION_PRIORITY: readonly Engine[] = ["c7", "c8"];
+
+export class BpmnDocument {
+    constructor(readonly xml: string) {}
+
+    /**
+     * Returns an empty BPMN diagram for the given engine and version — the
+     * minimal structure bpmn-js needs to open and render a new diagram without
+     * errors.
+     */
+    static empty(engine: Engine, version: string): BpmnDocument {
+        return new BpmnDocument(EMPTY_DIAGRAM[engine](version));
     }
 
     /**

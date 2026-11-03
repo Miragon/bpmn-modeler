@@ -1,4 +1,4 @@
-import { WorkspacePort } from "../domain/hostPorts";
+import { WorkspacePort } from "../port/hostPorts";
 import { outermostPaths } from "../domain/rootContainment";
 import { findFilesBelow } from "./workspaceFileSearch";
 

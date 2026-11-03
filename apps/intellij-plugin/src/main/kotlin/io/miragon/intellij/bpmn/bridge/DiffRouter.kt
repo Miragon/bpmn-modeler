@@ -48,7 +48,7 @@ internal class DiffRouter(private val deps: BridgeDeps) {
         // Route the panes, enqueue diff/open, then spawn off the EDT (the queue
         // holds the frame until the writer exists), so opening a diff never blocks.
         deps.channel.notify(
-            "diff/open",
+            HostToCoreMethod.DIFF_OPEN,
             linkedMapOf(
                 "diffId" to diffId,
                 "origin" to origin,
@@ -68,7 +68,7 @@ internal class DiffRouter(private val deps: BridgeDeps) {
                 log.warn("Discarding malformed diff message: $rawMessage", e)
                 return
             }
-        deps.channel.notify("diff/webviewMessage", linkedMapOf("paneUri" to paneUri, "message" to message))
+        deps.channel.notify(HostToCoreMethod.DIFF_WEBVIEW_MESSAGE, linkedMapOf("paneUri" to paneUri, "message" to message))
     }
 
     /**
@@ -78,7 +78,7 @@ internal class DiffRouter(private val deps: BridgeDeps) {
      */
     fun disposeDiff(diffId: String) {
         diffPaneUris.remove(diffId)?.forEach { diffPanes.remove(it) }
-        deps.channel.notify("diff/dispose", linkedMapOf("diffId" to diffId))
+        deps.channel.notify(HostToCoreMethod.DIFF_DISPOSE, linkedMapOf("diffId" to diffId))
     }
 
     fun clear() {

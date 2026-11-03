@@ -678,28 +678,6 @@ describe("DeploymentMessageDispatcher.handle routing", () => {
         expect(c.deploymentService.deploy).toHaveBeenCalledOnce();
     });
 
-    it("routes RequestProcessDefinitionKeyCommand to the key handler", async () => {
-        const c = createDispatcher();
-        c.startInstanceService.getProcessDefinitionKey.mockReturnValue("proc-key");
-
-        await c.dispatcher.handle({ type: "RequestProcessDefinitionKeyCommand" } as Command);
-
-        expect(postedQuery(c.post, ProcessDefinitionKeyQuery).processDefinitionKey).toBe(
-            "proc-key",
-        );
-    });
-
-    it("posts an empty key when key extraction throws", async () => {
-        const c = createDispatcher();
-        c.startInstanceService.getProcessDefinitionKey.mockImplementation(() => {
-            throw new Error("no id");
-        });
-
-        await c.dispatcher.handle({ type: "RequestProcessDefinitionKeyCommand" } as Command);
-
-        expect(postedQuery(c.post, ProcessDefinitionKeyQuery).processDefinitionKey).toBe("");
-    });
-
     it("routes RequestPayloadFilesCommand to the payload selector", async () => {
         const c = createDispatcher();
         c.startInstanceService.selectPayloadFile.mockResolvedValue({
@@ -1188,26 +1166,31 @@ describe("DeploymentMessageDispatcher deploy literal credentials on a named targ
 });
 
 describe("DeploymentMessageDispatcher.handle webview-log routing", () => {
-    it("routes each Log* level onto the notifier with a [webview:deployment] tag", async () => {
+    it("routes the sidebar's Log* levels onto the notifier with a [webview:deployment] tag", async () => {
         const c = createDispatcher();
 
-        await c.dispatcher.handle(new LogDebugCommand("d"));
         await c.dispatcher.handle(new LogInfoCommand("i"));
-        await c.dispatcher.handle(new LogWarningCommand("w"));
         await c.dispatcher.handle(new LogErrorCommand("boom", "at foo"));
 
         expect(c.host.notifier.logged("info")).toContain("[webview:deployment] i");
-        expect(c.host.notifier.logged("warning")).toContain("[webview:deployment] w");
         expect(c.host.notifier.logged("error")).toContain("[webview:deployment] boom\nat foo");
     });
 
-    it("does not enter the command switch for a Log* command", async () => {
+    it("drops the Log* levels the sidebar never posts", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle(new LogDebugCommand("d"));
+        await c.dispatcher.handle(new LogWarningCommand("w"));
+
+        expect(c.host.notifier.logged("debug")).not.toContain("[webview:deployment] d");
+        expect(c.host.notifier.logged("warning")).toEqual([]);
+    });
+
+    it("skips the received breadcrumb for a Log* command", async () => {
         const c = createDispatcher();
 
         await c.dispatcher.handle(new LogInfoCommand("i"));
 
-        // The switch's per-message debug breadcrumb is skipped for log traffic
-        // so forwarded lines aren't double-logged.
         expect(c.host.notifier.logged("debug")).not.toContain(
             "Deployment message received -> LogInfoCommand",
         );

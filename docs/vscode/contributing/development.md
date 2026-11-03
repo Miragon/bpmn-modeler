@@ -74,10 +74,8 @@ instructions in a `CLAUDE.local.md`, set **Project instructions** to
 `claude-md-and-agents-md` in `/config`, otherwise Claude Code stops loading
 `AGENTS.md`. Run `/context` to see which instruction files a session loaded.
 
-`.claude/settings.json` contains only Claude settings: automatic attribution
-is disabled and the existing Playwright plugin tools are pre-approved.
-Codex does not read this file. The rule against agent attribution in commits
-and PRs lives in the shared instructions and applies to both clients.
+`.claude/settings.json` contains only Claude settings: it pre-approves the
+existing Playwright plugin tools. Codex does not read this file.
 Keep personal Claude overrides in `.claude/settings.local.json` (gitignored).
 When updating an older checkout, move any local Claude overrides from the
 former shared agent directory to `.claude/settings.local.json`; `.claude/`
@@ -511,23 +509,24 @@ The extension is organised **by feature** with plain constructor wiring — no D
 framework. Domain logic, services and the editor-session core
 (`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) live in
 `@miragon/bpmn-modeler-core`; a feature folder here keeps only its VS Code
-`controller/` and `infrastructure/`, and cross-feature use goes through the
-feature's `index.ts` barrel.
+role folders: `adapter/in/` (commands, providers, webview handlers) and
+`adapter/out/` (`VsCode*` port adapters), and a feature reaches another only
+through `shared/`.
 
 ```
 apps/vscode-plugin/src/
   main.ts          # Activation: build shared deps, then call each feature's register()
   composition/     # One register(context, deps) per feature — the wiring root
-  shared/          # Cross-feature infrastructure/: VsCode* port adapters, webview HTML, …
+  shared/          # Cross-feature domain/, port/, adapter/in/ and adapter/out/: VsCode* port adapters, webview HTML, …
   modeler/
-    editor-session/  # Generic ModelerEditorController (runs the core EditorSessionLifecycle)
-    bpmn/ form/      # controller/ infrastructure/
-  deployment/ diff/ scriptTask/ templateMarketplace/        # controller/ infrastructure/
-  migration/                                                # index.ts barrel only
+    editor-session/  # adapter/in/: generic ModelerEditorController (runs the core EditorSessionLifecycle)
+    bpmn/ form/      # adapter/in/ adapter/out/
+  deployment/ diff/ scriptTask/ templateMarketplace/        # adapter/in/ adapter/out/
 ```
 
-The layer + feature-isolation boundaries are enforced in CI by
-`apps/vscode-plugin/src/architecture.spec.ts` (ArchUnitTS). See the
+The role-folder rules are enforced in CI by
+`tools/repo-checks/src/architecture.spec.ts`, and the context isolation by
+`apps/vscode-plugin/src/architecture.spec.ts`. See the
 [Architecture overview](./architecture-overview) for the full model.
 
 Key design decisions:

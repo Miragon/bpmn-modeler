@@ -17,8 +17,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { registerParams, settle, waitForFrame } from "./__fixtures__/bridgeHarness";
-import { createBridge } from "./bridge";
-import { Rpc } from "./rpc";
+import { createBridge } from "./composition/bridge";
+import { Rpc } from "./transport/adapter/out/Rpc";
 
 const C7_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.20.0">

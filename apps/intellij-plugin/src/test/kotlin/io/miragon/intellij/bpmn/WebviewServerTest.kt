@@ -68,6 +68,20 @@ class WebviewServerTest {
     }
 
     @Test
+    fun `the template preview shell boots the template editor entry as a preview only`() {
+        val url = server.templatePreviewUrl()
+        val response = get(url)
+
+        assertEquals("${origin()}/templatePreview.html", url)
+        assertEquals(200, response.status)
+        assertTrue(response.body.contains("""<link href="/index.css" rel="stylesheet"/>"""))
+        assertTrue(response.body.contains("""<body class="vscode-light">"""))
+        assertTrue(response.body.contains("""<div id="app" data-view="preview"></div>"""))
+        assertTrue(response.body.contains("window.acquireVsCodeApi"))
+        assertTrue(response.body.contains("""<script type="module" src="/templateEditor.js"></script>"""))
+    }
+
+    @Test
     fun `the deployment shell loads the deployment bundle with its own theme vars`() {
         val response = get(server.deploymentUrl())
 
