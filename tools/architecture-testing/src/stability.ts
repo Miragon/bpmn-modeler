@@ -1,3 +1,4 @@
+import { compareText } from "./compareText";
 import type { Workspace } from "./workspaces";
 import { workspaceOfSpecifier } from "./workspaces";
 
@@ -33,7 +34,7 @@ export function workspaceDependencies(
         }
     }
     return dependencies.sort(
-        (left, right) => compare(left.from, right.from) || compare(left.to, right.to),
+        (left, right) => compareText(left.from, right.from) || compareText(left.to, right.to),
     );
 }
 
@@ -75,8 +76,4 @@ export function describeDependency(
     const instabilityOf = (dir: string): string =>
         (stability.get(dir)?.instability ?? 0).toFixed(2);
     return `${from} (I=${instabilityOf(from)}) → ${to} (I=${instabilityOf(to)})`;
-}
-
-function compare(left: string, right: string): number {
-    return left < right ? -1 : left > right ? 1 : 0;
 }

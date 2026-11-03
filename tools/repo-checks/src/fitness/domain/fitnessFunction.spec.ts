@@ -21,6 +21,18 @@ describe("the fitness function contract", () => {
         expect(defineFitnessFunction(valid)).toBe(valid);
     });
 
+    it("accepts declared finding groups", () => {
+        const grouped = {
+            ...valid,
+            groups: [
+                { id: "hidden", title: "Hidden" },
+                { id: "explained", title: "Explained", collapsed: true },
+            ],
+        } as const;
+
+        expect(defineFitnessFunction(grouped)).toBe(grouped);
+    });
+
     // Each case is a type error (checked by `typecheck`) and throws for callers that bypass the types.
     it.each([
         {
@@ -123,6 +135,31 @@ describe("the fitness function contract", () => {
             case: "a blank entry in the misses",
             override: { misses: [" "] },
             problem: "misses holds an empty entry",
+        },
+        {
+            case: "an empty list of groups",
+            override: { groups: [] },
+            problem: "groups are empty, blank or repeat an id",
+        },
+        {
+            case: "a group with a blank title",
+            override: { groups: [{ id: "hidden", title: " " }] },
+            problem: "groups are empty, blank or repeat an id",
+        },
+        {
+            case: "a group with a blank id",
+            override: { groups: [{ id: "", title: "Hidden" }] },
+            problem: "groups are empty, blank or repeat an id",
+        },
+        {
+            case: "two groups with one id",
+            override: {
+                groups: [
+                    { id: "hidden", title: "Hidden" },
+                    { id: "hidden", title: "Also hidden" },
+                ],
+            },
+            problem: "groups are empty, blank or repeat an id",
         },
     ])("rejects $case at run time", ({ override, problem }) => {
         expect(() => defineFitnessFunction({ ...valid, ...override } as never)).toThrow(

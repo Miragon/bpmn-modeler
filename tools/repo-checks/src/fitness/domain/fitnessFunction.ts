@@ -18,6 +18,12 @@ export interface MeasurementContext {
 
 type NonEmptyList<T> = readonly [T, ...T[]];
 
+export interface FindingGroup {
+    readonly id: string;
+    readonly title: string;
+    readonly collapsed?: boolean;
+}
+
 export interface FitnessFunction {
     readonly id: string;
     /** Bumped on every change to what the function finds; another version's snapshot is not compared. */
@@ -28,6 +34,8 @@ export interface FitnessFunction {
     readonly misses: NonEmptyList<string>;
     readonly reportsWrongly: NonEmptyList<string>;
     readonly evidence: NonEmptyList<Evidence>;
+    /** The report prints one table per group, in this order. */
+    readonly groups?: NonEmptyList<FindingGroup>;
     /** Throws `InsufficientHistory` when git cannot recompute it at this commit. */
     findFindings(context: MeasurementContext): readonly Finding[];
 }
@@ -67,6 +75,20 @@ function evidenceProblem(evidence: unknown): boolean {
     return kind !== "trial" || !isNonBlankText(commit) || !isNonBlankText(outcome);
 }
 
+function groupsProblem(groups: unknown): boolean {
+    if (groups === undefined) {
+        return false;
+    }
+    if (!Array.isArray(groups) || groups.length === 0) {
+        return true;
+    }
+    const ids = groups.map(({ id }: FindingGroup) => id);
+    return (
+        new Set(ids).size !== ids.length ||
+        !groups.every(({ id, title }: FindingGroup) => isNonBlankText(id) && isNonBlankText(title))
+    );
+}
+
 function contractProblems(definition: FitnessFunction): string[] {
     const { categories, reliesOn, evidence } = definition;
     return [
@@ -88,6 +110,7 @@ function contractProblems(definition: FitnessFunction): string[] {
         ...(Array.isArray(evidence) && evidence.length > 0 && !evidence.some(evidenceProblem)
             ? []
             : ["evidence is empty or incomplete"]),
+        ...(groupsProblem(definition.groups) ? ["groups are empty, blank or repeat an id"] : []),
         ...(typeof definition.findFindings === "function" ? [] : ["findFindings is missing"]),
     ];
 }

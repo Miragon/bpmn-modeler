@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { fakeFitnessFunction, finding } from "../__fixtures__/inMemoryPorts";
+import { jsonReport } from "./jsonReport";
 import { markdownReport } from "./markdownReport";
 import { type FitnessReport, functionReport } from "./report";
 import type { Measurement } from "./snapshot";
@@ -103,6 +104,66 @@ describe("the Markdown report", () => {
         },
     ])("$case", ({ report, text }) => {
         expect(markdownReport(report)).toContain(text);
+    });
+
+    it("prints one table per group in declared order, a collapsed one folded, an empty one not at all", () => {
+        const grouped = fakeFitnessFunction(
+            {},
+            {
+                groups: [
+                    { id: "hidden", title: "Hidden" },
+                    { id: "empty", title: "Empty" },
+                    { id: "explained", title: "Explained", collapsed: true },
+                ],
+            },
+        );
+        const report: FitnessReport = {
+            head: { commit: HEAD, uncommittedChanges: false },
+            base: { commit: BASE, ref: "origin/main" },
+            functions: [
+                functionReport(
+                    grouped,
+                    {
+                        findings: [
+                            { ...finding("A"), group: "explained" },
+                            { ...finding("B"), group: "hidden" },
+                            { ...finding("C"), group: "explained" },
+                        ],
+                    },
+                    { source: "snapshot", measurement: { findings: [] } },
+                ),
+            ],
+        };
+
+        const markdown = markdownReport(report);
+
+        expect(markdown).toContain(
+            [
+                "**3 new, 0 existing, 0 resolved**",
+                "",
+                "### Hidden",
+                "",
+                "| Status | Location | Message |",
+                "| --- | --- | --- |",
+                "| new | `src/B.ts:1` | B breaks the rule |",
+                "",
+                "<details>",
+                "<summary>Explained (2)</summary>",
+                "",
+                "| Status | Location | Message |",
+                "| --- | --- | --- |",
+                "| new | `src/A.ts:1` | A breaks the rule |",
+                "| new | `src/C.ts:1` | C breaks the rule |",
+                "",
+                "</details>",
+            ].join("\n"),
+        );
+        expect(markdown).not.toContain("Empty");
+        expect(JSON.parse(jsonReport(report)).functions[0].outcome.findings).toEqual([
+            { ...finding("A"), group: "explained", status: "new" },
+            { ...finding("B"), group: "hidden", status: "new" },
+            { ...finding("C"), group: "explained", status: "new" },
+        ]);
     });
 
     it("prints no table without findings", () => {

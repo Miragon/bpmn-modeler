@@ -20,5 +20,7 @@ export function measure(
         }
         throw new Error(`${source} failed: ${(error as Error).message}`, { cause: error });
     }
-    return { findings: parseFindings(source, output) };
+    return {
+        findings: parseFindings(source, output, fitnessFunction.groups?.map(({ id }) => id) ?? []),
+    };
 }
