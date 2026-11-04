@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.5.0...dmn-modeler-v0.6.0) (2026-11-04)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** preview forms linked to user tasks ([#1929](https://github.com/Miragon/bpmn-modeler/issues/1929)) [sync 52ec1dd] ([d07a689](https://github.com/Miragon/bpmn-modeler/commit/d07a68985cdabf0daa9be4421048eb061b170a80))
+* **editor:** edit element templates in a graphical builder ([#2047](https://github.com/Miragon/bpmn-modeler/issues/2047)) [sync cda8154] ([3e04c5a](https://github.com/Miragon/bpmn-modeler/commit/3e04c5a6512f5b3d947a7d424d50e684cec57123))
+* **editor:** preview element templates beside their JSON ([#2028](https://github.com/Miragon/bpmn-modeler/issues/2028)) [sync be6babb] ([452b644](https://github.com/Miragon/bpmn-modeler/commit/452b6440f99984b9603ddb07a8c8d8d30cfa921f))
+* **modeler-core:** configure automatic form preview ([#2146](https://github.com/Miragon/bpmn-modeler/issues/2146)) [sync 210c621] ([e346554](https://github.com/Miragon/bpmn-modeler/commit/e346554c625b2ca24223ab13243fdaea470ecef1))
+
+
+### 🛠️ Misc
+
+* **architecture-testing:** add the role folders and one rule set per workspace kind ([#2138](https://github.com/Miragon/bpmn-modeler/issues/2138)) ([12ff0d9](https://github.com/Miragon/bpmn-modeler/commit/12ff0d9db708da7289457d545cee116f3a6795ba))
+
 ## [0.5.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.4.0...dmn-modeler-v0.5.0) (2026-11-01)
 
 

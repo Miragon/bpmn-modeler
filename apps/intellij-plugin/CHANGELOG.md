@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.13.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.12.0...intellij-v1.13.0) (2026-11-04)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** preview forms linked to user tasks ([#1929](https://github.com/Miragon/bpmn-modeler/issues/1929)) [sync 52ec1dd] ([d07a689](https://github.com/Miragon/bpmn-modeler/commit/d07a68985cdabf0daa9be4421048eb061b170a80))
+* **editor:** edit element templates in a graphical builder ([#2047](https://github.com/Miragon/bpmn-modeler/issues/2047)) ([cda8154](https://github.com/Miragon/bpmn-modeler/commit/cda8154423447e2ab21d7e173f01eca17d113b98))
+* **editor:** preview element templates beside their JSON ([#2028](https://github.com/Miragon/bpmn-modeler/issues/2028)) ([be6babb](https://github.com/Miragon/bpmn-modeler/commit/be6babb12c2463e10ed311bc726618eda839bf72))
+* **modeler-core:** configure automatic form preview ([#2146](https://github.com/Miragon/bpmn-modeler/issues/2146)) ([210c621](https://github.com/Miragon/bpmn-modeler/commit/210c6212e74365579d127fa1972a44204f4f783a))
+
+
+### 🐞 Bug Fixes
+
+* **model-navigation:** resolve qname calledElement to its namespace ([#2156](https://github.com/Miragon/bpmn-modeler/issues/2156)) [sync 22adf90] ([0ed4ce1](https://github.com/Miragon/bpmn-modeler/commit/0ed4ce187dd6ee016d4928a7627e7993c66de233))
+
+
+### 🔨 Refactoring
+
+* **modeler-bridge:** move every file into its role folder ([#2141](https://github.com/Miragon/bpmn-modeler/issues/2141)) ([ad3bc35](https://github.com/Miragon/bpmn-modeler/commit/ad3bc35974372990b04aed653a11b48c59a42ec6))
+
+
+### 🛠️ Misc
+
+* **deps:** bump com.google.code.gson:gson from 2.14.0 to 2.15.0 in /apps/intellij-plugin in the gradle-minor-patch group ([#2149](https://github.com/Miragon/bpmn-modeler/issues/2149)) ([7706f54](https://github.com/Miragon/bpmn-modeler/commit/7706f54ed9dfaccae267f1153d053d01a490ee30))
+* **intellij-plugin:** send host-to-core methods only through a typed enum ([#2136](https://github.com/Miragon/bpmn-modeler/issues/2136)) ([1dbdcd3](https://github.com/Miragon/bpmn-modeler/commit/1dbdcd3b2f8aae6f1fb8897fe790d576327e3958))
+
 ## [1.12.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.11.0...intellij-v1.12.0) (2026-11-01)
 
 
