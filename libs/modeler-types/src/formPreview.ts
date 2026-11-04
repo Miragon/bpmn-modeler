@@ -1,3 +1,5 @@
+export const DEFAULT_FORM_PREVIEW_AUTOMATIC = true;
+
 export type FormPreviewResult =
     | { kind: "loaded"; content: string }
     | { kind: "cancelled" }

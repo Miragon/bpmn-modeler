@@ -89,20 +89,11 @@ flowchart TD
 
 ### Automatic linked form previews
 
-Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ **Automatically preview linked forms**
-and Tools / Find Action ▸ **Toggle Automatic Form Preview** change the same
-application-wide preference (`miragon.bpmnModeler.formPreview.automatic`, default
-`true`). Changes apply to all open diagrams immediately and survive IDE/bridge
-restarts. The action also works before opening a diagram.
+The Kotlin host owns the application preference and broadcasts settings to the
+bridge. See [user settings](../../docs/intellij/getting-started.md#settings) for the
+checkbox and action.
 
-Disabling closes automatic previews and suppresses unresolved-form indicators.
-The context-pad eye still opens a resolvable form manually, and Refresh remains
-available; neither changes the preference. Manually opened or explicitly
-refreshed previews stay open when the preference changes. Re-enabling previews
-the current selection unless deliberately dismissed; changing selection or the
-form reference resets that dismissal.
-
-### Saving diagrams
+### Saving
 
 Ctrl+S, autosave and the save on switching to another application first ask
 every open diagram for the edit its 300 ms sync debounce still holds, and write

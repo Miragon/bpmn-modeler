@@ -15,6 +15,7 @@ import {
     createReplyRegistry,
 } from "@miragon/bpmn-modeler-shared";
 import {
+    DEFAULT_FORM_PREVIEW_AUTOMATIC,
     type DetectedEngine,
     engineSupports,
     extractProcessVariables,
@@ -115,7 +116,7 @@ export function createProtocolCapabilities(
     getSurface: () => SurfaceHandle,
 ): ProtocolCapabilities {
     const formReferences = new FormReferenceAvailability();
-    let formPreviewAutomatic = true;
+    let formPreviewAutomatic = DEFAULT_FORM_PREVIEW_AUTOMATIC;
     const automaticListeners = new Set<() => void>();
     const definitionSearch = createDefinitionSearchRequests(host);
     const previewReplies = createReplyRegistry<FormPreviewQuery>(FORM_PREVIEW_TIMEOUT_MS);

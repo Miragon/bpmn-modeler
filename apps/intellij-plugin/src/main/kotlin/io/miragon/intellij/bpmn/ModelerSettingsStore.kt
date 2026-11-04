@@ -40,7 +40,7 @@ class ModelerSettingsStore {
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
             lintingEnabled = props.getBoolean(LINTING_ENABLED, DEFAULT_LINTING_ENABLED),
-            formPreviewAutomatic = props.getBoolean(FORM_PREVIEW_AUTOMATIC, true),
+            formPreviewAutomatic = props.getBoolean(FORM_PREVIEW_AUTOMATIC, DEFAULT_FORM_PREVIEW_AUTOMATIC),
             marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
         ).normalized()
 
@@ -63,7 +63,7 @@ class ModelerSettingsStore {
             props.setValue(LANGUAGE, normalized.language, DEFAULT_LANGUAGE)
             props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
             props.setValue(LINTING_ENABLED, normalized.lintingEnabled, DEFAULT_LINTING_ENABLED)
-            props.setValue(FORM_PREVIEW_AUTOMATIC, normalized.formPreviewAutomatic, true)
+            props.setValue(FORM_PREVIEW_AUTOMATIC, normalized.formPreviewAutomatic, DEFAULT_FORM_PREVIEW_AUTOMATIC)
             props.setList(MARKETPLACES, normalized.marketplaces)
         }
     }
@@ -191,6 +191,7 @@ class ModelerSettingsStore {
         internal const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
         private const val DEFAULT_LINTING_ENABLED = true
+        internal const val DEFAULT_FORM_PREVIEW_AUTOMATIC = true
         private val DEFAULT_FAVOURITE_ELEMENTS =
             listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway")
     }

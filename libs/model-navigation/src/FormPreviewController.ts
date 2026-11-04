@@ -1,5 +1,6 @@
 import { extractReference } from "./extractReference";
 import { is } from "bpmn-js/lib/util/ModelUtil";
+import { DEFAULT_FORM_PREVIEW_AUTOMATIC } from "@miragon/bpmn-modeler-types";
 import type { FormPreviewHandle, ModelNavigationPort, PreviewRect } from "./ModelNavigationPort";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { BusinessObjectLike } from "./extractReference";
@@ -114,6 +115,8 @@ export class FormPreviewController {
         const reference = target && extractReference(target.businessObject, "form");
         this.transition({
             kind: "selection",
+            automatic:
+                this.port.formPreview.isAutomaticEnabled?.() ?? DEFAULT_FORM_PREVIEW_AUTOMATIC,
             target,
             reference,
             available:
@@ -125,11 +128,7 @@ export class FormPreviewController {
     }
 
     private transition(event: FormPreviewEvent<PreviewElement>): void {
-        const decision = reduceFormPreview(
-            this.state,
-            event,
-            this.port.formPreview?.isAutomaticEnabled?.() ?? true,
-        );
+        const decision = reduceFormPreview(this.state, event);
         if (decision.action !== "keep") this.stop();
         this.state = decision.state;
         if (decision.action === "open") this.start(decision.automatic);

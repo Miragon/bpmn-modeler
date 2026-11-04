@@ -4,6 +4,7 @@ import { reduceFormPreview } from "./formPreviewState";
 describe("preview selection decisions", () => {
     const selected = {
         kind: "selection",
+        automatic: true,
         target: "task",
         reference: "form",
         available: true,
@@ -13,7 +14,11 @@ describe("preview selection decisions", () => {
     it.each([true, false, undefined])(
         "tracks the selection without automatic opening or indicators when disabled (available: %s)",
         (available) => {
-            const decision = reduceFormPreview(initial, { ...selected, available }, false);
+            const decision = reduceFormPreview(initial, {
+                ...selected,
+                available,
+                automatic: false,
+            });
 
             expect(decision).toMatchObject({
                 action: "close",
@@ -35,9 +40,13 @@ describe("preview selection decisions", () => {
             const opened = reduceFormPreview(initial, selection);
             expect(opened.action).toBe(action);
 
-            const disabled = reduceFormPreview(opened.state, { ...selection, visible }, false);
+            const disabled = reduceFormPreview(opened.state, {
+                ...selection,
+                visible,
+                automatic: false,
+            });
             expect(disabled).toMatchObject({ action: "close", state: { attempted: false } });
-            expect(reduceFormPreview(disabled.state, selection, true).action).toBe(action);
+            expect(reduceFormPreview(disabled.state, selection).action).toBe(action);
         },
     );
 
@@ -45,14 +54,14 @@ describe("preview selection decisions", () => {
         "keeps late availability updates from opening an automatic preview while disabled (%s)",
         (available) => {
             const pending = reduceFormPreview(initial, { ...selected, available: undefined });
-            const disabled = reduceFormPreview(
-                pending.state,
-                { ...selected, available: undefined },
-                false,
-            );
+            const disabled = reduceFormPreview(pending.state, {
+                ...selected,
+                available: undefined,
+                automatic: false,
+            });
 
             expect(
-                reduceFormPreview(disabled.state, { ...selected, available }, false),
+                reduceFormPreview(disabled.state, { ...selected, available, automatic: false }),
             ).toMatchObject({ action: "close", state: { attempted: false } });
         },
     );
@@ -60,17 +69,17 @@ describe("preview selection decisions", () => {
     it.each([false, true])(
         "allows manual preview while disabled and keeps it across preference changes (visible: %s)",
         (visible) => {
-            const disabled = reduceFormPreview(initial, selected, false);
-            const manual = reduceFormPreview(
-                disabled.state,
-                { kind: "manual", target: "task", available: true },
-                false,
-            );
+            const disabled = reduceFormPreview(initial, { ...selected, automatic: false });
+            const manual = reduceFormPreview(disabled.state, {
+                kind: "manual",
+                target: "task",
+                available: true,
+            });
 
             expect(manual).toMatchObject({ action: "open", automatic: false });
             for (const automatic of [true, false]) {
                 expect(
-                    reduceFormPreview(manual.state, { ...selected, visible }, automatic),
+                    reduceFormPreview(manual.state, { ...selected, visible, automatic }),
                 ).toEqual({ action: "keep", state: manual.state });
             }
         },
@@ -80,10 +89,9 @@ describe("preview selection decisions", () => {
         const opened = reduceFormPreview(initial, selected);
         const refreshed = reduceFormPreview(opened.state, { kind: "refresh" });
 
-        expect(reduceFormPreview(refreshed.state, { ...selected, visible: true }, false)).toEqual({
-            action: "keep",
-            state: refreshed.state,
-        });
+        expect(
+            reduceFormPreview(refreshed.state, { ...selected, visible: true, automatic: false }),
+        ).toEqual({ action: "keep", state: refreshed.state });
     });
 
     it.each([
@@ -94,21 +102,22 @@ describe("preview selection decisions", () => {
         ({ target, reference }) => {
             const opened = reduceFormPreview(initial, selected);
             const dismissed = reduceFormPreview(opened.state, { kind: "dismiss" });
-            const disabled = reduceFormPreview(dismissed.state, selected, false);
+            const disabled = reduceFormPreview(dismissed.state, { ...selected, automatic: false });
 
             expect(disabled.state.dismissed).toBe(true);
-            expect(reduceFormPreview(disabled.state, selected, true).action).toBe("keep");
-            const changed = reduceFormPreview(
-                disabled.state,
-                { ...selected, target, reference },
-                false,
-            );
+            expect(reduceFormPreview(disabled.state, selected).action).toBe("keep");
+            const changed = reduceFormPreview(disabled.state, {
+                ...selected,
+                target,
+                reference,
+                automatic: false,
+            });
             expect(changed).toMatchObject({
                 action: "close",
                 state: { dismissed: false, attempted: false },
             });
             expect(
-                reduceFormPreview(changed.state, { ...selected, target, reference }, true),
+                reduceFormPreview(changed.state, { ...selected, target, reference }),
             ).toMatchObject({ action: "open", automatic: true });
         },
     );
@@ -127,6 +136,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(refreshed.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -138,6 +148,7 @@ describe("preview selection decisions", () => {
         const state = { dismissed: false, attempted: false, explicit: false };
         const pending = reduceFormPreview(state, {
             kind: "selection",
+            automatic: true,
             target: "task",
             reference: "form",
             available: undefined,
@@ -145,6 +156,7 @@ describe("preview selection decisions", () => {
         expect(pending.action).toBe("close");
         const missing = reduceFormPreview(pending.state, {
             kind: "selection",
+            automatic: true,
             target: "task",
             reference: "form",
             available: false,
@@ -153,6 +165,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(missing.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -162,6 +175,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(missing.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: true,
@@ -185,6 +199,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(manual.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -195,6 +210,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(manual.state, {
                 kind: "selection",
+                automatic: true,
                 target: "other",
                 reference: "form",
                 available: false,
@@ -240,6 +256,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(dismissed.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: true,
@@ -257,6 +274,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -333,6 +351,7 @@ describe("preview selection decisions", () => {
             },
             {
                 kind: "selection",
+                automatic: true,
                 target: row.target,
                 reference: row.reference,
                 available: row.available,

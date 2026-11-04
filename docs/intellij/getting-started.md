@@ -74,14 +74,8 @@ the lint toggle in the editor and the BPMNlint widget turn it on or off for all 
 choice across restarts.
 
 **Automatically preview linked forms** is enabled by default. Its checkbox and
-**Toggle Automatic Form Preview** action persist the same application preference
-(`miragon.bpmnModeler.formPreview.automatic`), including before any diagram is
-open. Changes apply to open diagrams immediately and survive restarts. Disabling
-closes automatic previews and suppresses unresolved-form indicators; the
-context-pad eye and **Refresh** still work without changing the preference.
-Manually opened or explicitly refreshed previews remain open. Re-enabling
-previews the current selection unless you deliberately dismissed it; changing
-selection or the form reference clears that dismissal.
+**Toggle Automatic Form Preview** action turn automatic previews off or on for
+all projects. The context-pad eye still opens an available form manually.
 
 ## Next steps
 

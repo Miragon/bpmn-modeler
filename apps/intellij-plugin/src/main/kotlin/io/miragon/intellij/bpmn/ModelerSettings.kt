@@ -22,7 +22,7 @@ data class ModelerSettings(
     val lintingEnabled: Boolean,
     /** Pasted marketplace URLs / local paths (strings-only v1); fed to the core over RPC. */
     val marketplaces: List<String>,
-    val formPreviewAutomatic: Boolean = true,
+    val formPreviewAutomatic: Boolean = ModelerSettingsStore.DEFAULT_FORM_PREVIEW_AUTOMATIC,
 ) {
     /**
      * Applies only what changed from [loaded] to [edited] onto these stored values,

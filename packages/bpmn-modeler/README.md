@@ -109,16 +109,12 @@ const modeler = await createModeler( canvas, {
 ### Linked form preview policy
 
 `capabilities.modelNavigation.formPreview` supplies an anchored preview through
-`open(request)`. Automatic preview is enabled by default. Optional
-`isAutomaticEnabled(): boolean` and `onAutomaticChanged(listener): unsubscribe`
-hooks let a host change that policy live without removing the capability.
-Disabling closes pending/visible automatic previews and unavailable indicators;
-the context-pad eye and explicit Refresh remain usable and never write the
-preference. Re-enabling retries the current selection unless dismissed. The
-modeler releases the subscription on destruction; a host's `close()` must cancel
-late reads/imports. Persistence belongs to the host, not this package. These
-protocol-free hooks also work on `/design` and `/viewer` with the moddle
-extensions needed to resolve their references (see their C8 caveat below).
+`open(request)`. Optional `isAutomaticEnabled(): boolean` and
+`onAutomaticChanged(listener): unsubscribe` hooks control automatic previews,
+enabled by default, without removing manual preview. The host owns persistence;
+the modeler releases the subscription on destruction. This capability also works
+on `/design` and `/viewer` with the moddle extensions needed to resolve their
+references (see their C8 caveat below).
 
 ### Definition search
 

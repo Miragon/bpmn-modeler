@@ -1,4 +1,8 @@
-import { SURFACE_MODES, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import {
+    DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    SURFACE_MODES,
+    SurfaceMode,
+} from "@miragon/bpmn-modeler-types";
 
 /**
  * A bare string is a pasted GitHub/GitLab URL (or local folder path). The object
@@ -98,7 +102,7 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     language: "en",
     scriptingSpin: true,
     lintingEnabled: true,
-    formPreviewAutomatic: true,
+    formPreviewAutomatic: DEFAULT_FORM_PREVIEW_AUTOMATIC,
     marketplaces: Object.freeze([]),
 });
 

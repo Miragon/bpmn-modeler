@@ -46,21 +46,19 @@ Select an element that refers to another model and click **Navigate to reference
 
 The entry works in every mode, including View. For a user task it only appears once a matching `.form` file exists.
 
-Selecting a linked Camunda 8 user task automatically previews its saved form.
-Disable **BPMN Modeler: Form Preview: Automatic** in User Settings, or run
-**Miragon BPMN Modeler: Toggle Automatic Form Preview**, to stop automatic
-previews and unresolved-form indicators in every open diagram. The preference
-survives restarts. Use the context-pad eye to preview a resolvable form manually;
-the eye and **Refresh** never change the preference. Disabling closes automatic
-previews, but leaves manually opened or explicitly refreshed previews alone.
-Re-enabling previews the current task again, unless you deliberately dismissed
-it; selecting another task or changing its form reference clears that dismissal.
-
 As above, one match opens, several open a list and none shows a message. IntelliJ has no DMN or form editor, so those
 files open in the IDE's own editor.
 
 A business rule task can show both entries: **Go to implementation** for its code and **Navigate to referenced model**
 for its decision.
+
+## Linked form previews
+
+Selecting a linked Camunda 8 user task previews its saved form by default.
+To turn this off, disable **BPMN Modeler: Form Preview: Automatic** in User
+Settings, or run **Miragon BPMN Modeler: Toggle Automatic Form Preview**.
+The context-pad eye still opens an available form manually.
+For IntelliJ controls, see [Settings](/intellij/getting-started#settings).
 
 ## Search other models
 

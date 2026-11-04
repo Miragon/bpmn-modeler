@@ -15,7 +15,7 @@ Tune the modeler with settings under the `miragon.bpmnModeler` namespace. Edit t
 | `miragon.bpmnModeler.alignToOrigin` | `false` | Move the diagram to the top-left origin when opening ([align-to-origin](https://github.com/bpmn-io/align-to-origin)). |
 | `miragon.bpmnModeler.showTransactionBoundaries` | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
 | `miragon.bpmnModeler.linting.enabled` | `true` | Run [linting](/vscode/features/linting). Also toggled by **Toggle Linting**. |
-| `miragon.bpmnModeler.formPreview.automatic` | `true` | Automatically preview a selected user task's linked Camunda Form. User-wide; **Toggle Automatic Form Preview** changes the same preference. The context-pad eye still opens previews manually when disabled. |
+| `miragon.bpmnModeler.formPreview.automatic` | `true` | Automatically show [linked form previews](/vscode/features/code-navigation#linked-form-previews). User-wide; also changed by **Toggle Automatic Form Preview**. |
 | `miragon.bpmnModeler.scripting.spin` | `true` | Offer Camunda SPIN completion in [inline scripts](/vscode/features/inline-scripting) (Camunda 7). |
 | `miragon.bpmnModeler.persistCodeLinkMap` | `false` | Also write the map behind [Go to implementation](/vscode/features/code-navigation) to `<configFolder>/code-link/<path>.json`, where `<path>` is the diagram's path below its workspace folder. |
 | `miragon.bpmnModeler.c8ApiVersion` | `v2` | REST API version prefix for Camunda 8 endpoints. |
