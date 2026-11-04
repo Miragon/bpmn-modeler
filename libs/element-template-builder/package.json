@@ -14,10 +14,10 @@
         "jsonc-parser": "3.3.1"
     },
     "peerDependencies": {
-        "@bpmn-io/properties-panel": "3.57.0"
+        "@bpmn-io/properties-panel": "3.58.1"
     },
     "devDependencies": {
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/properties-panel": "3.58.1",
         "@miragon/architecture-testing": "workspace:*",
         "@types/node": "26.6.5",
         "@typescript/native": "npm:typescript@7.0.2",
