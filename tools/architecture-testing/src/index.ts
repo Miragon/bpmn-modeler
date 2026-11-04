@@ -44,6 +44,8 @@ export {
 } from "./stability";
 export type { Stability, WorkspaceDependency } from "./stability";
 export { readStringLiterals } from "./stringLiterals";
+export { findTypeEqualityPins } from "./typeEqualityPins";
+export type { TypeEqualityPin, TypeEqualityPinOptions } from "./typeEqualityPins";
 export { readTypeProgram } from "./typeProgram";
 export { readValueSets } from "./valueSets";
 export type { ValueSetLiteral } from "./valueSets";

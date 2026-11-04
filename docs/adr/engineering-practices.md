@@ -288,6 +288,10 @@ type name (see
 `readValueSets` reads the value sets a file writes out, from syntax only: an
 array of string literals, a union of string literal types and a maximal `||`
 chain of `===` comparisons of one subject with string literals.
+`findTypeEqualityPins` lists each `expectTypeOf<A>().toEqualTypeOf<B>()`, or
+its value form, never one behind `.not`, with the files that declare the
+imported names on either side, resolved like `findImplementations`; a local
+or unresolved name resolves to none.
 A workspace's own spec keeps only the rules specific to it, such as the core's
 domain package allowlist.
 
@@ -601,38 +605,60 @@ identical when they are born, so a report of the sets a branch adds catches a
 copy before it drifts. Unintended inconsistent changes to clones are
 frequently faults (Juergens, Deissenboeck, Hummel, Wagner, ICSE 2009). The
 rule it relies on is in the `architecture` skill: a value set has one home;
-every other use imports it or is pinned to it by a spec or a compile-time
-assertion. The pure measure lives in
+every other use imports it, a TypeScript copy that cannot is pinned to it by
+`expectTypeOf<Copy>().toEqualTypeOf<Home>()` in a spec, and a copy outside
+TypeScript by a spec. The pure measure lives in
 `tools/repo-checks/src/repeatedValueSets/domain`.
 
 - **Read files.** Every tracked `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`,
-  `.mjs` and `.cjs` file, without specs, tests, declaration files (third-party
-  typings repeated per workspace) and build configs (`*.config.*`). No folder
-  and no home is declared. Kotlin and JSON are not read.
+  `.mjs` and `.cjs` file, without specs, tests and `__fixtures__/` folders
+  (inputs of tests, as convention coverage leaves them out), declaration files
+  (third-party typings repeated per workspace) and build configs
+  (`*.config.*`). No home is declared. Kotlin and JSON are not read.
 - **Sets.** `readValueSets` of the engine: an array literal whose elements are
   all string or plain template literals, a union type whose members are all
   string literal types, a maximal `||` chain whose operands all compare one
   subject with `===` to a string literal. A set has at least 2 distinct values,
   so the 2-value placeholder types of #2047 count; order and repeats do not
   matter. Comments and string contents never yield a set.
+- **Pins.** `findTypeEqualityPins` of the engine over every tracked script
+  file, specs included, through barrels and the `tsconfig.base.json` paths.
+  Files a pin links count as one place for every set they hold, so a pinned
+  copy and its home give no finding, and a third, unpinned copy brings all
+  three back. A pin links only files that both hold the set, and it links
+  files, not declarations: it also clears any other set the two files share.
+  A runtime spec pin, such as `expect(copy).toEqual(home)`, is not read; the
+  skill asks for it only where TypeScript cannot reach the copy, and Kotlin
+  and JSON are not read either.
 - **Identity and delta.** One finding per occurrence of a set that spans two
   files, keyed by its path and its sorted values, not its line, and naming
   every other occurrence. A copy a branch adds is new, and so is the home of
   a set that was in one file only at the base; removing one of three copies
   resolves it and leaves the other two existing. Two occurrences in one file
-  are the same key twice.
+  are the same key twice. A copy that drifts, a value added to or removed from
+  one copy only, shows as resolved, not new: the head no longer holds the set
+  in two files, and nothing at the head relates the two now different sets.
+  The report reads the drift, #1983's failure, as a fix. The function's
+  `reportsWrongly` and the `architecture` skill say so: a resolved set is a
+  fix only where its copies are gone, import their home or are pinned to it.
 
-First run at `bed5599f`: 606 sets in 853 files, 38 written in two or more
-files, 14 of them with 3 or more values, 112 findings. Among them the auth types
+Measured at `bed5599f`: 573 sets in 822 files, 36 written in two or more
+files, 13 of them with 3 or more values, 106 findings. Among them the auth types
 (`deploymentTarget.ts`, `modeler.ts`), the theme modes (4 files), the bpmn-js
 popup ids, `clean|flushed|host-updated|unavailable` (`messages.ts`,
 `modeler-flush-reply.ts`), `added|deleted|modified` and `directory|file` (14
-occurrences in 9 files); the noise is git arguments, `typeof` chains,
-`name|value` and the log levels of two test fakes. A shared `trackedFiles`
-replaced the `git ls-files -z` arguments three adapters had repeated. On
-`3d1b19b3` (#2047) it lists 3 of the 5 rule sets the review named as
-duplicated: the FEEL types, the placeholder types and the condition
-operators. Reading and measuring takes about 0.4 s per tree.
+occurrences in 9 files); the noise is git arguments, `typeof` chains and
+`name|value`. Reading `__fixtures__/` as well added 31 files and 8 findings,
+all of them noise or test parameters: the log levels of two test fakes,
+`left|right`, `ignore|pipe` and a harness's `c7|c8`. A shared `trackedFiles` replaced the `git ls-files -z` arguments two
+adapters had repeated, and the new adapter reads through it too. A scratch
+spec pinning `AuthTypePayload` (`@miragon/bpmn-modeler-shared`, through its
+barrel) to `TargetAuthType` cleared the auth types' 2 findings. On `3d1b19b3`
+(#2047) it lists 3 of the 5 rule sets the review named as duplicated: the FEEL
+types, the placeholder types and the condition operators. Reading and
+measuring takes about 0.5 s per tree; resolving a pin builds the declaration
+graph of every script file and adds about 0.5 s, so a tree without
+`toEqualTypeOf` skips it.
 
 Alternatives considered:
 
@@ -642,6 +668,12 @@ Alternatives considered:
   and every coincidence would need an allowlist entry.
 - **One finding per set**, keyed by its file list: removing one of three
   copies would show the remaining two as new.
+- **Comparing the base and the head tree** to report a drift as new. A fitness
+  function measures one tree; the base is often a stored snapshot of findings,
+  not a tree, so a cross-tree measure has nothing to read there.
+- **A comment marker on a pinned copy** instead of reading the pin. It is a
+  hand-kept exception the assertion does not check, and it outlives a deleted
+  pin.
 
 ### Private upstream APIs
 

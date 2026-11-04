@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    type FilePin,
     isValueSetSource,
     repeatedValueSetFindings,
     type ValueSetOccurrence,
@@ -23,9 +24,13 @@ const AUTH_CHAIN: ValueSetOccurrence = {
 };
 const AUTH_KEY = '["basic","none","oauth2"]';
 
+function findingsOf(occurrences: readonly ValueSetOccurrence[], pins: readonly FilePin[] = []) {
+    return repeatedValueSetFindings({ occurrences, pins });
+}
+
 describe("the repeated value set findings", () => {
     it("report each occurrence of a set that spans two files, in any order, naming the others", () => {
-        expect(repeatedValueSetFindings([AUTH_HOME, AUTH_COPY])).toEqual([
+        expect(findingsOf([AUTH_HOME, AUTH_COPY])).toEqual([
             {
                 key: `a/domain/auth.ts — ${AUTH_KEY}`,
                 path: "a/domain/auth.ts",
@@ -45,7 +50,7 @@ describe("the repeated value set findings", () => {
         const secondInHome: ValueSetOccurrence = { ...AUTH_HOME, line: 9 };
 
         expect(
-            repeatedValueSetFindings([AUTH_HOME, AUTH_COPY, AUTH_CHAIN, secondInHome]).map(
+            findingsOf([AUTH_HOME, AUTH_COPY, AUTH_CHAIN, secondInHome]).map(
                 ({ path, line, message }) => `${path}:${line} ${message}`,
             ),
         ).toEqual([
@@ -70,7 +75,7 @@ describe("the repeated value set findings", () => {
             [AUTH_HOME, { ...AUTH_COPY, values: ["none", "basic"] }],
         ],
     ])("report nothing for %s", (_, occurrences) => {
-        expect(repeatedValueSetFindings(occurrences)).toEqual([]);
+        expect(findingsOf(occurrences)).toEqual([]);
     });
 
     it("treat a repeated value as the same set", () => {
@@ -79,9 +84,38 @@ describe("the repeated value set findings", () => {
             values: ["none", "basic", "oauth2", "none"],
         };
 
-        expect(repeatedValueSetFindings([AUTH_HOME, withRepeat]).map(({ key }) => key)).toEqual([
+        expect(findingsOf([AUTH_HOME, withRepeat]).map(({ key }) => key)).toEqual([
             `a/domain/auth.ts — ${AUTH_KEY}`,
             `b/service/x.ts — ${AUTH_KEY}`,
+        ]);
+    });
+
+    it("report nothing for copies pinned to their home, in either direction", () => {
+        const pins: FilePin[] = [
+            { path: AUTH_COPY.path, pinnedPath: AUTH_HOME.path },
+            { path: AUTH_HOME.path, pinnedPath: AUTH_CHAIN.path },
+        ];
+
+        expect(findingsOf([AUTH_HOME, AUTH_COPY, AUTH_CHAIN], pins)).toEqual([]);
+    });
+
+    it("report every occurrence again when an unpinned copy joins a pinned pair", () => {
+        const pins: FilePin[] = [{ path: AUTH_COPY.path, pinnedPath: AUTH_HOME.path }];
+
+        expect(
+            findingsOf([AUTH_HOME, AUTH_COPY, AUTH_CHAIN], pins).map(({ path }) => path),
+        ).toEqual([AUTH_HOME.path, AUTH_COPY.path, AUTH_CHAIN.path]);
+    });
+
+    it("keep a pin from linking files through one that does not hold the set", () => {
+        const pins: FilePin[] = [
+            { path: AUTH_COPY.path, pinnedPath: "z/elsewhere.ts" },
+            { path: "z/elsewhere.ts", pinnedPath: AUTH_HOME.path },
+        ];
+
+        expect(findingsOf([AUTH_HOME, AUTH_COPY], pins).map(({ path }) => path)).toEqual([
+            AUTH_HOME.path,
+            AUTH_COPY.path,
         ]);
     });
 });
@@ -106,6 +140,8 @@ describe("a value set source", () => {
         "a/tools/build.spec.mjs",
         "a/types/bpmn-moddle.d.ts",
         "a/types/module.d.mts",
+        "a/src/__fixtures__/vscodeWindowFake.ts",
+        "__fixtures__/harness.mjs",
         "a/vite.config.ts",
         "a/eslint.config.mjs",
         "a/package.json",

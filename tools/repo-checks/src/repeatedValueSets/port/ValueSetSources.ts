@@ -1,5 +1,5 @@
-import type { ValueSetOccurrence } from "../domain/repeatedValueSets";
+import type { ValueSetInventory } from "../domain/repeatedValueSets";
 
 export interface ValueSetSources {
-    read(repoRoot: string): readonly ValueSetOccurrence[];
+    read(repoRoot: string): ValueSetInventory;
 }

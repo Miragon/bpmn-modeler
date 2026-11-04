@@ -14,10 +14,10 @@ export function createRepeatedValueSetsFitnessFunction({
         version: 1,
         categories: { scope: "atomic", cadence: "triggered", result: "static" },
         measures:
-            "Sets of allowed string values written in two or more files: an array literal of string literals only, a union type of string literal types only, and a maximal || chain of === comparisons of one subject with string literals. A set has at least 2 distinct values; the order and repeats of its values do not matter. One finding per occurrence, naming every other occurrence of the set: a copy a branch adds is new, and so is the home of a set that was in one file only at the base. Read: every tracked .ts, .tsx, .mts, .cts, .js, .jsx, .mjs and .cjs file, without specs, tests, declaration files and build configs (*.config.*). No folder is excluded and no home is declared.",
+            "Sets of allowed string values written in two or more files: an array literal of string literals only, a union type of string literal types only, and a maximal || chain of === comparisons of one subject with string literals. A set has at least 2 distinct values; the order and repeats of its values do not matter. Files that a type equality assertion, expectTypeOf<Copy>().toEqualTypeOf<Home>() or its value form, pins to each other count as one place for every set they share. One finding per occurrence, naming every other occurrence of the set: a copy a branch adds is new, and so is the home of a set that was in one file only at the base. Read: every tracked .ts, .tsx, .mts, .cts, .js, .jsx, .mjs and .cjs file, without specs, tests, __fixtures__ folders, declaration files and build configs (*.config.*); a pin is read from any tracked script file and resolved through barrels and the tsconfig.base.json paths. No home is declared.",
         reliesOn: {
             skill: "architecture",
-            rule: "a value set has one home; every other use imports it or is pinned to it by a spec or a compile-time assertion",
+            rule: "a value set has one home; every other use imports it, a TypeScript copy that cannot is pinned to it by expectTypeOf<Copy>().toEqualTypeOf<Home>(), and a copy outside TypeScript by a spec",
         },
         misses: [
             "Partial and extended copies: 9 of the 12 modeler languages (issue 1983), IGNORED_WATCH_DIRS as EXCLUDED_DIRS plus three folders.",
@@ -26,8 +26,10 @@ export function createRepeatedValueSetsFitnessFunction({
             "Kotlin and JSON, such as the enum arrays of a package.json or a JSON schema.",
         ],
         reportsWrongly: [
-            "Sets equal by coincidence: the bpmn-js popup menu ids, the log levels of two test fakes, the npm dependency field names, git arguments, typeof chains and name|value unions.",
-            "A copy pinned to its home by a spec or a type-level equality assertion stays listed: the pin is not read.",
+            "A copy that drifts from its home, a value added to or removed from one copy only, shows as resolved, not new: each tree is measured alone, so the report reads the drift as a fix. A resolved set is a fix only where its copies are gone, import their home or are pinned to it.",
+            "Sets equal by coincidence: the bpmn-js popup menu ids, the npm dependency field names, git arguments, typeof chains and name|value unions.",
+            "A copy pinned by a runtime spec, such as expect(copy).toEqual(home), stays listed: only the type equality assertion is read.",
+            "A pin links two files, not two declarations: it also clears any other set the two files share.",
             "A set in a renamed file shows as new, because the key names the file.",
         ],
         evidence: [
@@ -52,7 +54,7 @@ export function createRepeatedValueSetsFitnessFunction({
                 kind: "trial",
                 commit: "bed5599f",
                 outcome:
-                    "first run: 606 sets in 853 files, 38 of them in two or more files (14 with 3 or more values), 112 findings; the auth types, the theme modes and the bpmn-js popup ids among them, about 0.4 s per tree",
+                    "573 sets in 822 files, 36 of them in two or more files (13 with 3 or more values), 106 findings; the auth types, the theme modes and the bpmn-js popup ids among them, about 0.5 s per tree. A scratch pin of AuthTypePayload to TargetAuthType through the @miragon/bpmn-modeler-shared barrel cleared the auth types' 2 findings; resolving it added about 0.5 s",
             },
         ],
         findFindings: ({ repoRoot }) => repeatedValueSetFindings(sources.read(repoRoot)),
