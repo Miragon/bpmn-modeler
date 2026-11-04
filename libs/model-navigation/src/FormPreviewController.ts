@@ -1,5 +1,6 @@
 import { extractReference } from "./extractReference";
 import { is } from "bpmn-js/lib/util/ModelUtil";
+import { DEFAULT_FORM_PREVIEW_AUTOMATIC } from "@miragon/bpmn-modeler-types";
 import type { FormPreviewHandle, ModelNavigationPort, PreviewRect } from "./ModelNavigationPort";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { BusinessObjectLike } from "./extractReference";
@@ -74,6 +75,11 @@ export class FormPreviewController {
         // Canvas resize events can themselves originate in a ResizeObserver delivery.
         eventBus.on("canvas.resized", scheduleReposition);
         const unsubscribe = port.onReferenceAvailabilityChanged?.(() => this.update());
+        const unsubscribeAutomatic = port.formPreview?.onAutomaticChanged?.(() => {
+            if (this.disposed) return;
+            this.update();
+            this.refreshPad();
+        });
         const observer =
             typeof ResizeObserver !== "undefined"
                 ? new ResizeObserver(scheduleReposition)
@@ -83,6 +89,7 @@ export class FormPreviewController {
             this.disposed = true;
             this.stop();
             unsubscribe?.();
+            unsubscribeAutomatic?.();
             observer?.disconnect();
         });
     }
@@ -108,6 +115,8 @@ export class FormPreviewController {
         const reference = target && extractReference(target.businessObject, "form");
         this.transition({
             kind: "selection",
+            automatic:
+                this.port.formPreview.isAutomaticEnabled?.() ?? DEFAULT_FORM_PREVIEW_AUTOMATIC,
             target,
             reference,
             available:

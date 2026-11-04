@@ -67,7 +67,8 @@ flowchart TD
 - **Crash recovery:** detects process exit, respawns with linear backoff (giving
   up after repeated rapid crashes), writes each page's edits the `Document` never
   received into it (the close flush), re-registers every live session from the
-  authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
+  authoritative IntelliJ `Document`, replays `GetBpmnModelerSettingCommand` to
+  apply current preferences before restoring selection, and replays `GetBpmnFileCommand` so open
   editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
   bridge's lint state. Last it sends `session/setActive` for the selected
   diagram tab, so commands without an editor id keep acting on it and not on
@@ -85,6 +86,12 @@ flowchart TD
 - **Backpressure:** a single writer thread drains a bounded outbound queue that
   coalesces superseded document-sync frames per editor, so the EDT/JS threads
   never block on bridge stdin.
+
+### Automatic linked form previews
+
+The Kotlin host owns the application preference and broadcasts settings to the
+bridge. See [user settings](../../docs/intellij/getting-started.md#settings) for the
+checkbox and action.
 
 ### Saving
 

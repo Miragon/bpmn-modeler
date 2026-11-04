@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import javax.swing.JComboBox
+import javax.swing.JCheckBox
 import javax.swing.JComponent
 
 @TestApplication
@@ -24,18 +25,47 @@ class ModelerSettingsConfigurableTest {
 
     @Test
     fun `saving the page keeps a lint choice made while it was open`() {
-        val page = ModelerSettingsConfigurable()
-        ModelerSettingsStore.getInstance().setLintingEnabled(false)
+        withSettingsPage { page ->
+            ModelerSettingsStore.getInstance().setLintingEnabled(false)
 
-        page.apply()
+            page.apply()
 
-        assertFalse(ModelerSettingsStore.getInstance().current().lintingEnabled)
+            assertFalse(ModelerSettingsStore.getInstance().current().lintingEnabled)
+        }
+    }
+
+    @Test
+    fun `Apply keeps an automatic preview preference changed while the page was open`() {
+        withSettingsPage { page ->
+            page.createComponent()
+            page.reset()
+            ModelerSettingsStore.getInstance().update { it.copy(formPreviewAutomatic = false) }
+
+            page.apply()
+
+            assertFalse(ModelerSettingsStore.getInstance().current().formPreviewAutomatic)
+        }
+    }
+
+    @Test
+    fun `automatic preview checkbox applies and resets the persisted preference`() {
+        withSettingsPage { page ->
+            val component = page.createComponent()
+            page.reset()
+            val checkbox = UIUtil.findComponentsOfType(component, JCheckBox::class.java)
+                .first { it.text == "Automatically preview linked forms" }
+            checkbox.isSelected = false
+            page.apply()
+            assertFalse(ModelerSettingsStore.getInstance().current().formPreviewAutomatic)
+            ModelerSettingsStore.getInstance().update { it.copy(formPreviewAutomatic = true) }
+            page.reset()
+            assertEquals(true, checkbox.isSelected)
+        }
     }
 
     @Test
     fun `keeps an app-wide marketplace added after reset when Apply changes another setting`() {
-        runInEdtAndWait {
-            val page = ModelerSettingsConfigurable()
+        withSettingsPage { page ->
             val component = page.createComponent()
             page.reset()
             ModelerSettingsStore.getInstance().addMarketplace(ADDED_MEANWHILE)
@@ -46,14 +76,12 @@ class ModelerSettingsConfigurableTest {
             val stored = ModelerSettingsStore.getInstance().current()
             assertEquals("de", stored.language)
             assertEquals(listOf(ADDED_MEANWHILE), stored.marketplaces)
-            page.disposeUIResources()
         }
     }
 
     @Test
     fun `a second Apply keeps a marketplace the first Apply merged in`() {
-        runInEdtAndWait {
-            val page = ModelerSettingsConfigurable()
+        withSettingsPage { page ->
             val component = page.createComponent()
             page.reset()
             ModelerSettingsStore.getInstance().addMarketplace(ADDED_MEANWHILE)
@@ -66,7 +94,6 @@ class ModelerSettingsConfigurableTest {
             val stored = ModelerSettingsStore.getInstance().current()
             assertEquals("fr", stored.language)
             assertEquals(listOf(ADDED_MEANWHILE), stored.marketplaces)
-            page.disposeUIResources()
         }
     }
 
@@ -74,9 +101,20 @@ class ModelerSettingsConfigurableTest {
         UIUtil.findComponentsOfType(page, JComboBox::class.java)
             .first { combo -> (0 until combo.itemCount).any { combo.getItemAt(it) == "de" } }
 
+    private fun withSettingsPage(test: (ModelerSettingsConfigurable) -> Unit) {
+        runInEdtAndWait {
+            val page = ModelerSettingsConfigurable()
+            try {
+                test(page)
+            } finally {
+                page.disposeUIResources()
+            }
+        }
+    }
+
     private companion object {
         const val ADDED_MEANWHILE = "https://github.com/acme/templates"
-        val SCALAR_KEYS = listOf("miragon.bpmnModeler.linting.enabled", "miragon.bpmnModeler.language")
+        val SCALAR_KEYS = listOf("miragon.bpmnModeler.linting.enabled", "miragon.bpmnModeler.language", "miragon.bpmnModeler.formPreview.automatic")
         val LIST_KEYS = listOf("miragon.bpmnModeler.favouriteBpmnElements", "miragon.bpmnModeler.marketplaces")
     }
 }

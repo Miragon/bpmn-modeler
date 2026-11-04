@@ -15,7 +15,11 @@ import {
     type UpdateScriptContentQuery,
     type UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
-import { type CleanupOutcome, extractProcessVariables } from "@miragon/bpmn-modeler-types";
+import {
+    type CleanupOutcome,
+    DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    extractProcessVariables,
+} from "@miragon/bpmn-modeler-types";
 
 import type { HostModelerState } from "../hostModelerState";
 import {
@@ -92,10 +96,12 @@ export function createSurfaceRequests(
         hostModelerState,
         theme,
         replies,
+        setFormPreviewAutomatic,
     }: {
         hostModelerState: Pick<HostModelerState, "rememberSettings" | "rememberOpenScripts">;
         theme: Pick<HostThemeAdapter, "setMode">;
         replies: SurfaceRequestReplies;
+        setFormPreviewAutomatic: (enabled: boolean) => void;
     },
 ): SurfaceRequests {
     return {
@@ -222,6 +228,9 @@ export function createSurfaceRequests(
             BpmnModelerSettingQuery: (query) => {
                 hostModelerState.rememberSettings(query.setting);
                 try {
+                    setFormPreviewAutomatic(
+                        query.formPreviewAutomatic ?? DEFAULT_FORM_PREVIEW_AUTOMATIC,
+                    );
                     // Theme is host policy: the package's setSettings does not
                     // apply `colorTheme`, so the host adapter drives it.
                     theme.setMode(query.setting.colorTheme);

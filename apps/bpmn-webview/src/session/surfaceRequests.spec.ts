@@ -74,12 +74,22 @@ function surfaceRequestsOn<Surface extends object>(surface: Surface) {
     const hostModelerState = { rememberSettings: vi.fn(), rememberOpenScripts: vi.fn() };
     const theme = { setMode: vi.fn() };
     const replies = { elementTemplates: { done: vi.fn() }, settings: { done: vi.fn() } };
+    const setFormPreviewAutomatic = vi.fn();
     const requests = createSurfaceRequests(host, () => surface as unknown as SurfaceHandle, {
         hostModelerState,
         theme,
         replies,
+        setFormPreviewAutomatic,
     });
-    return { host, surface, hostModelerState, theme, replies, ...requests };
+    return {
+        host,
+        surface,
+        hostModelerState,
+        theme,
+        replies,
+        setFormPreviewAutomatic,
+        ...requests,
+    };
 }
 
 const openScriptTask = {
@@ -120,6 +130,34 @@ describe("elementTemplateRejectionReport", () => {
 });
 
 describe("createSurfaceRequests", () => {
+    it("releases startup settings waiters even if applying preview policy fails", () => {
+        const fixture = surfaceRequestsOn(viewerSurface());
+        fixture.setFormPreviewAutomatic.mockImplementationOnce(() => {
+            throw new Error("preview failed");
+        });
+        const query = new BpmnModelerSettingQuery(hostSettings, false);
+        expect(() => fixture.handlers.BpmnModelerSettingQuery(query)).toThrow("preview failed");
+        expect(fixture.replies.settings.done).toHaveBeenCalledWith(query);
+    });
+    it("defaults to automatic preview for an older sender with no metadata", () => {
+        const fixture = surfaceRequestsOn(viewerSurface());
+        const legacy = new BpmnModelerSettingQuery(hostSettings, false);
+        Reflect.deleteProperty(legacy, "formPreviewAutomatic");
+        fixture.handlers.BpmnModelerSettingQuery(legacy);
+        expect(fixture.setFormPreviewAutomatic).toHaveBeenCalledWith(true);
+    });
+    it.each([
+        { mode: "View", surface: viewerSurface },
+        { mode: "Design", surface: designerSurface },
+        { mode: "Implement", surface: modelerSurface },
+    ])("applies preview policy independently of the $mode setting bag", ({ surface }) => {
+        const fixture = surfaceRequestsOn(surface());
+        fixture.handlers.BpmnModelerSettingQuery(new BpmnModelerSettingQuery(hostSettings, false));
+        expect(fixture.setFormPreviewAutomatic).toHaveBeenLastCalledWith(false);
+        fixture.handlers.BpmnModelerSettingQuery(new BpmnModelerSettingQuery(hostSettings));
+        expect(fixture.setFormPreviewAutomatic).toHaveBeenLastCalledWith(true);
+        expect(fixture.replies.settings.done).toHaveBeenCalledTimes(2);
+    });
     beforeEach(() => {
         vi.spyOn(console, "debug").mockImplementation(() => undefined);
     });

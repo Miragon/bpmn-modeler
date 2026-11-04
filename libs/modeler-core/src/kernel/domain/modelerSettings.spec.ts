@@ -20,6 +20,11 @@ const SHARED_CASES = settingsNormalizationCases(
 const ALL_CASES = [...SHARED_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES];
 
 describe("DEFAULT_MODELER_SETTINGS", () => {
+    it("enables automatic form preview by default", () => {
+        expect(DEFAULT_MODELER_SETTINGS).toHaveProperty("formPreviewAutomatic", true);
+        expect(normalizeSettings({})).toHaveProperty("formPreviewAutomatic", true);
+    });
+
     it("keeps its lists unchangeable", () => {
         const favourites = DEFAULT_MODELER_SETTINGS.favouriteBpmnElements as string[];
         const marketplaces = DEFAULT_MODELER_SETTINGS.marketplaces as string[];
@@ -30,6 +35,22 @@ describe("DEFAULT_MODELER_SETTINGS", () => {
 });
 
 describe("normalizeSettings", () => {
+    it.each([
+        { rawValue: true, expected: true },
+        { rawValue: false, expected: false },
+        { rawValue: "false", expected: true },
+        { rawValue: 0, expected: true },
+        { rawValue: null, expected: true },
+        { rawValue: undefined, expected: true },
+    ])(
+        "normalizes automatic form preview from $rawValue to $expected",
+        ({ rawValue, expected }) => {
+            const raw: Record<string, unknown> = { formPreviewAutomatic: rawValue };
+
+            expect(normalizeSettings(raw)).toHaveProperty("formPreviewAutomatic", expected);
+        },
+    );
+
     it.each(ALL_CASES)("$name", ({ raw, normalized }) => {
         expect(normalizeSettings(raw)).toEqual({ ...DEFAULT_MODELER_SETTINGS, ...normalized });
     });
@@ -74,12 +95,21 @@ describe("settingKeyOf", () => {
         { key: "language", settingKey: "language" },
         { key: "scriptingSpin", settingKey: "scripting.spin" },
         { key: "lintingEnabled", settingKey: "linting.enabled" },
+        { key: "formPreviewAutomatic", settingKey: "formPreview.automatic" },
     ])("names $key by the key VS Code stores it under", ({ key, settingKey }) => {
         expect(settingKeyOf(key)).toBe(settingKey);
     });
 });
 
 describe("changedSettingKeys", () => {
+    it("reports automatic form preview changes with the central setting key", () => {
+        const before = normalizeSettings({});
+        const after = { ...before, formPreviewAutomatic: false };
+
+        expect(changedSettingKeys(before, after)).toEqual(["formPreview.automatic"]);
+        expect(changedSettingKeys(after, after)).toEqual([]);
+    });
+
     const marketplaceEntry = { provider: "github", repo: "acme/templates" } as const;
 
     it.each<{
@@ -139,6 +169,7 @@ describe("changedSettingKeys", () => {
         { next: { language: "de" }, changed: "language" },
         { next: { scriptingSpin: false }, changed: "scripting.spin" },
         { next: { lintingEnabled: false }, changed: "linting.enabled" },
+        { next: { formPreviewAutomatic: false }, changed: "formPreview.automatic" },
         { next: { marketplaces: ["https://github.com/acme/templates"] }, changed: "marketplaces" },
     ])(
         "names a changed value by the key VS Code stores it under: $changed",

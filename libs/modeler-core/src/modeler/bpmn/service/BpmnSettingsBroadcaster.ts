@@ -34,12 +34,15 @@ export class BpmnSettingsBroadcaster {
             if (
                 await this.editorStore.postMessage(
                     editorId,
-                    new BpmnModelerSettingQuery({
-                        alignToOrigin: settings.alignToOrigin,
-                        showTransactionBoundaries: settings.showTransactionBoundaries,
-                        colorTheme: settings.colorTheme,
-                        favouriteBpmnElements: settings.favouriteBpmnElements,
-                    }),
+                    new BpmnModelerSettingQuery(
+                        {
+                            alignToOrigin: settings.alignToOrigin,
+                            showTransactionBoundaries: settings.showTransactionBoundaries,
+                            colorTheme: settings.colorTheme,
+                            favouriteBpmnElements: settings.favouriteBpmnElements,
+                        },
+                        this.settings.getFormPreviewAutomatic(),
+                    ),
                 )
             ) {
                 return true;
@@ -72,6 +75,7 @@ export class BpmnSettingsBroadcaster {
                 event.affects("alignToOrigin") ||
                 event.affects("showTransactionBoundaries") ||
                 event.affects("colorTheme") ||
+                event.affects("formPreview.automatic") ||
                 event.affects("favouriteBpmnElements")
             ) {
                 // The change listener has no caller to await it, so guard the

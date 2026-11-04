@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-03
+- Last reviewed: 2026-11-04
 
 ## Context
 
@@ -970,6 +970,12 @@ respawns, IDE restarts and open projects, as VS Code's User setting does. The
 core compares the page's choice with the stored one on every host: an equal
 choice is not stored, and the core pushes the lint state to the page again
 instead, so a page out of step catches up.
+
+Automatic form preview follows the same ownership: the host persists an
+application-wide/User preference and distributes it through the existing settings
+snapshot, without a preview-specific RPC. Initial and recovery settings must
+arrive before selection restoration, so a surviving page cannot reopen an
+automatic preview using a stale preference.
 
 The deployment state is one `DeploymentState` snapshot in the core's
 [`deployment/domain/deploymentState.ts`](../../libs/modeler-core/src/deployment/domain/deploymentState.ts):

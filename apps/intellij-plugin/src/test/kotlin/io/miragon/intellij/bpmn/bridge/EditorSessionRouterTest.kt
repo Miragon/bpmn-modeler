@@ -509,14 +509,14 @@ class EditorSessionRouterTest {
     }
 
     @Test
-    fun `a respawn replay asks the new bridge for the lint config after the file`() {
+    fun `a respawn replay applies current settings before the file and refreshes lint`() {
         val f = setUpRouter(INITIAL_XML)
 
         f.router.reregisterLiveSessions()
 
-        val frames = List(3) { parse(f.wired.fake.nextFrame()) }
+        val frames = List(4) { parse(f.wired.fake.nextFrame()) }
         assertEquals(
-            listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand"),
+            listOf("session/register", "GetBpmnModelerSettingCommand", "GetBpmnFileCommand", "GetBpmnlintConfigCommand"),
             frames.map { it.webviewMessageType() ?: it.get("method").asString },
             "the page keeps the old bridge's lint state until the new bridge pushes its own",
         )
@@ -1412,7 +1412,7 @@ class EditorSessionRouterTest {
         const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
         const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
 
-        val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
+        val REREGISTRATION_FRAMES = listOf("session/register", "GetBpmnModelerSettingCommand", "GetBpmnFileCommand", "GetBpmnlintConfigCommand")
 
         val SESSION_LIFECYCLE_METHODS = setOf("session/register", "session/dispose")
 

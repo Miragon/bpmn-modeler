@@ -2,6 +2,126 @@ import { describe, expect, it } from "vitest";
 import { reduceFormPreview } from "./formPreviewState";
 
 describe("preview selection decisions", () => {
+    const selected = {
+        kind: "selection",
+        automatic: true,
+        target: "task",
+        reference: "form",
+        available: true,
+    } as const;
+    const initial = { dismissed: false, attempted: false, explicit: false };
+
+    it.each([true, false, undefined])(
+        "tracks the selection without automatic opening or indicators when disabled (available: %s)",
+        (available) => {
+            const decision = reduceFormPreview(initial, {
+                ...selected,
+                available,
+                automatic: false,
+            });
+
+            expect(decision).toMatchObject({
+                action: "close",
+                state: { target: "task", reference: "form", attempted: false, explicit: false },
+            });
+            expect(initial).toEqual({ dismissed: false, attempted: false, explicit: false });
+        },
+    );
+
+    it.each([
+        { available: true, visible: false, action: "open" },
+        { available: true, visible: true, action: "open" },
+        { available: false, visible: false, action: "indicate" },
+        { available: false, visible: true, action: "indicate" },
+    ])(
+        "closes an automatic $action when disabled and permits re-enabling (visible: $visible)",
+        ({ available, visible, action }) => {
+            const selection = { ...selected, available };
+            const opened = reduceFormPreview(initial, selection);
+            expect(opened.action).toBe(action);
+
+            const disabled = reduceFormPreview(opened.state, {
+                ...selection,
+                visible,
+                automatic: false,
+            });
+            expect(disabled).toMatchObject({ action: "close", state: { attempted: false } });
+            expect(reduceFormPreview(disabled.state, selection).action).toBe(action);
+        },
+    );
+
+    it.each([false, true])(
+        "keeps late availability updates from opening an automatic preview while disabled (%s)",
+        (available) => {
+            const pending = reduceFormPreview(initial, { ...selected, available: undefined });
+            const disabled = reduceFormPreview(pending.state, {
+                ...selected,
+                available: undefined,
+                automatic: false,
+            });
+
+            expect(
+                reduceFormPreview(disabled.state, { ...selected, available, automatic: false }),
+            ).toMatchObject({ action: "close", state: { attempted: false } });
+        },
+    );
+
+    it.each([false, true])(
+        "allows manual preview while disabled and keeps it across preference changes (visible: %s)",
+        (visible) => {
+            const disabled = reduceFormPreview(initial, { ...selected, automatic: false });
+            const manual = reduceFormPreview(disabled.state, {
+                kind: "manual",
+                target: "task",
+                available: true,
+            });
+
+            expect(manual).toMatchObject({ action: "open", automatic: false });
+            for (const automatic of [true, false]) {
+                expect(
+                    reduceFormPreview(manual.state, { ...selected, visible, automatic }),
+                ).toEqual({ action: "keep", state: manual.state });
+            }
+        },
+    );
+
+    it("keeps a refreshed automatic panel explicit when automatic preview is disabled", () => {
+        const opened = reduceFormPreview(initial, selected);
+        const refreshed = reduceFormPreview(opened.state, { kind: "refresh" });
+
+        expect(
+            reduceFormPreview(refreshed.state, { ...selected, visible: true, automatic: false }),
+        ).toEqual({ action: "keep", state: refreshed.state });
+    });
+
+    it.each([
+        { target: "other", reference: "form" },
+        { target: "task", reference: "other" },
+    ])(
+        "preserves dismissal through toggles until selection or reference changes ($target/$reference)",
+        ({ target, reference }) => {
+            const opened = reduceFormPreview(initial, selected);
+            const dismissed = reduceFormPreview(opened.state, { kind: "dismiss" });
+            const disabled = reduceFormPreview(dismissed.state, { ...selected, automatic: false });
+
+            expect(disabled.state.dismissed).toBe(true);
+            expect(reduceFormPreview(disabled.state, selected).action).toBe("keep");
+            const changed = reduceFormPreview(disabled.state, {
+                ...selected,
+                target,
+                reference,
+                automatic: false,
+            });
+            expect(changed).toMatchObject({
+                action: "close",
+                state: { dismissed: false, attempted: false },
+            });
+            expect(
+                reduceFormPreview(changed.state, { ...selected, target, reference }),
+            ).toMatchObject({ action: "open", automatic: true });
+        },
+    );
+
     it("keeps an automatic panel retryable after explicit refresh despite index loss", () => {
         const state = {
             target: "task",
@@ -16,6 +136,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(refreshed.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -27,6 +148,7 @@ describe("preview selection decisions", () => {
         const state = { dismissed: false, attempted: false, explicit: false };
         const pending = reduceFormPreview(state, {
             kind: "selection",
+            automatic: true,
             target: "task",
             reference: "form",
             available: undefined,
@@ -34,6 +156,7 @@ describe("preview selection decisions", () => {
         expect(pending.action).toBe("close");
         const missing = reduceFormPreview(pending.state, {
             kind: "selection",
+            automatic: true,
             target: "task",
             reference: "form",
             available: false,
@@ -42,6 +165,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(missing.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -51,6 +175,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(missing.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: true,
@@ -74,6 +199,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(manual.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -84,6 +210,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(manual.state, {
                 kind: "selection",
+                automatic: true,
                 target: "other",
                 reference: "form",
                 available: false,
@@ -129,6 +256,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(dismissed.state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: true,
@@ -146,6 +274,7 @@ describe("preview selection decisions", () => {
         expect(
             reduceFormPreview(state, {
                 kind: "selection",
+                automatic: true,
                 target: "task",
                 reference: "form",
                 available: false,
@@ -222,6 +351,7 @@ describe("preview selection decisions", () => {
             },
             {
                 kind: "selection",
+                automatic: true,
                 target: row.target,
                 reference: row.reference,
                 available: row.available,

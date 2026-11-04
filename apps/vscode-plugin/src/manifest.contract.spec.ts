@@ -24,6 +24,7 @@ import {
     SAVE_SVG_CMD,
     TOGGLE_CMD,
     TOGGLE_LINTING_CMD,
+    TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
 } from "./modeler/bpmn/adapter/in/CommandController";
 import {
     COMPARE_SELECTED_CMD,
@@ -84,7 +85,7 @@ const manifest = JSON.parse(
 interface Manifest {
     activationEvents: string[];
     contributes: {
-        commands: { command: string; title: string }[];
+        commands: { command: string; title: string; category?: string }[];
         keybindings: { command: string }[];
         menus: Record<string, { command: string; when?: string }[]>;
         customEditors: {
@@ -97,7 +98,14 @@ interface Manifest {
         configuration: {
             properties: Record<
                 string,
-                { default?: unknown; enum?: string[]; enumItemLabels?: string[]; maxItems?: number }
+                {
+                    default?: unknown;
+                    type?: string;
+                    scope?: string;
+                    enum?: string[];
+                    enumItemLabels?: string[];
+                    maxItems?: number;
+                }
             >;
         };
     };
@@ -114,6 +122,7 @@ const CODE_COMMAND_IDS = [
     MIGRATE_ALL_CMD,
     CHANGE_LANGUAGE_CMD,
     TOGGLE_LINTING_CMD,
+    TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
     NEW_BPMN_MODEL_CMD,
     NEW_DMN_MODEL_CMD,
     NEW_FORM_MODEL_CMD,
@@ -155,6 +164,25 @@ function productionSourceFiles(dir: string): string[] {
 }
 
 describe("package.json ↔ code contract", () => {
+    it("contributes automatic form preview as an application preference and native command", () => {
+        expect(
+            manifest.contributes.configuration.properties[
+                "miragon.bpmnModeler.formPreview.automatic"
+            ],
+        ).toMatchObject({
+            type: "boolean",
+            default: true,
+            scope: "application",
+        });
+        expect(
+            manifest.contributes.commands.find(
+                ({ command }) => command === TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
+            ),
+        ).toMatchObject({
+            title: "Toggle Automatic Form Preview",
+            category: "Miragon BPMN Modeler",
+        });
+    });
     it("activates to clean up restored form values documents", () => {
         expect(manifest.activationEvents).toEqual(
             expect.arrayContaining([
@@ -322,6 +350,7 @@ describe("package.json ↔ code contract", () => {
             "scripting.spin": true,
             "marketplaces": true,
             "linting.enabled": true,
+            "formPreview.automatic": true,
         };
 
         expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));

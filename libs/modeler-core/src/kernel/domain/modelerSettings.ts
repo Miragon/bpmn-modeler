@@ -1,4 +1,8 @@
-import { SURFACE_MODES, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import {
+    DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    SURFACE_MODES,
+    SurfaceMode,
+} from "@miragon/bpmn-modeler-types";
 
 /**
  * A bare string is a pasted GitHub/GitLab URL (or local folder path). The object
@@ -38,6 +42,7 @@ export interface ModelerSettingsSnapshot {
     language: string;
     scriptingSpin: boolean;
     lintingEnabled: boolean;
+    formPreviewAutomatic: boolean;
     marketplaces: MarketplaceSettingsEntry[];
 }
 
@@ -53,6 +58,7 @@ const SETTING_KEY_OF_SNAPSHOT_KEY = {
     language: "language",
     scriptingSpin: "scripting.spin",
     lintingEnabled: "linting.enabled",
+    formPreviewAutomatic: "formPreview.automatic",
     marketplaces: "marketplaces",
 } as const satisfies Record<keyof ModelerSettingsSnapshot, string>;
 
@@ -96,6 +102,7 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     language: "en",
     scriptingSpin: true,
     lintingEnabled: true,
+    formPreviewAutomatic: DEFAULT_FORM_PREVIEW_AUTOMATIC,
     marketplaces: Object.freeze([]),
 });
 
@@ -121,6 +128,7 @@ const SETTING_PARSERS: {
     language: (raw) => stringOr(raw, DEFAULT_MODELER_SETTINGS.language),
     scriptingSpin: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.scriptingSpin),
     lintingEnabled: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.lintingEnabled),
+    formPreviewAutomatic: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.formPreviewAutomatic),
     // Each entry is validated where it becomes a registration.
     marketplaces: (raw) => (Array.isArray(raw) ? raw : []),
 };
@@ -152,6 +160,7 @@ export function normalizeSettings(raw: RawModelerSettings): ModelerSettingsSnaps
         language: parseSetting("language", raw.language),
         scriptingSpin: parseSetting("scriptingSpin", raw.scriptingSpin),
         lintingEnabled: parseSetting("lintingEnabled", raw.lintingEnabled),
+        formPreviewAutomatic: parseSetting("formPreviewAutomatic", raw.formPreviewAutomatic),
         marketplaces: parseSetting("marketplaces", raw.marketplaces),
     };
 }

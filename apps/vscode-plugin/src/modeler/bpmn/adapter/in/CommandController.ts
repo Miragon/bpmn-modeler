@@ -31,6 +31,7 @@ export const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 export const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
 export const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
 export const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
+export const TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD = "bpmn-modeler.toggleAutomaticFormPreview";
 export const NEW_BPMN_MODEL_CMD = "bpmn-modeler.newBpmnModel";
 export const NEW_DMN_MODEL_CMD = "bpmn-modeler.newDmnModel";
 export const NEW_FORM_MODEL_CMD = "bpmn-modeler.newFormModel";
@@ -48,6 +49,7 @@ export type DocumentFlusher = Pick<PendingEditsFlush, "flushIntoDocument" | "rel
  */
 export class CommandController {
     private svgSubscription: EditorSubscription | undefined;
+    private automaticPreviewUpdate = Promise.resolve();
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -73,6 +75,11 @@ export class CommandController {
             commands.registerCommand(MIGRATE_ALL_CMD, this.migrateAllDiagrams, this),
             commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
             commands.registerCommand(TOGGLE_LINTING_CMD, this.toggleLinting, this),
+            commands.registerCommand(
+                TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
+                this.toggleAutomaticFormPreview,
+                this,
+            ),
             commands.registerCommand(NEW_BPMN_MODEL_CMD, this.newBpmnModel, this),
             commands.registerCommand(NEW_DMN_MODEL_CMD, this.newDmnModel, this),
             commands.registerCommand(NEW_FORM_MODEL_CMD, this.newFormModel, this),
@@ -187,6 +194,18 @@ export class CommandController {
             await this.preferences.setLintingEnabled(enabled);
             this.notifier.logInfo(`BPMN linting ${enabled ? "enabled" : "disabled"}`);
         });
+    }
+
+    toggleAutomaticFormPreview(): Promise<void> {
+        const update = this.automaticPreviewUpdate.then(() =>
+            this.logAndRethrow(async () => {
+                await this.preferences.setFormPreviewAutomatic(
+                    !this.preferences.formPreviewAutomatic(),
+                );
+            }),
+        );
+        this.automaticPreviewUpdate = update.catch(() => undefined);
+        return update;
     }
 
     /**

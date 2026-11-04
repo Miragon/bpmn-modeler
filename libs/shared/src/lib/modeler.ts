@@ -53,6 +53,7 @@
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
 import { Command, Query } from "./messages";
+import { DEFAULT_FORM_PREVIEW_AUTOMATIC } from "@miragon/bpmn-modeler-types";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -284,7 +285,10 @@ export class FocusElementQuery extends Query<"FocusElementQuery"> {
 export class BpmnModelerSettingQuery extends Query<"BpmnModelerSettingQuery"> {
     public readonly setting: BpmnModelerSetting;
 
-    constructor(setting: BpmnModelerSetting) {
+    constructor(
+        setting: BpmnModelerSetting,
+        public readonly formPreviewAutomatic = DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    ) {
         super("BpmnModelerSettingQuery");
         this.setting = setting;
     }

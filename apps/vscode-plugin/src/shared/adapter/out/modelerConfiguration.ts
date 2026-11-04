@@ -27,6 +27,17 @@ export function setLintingEnabled(enabled: boolean): Thenable<void> {
     return updatePersonalPreference("linting.enabled", enabled);
 }
 
+export function formPreviewAutomatic(): boolean {
+    return parseSetting(
+        "formPreviewAutomatic",
+        modelerConfiguration().get("formPreview.automatic"),
+    );
+}
+
+export function setFormPreviewAutomatic(enabled: boolean): Thenable<void> {
+    return updatePersonalPreference("formPreview.automatic", enabled);
+}
+
 export function setLanguage(locale: string): Thenable<void> {
     return updatePersonalPreference("language", locale);
 }
@@ -34,6 +45,8 @@ export function setLanguage(locale: string): Thenable<void> {
 export const vsCodeModelerPreferences: ModelerPreferences = {
     lintingEnabled,
     setLintingEnabled,
+    formPreviewAutomatic,
+    setFormPreviewAutomatic,
     setLanguage,
     onDidChangeSetting: onDidChangeModelerSetting,
 };

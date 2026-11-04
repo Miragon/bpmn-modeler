@@ -32,6 +32,7 @@ export const TYPESCRIPT_ONLY_SETTINGS_CASES: readonly SettingsNormalizationCase[
             persistCodeLinkMap: "yes",
             scriptingSpin: null,
             lintingEnabled: "false",
+            formPreviewAutomatic: "false",
         },
         normalized: {},
     },
@@ -81,6 +82,7 @@ export function readSettingsSnapshot(settings: SettingsPort): ModelerSettingsSna
         language: settings.getLanguage(),
         scriptingSpin: settings.getScriptingSpin(),
         lintingEnabled: settings.getLintingEnabled(),
+        formPreviewAutomatic: settings.getFormPreviewAutomatic(),
         marketplaces: settings.getMarketplaces(),
     };
 }

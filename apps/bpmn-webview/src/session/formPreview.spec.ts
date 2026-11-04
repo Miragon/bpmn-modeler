@@ -614,6 +614,41 @@ describe("anchored linked form preview", () => {
         expect(panel()).toBeNull();
         preview.dispose();
     });
+    it.each(["success", "failure"])(
+        "does not resurrect a closed automatic read after manual preview succeeds (%s)",
+        async (outcome) => {
+            let resolveOld!: (result: FormPreviewResult) => void;
+            let rejectOld!: (error: Error) => void;
+            const read = vi
+                .fn<(id: string, automatic: boolean) => Promise<FormPreviewResult>>()
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve, reject) => {
+                            resolveOld = resolve;
+                            rejectOld = reject;
+                        }),
+                )
+                .mockResolvedValue({ kind: "loaded", content: saved });
+            const { preview, create } = setup(read);
+            const old = request();
+            const automatic = preview.open(old);
+            automatic.close();
+            const manual = request({ automatic: false });
+            preview.open(manual);
+            await vi.waitFor(loaded);
+            if (outcome === "success") resolveOld({ kind: "loaded", content: saved });
+            else rejectOld(new Error("stale read failure"));
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(create).toHaveBeenCalledOnce();
+            expect(old.onVisibilityChanged).not.toHaveBeenCalledWith(true);
+            expect(manual.onClose).not.toHaveBeenCalled();
+            expect(document.querySelectorAll('[role="region"]')).toHaveLength(1);
+            expect(document.querySelector(".linked-form-preview-indicator")).toBeNull();
+            loaded();
+            preview.dispose();
+        },
+    );
     it("repositions with a live task anchor without another file read", async () => {
         const { preview, read } = setup();
         let x = 100;

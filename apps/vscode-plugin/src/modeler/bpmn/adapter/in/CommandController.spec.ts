@@ -309,6 +309,70 @@ describe("CommandController.toggleLinting", () => {
     });
 });
 
+describe("CommandController.toggleAutomaticFormPreview", () => {
+    it("serializes rapid toggles against the persisted preference", async () => {
+        const { controller } = createController();
+        let stored = true;
+        let finish!: () => void;
+        configGetMock.mockImplementation(() => stored);
+        configUpdateMock
+            .mockImplementationOnce(
+                (_key: string, value: boolean) =>
+                    new Promise<void>((resolve) => {
+                        finish = () => {
+                            stored = value;
+                            resolve();
+                        };
+                    }),
+            )
+            .mockImplementation(async (_key: string, value: boolean) => {
+                stored = value;
+            });
+        const first = controller.toggleAutomaticFormPreview();
+        const second = controller.toggleAutomaticFormPreview();
+        await vi.waitFor(() => expect(configUpdateMock).toHaveBeenCalledOnce());
+        finish();
+        await Promise.all([first, second]);
+        expect(configUpdateMock.mock.calls.map((call) => call[1])).toEqual([false, true]);
+        expect(stored).toBe(true);
+    });
+
+    it("logs a failed preference write and permits the next toggle", async () => {
+        const { controller, notifier } = createController();
+        const failure = new Error("read-only settings");
+        configGetMock.mockReturnValue(true);
+        configUpdateMock.mockRejectedValueOnce(failure).mockResolvedValue(undefined);
+        await expect(controller.toggleAutomaticFormPreview()).rejects.toBe(failure);
+        expect(notifier.logged("error")).toEqual([failure.stack]);
+        await controller.toggleAutomaticFormPreview();
+        expect(configUpdateMock).toHaveBeenCalledTimes(2);
+    });
+    it.each([true, false, undefined, "false"])(
+        "persists the opposite of %s globally without an active editor",
+        async (stored) => {
+            const { controller, host, editor } = createController();
+            host.store.unregister(editor.id, editor);
+            let preference: unknown = stored;
+            configGetMock.mockImplementation((key: string) =>
+                key === "formPreview.automatic" ? preference : undefined,
+            );
+            configUpdateMock.mockImplementation(async (key: string, value: unknown) => {
+                if (key === "formPreview.automatic") preference = value;
+            });
+            await controller.toggleAutomaticFormPreview();
+            const expected = stored === false;
+            expect(configUpdateMock).toHaveBeenLastCalledWith("formPreview.automatic", expected, 1);
+            await controller.toggleAutomaticFormPreview();
+            expect(configUpdateMock).toHaveBeenLastCalledWith(
+                "formPreview.automatic",
+                !expected,
+                1,
+            );
+            expect(editor.posted).toEqual([]);
+        },
+    );
+});
+
 describe("CommandController SVG request lifecycle", () => {
     it("posts a GetDiagramAsSVGCommand and subscribes to the active editor", () => {
         const { controller, editor } = createController();

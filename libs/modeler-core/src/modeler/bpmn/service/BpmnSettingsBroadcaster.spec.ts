@@ -21,6 +21,17 @@ function createBroadcaster() {
 }
 
 describe("BpmnSettingsBroadcaster.setSettings", () => {
+    it.each([true, false])(
+        "delivers the automatic preview preference on first load (%s)",
+        async (enabled) => {
+            const { broadcaster, host, editor } = createBroadcaster();
+            host.settings.values.formPreviewAutomatic = enabled;
+            await broadcaster.setSettings(editor.id);
+            expect(editor.postedOfType("BpmnModelerSettingQuery")).toMatchObject([
+                { formPreviewAutomatic: enabled },
+            ]);
+        },
+    );
     it("builds the setting from VS Code config and posts it", async () => {
         const { broadcaster, editor } = createBroadcaster();
 
@@ -89,6 +100,19 @@ describe("BpmnSettingsBroadcaster.setLanguage", () => {
 });
 
 describe("BpmnSettingsBroadcaster.subscribe", () => {
+    it("pushes the changed automatic preview preference to every subscribed editor", () => {
+        const { broadcaster, host, editor } = createBroadcaster();
+        const second = host.openEditor("/work/other.bpmn");
+        broadcaster.subscribe(editor.id);
+        broadcaster.subscribe(second.id);
+        host.settings.values.formPreviewAutomatic = false;
+        for (const target of [editor, second]) {
+            target.changeSetting("formPreview.automatic");
+            expect(target.postedOfType("BpmnModelerSettingQuery")).toMatchObject([
+                { formPreviewAutomatic: false },
+            ]);
+        }
+    });
     it("re-pushes settings when a modeler setting changes", () => {
         const { broadcaster, editor } = createBroadcaster();
 

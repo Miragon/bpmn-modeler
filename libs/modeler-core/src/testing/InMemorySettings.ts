@@ -34,6 +34,9 @@ export class InMemorySettings implements SettingsPort {
     getLintingEnabled(): boolean {
         return this.values.lintingEnabled;
     }
+    getFormPreviewAutomatic(): boolean {
+        return this.values.formPreviewAutomatic;
+    }
 
     getColorTheme(): ColorThemeSetting {
         return this.values.colorTheme;

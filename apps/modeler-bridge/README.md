@@ -77,6 +77,9 @@ The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in
 [Architecture and hosts: host replicated state](../../docs/adr/architecture-and-hosts.md#host-replicated-state).
 
+The bridge carries the host's automatic form preview preference through the
+existing settings snapshot.
+
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server
 > directly. In the JCEF host the JVM already owns the browser, so relaying

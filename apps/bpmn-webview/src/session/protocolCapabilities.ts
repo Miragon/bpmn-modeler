@@ -15,6 +15,7 @@ import {
     createReplyRegistry,
 } from "@miragon/bpmn-modeler-shared";
 import {
+    DEFAULT_FORM_PREVIEW_AUTOMATIC,
     type DetectedEngine,
     engineSupports,
     extractProcessVariables,
@@ -38,6 +39,7 @@ export interface ProtocolCapabilities {
     readonly capabilities: Required<ModelerCapabilities>;
     readonly handlers: ProtocolCapabilityHandlers;
     requestFormReferenceStatus(engine: DetectedEngine): void;
+    setFormPreviewAutomatic(enabled: boolean): void;
     dispose(): void;
 }
 
@@ -114,6 +116,8 @@ export function createProtocolCapabilities(
     getSurface: () => SurfaceHandle,
 ): ProtocolCapabilities {
     const formReferences = new FormReferenceAvailability();
+    let formPreviewAutomatic = DEFAULT_FORM_PREVIEW_AUTOMATIC;
+    const automaticListeners = new Set<() => void>();
     const definitionSearch = createDefinitionSearchRequests(host);
     const previewReplies = createReplyRegistry<FormPreviewQuery>(FORM_PREVIEW_TIMEOUT_MS);
     const preview = createFormPreview(
@@ -135,7 +139,16 @@ export function createProtocolCapabilities(
     return {
         capabilities: {
             modelNavigation: {
-                formPreview: preview,
+                formPreview: {
+                    open: (request) => preview.open(request),
+                    isAutomaticEnabled: () => formPreviewAutomatic,
+                    onAutomaticChanged: (listener) => {
+                        automaticListeners.add(listener);
+                        return () => {
+                            automaticListeners.delete(listener);
+                        };
+                    },
+                },
                 openReference: ({ id, kind }) =>
                     host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
                 isReferenceAvailable: ({ id, kind }) => kind !== "form" || formReferences.has(id),
@@ -192,7 +205,13 @@ export function createProtocolCapabilities(
                 host.postMessage(new GetFormReferenceStatusCommand());
             }
         },
+        setFormPreviewAutomatic: (enabled) => {
+            if (formPreviewAutomatic === enabled) return;
+            formPreviewAutomatic = enabled;
+            automaticListeners.forEach((listener) => listener());
+        },
         dispose: () => {
+            automaticListeners.clear();
             preview.dispose();
             previewReplies.cancelAll();
         },

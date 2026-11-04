@@ -40,6 +40,7 @@ function sessionHandlerGroups(): Record<string, object> {
             hostModelerState: { rememberSettings: vi.fn(), rememberOpenScripts: vi.fn() },
             theme: { setMode: vi.fn() },
             replies: { elementTemplates: { done: vi.fn() }, settings: { done: vi.fn() } },
+            setFormPreviewAutomatic: vi.fn(),
         }).handlers,
         lintBridge: createLintBridge(
             host,

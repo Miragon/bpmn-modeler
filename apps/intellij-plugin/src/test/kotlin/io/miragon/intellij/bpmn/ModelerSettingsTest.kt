@@ -49,6 +49,7 @@ class ModelerSettingsTest {
                 language = "de",
                 scriptingSpin = false,
                 lintingEnabled = true,
+                formPreviewAutomatic = false,
                 marketplaces = listOf("https://changed"),
             )
 
@@ -82,6 +83,13 @@ class ModelerSettingsTest {
                     loaded = LOADED,
                     edited = LOADED.copy(language = "de"),
                     expected = LOADED.copy(language = "de", lintingEnabled = true),
+                ),
+                case(
+                    "keeps an automatic preview toggle made while the page was open",
+                    stored = LOADED.copy(formPreviewAutomatic = false),
+                    loaded = LOADED,
+                    edited = LOADED.copy(language = "de"),
+                    expected = LOADED.copy(language = "de", formPreviewAutomatic = false),
                 ),
                 marketplaceCase(
                     "keeps a marketplace added meanwhile when the page adds another",

@@ -10,6 +10,7 @@ export interface FormPreviewState<T> {
 export type FormPreviewEvent<T> =
     | {
           kind: "selection";
+          automatic: boolean;
           target?: T;
           reference?: string;
           available: boolean | undefined;
@@ -37,15 +38,23 @@ export function reduceFormPreview<T>(
             automatic: false,
         };
     }
-    const { target, reference, available, visible } = event;
+    const { target, reference, available, visible, automatic } = event;
     const changed = target !== state.target || reference !== state.reference;
-    if (!changed && reference && (state.explicit || (visible && state.available === available)))
+    if (
+        !changed &&
+        reference &&
+        (state.explicit || (automatic && visible && state.available === available))
+    )
         return { state, action: "keep" };
     const next: FormPreviewState<T> = changed
         ? { target, reference, dismissed: false, attempted: false, explicit: false }
         : { ...state };
     const availabilityChanged = state.available !== available;
     next.available = available;
+    if (!automatic) {
+        next.attempted = false;
+        return { state: next, action: "close" };
+    }
     if (!reference || available === undefined) {
         next.attempted = false;
         return { state: next, action: "close" };

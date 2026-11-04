@@ -106,6 +106,16 @@ const modeler = await createModeler( canvas, {
 } );
 ```
 
+### Linked form preview policy
+
+`capabilities.modelNavigation.formPreview` supplies an anchored preview through
+`open(request)`. Optional `isAutomaticEnabled(): boolean` and
+`onAutomaticChanged(listener): unsubscribe` hooks control automatic previews,
+enabled by default, without removing manual preview. The host owns persistence;
+the modeler releases the subscription on destruction. This capability also works
+on `/design` and `/viewer` with the moddle extensions needed to resolve their
+references (see their C8 caveat below).
+
 ### Definition search
 
 BPMN cannot reference a message, signal, error or escalation in another file, so

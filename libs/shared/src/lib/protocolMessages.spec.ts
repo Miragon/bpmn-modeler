@@ -70,6 +70,29 @@ describe("DocumentFlushedCommand", () => {
     });
 });
 
+describe("BpmnModelerSettingQuery", () => {
+    const setting = {
+        alignToOrigin: true,
+        showTransactionBoundaries: false,
+        colorTheme: "light" as const,
+        favouriteBpmnElements: [],
+    };
+
+    it("enables automatic form previews when the host omits the preference", () => {
+        const query = new modelerMessages.BpmnModelerSettingQuery(setting);
+
+        expect(query.formPreviewAutomatic).toBe(true);
+        expect(JSON.parse(JSON.stringify(query)).formPreviewAutomatic).toBe(true);
+    });
+
+    it("preserves an explicit automatic form preview opt-out over JSON", () => {
+        const query = new modelerMessages.BpmnModelerSettingQuery(setting, false);
+
+        expect(query.formPreviewAutomatic).toBe(false);
+        expect(JSON.parse(JSON.stringify(query)).formPreviewAutomatic).toBe(false);
+    });
+});
+
 describe("LogErrorCommand", () => {
     it("keeps message and stack through postMessage JSON serialization", () => {
         const command = new LogErrorCommand("import failed", "Error: boom\n    at main.ts:1");

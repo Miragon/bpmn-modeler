@@ -69,6 +69,18 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
+    fun `automatic form preview survives a new store and uses the shared persisted key`() {
+        store.update { it.copy(formPreviewAutomatic = false) }
+
+        assertEquals("false", appProperties.getValue("${NAMESPACE}formPreview.automatic"))
+        assertEquals(false, ModelerSettingsStore().current().formPreviewAutomatic)
+        assertEquals(false, store.snapshotMap(projectFixture.get())["formPreviewAutomatic"])
+
+        store.update { it.copy(formPreviewAutomatic = true) }
+        assertEquals(true, ModelerSettingsStore().current().formPreviewAutomatic)
+    }
+
+    @Test
     fun `removeMarketplaces drops only the given locations`() {
         store.addMarketplace("https://a")
         store.addMarketplace("https://b")
@@ -133,6 +145,7 @@ class ModelerSettingsStoreTest {
                 "language",
                 "scriptingSpin",
                 "lintingEnabled",
+                "formPreviewAutomatic",
                 "marketplaces",
             ),
             snapshot.keys.toList(),
@@ -173,6 +186,7 @@ class ModelerSettingsStoreTest {
                 "language",
                 "scripting.spin",
                 "linting.enabled",
+                "formPreview.automatic",
             ).map { NAMESPACE + it }
 
         private val GSON = Gson()

@@ -4,6 +4,8 @@ import { SettingChange } from "@miragon/bpmn-modeler-core";
 export interface ModelerPreferences {
     lintingEnabled(): boolean;
     setLintingEnabled(enabled: boolean): PromiseLike<void>;
+    formPreviewAutomatic(): boolean;
+    setFormPreviewAutomatic(enabled: boolean): PromiseLike<void>;
     setLanguage(locale: string): PromiseLike<void>;
     onDidChangeSetting(listener: (change: SettingChange) => void): { dispose(): unknown };
 }

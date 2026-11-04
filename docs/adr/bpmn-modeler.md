@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-02
+- Last reviewed: 2026-11-04
 
 ## Context
 
@@ -101,19 +101,30 @@ components are rejected rather than widening CSP; form actions are blocked.
 The optional availability-known hook distinguishes a pending index from an empty
 one; an unavailable preview request renders status only, without reading a file.
 
+Optional policy hooks on `FormPreviewPort` let hosts disable automatic behavior
+without removing the capability or manual preview. Omitted hooks preserve
+backward compatibility. The shared default lives in publishable `modeler-types`,
+so browser consumers do not depend on core or IDE protocol code. Persistence
+follows [host settings ownership](architecture-and-hosts.md#host-replicated-state).
+Automatic policy changes preserve explicit previews and deliberate dismissal;
+closing a handle invalidates late asynchronous results. The webview retains the
+latest policy across surface rebuilds, outside surface-specific settings.
+
 **Consequences.** Place the preview directly right of the selected task and its
 context pad, clamped to the canvas viewport. Stable task association takes priority
 over avoiding obstruction: overlap with diagram elements is accepted rather than
 searching alternate locations. Bounded dimensions and scrolling keep content and
-close controls reachable in narrow viewports. An opt-out for automatic previews
-is recommended as a separate follow-up, not implemented here.
+close controls reachable in narrow viewports. Users can opt out of automatic
+previews without losing manual preview or saved-form navigation.
 Saved-byte resolution avoids coupling to open form editors at the cost of not
 reflecting unsaved changes. The index cannot distinguish missing from malformed
 JSON, so lightweight feedback names both without another scan. Explicit attempts
 retain retryable feedback rather than inheriting automatic failure handling.
-The optional port keeps form-js and IDE transport out of embedders. Enforcement lives in
-`FormPreviewService.spec.ts`, preview reducer/webview specs and focused
-packaged-extension smoke scenarios.
+The optional port keeps form-js and IDE transport out of embedders. Enforcement
+lives in the [service](../../libs/modeler-core/src/navigation/service/FormPreviewService.spec.ts),
+[reducer](../../libs/model-navigation/src/formPreviewState.spec.ts),
+[webview](../../apps/bpmn-webview/src/session/formPreview.spec.ts) and
+[browser](../../packages/bpmn-modeler/src/formPreview.browser.spec.ts) tests.
 
 ### Surfaces and modes
 
