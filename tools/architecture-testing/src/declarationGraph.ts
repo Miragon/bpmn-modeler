@@ -24,21 +24,10 @@ const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
  */
 export function buildDeclarationGraph(
     tree: readonly SourceFile[],
-    { aliases = [], dataFiles = [] }: DeclarationGraphOptions = {},
+    options: DeclarationGraphOptions = {},
 ): DeclarationEdge[] {
-    const symbolsByFile = new Map(
-        tree
-            .filter(({ path }) => SCRIPT_FILE.test(path))
-            .map(({ path, text }) => [path, readModuleSymbols(path, text)]),
-    );
-    const known = new Set([...tree.map(({ path }) => path), ...dataFiles]);
-    const resolve = (fromFile: string, specifier: string): string | undefined =>
-        specifier.startsWith(".")
-            ? resolveRelativeImport(fromFile, specifier, known)
-            : resolveAliasImport(specifier, aliases, known);
-    const declarations = new DeclarationFinder(symbolsByFile, resolve);
-
-    const edges = [...symbolsByFile].flatMap(([from, symbols]) =>
+    const declarations = DeclarationFinder.of(tree, options);
+    const edges = [...declarations.symbolsByFile].flatMap(([from, symbols]) =>
         [...declarations.reachedBy(from, symbols)]
             .filter((to) => to !== from)
             .map((to) => ({ from, to })),
@@ -48,11 +37,34 @@ export function buildDeclarationGraph(
     );
 }
 
-class DeclarationFinder {
-    constructor(
-        private readonly symbolsByFile: ReadonlyMap<string, ModuleSymbols>,
+export class DeclarationFinder {
+    private constructor(
+        readonly symbolsByFile: ReadonlyMap<string, ModuleSymbols>,
         private readonly resolve: (fromFile: string, specifier: string) => string | undefined,
     ) {}
+
+    static of(
+        tree: readonly SourceFile[],
+        { aliases = [], dataFiles = [] }: DeclarationGraphOptions,
+    ): DeclarationFinder {
+        const symbolsByFile = new Map(
+            tree
+                .filter(({ path }) => SCRIPT_FILE.test(path))
+                .map(({ path, text }) => [path, readModuleSymbols(path, text)]),
+        );
+        const known = new Set([...tree.map(({ path }) => path), ...dataFiles]);
+        return new DeclarationFinder(symbolsByFile, (fromFile, specifier) =>
+            specifier.startsWith(".")
+                ? resolveRelativeImport(fromFile, specifier, known)
+                : resolveAliasImport(specifier, aliases, known),
+        );
+    }
+
+    /** The files declaring `name` as `fromFile` imports it from `specifier`; none when the module does not resolve. */
+    declaringFiles(fromFile: string, specifier: string, name: string): string[] {
+        const module = this.resolve(fromFile, specifier);
+        return module === undefined ? [] : this.declarationOrModule(module, name);
+    }
 
     reachedBy(from: string, symbols: ModuleSymbols): Set<string> {
         const reached = new Set<string>();

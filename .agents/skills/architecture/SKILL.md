@@ -113,7 +113,11 @@ file or type name:
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved
 has one blanket exception in the repo-level spec naming its migration issue.
-The rules and the reasons are in the
+
+A class that implements a port sits in `adapter/out/` or `testing/`. No spec
+blocks this; the `convention-coverage` fitness function reports it, and runs
+the rules above without exceptions, so the files of a workspace not yet
+moved show as remaining work. The rules and the reasons are in the
 [ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
 
 ## Trace host and session behavior
