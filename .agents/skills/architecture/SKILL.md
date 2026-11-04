@@ -28,6 +28,14 @@ Decisions (rules, state transitions, validations) go into the owning feature's
 `domain/` as pure code, or into `libs/modeler-types` when browser code applies
 the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 
+A value set (auth types, theme modes, languages) has one home. Every other use
+imports it; a copy that cannot (a protocol type, a manifest, Kotlin) is pinned
+to it by a spec, as `apps/vscode-plugin/src/manifest.contract.spec.ts` pins the
+languages, or by a compile-time assertion such as
+`expectTypeOf<Copy>().toEqualTypeOf<Home>()`. A pin is a fix, not an exception.
+The `repeated-value-sets` fitness function reports every set written in two or
+more files; a copy a branch adds shows as new.
+
 ## Preserve the boundaries
 
 - Let applications consume packages and libraries, and packages consume reusable

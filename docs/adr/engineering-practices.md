@@ -21,6 +21,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Fitness function report](#fitness-function-report)
 - [Change coupling](#change-coupling)
 - [Convention coverage](#convention-coverage)
+- [Repeated value sets](#repeated-value-sets)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -284,6 +285,9 @@ also holds one rule set per workspace kind (`HEXAGONAL_RULES`, `FLAT_RULES`)
 over role folders that `roleOf` reads from the path, so no rule reads a file or
 type name (see
 [Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders)).
+`readValueSets` reads the value sets a file writes out, from syntax only: an
+array of string literals, a union of string literal types and a maximal `||`
+chain of `===` comparisons of one subject with string literals.
 A workspace's own spec keeps only the rules specific to it, such as the core's
 domain package allowlist.
 
@@ -587,6 +591,57 @@ Alternatives considered:
   reported, the rule informs without overriding the folder.
 - **A second, report-only rule list.** One rule set, run with the exceptions in
   the blocking spec and without them here, cannot drift between the two.
+
+### Repeated value sets
+
+`repeated-value-sets` (#2050) reports a set of allowed values written in two
+or more files: atomic, triggered, static, reported. Copies of a set drift
+(#1983: the VS Code setting offered 9 of the 12 languages), but they are
+identical when they are born, so a report of the sets a branch adds catches a
+copy before it drifts. Unintended inconsistent changes to clones are
+frequently faults (Juergens, Deissenboeck, Hummel, Wagner, ICSE 2009). The
+rule it relies on is in the `architecture` skill: a value set has one home;
+every other use imports it or is pinned to it by a spec or a compile-time
+assertion. The pure measure lives in
+`tools/repo-checks/src/repeatedValueSets/domain`.
+
+- **Read files.** Every tracked `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`,
+  `.mjs` and `.cjs` file, without specs, tests, declaration files (third-party
+  typings repeated per workspace) and build configs (`*.config.*`). No folder
+  and no home is declared. Kotlin and JSON are not read.
+- **Sets.** `readValueSets` of the engine: an array literal whose elements are
+  all string or plain template literals, a union type whose members are all
+  string literal types, a maximal `||` chain whose operands all compare one
+  subject with `===` to a string literal. A set has at least 2 distinct values,
+  so the 2-value placeholder types of #2047 count; order and repeats do not
+  matter. Comments and string contents never yield a set.
+- **Identity and delta.** One finding per occurrence of a set that spans two
+  files, keyed by its path and its sorted values, not its line, and naming
+  every other occurrence. A copy a branch adds is new, and so is the home of
+  a set that was in one file only at the base; removing one of three copies
+  resolves it and leaves the other two existing. Two occurrences in one file
+  are the same key twice.
+
+First run at `bed5599f`: 606 sets in 853 files, 38 written in two or more
+files, 14 of them with 3 or more values, 112 findings. Among them the auth types
+(`deploymentTarget.ts`, `modeler.ts`), the theme modes (4 files), the bpmn-js
+popup ids, `clean|flushed|host-updated|unavailable` (`messages.ts`,
+`modeler-flush-reply.ts`), `added|deleted|modified` and `directory|file` (14
+occurrences in 9 files); the noise is git arguments, `typeof` chains,
+`name|value` and the log levels of two test fakes. A shared `trackedFiles`
+replaced the `git ls-files -z` arguments three adapters had repeated. On
+`3d1b19b3` (#2047) it lists 3 of the 5 rule sets the review named as
+duplicated: the FEEL types, the placeholder types and the condition
+operators. Reading and measuring takes about 0.4 s per tree.
+
+Alternatives considered:
+
+- **A failing gate over home folders.** Measured at `265f3472`: 41 home sets,
+  three repeats, all known. Exact equality misses partial copies, the
+  languages' home lies outside both home globs, so #1983 would have passed,
+  and every coincidence would need an allowlist entry.
+- **One finding per set**, keyed by its file list: removing one of three
+  copies would show the remaining two as new.
 
 ### Private upstream APIs
 
