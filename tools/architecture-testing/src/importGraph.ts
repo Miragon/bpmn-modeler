@@ -7,6 +7,7 @@ export interface ImportEdge {
     readonly from: string;
     readonly specifier: string;
     readonly typeOnly: boolean;
+    readonly line: number;
     /** Set when the specifier is relative and resolves to a file of the tree. */
     readonly to?: string;
 }
@@ -22,13 +23,13 @@ export function buildImportGraph(tree: readonly SourceFile[]): ImportGraph {
     const files = tree.map(({ path }) => path);
     const known = new Set(files);
     const edges = tree.flatMap(({ path, text }) =>
-        readModuleImports(path, text).map(({ specifier, typeOnly }): ImportEdge => {
+        readModuleImports(path, text).map(({ specifier, typeOnly, line }): ImportEdge => {
             const to = isRelative(specifier)
                 ? resolveRelativeImport(path, specifier, known)
                 : undefined;
             return to === undefined
-                ? { from: path, specifier, typeOnly }
-                : { from: path, specifier, typeOnly, to };
+                ? { from: path, specifier, typeOnly, line }
+                : { from: path, specifier, typeOnly, line, to };
         }),
     );
     return { files, edges };

@@ -316,8 +316,9 @@ speak, in `protocol/domain/`.
 applies each kind's rules (`RULES_BY_KIND`) to every workspace that declares
 it. A `hexagonal` workspace not yet moved into its role folders carries one
 blanket `KnownException` (`from: <dir>, to: "*"`) naming the issue that moves
-it; the stale-exception check removes it once the workspace passes, and #2127
-reads the list as remaining work. The ESLint override that bans an empty
+it; the stale-exception check removes it once the workspace passes. The
+`convention-coverage` fitness function runs the same rules without exceptions,
+so it reports what the list excuses as remaining work. The ESLint override that bans an empty
 function in an adapter (#2053) covers `**/src/**/adapter/**/*.ts`.
 
 ### Host integrations
@@ -1111,7 +1112,8 @@ a cached result must equal an uncached run.
   missing or unknown kind.
 - Detecting a port by its type (an interface a class in `adapter/out/`
   implements) would flag a correct helper there that implements none. The
-  folder states the role; #2127 reports what it cannot catch.
+  folder states the role; the `convention-coverage` fitness function reports
+  a class implementing a port outside `adapter/out/` and `testing/`.
 - One workspace-level composition for the core would exempt it from the rule
   that contexts meet only through `kernel/` and `editorSession/`. Wiring sits
   in `<context>/composition/`, where that rule still applies.
