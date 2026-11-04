@@ -10,7 +10,7 @@ import {
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 
-import { git } from "../../../fitness/adapter/out/git";
+import { trackedFiles } from "../../../fitness/adapter/out/git";
 import type { SourceLayout, WorkspaceLayout } from "../../domain/sourceLayout";
 import type { SourceStructure } from "../../port/SourceStructure";
 
@@ -18,12 +18,9 @@ const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
 const UNPARSED_SCRIPT = /\.(spec|test)\.[cm]?[jt]sx?$|\.d\.ts$/;
 const BUILD_CONFIG = /^[^/]+\.config\.[cm]?[jt]s$/;
 
-/** Reads the tracked files, as they would be at a commit: build output and scratch files stay out. */
 export class EngineSourceStructure implements SourceStructure {
     read(repoRoot: string): SourceLayout {
-        const files = git(repoRoot, ["ls-files", "-z"])
-            .split("\0")
-            .filter((path) => path !== "" && existsSync(join(repoRoot, path)));
+        const files = trackedFiles(repoRoot);
         const readText = (path: string): string => readFileSync(join(repoRoot, path), "utf8");
         const tree = files
             .filter((path) => SCRIPT_FILE.test(path) && !UNPARSED_SCRIPT.test(path))

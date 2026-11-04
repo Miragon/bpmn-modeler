@@ -44,7 +44,11 @@ export {
 } from "./stability";
 export type { Stability, WorkspaceDependency } from "./stability";
 export { readStringLiterals } from "./stringLiterals";
+export { findTypeEqualityPins } from "./typeEqualityPins";
+export type { TypeEqualityPin, TypeEqualityPinOptions } from "./typeEqualityPins";
 export { readTypeProgram } from "./typeProgram";
+export { readValueSets } from "./valueSets";
+export type { ValueSetLiteral } from "./valueSets";
 export { isWorkspaceKind, RULES_BY_KIND } from "./workspaceKinds";
 export type { WorkspaceKind } from "./workspaceKinds";
 export { readWorkspaceDirs, readWorkspaces, workspaceOfSpecifier } from "./workspaces";

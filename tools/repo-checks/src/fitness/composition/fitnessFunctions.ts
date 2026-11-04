@@ -3,6 +3,8 @@ import { createChangeCouplingFitnessFunction } from "../../changeCoupling/servic
 import { EngineRoleFolderSources } from "../../conventionCoverage/adapter/out/engineRoleFolderSources";
 import { createConventionCoverageFitnessFunction } from "../../conventionCoverage/service/conventionCoverageFitnessFunction";
 import { GitCommitHistory } from "../../history/adapter/out/gitCommitHistory";
+import { EngineValueSetSources } from "../../repeatedValueSets/adapter/out/engineValueSetSources";
+import { createRepeatedValueSetsFitnessFunction } from "../../repeatedValueSets/service/repeatedValueSetsFitnessFunction";
 import type { FitnessFunction } from "../domain/fitnessFunction";
 
 export const FITNESS_FUNCTIONS: readonly FitnessFunction[] = [
@@ -11,4 +13,5 @@ export const FITNESS_FUNCTIONS: readonly FitnessFunction[] = [
         sources: new EngineSourceStructure(),
     }),
     createConventionCoverageFitnessFunction({ sources: new EngineRoleFolderSources() }),
+    createRepeatedValueSetsFitnessFunction({ sources: new EngineValueSetSources() }),
 ];

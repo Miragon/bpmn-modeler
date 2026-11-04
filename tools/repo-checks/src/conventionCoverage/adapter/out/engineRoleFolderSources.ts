@@ -8,7 +8,7 @@ import {
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { git } from "../../../fitness/adapter/out/git";
+import { trackedFiles } from "../../../fitness/adapter/out/git";
 import type { HexagonalWorkspaceSources } from "../../domain/hexagonalWorkspaceSources";
 import type { RoleFolderSources } from "../../port/RoleFolderSources";
 
@@ -16,13 +16,11 @@ const SOURCE_FILE = /\.tsx?$/;
 // Specs and fixtures are inputs of tests, not code with a role; the architecture spec leaves them out too.
 const UNPLACED_SOURCE = /\.(spec|test)\.tsx?$|\.d\.ts$|(^|\/)__fixtures__\//;
 
-/** Reads the tracked files, as they would be at a commit: build output and scratch files stay out. */
 export class EngineRoleFolderSources implements RoleFolderSources {
     read(repoRoot: string): readonly HexagonalWorkspaceSources[] {
-        const files = git(repoRoot, ["ls-files", "-z"])
-            .split("\0")
-            .filter((path) => SOURCE_FILE.test(path) && !UNPLACED_SOURCE.test(path))
-            .filter((path) => existsSync(join(repoRoot, path)));
+        const files = trackedFiles(repoRoot).filter(
+            (path) => SOURCE_FILE.test(path) && !UNPLACED_SOURCE.test(path),
+        );
         const tsconfig = join(repoRoot, "tsconfig.base.json");
         const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];
         const workspaces = readWorkspaces(repoRoot)
