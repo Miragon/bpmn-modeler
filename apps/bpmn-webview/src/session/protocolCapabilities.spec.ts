@@ -133,6 +133,25 @@ describe("createProtocolCapabilities", () => {
         vi.useRealTimers();
     });
 
+    it("posts the namespace a QName reference is bound to", () => {
+        const host = createHost();
+        const { capabilities } = createProtocolCapabilities(host, () => modelerSurface({}));
+
+        capabilities.modelNavigation.openReference({
+            id: "Process_Target",
+            kind: "process",
+            namespace: "urn:example:child",
+        });
+
+        expect(host.sentOfType("NavigateToReferencedModelCommand")).toEqual([
+            expect.objectContaining({
+                referenceId: "Process_Target",
+                referenceKind: "process",
+                referenceNamespace: "urn:example:child",
+            }),
+        ]);
+    });
+
     it("posts a host command for every navigation, code-link and script-source call", () => {
         const host = createHost();
         const { capabilities } = createProtocolCapabilities(host, () => modelerSurface({}));

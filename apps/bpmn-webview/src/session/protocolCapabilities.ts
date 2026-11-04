@@ -149,8 +149,8 @@ export function createProtocolCapabilities(
                         };
                     },
                 },
-                openReference: ({ id, kind }) =>
-                    host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
+                openReference: ({ id, kind, namespace }) =>
+                    host.postMessage(new NavigateToReferencedModelCommand(id, kind, namespace)),
                 isReferenceAvailable: ({ id, kind }) => kind !== "form" || formReferences.has(id),
                 isReferenceAvailabilityKnown: () => formReferences.known,
                 onReferenceAvailabilityChanged: (listener) => formReferences.onChanged(listener),

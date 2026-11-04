@@ -20,6 +20,12 @@ const CALL_ACTIVITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
+const QNAME_CALL_ACTIVITY_XML = CALL_ACTIVITY_XML.replace(
+    'targetNamespace="http://bpmn.io/schema/bpmn">',
+    `targetNamespace="urn:example:caller" xmlns:child="urn:example:child">
+  <bpmn:import namespace="urn:example:child" location="target.bpmn" importType="http://www.omg.org/spec/BPMN/20100524/MODEL" />`,
+).replace('calledElement="Invoice_Process"', 'calledElement="child:Process_Target"');
+
 interface ContextPadService {
     getEntries(
         element: unknown,
@@ -84,6 +90,29 @@ describe("createDesigner (runtime contract)", () => {
         expect(openReference).toHaveBeenCalledExactlyOnceWith({
             id: "Invoice_Process",
             kind: "process",
+        });
+    });
+
+    it("navigates a QName calledElement to its local id in the bound namespace", async () => {
+        const openReference = vi.fn();
+        const { container, panel } = mountWithPanel();
+        designer = await createDesigner(container, {
+            propertiesPanel: { parent: panel },
+            linting: false,
+            capabilities: { modelNavigation: { openReference } },
+        });
+        await designer.loadDiagram(QNAME_CALL_ACTIVITY_XML);
+        const callActivity = designer.getService("elementRegistry").get("Call_1");
+
+        const entries = designer
+            .getService<ContextPadService>("contextPad")
+            .getEntries(callActivity);
+        entries["navigate-to-referenced-model"].action.click(new MouseEvent("click"), callActivity);
+
+        expect(openReference).toHaveBeenCalledExactlyOnceWith({
+            id: "Process_Target",
+            kind: "process",
+            namespace: "urn:example:child",
         });
     });
 

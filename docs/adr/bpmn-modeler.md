@@ -71,6 +71,15 @@ modeler rebuilds an open pad and unsubscribes on destruction. Without those
 hooks, syntactically valid references are available. The IDE adapter restricts
 linked Forms until its workspace index provides resolvable IDs.
 
+BPMN types `calledElement` as a QName, so the modeler resolves a prefixed
+reference before it reaches the port: `child:Process_Target` becomes
+`{ id: "Process_Target", namespace: <URI bound to child> }`. Process IDs never
+contain a colon, so this holds in every mode. An unprefixed reference stays
+literal rather than taking the default namespace, which would break references
+in files that declare one; an unbound prefix keeps only its local part. The IDE
+protocol carries the URI as the optional `referenceNamespace`, and the host only
+accepts a model whose `targetNamespace` matches it.
+
 The definition-search port is the first query port: `search({ kind, text })`
 returns a `Promise` of messages, signals, errors or escalations from other
 models. The entry ignores answers to superseded queries, so implementations

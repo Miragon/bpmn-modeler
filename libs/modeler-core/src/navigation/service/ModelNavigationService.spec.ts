@@ -11,6 +11,11 @@ const bpmnWithProcess = (id: string) =>
   <bpmn:process id="${id}"/>
 </bpmn:definitions>`;
 
+const bpmnInNamespace = (id: string, targetNamespace: string) =>
+    `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" targetNamespace="${targetNamespace}">
+  <bpmn:process id="${id}"/>
+</bpmn:definitions>`;
+
 function createService(options: TestHostOptions = {}) {
     const host = createTestHost(options);
     const locator = new ReferencedModelLocator(host.workspace, host.notifier);
@@ -43,6 +48,46 @@ describe("ModelNavigationService.navigate", () => {
             ],
         });
         expect(host.notifier.openedDocuments).toEqual(["/work/b.bpmn"]);
+    });
+
+    it("opens the model whose target namespace a QName reference is bound to", async () => {
+        const { service, host } = createService({
+            folders: ["/work"],
+            files: {
+                "/work/target.bpmn": bpmnInNamespace("Process_Target", "urn:example:child"),
+                "/work/elsewhere.bpmn": bpmnInNamespace("Process_Target", "urn:example:other"),
+            },
+        });
+
+        await service.navigate(
+            "Process_Target",
+            "process",
+            "/work/caller.bpmn",
+            "urn:example:child",
+        );
+
+        expect(host.notifier.openedDocuments).toEqual(["/work/target.bpmn"]);
+    });
+
+    it("names the namespace when only other namespaces declare the id", async () => {
+        const { service, host } = createService({
+            folders: ["/work"],
+            files: {
+                "/work/elsewhere.bpmn": bpmnInNamespace("Process_Target", "urn:example:other"),
+            },
+        });
+
+        await service.navigate(
+            "Process_Target",
+            "process",
+            "/work/caller.bpmn",
+            "urn:example:child",
+        );
+
+        expect(host.notifier.infos).toEqual([
+            'No model declaring "Process_Target" in namespace "urn:example:child" was found in the workspace. ' +
+                "(See Output → bpmn.modeler for what was searched.)",
+        ]);
     });
 
     it("names the id no model declares, and asks for a folder when there is none", async () => {

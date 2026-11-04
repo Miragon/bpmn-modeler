@@ -11,12 +11,15 @@
 
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
+import type { ModelReference } from "./ModelNavigationPort";
+import { resolveQualifiedReference, type ModdleElementLike } from "./qualifiedReference";
+
 /**
  * The shape this module needs from a bpmn-js business object.  Kept loose so
  * the code remains decoupled from bpmn-moddle types — we only care about
  * `get()` and the optional `extensionElements.values` list.
  */
-export interface BusinessObjectLike {
+export interface BusinessObjectLike extends ModdleElementLike {
     get(attr: string): unknown;
     extensionElements?: { values?: ExtensionElementLike[] };
 }
@@ -92,4 +95,21 @@ export function extractReference(
         return camunda8Reference.decisionId;
     }
     return undefined;
+}
+
+/**
+ * The reference the host navigates to. A process reference is a BPMN QName,
+ * so its prefix is resolved to the namespace it is bound to.
+ */
+export function extractModelReference(
+    businessObject: BusinessObjectLike | undefined,
+    kind: ReferenceKind,
+): ModelReference | undefined {
+    const reference = extractReference(businessObject, kind);
+    if (!businessObject || !reference) {
+        return undefined;
+    }
+    return kind === "process"
+        ? { ...resolveQualifiedReference(reference, businessObject), kind }
+        : { id: reference, kind };
 }

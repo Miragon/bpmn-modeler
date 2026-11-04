@@ -192,6 +192,27 @@ describe("NavigateContextPadProvider", () => {
         expect(port.openReference).toHaveBeenCalledWith({ id: "Updated", kind: "process" });
     });
 
+    it("navigates to the namespace a QName calledElement prefix is bound to", () => {
+        const { provider, port, element } = build({
+            types: ["bpmn:CallActivity"],
+            initialAttrs: { calledElement: "child:Process_Target" },
+        });
+        Object.assign(element.businessObject, {
+            $parent: { $parent: { $attrs: { "xmlns:child": "urn:example:child" } } },
+        });
+        const entry = provider.getContextPadEntries(element as never)[
+            "navigate-to-referenced-model"
+        ];
+
+        entry.action.click({} as never, element as never);
+
+        expect(port.openReference).toHaveBeenCalledWith({
+            id: "Process_Target",
+            kind: "process",
+            namespace: "urn:example:child",
+        });
+    });
+
     it("does nothing when the reference id was cleared between render and click", () => {
         const { provider, port, element, attrs } = build({
             types: ["bpmn:CallActivity"],

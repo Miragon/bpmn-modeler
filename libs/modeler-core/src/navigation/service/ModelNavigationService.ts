@@ -25,18 +25,25 @@ export class ModelNavigationService {
         referenceId: string,
         kind: ReferenceKind,
         sourceDocumentPath?: string,
+        namespace?: string,
     ): Promise<void> {
+        const inNamespace = namespace === undefined ? "" : ` in namespace "${namespace}"`;
         await openLocatedFile(
             {
                 reference: referenceId,
                 locate: () =>
-                    this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentPath),
+                    this.locator.findDeclaringFiles(
+                        referenceId,
+                        kind,
+                        sourceDocumentPath,
+                        namespace,
+                    ),
                 searchSubject: kind,
                 pickPlaceholder: "Select the referenced model to open",
                 noSearchScopeMessage: (displayId) =>
-                    `No model declaring "${displayId}" was found. Open a folder to enable cross-file navigation.`,
+                    `No model declaring "${displayId}"${inNamespace} was found. Open a folder to enable cross-file navigation.`,
                 notFoundMessage: (displayId) =>
-                    `No model declaring "${displayId}" was found in the workspace.`,
+                    `No model declaring "${displayId}"${inNamespace} was found in the workspace.`,
             },
             { notifier: this.notifier, picker: this.picker, workspace: this.workspace },
         );
