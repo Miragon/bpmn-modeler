@@ -1,5 +1,6 @@
 import {
     type ArchitectureRule,
+    type ClassImplementation,
     HEXAGONAL_RULES,
     type ImportGraph,
     type Role,
@@ -8,7 +9,7 @@ import {
 
 import type { Finding } from "../../fitness/domain/finding";
 import type { FindingGroup } from "../../fitness/domain/fitnessFunction";
-import type { HexagonalWorkspaceSources, PortImplementationCandidate } from "./roleFolderSources";
+import type { HexagonalWorkspaceSources } from "./hexagonalWorkspaceSources";
 
 export const CONVENTION_COVERAGE_GROUPS: readonly [FindingGroup, ...FindingGroup[]] = [
     { id: "unmapped", title: "Outside every role folder" },
@@ -88,19 +89,19 @@ function portImplementationFindings(
     { dir, implementations }: HexagonalWorkspaceSources,
     isPortFile: (path: string) => boolean,
 ): Finding[] {
-    const misplacedByFile = new Map<string, PortImplementationCandidate[]>();
-    for (const candidate of implementations) {
-        const role = roleInWorkspace(dir, candidate.path);
+    const misplacedByFile = new Map<string, ClassImplementation[]>();
+    for (const implementation of implementations) {
+        const role = roleInWorkspace(dir, implementation.path);
         const isPlaced = role !== undefined && PORT_IMPLEMENTATION_ROLES.includes(role);
-        if (!isPlaced && candidate.interfaceFiles.some(isPortFile)) {
-            misplacedByFile.set(candidate.path, [
-                ...(misplacedByFile.get(candidate.path) ?? []),
-                candidate,
+        if (!isPlaced && implementation.interfaceFiles.some(isPortFile)) {
+            misplacedByFile.set(implementation.path, [
+                ...(misplacedByFile.get(implementation.path) ?? []),
+                implementation,
             ]);
         }
     }
-    return [...misplacedByFile].map(([path, candidates]) => {
-        const byLine = [...candidates].sort((left, right) => left.line - right.line);
+    return [...misplacedByFile].map(([path, misplaced]) => {
+        const byLine = [...misplaced].sort((left, right) => left.line - right.line);
         const classes = byLine.map(({ className, interfaceFiles }) => {
             const ports = interfaceFiles.filter(isPortFile);
             const subject = className === undefined ? "an anonymous class" : code(className);

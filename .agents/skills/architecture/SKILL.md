@@ -116,7 +116,7 @@ has one blanket exception in the repo-level spec naming its migration issue.
 
 A class that implements a port sits in `adapter/out/` or `testing/`. No spec
 blocks this; the `convention-coverage` fitness function reports it, and runs
-the nine rules above without exceptions, so the files of a workspace not yet
+the rules above without exceptions, so the files of a workspace not yet
 moved show as remaining work. The rules and the reasons are in the
 [ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
 

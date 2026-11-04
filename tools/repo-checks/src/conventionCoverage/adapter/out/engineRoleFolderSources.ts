@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { git } from "../../../fitness/adapter/out/git";
-import type { HexagonalWorkspaceSources } from "../../domain/roleFolderSources";
+import type { HexagonalWorkspaceSources } from "../../domain/hexagonalWorkspaceSources";
 import type { RoleFolderSources } from "../../port/RoleFolderSources";
 
 const SOURCE_FILE = /\.tsx?$/;

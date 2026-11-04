@@ -1,18 +1,22 @@
-import { buildImportGraph, type SourceFile } from "@miragon/architecture-testing";
+import {
+    buildImportGraph,
+    type ClassImplementation,
+    type SourceFile,
+} from "@miragon/architecture-testing";
 import { describe, expect, it } from "vitest";
 
 import {
     CONVENTION_COVERAGE_GROUPS,
     conventionCoverageFindings,
 } from "./conventionCoverageFindings";
-import type { HexagonalWorkspaceSources, PortImplementationCandidate } from "./roleFolderSources";
+import type { HexagonalWorkspaceSources } from "./hexagonalWorkspaceSources";
 
 const CORE_PORT = "libs/core/src/port/DocumentPort.ts";
 
 function workspace(
     dir: string,
     files: Readonly<Record<string, string>>,
-    implementations: readonly PortImplementationCandidate[] = [],
+    implementations: readonly ClassImplementation[] = [],
 ): HexagonalWorkspaceSources {
     const tree: SourceFile[] = Object.entries(files).map(([path, text]) => ({ path, text }));
     return { dir, graph: buildImportGraph(tree), implementations };
@@ -23,7 +27,7 @@ function implementation(
     className: string,
     interfaceFiles: readonly string[] = [CORE_PORT],
     line = 2,
-): PortImplementationCandidate {
+): ClassImplementation {
     return { path, line, className, interfaceFiles };
 }
 

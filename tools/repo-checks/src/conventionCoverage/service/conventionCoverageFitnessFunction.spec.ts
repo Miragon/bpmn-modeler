@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { InsufficientHistory } from "../../fitness/domain/fitnessFunction";
 import { measure } from "../../fitness/service/measurement";
-import type { HexagonalWorkspaceSources } from "../domain/roleFolderSources";
+import type { HexagonalWorkspaceSources } from "../domain/hexagonalWorkspaceSources";
 import type { RoleFolderSources } from "../port/RoleFolderSources";
 import { createConventionCoverageFitnessFunction } from "./conventionCoverageFitnessFunction";
 

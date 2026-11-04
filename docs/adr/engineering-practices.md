@@ -556,8 +556,8 @@ measure lives in `tools/repo-checks/src/conventionCoverage/domain`.
   whose manifest declares `"architecture": "hexagonal"`, without specs,
   declaration files and `__fixtures__`, as the blocking spec reads them. No
   such workspace, as before #2138, throws `InsufficientHistory`.
-- **Rules.** The nine `HEXAGONAL_RULES` run without the blanket exceptions of
-  the blocking spec: the files those excuse are the remaining migration work,
+- **Rules.** Every rule of `HEXAGONAL_RULES` runs without the blanket
+  exceptions of the blocking spec: the files those excuse are the remaining migration work,
   and a migrated workspace shows none. One finding per file and rule, at the
   first offending import; the placement rule points at line 1. The type rule
   no spec blocks: a class whose `implements` clause names an interface declared
