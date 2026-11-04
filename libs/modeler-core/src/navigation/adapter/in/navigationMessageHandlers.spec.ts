@@ -39,6 +39,42 @@ describe("navigateToReferencedModelHandler", () => {
             "ProcessB",
             "process",
             "/src/a.bpmn",
+            undefined,
+        );
+    });
+
+    it("forwards the namespace a QName reference is bound to", async () => {
+        const { handler, editor, modelNavigationService } = createHandler();
+
+        await handler(
+            new NavigateToReferencedModelCommand("Process_Target", "process", "urn:example:child"),
+            editor.id,
+        );
+
+        expect(modelNavigationService.navigate).toHaveBeenCalledWith(
+            "Process_Target",
+            "process",
+            "/src/a.bpmn",
+            "urn:example:child",
+        );
+    });
+
+    it("drops a namespace that is not a string", async () => {
+        const { handler, editor, modelNavigationService } = createHandler();
+        const malformed = {
+            type: "NavigateToReferencedModelCommand",
+            referenceId: "Process_Target",
+            referenceKind: "process",
+            referenceNamespace: 42,
+        };
+
+        await handler(malformed as never, editor.id);
+
+        expect(modelNavigationService.navigate).toHaveBeenCalledWith(
+            "Process_Target",
+            "process",
+            "/src/a.bpmn",
+            undefined,
         );
     });
 
@@ -51,6 +87,7 @@ describe("navigateToReferencedModelHandler", () => {
             "Decision_1",
             "decision",
             "/src/a.bpmn",
+            undefined,
         );
     });
 
@@ -63,6 +100,7 @@ describe("navigateToReferencedModelHandler", () => {
             "Form_Request",
             "form",
             "/src/a.bpmn",
+            undefined,
         );
     });
 

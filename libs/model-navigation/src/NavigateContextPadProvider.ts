@@ -26,7 +26,7 @@ import { is } from "bpmn-js/lib/util/ModelUtil";
 
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
-import { extractReference } from "./extractReference";
+import { extractModelReference, extractReference } from "./extractReference";
 import type { BusinessObjectLike } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
@@ -111,10 +111,10 @@ export class NavigateContextPadProvider {
         if (!kind) {
             return {};
         }
-        const reference = extractReference(element.businessObject, kind);
+        const reference = extractModelReference(element.businessObject, kind);
         if (
             !reference ||
-            (kind === "form" && !this.formReferenceStatusClient.isResolved(reference))
+            (kind === "form" && !this.formReferenceStatusClient.isResolved(reference.id))
         ) {
             return {};
         }
@@ -129,12 +129,13 @@ export class NavigateContextPadProvider {
                     // and click (e.g. via keyboard in the properties panel)
                     // navigates to the current id, not a stale one.
                     click: (_event, clickedElement) => {
-                        const current = extractReference(clickedElement.businessObject, kind);
+                        const current = extractModelReference(clickedElement.businessObject, kind);
                         if (
                             current &&
-                            (kind !== "form" || this.formReferenceStatusClient.isResolved(current))
+                            (kind !== "form" ||
+                                this.formReferenceStatusClient.isResolved(current.id))
                         ) {
-                            this.port.openReference({ id: current, kind });
+                            this.port.openReference(current);
                         }
                     },
                 },

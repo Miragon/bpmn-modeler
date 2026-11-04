@@ -31,7 +31,14 @@ export function navigateToReferencedModelHandler(
             return;
         }
         const sourceFsPath = editorStore.requireHandle(editorId).documentFsPath();
-        await modelNavigationService.navigate(cmd.referenceId, cmd.referenceKind, sourceFsPath);
+        const namespace =
+            typeof cmd.referenceNamespace === "string" ? cmd.referenceNamespace : undefined;
+        await modelNavigationService.navigate(
+            cmd.referenceId,
+            cmd.referenceKind,
+            sourceFsPath,
+            namespace,
+        );
     };
 }
 

@@ -681,10 +681,13 @@ export class NavigateToReferencedModelCommand extends Command<"NavigateToReferen
 
     public readonly referenceKind: ReferenceKind;
 
-    constructor(referenceId: string, referenceKind: ReferenceKind) {
+    public readonly referenceNamespace?: string;
+
+    constructor(referenceId: string, referenceKind: ReferenceKind, referenceNamespace?: string) {
         super("NavigateToReferencedModelCommand");
         this.referenceId = referenceId;
         this.referenceKind = referenceKind;
+        this.referenceNamespace = referenceNamespace;
     }
 }
 

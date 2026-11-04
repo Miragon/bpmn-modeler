@@ -8,6 +8,13 @@ import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 export interface ModelReference {
     id: string;
     kind: ReferenceKind;
+    /**
+     * Namespace URI a prefixed `calledElement` QName is bound to, e.g.
+     * `urn:example:child` for `child:Process_Target`; `id` is then the local
+     * part. The referenced process lives in definitions with this
+     * `targetNamespace`. Omitted for unprefixed references.
+     */
+    namespace?: string;
 }
 
 export interface PreviewRect {

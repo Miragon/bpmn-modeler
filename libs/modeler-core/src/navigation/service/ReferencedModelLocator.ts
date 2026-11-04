@@ -1,14 +1,10 @@
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
-import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { LocateResult, SearchOutcome } from "../../kernel/domain/locateResult";
 import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
-import {
-    scanWorkspaceFiles,
-    searchFilesContent,
-    WorkspaceFileQuery,
-} from "../../kernel/service/workspaceFileSearch";
+import { scanWorkspaceFiles, WorkspaceFileQuery } from "../../kernel/service/workspaceFileSearch";
+import { declaresReferencedModel } from "../domain/modelDeclaration";
 
 export interface FormDeclaration {
     id: string;
@@ -21,8 +17,8 @@ export type FormDeclarationsResult = SearchOutcome<{ declarations: FormDeclarati
  * Locates BPMN, DMN, or form files that declare the requested top-level id.
  *
  * The workspace search itself (findFiles + fs-walk fallback, parallel content
- * search) lives in {@link searchFilesContent} / {@link scanWorkspaceFiles}
- * under `kernel/`; this class only owns the model-specific glob and id lookup.
+ * search) lives in {@link scanWorkspaceFiles} under `kernel/`; what counts as a
+ * declaration is {@link declaresReferencedModel}.
  */
 export class ReferencedModelLocator {
     constructor(
@@ -34,10 +30,13 @@ export class ReferencedModelLocator {
         referenceId: string,
         kind: ReferenceKind,
         sourceDocumentPath?: string,
+        namespace?: string,
     ): Promise<LocateResult> {
         const id = referenceForDisplay(referenceId);
         this.notifier.logInfo(
-            `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentPath ?? "<none>"}`,
+            `[nav] resolving ${kind} id="${id}"` +
+                (namespace === undefined ? "" : ` namespace="${namespace}"`) +
+                ` sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
 
         if (kind === "form") {
@@ -53,10 +52,12 @@ export class ReferencedModelLocator {
         }
 
         const extension = kind === "process" ? ".bpmn" : ".dmn";
-        return searchFilesContent(
+        const reference = { id: referenceId, kind, namespace };
+        return scanWorkspaceFiles(
             this.vsWorkspace,
             this.filesEndingWith(extension, sourceDocumentPath),
-            this.buildIdPattern(referenceId, kind),
+            (content, path) => (declaresReferencedModel(content, reference) ? path : undefined),
+            (paths) => ({ paths }),
         );
     }
 
@@ -80,22 +81,6 @@ export class ReferencedModelLocator {
             logger: this.notifier,
             matchesWalkedFile: (path) => path.endsWith(extension),
         };
-    }
-
-    /**
-     * Builds a regex matching `<…:process id="X">` or `<…:decision id="X">`.
-     * Tolerates optional namespace prefixes (`bpmn:`, `dmn:`, `camunda:`, …),
-     * whitespace around `=`, and either quote style.
-     *
-     * Edge-case alternative: `bpmn-moddle` / `dmn-moddle` parse the XML into
-     * a typed AST so we could read `process.id` directly.  Not used here
-     * because a per-file parse is 50-100× slower than this regex, which
-     * matters across a 100-file workspace.
-     */
-    private buildIdPattern(referenceId: string, kind: Exclude<ReferenceKind, "form">): RegExp {
-        return new RegExp(
-            `<(?:[\\w-]+:)?${kind}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegExpLiteral(referenceId)}["']`,
-        );
     }
 }
 

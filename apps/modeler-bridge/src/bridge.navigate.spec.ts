@@ -79,6 +79,7 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         editorId: string,
         referenceId: string,
         referenceKind: unknown,
+        referenceNamespace?: string,
     ): Promise<void> {
         await rpc.handleLine(
             JSON.stringify({
@@ -89,6 +90,7 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
                         type: "NavigateToReferencedModelCommand",
                         referenceId,
                         referenceKind,
+                        referenceNamespace,
                     },
                 },
             }),
@@ -110,6 +112,26 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         // A single match must short-circuit the picker.
         expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
         expect(frames.filter((f) => f.method === "notifier/openDocument")).toHaveLength(1);
+    });
+
+    it("opens the model declaring a QName reference's local id in its bound namespace", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const targetPath = join(root, "target.bpmn");
+        await fs.writeFile(
+            targetPath,
+            `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_Target" targetNamespace="urn:example:child">
+  <bpmn:process id="Process_Target" isExecutable="true" />
+</bpmn:definitions>`,
+            "utf8",
+        );
+        await fs.writeFile(join(root, "other.bpmn"), bpmnWithProcessId("Process_Target"), "utf8");
+
+        await feedNavigate(rpc, editorId, "Process_Target", "process", "urn:example:child");
+
+        const open = await waitForFrame(frames, (f) => f.method === "notifier/openDocument");
+        expect(open.params.path).toBe(targetPath);
+        expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
     });
 
     it("opens the form whose top-level id matches exactly", async () => {
