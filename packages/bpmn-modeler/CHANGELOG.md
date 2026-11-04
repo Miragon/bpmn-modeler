@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.5.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.4.0...bpmn-modeler-v1.5.0) (2026-11-04)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** preview forms linked to user tasks ([#1929](https://github.com/Miragon/bpmn-modeler/issues/1929)) ([52ec1dd](https://github.com/Miragon/bpmn-modeler/commit/52ec1dd1f224a6eb9fd99a006bccc86383594398))
+* **editor:** edit element templates in a graphical builder ([#2047](https://github.com/Miragon/bpmn-modeler/issues/2047)) ([cda8154](https://github.com/Miragon/bpmn-modeler/commit/cda8154423447e2ab21d7e173f01eca17d113b98))
+* **editor:** preview element templates beside their JSON ([#2028](https://github.com/Miragon/bpmn-modeler/issues/2028)) ([be6babb](https://github.com/Miragon/bpmn-modeler/commit/be6babb12c2463e10ed311bc726618eda839bf72))
+* **modeler-core:** configure automatic form preview ([#2146](https://github.com/Miragon/bpmn-modeler/issues/2146)) ([210c621](https://github.com/Miragon/bpmn-modeler/commit/210c6212e74365579d127fa1972a44204f4f783a))
+
+
+### 🐞 Bug Fixes
+
+* **model-navigation:** resolve qname calledElement to its namespace ([#2156](https://github.com/Miragon/bpmn-modeler/issues/2156)) ([22adf90](https://github.com/Miragon/bpmn-modeler/commit/22adf90d50814211754b118bef634d13c1dc23f4))
+
+
+### 🔨 Refactoring
+
+* **modeler-bridge:** move every file into its role folder ([#2141](https://github.com/Miragon/bpmn-modeler/issues/2141)) ([ad3bc35](https://github.com/Miragon/bpmn-modeler/commit/ad3bc35974372990b04aed653a11b48c59a42ec6))
+* **modeler-core:** move every file into its role folder ([#2139](https://github.com/Miragon/bpmn-modeler/issues/2139)) ([2af0dd7](https://github.com/Miragon/bpmn-modeler/commit/2af0dd7d4ef27c9ca497ab0e2711af58ec936fb9))
+* **vscode-plugin:** move every file into its role folder ([#2140](https://github.com/Miragon/bpmn-modeler/issues/2140)) ([f08fb08](https://github.com/Miragon/bpmn-modeler/commit/f08fb08a749e6aaea1241082c614a39cd877c44c))
+
+
+### 🛠️ Misc
+
+* **architecture-testing:** add the role folders and one rule set per workspace kind ([#2138](https://github.com/Miragon/bpmn-modeler/issues/2138)) ([12ff0d9](https://github.com/Miragon/bpmn-modeler/commit/12ff0d9db708da7289457d545cee116f3a6795ba))
+* **bpmn-modeler:** read folders instead of file names in the package architecture spec ([#2142](https://github.com/Miragon/bpmn-modeler/issues/2142)) ([b83cb6b](https://github.com/Miragon/bpmn-modeler/commit/b83cb6b0e79fe1aa8059c72738b120d22397e846))
+* **deps:** bump @miragon/bpmnlint-plugin-rules from 0.15.0 to 0.19.0 in the bpmnlint group ([#2148](https://github.com/Miragon/bpmn-modeler/issues/2148)) ([5c3e622](https://github.com/Miragon/bpmn-modeler/commit/5c3e622753538b693e8c7d5438ecd3ec625e98ba))
+* **eslint:** compare a guarded domain value only in its home, engine first ([#2133](https://github.com/Miragon/bpmn-modeler/issues/2133)) ([7d0ba86](https://github.com/Miragon/bpmn-modeler/commit/7d0ba862887c2f259df0223ab84ae37d41097e21))
+* **repo-checks:** add the fitness function report with delta and history ([#2128](https://github.com/Miragon/bpmn-modeler/issues/2128)) ([b82d0cf](https://github.com/Miragon/bpmn-modeler/commit/b82d0cf9d80e4b63a241f44e06f3637119576259))
+* **repo-checks:** report code outside its role folder ([#2152](https://github.com/Miragon/bpmn-modeler/issues/2152)) ([bed5599](https://github.com/Miragon/bpmn-modeler/commit/bed5599f0fb3e718e10a3f4b6d5d0cf2f3582132))
+* **repo-checks:** report file pairs that change together without an import ([#2151](https://github.com/Miragon/bpmn-modeler/issues/2151)) ([03b3189](https://github.com/Miragon/bpmn-modeler/commit/03b31896a104500bb3c9f249fd820c4f1b8a51ce))
+* **repo-checks:** report value sets written in two or more files ([#2155](https://github.com/Miragon/bpmn-modeler/issues/2155)) ([443f6d3](https://github.com/Miragon/bpmn-modeler/commit/443f6d37f8e3147fbf4b2c83df059bdd732433cd))
+* **repo-checks:** require every command a webview constructs to be on a surface list ([#2134](https://github.com/Miragon/bpmn-modeler/issues/2134)) ([cd1eb44](https://github.com/Miragon/bpmn-modeler/commit/cd1eb44df51ee505aac40a743b555b3c22dd02d7))
+
 ## [1.4.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.3.0...bpmn-modeler-v1.4.0) (2026-11-01)
 
 

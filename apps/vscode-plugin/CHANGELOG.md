@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.18.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.17.0...vscode-v1.18.0) (2026-11-04)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** preview forms linked to user tasks ([#1929](https://github.com/Miragon/bpmn-modeler/issues/1929)) ([52ec1dd](https://github.com/Miragon/bpmn-modeler/commit/52ec1dd1f224a6eb9fd99a006bccc86383594398))
+* **editor:** edit element templates in a graphical builder ([#2047](https://github.com/Miragon/bpmn-modeler/issues/2047)) ([cda8154](https://github.com/Miragon/bpmn-modeler/commit/cda8154423447e2ab21d7e173f01eca17d113b98))
+* **editor:** preview element templates beside their JSON ([#2028](https://github.com/Miragon/bpmn-modeler/issues/2028)) ([be6babb](https://github.com/Miragon/bpmn-modeler/commit/be6babb12c2463e10ed311bc726618eda839bf72))
+* **modeler-core:** configure automatic form preview ([#2146](https://github.com/Miragon/bpmn-modeler/issues/2146)) ([210c621](https://github.com/Miragon/bpmn-modeler/commit/210c6212e74365579d127fa1972a44204f4f783a))
+
+
+### 🐞 Bug Fixes
+
+* **model-navigation:** resolve qname calledElement to its namespace ([#2156](https://github.com/Miragon/bpmn-modeler/issues/2156)) [sync 22adf90] ([0ed4ce1](https://github.com/Miragon/bpmn-modeler/commit/0ed4ce187dd6ee016d4928a7627e7993c66de233))
+
+
+### 🔨 Refactoring
+
+* **vscode-plugin:** move every file into its role folder ([#2140](https://github.com/Miragon/bpmn-modeler/issues/2140)) ([f08fb08](https://github.com/Miragon/bpmn-modeler/commit/f08fb08a749e6aaea1241082c614a39cd877c44c))
+
+
+### 🛠️ Misc
+
+* **architecture-testing:** add the role folders and one rule set per workspace kind ([#2138](https://github.com/Miragon/bpmn-modeler/issues/2138)) ([12ff0d9](https://github.com/Miragon/bpmn-modeler/commit/12ff0d9db708da7289457d545cee116f3a6795ba))
+* **modeler-core:** pin every webview surface in one coverage table per host ([#2135](https://github.com/Miragon/bpmn-modeler/issues/2135)) ([ba7f1cd](https://github.com/Miragon/bpmn-modeler/commit/ba7f1cd03218fce22ab87ecb41a01b9a0279c5d1))
+
 ## [1.17.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.16.0...vscode-v1.17.0) (2026-11-01)
 
 
