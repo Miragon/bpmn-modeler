@@ -7,6 +7,10 @@ tabs; the editor owns undo. An agent's write to a clean tab shows at once; under
 Reload/Overwrite banner. Users install it from the [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers)
 catalog; see the [Orca guide](../../docs/orca/getting-started.md).
 
+![The BPMN editor in Orca with the token simulation running](../../docs/public/shots/orca-bpmn-token-simulation.png)
+
+![A DMN decision table in Orca, with the decision simulation above it](../../docs/public/shots/orca-dmn-decision-table.png)
+
 The plugin bundles `@miragon/bpmn-modeler` and `@miragon/dmn-modeler` from source, without `modeler-core`: Orca's
 editor frames are sandboxed and have no worker, network or file access, so every host capability (code links,
 navigation, definition search, form preview, scripting, element templates, deployment) stays off. Why it looks the

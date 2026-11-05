@@ -36,6 +36,12 @@ quietly grew into more places where process work actually happens:
   organisations not on VS Code — same modeling surface, plus a built-in
   Source Control view, BPMN-aware diff against working-tree changes, and
   auto-save out of the box.
+- **In [Orca](https://www.onorca.dev)**, as a plugin that opens `.bpmn` and
+  `.dmn` files right next to the coding agent writing them: every change the
+  agent makes shows up on the canvas, and you can simulate and model lightly
+  yourself (preview, [guide](https://miragon.github.io/bpmn-modeler/orca/getting-started)).
+
+  ![The BPMN editor in Orca with the token simulation running](docs/public/shots/orca-bpmn-token-simulation.png)
 - **And next: AI-assisted BPMN tooling** — bringing the same modeling
   context into your AI assistant. *Stay tuned.* ✨
 
