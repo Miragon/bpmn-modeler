@@ -3,6 +3,8 @@
 Open `.bpmn` and `.dmn` files as diagrams in [Orca](https://www.onorca.dev), right next to the coding agent that
 writes them. Every change the agent makes to the file shows up on the canvas, and you can model lightly yourself.
 
+![The BPMN editor in Orca with the token simulation running](/shots/orca-bpmn-token-simulation.png)
+
 ## Install
 
 Open the plugin's page in Orca and press **Install**:
@@ -22,6 +24,8 @@ You need the Orca desktop app, version 1.4.248 or later.
 | Linting | Decision simulation |
 
 Light and dark follow Orca's theme, and the language follows Orca's.
+
+![A DMN decision table in Orca, with the decision simulation above it](/shots/orca-dmn-decision-table.png)
 
 - **Live while your agent writes.** An agent's change to the file shows up at once. If it writes while you have
   unsaved edits, Orca asks whether to reload or keep yours.
