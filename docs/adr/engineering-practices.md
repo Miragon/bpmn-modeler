@@ -219,10 +219,51 @@ Stryker's incremental file, and on pull requests and merges to `main` that
 touch a `domain/` folder re-tests only the mutants affected by the change.
 Each merge's run refreshes the cached baseline, so a pull request is compared
 against the `main` it branched from rather than last week's. Its step summary
-lists the score per context. Per-context floors follow once two or three
-weekly runs agree, enforced by the summary script because Stryker has only
-one global break threshold. The first baseline (2026-10-26) was 84.5 % over
-2,750 mutants in 46 files.
+lists the score per context and every undetected mutant
+(`corepack yarn fitness mutation summary --report <json>`). The first full run
+(2026-10-26, run 40365142588) scored 85.7 % over 2,918 mutants in 48 files
+(2,500 detected, 418 not); the first weekly run (2026-11-02, run 41384596015)
+94.3 % over 4,502 in 87 files (4,247 and 255), template-marketplace lowest at
+85.3 %.
+
+There are no floors. A floor would be a number picked from a few runs, and
+Stryker has only one global break threshold. Instead the score per context is
+a trend, reported by the `mutation-score` fitness function (#2057): atomic,
+triggered, dynamic. The score is Stryker's: detected (Killed, Timeout) ÷
+(detected + undetected (Survived, NoCoverage)); other statuses do not count,
+and a context with no mutants has no score. A mutated file outside
+`src/<context>/domain/` is broken input. Each finding names one domain folder
+or the total, with the latest score, its tallies and the last 8 runs.
+
+**Hand-over.** Only full runs on `main` are stored: the `store-score` job of
+the mutation workflow runs after a `schedule` or `workflow_dispatch` run on
+`main`, downloads the run's report artifact, writes
+`mutation/<run id>.json` (`{ schemaVersion, runId, commit, contexts }`, the
+tallies per domain folder) with `fitness mutation record`, and commits it to
+`fitness-history` through the `store-fitness-history` composite action. Keyed
+by run id, two runs on one commit both count, and a re-run of the job
+overwrites only its own file. Incremental pull-request and merge runs re-test a
+subset and are not stored. The workflow's concurrency group includes the event,
+so a push to `main` no longer cancels a running weekly run. A failed store is
+recovered by re-running the job while the 14-day artifact exists.
+
+**Series.** The function reads every stored run offline from
+`origin/fitness-history` and the full `git rev-list --first-parent` of the
+measured commit; the series holds the runs on that chain, oldest commit first,
+then by run id. That is exact per run, not per snapshot. Nothing is
+recomputed from git: before the first stored run the function throws
+`InsufficientHistory`, so its series starts there. At the commit a run
+measured, the stored snapshot predates the run, so the next report shows that
+run's score as a change; the function names this as a false report.
+
+Alternatives considered:
+
+- **Writing the score into the snapshot of the measured commit** would rewrite
+  a stored snapshot after the fact, and the run would vanish from the series
+  when the function's version changes. A file per run keeps snapshots
+  write-once.
+- **Seeding the series from earlier artifacts** would mix the incremental runs
+  of pull requests into it; the series starts at the first stored run.
 
 ### CI test targets
 
@@ -472,10 +513,14 @@ The trend is built from snapshots only, never recomputed on a worktree, so
 nothing is measured that the push job has not stored.
 
 **Snapshot store.** The orphan branch `fitness-history` holds one
-`snapshots/<sha>.json` per first-parent `main` commit. `fitness-history.yml`
-writes it on every push to `main` through the Git Data API with
-`GITHUB_TOKEN`, so GitHub signs the commits and the ref moves by fast-forward
-only. The `main` ruleset targets only the default branch. The report reads the
+`snapshots/<sha>.json` per first-parent `main` commit and one
+`mutation/<run id>.json` per stored mutation run. `fitness-history.yml`
+writes the snapshots on every push to `main`, the mutation workflow the runs,
+both through the `store-fitness-history` composite action, which commits every
+JSON file of a directory through the Git Data API with `GITHUB_TOKEN`, so
+GitHub signs the commits and the ref moves by fast-forward only. A writer that
+loses the race rebuilds its tree on the new head, up to 3 times; the files are
+keyed by commit or run id, so a rebuild overwrites no other writer's file. The `main` ruleset targets only the default branch. The report reads the
 branch from `origin/fitness-history` as last fetched, offline, with one
 `git cat-file --batch` for all the commits it needs instead of a `git show`
 per commit: the 100 stored snapshots of 2026-11-05 read in 64 ms.
@@ -743,8 +788,8 @@ a long table of values, so this is a report, not an ESLint `max-lines` or
 
 Snapshots grow with it: a backfill of 100 commits at `e8c92425` wrote
 snapshots of 351 KB on average and 436 KB at most, against 85 KB before, so
-`fitness-history.yml` commits 5 snapshots per tree request instead of 20 to
-keep a request at about 2 MB. A backfill step that measures this function and
+the `store-fitness-history` action commits 5 files per tree request instead
+of 20 to keep a request at about 2 MB. A backfill step that measures this function and
 `hotspots` on a worktree took 0.8 s. A report over those 100 snapshots took
 4.3 s, 221 of 835 files showing a change, in 196 KB of Markdown.
 

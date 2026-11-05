@@ -1,5 +1,7 @@
 import { EngineSourceStructure } from "../../changeCoupling/adapter/out/engineSourceStructure";
 import { createChangeCouplingFitnessFunction } from "../../changeCoupling/service/changeCouplingFitnessFunction";
+import { GitMutationRuns } from "../../mutationScore/adapter/out/gitMutationRuns";
+import { createMutationScoreFitnessFunction } from "../../mutationScore/service/mutationScoreFitnessFunction";
 import { EngineRoleFolderSources } from "../../conventionCoverage/adapter/out/engineRoleFolderSources";
 import { createConventionCoverageFitnessFunction } from "../../conventionCoverage/service/conventionCoverageFitnessFunction";
 import { GitCommitHistory } from "../../history/adapter/out/gitCommitHistory";
@@ -22,4 +24,5 @@ export const FITNESS_FUNCTIONS: readonly FitnessFunction[] = [
     createRepeatedValueSetsFitnessFunction({ sources: new EngineValueSetSources() }),
     createSizeAndComplexityFitnessFunction({ sources: sourceMeasures }),
     createHotspotsFitnessFunction({ history: commitHistory, sources: sourceMeasures }),
+    createMutationScoreFitnessFunction({ runs: new GitMutationRuns() }),
 ];
