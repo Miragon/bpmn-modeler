@@ -31,6 +31,14 @@ Each host embeds the webview bundles and drives the modeling engine in
 | `standalone` | This is the Theia and Electron desktop shell, which pairs with [`libs/standalone-extension`](../libs/standalone-extension). |
 | `modeler-bridge` | This is a stdio JSON-RPC Bun binary that runs `modeler-core` out of process for the IntelliJ host, which has no Node runtime. |
 
+## Orca plugin
+
+`orca-plugin` is the [Orca](https://www.onorca.dev) plugin with a `.bpmn` and a
+`.dmn` editor. It is neither a webview nor a host above: it bundles
+`@miragon/bpmn-modeler` and `@miragon/dmn-modeler` directly into Orca's editor
+frames, without `modeler-core`, and syncs with Orca's document session. See its
+[README](orca-plugin/README.md).
+
 ## How a host and a webview connect
 
 There is no import link between a host and a webview. They are joined by three
