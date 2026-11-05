@@ -53,27 +53,34 @@ jobs:
             exit 0
           fi
 
-          TREE_ENTRIES=$(for FILE in "${FILES[@]}"; do
-            jq -n --arg path "snapshots/$(basename "$FILE")" --rawfile content "$FILE" \
-              '{path:$path, mode:"100644", type:"blob", content:$content}'
-          done | jq -s -c .)
-          MSG="chore: store ${#FILES[@]} fitness snapshot(s) at ${SHA:0:7}"
-
           if PARENT=$(gh api "repos/${REPO}/git/ref/heads/fitness-history" --jq .object.sha 2>/dev/null); then
-            BASE_TREE=$(gh api "repos/${REPO}/git/commits/${PARENT}" --jq .tree.sha)
-            TREE_SHA=$(jq -n --arg base "$BASE_TREE" --argjson entries "$TREE_ENTRIES" \
-              '{base_tree:$base, tree:$entries}' \
+            TREE_SHA=$(gh api "repos/${REPO}/git/commits/${PARENT}" --jq .tree.sha)
+          else
+            PARENT=""
+            TREE_SHA=""
+          fi
+
+          # A single snapshot exceeds Linux's 128 KiB limit per argument, so
+          # snapshot content reaches gh through pipes only. Batches keep a
+          # backfill request at a few MB without one blob request per file,
+          # which would trip the content-creation rate limit.
+          BATCH_SIZE=20
+          for ((START = 0; START < ${#FILES[@]}; START += BATCH_SIZE)); do
+            TREE_SHA=$(for FILE in "${FILES[@]:START:BATCH_SIZE}"; do
+                jq -n --arg path "snapshots/$(basename "$FILE")" --rawfile content "$FILE" \
+                  '{path:$path, mode:"100644", type:"blob", content:$content}'
+              done \
+              | jq -s -c --arg base "$TREE_SHA" '{tree:.} + (if $base == "" then {} else {base_tree:$base} end)' \
               | gh api -X POST "repos/${REPO}/git/trees" --input - --jq .sha)
-            COMMIT_SHA=$(jq -n --arg msg "$MSG" --arg tree "$TREE_SHA" --arg parent "$PARENT" \
-              '{message:$msg, tree:$tree, parents:[$parent]}' \
-              | gh api -X POST "repos/${REPO}/git/commits" --input - --jq .sha)
+          done
+
+          MSG="chore: store ${#FILES[@]} fitness snapshot(s) at ${SHA:0:7}"
+          COMMIT_SHA=$(jq -n --arg msg "$MSG" --arg tree "$TREE_SHA" --arg parent "$PARENT" \
+            '{message:$msg, tree:$tree, parents:(if $parent == "" then [] else [$parent] end)}' \
+            | gh api -X POST "repos/${REPO}/git/commits" --input - --jq .sha)
+          if [ -n "$PARENT" ]; then
             gh api -X PATCH "repos/${REPO}/git/refs/heads/fitness-history" -f sha="$COMMIT_SHA" >/dev/null
           else
-            TREE_SHA=$(jq -n --argjson entries "$TREE_ENTRIES" '{tree:$entries}' \
-              | gh api -X POST "repos/${REPO}/git/trees" --input - --jq .sha)
-            COMMIT_SHA=$(jq -n --arg msg "$MSG" --arg tree "$TREE_SHA" \
-              '{message:$msg, tree:$tree, parents:[]}' \
-              | gh api -X POST "repos/${REPO}/git/commits" --input - --jq .sha)
             gh api -X POST "repos/${REPO}/git/refs" -f ref=refs/heads/fitness-history -f sha="$COMMIT_SHA" >/dev/null
           fi
           echo "Stored ${#FILES[@]} snapshot(s) as ${COMMIT_SHA:0:7}."
