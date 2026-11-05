@@ -4,6 +4,8 @@ import {
     changesetsAtTodaysPaths,
     type CommitRecord,
     type FileChange,
+    HISTORY_WINDOW,
+    historyWindow,
     isMechanicalCommit,
 } from "./commitHistory";
 
@@ -128,5 +130,25 @@ describe("a mechanical commit", () => {
         { subject: "styles: not a type", mechanical: false },
     ])("is $subject: $mechanical", ({ subject, mechanical }) => {
         expect(isMechanicalCommit(subject)).toBe(mechanical);
+    });
+});
+
+describe("the history window", () => {
+    const commits = (count: number) =>
+        Array.from({ length: count }, (_, index) => commit(`c${index}`));
+
+    it("holds the newest commits once one more proves the oldest has a parent", () => {
+        const window = historyWindow(commits(HISTORY_WINDOW + 1));
+
+        expect(window.kind === "window" && window.commits.map(({ commit }) => commit)).toEqual(
+            commits(HISTORY_WINDOW).map(({ commit }) => commit),
+        );
+    });
+
+    it("is too short without the parent of the oldest", () => {
+        expect(historyWindow(commits(HISTORY_WINDOW))).toEqual({
+            kind: "tooShort",
+            reason: `${HISTORY_WINDOW} first-parent commits reach back from here; the window needs ${HISTORY_WINDOW} and the parent of the oldest`,
+        });
     });
 });

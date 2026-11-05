@@ -3,12 +3,13 @@ import {
     type FitnessFunction,
     InsufficientHistory,
 } from "../../fitness/domain/fitnessFunction";
-import type { CommitHistory } from "../../history/port/CommitHistory";
 import {
-    CHANGE_COUPLING_WINDOW,
-    changeCouplingInTree,
-    CODE_MAAT_THRESHOLDS,
-} from "../domain/changeCoupling";
+    HISTORY_WINDOW,
+    HISTORY_WINDOW_READ_DEPTH,
+    historyWindow,
+} from "../../history/domain/commitHistory";
+import type { CommitHistory } from "../../history/port/CommitHistory";
+import { changeCouplingInTree, CODE_MAAT_THRESHOLDS } from "../domain/changeCoupling";
 import { CHANGE_COUPLING_GROUPS, changeCouplingFindings } from "../domain/changeCouplingFindings";
 import type { SourceStructure } from "../port/SourceStructure";
 
@@ -26,7 +27,7 @@ export function createChangeCouplingFitnessFunction({
         id: "change-coupling",
         version: 1,
         categories: { scope: "holistic", cadence: "triggered", result: "dynamic" },
-        measures: `Pairs of files that changed together in the ${CHANGE_COUPLING_WINDOW} most recent first-parent commits (one squash-merged PR each) without an import between them. A pair is listed with at least ${minSharedChanges} shared changes and a degree (shared changes ÷ the mean of both files' revisions × 100) of at least ${minDegreePercent} %, so each file has at least ${minSharedChanges} revisions. Not counted: chore(deps), chore(main), chore(format) and style commits, and commits with more than ${maxChangesetSize} read files; renames are followed through every commit. Read: non-spec TypeScript under a workspace's src/, Kotlin under src/main/, .mjs scripts outside build configs and test folders, *.schema.json, *.cases.json and a manifest that contributes to its host. Barrels are not read; an import through an alias or a barrel links to the file that declares the name.`,
+        measures: `Pairs of files that changed together in the ${HISTORY_WINDOW} most recent first-parent commits (one squash-merged PR each) without an import between them. A pair is listed with at least ${minSharedChanges} shared changes and a degree (shared changes ÷ the mean of both files' revisions × 100) of at least ${minDegreePercent} %, so each file has at least ${minSharedChanges} revisions. Not counted: chore(deps), chore(main), chore(format) and style commits, and commits with more than ${maxChangesetSize} read files; renames are followed through every commit. Read: non-spec TypeScript under a workspace's src/, Kotlin under src/main/, .mjs scripts outside build configs and test folders, *.schema.json, *.cases.json and a manifest that contributes to its host. Barrels are not read; an import through an alias or a barrel links to the file that declares the name.`,
         reliesOn: {
             skill: "tdd",
             rule: "a rule has one home; things that change for the same reason at the same time belong together (Common Closure Principle)",
@@ -90,22 +91,14 @@ export function createChangeCouplingFitnessFunction({
         ],
         groups: CHANGE_COUPLING_GROUPS,
         findFindings: ({ repoRoot, commit }) => {
-            // The commit after the window proves its oldest commit has a parent to diff against.
-            const commits = history.firstParentCommits(
-                repoRoot,
-                commit,
-                CHANGE_COUPLING_WINDOW + 1,
+            const window = historyWindow(
+                history.firstParentCommits(repoRoot, commit, HISTORY_WINDOW_READ_DEPTH),
             );
-            if (commits.length <= CHANGE_COUPLING_WINDOW) {
-                throw new InsufficientHistory(
-                    `${commits.length} first-parent commits reach back from here; the window needs ${CHANGE_COUPLING_WINDOW} and the parent of the oldest`,
-                );
+            if (window.kind === "tooShort") {
+                throw new InsufficientHistory(window.reason);
             }
             return changeCouplingFindings(
-                changeCouplingInTree(
-                    sources.read(repoRoot),
-                    commits.slice(0, CHANGE_COUPLING_WINDOW),
-                ),
+                changeCouplingInTree(sources.read(repoRoot), window.commits),
             );
         },
     });

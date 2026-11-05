@@ -3,6 +3,8 @@ export { readComments, stripComments } from "./comments";
 export { buildDeclarationGraph } from "./declarationGraph";
 export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGraph";
 export { filesReaching, isHostModule } from "./hostReach";
+export { readCodeLines, readFunctionComplexities } from "./functionComplexity";
+export type { FunctionComplexity } from "./functionComplexity";
 export { FLAT_RULES } from "./flatRules";
 export { HEXAGONAL_RULES } from "./hexagonalRules";
 export { findImplementations } from "./implementations";

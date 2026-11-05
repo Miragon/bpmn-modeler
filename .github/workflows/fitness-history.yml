@@ -62,9 +62,10 @@ jobs:
 
           # A single snapshot exceeds Linux's 128 KiB limit per argument, so
           # snapshot content reaches gh through pipes only. Batches keep a
-          # backfill request at a few MB without one blob request per file,
-          # which would trip the content-creation rate limit.
-          BATCH_SIZE=20
+          # backfill request at about 2 MB (snapshots are up to ~440 KB since
+          # size-and-complexity) without one blob request per file, which
+          # would trip the content-creation rate limit.
+          BATCH_SIZE=5
           for ((START = 0; START < ${#FILES[@]}; START += BATCH_SIZE)); do
             TREE_SHA=$(for FILE in "${FILES[@]:START:BATCH_SIZE}"; do
                 jq -n --arg path "snapshots/$(basename "$FILE")" --rawfile content "$FILE" \

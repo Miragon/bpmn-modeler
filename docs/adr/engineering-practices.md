@@ -22,6 +22,8 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Change coupling](#change-coupling)
 - [Convention coverage](#convention-coverage)
 - [Repeated value sets](#repeated-value-sets)
+- [Size and complexity](#size-and-complexity)
+- [Hotspots](#hotspots)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -509,8 +511,8 @@ triggered, dynamic, reported. It lists pairs of files that keep changing in
 the same PRs without an import between them, the Common Closure Principle's
 signal for a rule kept in two places (Gall 1998, Zimmermann 2004, code-maat).
 The pure measure lives in `tools/repo-checks/src/changeCoupling/domain`, the
-history reader in `tools/repo-checks/src/history`, which #2095 and the
-hotspots of #2057 reuse.
+history reader and the window in `tools/repo-checks/src/history`, which
+`hotspots` and #2095 reuse.
 
 - **Window.** The 924 most recent first-parent commits, one squash-merged PR
   each. A commit count, not a date: the dates of the older history were
@@ -699,6 +701,86 @@ Alternatives considered:
 - **A comment marker on a pinned copy** instead of reading the pin. It is a
   hand-kept exception the assertion does not check, and it outlives a deleted
   pin.
+
+### Size and complexity
+
+`size-and-complexity` (#2057) reports per file its code lines and the highest
+cyclomatic complexity of a function in it: atomic, triggered, dynamic,
+reported, with the trend of both values. A service that grows stops being
+orchestration and starts holding rules; #1799 named `BpmnLintConfigService`
+(635 lines then, 348 after the epic) as the example, and nothing showed when a
+file grew back. Line count is a weak sign of a rule, and a limit would fire on
+a long table of values, so this is a report, not an ESLint `max-lines` or
+`complexity` rule.
+
+- **Read files.** Tracked `.ts`, `.tsx`, `.mts` and `.cts` in every root
+  workspace dir (`docs` and `tools/*` included), without specs, declaration
+  files and test folders (`__fixtures__`, `__tests__`, `test`, `tests`). The
+  test-folder set and the spec pattern have one home,
+  `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts`, which change
+  coupling imports too.
+- **Code lines.** cloc's definition: a line with at least one token that is
+  not trivia. A multi-line template counts every line it spans; whitespace-only
+  JSX text counts none.
+- **Complexity.** `readFunctionComplexities` in `@miragon/architecture-testing`
+  mirrors ESLint 10.13's `complexity` rule, classic variant: a unit per
+  function, method, constructor and accessor with a body, class field
+  initializer and class static block starts at 1 and adds 1 per `if`, `?:`,
+  `&&`, `||`, `??`, logical assignment, loop, `catch`, `case` with a test,
+  default value (parameter, binding element, destructuring assignment) and
+  `?.` access or call. A nested unit counts on its own, top-level code and
+  types not at all. A finding points at the most complex unit, the first of a
+  tie. A parity run of ESLint with `complexity: 0` over the 827 measured files
+  it lints at `e8c92425` (it ignores `docs/.vitepress`) reported 6,627 units;
+  none differed in complexity or line. 74 are over 10, 8 of them in
+  `libs/modeler-core` services: `verifyActive` 23, `flushIntoDocument` 22,
+  `HostTokenSession.run` 18, `requestFlush` 15, `handleReply` 13,
+  `FormPreviewService.read` 13, `carryOut` 12 and `setElementTemplates` 11.
+- **Values and trend.** `codeLines` and `complexity` (left out for a file
+  without a function) are declared values, so the report's trend shows a file
+  that grew in each of its last PRs. The table folds into one collapsed group:
+  835 rows unfolded bury the new ones, which the counts above it name.
+
+Snapshots grow with it: a backfill of 100 commits at `e8c92425` wrote
+snapshots of 351 KB on average and 436 KB at most, against 85 KB before, so
+`fitness-history.yml` commits 5 snapshots per tree request instead of 20 to
+keep a request at about 2 MB. A backfill step that measures this function and
+`hotspots` on a worktree took 0.8 s. A report over those 100 snapshots took
+4.3 s, 221 of 835 files showing a change, in 196 KB of Markdown.
+
+### Hotspots
+
+`hotspots` (#2057) ranks the files that are both large and changed often:
+holistic, triggered, dynamic, reported. A hotspot is a place to look for a rule
+in the wrong home (Tornhill, Your Code as a Crime Scene, 2015, 2nd ed. 2024).
+
+- **Revisions.** The counted first-parent commits among the 924 of the history
+  window (`HISTORY_WINDOW` in `history/domain`, the one home for both this and
+  change coupling) that changed the file, renames followed through every
+  commit. Mechanical commits (`isMechanicalCommit`) are not counted. There is
+  no changeset-size cut: code-maat applies `max-changeset-size` to coupling
+  only, so a file's revisions here can exceed its count in `change-coupling`.
+  Fewer than 925 commits reaching back throw `InsufficientHistory`.
+- **Score.** Revisions × code lines, descending; ties by revisions, then code
+  lines, then path; the top 20 are reported with their `rank`. Tornhill's
+  `merge_comp_freqs.py` (maat-scripts) sorts by revisions only and takes cloc's
+  `code` column as complexity; his `crime-scene-hotspots.html` draws circle
+  area = code lines and fill opacity = revisions ÷ max revisions. The score is
+  the product of those two dimensions; normalising does not change the order.
+  The product is ours, not his script's, and the output says so.
+- **No trend of its own.** Findings carry no values; the per-file trend is
+  `size-and-complexity`'s, joined by path.
+
+Trial at `e8c92425`, 924 commits, 835 measured files: the product's top 20
+holds 5 of the 8 `libs/modeler-core` services over 300 lines that #2057 names
+(`DeploymentMessageDispatcher` 11th, `DeploymentTargetService` 14th,
+`CodeLinkMapService` 17th, `BpmnLintConfigService` 18th, `DeploymentService`
+19th; `TemplateMarketplaceService` 23rd, `EditorSessionStore` 24th,
+`SourceIndex` 62nd). Ranking by revisions alone holds none of them and puts
+three barrels, `apps/bpmn-webview/vitest.config.ts` and the 60-line
+`apps/vscode-plugin/src/main.ts` in its top 20. The first places go to
+`libs/shared/src/lib/modeler.ts` (46 × 794), a type-only protocol file that
+holds no rules, which the function names as a false report.
 
 ### Private upstream APIs
 

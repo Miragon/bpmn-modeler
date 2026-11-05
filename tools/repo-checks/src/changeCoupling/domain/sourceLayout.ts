@@ -1,3 +1,5 @@
+import { SPEC_FILE, TEST_FOLDERS } from "../../sourceFiles/domain/sourceFiles";
+
 export interface ImportLink {
     readonly from: string;
     readonly to: string;
@@ -21,14 +23,7 @@ export interface SourceLayout {
     readonly workspaces: readonly WorkspaceLayout[];
 }
 
-const SPEC_FILE = /\.(spec|test)\.[cm]?[jt]sx?$/;
-const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([
-    "__fixtures__",
-    "__tests__",
-    "languages",
-    "test",
-    "tests",
-]);
+const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([...TEST_FOLDERS, "languages"]);
 const DATA_FILE = /\.(schema|cases)\.json$/;
 const TYPESCRIPT_FILE = /\.tsx?$/;
 

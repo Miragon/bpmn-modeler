@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { InsufficientHistory } from "../../fitness/domain/fitnessFunction";
 import { measure } from "../../fitness/service/measurement";
-import type { CommitRecord } from "../../history/domain/commitHistory";
-import type { CommitHistory } from "../../history/port/CommitHistory";
-import { CHANGE_COUPLING_WINDOW } from "../domain/changeCoupling";
+import { InMemoryCommitHistory } from "../../history/__fixtures__/inMemoryCommitHistory";
+import { type CommitRecord, HISTORY_WINDOW } from "../../history/domain/commitHistory";
 import type { SourceLayout } from "../domain/sourceLayout";
 import type { SourceStructure } from "../port/SourceStructure";
 import { createChangeCouplingFitnessFunction } from "./changeCouplingFitnessFunction";
@@ -13,17 +12,6 @@ const PORT = "libs/core/src/port/hostPorts.ts";
 const STATUS_BAR = "apps/host/src/adapter/out/StatusBar.ts";
 const LINT_CONFIG = "apps/host/src/adapter/out/LintConfig.ts";
 const CORE_LINT_CONFIG = "libs/core/src/lint/LintConfigService.ts";
-
-class InMemoryCommitHistory implements CommitHistory {
-    readonly requests: { repoRoot: string; commit: string; depth: number }[] = [];
-
-    constructor(private readonly records: readonly CommitRecord[]) {}
-
-    firstParentCommits(repoRoot: string, commit: string, depth: number): readonly CommitRecord[] {
-        this.requests.push({ repoRoot, commit, depth });
-        return this.records.slice(0, depth);
-    }
-}
 
 class InMemorySourceStructure implements SourceStructure {
     constructor(private readonly layout: SourceLayout) {}
@@ -46,10 +34,7 @@ const LAYOUT: SourceLayout = {
     ],
 };
 
-function history(
-    changedTogether: readonly (readonly string[])[],
-    length = CHANGE_COUPLING_WINDOW + 1,
-) {
+function history(changedTogether: readonly (readonly string[])[], length = HISTORY_WINDOW + 1) {
     return Array.from({ length }, (_, index): CommitRecord => ({
         commit: `c${index}`,
         subject: "feat: change",
@@ -70,7 +55,7 @@ describe("the change coupling fitness function", () => {
         fitnessFunction.findFindings(CONTEXT);
 
         expect(commits.requests).toEqual([
-            { repoRoot: "/repo", commit: "head", depth: CHANGE_COUPLING_WINDOW + 1 },
+            { repoRoot: "/repo", commit: "head", depth: HISTORY_WINDOW + 1 },
         ]);
     });
 
@@ -103,13 +88,13 @@ describe("the change coupling fitness function", () => {
 
     it("ends its series where the history is shorter than the window and its parent", () => {
         const fitnessFunction = createChangeCouplingFitnessFunction({
-            history: new InMemoryCommitHistory(history([], CHANGE_COUPLING_WINDOW)),
+            history: new InMemoryCommitHistory(history([], HISTORY_WINDOW)),
             sources: new InMemorySourceStructure(LAYOUT),
         });
 
         expect(() => fitnessFunction.findFindings(CONTEXT)).toThrow(InsufficientHistory);
         expect(measure(fitnessFunction, CONTEXT)).toEqual({
-            unmeasurable: `${CHANGE_COUPLING_WINDOW} first-parent commits reach back from here; the window needs ${CHANGE_COUPLING_WINDOW} and the parent of the oldest`,
+            unmeasurable: `${HISTORY_WINDOW} first-parent commits reach back from here; the window needs ${HISTORY_WINDOW} and the parent of the oldest`,
         });
     });
 });
