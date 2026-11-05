@@ -7,7 +7,12 @@ import type { WebviewState } from "../webviewState";
 import { mountEditorChrome } from "./editorChrome";
 
 const mocks = vi.hoisted(() => ({
-    panel: { setVisible: vi.fn(), onVisibilityChanged: vi.fn() },
+    panel: {
+        setVisible: vi.fn(),
+        onVisibilityChanged: vi.fn(),
+        setOpenWidth: vi.fn(),
+        onOpenWidthChanged: vi.fn(),
+    },
     initResizer: vi.fn(),
 }));
 
@@ -133,5 +138,28 @@ describe("mountEditorChrome", () => {
         expect(host.posted).toEqual([
             expect.objectContaining({ type: "SetPropertiesPanelStateCommand", visible: false }),
         ]);
+    });
+
+    it("opens the panel at this editor's saved width before applying its visibility", () => {
+        document.body.innerHTML = editorShell;
+
+        mountEditorChrome(createHost({ panelVisible: true, panelWidth: 720 }));
+
+        expect(mocks.panel.setOpenWidth).toHaveBeenCalledExactlyOnceWith(720);
+        expect(mocks.panel.setOpenWidth.mock.invocationCallOrder[0]).toBeLessThan(
+            mocks.panel.setVisible.mock.invocationCallOrder[0],
+        );
+    });
+
+    it("saves a dragged width as this editor's choice without reporting it to the host", () => {
+        document.body.innerHTML = editorShell;
+        const host = createHost();
+        mountEditorChrome(host);
+
+        const reportOpenWidthChange = mocks.panel.onOpenWidthChanged.mock.calls[0][0];
+        reportOpenWidthChange(640);
+
+        expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelWidth: 640 });
+        expect(host.posted).toEqual([]);
     });
 });

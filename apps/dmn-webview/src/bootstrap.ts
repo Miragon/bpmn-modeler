@@ -6,6 +6,7 @@ import "./styles.css";
 import {
     applyPageThemeScope,
     bindPanelVisibility,
+    bindPanelWidth,
     Command,
     createHostThemeAdapter,
     createResolver,
@@ -169,6 +170,7 @@ async function run(
     });
     stopSignal.addEventListener("abort", () => propertiesPanelHandle.dispose());
 
+    bindPanelWidth(propertiesPanelHandle, panelStateStore);
     // Bound with the resizer, so the saved visibility shows without waiting on the
     // host and a toggle while the editor opens is already remembered and reported.
     const panelVisibility = bindPanelVisibility(propertiesPanelHandle, panelStateStore, (visible) =>

@@ -4,13 +4,7 @@
  * API; the multi-instance facade owns its own panel host instead.
  */
 
-/**
- * Narrowest width (px) a drag renders the open panel at, and the width a
- * collapsed panel reappears at when dragged open.
- */
-const MIN_PANEL_WIDTH = 200;
-// Maximum width (px) the properties panel can be dragged to.
-const MAX_PANEL_WIDTH = 1600;
+import { DEFAULT_OPEN_PANEL_WIDTH, MAX_PANEL_WIDTH, MIN_PANEL_WIDTH } from "./propertiesPanelWidth";
 
 // CSS class applied to the panel when it is collapsed (width 0, hidden).
 const COLLAPSED_CLASS = "collapsed";
@@ -59,9 +53,8 @@ export interface PropertiesPanelHandle {
     /**
      * Programmatically show or hide the panel.  No-op when the panel is
      * already in the requested state (keeps listeners free of spurious
-     * notifications).  When revealing a collapsed panel the width is set to
-     * `MIN_PANEL_WIDTH * 2` so the restored panel has enough room to read
-     * without immediate resizing — matching the toggle-button behaviour.
+     * notifications).  A collapsed panel reopens at its open width, like the
+     * toggle button.
      */
     setVisible(visible: boolean): void;
 
@@ -73,6 +66,20 @@ export interface PropertiesPanelHandle {
      * drops them all.
      */
     onVisibilityChanged(callback: (visible: boolean) => void): void;
+
+    /**
+     * Sets the width (px) the panel opens at, without notifying
+     * {@link onOpenWidthChanged}. Applied at once to an open panel; a collapsed
+     * one keeps it for its next reveal.
+     */
+    setOpenWidth(width: number): void;
+
+    /**
+     * Subscribe to the open width a drag leaves the panel at, reported once on
+     * release and only when the drag changed it. A drag that ends collapsed
+     * keeps the previous open width and reports nothing.
+     */
+    onOpenWidthChanged(callback: (width: number) => void): void;
 
     /**
      * Ends an open drag, removes every listener the resizer installed and the
@@ -94,6 +101,8 @@ const NOOP_HANDLE: PropertiesPanelHandle = {
     isVisible: () => true,
     setVisible: () => undefined,
     onVisibilityChanged: () => undefined,
+    setOpenWidth: () => undefined,
+    onOpenWidthChanged: () => undefined,
     dispose: () => undefined,
 };
 
@@ -144,9 +153,12 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
      * from the webview entry point becomes a no-op.
      */
     let isCollapsed = panel.classList.contains(COLLAPSED_CLASS);
+    let openWidth = DEFAULT_OPEN_PANEL_WIDTH;
+    let widthAtDragStart = 0;
 
     // Subscribers notified after every visibility transition.
     const visibilityListeners: Array<(visible: boolean) => void> = [];
+    const openWidthListeners: Array<(width: number) => void> = [];
 
     const listenerScope = new AbortController();
     const { signal } = listenerScope;
@@ -159,14 +171,27 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
     function notifyVisibilityChange(): void {
         // Single path that keeps the button's icon/label aligned with the state.
         applyToggleButtonState();
-        const visible = !isCollapsed;
-        for (const cb of visibilityListeners) {
+        notifyAll(visibilityListeners, !isCollapsed, "Visibility");
+    }
+
+    function notifyAll<T>(listeners: Array<(value: T) => void>, value: T, kind: string): void {
+        for (const listener of listeners) {
             try {
-                cb(visible);
+                listener(value);
             } catch (error) {
-                console.error("[resizer] Visibility listener threw:", error);
+                console.error(`[resizer] ${kind} listener threw:`, error);
             }
         }
+    }
+
+    function applyWidth(width: number): void {
+        targetWidth = width;
+        panel.style.width = `${width}px`;
+    }
+
+    function reveal(): void {
+        expand();
+        applyWidth(openWidth);
     }
 
     /**
@@ -193,10 +218,7 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
     function toggleFromButton(e: MouseEvent): void {
         e.stopPropagation();
         if (isCollapsed) {
-            expand();
-            const openWidth = MIN_PANEL_WIDTH * 2;
-            targetWidth = openWidth;
-            panel.style.width = `${openWidth}px`;
+            reveal();
         } else {
             collapse();
         }
@@ -250,6 +272,7 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         isResizing = true;
         lastX = e.clientX;
         targetWidth = isCollapsed ? 0 : panel.offsetWidth;
+        widthAtDragStart = targetWidth;
 
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
@@ -316,6 +339,15 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         isResizing = false;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+
+        if (isCollapsed) {
+            return;
+        }
+        const renderedWidth = Math.max(MIN_PANEL_WIDTH, targetWidth);
+        openWidth = renderedWidth;
+        if (renderedWidth !== widthAtDragStart) {
+            notifyAll(openWidthListeners, renderedWidth, "Open width");
+        }
     }
 
     resizer.addEventListener("mousedown", startResize, { signal });
@@ -329,10 +361,7 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
                 return;
             }
             if (visible) {
-                expand();
-                const openWidth = MIN_PANEL_WIDTH * 2;
-                targetWidth = openWidth;
-                panel.style.width = `${openWidth}px`;
+                reveal();
             } else {
                 collapse();
             }
@@ -340,10 +369,23 @@ export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPane
         onVisibilityChanged: (callback) => {
             visibilityListeners.push(callback);
         },
+        setOpenWidth: (width) => {
+            if (signal.aborted) {
+                return;
+            }
+            openWidth = width;
+            if (!isCollapsed) {
+                applyWidth(width);
+            }
+        },
+        onOpenWidthChanged: (callback) => {
+            openWidthListeners.push(callback);
+        },
         dispose: () => {
             if (signal.aborted) {
                 return;
             }
+            openWidthListeners.length = 0;
             endResize();
             listenerScope.abort();
             unsubscribeLabelChange?.();
