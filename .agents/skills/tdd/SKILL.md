@@ -91,7 +91,9 @@ corepack yarn test:mutation --mutate src/<feature>/domain/<file>.ts
 
 Kill each surviving mutant with a spec, or state in the PR why it is
 equivalent. Outside `domain/`, break the key line by hand, watch a spec fail,
-and revert.
+and revert. The weekly Mutation workflow stores the score per context, and
+`corepack yarn fitness` reports it with its last runs as `mutation-score`;
+there is no floor, so read the trend of the context you touched.
 
 ## Pull request
 

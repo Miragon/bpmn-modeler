@@ -1,0 +1,75 @@
+name: Store fitness history
+description: >-
+  Commit every JSON file under a directory to the orphan data branch
+  `fitness-history` at the same relative path, through the Git Data API.
+
+# GITHUB_TOKEN commits are signed by GitHub, and the ref moves by fast-forward
+# only. A run that loses the race rebuilds its tree on the new head; files are
+# keyed by commit or run id, so the rebuild never overwrites another run's data.
+
+inputs:
+  out-dir:
+    description: Directory whose `**/*.json` files are stored at the same relative path.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
+        OUT_DIR: ${{ inputs.out-dir }}
+      run: |
+        set -euo pipefail
+        cd "$OUT_DIR" 2>/dev/null || { echo "Nothing to store."; exit 0; }
+        FILES=()
+        while IFS= read -r -d '' FILE; do
+          FILES+=("${FILE#./}")
+        done < <(find . -type f -name '*.json' -print0 | sort -z)
+        if [ "${#FILES[@]}" -eq 0 ]; then
+          echo "Nothing to store."
+          exit 0
+        fi
+
+        for ATTEMPT in 1 2 3; do
+          if PARENT=$(gh api "repos/${REPO}/git/ref/heads/fitness-history" --jq .object.sha 2>/dev/null); then
+            TREE_SHA=$(gh api "repos/${REPO}/git/commits/${PARENT}" --jq .tree.sha)
+          else
+            PARENT=""
+            TREE_SHA=""
+          fi
+
+          # A single snapshot exceeds Linux's 128 KiB limit per argument, so
+          # file content reaches gh through pipes only. Batches keep a request
+          # at about 2 MB (snapshots are up to ~440 KB since
+          # size-and-complexity) without one blob request per file, which
+          # would trip the content-creation rate limit.
+          BATCH_SIZE=5
+          for ((START = 0; START < ${#FILES[@]}; START += BATCH_SIZE)); do
+            TREE_SHA=$(for FILE in "${FILES[@]:START:BATCH_SIZE}"; do
+                jq -n --arg path "$FILE" --rawfile content "$FILE" \
+                  '{path:$path, mode:"100644", type:"blob", content:$content}'
+              done \
+              | jq -s -c --arg base "$TREE_SHA" '{tree:.} + (if $base == "" then {} else {base_tree:$base} end)' \
+              | gh api -X POST "repos/${REPO}/git/trees" --input - --jq .sha)
+          done
+
+          MSG="chore: store ${#FILES[@]} fitness history file(s) at ${SHA:0:7}"
+          COMMIT_SHA=$(jq -n --arg msg "$MSG" --arg tree "$TREE_SHA" --arg parent "$PARENT" \
+            '{message:$msg, tree:$tree, parents:(if $parent == "" then [] else [$parent] end)}' \
+            | gh api -X POST "repos/${REPO}/git/commits" --input - --jq .sha)
+          if [ -n "$PARENT" ]; then
+            if gh api -X PATCH "repos/${REPO}/git/refs/heads/fitness-history" -f sha="$COMMIT_SHA" -F force=false >/dev/null; then
+              echo "Stored ${#FILES[@]} file(s) as ${COMMIT_SHA:0:7}."
+              exit 0
+            fi
+          elif gh api -X POST "repos/${REPO}/git/refs" -f ref=refs/heads/fitness-history -f sha="$COMMIT_SHA" >/dev/null; then
+            echo "Stored ${#FILES[@]} file(s) as ${COMMIT_SHA:0:7}."
+            exit 0
+          fi
+          echo "fitness-history moved during attempt ${ATTEMPT}; rebuilding on its new head."
+        done
+        echo "::error::fitness-history kept moving; re-run this job while its artifact exists."
+        exit 1

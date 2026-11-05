@@ -18,6 +18,7 @@ export interface CliOutput {
 const USAGE = [
     "usage: fitness [report] [--format markdown|json]",
     "       fitness snapshot --out <dir>",
+    "       fitness mutation record|summary ...",
 ].join("\n");
 
 const EXIT_OK = 0;

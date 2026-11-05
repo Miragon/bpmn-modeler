@@ -5,9 +5,10 @@ name: Fitness history
 # git. `corepack yarn fitness` reads the branch after a normal fetch, offline.
 # Findings never fail this job; only broken input does.
 #
-# The branch is written through the Git Data API, so GitHub signs the commits,
-# and the ref moves by fast-forward only: a run that lost a race fails loudly
-# and the next push fills the gap.
+# The branch is written through the Git Data API by the store-fitness-history
+# action, so GitHub signs the commits and the ref moves by fast-forward only; a
+# run that lost a race rebuilds its tree on the new head. The Mutation workflow
+# stores its weekly scores on the same branch through the same action.
 
 on:
   push:
@@ -40,51 +41,9 @@ jobs:
       - name: Measure HEAD and backfill
         run: yarn fitness snapshot --out "$RUNNER_TEMP/fitness"
       - name: Commit the snapshots to fitness-history
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          FILES=("$RUNNER_TEMP"/fitness/snapshots/*.json)
-          if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "Every snapshot is up to date."
-            exit 0
-          fi
-
-          if PARENT=$(gh api "repos/${REPO}/git/ref/heads/fitness-history" --jq .object.sha 2>/dev/null); then
-            TREE_SHA=$(gh api "repos/${REPO}/git/commits/${PARENT}" --jq .tree.sha)
-          else
-            PARENT=""
-            TREE_SHA=""
-          fi
-
-          # A single snapshot exceeds Linux's 128 KiB limit per argument, so
-          # snapshot content reaches gh through pipes only. Batches keep a
-          # backfill request at about 2 MB (snapshots are up to ~440 KB since
-          # size-and-complexity) without one blob request per file, which
-          # would trip the content-creation rate limit.
-          BATCH_SIZE=5
-          for ((START = 0; START < ${#FILES[@]}; START += BATCH_SIZE)); do
-            TREE_SHA=$(for FILE in "${FILES[@]:START:BATCH_SIZE}"; do
-                jq -n --arg path "snapshots/$(basename "$FILE")" --rawfile content "$FILE" \
-                  '{path:$path, mode:"100644", type:"blob", content:$content}'
-              done \
-              | jq -s -c --arg base "$TREE_SHA" '{tree:.} + (if $base == "" then {} else {base_tree:$base} end)' \
-              | gh api -X POST "repos/${REPO}/git/trees" --input - --jq .sha)
-          done
-
-          MSG="chore: store ${#FILES[@]} fitness snapshot(s) at ${SHA:0:7}"
-          COMMIT_SHA=$(jq -n --arg msg "$MSG" --arg tree "$TREE_SHA" --arg parent "$PARENT" \
-            '{message:$msg, tree:$tree, parents:(if $parent == "" then [] else [$parent] end)}' \
-            | gh api -X POST "repos/${REPO}/git/commits" --input - --jq .sha)
-          if [ -n "$PARENT" ]; then
-            gh api -X PATCH "repos/${REPO}/git/refs/heads/fitness-history" -f sha="$COMMIT_SHA" >/dev/null
-          else
-            gh api -X POST "repos/${REPO}/git/refs" -f ref=refs/heads/fitness-history -f sha="$COMMIT_SHA" >/dev/null
-          fi
-          echo "Stored ${#FILES[@]} snapshot(s) as ${COMMIT_SHA:0:7}."
+        uses: ./.github/actions/store-fitness-history
+        with:
+          out-dir: ${{ runner.temp }}/fitness
       - name: Report HEAD against the stored snapshots
         run: |
           git fetch --no-tags origin fitness-history:refs/remotes/origin/fitness-history || true
