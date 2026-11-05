@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["test/**/*.ts", "vite.editor.mts", "vitest.e2e.config.ts"]
+}

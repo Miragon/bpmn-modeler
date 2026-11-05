@@ -310,6 +310,28 @@ jobs:
       - name: Run Extension-Host smoke test
         run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:e2e
 
+  e2e-orca-plugin:
+    needs: detect-changes
+    # The orca-plugin target's paths cover both packages and every lib they inline.
+    if: contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'orca-plugin')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: "@miragon/bpmn-modeler-orca bpmn-modeler @miragon/bpmn-modeler @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard"
+      - name: Install Chromium
+        run: yarn workspace @miragon/bpmn-modeler-orca exec playwright install --with-deps chromium
+      - name: Run the editors of the built plugin under Orca's frame policy
+        run: yarn workspace @miragon/bpmn-modeler-orca test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: orca-plugin-e2e
+          path: apps/orca-plugin/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   build-vscode-plugin:
     needs: detect-changes
     if: contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'vscode-plugin')
@@ -461,6 +483,7 @@ jobs:
       - test-standalone
       - test-intellij-plugin
       - e2e-vscode-plugin
+      - e2e-orca-plugin
       - build-vscode-plugin
       - build-bpmn-modeler
       - build-dmn-modeler

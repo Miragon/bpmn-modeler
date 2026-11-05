@@ -1,0 +1,45 @@
+import { i18n } from "@miragon/bpmn-modeler-i18n";
+import {
+    bindPanelVisibility,
+    bindPanelWidth,
+    initResizer,
+    type PropertiesPanelHandle,
+} from "@miragon/bpmn-modeler-shared";
+
+import { localPanelState } from "../adapter/out/localPanelState";
+
+export interface EditorLayout {
+    canvas: HTMLElement;
+    /** Carries the BPMN mode strip's state; the resizer collapses it. */
+    panelHost: HTMLElement;
+    panelMount: HTMLElement;
+    panel: PropertiesPanelHandle;
+}
+
+/** The canvas, the resizer and the properties panel, with the ids the shared resizer binds to. */
+export function mountEditorLayout(root: HTMLElement, editorKind: "bpmn" | "dmn"): EditorLayout {
+    root.innerHTML = `
+        <div class="content with-diagram" id="js-drop-zone">
+            <div class="canvas" id="js-canvas"></div>
+            <div class="panel-resizer" id="js-panel-resizer"></div>
+            <div class="properties-panel-parent panel-host" id="js-properties-panel">
+                <div class="panel-mount" id="js-properties-panel-mount"></div>
+            </div>
+        </div>`;
+    const panel = initResizer({
+        getToggleLabel: (state) =>
+            i18n.translate(
+                state === "collapsed" ? "Open properties panel" : "Close properties panel",
+            ) + " (Shift+P)",
+        onLabelChange: (apply) => i18n.onChange(apply),
+    });
+    const store = localPanelState(`miragon.bpmnModeler.${editorKind}.panel`);
+    bindPanelWidth(panel, store);
+    bindPanelVisibility(panel, store, () => undefined).hostDefaultSettled(undefined);
+    return {
+        canvas: root.querySelector<HTMLElement>("#js-canvas")!,
+        panelHost: root.querySelector<HTMLElement>("#js-properties-panel")!,
+        panelMount: root.querySelector<HTMLElement>("#js-properties-panel-mount")!,
+        panel,
+    };
+}

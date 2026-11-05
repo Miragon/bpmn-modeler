@@ -9,7 +9,10 @@ export default defineConfig({
         environment: "jsdom",
         include: ["src/**/*.spec.ts"],
         coverage: {
-            ...coveragePreset(__dirname),
+            // Entries, wiring and the canvases around the modelers run in Chromium: test/e2e.
+            ...coveragePreset(__dirname, {
+                exclude: ["src/*.ts", "src/composition/**", "src/adapter/out/*Canvas.ts"],
+            }),
             thresholds: { statements: 95, branches: 90, functions: 95, lines: 95 },
         },
     },
