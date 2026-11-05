@@ -10,7 +10,7 @@ import { localPanelState } from "../adapter/out/localPanelState";
 
 export interface EditorLayout {
     canvas: HTMLElement;
-    /** Carries the BPMN mode strip's state; the resizer collapses it. */
+    /** The resizer collapses it; BPMN's mode strip marks its state on it. */
     panelHost: HTMLElement;
     panelMount: HTMLElement;
     panel: PropertiesPanelHandle;
@@ -22,7 +22,7 @@ export function mountEditorLayout(root: HTMLElement, editorKind: "bpmn" | "dmn")
         <div class="content with-diagram" id="js-drop-zone">
             <div class="canvas" id="js-canvas"></div>
             <div class="panel-resizer" id="js-panel-resizer"></div>
-            <div class="properties-panel-parent panel-host" id="js-properties-panel">
+            <div class="properties-panel-parent" id="js-properties-panel">
                 <div class="panel-mount" id="js-properties-panel-mount"></div>
             </div>
         </div>`;

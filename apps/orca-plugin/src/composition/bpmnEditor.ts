@@ -21,6 +21,7 @@ export async function startBpmnEditor(root: HTMLElement): Promise<DocumentSync> 
     i18n.setLanguage(orcaLanguage() as SupportedLocale);
     const session = await openOrcaSession();
     const layout = mountEditorLayout(root, "bpmn");
+    layout.panelHost.classList.add("panel-host");
     const strip = document.createElement("div");
     strip.className = "mode-strip";
     layout.canvas.prepend(strip);

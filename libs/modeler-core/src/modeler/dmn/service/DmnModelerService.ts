@@ -1,10 +1,10 @@
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
+import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
 
 import { UserCancelledError } from "../../../kernel/domain/errors";
 import { DocumentPort, NotifierPort } from "../../../kernel/port/hostPorts";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
-import { EMPTY_DMN_DIAGRAM } from "../domain/emptyDmn";
 
 export class DmnModelerService {
     private readonly documents: EditorDocumentSync;
