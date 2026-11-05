@@ -6,7 +6,7 @@
     "license": "Apache-2.0",
     "description": "The BPMN and DMN modelers as Orca custom editors for .bpmn and .dmn files.",
     "scripts": {
-        "build": "vite build -c vite.bpmn.config.mts && node scripts/assemble-plugin.mjs",
+        "build": "vite build -c vite.bpmn.config.mts && vite build -c vite.dmn.config.mts && node scripts/assemble-plugin.mjs",
         "test": "vitest run --coverage",
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.test.json",
         "test:e2e": "corepack yarn build && vitest run -c vitest.e2e.config.ts"
@@ -18,6 +18,7 @@
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
+        "@miragon/dmn-modeler": "workspace:*",
         "bpmn-js": "18.31.0",
         "tslib": "2.8.1"
     },

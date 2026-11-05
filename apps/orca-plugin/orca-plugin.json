@@ -26,6 +26,13 @@
         "extensions": [".bpmn"],
         "entry": "editor/bpmn/index.html",
         "frame": "isolated"
+      },
+      {
+        "id": "dmn",
+        "title": "DMN Modeler",
+        "extensions": [".dmn"],
+        "entry": "editor/dmn/index.html",
+        "frame": "isolated"
       }
     ]
   }

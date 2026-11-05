@@ -3369,6 +3369,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
+    "@miragon/dmn-modeler": "workspace:*"
     "@miragon/modeler-shell": "npm:0.11.0"
     "@types/node": "npm:26.6.5"
     "@typescript/native": "npm:typescript@7.0.2"

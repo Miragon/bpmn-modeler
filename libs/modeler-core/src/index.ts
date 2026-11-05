@@ -75,7 +75,6 @@ export * from "./modeler/bpmn/service/BpmnSettingsParticipant";
 export * from "./modeler/bpmn/service/BpmnlintParticipant";
 export * from "./modeler/bpmn/service/ElementTemplatesParticipant";
 export * from "./modeler/bpmn/service/EngineVersionStatusBarParticipant";
-export * from "./modeler/dmn/domain/emptyDmn";
 export * from "./modeler/dmn/service/DmnModelerService";
 export * from "./modeler/dmn/service/DmnSettingsBroadcaster";
 export * from "./modeler/dmn/service/DmnSettingsParticipant";
