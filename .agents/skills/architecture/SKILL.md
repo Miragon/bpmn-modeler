@@ -28,6 +28,13 @@ Decisions (rules, state transitions, validations) go into the owning feature's
 `domain/` as pure code, or into `libs/modeler-types` when browser code applies
 the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 
+A service orchestrates; a rule lives in `domain/`, named after the rule. A
+service that grows usually holds a rule in the wrong home. The
+`size-and-complexity` fitness function reports each file's code lines and
+highest complexity with their trend; `hotspots` ranks the files that are large
+and change often. Both are leads to read, not limits: a long table of values or
+a protocol type file is large and holds no rule.
+
 A value set (auth types, theme modes, languages) has one home. Every other use
 imports it. A TypeScript copy that cannot (a protocol type behind a package
 boundary) is pinned to it in a spec by

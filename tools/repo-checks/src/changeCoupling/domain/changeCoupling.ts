@@ -26,9 +26,6 @@ export const CODE_MAAT_THRESHOLDS: CouplingThresholds = {
     maxChangesetSize: 30,
 };
 
-/** First-parent commits, one squash-merged PR each; a count, not a date, as the older history's dates were rewritten. */
-export const CHANGE_COUPLING_WINDOW = 924;
-
 type HiddenGroup = "kotlin-only" | "across-languages" | "across-workspaces" | "within-workspace";
 
 type Coupling =

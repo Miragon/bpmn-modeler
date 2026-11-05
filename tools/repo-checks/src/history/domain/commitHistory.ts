@@ -1,3 +1,8 @@
+/** First-parent commits, one squash-merged PR each; a count, not a date, as the older history's dates were rewritten. */
+export const HISTORY_WINDOW = 924;
+/** The commit after the window proves its oldest commit has a parent to diff against. */
+export const HISTORY_WINDOW_READ_DEPTH = HISTORY_WINDOW + 1;
+
 export type FileChange =
     | { readonly kind: "added" | "modified" | "deleted"; readonly path: string }
     | { readonly kind: "renamed"; readonly path: string; readonly previousPath: string };
@@ -47,6 +52,20 @@ export function changesetsAtTodaysPaths(
         }
         return { commit, subject, paths: [...paths].sort() };
     });
+}
+
+export type HistoryWindow =
+    | { readonly kind: "window"; readonly commits: readonly CommitRecord[] }
+    | { readonly kind: "tooShort"; readonly reason: string };
+
+export function historyWindow(commitsNewestFirst: readonly CommitRecord[]): HistoryWindow {
+    if (commitsNewestFirst.length < HISTORY_WINDOW_READ_DEPTH) {
+        return {
+            kind: "tooShort",
+            reason: `${commitsNewestFirst.length} first-parent commits reach back from here; the window needs ${HISTORY_WINDOW} and the parent of the oldest`,
+        };
+    }
+    return { kind: "window", commits: commitsNewestFirst.slice(0, HISTORY_WINDOW) };
 }
 
 // Release, dependency and formatting commits touch many files for no shared reason.
