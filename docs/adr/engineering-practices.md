@@ -460,8 +460,10 @@ Equal consecutive values collapse into one point naming the oldest commit that
 holds them, the PR that made the change. A commit without a usable entry (no
 snapshot, another version, unmeasurable) is skipped, so a change behind a gap
 is dated to the oldest stored commit that shows it. A commit that lacks the key,
-or holds it twice, ends the series; a key that repeats at HEAD gets no trend.
-The trend keeps the newest five changes and the point before them. The Markdown
+or holds it twice, ends the series. A key that repeats at HEAD gets no trend,
+and neither does one whose series ends before its first stored commit, such as
+a file the PR adds: HEAD's values alone show no change, and the Markdown
+prints `no trend` rather than `unchanged`. The trend keeps the newest five changes and the point before them. The Markdown
 adds a Trend column that lists only the values that changed
 (`code lines 300 → 330 → 348`); the JSON carries every point with its commit.
 The trend is built from snapshots only, never recomputed on a worktree, so

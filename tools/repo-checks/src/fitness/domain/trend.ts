@@ -63,35 +63,43 @@ function sameValues(
     );
 }
 
+function heldOnce({ byKey, repeatedKeys }: IndexedFindings, key: string): Finding | undefined {
+    return repeatedKeys.has(key) ? undefined : byKey.get(key);
+}
+
 function trendOf(
     key: string,
     head: TrendPoint,
     stored: readonly IndexedFindings[],
     maxChanges: number,
-): TrendPoint[] {
+): TrendPoint[] | undefined {
+    if (stored.length === 0 || heldOnce(stored[0], key) === undefined) {
+        return undefined;
+    }
     const newestFirst = [head];
-    for (const { commit, byKey, repeatedKeys } of stored) {
-        const finding = byKey.get(key);
-        if (finding === undefined || repeatedKeys.has(key)) {
+    for (const indexed of stored) {
+        const finding = heldOnce(indexed, key);
+        if (finding === undefined) {
             break;
         }
         const values = finding.values ?? {};
         const oldest = newestFirst[newestFirst.length - 1];
         if (sameValues(oldest.values, values)) {
-            newestFirst[newestFirst.length - 1] = { commit, values: oldest.values };
+            newestFirst[newestFirst.length - 1] = { commit: indexed.commit, values: oldest.values };
         } else if (newestFirst.length > maxChanges) {
             break;
         } else {
-            newestFirst.push({ commit, values });
+            newestFirst.push({ commit: indexed.commit, values });
         }
     }
     return newestFirst.reverse();
 }
 
 /**
- * Per key that occurs once at HEAD, its values over the stored findings, oldest first and HEAD's
- * last. A commit without findings is a gap and skipped; a commit that lacks the key, or holds it
- * twice, ends its series.
+ * Per key that occurs once at HEAD and once in the newest stored findings, its values over the
+ * stored findings, oldest first and HEAD's last; HEAD's values alone show no change. A commit
+ * without findings is a gap and skipped; a commit that lacks the key, or holds it twice, ends its
+ * series.
  */
 export function findingTrends(
     head: { readonly commit: string; readonly findings: readonly Finding[] },
@@ -103,10 +111,15 @@ export function findingTrends(
     );
     const atHead = indexByKey(head.commit, head.findings);
     const trends = new Map<string, readonly TrendPoint[]>();
-    for (const [key, finding] of atHead.byKey) {
-        if (!atHead.repeatedKeys.has(key)) {
-            const headPoint = { commit: head.commit, values: finding.values ?? {} };
-            trends.set(key, trendOf(key, headPoint, stored, maxChanges));
+    for (const key of atHead.byKey.keys()) {
+        const finding = heldOnce(atHead, key);
+        if (finding === undefined) {
+            continue;
+        }
+        const headPoint = { commit: head.commit, values: finding.values ?? {} };
+        const trend = trendOf(key, headPoint, stored, maxChanges);
+        if (trend !== undefined) {
+            trends.set(key, trend);
         }
     }
     return trends;
