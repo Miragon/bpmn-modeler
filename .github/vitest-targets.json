@@ -123,6 +123,7 @@
             ],
             "paths": [
                 "apps/orca-plugin/**",
+                "release-please-config.json",
                 "packages/bpmn-modeler/**",
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
