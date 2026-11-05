@@ -24,6 +24,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Repeated value sets](#repeated-value-sets)
 - [Size and complexity](#size-and-complexity)
 - [Hotspots](#hotspots)
+- [Missed partner](#missed-partner)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -475,6 +476,9 @@ finite number per declared id and leave out one that does not apply, such as
 the complexity of a file without a function. An undeclared id, or a value from
 a function that declares none, is broken input. Both fields are stored in the
 snapshot; old snapshots without them still parse, so `schemaVersion` stays 1.
+`findFindings` gets the tree, its commit and a `changeBase`: the merge base when
+it measures HEAD, the commit itself for the base and every snapshot, so a
+function that measures the branch's change finds nothing there by construction.
 The rule it relies on
 lands in a skill in the same PR and names the function's id; a static spec over
 the registry checks both, and that ids are unique.
@@ -826,6 +830,79 @@ three barrels, `apps/bpmn-webview/vitest.config.ts` and the 60-line
 `apps/vscode-plugin/src/main.ts` in its top 20. The first places go to
 `libs/shared/src/lib/modeler.ts` (46 × 794), a type-only protocol file that
 holds no rules, which the function names as a false report.
+
+### Missed partner
+
+`missed-partner` (#2095) warns when the branch changes a file without the
+partner it usually changes with: atomic, triggered, dynamic, reported. It
+catches drift in the PR where it happens, which `change-coupling` cannot: a
+drifted copy is one that changed without the other, so its co-change stays
+low (1 of 9 known copies listed). It mines association rules F → P from the
+history (Zimmermann et al., ROSE, ICSE 2004 / TSE 2005) and lives in the
+`changeCoupling` context, reusing its read files, counted commits and history
+reader.
+
+- **The change.** `git diff --name-status -M -l0 -z --no-ext-diff
+  --no-relative <changeBase>`: the working tree against the merge base,
+  uncommitted edits included, untracked files not. The change goes in front
+  of the history window as its newest record, so its renames are followed into
+  the history, and a deleted file or partner drops out. An added file has no
+  history. An empty change returns no finding before any history is read, so
+  the base run and every snapshot are empty and cheap, and every warning in
+  the report is new.
+- **History.** The 924 first-parent commits up to the merge base, counted as
+  in change coupling (no mechanical commits, none with more than 30 read
+  files), and none without a read file, so the lift's denominator counts only
+  commits that could have held a partner.
+- **Rule.** F is a read file the change holds, P a read file it does not. A
+  warning needs at least 5 shared changes, a confidence (shared ÷ r(F)) of at
+  least 60 % and a lift (shared × N ÷ (r(F) × r(P))) of at least 4, compared in
+  integers. The lift floor is there because confidence ignores how often P
+  changes anyway; Moonen et al. (ASE 2016) do not rank lift among the best
+  measures, so the floor rests on the replay, not on the literature. Findings
+  are keyed `F → P`, sit on F's line 1 and are ranked by confidence, then lift.
+- **Replay.** `corepack yarn fitness missed-partner replay` replays the 200
+  first-parent commits before the newest 10, skipping mechanical ones, and
+  computes each commit's warnings from the 924 commits before it. A warning
+  hits when P changed in one of the next 10 first-parent commits. Its chance
+  rate is the share of 10-commit windows in those 924 commits in which P
+  changed, averaged over the warnings. "Changed" means any first-parent
+  commit for both. It prints precision, chance rate and margin for confidence
+  30, 40, 50 and 60 % × lift 1, 2, 4 and 8.
+
+Replay at `f9560b0a`, 194 commits replayed:
+
+| Confidence | Lift | Warnings | Precision | Chance | Margin |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 30 % | 1 | 814 | 25.3 % | 25.6 % | −0.3 |
+| 30 % | 4 | 631 | 26.9 % | 19.9 % | 7.0 |
+| 40 % | 4 | 426 | 27.2 % | 19.7 % | 7.5 |
+| 50 % | 4 | 292 | 27.1 % | 19.9 % | 7.1 |
+| 60 % | 4 | 155 | 31.6 % | 19.8 % | 11.8 |
+| 60 % | 8 | 131 | 31.3 % | 15.6 % | 15.7 |
+
+Confidence alone carries no signal. The lift floor of 4 gives the margin; 60 %
+widens it to 11.8 points at 0.8 warnings per replayed commit. A probe at 70 %
+and 80 % kept the margin (11.5, 11.7) at 94 and 46 warnings, so 60 % is chosen.
+Lift 8 at 60 % widens the margin only by lowering the chance rate: the 24
+warnings it drops hit as often (8 of 24) as the ones it keeps, so the floor
+stays at 4. The price is the known lint-config copy:
+`LintConfigService.ts` changed in 5 of 15 changes to
+`BpmnLintConfigService.ts` (33 %, lift 9.7) and is warned only at 30 %. The
+10-commit proxy is weak, as drift is rarely fixed that fast; read the
+precision as a rough guide. The report with this function takes 3.8 s on this
+checkout; the replay 2.1 s.
+
+Alternatives considered:
+
+- **A failing gate.** #2049 blocks only static fitness functions; co-change
+  is a habit, not a rule, so a gate would fail correct PRs.
+- **Confidence alone.** At or near chance in the replay above and in the
+  throwaway replay at `773f8014`, where frequently changed partners hit 35 %
+  against 34 %.
+- **Added value** (confidence minus P's change rate, in Moonen et al.'s top
+  group). In the throwaway replay it widened the margin to 8 points against 13
+  for lift 4.
 
 ### Private upstream APIs
 

@@ -27,6 +27,7 @@ describe("the hotspots fitness function", () => {
             {
                 repoRoot: "/repo",
                 commit: "head",
+                changeBase: "head",
             },
         );
 
@@ -52,7 +53,9 @@ describe("the hotspots fitness function", () => {
             sources: SOURCES,
         });
 
-        expect(measure(fitnessFunction, { repoRoot: "/repo", commit: "head" })).toEqual({
+        expect(
+            measure(fitnessFunction, { repoRoot: "/repo", commit: "head", changeBase: "head" }),
+        ).toEqual({
             unmeasurable: `${HISTORY_WINDOW} first-parent commits reach back from here; the window needs ${HISTORY_WINDOW} and the parent of the oldest`,
         });
     });

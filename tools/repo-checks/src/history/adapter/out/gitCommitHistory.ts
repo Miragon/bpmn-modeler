@@ -19,6 +19,9 @@ const LOG_ARGS = [
     `--format=${RECORD_START}%H%x00%s%x00`,
 ];
 
+// Pinned likewise; `--no-relative` keeps paths at the repository root under `diff.relative`.
+const DIFF_ARGS = ["diff", "-M", "-l0", "--name-status", "-z", "--no-ext-diff", "--no-relative"];
+
 export class GitCommitHistory implements CommitHistory {
     firstParentCommits(repoRoot: string, commit: string, depth: number): readonly CommitRecord[] {
         const records = git(repoRoot, [...LOG_ARGS, `--max-count=${depth}`, commit, "--"])
@@ -35,10 +38,18 @@ export class GitCommitHistory implements CommitHistory {
         }
         return records;
     }
+
+    changesSince(repoRoot: string, commit: string): readonly FileChange[] {
+        return parseNameStatus(git(repoRoot, [...DIFF_ARGS, commit, "--"]).split("\0"));
+    }
 }
 
 function parseRecord(record: string): CommitRecord {
     const [commit, subject, ...fields] = record.split("\0");
+    return { commit, subject, changes: parseNameStatus(fields) };
+}
+
+function parseNameStatus(fields: readonly string[]): FileChange[] {
     const tokens = fields.map((field) => field.replace(/^\n/, "")).filter((field) => field !== "");
     const changes: FileChange[] = [];
     for (let index = 0; index < tokens.length; ) {
@@ -51,7 +62,7 @@ function parseRecord(record: string): CommitRecord {
             index += 2;
         }
     }
-    return { commit, subject, changes };
+    return changes;
 }
 
 function kindOf(status: string): "added" | "modified" | "deleted" {

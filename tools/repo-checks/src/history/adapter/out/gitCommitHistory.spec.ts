@@ -108,4 +108,30 @@ describe("the git commit history", () => {
             clone.remove();
         }
     });
+
+    it("lists the working tree's changes against a commit: modified, renamed and deleted files", () => {
+        repository.write("src/a.ts", "export const a = 1;\n".repeat(20));
+        repository.write("src/b.ts", "b");
+        repository.write("src/c.ts", "c");
+        repository.git("add", "--all");
+        repository.git("commit", "--quiet", "-m", "add");
+        const base = repository.git("rev-parse", "HEAD");
+        repository.git("mv", "src/a.ts", "src/renamed a.ts");
+        repository.git("commit", "--quiet", "-m", "move a");
+        repository.git("rm", "--quiet", "src/b.ts");
+        repository.write("src/c.ts", "changed");
+        repository.git("config", "diff.renames", "false");
+
+        expect(new GitCommitHistory().changesSince(repository.root, base)).toEqual([
+            { kind: "deleted", path: "src/b.ts" },
+            { kind: "modified", path: "src/c.ts" },
+            { kind: "renamed", previousPath: "src/a.ts", path: "src/renamed a.ts" },
+        ]);
+    });
+
+    it("lists no change on a clean checkout of the commit", () => {
+        const commit = repository.commit("a.ts", "1");
+
+        expect(new GitCommitHistory().changesSince(repository.root, commit)).toEqual([]);
+    });
 });

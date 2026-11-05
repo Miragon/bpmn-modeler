@@ -43,7 +43,11 @@ export function recordSnapshots(
                 (snapshot, fitnessFunction) =>
                     withEntry(snapshot, fitnessFunction.id, {
                         version: fitnessFunction.version,
-                        ...measure(fitnessFunction, { repoRoot: root, commit: step.commit }),
+                        ...measure(fitnessFunction, {
+                            repoRoot: root,
+                            commit: step.commit,
+                            changeBase: step.commit,
+                        }),
                     }),
                 snapshots.get(step.commit) ?? emptySnapshot(step.commit),
             );

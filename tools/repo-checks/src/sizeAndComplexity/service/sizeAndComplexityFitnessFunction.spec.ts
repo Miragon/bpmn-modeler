@@ -17,6 +17,7 @@ describe("the size and complexity fitness function", () => {
         const measured = measure(createSizeAndComplexityFitnessFunction({ sources }), {
             repoRoot: "/checkout/c1",
             commit: "c1",
+            changeBase: "c1",
         });
 
         expect(measured).toEqual({

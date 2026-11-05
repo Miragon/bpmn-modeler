@@ -41,7 +41,11 @@ function measureBase(
             for (const fitnessFunction of unstored) {
                 byId.set(fitnessFunction.id, {
                     source: "checkout",
-                    measurement: measure(fitnessFunction, { repoRoot: root, commit: baseCommit }),
+                    measurement: measure(fitnessFunction, {
+                        repoRoot: root,
+                        commit: baseCommit,
+                        changeBase: baseCommit,
+                    }),
                 });
             }
         });
@@ -76,7 +80,11 @@ export function createFitnessReport(
     const headById = new Map(
         functions.map((fitnessFunction) => [
             fitnessFunction.id,
-            measure(fitnessFunction, { repoRoot: ports.repoRoot, commit: headCommit }),
+            measure(fitnessFunction, {
+                repoRoot: ports.repoRoot,
+                commit: headCommit,
+                changeBase: baseCommit,
+            }),
         ]),
     );
     const baseById = measureBase(functions, baseCommit, ports);

@@ -42,7 +42,7 @@ function history(changedTogether: readonly (readonly string[])[], length = HISTO
     }));
 }
 
-const CONTEXT = { repoRoot: "/repo", commit: "head" };
+const CONTEXT = { repoRoot: "/repo", commit: "head", changeBase: "head" };
 
 describe("the change coupling fitness function", () => {
     it("reads the window and one commit more at the measured commit", () => {

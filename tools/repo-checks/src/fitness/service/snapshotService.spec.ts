@@ -63,6 +63,26 @@ describe("recording snapshots on main", () => {
         expect(returned).toEqual(written);
     });
 
+    it("measures each commit as one without a change", () => {
+        const changeBases: [string, string][] = [];
+        const recording = fakeFitnessFunction(
+            {},
+            {
+                findFindings: ({ commit, changeBase }) => {
+                    changeBases.push([commit, changeBase]);
+                    return [];
+                },
+            },
+        );
+
+        record([recording], { limits: { depth: 2, commitsPerRun: 10 } });
+
+        expect(changeBases).toEqual([
+            ["c4", "c4"],
+            ["c3", "c3"],
+        ]);
+    });
+
     it.each([
         {
             case: "commits per run",

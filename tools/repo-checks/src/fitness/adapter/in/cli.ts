@@ -19,6 +19,7 @@ const USAGE = [
     "usage: fitness [report] [--format markdown|json]",
     "       fitness snapshot --out <dir>",
     "       fitness mutation record|summary ...",
+    "       fitness missed-partner replay",
 ].join("\n");
 
 const EXIT_OK = 0;

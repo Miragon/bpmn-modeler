@@ -27,6 +27,8 @@ Pull any decision out of such code first; the decision itself is not exempt.
    targets the one home; the copies go in step 3. `corepack yarn fitness`
    lists, as `change-coupling`, file pairs that keep changing together
    without an import; a hidden pair naming your file is a candidate copy.
+   `missed-partner` lists files the branch changed without their usual
+   partner; a partner it names may hold a copy of the rule.
 2. Write the spec first. For a bug, reproduce the report in the smallest setup
    that shows it.
 3. Run only that spec: `corepack yarn test <path/to/file.spec.ts>`.
