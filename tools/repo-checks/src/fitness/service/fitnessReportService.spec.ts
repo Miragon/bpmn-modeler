@@ -79,6 +79,56 @@ describe("the fitness report", () => {
     });
 });
 
+describe("the trend in the fitness report", () => {
+    const measured = (codeLines: number) => ({ ...finding("A"), values: { codeLines } });
+    const sized = fakeFitnessFunction(
+        { [WORKING_TREE]: [measured(348)] },
+        { id: "size", values: [{ id: "codeLines", title: "code lines" }] },
+    );
+    const stored = (commit: string, codeLines: number) => ({
+        schemaVersion: 1 as const,
+        commit,
+        entries: { size: { version: sized.version, findings: [measured(codeLines)] } },
+    });
+
+    it("follows a value over the stored snapshots of the merge base's first-parent chain", () => {
+        const snapshots = new InMemorySnapshots([stored(BASE, 330), stored("c1", 300)]);
+
+        const report = createFitnessReport([sized], "origin/main", {
+            repoRoot: WORKING_TREE,
+            history: new InMemoryHistory([HEAD, BASE, "c1"], BASE),
+            snapshots,
+            checkout: new InMemoryCheckout(),
+        });
+
+        expect(report.functions[0].outcome).toMatchObject({
+            findings: [
+                {
+                    trend: [
+                        { commit: "c1", values: { codeLines: 300 } },
+                        { commit: BASE, values: { codeLines: 330 } },
+                        { commit: HEAD, values: { codeLines: 348 } },
+                    ],
+                },
+            ],
+        });
+        expect(snapshots.historyReads).toEqual([[BASE, "c1"]]);
+    });
+
+    it("reads no history when no function declares values", () => {
+        const snapshots = new InMemorySnapshots([stored(BASE, 330)]);
+
+        createFitnessReport([fakeFitnessFunction({})], "origin/main", {
+            repoRoot: WORKING_TREE,
+            history: new InMemoryHistory([HEAD, BASE]),
+            snapshots,
+            checkout: new InMemoryCheckout(),
+        });
+
+        expect(snapshots.historyReads).toEqual([]);
+    });
+});
+
 describe("the fitness report on broken input", () => {
     it("checks out the merge base once for every function without a usable snapshot", () => {
         const checkout = new InMemoryCheckout();

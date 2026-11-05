@@ -1,5 +1,6 @@
 import { parseFindings } from "../domain/finding";
 import {
+    declaredFindingFields,
     type FitnessFunction,
     InsufficientHistory,
     type MeasurementContext,
@@ -21,6 +22,6 @@ export function measure(
         throw new Error(`${source} failed: ${(error as Error).message}`, { cause: error });
     }
     return {
-        findings: parseFindings(source, output, fitnessFunction.groups?.map(({ id }) => id) ?? []),
+        findings: parseFindings(source, output, declaredFindingFields(fitnessFunction)),
     };
 }

@@ -12,6 +12,17 @@ export function git(repoRoot: string, args: readonly string[]): string {
     });
 }
 
+/** Bytes, not text: `git cat-file --batch` sizes its objects in bytes. */
+export function gitBytes(repoRoot: string, args: readonly string[], input: string): Buffer {
+    return execFileSync("git", args, {
+        cwd: repoRoot,
+        env: { ...process.env, LC_ALL: "C" },
+        input,
+        maxBuffer: 1024 * 1024 * 1024,
+        stdio: ["pipe", "pipe", "pipe"],
+    });
+}
+
 export function gitSucceeds(repoRoot: string, args: readonly string[]): boolean {
     try {
         git(repoRoot, args);

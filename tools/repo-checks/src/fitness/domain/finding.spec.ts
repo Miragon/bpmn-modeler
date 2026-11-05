@@ -51,19 +51,86 @@ describe("the findings a fitness function returns", () => {
             problem: "finding 0 has no group",
         },
     ])("are broken input when they hold $case", ({ output, groups, problem }) => {
-        expect(() => parseFindings("fitness function x", output, groups)).toThrow(problem);
+        expect(() => parseFindings("fitness function x", output, { groups, values: [] })).toThrow(
+            problem,
+        );
     });
 
     it("keep a declared group", () => {
         const grouped = { ...VALID, group: "hidden" };
 
-        expect(parseFindings("x", [grouped], ["explained", "hidden"])).toEqual([grouped]);
+        expect(
+            parseFindings("x", [grouped], { groups: ["explained", "hidden"], values: [] }),
+        ).toEqual([grouped]);
     });
 
     it("of a stored snapshot keep whatever group they name", () => {
         const grouped = { ...VALID, group: "retired" };
 
         expect(parseFindings("snapshot", [grouped, VALID], undefined)).toEqual([grouped, VALID]);
+    });
+
+    it.each([
+        {
+            case: "a value the function does not declare",
+            output: [{ ...VALID, values: { lines: 3 } }],
+            values: ["codeLines"],
+            problem: "finding 0 has value lines, which the function does not declare",
+        },
+        {
+            case: "a value from a function that declares none",
+            output: [{ ...VALID, values: { codeLines: 3 } }],
+            values: [],
+            problem: "finding 0 has value codeLines, which the function does not declare",
+        },
+        {
+            case: "a value that is no finite number",
+            output: [{ ...VALID, values: { codeLines: Number.NaN } }],
+            values: ["codeLines"],
+            problem: "finding 0 has value codeLines NaN, not a finite number",
+        },
+        {
+            case: "values that are no record",
+            output: [{ ...VALID, values: [3] }],
+            values: ["codeLines"],
+            problem: "finding 0 has values that are no record of numbers",
+        },
+        {
+            case: "rank 0",
+            output: [{ ...VALID, rank: 0 }],
+            values: [],
+            problem: "finding 0 has rank 0, not a positive integer",
+        },
+    ])("are broken input when they hold $case", ({ output, values, problem }) => {
+        expect(() => parseFindings("fitness function x", output, { groups: [], values })).toThrow(
+            problem,
+        );
+    });
+
+    it("keep declared values, a missing one included, and a rank", () => {
+        const measured = { ...VALID, values: { complexity: 4 }, rank: 2 };
+
+        expect(
+            parseFindings("x", [measured], { groups: [], values: ["codeLines", "complexity"] }),
+        ).toEqual([measured]);
+    });
+
+    it("of a stored snapshot keep whatever values they name", () => {
+        const measured = { ...VALID, values: { retired: 1 } };
+
+        expect(parseFindings("snapshot", [measured])).toEqual([measured]);
+    });
+
+    it("of a stored snapshot are still broken input with a value that is no number", () => {
+        expect(() => parseFindings("snapshot", [{ ...VALID, values: { lines: "3" } }])).toThrow(
+            "finding 0 has value lines 3, not a finite number",
+        );
+    });
+
+    it("store their values in id order", () => {
+        const [parsed] = parseFindings("snapshot", [{ ...VALID, values: { b: 1, a: 2 } }]);
+
+        expect(Object.keys(parsed.values ?? {})).toEqual(["a", "b"]);
     });
 
     it.each([

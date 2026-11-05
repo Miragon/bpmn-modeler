@@ -109,10 +109,36 @@ describe("the snapshot branch", () => {
         expect(branch.read("0".repeat(40))).toBeUndefined();
     });
 
+    it("reads the stored snapshots of many commits at once and skips the commits it lacks", () => {
+        const first = repository.commit("a.ts", "1");
+        const second = repository.commit("a.ts", "2");
+        const finding = { key: "k", path: "src/ä.ts", line: 1, message: "größer", values: { n: 2 } };
+        const snapshots = [first, second].map((commit) =>
+            withEntry(emptySnapshot(commit), "size", { version: 1, findings: [finding] }),
+        );
+        repository.publishDataBranch("refs/remotes/origin/fitness-history", {
+            [`snapshots/${first}.json`]: serializeSnapshot(snapshots[0]),
+            [`snapshots/${second}.json`]: serializeSnapshot(snapshots[1]),
+        });
+
+        const history = new GitSnapshotBranch(repository.root).readHistory([
+            second,
+            "0".repeat(40),
+            first,
+        ]);
+
+        expect([...history.entries()]).toEqual([
+            [second, snapshots[1]],
+            [first, snapshots[0]],
+        ]);
+    });
+
     it("reads nothing when the branch was never fetched", () => {
         const commit = repository.commit("a.ts", "1");
+        const branch = new GitSnapshotBranch(repository.root);
 
-        expect(new GitSnapshotBranch(repository.root).read(commit)).toBeUndefined();
+        expect(branch.read(commit)).toBeUndefined();
+        expect(branch.readHistory([commit]).size).toBe(0);
     });
 
     it("fails on a corrupt snapshot", () => {

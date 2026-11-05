@@ -30,13 +30,7 @@ export function recordSnapshots(
     }
     const headCommit = ports.history.headCommit();
     const commits = ports.history.firstParentCommits("HEAD", limits.depth);
-    const snapshots = new Map<string, Snapshot>();
-    for (const commit of commits) {
-        const stored = ports.snapshots.read(commit);
-        if (stored !== undefined) {
-            snapshots.set(commit, stored);
-        }
-    }
+    const snapshots = new Map(ports.snapshots.readHistory(commits));
 
     const written: Snapshot[] = [];
     for (let run = 0; run < limits.commitsPerRun; run++) {
