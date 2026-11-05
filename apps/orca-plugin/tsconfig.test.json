@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["test/**/*.ts", "vite.editor.mts", "vitest.e2e.config.ts"]
+  "include": ["test/**/*.ts", "vite.editor.mts", "vitest.e2e.config.ts", "vitest.smoke.config.ts"]
 }
