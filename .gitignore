@@ -83,3 +83,7 @@ docs/.vitepress/cache
 
 # debugging logs
 .context
+
+# The built Orca plugin (`build` in apps/orca-plugin) and its test screenshots.
+apps/orca-plugin/plugin/
+apps/orca-plugin/test-results/

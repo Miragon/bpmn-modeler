@@ -1,7 +1,7 @@
 import { installOrcaEditorStub } from "@miragon/modeler-shell/testing/orca-stub";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { followOrcaTheme, openOrcaSession, orcaLocale } from "./orcaFrame";
+import { followOrcaTheme, openOrcaSession, orcaLanguage } from "./orcaFrame";
 
 const later = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -75,9 +75,10 @@ describe("followOrcaTheme", () => {
     });
 });
 
-describe("orcaLocale", () => {
+describe("orcaLanguage", () => {
     it("falls back to the system's language when Orca names none", () => {
         installOrcaEditorStub({ text: "" });
-        expect(orcaLocale()).toBe(navigator.language);
+        vi.spyOn(navigator, "language", "get").mockReturnValue("de-DE");
+        expect(orcaLanguage()).toBe("de");
     });
 });

@@ -6,11 +6,19 @@
     "license": "Apache-2.0",
     "description": "The BPMN and DMN modelers as Orca custom editors for .bpmn and .dmn files.",
     "scripts": {
+        "build": "vite build -c vite.bpmn.config.mts && node scripts/assemble-plugin.mjs",
         "test": "vitest run --coverage",
-        "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
+        "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.test.json",
+        "test:e2e": "corepack yarn build && vitest run -c vitest.e2e.config.ts"
     },
     "dependencies": {
+        "@bpmn-io/properties-panel": "3.57.0",
+        "@miragon/bpmn-modeler": "workspace:*",
+        "@miragon/bpmn-modeler-i18n": "0.2.0",
+        "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
+        "@miragon/bpmn-modeler-types": "workspace:*",
+        "bpmn-js": "18.31.0",
         "tslib": "2.8.1"
     },
     "devDependencies": {
@@ -19,8 +27,10 @@
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.0.5",
         "jsdom": "30.1.3",
+        "playwright": "1.64.1",
         "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.3.4",
+        "vite-tsconfig-paths": "6.1.1",
         "vitest": "5.0.5"
     }
 }

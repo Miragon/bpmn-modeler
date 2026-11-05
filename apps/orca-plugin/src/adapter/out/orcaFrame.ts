@@ -59,12 +59,12 @@ export async function openOrcaSession(): Promise<DocumentSession> {
     };
 }
 
-/** Orca's UI language, else the system's. */
-export function orcaLocale(): string {
-    return orcaFrame().locale ?? navigator.language;
+/** Orca's UI language, else the system's, as the dictionaries name it: `de` for `de-DE`. */
+export function orcaLanguage(): string {
+    return (orcaFrame().locale ?? navigator.language).split("-")[0]!;
 }
 
-function currentOrcaTheme(): HostThemeKind {
+export function currentOrcaTheme(): HostThemeKind {
     return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
