@@ -200,7 +200,13 @@ modeler suite; the stub has no `editor.flush`, so the suite adds it. The
 a `.dmn` file. Unlike the VS Code driver, this one is imported: it drives Orca
 through its CLI by click coordinates and file contents, never the shell's
 chrome. The click points are measured in the e2e suite and shared with the
-smoke test. Its container runner is still our own, as the shell's assumes npm.
+smoke test. Its container runner is still our own, as the shell's assumes npm. The smoke retries each
+document up to twice: `orca plugin shot --act` clicks two animation frames
+after the editor asks for its document, which is often before the BPMN modeler
+has rendered, and its capture now and then loses the BPMN frame ("Object has
+been destroyed"). Both were measured in repeated runs against a real Orca; in
+every failed round inspected, the click had selected nothing, and no edit was
+lost on its way to the file.
 CI runs the e2e suite in the `ci` check and the smoke test in a
 [workflow of its own](../../.github/workflows/orca-smoke.yml) on the newest
 Orca and the `engines.orca` floor. Orca's `plugin check` warns on any
