@@ -1,7 +1,7 @@
-import type { MarkedFinding } from "./delta";
-import type { Finding } from "./finding";
-import type { Evidence, FindingGroup } from "./fitnessFunction";
-import type { FitnessReport, FunctionReport } from "./report";
+import { compareText, type Finding } from "./finding";
+import type { Evidence, FindingGroup, FindingValue } from "./fitnessFunction";
+import type { FitnessReport, FunctionReport, ReportedFinding } from "./report";
+import type { TrendPoint } from "./trend";
 
 const SHORT_COMMIT_LENGTH = 12;
 
@@ -37,22 +37,74 @@ function baseLine(report: FunctionReport): string {
         : `- **Base:** ${source}, not measurable there (${report.base.unmeasurable}); every finding counts as new`;
 }
 
-function findingTable(findings: readonly MarkedFinding[]): string[] {
+function valueSeries(id: string, trend: readonly TrendPoint[]): string[] {
+    const series: string[] = [];
+    for (const { values } of trend) {
+        const value = Object.hasOwn(values, id) ? String(values[id]) : "none";
+        if (series.at(-1) !== value) {
+            series.push(value);
+        }
+    }
+    return series;
+}
+
+function trendCell(finding: ReportedFinding, values: readonly FindingValue[]): string {
+    if (finding.trend === undefined) {
+        return "no trend";
+    }
+    const { trend } = finding;
+    const changes = values.flatMap(({ id, title }) => {
+        const series = valueSeries(id, trend);
+        return series.length > 1 ? [`${title} ${series.join(" → ")}`] : [];
+    });
+    return changes.length === 0 ? "unchanged" : changes.join("; ");
+}
+
+function compareRank(left: ReportedFinding, right: ReportedFinding): number {
+    return (
+        (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) ||
+        compareText(left.path, right.path)
+    );
+}
+
+function inTableOrder(findings: readonly ReportedFinding[]): readonly ReportedFinding[] {
+    return findings.some(({ rank }) => rank !== undefined)
+        ? [...findings].sort(compareRank)
+        : findings;
+}
+
+function findingTable(
+    findings: readonly ReportedFinding[],
+    values: readonly FindingValue[] | undefined,
+): string[] {
     if (findings.length === 0) {
         return [];
     }
+    const row = (finding: ReportedFinding) =>
+        `| ${finding.status} | ${location(finding)} | ${tableCell(finding.message)} |`;
+    if (values === undefined) {
+        return [
+            "",
+            "| Status | Location | Message |",
+            "| --- | --- | --- |",
+            ...inTableOrder(findings).map(row),
+        ];
+    }
     return [
         "",
-        "| Status | Location | Message |",
-        "| --- | --- | --- |",
-        ...findings.map(
-            (finding) =>
-                `| ${finding.status} | ${location(finding)} | ${tableCell(finding.message)} |`,
+        "| Status | Location | Message | Trend |",
+        "| --- | --- | --- | --- |",
+        ...inTableOrder(findings).map(
+            (finding) => `${row(finding)} ${tableCell(trendCell(finding, values))} |`,
         ),
     ];
 }
 
-function groupLines(group: FindingGroup, findings: readonly MarkedFinding[]): string[] {
+function groupLines(
+    group: FindingGroup,
+    findings: readonly ReportedFinding[],
+    values: readonly FindingValue[] | undefined,
+): string[] {
     const inGroup = findings.filter((finding) => finding.group === group.id);
     if (inGroup.length === 0) {
         return [];
@@ -63,11 +115,11 @@ function groupLines(group: FindingGroup, findings: readonly MarkedFinding[]): st
               "",
               "<details>",
               `<summary>${group.title} (${inGroup.length})</summary>`,
-              ...findingTable(inGroup),
+              ...findingTable(inGroup, values),
               "",
               "</details>",
           ]
-        : ["", `### ${group.title}`, ...findingTable(inGroup)];
+        : ["", `### ${group.title}`, ...findingTable(inGroup, values)];
 }
 
 function outcomeLines(report: FunctionReport): string[] {
@@ -80,9 +132,11 @@ function outcomeLines(report: FunctionReport): string[] {
         `**${newCount} new, ${outcome.findings.length - newCount} existing, ${outcome.resolved.length} resolved**`,
     ];
     if (report.groups === undefined) {
-        lines.push(...findingTable(outcome.findings));
+        lines.push(...findingTable(outcome.findings, report.values));
     } else {
-        lines.push(...report.groups.flatMap((group) => groupLines(group, outcome.findings)));
+        lines.push(
+            ...report.groups.flatMap((group) => groupLines(group, outcome.findings, report.values)),
+        );
     }
     if (outcome.resolved.length > 0) {
         lines.push(

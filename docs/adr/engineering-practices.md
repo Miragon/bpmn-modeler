@@ -424,8 +424,15 @@ findings instead of living in a document that drifts. A function may declare
 finding groups (`id`, `title`, `collapsed`); then every finding names one of
 them, a finding naming an undeclared group is broken input, and the Markdown
 prints one table per non-empty group in the declared order, a collapsed one
-inside `<details>`. Within a table the rows are sorted by path. The delta stays
-key-based, so a pair that moves between groups stays existing. The rule it relies on
+inside `<details>`. Within a table the rows are sorted by path, or by `rank`
+(a positive integer a finding may carry) and then path when any row has one.
+The delta stays key-based, so a pair that moves between groups stays existing.
+A function may declare values (`id`, `title`); then a finding may carry a
+finite number per declared id and leave out one that does not apply, such as
+the complexity of a file without a function. An undeclared id, or a value from
+a function that declares none, is broken input. Both fields are stored in the
+snapshot; old snapshots without them still parse, so `schemaVersion` stays 1.
+The rule it relies on
 lands in a skill in the same PR and names the function's id; a static spec over
 the registry checks both, and that ids are unique.
 
@@ -446,12 +453,28 @@ is 1,825 files and 17 MB; adding and removing the worktree took 0.4 s on a
 laptop. No install is needed: the code runs from the checkout and only reads
 the worktree.
 
+**Trend.** For a function that declares values the report reads the stored
+snapshots of the merge base's first-parent chain, 500 commits deep, and gives
+each finding a trend: its values per point, oldest first, HEAD's last.
+Equal consecutive values collapse into one point naming the oldest commit that
+holds them, the PR that made the change. A commit without a usable entry (no
+snapshot, another version, unmeasurable) is skipped, so a change behind a gap
+is dated to the oldest stored commit that shows it. A commit that lacks the key,
+or holds it twice, ends the series; a key that repeats at HEAD gets no trend.
+The trend keeps the newest five changes and the point before them. The Markdown
+adds a Trend column that lists only the values that changed
+(`code lines 300 → 330 → 348`); the JSON carries every point with its commit.
+The trend is built from snapshots only, never recomputed on a worktree, so
+nothing is measured that the push job has not stored.
+
 **Snapshot store.** The orphan branch `fitness-history` holds one
 `snapshots/<sha>.json` per first-parent `main` commit. `fitness-history.yml`
 writes it on every push to `main` through the Git Data API with
 `GITHUB_TOKEN`, so GitHub signs the commits and the ref moves by fast-forward
 only. The `main` ruleset targets only the default branch. The report reads the
-branch from `origin/fitness-history` as last fetched, with `git show`, offline.
+branch from `origin/fitness-history` as last fetched, offline, with one
+`git cat-file --batch` for all the commits it needs instead of a `git show`
+per commit: the 100 stored snapshots of 2026-11-05 read in 64 ms.
 Alternatives considered:
 
 - **Workflow artifacts** expire after at most 90 days and need the network and

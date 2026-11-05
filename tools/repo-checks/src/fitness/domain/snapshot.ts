@@ -12,6 +12,9 @@ export interface Snapshot {
     readonly entries: Readonly<Record<string, SnapshotEntry>>;
 }
 
+/** What tells one function's entries apart from another's and from its other versions. */
+export type VersionedFunction = Pick<FitnessFunction, "id" | "version">;
+
 export function snapshotPath(commit: string): string {
     return `snapshots/${commit}.json`;
 }
@@ -28,7 +31,7 @@ export function emptySnapshot(commit: string): Snapshot {
 
 export function usableEntry(
     snapshot: Snapshot | undefined,
-    fitnessFunction: Pick<FitnessFunction, "id" | "version">,
+    fitnessFunction: VersionedFunction,
 ): SnapshotEntry | undefined {
     if (snapshot === undefined || !Object.hasOwn(snapshot.entries, fitnessFunction.id)) {
         return undefined;

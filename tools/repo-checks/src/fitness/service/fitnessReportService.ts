@@ -1,6 +1,8 @@
-import type { FitnessFunction } from "../domain/fitnessFunction";
+import { BACKFILL_DEPTH } from "../domain/backfill";
+import { declaresValues, type FitnessFunction } from "../domain/fitnessFunction";
 import { type BaseSource, type FitnessReport, functionReport } from "../domain/report";
 import { type Measurement, usableEntry } from "../domain/snapshot";
+import type { TrendHistory } from "../domain/trend";
 import type { RepositoryHistory } from "../port/RepositoryHistory";
 import type { SnapshotReader } from "../port/SnapshotReader";
 import type { TreeCheckout } from "../port/TreeCheckout";
@@ -47,6 +49,23 @@ function measureBase(
     return byId;
 }
 
+function readTrendHistory(
+    functions: readonly FitnessFunction[],
+    headCommit: string,
+    baseCommit: string,
+    ports: FitnessReportPorts,
+): TrendHistory | undefined {
+    if (!functions.some(declaresValues)) {
+        return undefined;
+    }
+    const commitsNewestFirst = ports.history.firstParentCommits(baseCommit, BACKFILL_DEPTH);
+    return {
+        headCommit,
+        commitsNewestFirst,
+        snapshots: ports.snapshots.readHistory(commitsNewestFirst),
+    };
+}
+
 export function createFitnessReport(
     functions: readonly FitnessFunction[],
     baseRef: string,
@@ -61,6 +80,7 @@ export function createFitnessReport(
         ]),
     );
     const baseById = measureBase(functions, baseCommit, ports);
+    const history = readTrendHistory(functions, headCommit, baseCommit, ports);
     return {
         head: { commit: headCommit, uncommittedChanges: ports.history.hasUncommittedChanges() },
         base: { commit: baseCommit, ref: baseRef },
@@ -69,6 +89,7 @@ export function createFitnessReport(
                 fitnessFunction,
                 headById.get(fitnessFunction.id) as Measurement,
                 baseById.get(fitnessFunction.id) as BaseMeasurement,
+                history,
             ),
         ),
     };

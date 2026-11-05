@@ -30,12 +30,15 @@ export class InMemoryHistory implements RepositoryHistory {
         return this.base;
     }
 
-    firstParentCommits(_ref: string, depth: number): readonly string[] {
-        return this.commits.slice(0, depth);
+    /** Starts at `ref` when it is one of the commits, at HEAD otherwise. */
+    firstParentCommits(ref: string, depth: number): readonly string[] {
+        const start = Math.max(this.commits.indexOf(ref), 0);
+        return this.commits.slice(start, start + depth);
     }
 }
 
 export class InMemorySnapshots implements SnapshotReader {
+    readonly historyReads: (readonly string[])[] = [];
     private readonly byCommit: Map<string, Snapshot>;
 
     constructor(snapshots: readonly Snapshot[] = []) {
@@ -44,6 +47,16 @@ export class InMemorySnapshots implements SnapshotReader {
 
     read(commit: string): Snapshot | undefined {
         return this.byCommit.get(commit);
+    }
+
+    readHistory(commitsNewestFirst: readonly string[]): ReadonlyMap<string, Snapshot> {
+        this.historyReads.push(commitsNewestFirst);
+        return new Map(
+            commitsNewestFirst.flatMap((commit) => {
+                const snapshot = this.byCommit.get(commit);
+                return snapshot === undefined ? [] : [[commit, snapshot] as const];
+            }),
+        );
     }
 }
 

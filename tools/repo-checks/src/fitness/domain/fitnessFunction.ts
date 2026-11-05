@@ -1,4 +1,4 @@
-import type { Finding } from "./finding";
+import type { DeclaredFindingFields, Finding } from "./finding";
 
 export interface FitnessCategories {
     readonly scope: "atomic" | "holistic";
@@ -24,6 +24,12 @@ export interface FindingGroup {
     readonly collapsed?: boolean;
 }
 
+/** A number a finding carries, such as its code lines; the report follows it over the stored snapshots. */
+export interface FindingValue {
+    readonly id: string;
+    readonly title: string;
+}
+
 export interface FitnessFunction {
     readonly id: string;
     /** Bumped on every change to what the function finds; another version's snapshot is not compared. */
@@ -36,6 +42,7 @@ export interface FitnessFunction {
     readonly evidence: NonEmptyList<Evidence>;
     /** The report prints one table per group, in this order. */
     readonly groups?: NonEmptyList<FindingGroup>;
+    readonly values?: NonEmptyList<FindingValue>;
     /** Throws `InsufficientHistory` when git cannot recompute it at this commit. */
     findFindings(context: MeasurementContext): readonly Finding[];
 }
@@ -75,17 +82,20 @@ function evidenceProblem(evidence: unknown): boolean {
     return kind !== "trial" || !isNonBlankText(commit) || !isNonBlankText(outcome);
 }
 
-function groupsProblem(groups: unknown): boolean {
-    if (groups === undefined) {
+function declaredListProblem(declared: unknown): boolean {
+    if (declared === undefined) {
         return false;
     }
-    if (!Array.isArray(groups) || groups.length === 0) {
+    if (!Array.isArray(declared) || declared.length === 0) {
         return true;
     }
-    const ids = groups.map(({ id }: FindingGroup) => id);
+    const ids = declared.map(({ id }: FindingGroup | FindingValue) => id);
     return (
         new Set(ids).size !== ids.length ||
-        !groups.every(({ id, title }: FindingGroup) => isNonBlankText(id) && isNonBlankText(title))
+        !declared.every(
+            ({ id, title }: FindingGroup | FindingValue) =>
+                isNonBlankText(id) && isNonBlankText(title),
+        )
     );
 }
 
@@ -110,7 +120,12 @@ function contractProblems(definition: FitnessFunction): string[] {
         ...(Array.isArray(evidence) && evidence.length > 0 && !evidence.some(evidenceProblem)
             ? []
             : ["evidence is empty or incomplete"]),
-        ...(groupsProblem(definition.groups) ? ["groups are empty, blank or repeat an id"] : []),
+        ...(declaredListProblem(definition.groups)
+            ? ["groups are empty, blank or repeat an id"]
+            : []),
+        ...(declaredListProblem(definition.values)
+            ? ["values are empty, blank or repeat an id"]
+            : []),
         ...(typeof definition.findFindings === "function" ? [] : ["findFindings is missing"]),
     ];
 }
@@ -123,4 +138,15 @@ export function defineFitnessFunction<const T extends FitnessFunction>(
         throw new Error(`fitness function ${String(definition.id)}: ${problems.join(", ")}`);
     }
     return definition;
+}
+
+export function declaresValues(fitnessFunction: FitnessFunction): boolean {
+    return fitnessFunction.values !== undefined;
+}
+
+export function declaredFindingFields(fitnessFunction: FitnessFunction): DeclaredFindingFields {
+    return {
+        groups: fitnessFunction.groups?.map(({ id }) => id) ?? [],
+        values: fitnessFunction.values?.map(({ id }) => id) ?? [],
+    };
 }

@@ -33,6 +33,18 @@ describe("the fitness function contract", () => {
         expect(defineFitnessFunction(grouped)).toBe(grouped);
     });
 
+    it("accepts declared finding values", () => {
+        const measured = {
+            ...valid,
+            values: [
+                { id: "codeLines", title: "code lines" },
+                { id: "complexity", title: "complexity" },
+            ],
+        } as const;
+
+        expect(defineFitnessFunction(measured)).toBe(measured);
+    });
+
     // Each case is a type error (checked by `typecheck`) and throws for callers that bypass the types.
     it.each([
         {
@@ -160,6 +172,26 @@ describe("the fitness function contract", () => {
                 ],
             },
             problem: "groups are empty, blank or repeat an id",
+        },
+        {
+            case: "an empty list of values",
+            override: { values: [] },
+            problem: "values are empty, blank or repeat an id",
+        },
+        {
+            case: "a value with a blank title",
+            override: { values: [{ id: "codeLines", title: "" }] },
+            problem: "values are empty, blank or repeat an id",
+        },
+        {
+            case: "two values with one id",
+            override: {
+                values: [
+                    { id: "codeLines", title: "code lines" },
+                    { id: "codeLines", title: "lines" },
+                ],
+            },
+            problem: "values are empty, blank or repeat an id",
         },
     ])("rejects $case at run time", ({ override, problem }) => {
         expect(() => defineFitnessFunction({ ...valid, ...override } as never)).toThrow(
