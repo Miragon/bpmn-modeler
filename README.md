@@ -82,6 +82,7 @@ surfaces; each one has its own README with its own pitch.
 |---|---|---|
 | [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension — the public BPMN/DMN and Camunda Form modeler. | Published on the [Marketplace][marketplace-url] |
 | [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
+| [`apps/orca-plugin`](apps/orca-plugin/README.md) | Orca plugin that opens `.bpmn` and `.dmn` files next to the coding agent writing them — view, simulate, model lightly. | Preview, published to [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) |
 | [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
 | [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
 | [`apps/form-webview`](apps/form-webview/README.md) | Camunda Form editor and preview webview embedded in the extension host. | Internal |

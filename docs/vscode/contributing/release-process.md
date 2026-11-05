@@ -15,6 +15,7 @@ no longer forces a release of the others:
 | **`vscode`** (path `apps/vscode-plugin`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS/Flatpak) + Homebrew |
 | **`intellij`** (path `apps/intellij-plugin`) | `intellij-v<version>` | IntelliJ plugin | JetBrains Marketplace + `updatePlugins.xml` |
 | **`dmn-modeler`** (path `packages/dmn-modeler`) | `dmn-modeler-v<version>` | The publishable `@miragon/dmn-modeler` package + the two libs it inlines | npm registry |
+| **`orca`** (path `apps/orca-plugin`) | `orca-v<version>` | The Orca plugin with the BPMN and DMN editors | [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) and its catalog |
 
 VS Code, Open VSX and Standalone stay on **one** shared version because they are
 all built from the same frontend (`libs/shared`, the webviews). IntelliJ is a
@@ -58,6 +59,7 @@ for the sources they bundle from elsewhere
 | **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the four webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, `packages/dmn-modeler`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
 | **intellij** (`apps/intellij-plugin`) | `apps/intellij-plugin` only | `apps/bpmn-webview`, `apps/deployment-webview`, `apps/modeler-bridge`, `libs/modeler-core`, `libs/shared`, the npm-package sphere | `apps/intellij-plugin/BUNDLED_WEBVIEW` |
 | **dmn-modeler** (`packages/dmn-modeler`) | `packages/dmn-modeler` only | `libs/modeler-types`, `libs/bpmn-i18n-extras` | `packages/dmn-modeler/BUNDLED_LIBS` |
+| **orca** (`apps/orca-plugin`) | `apps/orca-plugin` only | `packages/dmn-modeler`, `libs/shared`, the npm-package sphere | `apps/orca-plugin/BUNDLED_WEBVIEW` |
 
 The inlined libs (with `packages/bpmn-modeler`, the "npm-package sphere" —
 see `packages/bpmn-modeler/inlined-libraries.json`):

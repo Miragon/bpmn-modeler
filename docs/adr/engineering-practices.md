@@ -190,6 +190,24 @@ manual version input. It is not part of the required `ci` check: it needs a full
 install and build, and it drives workbench DOM that VS Code does not keep
 stable between releases.
 
+The Orca plugin has the same two layers. Its
+[e2e suite](../../apps/orca-plugin/test/e2e) (`test:e2e`) builds the plugin
+and opens each editor in Chromium under Orca's frame CSP with the Orca stub of
+`@miragon/modeler-shell`, a test-only dependency (MIT) published by the
+modeler suite; the stub has no `editor.flush`, so the suite adds it. The
+[Orca smoke test](../../apps/orca-plugin/test/smoke/orcaSmoke.test.ts)
+(`test:orca`) runs the shell's `runOrcaSmoke` in a real Orca for a `.bpmn` and
+a `.dmn` file. Unlike the VS Code driver, this one is imported: it drives Orca
+through its CLI by click coordinates and file contents, never the shell's
+chrome. The click points are measured in the e2e suite and shared with the
+smoke test. Its container runner is still our own, as the shell's assumes npm.
+CI runs the e2e suite in the `ci` check and the smoke test in a
+[workflow of its own](../../.github/workflows/orca-smoke.yml) on the newest
+Orca and the `engines.orca` floor. Orca's `plugin check` warns on any
+`eval`/`Function(` call, which the smoke test treats as a failure; the build
+patches the three known calls out of upstream modules and its assemble step
+fails on a new one, and on a plugin over Orca's size limits.
+
 The vendored properties panel requires production Preact JSX transforms in both
 test pipelines. Check [browser configuration](../../packages/bpmn-modeler/vitest.browser.config.ts),
 [unit configuration](../../packages/bpmn-modeler/vitest.unit.config.ts),

@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-05
 
 ## Context
 
@@ -40,6 +40,7 @@ source of truth for routing and version-stamped files.
 | `dmn-modeler` | `packages/dmn-modeler` | `BUNDLED_LIBS` for `modeler-types` and `bpmn-i18n-extras` |
 | `vscode` | `apps/vscode-plugin` | `BUNDLED_WEBVIEW` for bundled packages, webviews, core/shared and standalone sources |
 | `intellij` | `apps/intellij-plugin` | `BUNDLED_WEBVIEW` for its bundled webviews, bridge/core and relevant package/library sources |
+| `orca` | `apps/orca-plugin` | `BUNDLED_WEBVIEW` for both packages, the libraries they inline and `libs/shared` |
 
 The root excludes applications, docs, CI, host libraries, the DMN package and
 root tooling files individually. It is a blocklist without globs: review new
@@ -165,6 +166,26 @@ descriptor still resolves on its own. Bundling would break plugin
 interoperability. Moving the monorepo to another package manager does not
 change a consumer's resolver; [#1780](https://github.com/Miragon/bpmn-modeler/issues/1780)
 evaluates pnpm on other grounds.
+
+### Orca plugin
+
+Orca builds nothing and installs the files of a pinned commit, so the built
+plugin folder has to live in a repository. Every Miragon modeler publishes into
+one catalog, [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers),
+whose `sources.json` allows this repository to publish `bpmn-modeler`. After
+the release approval, the
+[publish workflow](../../.github/workflows/publish-orca-plugin.yml) builds
+`apps/orca-plugin/plugin/`, smoke-tests exactly that folder in the newest Orca
+and hands it to that repository's `publish-plugin` action, pinned to a commit.
+It authenticates with the release-please GitHub App, whose token is scoped to
+`miragon/orca-modelers`, and runs in the `orca-modelers-publish` concurrency
+group every source repository shares. A listed version never changes there, so
+a retry of an already published version fails rather than overwriting it.
+This repository stays free of build output. Manual dispatch is a dry run.
+release-please bumps `orca-plugin.json` with the workspace's version; the
+[manifest spec](../../apps/orca-plugin/src/manifest.contract.spec.ts) keeps the
+two equal. The bundle ships unminified with sourcemaps, as Orca's listing
+policy asks for readable code.
 
 ### Standalone Linux Git
 
