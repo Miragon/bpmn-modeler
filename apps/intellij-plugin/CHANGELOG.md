@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.13.0...intellij-v1.14.0) (2026-11-05)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** remember the properties panel width per editor ([#2159](https://github.com/Miragon/bpmn-modeler/issues/2159)) [sync 757d979] ([cb30944](https://github.com/Miragon/bpmn-modeler/commit/cb3094473377c3129d1d66d5b3a60f53173e0afc))
+
 ## [1.13.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.12.0...intellij-v1.13.0) (2026-11-04)
 
 

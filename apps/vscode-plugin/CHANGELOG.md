@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.18.0...vscode-v1.19.0) (2026-11-05)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** remember the properties panel width per editor ([#2159](https://github.com/Miragon/bpmn-modeler/issues/2159)) [sync 757d979] ([cb30944](https://github.com/Miragon/bpmn-modeler/commit/cb3094473377c3129d1d66d5b3a60f53173e0afc))
+
 ## [1.18.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.17.0...vscode-v1.18.0) (2026-11-04)
 
 
