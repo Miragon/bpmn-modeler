@@ -46,8 +46,10 @@ function setUp(markup: { width?: number; collapsed?: boolean } = {}) {
     const handle = createResizer();
     const visibilityChanges: boolean[] = [];
     handle.onVisibilityChanged((visible) => visibilityChanges.push(visible));
+    const openWidthChanges: number[] = [];
+    handle.onOpenWidthChanged((width) => openWidthChanges.push(width));
     const toggleButton = resizer.querySelector("button")!;
-    return { resizer, panel, handle, visibilityChanges, toggleButton };
+    return { resizer, panel, handle, visibilityChanges, openWidthChanges, toggleButton };
 }
 
 function pressAt(target: HTMLElement, clientX: number): void {
@@ -85,7 +87,9 @@ describe("initResizer", () => {
 
         const handle = createResizer();
         handle.onVisibilityChanged(listener);
+        handle.onOpenWidthChanged(listener);
         handle.setVisible(false);
+        handle.setOpenWidth(720);
 
         expect(handle.isVisible()).toBe(true);
         expect(listener).not.toHaveBeenCalled();
@@ -127,7 +131,7 @@ describe("initResizer", () => {
         expect(toggleButton.title).toBe(OPEN_LABEL);
     });
 
-    it("reopens a collapsed panel at twice the minimum width on setVisible(true)", () => {
+    it("reopens a collapsed panel at the default open width on setVisible(true)", () => {
         const { resizer, panel, handle, visibilityChanges, toggleButton } = setUp({
             collapsed: true,
         });
@@ -303,6 +307,103 @@ describe("initResizer", () => {
         });
     });
 
+    describe("open width", () => {
+        it("applies a new open width to an open panel at once without reporting it", () => {
+            const { panel, handle, openWidthChanges } = setUp({ width: 300 });
+
+            handle.setOpenWidth(720);
+
+            expect(panel.style.width).toBe("720px");
+            expect(openWidthChanges).toEqual([]);
+        });
+
+        it("keeps a collapsed panel closed and reopens it at the new open width", () => {
+            const { panel, handle } = setUp({ collapsed: true });
+
+            handle.setOpenWidth(720);
+            expect(panel.style.width).toBe("");
+
+            handle.setVisible(true);
+            expect(panel.style.width).toBe("720px");
+        });
+
+        it("reports the width a drag leaves the panel at once it is released", () => {
+            const { resizer, openWidthChanges } = setUp({ width: 300 });
+
+            pressAt(resizer, 500);
+            moveTo(400);
+            moveTo(350);
+            expect(openWidthChanges).toEqual([]);
+
+            release();
+            expect(openWidthChanges).toEqual([450]);
+        });
+
+        it("reports the minimum when the drag holds the panel there", () => {
+            const { resizer, openWidthChanges } = setUp({ width: 300 });
+
+            pressAt(resizer, 500);
+            moveTo(650);
+            release();
+
+            expect(openWidthChanges).toEqual([200]);
+        });
+
+        it("does not report a drag that leaves the width unchanged", () => {
+            const { resizer, openWidthChanges } = setUp({ width: 300 });
+
+            pressAt(resizer, 500);
+            moveTo(400);
+            moveTo(500);
+            release();
+
+            expect(openWidthChanges).toEqual([]);
+        });
+
+        it("reopens from the toggle button at the width the last drag left", () => {
+            const { resizer, panel, toggleButton } = setUp({ width: 300 });
+            pressAt(resizer, 500);
+            moveTo(200);
+            release();
+
+            toggleButton.click();
+            toggleButton.click();
+
+            expect(panel.style.width).toBe("600px");
+        });
+
+        it("keeps the previous open width when a drag collapses the panel", () => {
+            const { resizer, panel, handle, openWidthChanges } = setUp({ width: 300 });
+            handle.setOpenWidth(720);
+
+            pressAt(resizer, 500);
+            moveInSteps(500, 800, 10);
+            release();
+            handle.setVisible(true);
+
+            expect(openWidthChanges).toEqual([]);
+            expect(panel.style.width).toBe("720px");
+        });
+
+        it("keeps notifying the remaining listeners when one throws", () => {
+            const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+            const { resizer, handle, openWidthChanges } = setUp({ width: 300 });
+            const laterListener = vi.fn();
+            handle.onOpenWidthChanged(() => {
+                throw new Error("listener failed");
+            });
+            handle.onOpenWidthChanged(laterListener);
+
+            pressAt(resizer, 500);
+            moveTo(400);
+            release();
+
+            expect(openWidthChanges).toEqual([400]);
+            expect(laterListener).toHaveBeenCalledWith(400);
+            expect(logError).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe("dispose", () => {
         it("ends an open drag and ignores later pointer moves", () => {
             const { resizer, panel, handle } = setUp({ width: 300 });
@@ -359,6 +460,21 @@ describe("initResizer", () => {
 
             expect(panel.classList.contains("collapsed")).toBe(false);
             expect(visibilityChanges).toEqual([]);
+        });
+
+        it("no longer applies or reports an open width through the disposed handle", () => {
+            const { resizer, panel, handle, openWidthChanges } = setUp({ width: 300 });
+            handle.dispose();
+
+            handle.setOpenWidth(720);
+            const successor = createResizer();
+            pressAt(resizer, 500);
+            moveTo(400);
+            release();
+
+            expect(successor.isVisible()).toBe(true);
+            expect(panel.style.width).toBe("400px");
+            expect(openWidthChanges).toEqual([]);
         });
 
         it("unsubscribes from label changes exactly once", () => {

@@ -1,6 +1,7 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
     bindPanelVisibility,
+    bindPanelWidth,
     createWebviewStateStore,
     initResizer,
     LogErrorCommand,
@@ -60,9 +61,11 @@ export function mountEditorChrome(
         onLabelChange: (apply) => i18n.onChange(apply),
     });
 
+    const panelStateStore = createWebviewStateStore(host);
+    bindPanelWidth(panel, panelStateStore);
     // Bound with the resizer, so the saved visibility shows before the import and a
     // toggle while the editor opens is already remembered and reported.
-    const panelVisibility = bindPanelVisibility(panel, createWebviewStateStore(host), (visible) =>
+    const panelVisibility = bindPanelVisibility(panel, panelStateStore, (visible) =>
         host.postMessage(new SetPropertiesPanelStateCommand(visible)),
     );
 

@@ -10,6 +10,8 @@ export interface PropertiesPanelUiState {
     expandedGroupIndexes?: number[];
     /** Absent until the user first toggles the panel; the host's global default applies until then. */
     panelVisible?: boolean;
+    /** The width (px) the panel opens at; absent until the user first drags it. */
+    panelWidth?: number;
 }
 
 export function hasGroupsOrScrollToRestore(

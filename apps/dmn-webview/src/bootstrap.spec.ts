@@ -720,6 +720,23 @@ describe("DMN bootstrap", () => {
             ]);
         });
 
+        it("opens the panel at the editor's saved width", async () => {
+            await startReady({ savedState: { panelWidth: 720 } });
+
+            expect(panel().style.width).toBe("720px");
+        });
+
+        it("persists a dragged width per editor", async () => {
+            const { host } = await startReady();
+            const resizer = document.getElementById("js-panel-resizer")!;
+
+            resizer.dispatchEvent(new MouseEvent("mousedown", { clientX: 1000, bubbles: true }));
+            document.dispatchEvent(new MouseEvent("mousemove", { clientX: 400 }));
+            document.dispatchEvent(new MouseEvent("mouseup"));
+
+            expect(host.updateState).toHaveBeenCalledWith({ panelWidth: 600 });
+        });
+
         it("focuses a re-shown editor without waiting for the host default", async () => {
             const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
             const { ofType } = await startBootstrap({
