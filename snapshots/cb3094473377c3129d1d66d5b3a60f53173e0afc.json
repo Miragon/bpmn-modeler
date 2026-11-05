@@ -1,0 +1,1555 @@
+{
+  "schemaVersion": 1,
+  "commit": "cb3094473377c3129d1d66d5b3a60f53173e0afc",
+  "entries": {
+    "change-coupling": {
+      "version": 1,
+      "findings": [
+        {
+          "key": "apps/bpmn-webview/src/bootstrap.ts ↔ apps/dmn-webview/src/bootstrap.ts",
+          "path": "apps/bpmn-webview/src/bootstrap.ts",
+          "line": 1,
+          "message": "changes with `apps/dmn-webview/src/bootstrap.ts` in 11 PRs (55 and 17 revisions), degree 31 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/bpmn-webview/src/diffMode.ts ↔ apps/bpmn-webview/src/host.ts",
+          "path": "apps/bpmn-webview/src/diffMode.ts",
+          "line": 1,
+          "message": "changes with `apps/bpmn-webview/src/host.ts` in 8 PRs (11 and 23 revisions), degree 47 %; explained by `libs/shared/src/lib/modeler.ts` (4 of 8)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/bpmn-webview/src/diffMode.ts ↔ apps/bpmn-webview/src/main.ts",
+          "path": "apps/bpmn-webview/src/diffMode.ts",
+          "line": 1,
+          "message": "changes with `apps/bpmn-webview/src/main.ts` in 5 PRs (11 and 22 revisions), degree 30 %; composition root: `apps/bpmn-webview/src/main.ts`",
+          "group": "within-workspace"
+        },
+        {
+          "key": "apps/bpmn-webview/src/diffMode.ts ↔ libs/modeler-core/src/diff/service/BpmnDiffService.ts",
+          "path": "apps/bpmn-webview/src/diffMode.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/diff/service/BpmnDiffService.ts` in 7 PRs (11 and 14 revisions), degree 56 %; explained by `libs/shared/src/lib/modeler.ts` (5 of 7)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/bpmn-webview/src/host.ts ↔ apps/bpmn-webview/src/state.ts",
+          "path": "apps/bpmn-webview/src/host.ts",
+          "line": 1,
+          "message": "changes with `apps/bpmn-webview/src/state.ts` in 8 PRs (23 and 23 revisions), degree 35 %; explained by `apps/bpmn-webview/src/webviewState.ts` (4 of 8)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/bpmn-webview/src/host.ts ↔ apps/dmn-webview/src/host.ts",
+          "path": "apps/bpmn-webview/src/host.ts",
+          "line": 1,
+          "message": "changes with `apps/dmn-webview/src/host.ts` in 6 PRs (23 and 10 revisions), degree 36 %; explained by `libs/shared/src/lib/host.ts` (3 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/bpmn-webview/src/main.ts ↔ apps/dmn-webview/src/host.ts",
+          "path": "apps/bpmn-webview/src/main.ts",
+          "line": 1,
+          "message": "changes with `apps/dmn-webview/src/host.ts` in 5 PRs (22 and 10 revisions), degree 31 %; composition root: `apps/bpmn-webview/src/main.ts`",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/bpmn-webview/src/main.ts ↔ apps/dmn-webview/src/main.ts",
+          "path": "apps/bpmn-webview/src/main.ts",
+          "line": 1,
+          "message": "changes with `apps/dmn-webview/src/main.ts` in 8 PRs (22 and 9 revisions), degree 52 %; composition root: `apps/bpmn-webview/src/main.ts`, `apps/dmn-webview/src/main.ts`",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/bpmn-webview/src/state.ts ↔ apps/dmn-webview/src/main.ts",
+          "path": "apps/bpmn-webview/src/state.ts",
+          "line": 1,
+          "message": "changes with `apps/dmn-webview/src/main.ts` in 5 PRs (23 and 9 revisions), degree 31 %; composition root: `apps/dmn-webview/src/main.ts`",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/bpmn-webview/src/state.ts ↔ packages/bpmn-modeler/src/viewport.ts",
+          "path": "apps/bpmn-webview/src/state.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/viewport.ts` in 7 PRs (23 and 13 revisions), degree 39 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/dmn-webview/src/bootstrap.ts ↔ packages/dmn-modeler/src/modeler.ts",
+          "path": "apps/dmn-webview/src/bootstrap.ts",
+          "line": 1,
+          "message": "changes with `packages/dmn-modeler/src/modeler.ts` in 5 PRs (17 and 12 revisions), degree 34 %; explained by `packages/dmn-modeler/src/publicApi.ts` (3 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt ↔ apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptEditorManager.kt",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt",
+          "line": 1,
+          "message": "changes with `apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptEditorManager.kt` in 5 PRs (24 and 5 revisions), degree 34 %",
+          "group": "kotlin-only"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt ↔ apps/modeler-bridge/src/composition/bridge.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/composition/bridge.ts` in 10 PRs (24 and 20 revisions), degree 45 %; composition root: `apps/modeler-bridge/src/composition/bridge.ts`",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt ↔ apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsStore.kt",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 1,
+          "message": "changes with `apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsStore.kt` in 8 PRs (11 and 8 revisions), degree 84 %",
+          "group": "kotlin-only"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt ↔ apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts` in 5 PRs (11 and 10 revisions), degree 48 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsStore.kt ↔ apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsStore.kt",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts` in 5 PRs (8 and 10 revisions), degree 56 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletion.kt ↔ apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletionContributor.kt",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletion.kt",
+          "line": 1,
+          "message": "changes with `apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletionContributor.kt` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "kotlin-only"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletion.kt ↔ apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletion.kt",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts` in 5 PRs (5 and 14 revisions), degree 53 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletionContributor.kt ↔ apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletionContributor.kt",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts` in 5 PRs (5 and 14 revisions), degree 53 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptEditorManager.kt ↔ apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptEditorManager.kt",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts` in 5 PRs (5 and 14 revisions), degree 53 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/EditorSessionRouter.kt ↔ apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/EditorSessionRouter.kt",
+          "line": 1,
+          "message": "changes with `apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt` in 6 PRs (15 and 6 revisions), degree 57 %",
+          "group": "kotlin-only"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt ↔ apps/modeler-bridge/src/protocol/domain/descriptor.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/protocol/domain/descriptor.ts` in 5 PRs (11 and 18 revisions), degree 34 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt ↔ apps/modeler-bridge/src/protocol/domain/types.ts",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/protocol/domain/types.ts` in 6 PRs (11 and 22 revisions), degree 36 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/modeler-bridge/src/composition/deploymentFeature.ts ↔ apps/modeler-bridge/src/composition/editorSessionFeature.ts",
+          "path": "apps/modeler-bridge/src/composition/deploymentFeature.ts",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/composition/editorSessionFeature.ts` in 5 PRs (9 and 13 revisions), degree 45 %; explained by `apps/modeler-bridge/src/composition/sharedDeps.ts` (3 of 5); composition root: `apps/modeler-bridge/src/composition/deploymentFeature.ts`, `apps/modeler-bridge/src/composition/editorSessionFeature.ts`",
+          "group": "explained"
+        },
+        {
+          "key": "apps/modeler-bridge/src/composition/scriptFeature.ts ↔ apps/modeler-bridge/src/protocol/domain/types.ts",
+          "path": "apps/modeler-bridge/src/composition/scriptFeature.ts",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/protocol/domain/types.ts` in 5 PRs (11 and 22 revisions), degree 30 %; composition root: `apps/modeler-bridge/src/composition/scriptFeature.ts`",
+          "group": "within-workspace"
+        },
+        {
+          "key": "apps/modeler-bridge/src/composition/scriptFeature.ts ↔ apps/vscode-plugin/src/composition/scriptFeature.ts",
+          "path": "apps/modeler-bridge/src/composition/scriptFeature.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/composition/scriptFeature.ts` in 5 PRs (11 and 7 revisions), degree 56 %; composition root: `apps/modeler-bridge/src/composition/scriptFeature.ts`, `apps/vscode-plugin/src/composition/scriptFeature.ts`",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/modeler-bridge/src/composition/scriptFeature.ts ↔ apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts",
+          "path": "apps/modeler-bridge/src/composition/scriptFeature.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts` in 5 PRs (11 and 10 revisions), degree 48 %; composition root: `apps/modeler-bridge/src/composition/scriptFeature.ts`",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts ↔ apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts` in 7 PRs (27 and 10 revisions), degree 38 %; explained by `libs/modeler-core/src/kernel/port/hostPorts.ts` (6 of 7)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts ↔ apps/vscode-plugin/src/composition/scriptFeature.ts",
+          "path": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/composition/scriptFeature.ts` in 6 PRs (14 and 7 revisions), degree 57 %; explained by `libs/modeler-core/src/scriptTask/domain/ScriptVariableStore.ts` (3 of 6); composition root: `apps/vscode-plugin/src/composition/scriptFeature.ts`",
+          "group": "explained"
+        },
+        {
+          "key": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts ↔ apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts",
+          "path": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts` in 5 PRs (14 and 8 revisions), degree 45 %; explained by `libs/modeler-core/src/scriptTask/domain/ScriptVariableStore.ts` (4 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts ↔ apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts",
+          "path": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts` in 6 PRs (14 and 10 revisions), degree 50 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts ↔ libs/modeler-types/src/processVariables.ts",
+          "path": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-types/src/processVariables.ts` in 5 PRs (14 and 6 revisions), degree 50 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/vscode-plugin/src/composition/editorFeature.ts ↔ apps/vscode-plugin/src/composition/scriptFeature.ts",
+          "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/composition/scriptFeature.ts` in 5 PRs (23 and 7 revisions), degree 33 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`, `apps/vscode-plugin/src/composition/scriptFeature.ts`",
+          "group": "within-workspace"
+        },
+        {
+          "key": "apps/vscode-plugin/src/composition/editorFeature.ts ↔ libs/shared/src/lib/modeler.ts",
+          "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
+          "line": 1,
+          "message": "changes with `libs/shared/src/lib/modeler.ts` in 11 PRs (23 and 35 revisions), degree 38 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/vscode-plugin/src/main.ts ↔ apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts",
+          "path": "apps/vscode-plugin/src/main.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts` in 5 PRs (25 and 8 revisions), degree 30 %; composition root: `apps/vscode-plugin/src/main.ts`",
+          "group": "within-workspace"
+        },
+        {
+          "key": "apps/vscode-plugin/src/main.ts ↔ apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts",
+          "path": "apps/vscode-plugin/src/main.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts` in 7 PRs (25 and 10 revisions), degree 40 %; composition root: `apps/vscode-plugin/src/main.ts`",
+          "group": "within-workspace"
+        },
+        {
+          "key": "apps/vscode-plugin/src/main.ts ↔ apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts",
+          "path": "apps/vscode-plugin/src/main.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts` in 6 PRs (25 and 11 revisions), degree 33 %; composition root: `apps/vscode-plugin/src/main.ts`",
+          "group": "within-workspace"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts ↔ apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts",
+          "line": 1,
+          "message": "changes with `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts` in 5 PRs (18 and 10 revisions), degree 36 %; explained by `libs/modeler-core/src/kernel/port/hostPorts.ts` (4 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts ↔ libs/shared/src/lib/modeler.ts",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "line": 1,
+          "message": "changes with `libs/shared/src/lib/modeler.ts` in 7 PRs (10 and 35 revisions), degree 31 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts ↔ libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts` in 7 PRs (12 and 15 revisions), degree 52 %; explained by `libs/modeler-core/src/kernel/port/hostPorts.ts` (6 of 7)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts ↔ libs/modeler-core/src/modeler/bpmn/service/BpmnlintParticipant.ts",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnlintParticipant.ts` in 5 PRs (12 and 10 revisions), degree 45 %; explained by `libs/modeler-core/src/kernel/port/hostPorts.ts` (4 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts ↔ libs/modeler-core/src/testing/RecordingStatusBar.ts",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/testing/RecordingStatusBar.ts` in 6 PRs (12 and 7 revisions), degree 63 %; explained by `libs/modeler-core/src/kernel/port/hostPorts.ts` (5 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/append-menu/src/AppendMenuOverride.ts ↔ libs/append-menu/src/components/BpmnElementPalette.tsx",
+          "path": "libs/append-menu/src/AppendMenuOverride.ts",
+          "line": 1,
+          "message": "changes with `libs/append-menu/src/components/BpmnElementPalette.tsx` in 6 PRs (11 and 7 revisions), degree 67 %; explained by `libs/append-menu/src/types.ts` (4 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/append-menu/src/AppendMenuOverride.ts ↔ libs/append-menu/src/components/TemplatePanel.tsx",
+          "path": "libs/append-menu/src/AppendMenuOverride.ts",
+          "line": 1,
+          "message": "changes with `libs/append-menu/src/components/TemplatePanel.tsx` in 5 PRs (11 and 6 revisions), degree 59 %; explained by `libs/append-menu/src/types.ts` (3 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/append-menu/src/components/AppendMenuOverlay.tsx ↔ libs/append-menu/src/components/TemplateHoverCard.tsx",
+          "path": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "line": 1,
+          "message": "changes with `libs/append-menu/src/components/TemplateHoverCard.tsx` in 5 PRs (10 and 7 revisions), degree 59 %; explained by `libs/append-menu/src/types.ts` (5 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/append-menu/src/components/BpmnElementPalette.tsx ↔ libs/append-menu/src/components/TemplatePanel.tsx",
+          "path": "libs/append-menu/src/components/BpmnElementPalette.tsx",
+          "line": 1,
+          "message": "changes with `libs/append-menu/src/components/TemplatePanel.tsx` in 5 PRs (7 and 6 revisions), degree 77 %; explained by `libs/append-menu/src/types.ts` (4 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptEditorOpener.ts ↔ libs/inline-scripting/src/scriptLockPropertiesProvider.ts",
+          "path": "libs/inline-scripting/src/scriptEditorOpener.ts",
+          "line": 1,
+          "message": "changes with `libs/inline-scripting/src/scriptLockPropertiesProvider.ts` in 5 PRs (6 and 5 revisions), degree 91 %; explained by `libs/inline-scripting/src/scriptModel.ts` (4 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts ↔ libs/modeler-core/src/kernel/service/workspaceFileSearch.ts",
+          "path": "libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts` in 6 PRs (9 and 10 revisions), degree 63 %; explained by `libs/modeler-core/src/kernel/port/hostPorts.ts` (3 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts ↔ libs/modeler-core/src/deployment/service/DeployFilesService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeployFilesService.ts` in 6 PRs (9 and 8 revisions), degree 71 %; explained by `libs/modeler-core/src/deployment/service/resolveOrPickNamedDestination.ts` (5 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts ↔ libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts` in 5 PRs (9 and 13 revisions), degree 45 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts ↔ libs/modeler-core/src/deployment/service/DeploymentStatusService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeploymentStatusService.ts` in 5 PRs (9 and 11 revisions), degree 50 %; explained by `libs/modeler-core/src/deployment/service/DeploymentTargetService.ts` (3 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts ↔ libs/modeler-core/src/deployment/service/DeploymentVerificationService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeploymentVerificationService.ts` in 5 PRs (9 and 8 revisions), degree 59 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeployFilesService.ts ↔ libs/modeler-core/src/deployment/service/DeploymentStatusService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeployFilesService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeploymentStatusService.ts` in 6 PRs (8 and 11 revisions), degree 63 %; explained by `libs/modeler-core/src/deployment/service/DeploymentTargetService.ts` (4 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts ↔ libs/modeler-core/src/deployment/service/DeploymentStatusService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeploymentStatusService.ts` in 6 PRs (13 and 11 revisions), degree 50 %; explained by `libs/modeler-core/src/deployment/service/DeploymentTargetService.ts` (3 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeploymentService.ts ↔ libs/modeler-core/src/deployment/service/DeploymentTargetService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeploymentService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/DeploymentTargetService.ts` in 6 PRs (13 and 13 revisions), degree 46 %; explained by `libs/modeler-core/src/deployment/port/deploymentPorts.ts` (4 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeploymentService.ts ↔ libs/modeler-core/src/deployment/service/StartInstanceService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeploymentService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/StartInstanceService.ts` in 8 PRs (13 and 10 revisions), degree 70 %; explained by `libs/modeler-core/src/deployment/port/deploymentPorts.ts` (4 of 8)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeploymentStatusService.ts ↔ libs/modeler-core/src/deployment/service/StartInstanceService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeploymentStatusService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/StartInstanceService.ts` in 6 PRs (11 and 10 revisions), degree 57 %; explained by `libs/modeler-core/src/deployment/port/deploymentPorts.ts` (4 of 6)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeploymentTargetService.ts ↔ libs/modeler-core/src/deployment/service/StartInstanceService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeploymentTargetService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/deployment/service/StartInstanceService.ts` in 5 PRs (13 and 10 revisions), degree 43 %; explained by `libs/modeler-core/src/deployment/port/deploymentPorts.ts` (3 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "libs/modeler-core/src/diff/service/BpmnDiffService.ts ↔ packages/bpmn-modeler/src/viewer/diff/DiffLegend.ts",
+          "path": "libs/modeler-core/src/diff/service/BpmnDiffService.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/viewer/diff/DiffLegend.ts` in 5 PRs (14 and 6 revisions), degree 50 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts ↔ packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts` in 5 PRs (15 and 14 revisions), degree 34 %",
+          "group": "across-workspaces"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts ↔ libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
+          "line": 1,
+          "message": "changes with `libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts` in 5 PRs (18 and 6 revisions), degree 42 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "packages/bpmn-modeler/scripts/check-dts.mjs ↔ packages/bpmn-modeler/scripts/smoke-consumer.mjs",
+          "path": "packages/bpmn-modeler/scripts/check-dts.mjs",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/scripts/smoke-consumer.mjs` in 5 PRs (6 and 9 revisions), degree 67 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/index.ts",
+          "path": "packages/bpmn-modeler/src/design/designer.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/index.ts` in 8 PRs (26 and 22 revisions), degree 33 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (4 of 8); composition root: `packages/bpmn-modeler/src/index.ts`",
+          "group": "explained"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/modeSession/modeSession.ts",
+          "path": "packages/bpmn-modeler/src/design/designer.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/modeSession/modeSession.ts` in 5 PRs (26 and 7 revisions), degree 30 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (3 of 5)",
+          "group": "explained"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/modeler.ts",
+          "path": "packages/bpmn-modeler/src/design/designer.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/modeler.ts` in 21 PRs (26 and 59 revisions), degree 49 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (13 of 21)",
+          "group": "explained"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/viewer/publicApi.ts",
+          "path": "packages/bpmn-modeler/src/design/designer.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/viewer/publicApi.ts` in 7 PRs (26 and 13 revisions), degree 36 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (6 of 7)",
+          "group": "explained"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/viewer/viewer.ts",
+          "path": "packages/bpmn-modeler/src/design/designer.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/viewer/viewer.ts` in 12 PRs (26 and 15 revisions), degree 59 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (7 of 12)",
+          "group": "explained"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/publicApi.ts ↔ packages/bpmn-modeler/src/viewer/publicApi.ts",
+          "path": "packages/bpmn-modeler/src/design/publicApi.ts",
+          "line": 1,
+          "message": "changes with `packages/bpmn-modeler/src/viewer/publicApi.ts` in 9 PRs (21 and 13 revisions), degree 53 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (8 of 9)",
+          "group": "explained"
+        }
+      ]
+    },
+    "convention-coverage": {
+      "version": 1,
+      "findings": [
+        {
+          "key": "apps/bpmn-webview/src/bootstrap.ts — nothing imports an entry",
+          "path": "apps/bpmn-webview/src/bootstrap.ts",
+          "line": 28,
+          "message": "breaks “nothing imports an entry” by importing `hostEditorActions.ts`, `hostModelerState.ts`, `state.ts`, `surface.ts`, `surfaceModules.ts`, `webviewState.ts`, `diffMode.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/bpmn-webview/src/host.ts — nothing imports an entry",
+          "path": "apps/bpmn-webview/src/host.ts",
+          "line": 33,
+          "message": "breaks “nothing imports an entry” by importing `webviewState.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/bpmn-webview/src/index.ts — nothing imports an entry",
+          "path": "apps/bpmn-webview/src/index.ts",
+          "line": 1,
+          "message": "breaks “nothing imports an entry” by importing `bootstrap.ts`, `webviewState.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/bpmn-webview/src/main.ts — nothing imports an entry",
+          "path": "apps/bpmn-webview/src/main.ts",
+          "line": 1,
+          "message": "breaks “nothing imports an entry” by importing `host.ts`, `bootstrap.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/documentSession.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/documentSession.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/editorChrome.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/editorChrome.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/formPreview.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/formPreview.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/formPreviewPosition.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/formPreviewPosition.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/formPreviewSchema.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/formPreviewSchema.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/hostChannel.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/hostChannel.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/lintBridge.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/lintBridge.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/messageRouter.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/messageRouter.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/modeController.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/modeController.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/processVariablePublisher.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/processVariablePublisher.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/protocolCapabilities.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/protocolCapabilities.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/protocolClipboard.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/protocolClipboard.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/surfaceBinding.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/surfaceBinding.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/surfaceDocument.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/surfaceDocument.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/surfaceFactories.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/surfaceFactories.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/session/surfaceRequests.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/session/surfaceRequests.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/state.ts — nothing imports an entry",
+          "path": "apps/bpmn-webview/src/state.ts",
+          "line": 13,
+          "message": "breaks “nothing imports an entry” by importing `webviewState.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/bpmn-webview/src/templateEditor/bootstrap.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/templateEditor/bootstrap.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/templateEditor/documentSession.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/templateEditor/documentSession.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/templateEditor/editorView.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/templateEditor/editorView.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/templateEditor/host.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/templateEditor/host.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/templateEditor/main.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/templateEditor/main.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/bpmn-webview/src/templateEditor/previewFit.ts — every file sits in a role folder or is an entry",
+          "path": "apps/bpmn-webview/src/templateEditor/previewFit.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/deployment-webview/src/app/form.ts — every file sits in a role folder or is an entry",
+          "path": "apps/deployment-webview/src/app/form.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/deployment-webview/src/app/formTemplate.ts — every file sits in a role folder or is an entry",
+          "path": "apps/deployment-webview/src/app/formTemplate.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/deployment-webview/src/app/host.ts — every file sits in a role folder or is an entry",
+          "path": "apps/deployment-webview/src/app/host.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/deployment-webview/src/app/startInstanceForm.ts — every file sits in a role folder or is an entry",
+          "path": "apps/deployment-webview/src/app/startInstanceForm.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/deployment-webview/src/main.ts — nothing imports an entry",
+          "path": "apps/deployment-webview/src/main.ts",
+          "line": 6,
+          "message": "breaks “nothing imports an entry” by importing `bootstrap.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/dmn-webview/src/bootstrap.ts — nothing imports an entry",
+          "path": "apps/dmn-webview/src/bootstrap.ts",
+          "line": 36,
+          "message": "breaks “nothing imports an entry” by importing `documentSession.ts`, `hostMessageRouter.ts`, `webviewState.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/dmn-webview/src/documentSession.ts — nothing imports an entry",
+          "path": "apps/dmn-webview/src/documentSession.ts",
+          "line": 13,
+          "message": "breaks “nothing imports an entry” by importing `webviewState.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/dmn-webview/src/host.ts — nothing imports an entry",
+          "path": "apps/dmn-webview/src/host.ts",
+          "line": 18,
+          "message": "breaks “nothing imports an entry” by importing `webviewState.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/dmn-webview/src/hostMessageRouter.ts — nothing imports an entry",
+          "path": "apps/dmn-webview/src/hostMessageRouter.ts",
+          "line": 11,
+          "message": "breaks “nothing imports an entry” by importing `documentSession.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/dmn-webview/src/main.ts — nothing imports an entry",
+          "path": "apps/dmn-webview/src/main.ts",
+          "line": 1,
+          "message": "breaks “nothing imports an entry” by importing `host.ts`, `bootstrap.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — every file sits in a role folder or is an entry",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/form-webview/src/app/formTemplate.ts — every file sits in a role folder or is an entry",
+          "path": "apps/form-webview/src/app/formTemplate.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/form-webview/src/app/host.ts — every file sits in a role folder or is an entry",
+          "path": "apps/form-webview/src/app/host.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/form-webview/src/app/hostMessage.ts — every file sits in a role folder or is an entry",
+          "path": "apps/form-webview/src/app/hostMessage.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "apps/form-webview/src/main.ts — nothing imports an entry",
+          "path": "apps/form-webview/src/main.ts",
+          "line": 5,
+          "message": "breaks “nothing imports an entry” by importing `bootstrap.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/c7.ts — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/catalog/c7.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/c8.ts — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/catalog/c8.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/index.ts — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/catalog/index.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/types.ts — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/catalog/types.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/bindingOptions.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/bindingOptions.ts",
+          "line": 1,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/bindingRules.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/bindingRules.ts",
+          "line": 1,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/diagnostics.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/diagnostics.ts",
+          "line": 8,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/propertyCapabilities.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/propertyCapabilities.ts",
+          "line": 1,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/requirements.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/requirements.ts",
+          "line": 1,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/titles.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/titles.ts",
+          "line": 1,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/transforms.ts — domain/ imports only domain/",
+          "path": "libs/element-template-builder/src/domain/transforms.ts",
+          "line": 1,
+          "message": "breaks “domain/ imports only domain/” by importing `catalog/index.ts`",
+          "group": "divergent-import"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/ProblemsBar.tsx — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/ProblemsBar.tsx",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/TemplateBuilder.tsx — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/TemplateBuilder.tsx",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/createTemplateBuilder.tsx — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/createTemplateBuilder.tsx",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/entries.tsx — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/entries.tsx",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/entryIds.ts — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/entryIds.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/parts.tsx — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/parts.tsx",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/settingEntries.ts — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/settingEntries.ts",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/settings.tsx — every file sits in a role folder or is an entry",
+          "path": "libs/element-template-builder/src/ui/settings.tsx",
+          "line": 1,
+          "message": "sits in no role folder and is no entry directly in `src/`",
+          "group": "unmapped"
+        },
+        {
+          "key": "libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts — implements a port",
+          "path": "libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts",
+          "line": 15,
+          "message": "`EditorSessionDocuments` implements the port in `libs/modeler-core/src/kernel/port/hostPorts.ts` outside adapter/out/ and testing/",
+          "group": "misplaced-port-implementation"
+        }
+      ]
+    },
+    "repeated-value-sets": {
+      "version": 1,
+      "findings": [
+        {
+          "key": "apps/bpmn-webview/src/session/messageRouter.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/bpmn-webview/src/session/messageRouter.ts",
+          "line": 58,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/form-webview/src/app/hostMessage.ts:22`, `apps/form-webview/src/bootstrap.ts:63`"
+        },
+        {
+          "key": "apps/deployment-webview/src/app/form.ts — [\" \",\"Enter\"]",
+          "path": "apps/deployment-webview/src/app/form.ts",
+          "line": 429,
+          "message": "` ` · `Enter`, also at `libs/inline-scripting/src/scriptLockPropertiesProvider.ts:183`, `packages/bpmn-modeler/src/bpmnlint/LintIssuePopover.ts:73`"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 46,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:74`, `apps/form-webview/src/app/FormEditorApp.ts:184`, `apps/form-webview/src/app/host.ts:17`"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 74,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:46`, `apps/form-webview/src/app/FormEditorApp.ts:184`, `apps/form-webview/src/app/host.ts:17`"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 184,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:46`, `apps/form-webview/src/app/FormEditorApp.ts:74`, `apps/form-webview/src/app/host.ts:17`"
+        },
+        {
+          "key": "apps/form-webview/src/app/host.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/host.ts",
+          "line": 17,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:46`, `apps/form-webview/src/app/FormEditorApp.ts:74`, `apps/form-webview/src/app/FormEditorApp.ts:184`"
+        },
+        {
+          "key": "apps/form-webview/src/app/hostMessage.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/form-webview/src/app/hostMessage.ts",
+          "line": 22,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/session/messageRouter.ts:58`, `apps/form-webview/src/bootstrap.ts:63`"
+        },
+        {
+          "key": "apps/form-webview/src/bootstrap.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/form-webview/src/bootstrap.ts",
+          "line": 63,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/session/messageRouter.ts:58`, `apps/form-webview/src/app/hostMessage.ts:22`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts",
+          "line": 223,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts",
+          "line": 234,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts — [\"\\\"\",\"'\"]",
+          "path": "apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts",
+          "line": 165,
+          "message": "`\"` · `'`, also at `libs/modeler-core/src/deployment/domain/dotEnv.ts:36`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "line": 111,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:116`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:124`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:202`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:17`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:39`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:145`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "line": 116,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:111`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:124`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:202`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:17`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:39`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:145`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "line": 124,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:111`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:116`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:202`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:17`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:39`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:145`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "line": 202,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:111`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:116`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:124`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:17`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:39`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:145`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts",
+          "line": 70,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts",
+          "line": 17,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:111`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:116`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:124`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:202`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:39`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:145`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts",
+          "line": 39,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:111`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:116`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:124`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:202`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:17`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:145`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts",
+          "line": 145,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:111`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:116`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:124`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts:202`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:17`, `apps/vscode-plugin/src/templateMarketplace/adapter/in/TemplateMarketplaceController.ts:39`"
+        },
+        {
+          "key": "docs/.vitepress/miragon/config.ts — [\"de-DE\",\"en-US\"]",
+          "path": "docs/.vitepress/miragon/config.ts",
+          "line": 44,
+          "message": "`de-DE` · `en-US`, also at `docs/.vitepress/miragon/config.ts:106`, `docs/.vitepress/miragon/legal.ts:35`"
+        },
+        {
+          "key": "docs/.vitepress/miragon/config.ts — [\"de-DE\",\"en-US\"]",
+          "path": "docs/.vitepress/miragon/config.ts",
+          "line": 106,
+          "message": "`de-DE` · `en-US`, also at `docs/.vitepress/miragon/config.ts:44`, `docs/.vitepress/miragon/legal.ts:35`"
+        },
+        {
+          "key": "docs/.vitepress/miragon/legal.ts — [\"de-DE\",\"en-US\"]",
+          "path": "docs/.vitepress/miragon/legal.ts",
+          "line": 35,
+          "message": "`de-DE` · `en-US`, also at `docs/.vitepress/miragon/config.ts:44`, `docs/.vitepress/miragon/config.ts:106`"
+        },
+        {
+          "key": "libs/append-menu/src/AppendMenuOverride.ts — [\"bpmn-append\",\"bpmn-create\"]",
+          "path": "libs/append-menu/src/AppendMenuOverride.ts",
+          "line": 50,
+          "message": "`bpmn-append` · `bpmn-create`, also at `libs/append-menu/src/AppendMenuOverride.ts:211`, `libs/append-menu/src/templateTypeAction.ts:27`"
+        },
+        {
+          "key": "libs/append-menu/src/AppendMenuOverride.ts — [\"bpmn-append\",\"bpmn-create\"]",
+          "path": "libs/append-menu/src/AppendMenuOverride.ts",
+          "line": 211,
+          "message": "`bpmn-append` · `bpmn-create`, also at `libs/append-menu/src/AppendMenuOverride.ts:50`, `libs/append-menu/src/templateTypeAction.ts:27`"
+        },
+        {
+          "key": "libs/append-menu/src/templateTypeAction.ts — [\"bpmn-append\",\"bpmn-create\"]",
+          "path": "libs/append-menu/src/templateTypeAction.ts",
+          "line": 27,
+          "message": "`bpmn-append` · `bpmn-create`, also at `libs/append-menu/src/AppendMenuOverride.ts:50`, `libs/append-menu/src/AppendMenuOverride.ts:211`"
+        },
+        {
+          "key": "libs/bpmn-diff/src/computeDiff.ts — [\"camunda\",\"zeebe\"]",
+          "path": "libs/bpmn-diff/src/computeDiff.ts",
+          "line": 19,
+          "message": "`camunda` · `zeebe`, also at `libs/modeler-core/src/kernel/domain/BpmnDocument.ts:43`"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/tools/harvest-drain-template-editor.js — [\"groups\",\"properties\",\"template\"]",
+          "path": "libs/bpmn-i18n-extras/tools/harvest-drain-template-editor.js",
+          "line": 70,
+          "message": "`groups` · `properties` · `template`, also at `libs/element-template-builder/src/domain/builderNavigation.ts:1`, `libs/element-template-builder/src/domain/builderNavigation.ts:3`"
+        },
+        {
+          "key": "libs/bpmn-layout/src/module.ts — [\"eventBus\",\"injector\"]",
+          "path": "libs/bpmn-layout/src/module.ts",
+          "line": 47,
+          "message": "`eventBus` · `injector`, also at `libs/properties-panel/src/cmd/index.ts:33`, `packages/bpmn-modeler/src/viewState.ts:98`"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/c7.ts — [\"Dropdown\",\"Hidden\",\"String\",\"Text\"]",
+          "path": "libs/element-template-builder/src/catalog/c7.ts",
+          "line": 56,
+          "message": "`Dropdown` · `Hidden` · `String` · `Text`, also at `libs/element-template-builder/src/catalog/c7.ts:137`, `libs/element-template-builder/src/catalog/c8.ts:4`"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/c7.ts — [\"Dropdown\",\"Hidden\",\"String\",\"Text\"]",
+          "path": "libs/element-template-builder/src/catalog/c7.ts",
+          "line": 137,
+          "message": "`Dropdown` · `Hidden` · `String` · `Text`, also at `libs/element-template-builder/src/catalog/c7.ts:56`, `libs/element-template-builder/src/catalog/c8.ts:4`"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/c8.ts — [\"Boolean\",\"Dropdown\",\"Hidden\",\"Number\",\"String\",\"Text\"]",
+          "path": "libs/element-template-builder/src/catalog/c8.ts",
+          "line": 3,
+          "message": "`Boolean` · `Dropdown` · `Hidden` · `Number` · `String` · `Text`, also at `libs/element-template-builder/src/catalog/types.ts:3`"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/c8.ts — [\"Dropdown\",\"Hidden\",\"String\",\"Text\"]",
+          "path": "libs/element-template-builder/src/catalog/c8.ts",
+          "line": 4,
+          "message": "`Dropdown` · `Hidden` · `String` · `Text`, also at `libs/element-template-builder/src/catalog/c7.ts:56`, `libs/element-template-builder/src/catalog/c7.ts:137`"
+        },
+        {
+          "key": "libs/element-template-builder/src/catalog/types.ts — [\"Boolean\",\"Dropdown\",\"Hidden\",\"Number\",\"String\",\"Text\"]",
+          "path": "libs/element-template-builder/src/catalog/types.ts",
+          "line": 3,
+          "message": "`Boolean` · `Dropdown` · `Hidden` · `Number` · `String` · `Text`, also at `libs/element-template-builder/src/catalog/c8.ts:3`"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/builderNavigation.ts — [\"groups\",\"properties\",\"template\"]",
+          "path": "libs/element-template-builder/src/domain/builderNavigation.ts",
+          "line": 1,
+          "message": "`groups` · `properties` · `template`, also at `libs/bpmn-i18n-extras/tools/harvest-drain-template-editor.js:70`, `libs/element-template-builder/src/domain/builderNavigation.ts:3`"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/builderNavigation.ts — [\"groups\",\"properties\",\"template\"]",
+          "path": "libs/element-template-builder/src/domain/builderNavigation.ts",
+          "line": 3,
+          "message": "`groups` · `properties` · `template`, also at `libs/bpmn-i18n-extras/tools/harvest-drain-template-editor.js:70`, `libs/element-template-builder/src/domain/builderNavigation.ts:1`"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/diagnostics.ts — [\"error\",\"info\",\"warning\"]",
+          "path": "libs/element-template-builder/src/domain/diagnostics.ts",
+          "line": 26,
+          "message": "`error` · `info` · `warning`, also at `libs/element-template-builder/src/ui/ProblemsBar.tsx:46`"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/json.ts — [\"boolean\",\"number\"]",
+          "path": "libs/element-template-builder/src/domain/json.ts",
+          "line": 19,
+          "message": "`boolean` · `number`, also at `libs/element-template-builder/src/domain/transforms.ts:245`"
+        },
+        {
+          "key": "libs/element-template-builder/src/domain/transforms.ts — [\"boolean\",\"number\"]",
+          "path": "libs/element-template-builder/src/domain/transforms.ts",
+          "line": 245,
+          "message": "`boolean` · `number`, also at `libs/element-template-builder/src/domain/json.ts:19`"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/ProblemsBar.tsx — [\"error\",\"info\",\"warning\"]",
+          "path": "libs/element-template-builder/src/ui/ProblemsBar.tsx",
+          "line": 46,
+          "message": "`error` · `info` · `warning`, also at `libs/element-template-builder/src/domain/diagnostics.ts:26`"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/entries.tsx — [\"name\",\"value\"]",
+          "path": "libs/element-template-builder/src/ui/entries.tsx",
+          "line": 74,
+          "message": "`name` · `value`, also at `libs/element-template-builder/src/ui/settingEntries.ts:479`, `libs/modeler-types/src/engine.ts:146`"
+        },
+        {
+          "key": "libs/element-template-builder/src/ui/settingEntries.ts — [\"name\",\"value\"]",
+          "path": "libs/element-template-builder/src/ui/settingEntries.ts",
+          "line": 479,
+          "message": "`name` · `value`, also at `libs/element-template-builder/src/ui/entries.tsx:74`, `libs/modeler-types/src/engine.ts:146`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptEditorOpener.ts — [\"executionListener\",\"taskListener\"]",
+          "path": "libs/inline-scripting/src/scriptEditorOpener.ts",
+          "line": 67,
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptModel.ts:109`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptLockPropertiesProvider.ts — [\" \",\"Enter\"]",
+          "path": "libs/inline-scripting/src/scriptLockPropertiesProvider.ts",
+          "line": 183,
+          "message": "` ` · `Enter`, also at `apps/deployment-webview/src/app/form.ts:429`, `packages/bpmn-modeler/src/bpmnlint/LintIssuePopover.ts:73`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptModel.ts — [\"executionListener\",\"taskListener\"]",
+          "path": "libs/inline-scripting/src/scriptModel.ts",
+          "line": 109,
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorOpener.ts:67`"
+        },
+        {
+          "key": "libs/modeler-core/src/codeLink/composition/CodeLinkFeature.ts — [\"NavigateToImplementationCommand\",\"SyncActivitiesCommand\"]",
+          "path": "libs/modeler-core/src/codeLink/composition/CodeLinkFeature.ts",
+          "line": 31,
+          "message": "`NavigateToImplementationCommand` · `SyncActivitiesCommand`, also at `libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts:134`"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/domain/deploymentTarget.ts — [\"basic\",\"none\",\"oauth2\"]",
+          "path": "libs/modeler-core/src/deployment/domain/deploymentTarget.ts",
+          "line": 26,
+          "message": "`basic` · `none` · `oauth2`, also at `libs/shared/src/lib/modeler.ts:1018`"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/domain/dotEnv.ts — [\"\\\"\",\"'\"]",
+          "path": "libs/modeler-core/src/deployment/domain/dotEnv.ts",
+          "line": 36,
+          "message": "`\"` · `'`, also at `apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts:165`"
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts — [\".bpmn\",\".dmn\"]",
+          "path": "libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts",
+          "line": 10,
+          "message": "`.bpmn` · `.dmn`, also at `libs/standalone-extension/src/standard-text-editor-contribution.ts:11`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/domain/BpmnDocument.ts — [\"camunda\",\"zeebe\"]",
+          "path": "libs/modeler-core/src/kernel/domain/BpmnDocument.ts",
+          "line": 43,
+          "message": "`camunda` · `zeebe`, also at `libs/bpmn-diff/src/computeDiff.ts:19`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/domain/BpmnDocument.ts — [\"c7\",\"c8\"]",
+          "path": "libs/modeler-core/src/kernel/domain/BpmnDocument.ts",
+          "line": 82,
+          "message": "`c7` · `c8`, also at `libs/modeler-core/src/migration/domain/MigrationPlan.ts:27`, `libs/modeler-types/src/engine.ts:15`, `libs/modeler-types/src/engine.ts:18`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/domain/modelerSettings.ts — [\"github\",\"gitlab\"]",
+          "path": "libs/modeler-core/src/kernel/domain/modelerSettings.ts",
+          "line": 18,
+          "message": "`github` · `gitlab`, also at `libs/modeler-core/src/template-marketplace/domain/sourceConfig.ts:46`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/domain/modelerSettings.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-core/src/kernel/domain/modelerSettings.ts",
+          "line": 25,
+          "message": "`automatic` · `light`, also at `libs/modeler-core/src/kernel/domain/modelerSettings.ts:109`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/domain/modelerSettings.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-core/src/kernel/domain/modelerSettings.ts",
+          "line": 109,
+          "message": "`automatic` · `light`, also at `libs/modeler-core/src/kernel/domain/modelerSettings.ts:25`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/port/hostPorts.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/kernel/port/hostPorts.ts",
+          "line": 160,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/service/ArtifactService.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/kernel/service/ArtifactService.ts",
+          "line": 236,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/service/workspaceFileSearch.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/kernel/service/workspaceFileSearch.ts",
+          "line": 156,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/service/workspaceFileSearch.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/kernel/service/workspaceFileSearch.ts",
+          "line": 158,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/migration/domain/MigrationPlan.ts — [\"c7\",\"c8\"]",
+          "path": "libs/modeler-core/src/migration/domain/MigrationPlan.ts",
+          "line": 27,
+          "message": "`c7` · `c8`, also at `libs/modeler-core/src/kernel/domain/BpmnDocument.ts:82`, `libs/modeler-types/src/engine.ts:15`, `libs/modeler-types/src/engine.ts:18`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts — [\"GetFormPreviewCommand\",\"GetFormReferenceStatusCommand\",\"NavigateToReferencedModelCommand\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts",
+          "line": 119,
+          "message": "`GetFormPreviewCommand` · `GetFormReferenceStatusCommand` · `NavigateToReferencedModelCommand`, also at `libs/modeler-core/src/navigation/composition/NavigationFeature.ts:29`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts — [\"GetBpmnModelerSettingCommand\",\"OpenScriptEditorCommand\",\"OpenScriptEditorsCommand\",\"UpdateScriptSourceCommand\",\"UpdateScriptVariablesCommand\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts",
+          "line": 127,
+          "message": "`GetBpmnModelerSettingCommand` · `OpenScriptEditorCommand` · `OpenScriptEditorsCommand` · `UpdateScriptSourceCommand` · `UpdateScriptVariablesCommand`, also at `libs/modeler-core/src/scriptTask/composition/ScriptEditorFeature.ts:31`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts — [\"NavigateToImplementationCommand\",\"SyncActivitiesCommand\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts",
+          "line": 134,
+          "message": "`NavigateToImplementationCommand` · `SyncActivitiesCommand`, also at `libs/modeler-core/src/codeLink/composition/CodeLinkFeature.ts:31`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts",
+          "line": 91,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts — [\"external\",\"in-page\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "line": 88,
+          "message": "`external` · `in-page`, also at `packages/bpmn-modeler/src/bpmnlint/lintTierMachine.ts:21`, `packages/bpmn-modeler/src/lintModules.ts:48`"
+        },
+        {
+          "key": "libs/modeler-core/src/navigation/composition/NavigationFeature.ts — [\"GetFormPreviewCommand\",\"GetFormReferenceStatusCommand\",\"NavigateToReferencedModelCommand\"]",
+          "path": "libs/modeler-core/src/navigation/composition/NavigationFeature.ts",
+          "line": 29,
+          "message": "`GetFormPreviewCommand` · `GetFormReferenceStatusCommand` · `NavigateToReferencedModelCommand`, also at `libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts:119`"
+        },
+        {
+          "key": "libs/modeler-core/src/scriptTask/composition/ScriptEditorFeature.ts — [\"GetBpmnModelerSettingCommand\",\"OpenScriptEditorCommand\",\"OpenScriptEditorsCommand\",\"UpdateScriptSourceCommand\",\"UpdateScriptVariablesCommand\"]",
+          "path": "libs/modeler-core/src/scriptTask/composition/ScriptEditorFeature.ts",
+          "line": 31,
+          "message": "`GetBpmnModelerSettingCommand` · `OpenScriptEditorCommand` · `OpenScriptEditorsCommand` · `UpdateScriptSourceCommand` · `UpdateScriptVariablesCommand`, also at `libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts:127`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts",
+          "line": 34,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/domain/sourceConfig.ts — [\"github\",\"gitlab\"]",
+          "path": "libs/modeler-core/src/template-marketplace/domain/sourceConfig.ts",
+          "line": 46,
+          "message": "`github` · `gitlab`, also at `libs/modeler-core/src/kernel/domain/modelerSettings.ts:18`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts",
+          "line": 213,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts",
+          "line": 232,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/testing/InMemoryWorkspace.ts",
+          "line": 91,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/testing/InMemoryWorkspace.ts",
+          "line": 93,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:94`"
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/testing/InMemoryWorkspace.ts",
+          "line": 94,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:223`, `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:234`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:160`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:91`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:93`"
+        },
+        {
+          "key": "libs/modeler-types/src/engine.ts — [\"c7\",\"c8\"]",
+          "path": "libs/modeler-types/src/engine.ts",
+          "line": 15,
+          "message": "`c7` · `c8`, also at `libs/modeler-core/src/kernel/domain/BpmnDocument.ts:82`, `libs/modeler-core/src/migration/domain/MigrationPlan.ts:27`, `libs/modeler-types/src/engine.ts:18`"
+        },
+        {
+          "key": "libs/modeler-types/src/engine.ts — [\"c7\",\"c8\"]",
+          "path": "libs/modeler-types/src/engine.ts",
+          "line": 18,
+          "message": "`c7` · `c8`, also at `libs/modeler-core/src/kernel/domain/BpmnDocument.ts:82`, `libs/modeler-core/src/migration/domain/MigrationPlan.ts:27`, `libs/modeler-types/src/engine.ts:15`"
+        },
+        {
+          "key": "libs/modeler-types/src/engine.ts — [\"name\",\"value\"]",
+          "path": "libs/modeler-types/src/engine.ts",
+          "line": 146,
+          "message": "`name` · `value`, also at `libs/element-template-builder/src/ui/entries.tsx:74`, `libs/element-template-builder/src/ui/settingEntries.ts:479`"
+        },
+        {
+          "key": "libs/modeler-types/src/settings.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-types/src/settings.ts",
+          "line": 4,
+          "message": "`automatic` · `light`, also at `libs/modeler-core/src/kernel/domain/modelerSettings.ts:25`, `libs/modeler-core/src/kernel/domain/modelerSettings.ts:109`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-types/src/settings.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-types/src/settings.ts",
+          "line": 16,
+          "message": "`automatic` · `light`, also at `libs/modeler-core/src/kernel/domain/modelerSettings.ts:25`, `libs/modeler-core/src/kernel/domain/modelerSettings.ts:109`, `libs/modeler-types/src/settings.ts:4`"
+        },
+        {
+          "key": "libs/modeler-types/src/surfaceTheme.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "libs/modeler-types/src/surfaceTheme.ts",
+          "line": 5,
+          "message": "`automatic` · `dark` · `light`, also at `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/themeMode.ts:12`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "libs/modeler-types/src/surfaceTheme.ts — [\"dark\",\"light\"]",
+          "path": "libs/modeler-types/src/surfaceTheme.ts",
+          "line": 7,
+          "message": "`dark` · `light`, also at `libs/shared/src/lib/hostTheme.ts:17`"
+        },
+        {
+          "key": "libs/properties-panel/src/cmd/index.ts — [\"eventBus\",\"injector\"]",
+          "path": "libs/properties-panel/src/cmd/index.ts",
+          "line": 33,
+          "message": "`eventBus` · `injector`, also at `libs/bpmn-layout/src/module.ts:47`, `packages/bpmn-modeler/src/viewState.ts:98`"
+        },
+        {
+          "key": "libs/properties-panel/src/modeFilter/ModeFilterProvider.ts — [\"design\",\"implement\"]",
+          "path": "libs/properties-panel/src/modeFilter/ModeFilterProvider.ts",
+          "line": 26,
+          "message": "`design` · `implement`, also at `packages/bpmn-modeler/src/mode/mode.ts:3`"
+        },
+        {
+          "key": "libs/shared/src/lib/hostTheme.ts — [\"dark\",\"light\"]",
+          "path": "libs/shared/src/lib/hostTheme.ts",
+          "line": 17,
+          "message": "`dark` · `light`, also at `libs/modeler-types/src/surfaceTheme.ts:7`"
+        },
+        {
+          "key": "libs/shared/src/lib/hostTheme.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "libs/shared/src/lib/hostTheme.ts",
+          "line": 18,
+          "message": "`automatic` · `dark` · `light`, also at `libs/modeler-types/src/surfaceTheme.ts:5`, `packages/bpmn-modeler/src/themeMode.ts:12`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "libs/shared/src/lib/messages.ts — [\"clean\",\"flushed\",\"host-updated\",\"unavailable\"]",
+          "path": "libs/shared/src/lib/messages.ts",
+          "line": 89,
+          "message": "`clean` · `flushed` · `host-updated` · `unavailable`, also at `libs/standalone-extension/src/modeler-flush-reply.ts:1`"
+        },
+        {
+          "key": "libs/shared/src/lib/modeler.ts — [\"basic\",\"none\",\"oauth2\"]",
+          "path": "libs/shared/src/lib/modeler.ts",
+          "line": 1018,
+          "message": "`basic` · `none` · `oauth2`, also at `libs/modeler-core/src/deployment/domain/deploymentTarget.ts:26`"
+        },
+        {
+          "key": "libs/standalone-extension/src/modeler-flush-reply.ts — [\"clean\",\"flushed\",\"host-updated\",\"unavailable\"]",
+          "path": "libs/standalone-extension/src/modeler-flush-reply.ts",
+          "line": 1,
+          "message": "`clean` · `flushed` · `host-updated` · `unavailable`, also at `libs/shared/src/lib/messages.ts:89`"
+        },
+        {
+          "key": "libs/standalone-extension/src/standard-text-editor-contribution.ts — [\".bpmn\",\".dmn\"]",
+          "path": "libs/standalone-extension/src/standard-text-editor-contribution.ts",
+          "line": 11,
+          "message": "`.bpmn` · `.dmn`, also at `libs/modeler-core/src/deployment/service/DeployActiveDiagramService.ts:10`"
+        },
+        {
+          "key": "packages/bpmn-modeler/scripts/smoke-consumer.mjs — [\"dependencies\",\"devDependencies\",\"optionalDependencies\",\"peerDependencies\"]",
+          "path": "packages/bpmn-modeler/scripts/smoke-consumer.mjs",
+          "line": 16,
+          "message": "`dependencies` · `devDependencies` · `optionalDependencies` · `peerDependencies`, also at `packages/dmn-modeler/scripts/smoke-consumer.mjs:16`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/bpmnlint/LintIssuePopover.ts — [\" \",\"Enter\"]",
+          "path": "packages/bpmn-modeler/src/bpmnlint/LintIssuePopover.ts",
+          "line": 73,
+          "message": "` ` · `Enter`, also at `apps/deployment-webview/src/app/form.ts:429`, `libs/inline-scripting/src/scriptLockPropertiesProvider.ts:183`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/bpmnlint/lintTierMachine.ts — [\"external\",\"in-page\"]",
+          "path": "packages/bpmn-modeler/src/bpmnlint/lintTierMachine.ts",
+          "line": 21,
+          "message": "`external` · `in-page`, also at `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:88`, `packages/bpmn-modeler/src/lintModules.ts:48`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/lintModules.ts — [\"external\",\"in-page\"]",
+          "path": "packages/bpmn-modeler/src/lintModules.ts",
+          "line": 48,
+          "message": "`external` · `in-page`, also at `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:88`, `packages/bpmn-modeler/src/bpmnlint/lintTierMachine.ts:21`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/mode/mode.ts — [\"design\",\"implement\"]",
+          "path": "packages/bpmn-modeler/src/mode/mode.ts",
+          "line": 3,
+          "message": "`design` · `implement`, also at `libs/properties-panel/src/modeFilter/ModeFilterProvider.ts:26`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/mode/modeModules.ts — [\"bpmn-append\",\"bpmn-create\",\"bpmn-replace\"]",
+          "path": "packages/bpmn-modeler/src/mode/modeModules.ts",
+          "line": 6,
+          "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts:22`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts — [\"bpmn-append\",\"bpmn-create\",\"bpmn-replace\"]",
+          "path": "packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts",
+          "line": 22,
+          "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/mode/modeModules.ts:6`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/themeMode.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "packages/bpmn-modeler/src/themeMode.ts",
+          "line": 12,
+          "message": "`automatic` · `dark` · `light`, also at `libs/modeler-types/src/surfaceTheme.ts:5`, `libs/shared/src/lib/hostTheme.ts:18`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/viewState.ts — [\"eventBus\",\"injector\"]",
+          "path": "packages/bpmn-modeler/src/viewState.ts",
+          "line": 98,
+          "message": "`eventBus` · `injector`, also at `libs/bpmn-layout/src/module.ts:47`, `libs/properties-panel/src/cmd/index.ts:33`"
+        },
+        {
+          "key": "packages/dmn-modeler/scripts/smoke-consumer.mjs — [\"dependencies\",\"devDependencies\",\"optionalDependencies\",\"peerDependencies\"]",
+          "path": "packages/dmn-modeler/scripts/smoke-consumer.mjs",
+          "line": 16,
+          "message": "`dependencies` · `devDependencies` · `optionalDependencies` · `peerDependencies`, also at `packages/bpmn-modeler/scripts/smoke-consumer.mjs:16`"
+        },
+        {
+          "key": "packages/dmn-modeler/src/publicApi.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "packages/dmn-modeler/src/publicApi.ts",
+          "line": 76,
+          "message": "`automatic` · `dark` · `light`, also at `libs/modeler-types/src/surfaceTheme.ts:5`, `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/themeMode.ts:12`"
+        },
+        {
+          "key": "scripts/perf/bench-lint-rules.mjs — [\"--short\",\"HEAD\",\"rev-parse\"]",
+          "path": "scripts/perf/bench-lint-rules.mjs",
+          "line": 88,
+          "message": "`--short` · `HEAD` · `rev-parse`, also at `scripts/perf/bench-webview.mjs:334`"
+        },
+        {
+          "key": "scripts/perf/bench-webview.mjs — [\"--short\",\"HEAD\",\"rev-parse\"]",
+          "path": "scripts/perf/bench-webview.mjs",
+          "line": 334,
+          "message": "`--short` · `HEAD` · `rev-parse`, also at `scripts/perf/bench-lint-rules.mjs:88`"
+        },
+        {
+          "key": "tools/repo-checks/src/fitness/adapter/out/gitRepository.ts — [\"--is-shallow-repository\",\"rev-parse\"]",
+          "path": "tools/repo-checks/src/fitness/adapter/out/gitRepository.ts",
+          "line": 22,
+          "message": "`--is-shallow-repository` · `rev-parse`, also at `tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts:30`"
+        },
+        {
+          "key": "tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts — [\"--is-shallow-repository\",\"rev-parse\"]",
+          "path": "tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts",
+          "line": 30,
+          "message": "`--is-shallow-repository` · `rev-parse`, also at `tools/repo-checks/src/fitness/adapter/out/gitRepository.ts:22`"
+        },
+        {
+          "key": "tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts — [\"added\",\"deleted\",\"modified\"]",
+          "path": "tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts",
+          "line": 57,
+          "message": "`added` · `deleted` · `modified`, also at `tools/repo-checks/src/history/domain/commitHistory.ts:2`"
+        },
+        {
+          "key": "tools/repo-checks/src/history/domain/commitHistory.ts — [\"added\",\"deleted\",\"modified\"]",
+          "path": "tools/repo-checks/src/history/domain/commitHistory.ts",
+          "line": 2,
+          "message": "`added` · `deleted` · `modified`, also at `tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts:57`"
+        }
+      ]
+    }
+  }
+}
