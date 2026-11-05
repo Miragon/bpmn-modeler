@@ -156,6 +156,14 @@ describe("a report of a function that declares values", () => {
         expect(markdownReport(report)).toContain("| A breaks the rule | unchanged |");
     });
 
+    it("prints a finding that no stored snapshot holds as no trend, not as unchanged", () => {
+        const added = { ...finding("B"), values: { codeLines: 5 } };
+
+        expect(markdownReport(sizedReport([measured(348), added]))).toContain(
+            "| new | `src/B.ts:1` | B breaks the rule | no trend |",
+        );
+    });
+
     it("attaches no trend for a function that declares no values", () => {
         const reported = functionReport(
             fake,

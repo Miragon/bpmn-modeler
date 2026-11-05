@@ -114,6 +114,17 @@ describe("the trend of a finding's values", () => {
         expect(trendOf([lines(1), lines(2)], [stored("c1", lines(1))]).has("src/a.ts")).toBe(false);
     });
 
+    it.each([
+        { case: "no commit is stored", storedNewestFirst: [] },
+        { case: "every commit is a gap", storedNewestFirst: [{ commit: "c2" }, { commit: "c1" }] },
+        {
+            case: "the newest stored commit lacks the key",
+            storedNewestFirst: [stored("c2", lines(1, "b.ts")), stored("c1", lines(1))],
+        },
+    ])("gives a key no trend when $case", ({ storedNewestFirst }) => {
+        expect(trendOf([lines(1)], storedNewestFirst).has("src/a.ts")).toBe(false);
+    });
+
     it("ends a key's series where it repeats", () => {
         const trends = trendOf(
             [lines(3)],
