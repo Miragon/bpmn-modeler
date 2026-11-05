@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 1,
+  "commit": "fa5298c1ce1d4c45e42ca63d8ff465694b37b09d",
+  "entries": {
+    "repeated-value-sets": {
+      "version": 1,
+      "findings": [
+        {
+          "key": "apps/bpmn-webview/src/bootstrap.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/bpmn-webview/src/bootstrap.ts",
+          "line": 1179,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/bootstrap.ts:1502`, `apps/dmn-webview/src/bootstrap.ts:388`, `apps/form-webview/src/app/hostMessage.ts:22`, `apps/form-webview/src/main.ts:73`"
+        },
+        {
+          "key": "apps/bpmn-webview/src/bootstrap.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/bpmn-webview/src/bootstrap.ts",
+          "line": 1502,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/bootstrap.ts:1179`, `apps/dmn-webview/src/bootstrap.ts:388`, `apps/form-webview/src/app/hostMessage.ts:22`, `apps/form-webview/src/main.ts:73`"
+        },
+        {
+          "key": "apps/demo-webapp/bpmn/dual.ts — [\"dark\",\"light\"]",
+          "path": "apps/demo-webapp/bpmn/dual.ts",
+          "line": 53,
+          "message": "`dark` · `light`, also at `apps/demo-webapp/src/demoHeader.ts:20`, `libs/shared/src/lib/hostTheme.ts:17`, `packages/bpmn-modeler/src/theme.ts:4`, `packages/dmn-modeler/src/theme.ts:3`"
+        },
+        {
+          "key": "apps/demo-webapp/bpmn/dual.ts — [\"c7\",\"c8\"]",
+          "path": "apps/demo-webapp/bpmn/dual.ts",
+          "line": 71,
+          "message": "`c7` · `c8`, also at `libs/modeler-types/src/engine.ts:15`"
+        },
+        {
+          "key": "apps/demo-webapp/src/demoHeader.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "apps/demo-webapp/src/demoHeader.ts",
+          "line": 19,
+          "message": "`automatic` · `dark` · `light`, also at `apps/demo-webapp/src/demoHeader.ts:35`, `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/publicApi.ts:67`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "apps/demo-webapp/src/demoHeader.ts — [\"dark\",\"light\"]",
+          "path": "apps/demo-webapp/src/demoHeader.ts",
+          "line": 20,
+          "message": "`dark` · `light`, also at `apps/demo-webapp/bpmn/dual.ts:53`, `libs/shared/src/lib/hostTheme.ts:17`, `packages/bpmn-modeler/src/theme.ts:4`, `packages/dmn-modeler/src/theme.ts:3`"
+        },
+        {
+          "key": "apps/demo-webapp/src/demoHeader.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "apps/demo-webapp/src/demoHeader.ts",
+          "line": 35,
+          "message": "`automatic` · `dark` · `light`, also at `apps/demo-webapp/src/demoHeader.ts:19`, `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/publicApi.ts:67`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "apps/deployment-webview/src/app/form.ts — [\" \",\"Enter\"]",
+          "path": "apps/deployment-webview/src/app/form.ts",
+          "line": 269,
+          "message": "` ` · `Enter`, also at `libs/inline-scripting/src/scriptLockPropertiesProvider.ts:129`"
+        },
+        {
+          "key": "apps/dmn-webview/src/bootstrap.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/dmn-webview/src/bootstrap.ts",
+          "line": 388,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/bootstrap.ts:1179`, `apps/bpmn-webview/src/bootstrap.ts:1502`, `apps/form-webview/src/app/hostMessage.ts:22`, `apps/form-webview/src/main.ts:73`"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 38,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:63`, `apps/form-webview/src/app/FormEditorApp.ts:178`, `apps/form-webview/src/app/host.ts:16`"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 63,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:38`, `apps/form-webview/src/app/FormEditorApp.ts:178`, `apps/form-webview/src/app/host.ts:16`"
+        },
+        {
+          "key": "apps/form-webview/src/app/FormEditorApp.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/FormEditorApp.ts",
+          "line": 178,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:38`, `apps/form-webview/src/app/FormEditorApp.ts:63`, `apps/form-webview/src/app/host.ts:16`"
+        },
+        {
+          "key": "apps/form-webview/src/app/host.ts — [\"edit\",\"preview\"]",
+          "path": "apps/form-webview/src/app/host.ts",
+          "line": 16,
+          "message": "`edit` · `preview`, also at `apps/form-webview/src/app/FormEditorApp.ts:38`, `apps/form-webview/src/app/FormEditorApp.ts:63`, `apps/form-webview/src/app/FormEditorApp.ts:178`"
+        },
+        {
+          "key": "apps/form-webview/src/app/hostMessage.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/form-webview/src/app/hostMessage.ts",
+          "line": 22,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/bootstrap.ts:1179`, `apps/bpmn-webview/src/bootstrap.ts:1502`, `apps/dmn-webview/src/bootstrap.ts:388`, `apps/form-webview/src/main.ts:73`"
+        },
+        {
+          "key": "apps/form-webview/src/main.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
+          "path": "apps/form-webview/src/main.ts",
+          "line": 73,
+          "message": "`FlushDocumentQuery` · `ReleaseDocumentFlushQuery`, also at `apps/bpmn-webview/src/bootstrap.ts:1179`, `apps/bpmn-webview/src/bootstrap.ts:1502`, `apps/dmn-webview/src/bootstrap.ts:388`, `apps/form-webview/src/app/hostMessage.ts:22`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/composition/codeLinkFeature.ts — [\"delegateExpression\",\"expression\",\"externalTopic\",\"javaClass\",\"jobType\"]",
+          "path": "apps/modeler-bridge/src/composition/codeLinkFeature.ts",
+          "line": 17,
+          "message": "`delegateExpression` · `expression` · `externalTopic` · `javaClass` · `jobType`, also at `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts:356`, `libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts:31`, `libs/modeler-types/src/implementation.ts:13`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/nodeAdapters.ts — [\"directory\",\"file\"]",
+          "path": "apps/modeler-bridge/src/nodeAdapters.ts",
+          "line": 190,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/nodeAdapters.ts — [\"directory\",\"file\"]",
+          "path": "apps/modeler-bridge/src/nodeAdapters.ts",
+          "line": 201,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/nodeAdapters.ts — [\"automatic\",\"light\"]",
+          "path": "apps/modeler-bridge/src/nodeAdapters.ts",
+          "line": 413,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/nodeAdapters.ts — [\"automatic\",\"light\"]",
+          "path": "apps/modeler-bridge/src/nodeAdapters.ts",
+          "line": 516,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts — [\"delegateExpression\",\"expression\",\"externalTopic\",\"javaClass\",\"jobType\"]",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts",
+          "line": 356,
+          "message": "`delegateExpression` · `expression` · `externalTopic` · `javaClass` · `jobType`, also at `apps/modeler-bridge/src/composition/codeLinkFeature.ts:17`, `libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts:31`, `libs/modeler-types/src/implementation.ts:13`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"automatic\",\"light\"]",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
+          "line": 46,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
+          "line": 126,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:41`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:163`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
+          "line": 133,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:41`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:163`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
+          "line": 143,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:41`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:163`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
+          "line": 229,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:41`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:163`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts — [\"directory\",\"file\"]",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts",
+          "line": 97,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 41,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:163`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 163,
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:41`"
+        },
+        {
+          "key": "libs/append-menu/src/types.ts — [\"hidden\",\"input\",\"output\",\"property\"]",
+          "path": "libs/append-menu/src/types.ts",
+          "line": 286,
+          "message": "`hidden` · `input` · `output` · `property`, also at `libs/element-template-chooser/src/types.ts:48`"
+        },
+        {
+          "key": "libs/append-menu/src/types.ts — [\"camunda:out\",\"camunda:outputParameter\",\"zeebe:output\"]",
+          "path": "libs/append-menu/src/types.ts",
+          "line": 296,
+          "message": "`camunda:out` · `camunda:outputParameter` · `zeebe:output`, also at `libs/element-template-chooser/src/types.ts:124`"
+        },
+        {
+          "key": "libs/append-menu/src/types.ts — [\"camunda:in\",\"camunda:in:businessKey\",\"camunda:inputParameter\",\"zeebe:input\"]",
+          "path": "libs/append-menu/src/types.ts",
+          "line": 301,
+          "message": "`camunda:in` · `camunda:in:businessKey` · `camunda:inputParameter` · `zeebe:input`, also at `libs/element-template-chooser/src/types.ts:132`"
+        },
+        {
+          "key": "libs/append-menu/src/types.ts — [\"property\",\"zeebe:property\"]",
+          "path": "libs/append-menu/src/types.ts",
+          "line": 309,
+          "message": "`property` · `zeebe:property`, also at `libs/element-template-chooser/src/types.ts:143`"
+        },
+        {
+          "key": "libs/bpmn-layout/src/module.ts — [\"eventBus\",\"injector\"]",
+          "path": "libs/bpmn-layout/src/module.ts",
+          "line": 47,
+          "message": "`eventBus` · `injector`, also at `libs/properties-panel/src/cmd/index.ts:33`"
+        },
+        {
+          "key": "libs/element-template-chooser/src/types.ts — [\"hidden\",\"input\",\"output\",\"property\"]",
+          "path": "libs/element-template-chooser/src/types.ts",
+          "line": 48,
+          "message": "`hidden` · `input` · `output` · `property`, also at `libs/append-menu/src/types.ts:286`"
+        },
+        {
+          "key": "libs/element-template-chooser/src/types.ts — [\"camunda:out\",\"camunda:outputParameter\",\"zeebe:output\"]",
+          "path": "libs/element-template-chooser/src/types.ts",
+          "line": 124,
+          "message": "`camunda:out` · `camunda:outputParameter` · `zeebe:output`, also at `libs/append-menu/src/types.ts:296`"
+        },
+        {
+          "key": "libs/element-template-chooser/src/types.ts — [\"camunda:in\",\"camunda:in:businessKey\",\"camunda:inputParameter\",\"zeebe:input\"]",
+          "path": "libs/element-template-chooser/src/types.ts",
+          "line": 132,
+          "message": "`camunda:in` · `camunda:in:businessKey` · `camunda:inputParameter` · `zeebe:input`, also at `libs/append-menu/src/types.ts:301`"
+        },
+        {
+          "key": "libs/element-template-chooser/src/types.ts — [\"property\",\"zeebe:property\"]",
+          "path": "libs/element-template-chooser/src/types.ts",
+          "line": 143,
+          "message": "`property` · `zeebe:property`, also at `libs/append-menu/src/types.ts:309`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptEditorButtons.ts — [\"executionListener\",\"taskListener\"]",
+          "path": "libs/inline-scripting/src/scriptEditorButtons.ts",
+          "line": 205,
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorOpener.ts:14`, `libs/inline-scripting/src/scriptEditorOpener.ts:43`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptEditorOpener.ts — [\"executionListener\",\"taskListener\"]",
+          "path": "libs/inline-scripting/src/scriptEditorOpener.ts",
+          "line": 14,
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorButtons.ts:205`, `libs/inline-scripting/src/scriptEditorOpener.ts:43`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptEditorOpener.ts — [\"executionListener\",\"taskListener\"]",
+          "path": "libs/inline-scripting/src/scriptEditorOpener.ts",
+          "line": 43,
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorButtons.ts:205`, `libs/inline-scripting/src/scriptEditorOpener.ts:14`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptLockPropertiesProvider.ts — [\" \",\"Enter\"]",
+          "path": "libs/inline-scripting/src/scriptLockPropertiesProvider.ts",
+          "line": 129,
+          "message": "` ` · `Enter`, also at `apps/deployment-webview/src/app/form.ts:269`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptModel.ts — [\"camunda:ExecutionListener\",\"camunda:TaskListener\"]",
+          "path": "libs/inline-scripting/src/scriptModel.ts",
+          "line": 20,
+          "message": "`camunda:ExecutionListener` · `camunda:TaskListener`, also at `libs/modeler-core/src/scriptTask/service/ScriptXmlService.ts:147`"
+        },
+        {
+          "key": "libs/model-navigation/src/extractReference.ts — [\"decision\",\"form\",\"process\"]",
+          "path": "libs/model-navigation/src/extractReference.ts",
+          "line": 12,
+          "message": "`decision` · `form` · `process`, also at `libs/shared/src/lib/modeler.ts:598`"
+        },
+        {
+          "key": "libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts — [\"delegateExpression\",\"expression\",\"externalTopic\",\"javaClass\",\"jobType\"]",
+          "path": "libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts",
+          "line": 31,
+          "message": "`delegateExpression` · `expression` · `externalTopic` · `javaClass` · `jobType`, also at `apps/modeler-bridge/src/composition/codeLinkFeature.ts:17`, `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts:356`, `libs/modeler-types/src/implementation.ts:13`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/domain/model.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/domain/model.ts",
+          "line": 5,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/domain/model.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/domain/model.ts",
+          "line": 15,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/domain/model.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/domain/model.ts",
+          "line": 29,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts — [\"external\",\"in-page\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "line": 120,
+          "message": "`external` · `in-page`, also at `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:151`, `packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts:49`, `packages/bpmn-modeler/src/lintModules.ts:48`"
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts — [\"external\",\"in-page\"]",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "line": 151,
+          "message": "`external` · `in-page`, also at `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:120`, `packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts:49`, `packages/bpmn-modeler/src/lintModules.ts:48`"
+        },
+        {
+          "key": "libs/modeler-core/src/scriptTask/service/ScriptXmlService.ts — [\"camunda:ExecutionListener\",\"camunda:TaskListener\"]",
+          "path": "libs/modeler-core/src/scriptTask/service/ScriptXmlService.ts",
+          "line": 147,
+          "message": "`camunda:ExecutionListener` · `camunda:TaskListener`, also at `libs/inline-scripting/src/scriptModel.ts:20`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/domain/hostPorts.ts — [\"github\",\"gitlab\"]",
+          "path": "libs/modeler-core/src/shared/domain/hostPorts.ts",
+          "line": 138,
+          "message": "`github` · `gitlab`, also at `libs/modeler-core/src/template-marketplace/service/TemplateMarketplaceService.ts:584`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/domain/hostPorts.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-core/src/shared/domain/hostPorts.ts",
+          "line": 158,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-types/src/settings.ts:4`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/domain/hostPorts.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/shared/domain/hostPorts.ts",
+          "line": 186,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/service/ArtifactService.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/shared/service/ArtifactService.ts",
+          "line": 202,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts",
+          "line": 94,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/service/workspaceFileSearch.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/shared/service/workspaceFileSearch.ts",
+          "line": 138,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/shared/service/workspaceFileSearch.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/shared/service/workspaceFileSearch.ts",
+          "line": 140,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts",
+          "line": 33,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts",
+          "line": 124,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:143`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts — [\"directory\",\"file\"]",
+          "path": "libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts",
+          "line": 143,
+          "message": "`directory` · `file`, also at `apps/modeler-bridge/src/nodeAdapters.ts:190`, `apps/modeler-bridge/src/nodeAdapters.ts:201`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts:97`, `libs/modeler-core/src/shared/domain/hostPorts.ts:186`, `libs/modeler-core/src/shared/service/ArtifactService.ts:202`, `libs/modeler-core/src/shared/service/BpmnLintConfigLocator.ts:94`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:138`, `libs/modeler-core/src/shared/service/workspaceFileSearch.ts:140`, `libs/modeler-core/src/template-marketplace/infrastructure/LocalFileSource.ts:33`, `libs/modeler-core/src/template-marketplace/infrastructure/MarketplaceCache.ts:124`"
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/service/TemplateMarketplaceService.ts — [\"github\",\"gitlab\"]",
+          "path": "libs/modeler-core/src/template-marketplace/service/TemplateMarketplaceService.ts",
+          "line": 584,
+          "message": "`github` · `gitlab`, also at `libs/modeler-core/src/shared/domain/hostPorts.ts:138`"
+        },
+        {
+          "key": "libs/modeler-types/src/engine.ts — [\"c7\",\"c8\"]",
+          "path": "libs/modeler-types/src/engine.ts",
+          "line": 15,
+          "message": "`c7` · `c8`, also at `apps/demo-webapp/bpmn/dual.ts:71`"
+        },
+        {
+          "key": "libs/modeler-types/src/implementation.ts — [\"delegateExpression\",\"expression\",\"externalTopic\",\"javaClass\",\"jobType\"]",
+          "path": "libs/modeler-types/src/implementation.ts",
+          "line": 13,
+          "message": "`delegateExpression` · `expression` · `externalTopic` · `javaClass` · `jobType`, also at `apps/modeler-bridge/src/composition/codeLinkFeature.ts:17`, `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts:356`, `libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts:31`"
+        },
+        {
+          "key": "libs/modeler-types/src/settings.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-types/src/settings.ts",
+          "line": 4,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:16`"
+        },
+        {
+          "key": "libs/modeler-types/src/settings.ts — [\"automatic\",\"light\"]",
+          "path": "libs/modeler-types/src/settings.ts",
+          "line": 16,
+          "message": "`automatic` · `light`, also at `apps/modeler-bridge/src/nodeAdapters.ts:413`, `apps/modeler-bridge/src/nodeAdapters.ts:516`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:46`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:5`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:15`, `libs/modeler-core/src/modeler/bpmn/domain/model.ts:29`, `libs/modeler-core/src/shared/domain/hostPorts.ts:158`, `libs/modeler-types/src/settings.ts:4`"
+        },
+        {
+          "key": "libs/properties-panel/src/cmd/index.ts — [\"eventBus\",\"injector\"]",
+          "path": "libs/properties-panel/src/cmd/index.ts",
+          "line": 33,
+          "message": "`eventBus` · `injector`, also at `libs/bpmn-layout/src/module.ts:47`"
+        },
+        {
+          "key": "libs/properties-panel/src/modeFilter/ModeFilterProvider.ts — [\"design\",\"implement\"]",
+          "path": "libs/properties-panel/src/modeFilter/ModeFilterProvider.ts",
+          "line": 26,
+          "message": "`design` · `implement`, also at `packages/bpmn-modeler/src/mode.ts:3`"
+        },
+        {
+          "key": "libs/shared/src/lib/hostTheme.ts — [\"dark\",\"light\"]",
+          "path": "libs/shared/src/lib/hostTheme.ts",
+          "line": 17,
+          "message": "`dark` · `light`, also at `apps/demo-webapp/bpmn/dual.ts:53`, `apps/demo-webapp/src/demoHeader.ts:20`, `packages/bpmn-modeler/src/theme.ts:4`, `packages/dmn-modeler/src/theme.ts:3`"
+        },
+        {
+          "key": "libs/shared/src/lib/hostTheme.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "libs/shared/src/lib/hostTheme.ts",
+          "line": 18,
+          "message": "`automatic` · `dark` · `light`, also at `apps/demo-webapp/src/demoHeader.ts:19`, `apps/demo-webapp/src/demoHeader.ts:35`, `packages/bpmn-modeler/src/publicApi.ts:67`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "libs/shared/src/lib/modeler.ts — [\"decision\",\"form\",\"process\"]",
+          "path": "libs/shared/src/lib/modeler.ts",
+          "line": 598,
+          "message": "`decision` · `form` · `process`, also at `libs/model-navigation/src/extractReference.ts:12`"
+        },
+        {
+          "key": "packages/bpmn-modeler/scripts/smoke-consumer.mjs — [\"dependencies\",\"devDependencies\",\"optionalDependencies\",\"peerDependencies\"]",
+          "path": "packages/bpmn-modeler/scripts/smoke-consumer.mjs",
+          "line": 16,
+          "message": "`dependencies` · `devDependencies` · `optionalDependencies` · `peerDependencies`, also at `packages/dmn-modeler/scripts/smoke-consumer.mjs:16`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts — [\"external\",\"in-page\"]",
+          "path": "packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts",
+          "line": 49,
+          "message": "`external` · `in-page`, also at `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:120`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:151`, `packages/bpmn-modeler/src/lintModules.ts:48`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/lintModules.ts — [\"external\",\"in-page\"]",
+          "path": "packages/bpmn-modeler/src/lintModules.ts",
+          "line": 48,
+          "message": "`external` · `in-page`, also at `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:120`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts:151`, `packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts:49`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/mode.ts — [\"design\",\"implement\"]",
+          "path": "packages/bpmn-modeler/src/mode.ts",
+          "line": 3,
+          "message": "`design` · `implement`, also at `libs/properties-panel/src/modeFilter/ModeFilterProvider.ts:26`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/publicApi.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "packages/bpmn-modeler/src/publicApi.ts",
+          "line": 67,
+          "message": "`automatic` · `dark` · `light`, also at `apps/demo-webapp/src/demoHeader.ts:19`, `apps/demo-webapp/src/demoHeader.ts:35`, `libs/shared/src/lib/hostTheme.ts:18`, `packages/dmn-modeler/src/publicApi.ts:76`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/theme.ts — [\"dark\",\"light\"]",
+          "path": "packages/bpmn-modeler/src/theme.ts",
+          "line": 4,
+          "message": "`dark` · `light`, also at `apps/demo-webapp/bpmn/dual.ts:53`, `apps/demo-webapp/src/demoHeader.ts:20`, `libs/shared/src/lib/hostTheme.ts:17`, `packages/dmn-modeler/src/theme.ts:3`"
+        },
+        {
+          "key": "packages/dmn-modeler/scripts/smoke-consumer.mjs — [\"dependencies\",\"devDependencies\",\"optionalDependencies\",\"peerDependencies\"]",
+          "path": "packages/dmn-modeler/scripts/smoke-consumer.mjs",
+          "line": 16,
+          "message": "`dependencies` · `devDependencies` · `optionalDependencies` · `peerDependencies`, also at `packages/bpmn-modeler/scripts/smoke-consumer.mjs:16`"
+        },
+        {
+          "key": "packages/dmn-modeler/src/publicApi.ts — [\"automatic\",\"dark\",\"light\"]",
+          "path": "packages/dmn-modeler/src/publicApi.ts",
+          "line": 76,
+          "message": "`automatic` · `dark` · `light`, also at `apps/demo-webapp/src/demoHeader.ts:19`, `apps/demo-webapp/src/demoHeader.ts:35`, `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/publicApi.ts:67`"
+        },
+        {
+          "key": "packages/dmn-modeler/src/theme.ts — [\"dark\",\"light\"]",
+          "path": "packages/dmn-modeler/src/theme.ts",
+          "line": 3,
+          "message": "`dark` · `light`, also at `apps/demo-webapp/bpmn/dual.ts:53`, `apps/demo-webapp/src/demoHeader.ts:20`, `libs/shared/src/lib/hostTheme.ts:17`, `packages/bpmn-modeler/src/theme.ts:4`"
+        }
+      ]
+    }
+  }
+}
