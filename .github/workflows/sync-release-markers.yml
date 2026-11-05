@@ -18,6 +18,10 @@ name: Sync release markers
 #               apps/modeler-bridge, libs/modeler-core, libs/shared and the
 #               npm-package sphere. DMN/form webviews are not bundled.
 #               BUNDLED_WEBVIEW marker, as vscode.
+#   - orca      (apps/orca-plugin): the Orca plugin bundles both npm
+#               packages from source, with the libs they inline and
+#               libs/shared. BUNDLED_WEBVIEW marker, as the other hosts,
+#               outside every trigger path.
 #   - dmn-modeler (packages/dmn-modeler): the publishable @miragon/dmn-modeler
 #               package inlines libs/modeler-types and libs/bpmn-i18n-extras.
 #               Its BUNDLED_LIBS marker records bundled *libs* into a package
@@ -118,10 +122,13 @@ jobs:
 
           VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
           IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
+          ORCA_RELEVANT="^packages/dmn-modeler/|^libs/shared/|${SPHERE}"
           VSC_NATIVE='^apps/vscode-plugin/'
           IJ_NATIVE='^apps/intellij-plugin/'
+          ORCA_NATIVE='^apps/orca-plugin/'
           VSC_MARKER="apps/vscode-plugin/BUNDLED_WEBVIEW"
           IJ_MARKER="apps/intellij-plugin/BUNDLED_WEBVIEW"
+          ORCA_MARKER="apps/orca-plugin/BUNDLED_WEBVIEW"
 
           # The DMN package inlines only libs/modeler-types and
           # libs/bpmn-i18n-extras (vite.config.mts INLINED_LIB_SRC, kept in step
@@ -191,6 +198,13 @@ jobs:
             echo "[intellij] marker queued."
           else
             echo "[intellij] no marker needed."
+          fi
+          if marker_needed "$ORCA_RELEVANT" "$ORCA_NATIVE" "$ORCA_MARKER"; then
+            FILES_JSON=$(jq -c --arg p "$ORCA_MARKER" --arg c "$(marker_content orca)" \
+              '. + [{path:$p, mode:"100644", type:"blob", content:$c}]' <<<"$FILES_JSON")
+            echo "[orca] marker queued."
+          else
+            echo "[orca] no marker needed."
           fi
           if marker_needed "$DMN_RELEVANT" "$DMN_NATIVE" "$DMN_MARKER"; then
             FILES_JSON=$(jq -c --arg p "$DMN_MARKER" --arg c "$(marker_content dmn-modeler)" \

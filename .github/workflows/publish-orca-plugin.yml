@@ -1,0 +1,105 @@
+name: Publish Orca plugin
+
+# Builds the Orca plugin (apps/orca-plugin/plugin/), smoke-tests exactly that
+# folder in the newest Orca, and publishes it into Miragon/orca-modelers with
+# that repository's publish-plugin action: Orca builds nothing and installs the
+# files of a pinned commit there. Every source repository publishes in the
+# `orca-modelers-publish` concurrency group, so publishes run one at a time.
+# Manual dispatch is dry-run-only (build + smoke); a real publish runs from
+# release-please.yml after the release approval.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. orca-v0.1.0). Empty = current branch.'
+        required: false
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. orca-v0.1.0).'
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry run (build + smoke, do not publish)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ inputs.dry-run == false && 'orca-modelers-publish' || format('orca-plugin-dry-run-{0}', github.run_id) }}
+      cancel-in-progress: false
+    env:
+      PLUGIN_DIR: apps/orca-plugin/plugin
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: "@miragon/bpmn-modeler-orca bpmn-modeler @miragon/bpmn-modeler @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard"
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: yarn workspace @miragon/bpmn-modeler-orca build
+
+      - name: Download and extract the newest Orca
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/orca" && cd "$RUNNER_TEMP/orca"
+          gh release download --repo stablyai/orca --pattern orca-linux.AppImage
+          chmod +x orca-linux.AppImage
+          ./orca-linux.AppImage --appimage-extract > /dev/null
+      - name: Smoke-test exactly this plugin folder in Orca
+        run: xvfb-run -a yarn workspace @miragon/bpmn-modeler-orca test:orca
+        env:
+          ORCA_APP: ${{ runner.temp }}/orca/squashfs-root
+          ORCA_SMOKE_PLUGIN: ${{ github.workspace }}/${{ env.PLUGIN_DIR }}
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: orca-smoke-release
+          path: apps/orca-plugin/test-results/orca-smoke/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - id: changelog
+        name: Take the release's changelog section
+        run: |
+          section=$(awk '/^## /{n++} n==1' apps/orca-plugin/CHANGELOG.md 2>/dev/null | tail -n +2 | head -c 1900 || true)
+          {
+            echo "text<<CHANGELOG_EOF"
+            echo "$section"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - if: inputs.dry-run == false
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          owner: miragon
+          repositories: orca-modelers
+      - if: inputs.dry-run == false
+        uses: miragon/orca-modelers/.github/actions/publish-plugin@787dda8dd403ce189a90ceae5480bbcaa0421c0a # main
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          plugin-id: bpmn-modeler
+          plugin-dir: ${{ env.PLUGIN_DIR }}
+          source-repo: ${{ github.repository }}
+          source-ref: ${{ steps.source.outputs.commit }}
+          source-tag: ${{ inputs.tag }}
+          changelog: ${{ steps.changelog.outputs.text }}
