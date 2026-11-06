@@ -18,12 +18,13 @@ import { arrayOf, objectOf, type Json } from "./json";
 import { fixRequirement } from "./transforms";
 import { conditionComparisons } from "./conditions";
 import { elementTypeChoiceFor, meetsRequirement } from "./requirements";
+import type { Severity } from "./severity";
 import type { JsonPath, TemplateEdit } from "./templateText";
 
 /** Something to tell about the value at `path`, relative to the template. */
 export interface Diagnostic {
     path: JsonPath;
-    severity: "error" | "warning" | "info";
+    severity: Severity;
     /** A text to translate, its `{placeholders}` filled from `replacements`. */
     message: string;
     replacements?: Record<string, string>;

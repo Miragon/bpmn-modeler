@@ -23,7 +23,8 @@ import {
     removeGroup,
     removeProperty,
 } from "../../domain/transforms";
-import { diagnosticsByEntry, entryIdOf, type EntryDiagnostic } from "../../domain/entryIds";
+import { diagnosticsByEntry, entryIdOf } from "../../domain/entryIds";
+import { mostSevere } from "../../domain/severity";
 import { Action, Heading, Index, OtherMatches } from "./parts";
 import { type Problem, ProblemsBar, SeverityIcon } from "./ProblemsBar";
 import {
@@ -121,7 +122,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                 <Row
                     key={props.id}
                     {...props}
-                    message={mostSevere(placed.byEntry[props.id])}
+                    message={mostSevere(placed.byEntry[props.id] ?? [])}
                     modified={props.path ? valueAt(template, props.path) !== undefined : false}
                 />
             );
@@ -499,20 +500,4 @@ function filterSettings(
         }
     }
     return kept;
-}
-
-const SEVERITY_RANK: Readonly<Record<EntryDiagnostic["severity"], number>> = {
-    error: 2,
-    warning: 1,
-    info: 0,
-};
-
-function mostSevere(
-    diagnostics: readonly EntryDiagnostic[] | undefined,
-): EntryDiagnostic | undefined {
-    return diagnostics?.reduce<EntryDiagnostic | undefined>(
-        (worst, next) =>
-            worst && SEVERITY_RANK[worst.severity] >= SEVERITY_RANK[next.severity] ? worst : next,
-        undefined,
-    );
 }
