@@ -24,10 +24,9 @@ class NewDmnModelAction : DumbAwareAction() {
         )
     }
 
-    private companion object {
-        // Host-replicated mirror of EMPTY_DMN_DIAGRAM in
-        // libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts — keep byte-identical.
-        // A full decision table + DMNDI so DMN-js could render it without errors.
+    internal companion object {
+        // A copy of EMPTY_DMN_DIAGRAM in libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts;
+        // EmptyDmnDiagramTest holds it to that file byte for byte.
         val EMPTY_DMN_DIAGRAM =
             """
             <?xml version="1.0" encoding="UTF-8"?>
