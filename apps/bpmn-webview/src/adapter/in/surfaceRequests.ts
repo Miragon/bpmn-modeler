@@ -8,9 +8,7 @@ import {
     type HostThemeAdapter,
     type ImplementationStatusQuery,
     LogErrorCommand,
-    LogWarningCommand,
     OpenScriptEditorsCommand,
-    ShowInfoCommand,
     type UpdateOpenScriptEditorsQuery,
     type UpdateScriptContentQuery,
     type UpdateScriptFormatQuery,
@@ -28,7 +26,6 @@ import {
     isModelerHandle,
     type SurfaceHandle,
 } from "../../domain/surface";
-import { elementTemplateRejectionReport } from "../../domain/elementTemplateRejectionReport";
 import { receiveErrorPrefix } from "../../domain/receiveErrorPrefix";
 import type { HostChannel } from "../../port/hostChannel";
 
@@ -57,7 +54,6 @@ interface SurfaceRequestReplies {
 
 export interface SurfaceRequests {
     readonly handlers: SurfaceRequestHandlers;
-    reportElementTemplateErrors(errors: readonly unknown[] | undefined): void;
 }
 
 /**
@@ -224,15 +220,6 @@ export function createSurfaceRequests(
                     replies.settings.done(query);
                 }
             },
-        },
-        reportElementTemplateErrors: (errors) => {
-            const report = elementTemplateRejectionReport(errors);
-            for (const logLine of report.logLines) {
-                host.postMessage(new LogWarningCommand(logLine));
-            }
-            if (report.notice) {
-                host.postMessage(new ShowInfoCommand(report.notice));
-            }
         },
     };
 }

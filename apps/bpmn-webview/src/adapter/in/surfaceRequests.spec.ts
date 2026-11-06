@@ -143,29 +143,6 @@ describe("createSurfaceRequests", () => {
         vi.restoreAllMocks();
     });
 
-    it("posts the rejection log lines before the notice", () => {
-        const { host, reportElementTemplateErrors } = surfaceRequestsOn(modelerSurface());
-
-        reportElementTemplateErrors([new Error("bad"), "worse"]);
-        reportElementTemplateErrors([]);
-
-        expect(host.sent).toEqual([
-            expect.objectContaining({
-                type: "LogWarningCommand",
-                message: "Element template rejected: bad",
-            }),
-            expect.objectContaining({
-                type: "LogWarningCommand",
-                message: "Element template rejected: worse",
-            }),
-            expect.objectContaining({
-                type: "ShowInfoCommand",
-                message:
-                    "2 element templates were rejected and are ignored. See the log for details.",
-            }),
-        ]);
-    });
-
     it("echoes an SVG request with the rendered diagram of any surface", async () => {
         const { host, handlers } = surfaceRequestsOn(viewerSurface());
         const command = new GetDiagramAsSVGCommand();

@@ -1,7 +1,8 @@
 import type { ClipboardOptions, ModelerCapabilities, ModelerMode } from "@miragon/bpmn-modeler";
 import type { SurfaceFactories } from "@miragon/bpmn-modeler/mode";
-import { LogWarningCommand } from "@miragon/bpmn-modeler-shared";
+import { LogWarningCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
 
+import { elementTemplateRejectionReport } from "../../domain/elementTemplateRejectionReport";
 import type { HostModelerState } from "../../domain/hostModelerState";
 import { loadDesignerModule, loadModelerModule, loadViewerModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
@@ -17,7 +18,6 @@ interface SurfaceFactoryPorts {
         HostModelerState,
         "settings" | "applySettingsPushedSince" | "applyFavouritesPushedSince"
     >;
-    reportElementTemplateErrors(errors: readonly unknown[] | undefined): void;
     onModelerModeChanged(mode: ModelerMode): void;
 }
 
@@ -31,6 +31,16 @@ export function createSurfaceFactories(
     ports: SurfaceFactoryPorts,
 ): SurfaceFactories {
     const { capabilities, extraModules, hostModelerState, propertiesPanelParent } = ports;
+
+    function reportElementTemplateRejections(errors: readonly unknown[]): void {
+        const report = elementTemplateRejectionReport(errors);
+        for (const logLine of report.logLines) {
+            host.postMessage(new LogWarningCommand(logLine));
+        }
+        if (report.notice) {
+            host.postMessage(new ShowInfoCommand(report.notice));
+        }
+    }
 
     return {
         view: async ({ container, theme }) => {
@@ -86,7 +96,7 @@ export function createSurfaceFactories(
                 capabilities,
                 ...linting,
                 onWarning: (warning: string) => host.postMessage(new LogWarningCommand(warning)),
-                onElementTemplatesErrors: ports.reportElementTemplateErrors,
+                onElementTemplatesErrors: reportElementTemplateRejections,
                 // Redundant with the mode session's own "toggle" notification, which
                 // cannot reach the modeler's options bag; both write the same values.
                 onModeChanged: ports.onModelerModeChanged,

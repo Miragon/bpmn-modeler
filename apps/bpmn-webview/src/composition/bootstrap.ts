@@ -274,7 +274,6 @@ export function bootstrap(
                 clipboard: clipboard.options,
                 lintBridge,
                 hostModelerState,
-                reportElementTemplateErrors: surfaceRequests.reportElementTemplateErrors,
                 onModelerModeChanged: modeController.followModelerToggle,
             }),
             initialMode: savedMode ?? bpmnFileQuery?.defaultMode ?? null,

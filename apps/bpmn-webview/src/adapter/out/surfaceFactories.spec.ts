@@ -44,7 +44,6 @@ function factoriesWith(hostModelerState = new HostModelerState()) {
     const posted: (Command | Query)[] = [];
     const propertiesPanelParent = document.createElement("div");
     const extraModules = [{ __init__: [] }];
-    const reportElementTemplateErrors = vi.fn();
     const onModelerModeChanged = vi.fn();
     const surfaces = createSurfaceFactories(
         { postMessage: (message) => posted.push(message) },
@@ -55,7 +54,6 @@ function factoriesWith(hostModelerState = new HostModelerState()) {
             clipboard,
             lintBridge: { surfaceOptions: async () => lintOptions },
             hostModelerState,
-            reportElementTemplateErrors,
             onModelerModeChanged,
         },
     );
@@ -65,7 +63,6 @@ function factoriesWith(hostModelerState = new HostModelerState()) {
         hostModelerState,
         propertiesPanelParent,
         extraModules,
-        reportElementTemplateErrors,
         onModelerModeChanged,
     };
 }
@@ -183,24 +180,45 @@ describe("createSurfaceFactories", () => {
         expect(modeler.setSettings).not.toHaveBeenCalled();
     });
 
-    it("routes the modeler's warnings, template errors and mode toggles", async () => {
+    it("routes the modeler's warnings and mode toggles", async () => {
         mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
-        const { posted, surfaces, reportElementTemplateErrors, onModelerModeChanged } =
-            factoriesWith();
+        const { posted, surfaces, onModelerModeChanged } = factoriesWith();
 
         await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
         const options = mocks.createModeler.mock.calls[0][1];
         options.onWarning("unknown element");
-        options.onElementTemplatesErrors([new Error("bad template")]);
         options.onModeChanged("design");
 
         expect(posted).toEqual([
             expect.objectContaining({ type: "LogWarningCommand", message: "unknown element" }),
         ]);
-        expect(reportElementTemplateErrors).toHaveBeenCalledExactlyOnceWith([
-            new Error("bad template"),
-        ]);
         expect(onModelerModeChanged).toHaveBeenCalledExactlyOnceWith("design");
+    });
+
+    it("posts the modeler's template rejections as log lines before one notice", async () => {
+        mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+        const { posted, surfaces } = factoriesWith();
+
+        await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
+        const options = mocks.createModeler.mock.calls[0][1];
+        options.onElementTemplatesErrors([new Error("bad"), "worse"]);
+        options.onElementTemplatesErrors([]);
+
+        expect(posted).toEqual([
+            expect.objectContaining({
+                type: "LogWarningCommand",
+                message: "Element template rejected: bad",
+            }),
+            expect.objectContaining({
+                type: "LogWarningCommand",
+                message: "Element template rejected: worse",
+            }),
+            expect.objectContaining({
+                type: "ShowInfoCommand",
+                message:
+                    "2 element templates were rejected and are ignored. See the log for details.",
+            }),
+        ]);
     });
 
     it("applies settings the host pushed while the modeler initialised", async () => {
