@@ -253,6 +253,17 @@ describe("the contract suites fitness function on a hand-built tree", () => {
         });
     });
 
+    it("is unmeasurable on a tree whose kit lies in a workspace that declares no hexagonal architecture", () => {
+        commitFiles({
+            ...TREE,
+            "libs/core/package.json": JSON.stringify({ name: CORE }),
+        });
+
+        expect(measureTree("head")).toEqual({
+            unmeasurable: `the workspace of ${TESTING} declares no hexagonal architecture`,
+        });
+    });
+
     it("is unmeasurable on a tree whose core declares no interface in a port/ folder", () => {
         commitFiles({
             ...TREE,
