@@ -130,6 +130,7 @@ export * from "./deployment/domain/deploymentTarget";
 export * from "./deployment/domain/deploymentVerification";
 export * from "./deployment/domain/envRef";
 export * from "./deployment/domain/errors";
+export * from "./deployment/domain/inspectionRequest";
 export * from "./deployment/port/deploymentPorts";
 export * from "./deployment/domain/startInstance";
 export * from "./deployment/domain/urlTemplate";

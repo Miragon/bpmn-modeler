@@ -5,9 +5,9 @@ import {
     StartInstanceFailedError,
 } from "../../../domain/errors";
 import { CamundaEnginePort, EngineInspectionPort } from "../../../port/deploymentPorts";
-import { DefinitionLookup } from "../../../domain/deploymentVerification";
 import { HttpClient } from "../../../../kernel/port/HttpClient";
 import { EngineDeploymentSnapshot } from "../../../domain/deploymentVerification";
+import { InspectionRequest } from "../../../domain/inspectionRequest";
 import { SecretRedactor } from "../../../domain/secretRedactor";
 import { StartInstanceConfig, StartInstanceResult } from "../../../domain/startInstance";
 import { expandUrlTemplate, stripTrailingSlash } from "../../../domain/urlTemplate";
@@ -161,10 +161,10 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
      * @throws {EngineInspectionFailedError} on any other non-2xx response.
      */
     async fetchLatestDefinition(
-        request: DefinitionLookup,
+        request: InspectionRequest,
     ): Promise<EngineDeploymentSnapshot | undefined> {
         const base = stripTrailingSlash(request.endpoint);
-        const requestSecrets = request.auth.redactor().and(SecretRedactor.of(...request.envValues));
+        const requestSecrets = request.redactor();
         const headers = await this.authResolver.resolve(request.auth, requestSecrets);
 
         const keyPath = request.tenantId.trim()

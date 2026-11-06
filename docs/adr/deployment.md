@@ -173,7 +173,7 @@ target matching — and expand it only when the outbound request is built, insid
 the services that issue HTTP requests (`DeploymentService.deploy`/`deployFiles`,
 `StartInstanceService.startInstance`, `DeploymentVerificationService.verifyActive`).
 The expansion itself lives on the domain objects (`DeploymentConfig`,
-`StartInstanceConfig`, `AuthConfig`), which return a request-only copy;
+`StartInstanceConfig`, `InspectionRequest`, `AuthConfig`), which return a request-only copy;
 `EnvValueResolver` only builds the variable lookup. Expansion at the last moment
 is load-bearing: an accepted deploy writes `config.auth` back to the secret store
 and `DeploymentTarget.assertAdmits` matches the request against the saved
@@ -220,7 +220,8 @@ destination and the variables it embeds:
   `error`) or a plain-text body, drop HTML and any other JSON, and cap it at one
   1000-character line (`engineErrorDetail`). Before that, `SecretRedactor` masks
   in it what the request carried: its credentials, the `.env` values substituted
-  into it (the expanded config records them as `envValues`), the
+  into it (the expanded request records them as `envValues`; `requestSecrets`
+  joins them with the credentials for every request type), the
   `Authorization` values, and URL userinfo and query values — raw, percent-
   (also twice and with lowercase hex), form-, URL-path- and JSON-encoded. Only
   the server's text is masked; the modeler's own messages never contain a
@@ -402,7 +403,8 @@ does not produce background authentication errors against sleeping engines.
 A separate `EngineInspectionPort.fetchLatestDefinition` is implemented by the
 Camunda 7 client. C8 has no verification menu entry and its command reports the
 operation unavailable; there is no unsupported engine-router stub. Lookups use
-the plain REST base URL, not the deployment URL override. Adding C8 inspection
+the plain REST base URL, not the deployment URL override: an `InspectionRequest`
+carries only the endpoint, tenant, process key and credentials. Adding C8 inspection
 would require a separate capability such as Operate and its authentication.
 
 Reconciliation compares the stored row, editor content and fingerprint of the
