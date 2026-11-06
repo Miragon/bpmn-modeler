@@ -11,11 +11,11 @@ export type ReferenceKind = "process" | "decision" | "form";
  */
 export interface ReferenceKindCapabilities {
     /**
-     * The host reports which forms the workspace declares, so only a form reference is
-     * shown as unavailable; a process or decision is looked up when it is navigated to.
+     * The host reports whether the workspace declares the referenced model; without it, the
+     * model is looked up when it is navigated to.
      */
     readonly availabilityStatus: boolean;
-    /** Only a linked form opens in a read-only preview. */
+    /** The referenced model opens in a read-only preview. */
     readonly preview: boolean;
 }
 
