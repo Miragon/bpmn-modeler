@@ -103,6 +103,9 @@ const HANDLE_EVENTS: readonly HandleEvent[] = [
  * differ, VS Code is the reference.
  *
  * Left out, because the hosts differ and the core relies on neither:
+ * - Whether a change of the dirty flag is reported: VS Code reports one as a
+ *   change without content changes, the bridge and the fake report none. The
+ *   rows on an edit and a save compare only the changes with content.
  * - Whether an edit of another document reaches a listener: VS Code's event is
  *   global, the bridge's is per document; the participants filter by
  *   `documentUriString()`. The suite asserts only that such an edit is never
@@ -270,6 +273,12 @@ export function describeEditorHandleContract(
                 return changes;
             }
 
+            function withContentChanges(
+                changes: readonly Record<string, unknown>[],
+            ): Record<string, unknown>[] {
+                return changes.filter((change) => change.hasContentChanges);
+            }
+
             function changeOfThisDocument(content: string): Record<string, unknown> {
                 return {
                     documentUriString: fixture.handle.documentUriString(),
@@ -303,7 +312,7 @@ export function describeEditorHandleContract(
 
                 const reportedBeforeResolving = await fixture.handle
                     .writeContent(EDITED)
-                    .then(() => [...changes]);
+                    .then(() => withContentChanges(changes));
 
                 expect(reportedBeforeResolving).toEqual([changeOfThisDocument(EDITED)]);
             });
@@ -338,7 +347,7 @@ export function describeEditorHandleContract(
 
                 fixture.editElsewhere(EDITED);
 
-                expect(changes).toEqual([changeOfThisDocument(EDITED)]);
+                expect(withContentChanges(changes)).toEqual([changeOfThisDocument(EDITED)]);
             });
 
             // Each participant acts on every change that names its session's document.
@@ -381,8 +390,7 @@ export function describeEditorHandleContract(
 
                     await expect(fixture.handle.save()).resolves.toBe(saved);
 
-                    // VS Code reports the dirty flag a save clears as a change without content changes.
-                    expect(changes.filter((change) => change.hasContentChanges)).toEqual([]);
+                    expect(withContentChanges(changes)).toEqual([]);
                 },
             );
         });

@@ -72,7 +72,11 @@ class Emitter<T> {
     }
 }
 
-/** A text document that reports each change through VS Code's global `onDidChangeTextDocument`. */
+/**
+ * A text document that reports each change through VS Code's global
+ * `onDidChangeTextDocument`, a change of its dirty flag included, as a change
+ * with no content changes.
+ */
 class FakeTextDocument {
     isDirty = false;
     refusesSave = false;
@@ -91,23 +95,26 @@ class FakeTextDocument {
         return { offset };
     }
 
-    /**
-     * A refused save resolves false and leaves the document dirty. VS Code reports
-     * the dirty flag a save clears as a change with no content changes.
-     */
+    /** A refused save resolves false and leaves the document dirty. */
     async save(): Promise<boolean> {
         if (this.refusesSave) return false;
         if (this.isDirty) {
             this.isDirty = false;
-            this.changes.fire({ document: this, contentChanges: [] });
+            this.reportDirtyFlag();
         }
         return true;
     }
 
     replace(start: number, end: number, text: string): void {
         this.text = this.text.slice(0, start) + text + this.text.slice(end);
+        const becameDirty = !this.isDirty;
         this.isDirty = true;
         this.changes.fire({ document: this, contentChanges: [{ text }] });
+        if (becameDirty) this.reportDirtyFlag();
+    }
+
+    private reportDirtyFlag(): void {
+        this.changes.fire({ document: this, contentChanges: [] });
     }
 }
 
