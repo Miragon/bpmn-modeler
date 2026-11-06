@@ -5,9 +5,9 @@
  * src/chooser.css) using the --dt-* palette from colors.css, which in turn
  * derives from VS Code's injected --vscode-* variables.
  *
- * This file is only loaded when the dark theme is active (controlled by
- * theme.ts), so the "colorTheme: light" setting correctly forces light mode
- * even when VS Code itself uses a dark theme.
+ * Every rule is scoped under `[data-bpmn-theme="dark"]`, which the instance's
+ * ThemeController sets, so the "colorTheme: light" setting keeps the overlay
+ * light even when VS Code itself uses a dark theme.
  */
 @import "colors.css";
 

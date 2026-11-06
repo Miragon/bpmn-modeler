@@ -58,11 +58,16 @@ the core's workspace content search and code-link. Process-variable extraction
 model, and the core's script domain keeps the `VariableDef`s it yields, which
 the protocol only carries. Browser code cannot import the core, whose barrel
 exports Node-only modules, so a rule both apply has no other common home. The
-package is private and inlined: its npm surface is only what a package entry
-re-exports by name, which `check-dts` and `publicApi.spec.ts` gate, so a shared
-rule adds nothing to it. A rule there keeps its module free of top-level side
-effects, so a bundle that does not use it leaves it out. A rule only the core
-applies stays in the core's `domain/`. DOM-id-coupled panel resizers,
+package is private and inlined. A package entry's declaration roll-up ships
+what the entry re-exports by name and, unnamed, every declaration a public type
+references, such as the `SurfaceThemeMode` behind `ThemeMode`. A consumer
+cannot import such a declaration, but an edit to it changes the published types
+without a change in the package. `check-dts` checks the whole roll-up, unnamed
+declarations included; `publicApi.spec.ts` pins only the public names it lists.
+A shared rule adds nothing to the npm surface while no public type references
+its types. A rule there keeps its module free of top-level side effects, so a
+bundle that does not use it leaves it out. A rule only the core applies stays
+in the core's `domain/`. DOM-id-coupled panel resizers,
 focus/shortcut bindings and the VS Code body-class theme adapter belong in
 `shared`. This deliberately mixes private browser chrome with the protocol to
 avoid another workspace for a few helpers.
