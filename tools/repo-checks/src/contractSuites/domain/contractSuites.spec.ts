@@ -16,6 +16,7 @@ import {
     isProgramSource,
     isSpecSource,
     type Port,
+    unmeasurableReasonOf,
 } from "./contractSuites";
 
 const KIT = "libs/modeler-core/src/testing/index.ts";
@@ -325,6 +326,28 @@ describe("coreScopeOf", () => {
                 hexagonalWorkspaceDirs: helperModule === KIT ? [] : ["libs/modeler-core"],
             }),
         ).toEqual({ kind: "unmeasurable", reason });
+    });
+});
+
+describe("unmeasurableReasonOf", () => {
+    it.each([
+        {
+            case: "the core declares no interface in a port/ folder",
+            overrides: { ports: [], adapters: [], specs: [] },
+            reason: "the workspace of @miragon/bpmn-modeler-core/testing declares no interface in a port/ folder",
+        },
+        {
+            case: "the core declares ports that no class implements",
+            overrides: { ports: [WORKSPACE, STATUS], adapters: [], specs: [] },
+            reason: undefined,
+        },
+        {
+            case: "the core declares ports with adapters",
+            overrides: {},
+            reason: undefined,
+        },
+    ])("words why an inventory cannot be measured when $case: $reason", ({ overrides, reason }) => {
+        expect(unmeasurableReasonOf(inventory(overrides))).toBe(reason);
     });
 });
 

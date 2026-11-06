@@ -139,6 +139,13 @@ export function coreScopeOf({ helperModule, hexagonalWorkspaceDirs }: KitLayout)
     };
 }
 
+/** A core without ports would read as clean, so it is unmeasurable instead. */
+export function unmeasurableReasonOf({ ports }: ContractSuiteInventory): string | undefined {
+    return ports.length === 0
+        ? `the workspace of ${CONTRACT_HELPER_MODULE} declares no interface in a port/ folder`
+        : undefined;
+}
+
 /** Below the core's source root the first role folder decides. */
 export function isPortSource(path: string, { coreSourceRoot }: CoreScope): boolean {
     return (

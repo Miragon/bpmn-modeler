@@ -4,10 +4,10 @@ import {
     InsufficientHistory,
 } from "../../fitness/domain/fitnessFunction";
 import {
-    CONTRACT_HELPER_MODULE,
     CONTRACT_SUITE_GROUPS,
     contractSuiteFindings,
     coreScopeOf,
+    unmeasurableReasonOf,
 } from "../domain/contractSuites";
 import type { ContractSuiteSources } from "../port/ContractSuiteSources";
 
@@ -69,10 +69,9 @@ export function createContractSuitesFitnessFunction({
                 throw new InsufficientHistory(core.reason);
             }
             const inventory = sources.read(repoRoot, core.scope);
-            if (inventory.ports.length === 0) {
-                throw new InsufficientHistory(
-                    `the workspace of ${CONTRACT_HELPER_MODULE} declares no interface in a port/ folder`,
-                );
+            const unmeasurable = unmeasurableReasonOf(inventory);
+            if (unmeasurable !== undefined) {
+                throw new InsufficientHistory(unmeasurable);
             }
             return contractSuiteFindings(inventory);
         },
