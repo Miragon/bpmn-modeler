@@ -10,7 +10,9 @@ vi.mock("vscode", () => {
             getConfiguration: () => ({
                 get: (key: string) =>
                     scopes.workspace.has(key) ? scopes.workspace.get(key) : scopes.user.get(key),
+                // VS Code lands a write only when the Thenable resolves, never during the call.
                 update: async (key: string, value: unknown, target: number) => {
+                    await new Promise((landed) => setTimeout(landed));
                     (target === ConfigurationTarget.Global ? scopes.user : scopes.workspace).set(
                         key,
                         value,
