@@ -413,8 +413,9 @@ homes and an error message that names the fix.
   It reads the type a local or property was declared with, not the narrowed
   one: after `tab === "diff"` fails, an unrelated `"view" | "diff"` narrows to
   `"view"`, which would match `SurfaceMode`. A value of raw `string` or
-  `unknown` is invisible until a guard such as `isEngine` turns it into the
-  type (parse, don't validate); the narrowed type counts there.
+  `unknown` is invisible until a guard such as `isEngine` or a parse such as
+  `parseEditableMode` turns it into the type (parse, don't validate); the
+  narrowed type counts there.
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
@@ -437,8 +438,7 @@ homes and an error message that names the fix.
   on a loaded machine. Nor does reading the declared type: 0.52 to 0.67 s with
   it and 0.55 to 1.68 s without, five interleaved runs each.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
-  value typed `string` (the panel's parse of `config.propertiesPanelMode`), and
-  Kotlin.
+  value typed `string`, and Kotlin.
 - **False alarms.** Matching by value set reports an unrelated type whose
   literals all belong to a registered one (`type Tab = "view"`). A local
   inferred from a narrowed value and a bracket access (`change["kind"]`) keep

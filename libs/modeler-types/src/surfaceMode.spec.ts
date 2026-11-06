@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     defaultMode,
     isModeAvailable,
+    parseEditableMode,
     planTransition,
     resolveInitialMode,
     surfaceModeSupports,
@@ -21,6 +22,20 @@ describe("surfaceModeSupports", () => {
         { mode: "implement", capability: "engineLintRules", supported: true },
     ] as const)("$mode supports $capability: $supported", ({ mode, capability, supported }) => {
         expect(surfaceModeSupports(mode, capability)).toBe(supported);
+    });
+});
+
+describe("parseEditableMode", () => {
+    it.each([
+        { setting: "implement", mode: "implement" },
+        { setting: "design", mode: "design" },
+        { setting: "view", mode: "design" },
+        { setting: "Implement", mode: "design" },
+        { setting: undefined, mode: "design" },
+        { setting: null, mode: "design" },
+        { setting: 1, mode: "design" },
+    ])("reads $setting as $mode", ({ setting, mode }) => {
+        expect(parseEditableMode(setting)).toBe(mode);
     });
 });
 

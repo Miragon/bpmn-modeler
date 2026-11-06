@@ -45,6 +45,15 @@ export function surfaceModeSupports(mode: SurfaceMode, capability: SurfaceModeCa
 }
 
 /**
+ * Reads a Design/Implement setting from outside (a DI config, an option). Only
+ * `implement` opens the engine's surface; anything else opens the
+ * engine-neutral Design.
+ */
+export function parseEditableMode(setting: unknown): Exclude<SurfaceMode, "view"> {
+    return setting === "implement" ? "implement" : "design";
+}
+
+/**
  * Whether a mode can be entered for the given engine. `view` and `design` are
  * engine-neutral and always available; `implement` needs a detected engine
  * (an execution-platform-tagged model).
