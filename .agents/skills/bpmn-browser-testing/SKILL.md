@@ -163,6 +163,6 @@ translation harvesting, follow [i18n](../i18n-translate/SKILL.md).
 Report the preview URL, fixture/engine, mode, actions, observed results, and any
 unverified host behavior. Keep screenshots in the ignored `.context/` directory
 when available. For deeper debugging, start at `apps/bpmn-webview/src/main.ts`,
-`src/bootstrap.ts`, and `src/host.ts` within that app, or
-`packages/bpmn-modeler/src/index.ts` for package composition; consult
+`src/composition/bootstrap.ts`, and `src/adapter/out/host.ts` within that
+app, or `packages/bpmn-modeler/src/index.ts` for package composition; consult
 [bpmn-js](../bpmn-js/SKILL.md) for interaction internals.

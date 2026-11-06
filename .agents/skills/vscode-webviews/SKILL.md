@@ -131,7 +131,7 @@ webviewPanel.webview.postMessage(query);
 const host = getHostApi();
 host.postMessage(command);
 ```
-The BPMN webview's bootstrap and session modules post through `HostChannel`
+The BPMN webview's bootstrap, adapters and services post through `HostChannel`
 (`apps/bpmn-webview/src/port/hostChannel.ts`), which takes only the commands
 in `BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`).
 `bootstrap` narrows its host to it once. `DiffMode` posts through
