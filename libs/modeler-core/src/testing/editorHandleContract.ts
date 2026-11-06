@@ -304,7 +304,11 @@ export function describeEditorHandleContract(
 
             // `writeAndConfirm` reads the content back after a false to tell a skipped write from a refused one.
             it.each([
-                { write: "of the content it holds", prepare: () => undefined, content: DOCUMENT.content },
+                {
+                    write: "of the content it holds",
+                    prepare: () => undefined,
+                    content: DOCUMENT.content,
+                },
                 {
                     write: "the host refuses",
                     prepare: (host: EditorHandleContractFixture) => host.refuseWrites(),
