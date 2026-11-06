@@ -142,15 +142,20 @@ export interface SettingsPort {
  */
 export interface WorkspacePort {
     /**
-     * The innermost folder holding `document`. For a `file://` document the
-     * answer may come in either spelling: VS Code answers in the folder's, the
-     * bridge in the document's.
+     * The innermost folder holding `document`. For a `file://` document or a
+     * drive path the answer may come in either spelling: VS Code answers in its
+     * URI path (`/c:/` for `C:/`), the bridge in the document's.
      *
      * @throws {NoWorkspaceFolderFoundError} if `document` is outside every folder.
      */
     getWorkspaceFolderForDocument(document: string): string;
     findWorkspaceFolderForDocument(document: string): string | undefined;
+    /** In the order the folders were opened: the first is the workspace's primary folder. */
     getWorkspaceFolderPaths(): string[];
+    /**
+     * Spelled like the folder {@link getWorkspaceFolderForDocument} finds for
+     * it, so the core can walk up from one to the other.
+     */
     getDocumentDirectory(document: string): string;
     /**
      * An empty directory lists as `[]`.

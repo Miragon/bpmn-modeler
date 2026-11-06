@@ -374,9 +374,9 @@ there. Host classes depend on the core ports, not
 on concrete adapters, so the in-memory test kit fits every one of them. Once
 a second class implements a port the core reads back from, the port has one
 contract suite in the test kit that every adapter runs, the in-memory fake
-included, as `describeWorkspaceContract` runs against `InMemoryWorkspace` and
-`NodeWorkspace`; a port that only renders and a strategy the core chooses
-between need none. The
+included, as `describeWorkspaceContract` runs against `InMemoryWorkspace`,
+`NodeWorkspace` and `VsCodeWorkspace`; a port that only renders and a strategy
+the core chooses between need none. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
 adapters that run no suite of their port. Inbound
 adapters never import outbound ones (rule 6 of the
@@ -1176,8 +1176,8 @@ a cached result must equal an uncached run.
   a pruned walk 3-5 ms. Handing the host the exclude costs a stricter port
   contract: an adapter that ignores the exclude, or matches it against
   absolute paths, lists those folders again. The workspace contract checks
-  the bridge and the in-memory workspace; `VsCodeWorkspace` only forwards to
-  VS Code.
+  all three adapters; on VS Code it checks that `VsCodeWorkspace` forwards the
+  exclude, while a fake of `findFiles` stands in for VS Code's own matching.
 - The additional files picker capped its listing at 20, and each host cut the
   list before the core sorted it, so the hosts offered different files. The
   pickers offer every match instead, at the cost of reading every match of

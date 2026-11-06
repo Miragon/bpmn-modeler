@@ -58,16 +58,20 @@ one fake per port), not through hand-rolled partial mocks cast to the port.
 The fakes keep state, so specs assert what the host shows or holds rather than
 which methods were called. They follow each port's documented conventions, so a
 port change breaks every spec that relies on it. Each fake is a third adapter
-beside VS Code and the bridge. One contract suite holds the workspace fake to a
-real adapter: `describeWorkspaceContract` runs the same scenarios against
-`InMemoryWorkspace` and the bridge's `NodeWorkspace` on a temporary directory,
-so within those scenarios a spec that passes on the fake cannot rely on a rule
-the bridge breaks. Where the hosts differ, VS Code is the reference; its adapter
-needs a running VS Code and stays outside the suite, so the suite does not
-prove VS Code keeps the same rules. The entry is test-only: production code
-does not import it, and specs that test a host adapter itself keep mocking the
-host API underneath. A spec spies on a fake only to inject a failure or hang,
-or when the call itself is the behaviour under test.
+beside VS Code and the bridge. One contract suite holds the workspace fake to
+both hosts: `describeWorkspaceContract` runs the same scenarios against
+`InMemoryWorkspace`, the bridge's `NodeWorkspace` and `VsCodeWorkspace`, the
+two hosts on a temporary directory, so within those scenarios a spec that
+passes on the fake cannot rely on a rule a host breaks. Where the hosts differ,
+VS Code is the reference. `VsCodeWorkspace` runs over a fake of the `vscode`
+API (`vscodeWorkspaceFake.ts`) that serves `workspace.fs` and `findFiles` from
+the disk and delivers watcher events in coalesced batches, as VS Code does. The
+run pins the adapter's own mapping (path spelling, folder order, errors), not
+VS Code itself: where the fake and VS Code part, the suite cannot tell. The
+entry is test-only: production code does not import it, and specs that test a
+host adapter itself keep mocking the host API underneath. A spec spies on a
+fake only to inject a failure or hang, or when the call itself is the
+behaviour under test.
 
 Real browser tests are necessary for SVG geometry, viewbox transforms and
 ResizeObserver delivery. Mocks can test viewport-latch decisions but cannot

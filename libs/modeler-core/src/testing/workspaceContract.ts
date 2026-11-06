@@ -6,6 +6,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
 import { WorkspacePort } from "../kernel/port/hostPorts";
+import { isWithinRoot } from "../kernel/domain/rootContainment";
 import { WatcherEventKind } from "../kernel/domain/watcherEvents";
 
 /** One {@link WorkspacePort} adapter under the {@link describeWorkspaceContract} scenarios. */
@@ -37,11 +38,23 @@ const WATCHER_SCENARIO_TIMEOUT_MS = 15000;
 
 /**
  * The rules of {@link WorkspacePort} the core relies on, run against one
- * adapter. The in-memory fake and the bridge's `NodeWorkspace` both run them,
- * so within these scenarios a spec that passes on the fake cannot rely on a
- * rule the bridge breaks. Where the hosts differ, VS Code is the reference.
- * A directory created or deleted as a whole may arrive as one event for it or
- * as one for each of its files; the fake reports the directory, as VS Code does.
+ * adapter. The in-memory fake, the bridge's `NodeWorkspace` and
+ * `VsCodeWorkspace` (over a fake of VS Code's API) run them, so within these
+ * scenarios a spec that passes on the fake cannot rely on a rule a host
+ * breaks. Where the hosts differ, VS Code is the reference, and where the core
+ * handles either answer a scenario accepts both: a folder's spelling, and a
+ * directory created or deleted as a whole arriving as one event for it or one
+ * for each of its files (the fake reports the directory, as VS Code does).
+ *
+ * Left out:
+ * - The order of `findFiles` and `readDirectory` results: neither host sorts
+ *   them, and the core sorts the file lists it offers from `findFiles`
+ *   (`fileChoicesInWorkspaceOrder`).
+ * - A file created and removed within one burst: VS Code drops it, the bridge
+ *   reports the delete, and the core handles both.
+ * - A drive letter's case and a UNC share, which a directory on the test
+ *   machine cannot hold. The VS Code adapter's spec pins how it spells them;
+ *   the bridge spells them through `toWorkspacePath`, whose spec pins a UNC path.
  */
 export function describeWorkspaceContract(
     adapter: string,
@@ -103,37 +116,58 @@ export function describeWorkspaceContract(
                 expect(workspace.getWorkspaceFolderForDocument(root)).toBe(root);
             });
 
+            // The core treats the first folder as the workspace's primary one.
+            it("lists the folders in the order they were opened, not sorted", () => {
+                const { workspace, root } = fixture;
+                fixture.openFolder(`${root}/shipping`);
+                fixture.openFolder(`${root}/billing`);
+
+                expect(workspace.getWorkspaceFolderPaths()).toEqual([
+                    `${root}/shipping`,
+                    `${root}/billing`,
+                ]);
+            });
+
+            // The core walks up from a document's directory to the folder found for
+            // it, so the two must be spelled alike.
             it.each([
                 {
                     behaviour:
                         "encloses every document of a workspace opened at the filesystem root",
                     folder: "/",
                     document: "/work/order.bpmn",
-                    enclosing: "/",
+                    spellings: ["/"],
                 },
                 {
+                    // VS Code answers in its URI path of the drive, the bridge as the folder was opened.
                     behaviour: "encloses the documents of a workspace opened at a drive root",
                     folder: "C:/",
                     document: "C:/work/order.bpmn",
-                    enclosing: "C:/",
+                    spellings: ["C:/", "/c:/"],
                 },
                 {
                     behaviour: "encloses the documents of a drive root spelled as a URI path",
                     folder: "/c:/",
                     document: "/c:/work/order.bpmn",
-                    enclosing: "/c:/",
+                    spellings: ["/c:/"],
                 },
-                {
-                    behaviour:
-                        "does not count a sibling that shares the folder's name prefix as inside",
-                    folder: "/work",
-                    document: "/work2/order.bpmn",
-                    enclosing: undefined,
-                },
-            ])("$behaviour", ({ folder, document, enclosing }) => {
+            ])("$behaviour", ({ folder, document, spellings }) => {
+                const { workspace } = fixture;
                 fixture.openFolder(folder);
+                const directory = workspace.getDocumentDirectory(document);
 
-                expect(fixture.workspace.findWorkspaceFolderForDocument(document)).toBe(enclosing);
+                expect(spellings).toContain(workspace.findWorkspaceFolderForDocument(document));
+                expect(
+                    isWithinRoot(directory, workspace.getWorkspaceFolderForDocument(directory)),
+                ).toBe(true);
+            });
+
+            it("does not count a sibling that shares the folder's name prefix as inside", () => {
+                fixture.openFolder("/work");
+
+                expect(
+                    fixture.workspace.findWorkspaceFolderForDocument("/work2/order.bpmn"),
+                ).toBeUndefined();
             });
 
             it("throws NoWorkspaceFolderFoundError for a document outside every folder", () => {
