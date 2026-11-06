@@ -111,10 +111,9 @@ const HANDLE_EVENTS: readonly HandleEvent[] = [
  *   the identity spells it (VS Code's `canonicalPath`, IntelliJ's file path),
  *   and the bridge and the fake take it as given.
  * - The expected document revision of a write, and a write to a read-only
- *   document: the core checks the revision before it calls the handle, and a
- *   read-only document opens in a viewer that does not write. VS Code ignores
- *   the revision and throws on a read-only file system; the bridge leaves both
- *   to its host.
+ *   document: the core checks the revision before it calls the handle, VS Code
+ *   ignores it and the bridge's host checks it again; VS Code's handle throws
+ *   on a read-only file system, where the bridge leaves the write to its host.
  * - `reload`: optional, and the bridge cannot restart its webview.
  */
 export function describeEditorHandleContract(
