@@ -158,6 +158,30 @@ if (guardedTab === "diff") { void guardedTab; } else if (guardedTab === "view") 
 if (guardedChange.kind === "diff") { void guardedChange; } else if (guardedChange.kind === "view") { void guardedChange; }`,
             errors: 0,
         },
+        {
+            comparison: "an unregistered discriminant read by bracket access",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedChange:
+    | { readonly kind: "view"; readonly at: number }
+    | { readonly kind: "diff"; readonly against: string };
+if (guardedChange["kind"] === "diff") { void guardedChange; } else if (guardedChange["kind"] === "view") { void guardedChange; }`,
+            errors: 0,
+        },
+        {
+            comparison: "a wider union narrowed into the engines",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedScope: ${ENGINE} | "both";
+if (guardedScope !== "both" && guardedScope === "c7") { void guardedScope; }`,
+            errors: 1,
+        },
+        {
+            comparison: "a wider union narrowed into the surface modes by a guard",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedRaw: ${SURFACE_MODE} | "diff";
+declare function guardedIsSurfaceMode(value: unknown): value is ${SURFACE_MODE};
+if (guardedIsSurfaceMode(guardedRaw) && guardedRaw === "view") { void guardedRaw; }`,
+            errors: 1,
+        },
     ])("reports $errors for $comparison", async ({ file, snippet, errors }) => {
         expect(await lintAppended(file, snippet)).toHaveLength(errors);
     });
