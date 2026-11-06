@@ -35,6 +35,7 @@ describeWorkspaceContract("NodeWorkspace on a real directory", async () => {
             await fs.rename(staging, path);
         },
         removeFile: (path) => fs.rm(path),
+        createSymbolicLink: (path, target) => fs.symlink(target, path),
         watchersReady: () => sleep(WATCHER_ARMING_MS),
         eventsDelivered: () => sleep(EVENT_DELIVERY_MS),
         dispose: () => fs.rm(root, { recursive: true, force: true }),

@@ -58,22 +58,42 @@ one fake per port), not through hand-rolled partial mocks cast to the port.
 The fakes keep state, so specs assert what the host shows or holds rather than
 which methods were called. They follow each port's documented conventions, so a
 port change breaks every spec that relies on it. Each fake is a third adapter
-beside VS Code and the bridge. Contract suites hold the fakes to the real
-adapters: each runs the same scenarios against the adapters of one port, so
-within those scenarios a spec that passes on a fake cannot rely on a rule a
-host breaks. Where the hosts differ, VS Code is the reference.
-`describeWorkspaceContract` runs against `InMemoryWorkspace` and the bridge's
-`NodeWorkspace` on a temporary directory; `VsCodeWorkspace` needs a running VS
-Code and stays outside it, so that suite does not prove VS Code keeps the same
-rules. `describePickerContract` and `describeTokenPromptContract` run against
-the kit's `ScriptedPicker` and `ScriptedTokenPrompt`, against `VsCodePicker`
-and `VsCodeTokenPrompt` over mocks of the `vscode` window, which pin the
-adapters' own mapping rather than VS Code, and against the bridge's `RpcPicker`
-and `RpcTokenPrompt` over an RPC loopback that answers as IntelliJ does
-(#2054). The entry is test-only: production code
-does not import it, and specs that test a host adapter itself keep mocking the
-host API underneath. A spec spies on a fake only to inject a failure or hang,
-or when the call itself is the behaviour under test.
+beside VS Code and the bridge. The entry is test-only: production code does not
+import it, and specs that test a host adapter itself keep mocking the host API
+underneath. A spec spies on a fake only to inject a failure or hang, or when
+the call itself is the behaviour under test.
+
+Contract suites hold the fakes to the hosts (#2054). A suite runs the same
+scenarios against every adapter of one port, so within those scenarios a spec
+that passes on a fake cannot rely on a rule a host breaks. Where the hosts
+differ, VS Code is the reference. A VS Code adapter runs over a fake of the
+`vscode` API that behaves as VS Code does, and a bridge adapter that calls
+IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
+run pins each adapter's own mapping, not the host itself: where a fake and its
+host part, the suite cannot tell, and the Kotlin half is #2056.
+
+- `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
+  over a fake panel, text document and `workspace` events, and the bridge's
+  `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
+  does.
+- `describePickerContract`: `ScriptedPicker`, `VsCodePicker` over mocks of
+  the `vscode` window and the bridge's `RpcPicker` over the
+  `intellijPromptHost.ts` loopback, which answers as `HostUiRouter` does.
+- `describeSecretStoreContract`: `InMemorySecretStore`, `VsCodeSecretStore`
+  over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
+  the `intellijCredentialHost.ts` loopback, which answers as
+  `SecretStoreRouter` does.
+- `describeTokenPromptContract`: `ScriptedTokenPrompt`, `VsCodeTokenPrompt`
+  over a mocked `showInputBox` and the bridge's `RpcTokenPrompt` over the same
+  loopback, which answers as `MarketplaceRouter` does.
+- `describeTokenStoreContract`: `InMemoryTokenStore`, `VsCodeTokenStore` over
+  the same storage fake and the bridge's `RpcTokenStore` over the same
+  loopback, which answers `tokenStore/*` as `MarketplaceRouter` does.
+- `describeWorkspaceContract`: `InMemoryWorkspace`, the bridge's
+  `NodeWorkspace` and `VsCodeWorkspace`, both hosts on a temporary directory.
+  `VsCodeWorkspace` runs over `vscodeWorkspaceFake.ts`, which serves
+  `workspace.fs` and `findFiles` from the disk and delivers watcher events in
+  coalesced batches, as VS Code does.
 
 Real browser tests are necessary for SVG geometry, viewbox transforms and
 ResizeObserver delivery. Mocks can test viewport-latch decisions but cannot

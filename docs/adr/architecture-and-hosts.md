@@ -138,17 +138,18 @@ switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
 handler table finds no entry for them. Code that owns a closed set makes a
 missing type a compile error: a handler table has a mapped type that needs an
 entry for every type (the BPMN webview's session messages in
-`apps/bpmn-webview/src/session/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
-the keys a table gets through spreads, so a spec checks that no two spread
-handler groups name the same type. The classes remain the constructors and the
-wire format is unchanged: the same `type` strings and fields, which the
-IntelliJ host matches.
+`apps/bpmn-webview/src/adapter/in/messageRouter.ts`, a host's
+`CommandTable`). TypeScript does not check the keys a table gets through
+spreads, so a spec checks that no two spread handler groups name the same
+type. The classes remain the constructors and the wire format is unchanged:
+the same `type` strings and fields, which the IntelliJ host matches.
 
 The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
 `libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
 only those, and the bootstrap narrows its host to it once, so neither the
-bootstrap nor a session module can post another surface's command or a query.
+bootstrap nor an adapter or service it hands that channel can post another
+surface's command or a query.
 `HostApi` declares its members as properties, not methods, because TypeScript
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
@@ -245,8 +246,8 @@ imports show the role it has. Each workspace declares its kind once, in the
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
-The template builder (#2130) and the DMN, Form and deployment webviews sit in
-their role folders. The BPMN webview moves in its own migration (#2129).
+Every webview (#2129) and the template builder (#2130) sit in their role
+folders.
 
 In a `hexagonal` workspace the first role folder in a file's path is its role,
 and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
@@ -294,15 +295,30 @@ technology spans contexts, and the rules between contexts stay per workspace.
 The core's session participants are in-core reactions that
 `EditorSessionLifecycle` drives, so they sit in `service/`, which the core
 always treated as one application layer with them. Webviews
-follow the same roles: the UI, its markup and stylesheet and the router for
-the host's queries are `adapter/in/`, the host channel and the
-modeler-library wrappers `adapter/out/`, the reducers and pure rules
-`domain/`, and the bootstrap `composition/`; `main.ts` stays the entry. The
-host channel's type and the state it persists are `port/`, so the UI and the
-host adapter share them without importing each other. A document session that
-keeps the modeler in sync with the host through injected handles is
-`service/` (the DMN webview's `DmnDocumentSession`). The BPMN webview maps its
-files in its own migration (#2129).
+follow the same roles: the UI, its markup and the router for the host's
+queries are `adapter/in/`, the host channel and the modeler-library wrappers
+`adapter/out/`, the reducers and pure rules `domain/`, and the bootstrap
+`composition/`; `main.ts` stays the entry. A stylesheet sits next to the
+module that imports it. The host channel's type and the state it persists are
+`port/`, so the UI and the host adapter share them without importing each
+other. A document session that keeps the modeler in sync with the host
+through injected handles is `service/` (the DMN webview's
+`DmnDocumentSession`, the BPMN webview's `BpmnDocumentSession`).
+
+The BPMN webview splits its adapters on the live surface by direction: the
+host's requests on the surface, the mode strip and the binding of a surface's
+events to the session are `adapter/in/`; the modules that implement the
+modeler library's ports over the host channel (capabilities, clipboard,
+linting, the form preview) or wrap the library (surface factories and
+modules, the document I/O of the live surface) are `adapter/out/`. The ports
+the document session calls, such as `BpmnDocumentSurface`, are `port/`, so
+the surface's document adapter implements one without importing the service.
+The view-state manager and the process-variable publisher sync with the host
+through injected handles like the document session, so they are `service/`.
+The surface binding builds the manager's state store and the properties
+panel's DOM adapter and hands them in, so the manager touches no DOM.
+The template editor is a context of its own, `templateEditor/`, with the same
+roles and its own entry, `templateEditorMain.ts`.
 
 The bridge serves the host's RPC through handler tables in
 `<context>/adapter/in/` (`editorSessionHandlers`, `deploymentHandlers`, …),
@@ -380,8 +396,8 @@ core ports, not on concrete adapters, so the in-memory test kit fits every one
 of them. Once a second class implements a port the core reads back from, the
 port has one contract suite in the test kit that every adapter runs, the
 in-memory fake included, as `describeWorkspaceContract` runs against
-`InMemoryWorkspace` and `NodeWorkspace`; a port that only renders and a
-strategy the core chooses between need none. The
+`InMemoryWorkspace`, `NodeWorkspace` and `VsCodeWorkspace`; a port that only
+renders and a strategy the core chooses between need none. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
 adapters that run no suite of their port. Inbound
 adapters never import outbound ones (rule 6 of the
@@ -655,19 +671,24 @@ files add `element-templates` and the config folder. The exclude matches a
 file's path below its workspace folder. VS Code hands it to ripgrep, and the
 bridge walks with `readdir` and never reads a folder the exclude covers whole
 (`coveredFolderRegExp`), so both hosts prune the same folders and list the
-same files; `testing/workspaceContract.ts` runs the same rows against the
-bridge adapter and the in-memory workspace. On both hosts `findFiles` follows
-a symlinked folder, as ripgrep does under VS Code's default
-`search.followSymlinks`. The bridge prunes an excluded name before it follows
-a link, so a `node_modules` link is never read, does not follow a link back
-to a folder the walk came through, and skips a link it cannot resolve. These
-rows run in `nodeAdapters.spec.ts` only, as the in-memory workspace has no
-links. The core's fs-walk fallback and `watchedChangeOf` skip the same
-folders, so a live update agrees with the listing. Dot-folders are left out on
-every host because VS Code's ripgrep searched them and the bridge's former
-`fs.glob` did not; none of these listings needs a file in one, as element
-templates, targets, payloads and code-link maps are read by path. The pickers
-offer every match with no cap.
+same files. Each host leaves a folder open inside another to its own search,
+as VS Code's search excludes nested root folders, so a file is listed once:
+the core does not dedupe `findFiles` results.
+`testing/workspaceContract.ts` runs the same rows against the
+in-memory workspace, the bridge adapter and `VsCodeWorkspace`. On both hosts
+`findFiles` follows a symlinked folder, as ripgrep does under VS Code's
+default `search.followSymlinks`. The bridge prunes an excluded name before it
+follows a link, so a `node_modules` link is never read, does not follow a link
+back to a folder the walk came through, and skips a link it cannot resolve.
+These rows stay out of the workspace contract, as the in-memory workspace has
+no link targets and `VsCodeWorkspace` only forwards to VS Code's search:
+`nodeAdapters.spec.ts` pins the bridge, and `vscodeWorkspaceFake.spec.ts` the
+fake the VS Code adapter's contract run uses. The core's fs-walk fallback and
+`watchedChangeOf` skip the same folders, so a live update agrees with the
+listing. Dot-folders are left out on every host because VS Code's ripgrep
+searched them and the bridge's former `fs.glob` did not; none of these
+listings needs a file in one, as element templates, targets, payloads and
+code-link maps are read by path. The pickers offer every match with no cap.
 
 One prompt stays outside `PickerPort`: the template marketplace asks for a
 personal access token in a masked input, which a chooser cannot show. Its port
@@ -1297,8 +1318,8 @@ a cached result must equal an uncached run.
   a pruned walk 3-5 ms. Handing the host the exclude costs a stricter port
   contract: an adapter that ignores the exclude, or matches it against
   absolute paths, lists those folders again. The workspace contract checks
-  the bridge and the in-memory workspace; `VsCodeWorkspace` only forwards to
-  VS Code.
+  all three adapters; on VS Code it checks that `VsCodeWorkspace` forwards the
+  exclude, while a fake of `findFiles` stands in for VS Code's own matching.
 - The additional files picker capped its listing at 20, and each host cut the
   list before the core sorted it, so the hosts offered different files. The
   pickers offer every match instead, at the cost of reading every match of
