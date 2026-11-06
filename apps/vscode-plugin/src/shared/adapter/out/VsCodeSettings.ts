@@ -150,19 +150,11 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * Registers a marketplace at the scope the user chose: `"project"` keeps the
-     * entry a per-project concern in the Workspace settings; `"allProjects"`
-     * promotes it to the User settings. A `"project"` request with no
-     * folder/workspace open falls back to Global, because `update()` to
-     * Workspace throws without one.
-     *
-     * Dedup follows the effective-union rule: a `"project"` add is a no-op if the
-     * URL exists in *either* scope (it already resolves for this project); an
-     * `"allProjects"` add de-dups only against the User list, so an entry that
-     * lives workspace-level can still be promoted user-wide. Either way it
-     * appends only to the **target scope's own** list from `inspect()` — never
-     * the union — so a workspace write can't copy User-level entries into the
-     * repo's settings.
+     * Appends the URL to the chosen scope's own list from `inspect()`, never the
+     * union, so a Workspace write cannot copy User entries into the repository's
+     * settings. Whether the add registers anything is the core's decision. A
+     * `"project"` add with no folder or workspace open goes to the User settings,
+     * because `update()` to Workspace throws without one.
      *
      * String `includes` de-dups only against other strings, which is all the Add
      * command writes; a string that resolves to the same repo as an object entry
@@ -171,29 +163,14 @@ export class VsCodeSettings implements SettingsPort {
     async addMarketplace(url: string, scope: MarketplaceScope): Promise<void> {
         const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
-        const target =
+        const [target, current] =
             scope === "allProjects" || !hasWorkspace()
-                ? ConfigurationTarget.Global
-                : ConfigurationTarget.Workspace;
-        if (target === ConfigurationTarget.Global) {
-            // Promotion rule: only the User list de-dups an "allProjects" add, so an entry
-            // present workspace-level can still be lifted to "all my projects".
-            if (userEntries.includes(url)) {
-                return;
-            }
-            await config.update("marketplaces", [...userEntries, url], target);
+                ? [ConfigurationTarget.Global, userEntries]
+                : [ConfigurationTarget.Workspace, workspaceEntries];
+        if (current.includes(url)) {
             return;
         }
-        // Workspace add: a no-op if the URL already resolves for this project via
-        // either scope's list.
-        if (userEntries.includes(url) || workspaceEntries.includes(url)) {
-            return;
-        }
-        await config.update(
-            "marketplaces",
-            [...workspaceEntries, url],
-            ConfigurationTarget.Workspace,
-        );
+        await config.update("marketplaces", [...current, url], target);
     }
 }
 

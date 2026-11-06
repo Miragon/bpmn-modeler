@@ -9,7 +9,7 @@ import {
     marketplaceRemoval,
     registrableLocation,
 } from "../domain/marketplacePrompts";
-import { registeredMarketplaces } from "../domain/marketplaceRegistrations";
+import { isAlreadyRegistered, registeredMarketplaces } from "../domain/marketplaceRegistrations";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -176,7 +176,11 @@ export class MarketplaceCommands {
         }
     }
 
-    /** The fetch caches before the registration, so a failed add must not leave that cache behind. */
+    /**
+     * The fetch caches before the registration, so a failed add must not leave
+     * that cache behind. The registrations are read again here, in the queue,
+     * as a removal may have run since the question read them.
+     */
     private async fetchAndRegister({
         location,
         scope,
@@ -184,8 +188,12 @@ export class MarketplaceCommands {
         const { marketplaces, registrations, notifier, templates } = this.ports;
         try {
             const report = await marketplaces.addMarketplace(location);
-            await registrations.register(location, scope);
-            notifier.logDebug(`Marketplace registration persisted: ${location}`);
+            if (isAlreadyRegistered((await registrations.read()).registered, location, scope)) {
+                notifier.logDebug(`Marketplace already registered: ${location}`);
+            } else {
+                await registrations.register(location, scope);
+                notifier.logDebug(`Marketplace registration persisted: ${location}`);
+            }
             await templates.reloadMarketplaceTemplates();
             return report;
         } catch (error) {

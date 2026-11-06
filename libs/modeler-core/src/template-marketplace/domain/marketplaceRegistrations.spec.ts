@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
+    isAlreadyRegistered,
+    MarketplaceScope,
     RegisteredMarketplace,
     registeredMarketplaces,
     RegistrationsByScope,
@@ -65,6 +67,69 @@ describe("registeredMarketplaces", () => {
         },
     ])("lists $behaviour", ({ registered, listed }) => {
         expect(registeredMarketplaces(registered)).toStrictEqual(listed);
+    });
+});
+
+describe("isAlreadyRegistered", () => {
+    it.each<{
+        behaviour: string;
+        registered: RegistrationsByScope;
+        entry: MarketplaceSettingsEntry;
+        scope: MarketplaceScope;
+        already: boolean;
+    }>([
+        {
+            behaviour: "registers an entry neither list holds for this project",
+            registered: { project: [], allProjects: ["/work/other"] },
+            entry: "/work/new",
+            scope: "project",
+            already: false,
+        },
+        {
+            behaviour: "registers an entry neither list holds for all projects",
+            registered: { project: ["/work/other"], allProjects: [] },
+            entry: "/work/new",
+            scope: "allProjects",
+            already: false,
+        },
+        {
+            behaviour: "registers nothing for this project when this project holds the entry",
+            registered: { project: ["/work/a"], allProjects: [] },
+            entry: "/work/a",
+            scope: "project",
+            already: true,
+        },
+        {
+            behaviour:
+                "registers nothing for this project when all my projects hold the entry, as this project reaches them",
+            registered: { project: [], allProjects: ["/work/a"] },
+            entry: "/work/a",
+            scope: "project",
+            already: true,
+        },
+        {
+            behaviour: "shares an entry of this project with all my projects",
+            registered: { project: ["/work/a"], allProjects: [] },
+            entry: "/work/a",
+            scope: "allProjects",
+            already: false,
+        },
+        {
+            behaviour: "registers nothing for all projects when all my projects hold the entry",
+            registered: { project: [], allProjects: ["/work/a"] },
+            entry: "/work/a",
+            scope: "allProjects",
+            already: true,
+        },
+        {
+            behaviour: "matches a self-hosted entry by its fields, not by its identity",
+            registered: { project: [], allProjects: [selfHosted()] },
+            entry: selfHosted(),
+            scope: "project",
+            already: true,
+        },
+    ])("$behaviour", ({ registered, entry, scope, already }) => {
+        expect(isAlreadyRegistered(registered, entry, scope)).toBe(already);
     });
 });
 

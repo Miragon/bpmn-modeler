@@ -120,19 +120,20 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `marketplaceState save is a no-op when the location already lives in the app-level list`() {
+    fun `marketplaceState save for this project writes the project list even when the app-level list holds the location`() {
         val (wired, _) = router()
         val location = "https://github.com/owner/app-repo-${System.nanoTime()}"
-        // Seed the app-level list; the save must dedupe against the union.
+        // The core decides whether an add registers anything; the store only appends.
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
         store.update { before.copy(marketplaces = before.marketplaces + location) }
         try {
             dispatchSave(wired, location, id = 9)
 
-            assertFalse(
-                ProjectMarketplacesStore.getInstance(projectFixture.get()).list().contains(location),
-                "a location already in the app-level list must not be re-added per project",
+            assertEquals(
+                listOf(location),
+                ProjectMarketplacesStore.getInstance(projectFixture.get()).list().filter { it == location },
+                "the save must land in the project list once",
             )
         } finally {
             // App-level settings are shared across the @TestApplication; restore them.

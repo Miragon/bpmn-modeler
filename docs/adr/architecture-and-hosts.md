@@ -697,7 +697,14 @@ Each host keeps its marketplace registrations behind
 `MarketplaceRegistrationsPort`. `read` returns each scope's own list as the
 host stores it, the scopes the host can write now with where it saves each,
 and where a self-hosted marketplace is written by hand; `register` and
-`unregister` write. The core merges the lists with `registeredMarketplaces`
+`unregister` write. Whether an add registers anything is the core's
+`isAlreadyRegistered`: this project fetches the entries of both lists, so an add
+for this project changes nothing when either list holds the entry, and an add
+for all projects only when the all-projects list does, so an entry of this
+project can still be shared with all projects. The core decides on a read made
+once the marketplace is fetched, as a removal may have run while the question
+was open. `register` only appends to the scope's own list unless that list holds
+the entry; no host and not the test fake checks the other list. The core merges the lists with `registeredMarketplaces`
 (`template-marketplace/domain/marketplaceRegistrations.ts`): each entry once,
 matched by its fields, with every scope that holds it, all-projects entries
 first as both hosts union them for the fetch. VS Code's `getMarketplaces`
@@ -1242,6 +1249,11 @@ a cached result must equal an uncached run.
   themselves (one entry per structural key, its scopes, all-projects first):
   three copies in TypeScript and Kotlin that no test compared. Each scope's own
   list costs a host nothing and leaves one merge, in the core.
+- Each host's `register` could keep deciding whether an add registers anything,
+  as VS Code's settings adapter and IntelliJ's project store did. Those were two
+  copies of the rule, and the test fake followed neither, so the core's specs
+  pinned a behaviour no host had. Deciding in the core costs one more `read` per
+  add, a `marketplaceState/read` round trip on IntelliJ.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

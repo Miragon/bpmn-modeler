@@ -68,6 +68,28 @@ export function registeredMarketplaces(registered: RegistrationsByScope): Regist
     return [...byKey.values()];
 }
 
+/** This project fetches the entries of every list, all projects only their own. */
+const LISTS_A_SCOPE_REACHES: Record<MarketplaceScope, readonly MarketplaceScope[]> = {
+    project: MARKETPLACE_SCOPES,
+    allProjects: ["allProjects"],
+};
+
+/**
+ * Whether adding `entry` for `scope` would change nothing, because a list that
+ * scope reaches holds it already. An entry of this project can still be shared
+ * with all projects.
+ */
+export function isAlreadyRegistered(
+    registered: RegistrationsByScope,
+    entry: MarketplaceSettingsEntry,
+    scope: MarketplaceScope,
+): boolean {
+    const key = entryKey(entry);
+    return LISTS_A_SCOPE_REACHES[scope].some((reached) =>
+        registered[reached].some((listed) => entryKey(listed) === key),
+    );
+}
+
 /** The list without the removed entries, matched as {@link registeredMarketplaces} matches them. */
 export function withoutMarketplaceEntries(
     list: readonly MarketplaceSettingsEntry[],

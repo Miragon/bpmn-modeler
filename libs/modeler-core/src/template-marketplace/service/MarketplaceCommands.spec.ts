@@ -221,6 +221,31 @@ describe("MarketplaceCommands.add", () => {
         expect(notifier.infos).toEqual(["Marketplace added."]);
     });
 
+    it("registers nothing for this project when all my projects already hold the entry", async () => {
+        const { commands, registrations, notifier } = marketplaceHost({
+            answers: [{ location: "/work/a", scope: "project" }],
+        });
+
+        await commands.add();
+
+        expect(registrations.lists).toEqual({ project: [], allProjects: ["/work/a"] });
+        expect(notifier.infos).toEqual(["Marketplace added."]);
+    });
+
+    it("shares an entry of this project with all my projects", async () => {
+        const { commands, registrations, registered } = marketplaceHost({
+            registered: [],
+            answers: [{ location: "/work/b", scope: "allProjects" }],
+        });
+        registrations.lists.project.push("/work/b");
+
+        await commands.add();
+
+        expect(await registered()).toEqual([
+            { entry: "/work/b", scopes: ["allProjects", "project"] },
+        ]);
+    });
+
     it("registers and reports nothing when the add question is dismissed", async () => {
         const { commands, registered, notifier, templates } = marketplaceHost();
 
@@ -411,7 +436,7 @@ describe("MarketplaceCommands.remove", () => {
                 registered: ["/work/a", "/work/b"],
                 promptAnswers: { marketplaceRemoval: ["/work/a"] },
             });
-        await registrations.register("/work/a", "project");
+        registrations.lists.project.push("/work/a");
         await commands.update();
 
         await commands.remove();
@@ -529,6 +554,22 @@ describe("MarketplaceCommands started while another one runs", () => {
 
         expect(marketplaces).toEqual(["/work/b"]);
         expect(await cachedTemplateNames()).toEqual(["b.json"]);
+    });
+
+    it("registers an entry that a removal dropped while the add question was open", async () => {
+        const { commands, holdAddQuestion, registered } = marketplaceHost({
+            answers: [{ location: "/work/a", scope: "project" }],
+            promptAnswers: { marketplaceRemoval: ["/work/a"] },
+        });
+        const question = holdAddQuestion();
+
+        const add = commands.add();
+        await letPendingWorkRun();
+        await commands.remove();
+        question.open();
+        await add;
+
+        expect(await registered()).toEqual([{ entry: "/work/a", scopes: ["project"] }]);
     });
 
     it("keeps the cache of a marketplace being added while another add fails", async () => {

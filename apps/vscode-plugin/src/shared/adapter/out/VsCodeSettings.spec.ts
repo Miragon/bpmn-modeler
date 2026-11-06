@@ -354,7 +354,19 @@ describe("VsCodeSettings.addMarketplace", () => {
         );
     });
 
-    it("is a no-op for a project add when the URL already exists in the other scope", async () => {
+    it("is a no-op for a project add when the Workspace list already holds the URL", async () => {
+        setWorkspaceOpen(true);
+        stubInspect({
+            globalValue: [],
+            workspaceValue: ["https://github.com/acme/shared"],
+        });
+
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "project");
+
+        expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it("writes a project add of a URL the User list holds, as the core decides whether to add", async () => {
         setWorkspaceOpen(true);
         stubInspect({
             globalValue: ["https://github.com/acme/shared"],
@@ -363,7 +375,11 @@ describe("VsCodeSettings.addMarketplace", () => {
 
         await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "project");
 
-        expect(updateMock).not.toHaveBeenCalled();
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            ["https://github.com/acme/shared"],
+            ConfigurationTarget.Workspace,
+        );
     });
 
     it("appends to Global and targets Global for an all-projects add even with a workspace open", async () => {

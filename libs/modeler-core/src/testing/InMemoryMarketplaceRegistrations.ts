@@ -23,9 +23,10 @@ const BOTH_SCOPES: readonly WritableScope[] = [
 ];
 
 /**
- * One list per scope, like a host's stores. Every write lands in
- * `settings.values.marketplaces` as their union, as a host's settings read sees
- * it. The marketplaces the settings start with are registered for all projects.
+ * One list per scope, like a host's stores, written as the port says. Every
+ * write lands in `settings.values.marketplaces` as their union, as a host's
+ * settings read sees it. The marketplaces the settings start with are
+ * registered for all projects.
  */
 export class InMemoryMarketplaceRegistrations implements MarketplaceRegistrationsPort {
     readonly lists: Record<MarketplaceScope, MarketplaceSettingsEntry[]>;

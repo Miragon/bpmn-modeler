@@ -10,8 +10,9 @@
  *
  * Covered: `marketplace/add` reading the host's scopes (`marketplaceState/read`),
  * asking the core's add question (`marketplacePrompt/show`), asking again when
- * the core refuses the location, and registering through the acknowledged
- * `marketplaceState/save`; `marketplace/remove` offering the registered entries
+ * the core refuses the location, reading the registrations again once the
+ * marketplace is fetched, and registering through the acknowledged
+ * `marketplaceState/save` unless a list the scope reaches holds it already; `marketplace/remove` offering the registered entries
  * through `picker/show` and unregistering them through the acknowledged
  * `marketplaceState/remove`; and `marketplace/update` folding a piggybacked
  * marketplace list into a summary.
@@ -188,6 +189,22 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         return answer(rpc, frames, "marketplacePrompt/show", { location, scope });
     }
 
+    /** Answers the registrations read the add makes once it fetched the marketplace. */
+    function answerReadAfterFetch(
+        rpc: Rpc,
+        frames: unknown[],
+        question: RequestFrame,
+        registrations = intellijRegistrations(),
+    ): Promise<RequestFrame> {
+        return answer(
+            rpc,
+            frames,
+            "marketplaceState/read",
+            registrations,
+            frames.indexOf(question) + 1,
+        );
+    }
+
     it("adds a local marketplace: asks the core's question, registers the answer's scope, then refreshes the editor", async () => {
         const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
@@ -214,6 +231,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             ],
             scope: "project",
         });
+        await answerReadAfterFetch(rpc, frames, question);
         // The registration is an acknowledged request carrying the answer's scope.
         const save = await answer(rpc, frames, "marketplaceState/save", null);
         expect(save.params).toEqual({ location: folder, scope: "allProjects" });
@@ -221,6 +239,22 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
         await waitForFrame(frames, isShowInfo("Marketplace added."));
         expect((await fs.readdir(cacheRoot)).length).toBe(1);
+    });
+
+    it("registers nothing for this project when all my projects already hold the fetched entry", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+
+        const question = await addMarketplace(rpc, frames, folder, "project");
+        await answerReadAfterFetch(
+            rpc,
+            frames,
+            question,
+            intellijRegistrations({ allProjects: [folder] }),
+        );
+
+        await waitForFrame(frames, isShowInfo("Marketplace added."));
+        expect(frames.find(isSaveRequest)).toBeUndefined();
     });
 
     it("asks again with the refused entry and why, without naming a place IntelliJ lacks", async () => {
@@ -256,7 +290,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             "utf8",
         );
 
-        await addMarketplace(rpc, frames, folder);
+        const question = await addMarketplace(rpc, frames, folder);
+        await answerReadAfterFetch(rpc, frames, question);
         await answer(rpc, frames, "marketplaceState/save", null);
 
         const toast = await waitForFrame(
@@ -353,7 +388,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const { rpc, frames, tmp } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        await addMarketplace(rpc, frames, "  ~/marketplace  ");
+        const question = await addMarketplace(rpc, frames, "  ~/marketplace  ");
+        await answerReadAfterFetch(rpc, frames, question);
 
         const save = await waitForFrame(frames, isSaveRequest);
         expect(save.params.location).toBe(folder);
@@ -363,7 +399,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        await addMarketplace(rpc, frames, folder);
+        const question = await addMarketplace(rpc, frames, folder);
+        await answerReadAfterFetch(rpc, frames, question);
         const save = await waitForFrame(frames, isSaveRequest);
         await rpc.handleLine(hostErrorReply(save.id, "disk full"));
 
