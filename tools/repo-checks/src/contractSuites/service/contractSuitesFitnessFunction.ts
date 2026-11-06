@@ -54,7 +54,7 @@ export function createContractSuitesFitnessFunction({
                 kind: "trial",
                 commit: "cd48f2cd",
                 outcome:
-                    "first run: 23 ports in the core's port/ folders, 55 adapters, 1 helper (describeWorkspaceContract), 59 pairs. 2 run the suite (InMemoryWorkspace, NodeWorkspace); VsCodeWorkspace skips it; 42 pairs of 15 ports have no suite; 3 pairs of EngineInspectionPort, HttpClient and LintRunnerPort have one adapter each; 11 pairs of StatusBarPort, DiagnosticsPort, LoggerPort and LintingPreferencePort are render-only. Reading the port/ folders of every hexagonal workspace instead would add 18 pairs no kit helper can cover: 12 without a suite (11 tools/repo-checks adapters and RpcEditorHandle as the bridge's HostEditorHandle) and 6 render-only. 1.4 to 2.6 s per tree with node_modules, 1.1 to 1.8 s on a checkout without",
+                    "first run: 23 ports in the core's port/ folders, 55 adapters, 1 helper (describeWorkspaceContract), 59 pairs. 2 run the suite (InMemoryWorkspace, NodeWorkspace); VsCodeWorkspace skips it; 42 pairs of 15 ports have no suite; 3 pairs of EngineInspectionPort, HttpClient and LintRunnerPort have one adapter each; 11 pairs of StatusBarPort, DiagnosticsPort, LoggerPort and LintingPreferencePort are render-only. Reading the port/ folders of every hexagonal workspace instead would add 18 pairs no kit helper can cover: 12 without a suite (11 tools/repo-checks adapters and RpcEditorHandle as the bridge's HostEditorHandle) and 6 render-only. 1.5 to 1.7 s per tree with node_modules, 1.1 to 1.7 s on a checkout without",
             },
             {
                 kind: "trial",

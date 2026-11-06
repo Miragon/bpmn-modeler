@@ -1093,9 +1093,10 @@ import an adapter. Of 59 pairs, 2 run the suite (`InMemoryWorkspace`,
 `NodeWorkspace`), and 57 are findings. `VsCodeWorkspace` is the only adapter
 that skips an existing suite, and the report names it first. 42 pairs of 15
 ports have no suite: 12 ports with three adapters (36 pairs), and
-`DiffPaneHandle`, `DocumentPort` and `PropertiesPanelStatePort` with two. 3
-pairs are set aside because their port has one adapter: `EngineInspectionPort`,
-`HttpClient` and `LintRunnerPort`. 11 pairs are render-only: `StatusBarPort`, `DiagnosticsPort` and `LoggerPort` with three
+`DiffPaneHandle`, `DocumentPort` and `PropertiesPanelStatePort` with two.
+3 pairs are set aside because their port has one adapter:
+`EngineInspectionPort`, `HttpClient` and `LintRunnerPort`. 11 pairs are
+render-only: `StatusBarPort`, `DiagnosticsPort` and `LoggerPort` with three
 adapters each and `LintingPreferencePort` with two. Against the issue's survey
 by name, the types add `DiffPaneHandle` (no `Port` in its name),
 `RepositorySource` (the GitHub, GitLab and local template sources),
@@ -1104,13 +1105,13 @@ by name, the types add `DiffPaneHandle` (no `Port` in its name),
 `LintingPreferencePort`. 8 listed pairs are none of the issue's backfill
 ports, render-only ports or engine strategies: `NotifierPort` (3),
 `RepositorySource` (3, strategies of their own) and `DiffPaneHandle` (2).
-Building the program and reading took 1.4 to
-2.6 s on the working tree and 1.1 to 1.8 s on a checkout without
-`node_modules` (six runs each), with the same 57 findings. `corepack yarn
-fitness` took 6.8 to 7.9 s in six runs instead of 3.5 to 4.0 s in three, and
-18.3 s once under a load average above 16, while it measures the base on a
-checkout; once the push job stores this function in the base snapshot, only
-the working tree is read.
+Building the program and reading took 1.5 to 1.7 s on the working tree and
+1.1 to 1.7 s on a checkout without `node_modules` (six runs each, load
+average 6 to 7), with the same 57 findings. `corepack yarn fitness` took 6.7
+to 8.0 s in nine runs instead of 3.3 to 4.0 s in three on the merge base, at
+a load average of 5 to 6, while it measures the base on a checkout; once the
+push job stores this function in the base snapshot, only the working tree is
+read.
 
 Alternatives considered:
 
