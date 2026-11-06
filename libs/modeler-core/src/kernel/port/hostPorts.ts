@@ -163,7 +163,11 @@ export interface WorkspacePort {
      * @throws {DirectoryNotFound} if `path` is missing.
      */
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
-    /** @throws {FileNotFound} if `path` is missing. */
+    /**
+     * @throws {FileNotFound} only if `path` is missing. Any other failure, a
+     *   directory at `path` included, rejects with another error, so the core
+     *   reports it instead of treating the file as absent.
+     */
     readFile(path: string): Promise<string>;
     /** `false` when `path` is absent; a dangling link still counts as a link. */
     isSymbolicLink(path: string): Promise<boolean>;

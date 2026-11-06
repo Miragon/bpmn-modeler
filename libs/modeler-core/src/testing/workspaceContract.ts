@@ -248,6 +248,17 @@ export function describeWorkspaceContract(
                 await expect(workspace.isSymbolicLink(`${root}/missing`)).resolves.toBe(false);
             });
 
+            // FileNotFound reads as "absent, use the defaults"; a `.env` that is a
+            // Python virtualenv directory must be reported instead (EnvValueResolver).
+            it("rejects reading a directory with an error other than FileNotFound", async () => {
+                const { workspace, root } = fixture;
+                await fixture.createDirectory(`${root}/.env`);
+
+                await expect(workspace.readFile(`${root}/.env`)).rejects.not.toBeInstanceOf(
+                    FileNotFound,
+                );
+            });
+
             // The core reads no `.env` through a link, and its walks have no cycle guard.
             it("tells a symbolic link, also a dangling one, from a file, and lists no link", async () => {
                 const { workspace, root } = fixture;
