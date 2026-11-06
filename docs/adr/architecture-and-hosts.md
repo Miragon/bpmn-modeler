@@ -1068,6 +1068,12 @@ carry it to the webview; writes return it as `expectedDocumentRevision`.
 Reject stale writes with `accepted: false` and retain host content. Registration
 re-seeds the revision so restart cannot reset this protection.
 
+When the Document fails an edit, the host answers the write with an error. The
+bridge reads that error reply as a refused write, so `DocumentPort.write`
+answers `false` as on VS Code, and the mirror keeps its text. Accepted cost: on
+both hosts a failed edit is not reported as such. The page sync shows nothing,
+and Change Engine Version blames a change made while the user picked a version.
+
 Host-owned `sessionId` distinguishes successive editors for the same URI. Both
 peers reject mismatched identities, including stale disposal. For existing
 compatibility, a missing session ID addresses the current session; legacy
