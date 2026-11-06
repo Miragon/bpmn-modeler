@@ -223,7 +223,6 @@ class ContractSuiteReader {
             .flatMap((type) => this.portsReachedBy(type, ports));
     }
 
-    /** A type parameter reaches what its constraint reaches, an intersection what each part does. */
     private portsReachedBy(
         type: ts.Type,
         ports: ReadonlyMap<ts.Symbol, PortDeclaration>,
