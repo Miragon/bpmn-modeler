@@ -8,6 +8,7 @@ import {
     marketplaceRemoval,
     registrableLocation,
 } from "../domain/marketplacePrompts";
+import { registeredMarketplaces } from "../domain/marketplaceRegistrations";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -111,7 +112,9 @@ export class MarketplaceCommands {
         const { notifier, registrations, picker, marketplaces, templates } = this.ports;
         notifier.logInfo("Remove Marketplace command invoked");
         try {
-            const removal = marketplaceRemoval((await registrations.read()).registered);
+            const removal = marketplaceRemoval(
+                registeredMarketplaces((await registrations.read()).registered),
+            );
             if (removal.kind === "nothingRegistered") {
                 notifier.showInfo(removal.message);
                 return;

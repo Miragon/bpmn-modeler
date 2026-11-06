@@ -12,6 +12,3 @@ internal enum class MarketplaceScope(val wireName: String) {
                 ?: throw IllegalArgumentException("Unknown marketplace scope '$wireName'")
     }
 }
-
-/** One registration and the scopes whose lists hold it. */
-internal data class MarketplaceRegistration(val location: String, val scopes: List<MarketplaceScope>)

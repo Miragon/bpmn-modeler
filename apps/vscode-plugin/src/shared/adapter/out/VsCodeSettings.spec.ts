@@ -193,31 +193,17 @@ describe("VsCodeSettings.getMarketplaces", () => {
     });
 });
 
-describe("VsCodeSettings.getMarketplacesWithScopes", () => {
-    it("annotates each entry with the scope(s) it lives in, User first", () => {
+describe("VsCodeSettings.getMarketplacesByScope", () => {
+    it("reads the User list as all my projects and the Workspace list as this project", () => {
         stubInspect({
             globalValue: ["https://github.com/acme/user", "https://github.com/acme/shared"],
             workspaceValue: ["https://github.com/acme/shared", "https://github.com/acme/ws"],
         });
 
-        expect(new VsCodeSettings().getMarketplacesWithScopes()).toEqual([
-            { entry: "https://github.com/acme/user", scopes: ["allProjects"] },
-            { entry: "https://github.com/acme/shared", scopes: ["allProjects", "project"] },
-            { entry: "https://github.com/acme/ws", scopes: ["project"] },
-        ]);
-    });
-
-    it("dedupes an object entry structurally across scopes", () => {
-        const obj = {
-            provider: "gitlab" as const,
-            repo: "group/proj",
-            baseUrl: "https://gl.acme.com",
-        };
-        stubInspect({ globalValue: [obj], workspaceValue: [obj] });
-
-        expect(new VsCodeSettings().getMarketplacesWithScopes()).toEqual([
-            { entry: obj, scopes: ["allProjects", "project"] },
-        ]);
+        expect(new VsCodeSettings().getMarketplacesByScope()).toEqual({
+            allProjects: ["https://github.com/acme/user", "https://github.com/acme/shared"],
+            project: ["https://github.com/acme/shared", "https://github.com/acme/ws"],
+        });
     });
 });
 

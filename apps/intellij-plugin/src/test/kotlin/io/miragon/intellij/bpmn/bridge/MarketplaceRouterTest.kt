@@ -254,27 +254,24 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `marketplaceState read replies each registration with its scopes and where IntelliJ saves each scope`() {
+    fun `marketplaceState read replies each scope's own list and where IntelliJ saves each scope`() {
         val (wired, _) = router()
         val shared = "https://github.com/owner/shared-${System.nanoTime()}"
         val projectOnly = "https://github.com/owner/project-${System.nanoTime()}"
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
         store.update { before.copy(marketplaces = before.marketplaces + shared) }
-        ProjectMarketplacesStore.getInstance(projectFixture.get()).add(projectOnly)
+        val projectStore = ProjectMarketplacesStore.getInstance(projectFixture.get())
+        projectStore.add(projectOnly)
         try {
             wired.handlers.dispatch("marketplaceState/read", JsonObject(), wired.requestId(42))
 
             val result = parse(wired.fake.nextFrame()).getAsJsonObject("result")
-            val registered = result.getAsJsonArray("registered").map { it.asJsonObject }
-            assertEquals(
-                listOf(listOf("allProjects")),
-                registered.filter { it.get("entry").asString == shared }.map { scopesOf(it) },
-            )
-            assertEquals(
-                listOf(listOf("project")),
-                registered.filter { it.get("entry").asString == projectOnly }.map { scopesOf(it) },
-            )
+            val registered = result.getAsJsonObject("registered")
+            assertEquals(store.current().marketplaces, entriesOf(registered, "allProjects"))
+            assertEquals(projectStore.list(), entriesOf(registered, "project"))
+            assertTrue(entriesOf(registered, "allProjects").contains(shared))
+            assertTrue(entriesOf(registered, "project").contains(projectOnly))
             assertEquals(
                 parse(
                     """[
@@ -507,7 +504,8 @@ class MarketplaceRouterTest {
         return push.getAsJsonObject("params").getAsJsonObject("settings").getAsJsonArray("marketplaces").map { it.asString }
     }
 
-    private fun scopesOf(registered: JsonObject): List<String> = registered.getAsJsonArray("scopes").map { it.asString }
+    private fun entriesOf(registered: JsonObject, scope: String): List<String> =
+        registered.getAsJsonArray(scope).map { it.asString }
 
     /** A null RPC result: Gson (serializeNulls off) omits the key entirely on the wire. */
     private fun assertNullResult(reply: JsonObject) {

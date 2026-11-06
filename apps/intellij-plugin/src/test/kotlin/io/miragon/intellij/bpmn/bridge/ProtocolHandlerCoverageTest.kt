@@ -211,9 +211,8 @@ class ProtocolHandlerCoverageTest {
                 "marketplacePrompt/show" to MarketplacePromptShowResult(location = "/work/t", scope = "project"),
                 "marketplaceState/read" to
                     MarketplaceStateReadResult(
-                        registered = listOf(RegisteredMarketplace("/work/t", listOf("project"))),
+                        registered = mapOf("project" to listOf("/work/t"), "allProjects" to emptyList()),
                         writable = listOf(WritableScope("project", SettingsPlace("file", listOf(".idea")))),
-                        selfHostedIn = SettingsPlace("file", listOf("settings.json")),
                     ),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->

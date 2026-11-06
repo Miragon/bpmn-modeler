@@ -275,7 +275,7 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [],
-        "resultKeys": ["registered", "selfHostedIn", "writable"]
+        "resultKeys": ["registered", "writable"]
     },
     {
         "method": "marketplaceState/save",

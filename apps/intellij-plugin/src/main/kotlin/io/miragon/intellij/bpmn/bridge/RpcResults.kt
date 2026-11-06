@@ -34,14 +34,11 @@ internal class TokenPromptShowResult(val token: String) : RpcResult
 
 internal class MarketplacePromptShowResult(val location: String, val scope: String) : RpcResult
 
-/** [selfHostedIn] stays null: IntelliJ's lists hold URL strings, which cannot name a self-hosted host. */
+/** [registered] holds each scope's own list, keyed by the scope's wire name. */
 internal class MarketplaceStateReadResult(
-    val registered: List<RegisteredMarketplace>,
+    val registered: Map<String, List<String>>,
     val writable: List<WritableScope>,
-    val selfHostedIn: SettingsPlace? = null,
 ) : RpcResult
-
-internal class RegisteredMarketplace(val entry: String, val scopes: List<String>)
 
 internal class WritableScope(val scope: String, val savedIn: SettingsPlace)
 

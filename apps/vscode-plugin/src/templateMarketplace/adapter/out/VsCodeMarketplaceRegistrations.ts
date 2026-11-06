@@ -3,14 +3,14 @@ import {
     MarketplaceRegistrationsPort,
     MarketplaceScope,
     MarketplaceSettingsEntry,
-    RegisteredMarketplace,
+    RegistrationsByScope,
     SettingsPlace,
     WritableScope,
 } from "@miragon/bpmn-modeler-core";
 
 /** The User and Workspace settings lists, as `VsCodeSettings` reads and writes them. */
 export interface MarketplaceSettings {
-    getMarketplacesWithScopes(): RegisteredMarketplace[];
+    getMarketplacesByScope(): RegistrationsByScope;
     canWriteWorkspaceSettings(): boolean;
     addMarketplace(location: string, scope: MarketplaceScope): Promise<void>;
     removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void>;
@@ -34,7 +34,7 @@ export class VsCodeMarketplaceRegistrations implements MarketplaceRegistrationsP
 
     async read(): Promise<MarketplaceRegistrations> {
         return {
-            registered: this.settings.getMarketplacesWithScopes(),
+            registered: this.settings.getMarketplacesByScope(),
             writable: this.settings.canWriteWorkspaceSettings()
                 ? [IN_WORKSPACE_SETTINGS, IN_USER_SETTINGS]
                 : [IN_USER_SETTINGS],

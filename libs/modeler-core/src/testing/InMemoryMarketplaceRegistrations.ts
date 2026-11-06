@@ -6,8 +6,9 @@ import {
 import {
     MarketplaceRegistrations,
     MarketplaceScope,
-    RegisteredMarketplace,
+    registeredMarketplaces,
     SettingsPlace,
+    withoutMarketplaceEntries,
     WritableScope,
 } from "../template-marketplace/domain/marketplaceRegistrations";
 import {
@@ -27,7 +28,6 @@ const BOTH_SCOPES: readonly WritableScope[] = [
  * it. The marketplaces the settings start with are registered for all projects.
  */
 export class InMemoryMarketplaceRegistrations implements MarketplaceRegistrationsPort {
-    /** All projects first, as both hosts list them. */
     readonly lists: Record<MarketplaceScope, MarketplaceSettingsEntry[]>;
     writable: readonly WritableScope[] = BOTH_SCOPES;
     selfHostedIn: SettingsPlace | undefined = { kind: "file", path: ["settings.json"] };
@@ -38,7 +38,10 @@ export class InMemoryMarketplaceRegistrations implements MarketplaceRegistration
 
     async read(): Promise<MarketplaceRegistrations> {
         return {
-            registered: this.registered(),
+            registered: {
+                project: [...this.lists.project],
+                allProjects: [...this.lists.allProjects],
+            },
             writable: this.writable,
             ...(this.selfHostedIn && { selfHostedIn: this.selfHostedIn }),
         };
@@ -52,31 +55,15 @@ export class InMemoryMarketplaceRegistrations implements MarketplaceRegistration
     }
 
     async unregister(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
-        const removed = new Set(entries.map(entryKey));
         for (const scope of Object.keys(this.lists) as MarketplaceScope[]) {
-            this.lists[scope] = this.lists[scope].filter((entry) => !removed.has(entryKey(entry)));
+            this.lists[scope] = withoutMarketplaceEntries(this.lists[scope], entries);
         }
         this.syncSettings();
     }
 
-    private registered(): RegisteredMarketplace[] {
-        const byKey = new Map<
-            string,
-            { entry: MarketplaceSettingsEntry; scopes: MarketplaceScope[] }
-        >();
-        for (const scope of Object.keys(this.lists) as MarketplaceScope[]) {
-            for (const entry of this.lists[scope]) {
-                const registered = byKey.get(entryKey(entry));
-                if (registered) registered.scopes.push(scope);
-                else byKey.set(entryKey(entry), { entry, scopes: [scope] });
-            }
-        }
-        return [...byKey.values()];
-    }
-
     // In place, so a test that holds the settings list sees the change.
     private syncSettings(): void {
-        const union = this.registered().map(({ entry }) => entry);
+        const union = registeredMarketplaces(this.lists).map(({ entry }) => entry);
         this.settings.values.marketplaces.splice(0, Infinity, ...union);
     }
 }
@@ -103,8 +90,4 @@ export class ScriptedMarketplacePrompt implements MarketplacePromptPort {
         }
         return answer;
     }
-}
-
-function entryKey(entry: MarketplaceSettingsEntry): string {
-    return JSON.stringify(entry);
 }

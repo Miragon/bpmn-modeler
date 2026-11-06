@@ -48,9 +48,12 @@ const TEMPLATE_JSON = JSON.stringify({
 });
 
 /** The scopes IntelliJ reports: it keeps no place for a self-hosted marketplace. */
-function intellijRegistrations(registered: object[] = []) {
+function intellijRegistrations({
+    project = [],
+    allProjects = [],
+}: { project?: string[]; allProjects?: string[] } = {}) {
     return {
-        registered,
+        registered: { project, allProjects },
         writable: [
             { scope: "project", savedIn: { kind: "file", path: [".idea", "workspace.xml"] } },
             {
@@ -315,7 +318,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             rpc,
             frames,
             "marketplaceState/read",
-            intellijRegistrations([{ entry: folder, scopes: ["project"] }]),
+            intellijRegistrations({ project: [folder] }),
         );
         const choice = await answer(rpc, frames, "picker/show", { selected: [0] });
         const removal = await waitForFrame(frames, isRequest("marketplaceState/remove"));

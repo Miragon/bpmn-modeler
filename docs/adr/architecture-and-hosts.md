@@ -689,10 +689,15 @@ function over `marketplacePrompt/show`, and IntelliJ's `MarketplaceRouter`
 shows its `AddMarketplaceDialog`.
 
 Each host keeps its marketplace registrations behind
-`MarketplaceRegistrationsPort`. `read` returns what is registered in which
-scope, the scopes the host can write now with where it saves each, and where a
-self-hosted marketplace is written by hand; `register` and `unregister` write.
-A write resolves only once `SettingsPort` reads the new list, so the prune
+`MarketplaceRegistrationsPort`. `read` returns each scope's own list as the
+host stores it, the scopes the host can write now with where it saves each,
+and where a self-hosted marketplace is written by hand; `register` and
+`unregister` write. The core merges the lists with `registeredMarketplaces`
+(`template-marketplace/domain/marketplaceRegistrations.ts`): each entry once,
+matched by its fields, with every scope that holds it, all-projects entries
+first as both hosts union them for the fetch. VS Code's `getMarketplaces`
+unions its settings with the same function, and `withoutMarketplaceEntries`
+matches a removal the same way. A write resolves only once `SettingsPort` reads the new list, so the prune
 after a removal keeps exactly what is still registered: VS Code reads its
 settings live, and IntelliJ pushes the new snapshot before it acks
 `marketplaceState/save` or `marketplaceState/remove`; `marketplaceState/read`
@@ -706,7 +711,8 @@ User` on VS Code, `Saved in .idea/workspace.xml` and `Saved in Settings ▸ Tool
 ▸ Miragon BPMN Modeler ▸ Template Marketplaces` on IntelliJ. The
 invalid-location message names a place for self-hosted hosts only where there
 is one: VS Code's `settings.json`. IntelliJ's lists hold URL strings, which
-cannot name a self-hosted host, so it reports none. VS Code's reload hint after
+cannot name a self-hosted host, so it reports none, and the result of
+`marketplaceState/read` has no such field. VS Code's reload hint after
 an in-place update, and the `not a registered configuration` match that
 triggers it, stay in its `TemplateMarketplaceController`.
 
@@ -1223,6 +1229,11 @@ a cached result must equal an uncached run.
   the core's remove choice: IntelliJ shows it in the generic `picker/show`
   list popup, which picks several entries with Ctrl- or Shift-click where its
   own dialog had checkboxes, as every `chooseMany` prompt there does.
+- `MarketplaceRegistrationsPort.read` could return the merged registrations
+  with their scopes. Each host and the test fake then merged the lists
+  themselves (one entry per structural key, its scopes, all-projects first):
+  three copies in TypeScript and Kotlin that no test compared. Each scope's own
+  list costs a host nothing and leaves one merge, in the core.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

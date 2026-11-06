@@ -85,9 +85,10 @@ internal class MarketplaceRouter(
     private fun readState(): MarketplaceStateReadResult =
         MarketplaceStateReadResult(
             registered =
-                ProjectMarketplacesStore.getInstance(deps.project).registered().map { registration ->
-                    RegisteredMarketplace(registration.location, registration.scopes.map { it.wireName })
-                },
+                mapOf(
+                    MarketplaceScope.PROJECT.wireName to ProjectMarketplacesStore.getInstance(deps.project).list(),
+                    MarketplaceScope.ALL_PROJECTS.wireName to ModelerSettingsStore.getInstance().current().marketplaces,
+                ),
             writable = WRITABLE_SCOPES,
         )
 

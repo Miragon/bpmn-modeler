@@ -297,10 +297,11 @@ export interface SecretSaveApprovedDestinationsParams {
 }
 
 /**
- * `marketplaceState/read` — the host's registrations per scope, the scopes it
- * can write and where it saves each, as facts the core words.
+ * `marketplaceState/read` — each scope's own list, the scopes the host can
+ * write and where it saves each, as facts the core words. No `selfHostedIn`:
+ * IntelliJ's lists hold URL strings, which cannot name a self-hosted host.
  */
-export type MarketplaceStateReadResult = MarketplaceRegistrations;
+export type MarketplaceStateReadResult = Omit<MarketplaceRegistrations, "selfHostedIn">;
 
 /**
  * `marketplaceState/save` and `marketplaceState/remove` — acknowledged writes:

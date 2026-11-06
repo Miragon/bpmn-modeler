@@ -422,10 +422,10 @@ describe("createTestHost", () => {
         await registrations.unregister([{ ...selfHosted }, "https://github.com/acme/gone"]);
 
         await expect(registrations.read()).resolves.toEqual({
-            registered: [
-                { entry: "https://github.com/acme/shared", scopes: ["allProjects", "project"] },
-                { entry: "/work/templates", scopes: ["project"] },
-            ],
+            registered: {
+                project: ["/work/templates", "https://github.com/acme/shared"],
+                allProjects: ["https://github.com/acme/shared"],
+            },
             writable: [
                 { scope: "project", savedIn: { kind: "file", path: [".host", "settings.json"] } },
                 {
@@ -441,7 +441,7 @@ describe("createTestHost", () => {
         registrations.selfHostedIn = undefined;
 
         await expect(registrations.read()).resolves.toEqual({
-            registered: [{ entry: "/work/templates", scopes: ["project"] }],
+            registered: { project: ["/work/templates"], allProjects: [] },
             writable: registrations.writable,
         });
         expect(marketplaces).toEqual(["/work/templates"]);

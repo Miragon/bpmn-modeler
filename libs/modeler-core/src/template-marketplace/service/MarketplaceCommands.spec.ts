@@ -4,6 +4,7 @@ import { createTestHost, PromptAnswers } from "../../testing";
 import { createTemplateMarketplaceService } from "../composition/MarketplaceFeature";
 import { InvalidMarketplaceError } from "../domain/marketplace";
 import { MarketplaceAddAnswer } from "../domain/marketplacePrompts";
+import { registeredMarketplaces } from "../domain/marketplaceRegistrations";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 
 function templateFile(id: string): string {
@@ -130,7 +131,8 @@ function marketplaceHost({
         holdRead,
         holdRegistration,
         lockCachedMarketplaces,
-        registered: async () => (await host.marketplaceRegistrations.read()).registered,
+        registered: async () =>
+            registeredMarketplaces((await host.marketplaceRegistrations.read()).registered),
         cachedTemplateNames: async () =>
             (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort(),
     };

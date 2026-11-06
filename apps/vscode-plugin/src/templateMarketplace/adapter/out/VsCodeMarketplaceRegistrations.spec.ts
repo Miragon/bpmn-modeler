@@ -11,8 +11,8 @@ class SettingsLists implements MarketplaceSettings {
 
     constructor(private readonly workspaceOpen: boolean) {}
 
-    getMarketplacesWithScopes() {
-        return [{ entry: "https://github.com/acme/shared", scopes: ["allProjects" as const] }];
+    getMarketplacesByScope() {
+        return { project: [], allProjects: ["https://github.com/acme/shared"] };
     }
 
     canWriteWorkspaceSettings(): boolean {
@@ -53,7 +53,7 @@ describe("VsCodeMarketplaceRegistrations", () => {
         const registrations = new VsCodeMarketplaceRegistrations(new SettingsLists(workspaceOpen));
 
         await expect(registrations.read()).resolves.toEqual({
-            registered: [{ entry: "https://github.com/acme/shared", scopes: ["allProjects"] }],
+            registered: { project: [], allProjects: ["https://github.com/acme/shared"] },
             writable: places,
             selfHostedIn: { kind: "file", path: ["settings.json"] },
         });

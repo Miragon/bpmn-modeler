@@ -6,8 +6,11 @@ import {
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
     parseSetting,
+    registeredMarketplaces,
+    RegistrationsByScope,
     settingKeyOf,
     SettingsPort,
+    withoutMarketplaceEntries,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
@@ -83,9 +86,10 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * The union of the User- and Workspace-level marketplace lists (User first),
-     * deduped structurally. Forwards the raw entries (URL/path strings, or object
-     * entries for self-hosted GHE / GitLab); the domain parser validates each shape.
+     * The union of the User- and Workspace-level marketplace lists, as the
+     * core's `registeredMarketplaces` merges them. Forwards the raw entries
+     * (URL/path strings, or object entries for self-hosted GHE / GitLab); the
+     * domain parser validates each shape.
      *
      * `get()` returns only the effective scope — for an array VS Code shadow-
      * *replaces* rather than merges across scopes, so a workspace list would hide
@@ -94,48 +98,13 @@ export class VsCodeSettings implements SettingsPort {
      * project-specific ones.
      */
     getMarketplaces(): MarketplaceSettingsEntry[] {
-        return this.getMarketplacesWithScopes().map((e) => e.entry);
+        return registeredMarketplaces(this.getMarketplacesByScope()).map(({ entry }) => entry);
     }
 
-    /**
-     * The deduped union of registered marketplaces, each annotated with the
-     * scope(s) it lives in: User settings hold "all projects", Workspace settings
-     * "this project" (User first, as the union orders them). The remove choice
-     * offers one item per union entry, and a removal deletes it from *every*
-     * scope it appears in.
-     *
-     * Dedup is by {@link entryKey} — the same structural key {@link getMarketplaces}
-     * uses — so the choice's identity can never drift from what removal matches.
-     */
-    getMarketplacesWithScopes(): {
-        entry: MarketplaceSettingsEntry;
-        scopes: MarketplaceScope[];
-    }[] {
+    /** User settings hold "all my projects", Workspace settings "this project". */
+    getMarketplacesByScope(): RegistrationsByScope {
         const { userEntries, workspaceEntries } = marketplacesByScope(modelerConfiguration());
-        const scoped: [MarketplaceSettingsEntry, MarketplaceScope][] = [
-            ...userEntries.map((entry): [MarketplaceSettingsEntry, MarketplaceScope] => [
-                entry,
-                "allProjects",
-            ]),
-            ...workspaceEntries.map((entry): [MarketplaceSettingsEntry, MarketplaceScope] => [
-                entry,
-                "project",
-            ]),
-        ];
-        const byKey = new Map<
-            string,
-            { entry: MarketplaceSettingsEntry; scopes: MarketplaceScope[] }
-        >();
-        for (const [entry, scope] of scoped) {
-            const key = entryKey(entry);
-            const existing = byKey.get(key);
-            if (existing) {
-                existing.scopes.push(scope);
-            } else {
-                byKey.set(key, { entry, scopes: [scope] });
-            }
-        }
-        return [...byKey.values()];
+        return { allProjects: userEntries, project: workspaceEntries };
     }
 
     /**
@@ -145,24 +114,15 @@ export class VsCodeSettings implements SettingsPort {
      * `undefined` so the `marketplaces` key is removed from that `settings.json`
      * rather than left as a stray `[]`.
      *
-     * Matching is by {@link entryKey}, the same structural key the picker dedups
-     * on, so an object entry (self-hosted GHE/GitLab) is matched by shape, not
-     * reference. No-workspace safety is implicit: with no folder open the
-     * Workspace scope holds no entries, so its update is never attempted and
-     * VS Code never throws.
+     * No-workspace safety is implicit: with no folder open the Workspace scope
+     * holds no entries, so its update is never attempted and VS Code never throws.
      */
     async removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
         const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
-        const removeKeys = new Set(entries.map((entry) => entryKey(entry)));
 
-        await this.removeFromScope(config, userEntries, removeKeys, ConfigurationTarget.Global);
-        await this.removeFromScope(
-            config,
-            workspaceEntries,
-            removeKeys,
-            ConfigurationTarget.Workspace,
-        );
+        await this.removeFromScope(config, userEntries, entries, ConfigurationTarget.Global);
+        await this.removeFromScope(config, workspaceEntries, entries, ConfigurationTarget.Workspace);
     }
 
     /**
@@ -174,10 +134,10 @@ export class VsCodeSettings implements SettingsPort {
     private async removeFromScope(
         config: ModelerConfiguration,
         current: MarketplaceSettingsEntry[],
-        removeKeys: ReadonlySet<string>,
+        removed: readonly MarketplaceSettingsEntry[],
         target: ConfigurationTarget,
     ): Promise<void> {
-        const filtered = current.filter((entry) => !removeKeys.has(entryKey(entry)));
+        const filtered = withoutMarketplaceEntries(current, removed);
         if (filtered.length === current.length) {
             return;
         }
@@ -235,19 +195,6 @@ export class VsCodeSettings implements SettingsPort {
             ConfigurationTarget.Workspace,
         );
     }
-}
-
-/**
- * The structural identity of a settings entry, shared by the picker's dedup and
- * the removal's matching so the two can never drift. Objects (self-hosted
- * GHE/GitLab) can't use referential/`Set<string>` identity, so a serialized key
- * is the simplest stable comparison. Key order is significant for object entries
- * — two entries differing only in field order read as distinct — which is
- * consistent across dedup, the picker, and removal because all three route
- * through this one function.
- */
-function entryKey(entry: MarketplaceSettingsEntry): string {
-    return JSON.stringify(entry);
 }
 
 function hasWorkspace(): boolean {

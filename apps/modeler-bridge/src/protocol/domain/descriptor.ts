@@ -584,15 +584,22 @@ export const PROTOCOL = [
         replyWait: "hostWork",
         paramsFixture: {} satisfies EmptyParams,
         resultFixture: {
-            registered: [{ entry: "https://github.com/owner/repo", scopes: ["allProjects"] }],
+            registered: { project: [], allProjects: ["https://github.com/owner/repo"] },
             writable: [
                 { scope: "project", savedIn: { kind: "file", path: [".idea", "workspace.xml"] } },
                 {
                     scope: "allProjects",
-                    savedIn: { kind: "settingsPage", path: ["Settings", "Tools"] },
+                    savedIn: {
+                        kind: "settingsPage",
+                        path: [
+                            "Settings",
+                            "Tools",
+                            "Miragon BPMN Modeler",
+                            "Template Marketplaces",
+                        ],
+                    },
                 },
             ],
-            selfHostedIn: { kind: "file", path: ["settings.json"] },
         } satisfies MarketplaceStateReadResult,
     },
     // Acknowledged writes: the host writes its store, pushes the fresh snapshot
@@ -637,7 +644,8 @@ export const PROTOCOL = [
                 {
                     scope: "allProjects",
                     label: "Register for all my projects",
-                    description: "Saved in Settings ▸ Tools",
+                    description:
+                        "Saved in Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces",
                 },
             ],
             scope: "project",

@@ -919,7 +919,7 @@ describe("RpcMarketplaceRegistrations", () => {
     it("reads the host's registrations and writes each change as an acknowledged request", async () => {
         const { frames, rpc, answerLast } = harness();
         const registrations = new RpcMarketplaceRegistrations(rpc);
-        const held = { registered: [], writable: [] };
+        const held = { registered: { project: ["/work/t"], allProjects: [] }, writable: [] };
 
         const read = registrations.read();
         expect(last(frames)).toMatchObject({ method: "marketplaceState/read", params: {} });
