@@ -138,6 +138,14 @@ export const runFoo = (adapter: string, create?: () => Foo): void => {
     void create;
 };
 
+export function describeGenericFoo<F extends Foo>(
+    adapter: string,
+    create: () => Promise<{ readonly foo: F }>,
+): void {
+    void adapter;
+    void create;
+}
+
 export function describeRenderer(adapter: string, renderer: Renderer): void {
     void adapter;
     void renderer;
@@ -303,10 +311,11 @@ describe("findContractSuites", () => {
         ]);
     });
 
-    it("lists each exported function whose parameter is a factory of a port or of a fixture holding one, re-exported by name or by star", () => {
+    it("lists each exported function whose parameter is a factory of a port or of a fixture holding one, generic or re-exported", () => {
         expect(suites.helpers).toEqual([
             { ...DESCRIBE_FOO, ports: [FOO] },
             { fileName: KIT, name: "runFoo", ports: [FOO] },
+            { fileName: KIT, name: "describeGenericFoo", ports: [FOO] },
             { fileName: RE_EXPORTED_KIT, name: "describeBox", ports: [BOX] },
             { fileName: MORE_KIT, name: "describeHandle", ports: [HANDLE, RENDERER] },
         ]);
