@@ -145,40 +145,54 @@ describe("contractSuiteFindings", () => {
             case: "a port whose members all return nothing is render-only",
             ports: [STATUS],
             helpers: [],
+            adapterCount: 1,
             group: "render-only",
         },
         {
             case: "a port that declares no member is render-only",
             ports: [port("StatusBarPort")],
             helpers: [],
+            adapterCount: 1,
             group: "render-only",
         },
         {
             case: "a port the core reads back from without a helper has no suite",
             ports: [port("StatusBarPort", ["show", true], ["current", false])],
             helpers: [],
+            adapterCount: 2,
             group: "no-suite",
         },
         {
-            case: "a port with a helper no adapter runs is skipped",
+            case: "a port the core reads back from with one adapter and no helper is set aside",
+            ports: [port("StatusBarPort", ["show", true], ["current", false])],
+            helpers: [],
+            adapterCount: 1,
+            group: "one-adapter",
+        },
+        {
+            case: "a port with a helper its only adapter does not run is skipped",
             ports: [port("StatusBarPort", ["current", false])],
             helpers: [helper("describeStatus", STATUS)],
+            adapterCount: 1,
             group: "skips-suite",
         },
         {
             case: "a render-only port with a helper no adapter runs is skipped",
             ports: [STATUS],
             helpers: [helper("describeStatus", STATUS)],
+            adapterCount: 2,
             group: "skips-suite",
         },
-    ])("$case", ({ ports, helpers, group }) => {
-        const statusBar = adapter("apps/x/src/adapter/out/StatusBar.ts", "StatusBar", STATUS);
+    ])("$case", ({ ports, helpers, adapterCount, group }) => {
+        const statusBars = ["apps/x", "apps/y"]
+            .slice(0, adapterCount)
+            .map((dir) => adapter(`${dir}/src/adapter/out/StatusBar.ts`, "StatusBar", STATUS));
 
         expect(
-            contractSuiteFindings({ ports, adapters: [statusBar], helpers, specs: [] }).map(
+            contractSuiteFindings({ ports, adapters: statusBars, helpers, specs: [] }).map(
                 (finding) => finding.group,
             ),
-        ).toEqual([group]);
+        ).toEqual(statusBars.map(() => group));
     });
 
     it("lists nothing for a port no class implements", () => {
@@ -270,10 +284,10 @@ describe("contractSuiteFindings", () => {
         ]);
     });
 
-    it("declares the groups in report order, render-only collapsed", () => {
+    it("declares the groups in report order, one-adapter and render-only collapsed", () => {
         expect(
             CONTRACT_SUITE_GROUPS.map(({ id, collapsed }) => `${id} ${collapsed === true}`),
-        ).toEqual(["skips-suite false", "no-suite false", "render-only true"]);
+        ).toEqual(["skips-suite false", "no-suite false", "one-adapter true", "render-only true"]);
     });
 });
 

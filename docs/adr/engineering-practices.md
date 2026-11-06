@@ -1006,10 +1006,11 @@ against every adapter, so a rule one adapter breaks fails a spec: every
 implementation has to keep the specification of the type it implements
 (Liskov and Wing, A Behavioral Notion of Subtyping, 1994). The rule it relies
 on is in the `architecture` skill: a port the core reads back from has a
-contract suite in the core's test kit, and every adapter of the port runs it,
-the in-memory fake included. A port that only renders and a strategy the core
-chooses between are correct without one, so a rule over every port would fire
-on correct code; the function reports and never blocks. The pure measure
+contract suite in the core's test kit once a second class implements it, and
+every adapter of the port runs it, the in-memory fake included. A port that
+only renders and a strategy the core chooses between are correct without one,
+so a rule over every port would fire on correct code; the function reports and
+never blocks. The pure measure
 lives in `tools/repo-checks/src/contractSuites/domain`.
 
 - **Ports.** An interface declared in a `port/` folder of the hexagonal
@@ -1032,10 +1033,14 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   `WorkspacePort`. A parameter typed as the port itself does not count. At
   `cd48f2cd` it would add `readSettingsSnapshot(settings: SettingsPort)`, which
   the VS Code and bridge settings specs call over the shared normalization
-  cases, and it would make any kit function that reads a port a suite.
+  cases, and it would make any kit function that reads a port a suite. A
+  helper whose fixture holds several ports counts as a suite of each.
 - **Coverage.** A spec covers a pair when it imports the adapter class as a
   value and calls a helper of the port. The label argument is free, the call
-  need not pass the class, and a type-only import does not count.
+  need not pass the class, and a type-only import does not count. Coverage is
+  decided per spec, not per call: a spec that imports two adapters of a port
+  and runs the suite against one clears both pairs. No spec does that at
+  `cd48f2cd`.
 - **Render-only.** A port whose members all return `void` or `Promise<void>`,
   `void | Promise<void>` and `PromiseLike<void>` included, is render-only: its
   pairs are marked in a collapsed group, not listed as missing a suite. A
@@ -1048,6 +1053,12 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`, so
   that port is marked render-only although the core reads the value back
   through `SettingsPort.getLintingEnabled`.
+- **One adapter.** A port the core reads back from with one adapter and no
+  suite has nothing to drift from yet: the kit has no fake of it, and a fake
+  written inside a spec is no adapter. Its pair is set aside in a collapsed
+  group, derived from the adapter count as render-only is from the types, and
+  moves up to the ports without a suite when a second class implements the
+  port.
 - **Types, not names.** The type checker resolves every implemented
   interface, helper parameter, member and import over one program: the
   tracked sources of every hexagonal workspace, specs included, with the
@@ -1061,9 +1072,10 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
 - **Identity and delta.** One finding per pair without a suite, at the
   adapter's class, keyed by the adapter's and the port's path and name, not
   the line. The groups are adapters that skip their port's suite, ports the
-  core reads back from without a suite, and render-only ports. Within a group
-  the rows are ranked by the port's number of adapters, so the ports whose
-  adapters can drift apart come first. A new adapter of a port with a suite
+  core reads back from without a suite, ports with one adapter and render-only
+  ports, the last two collapsed. Within a group the rows are ranked by the
+  port's number of adapters, so the ports whose adapters can drift apart come
+  first. A new adapter of a port with a suite
   shows as new until its spec runs the suite; a spec that starts running it
   resolves the pair.
 - **History.** The function says why it cannot measure a commit instead of
@@ -1077,20 +1089,20 @@ First run at `cd48f2cd`: 23 ports in the core's `port/` folders, each with an
 adapter; 55 adapters; one helper, `describeWorkspaceContract`; 73 specs that
 import an adapter. Of 59 pairs, 2 run the suite (`InMemoryWorkspace`,
 `NodeWorkspace`), and 57 are findings. `VsCodeWorkspace` is the only adapter
-that skips an existing suite, and the report names it first. 45 pairs of 18
-ports have no suite: 12 ports with three adapters (36 pairs), `DiffPaneHandle`,
-`DocumentPort` and `PropertiesPanelStatePort` with two, and
-`EngineInspectionPort`, `HttpClient` and `LintRunnerPort` with one. 11 pairs
-are render-only: `StatusBarPort`, `DiagnosticsPort` and `LoggerPort` with three
+that skips an existing suite, and the report names it first. 42 pairs of 15
+ports have no suite: 12 ports with three adapters (36 pairs), and
+`DiffPaneHandle`, `DocumentPort` and `PropertiesPanelStatePort` with two. 3
+pairs are set aside because their port has one adapter: `EngineInspectionPort`,
+`HttpClient` and `LintRunnerPort`. 11 pairs are render-only: `StatusBarPort`, `DiagnosticsPort` and `LoggerPort` with three
 adapters each and `LintingPreferencePort` with two. Against the issue's survey
 by name, the types add `DiffPaneHandle` (no `Port` in its name),
 `RepositorySource` (the GitHub, GitLab and local template sources),
 `LoggerPort` and the three ports with one adapter, and today
 `RpcLintingPreference`, not `BridgeSettings`, implements
-`LintingPreferencePort`. 11 listed pairs are none of the issue's backfill
+`LintingPreferencePort`. 8 listed pairs are none of the issue's backfill
 ports, render-only ports or engine strategies: `NotifierPort` (3),
-`RepositorySource` (3, strategies of their own), `DiffPaneHandle` (2) and the
-three single-adapter ports. Building the program and reading took 1.4 to
+`RepositorySource` (3, strategies of their own) and `DiffPaneHandle` (2).
+Building the program and reading took 1.4 to
 2.6 s on the working tree and 1.1 to 1.8 s on a checkout without
 `node_modules` (six runs each), with the same 57 findings. `corepack yarn
 fitness` took 6.8 to 7.9 s in six runs instead of 3.5 to 4.0 s in three, and
@@ -1108,6 +1120,9 @@ Alternatives considered:
   for readability would drop out.
 - **The `port/` folders of every hexagonal workspace.** 18 more pairs at
   `cd48f2cd`, none of which a helper of the core's kit can cover.
+- **Ports with one adapter listed with the others.** At `cd48f2cd` they add
+  3 pairs whose adapter has no second class to disagree with, so the list
+  would ask for suites that guard nothing until one appears.
 - **A parameter typed as the port counts as a helper.** It would clear the two
   settings pairs above, and it would count any kit function that reads a port.
 - **Syntax only, as `findImplementations`.** It resolves the file of an

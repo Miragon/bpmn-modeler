@@ -10,6 +10,11 @@ export const CONTRACT_SUITE_GROUPS: readonly [FindingGroup, ...FindingGroup[]] =
     { id: "skips-suite", title: "Adapters that skip their port's suite" },
     { id: "no-suite", title: "Ports the core reads back from, without a suite" },
     {
+        id: "one-adapter",
+        title: "Ports the core reads back from with one adapter, without a suite",
+        collapsed: true,
+    },
+    {
         id: "render-only",
         title: "Render-only ports: every member returns void or Promise<void>",
         collapsed: true,
@@ -72,7 +77,7 @@ export type CoreScopeOutcome =
     | { readonly kind: "measurable"; readonly scope: CoreScope }
     | { readonly kind: "unmeasurable"; readonly reason: string };
 
-type ContractSuiteGroup = "skips-suite" | "no-suite" | "render-only";
+type ContractSuiteGroup = "skips-suite" | "no-suite" | "one-adapter" | "render-only";
 
 const SPEC_SOURCE = /\.(spec|test)\.[^/]+$/;
 // Fixtures are inputs of tests, and a declaration file only types code; neither holds an adapter.
@@ -165,11 +170,14 @@ interface PortSuites {
 }
 
 // A suite someone wrote binds every adapter, even of a port that only renders.
-function groupOf({ port, helpers }: PortSuites): ContractSuiteGroup {
+function groupOf({ port, adapters, helpers }: PortSuites): ContractSuiteGroup {
     if (helpers.length > 0) {
         return "skips-suite";
     }
-    return isRenderOnly(port) ? "render-only" : "no-suite";
+    if (isRenderOnly(port)) {
+        return "render-only";
+    }
+    return adapters.length === 1 ? "one-adapter" : "no-suite";
 }
 
 function messageOf(suites: PortSuites, adapter: Adapter, group: ContractSuiteGroup): string {
@@ -182,7 +190,7 @@ function messageOf(suites: PortSuites, adapter: Adapter, group: ContractSuiteGro
                 : `${listed(covered.map(({ name }) => name))} ${covered.length === 1 ? "does" : "do"}`;
         return `${code(adapter.name)}: runs no ${code(port.name)} suite (${helpers.map(({ name }) => code(name)).join(", ")}); ${runners}`;
     }
-    if (group === "no-suite") {
+    if (group === "no-suite" || group === "one-adapter") {
         const readBack = port.members.filter(({ returnsNothing }) => !returnsNothing);
         return `${code(adapter.name)}: ${code(port.name)} has no suite (${share}); the core reads back ${listed(readBack.map(({ name }) => name))}`;
     }
