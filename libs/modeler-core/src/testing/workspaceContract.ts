@@ -21,6 +21,8 @@ export interface WorkspaceContractFixture {
     moveDirectoryIn(path: string, files: Readonly<Record<string, string>>): Promise<void>;
     /** Removes a file the way another program would; the port has no file delete. */
     removeFile(path: string): Promise<void>;
+    /** Links `path` to `target`, which need not exist, as another program would. */
+    createSymbolicLink(path: string, target: string): Promise<void>;
     /** Resolves once the watchers created before the call report changes. */
     watchersReady(): Promise<void>;
     /** Resolves once the events of earlier changes have been delivered. */
@@ -242,6 +244,29 @@ export function describeWorkspaceContract(
                     FileNotFound,
                 );
                 await expect(workspace.isSymbolicLink(`${root}/missing`)).resolves.toBe(false);
+            });
+
+            // The core reads no `.env` through a link, and its walks have no cycle guard.
+            it("tells a symbolic link, also a dangling one, from a file, and lists no link", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/env/values.env`, "A=1");
+                await fixture.createSymbolicLink(`${root}/env/.env`, `${root}/env/values.env`);
+                await fixture.createSymbolicLink(
+                    `${root}/env/dangling.env`,
+                    `${root}/env/gone.env`,
+                );
+                await fixture.createSymbolicLink(`${root}/env/up`, root);
+
+                await expect(workspace.isSymbolicLink(`${root}/env/.env`)).resolves.toBe(true);
+                await expect(workspace.isSymbolicLink(`${root}/env/dangling.env`)).resolves.toBe(
+                    true,
+                );
+                await expect(workspace.isSymbolicLink(`${root}/env/values.env`)).resolves.toBe(
+                    false,
+                );
+                await expect(workspace.readDirectory(`${root}/env`)).resolves.toEqual([
+                    ["values.env", "file"],
+                ]);
             });
 
             it("reads, writes and lists through file:// paths", async () => {

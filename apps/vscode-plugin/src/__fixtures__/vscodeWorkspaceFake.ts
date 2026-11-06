@@ -175,6 +175,11 @@ export const anotherProgram = {
         await fs.rm(path);
         reportChange("deleted", path);
     },
+
+    async createSymbolicLink(path: string, target: string): Promise<void> {
+        await fs.symlink(target, path);
+        reportChange("created", path);
+    },
 };
 
 export const workspace = {

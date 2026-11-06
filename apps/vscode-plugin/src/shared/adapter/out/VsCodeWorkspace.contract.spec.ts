@@ -27,6 +27,7 @@ describeWorkspaceContract("VsCodeWorkspace on a real directory", async () => {
         createDirectory: anotherProgram.createDirectory,
         moveDirectoryIn: anotherProgram.moveDirectoryIn,
         removeFile: anotherProgram.removeFile,
+        createSymbolicLink: anotherProgram.createSymbolicLink,
         watchersReady: async () => undefined,
         eventsDelivered: fileEventsDelivered,
         dispose: () => fs.rm(root, { recursive: true, force: true }),
