@@ -8,6 +8,7 @@ export * from "./InMemoryWorkspace";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
+export * from "./scriptEditorContract";
 export * from "./ScriptedPicker";
 export * from "./settingsNormalization";
 export * from "./workspaceContract";
