@@ -57,7 +57,6 @@ export function createTestHost(options: TestHostOptions = {}) {
     const documentChanges = new DocumentChangeStream();
     const settings = new InMemorySettings(options.settings);
     const openHandles = new Set<FakeEditorHandle>();
-    const settings = new InMemorySettings(options.settings);
     const registerHandle = (handle: FakeEditorHandle, focused: boolean): void => {
         handle.active = focused;
         store.register(handle);
