@@ -13,6 +13,8 @@ export class InMemoryHistory implements RepositoryHistory {
         private readonly commits: readonly string[],
         private readonly base: string | null = commits.at(-1) ?? null,
         private readonly uncommittedChanges = false,
+        /** The refs a merge base is found for; every ref when left out. */
+        private readonly refs?: readonly string[],
     ) {}
 
     headCommit(): string {
@@ -24,7 +26,7 @@ export class InMemoryHistory implements RepositoryHistory {
     }
 
     mergeBase(ref: string): string {
-        if (this.base === null) {
+        if (this.base === null || (this.refs !== undefined && !this.refs.includes(ref))) {
             throw new Error(`${ref} not found`);
         }
         return this.base;
