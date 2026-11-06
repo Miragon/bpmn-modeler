@@ -57,7 +57,9 @@ function isWordable({ kind, path }: SettingsPlace): boolean {
 /**
  * The rules of {@link MarketplaceRegistrationsPort} the core relies on, run
  * against one adapter: `MarketplaceCommands` decides with `isAlreadyRegistered`
- * on a fresh `read`, so each scope's list must come back as stored, a
+ * on a fresh `read`, so each scope's list must come back as stored, `read`
+ * must reflect every earlier write made through the same adapter (the core
+ * reads before and after each write on one instance), a
  * `register` must append to its own scope's list without looking at the other,
  * an `unregister` must remove exactly the given entries from every list, the
  * prune that follows a write must read the new union through `SettingsPort`,
@@ -178,6 +180,8 @@ export function describeMarketplaceRegistrationsContract(
             },
         ])("$behaviour", async ({ stored, write, registered }) => {
             const { registrations } = await createFixture(stored);
+            // The core reads before each write, so a read that keeps its first answer fails here.
+            await expect(registeredIn(registrations)).resolves.toEqual(stored);
 
             await write(registrations);
 
@@ -249,6 +253,7 @@ export function describeMarketplaceRegistrationsContract(
             "rejects $change the host refuses with its reason and keeps the lists",
             async ({ write }) => {
                 const fixture = await createFixture(ONE_EACH);
+                await expect(registeredIn(fixture.registrations)).resolves.toEqual(ONE_EACH);
                 fixture.refuseWrites("settings.json holds errors");
 
                 await expect(write(fixture.registrations)).rejects.toThrow(
