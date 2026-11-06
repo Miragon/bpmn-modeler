@@ -1,15 +1,6 @@
-/**
- * Host-adapter surface — `WebviewStateManager` persists panel/canvas UI state in
- * the host's webview state. Lives in the app, outside the publishable
- * `@miragon/bpmn-modeler` boundary.
- */
-import {
-    createWebviewStateStore,
-    PropertiesPanelUiStateAdapter,
-    type WebviewStateHost,
-    type WebviewStateStore,
-} from "@miragon/bpmn-modeler-shared";
+import type { WebviewStateHost, WebviewStateStore } from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox, type SurfaceMode } from "@miragon/bpmn-modeler-types";
+import type { PanelUiStateKeeper } from "../port/panelUiStateKeeper";
 import { CanvasViewState, WebviewState } from "../port/webviewState";
 import type { BpmnModelerHandle } from "@miragon/bpmn-modeler";
 
@@ -46,20 +37,13 @@ export function readSavedMode(host: WebviewStateHost<WebviewState>): SurfaceMode
  * restore the drill-down plane, viewbox, and selection.
  */
 export class WebviewStateManager {
-    private readonly stateStore: WebviewStateStore<WebviewState>;
-
-    private readonly panelUiState: PropertiesPanelUiStateAdapter;
-
     constructor(
-        host: WebviewStateHost<WebviewState>,
+        private readonly stateStore: WebviewStateStore<WebviewState>,
         // Any of the three surfaces (modeler / designer / viewer) — bound
         // structurally so the manager rebinds on every mode switch.
         private readonly modeler: StatefulSurface,
-        panelRoot: HTMLElement,
-    ) {
-        this.stateStore = createWebviewStateStore(host);
-        this.panelUiState = new PropertiesPanelUiStateAdapter(this.stateStore, panelRoot);
-    }
+        private readonly panelUiState: PanelUiStateKeeper,
+    ) {}
 
     /**
      * Persists this editor's surface mode so a later tab-switch rebuild reopens

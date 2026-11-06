@@ -1,23 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { HostApiImpl } from "@miragon/bpmn-modeler-shared";
-
 import { readSavedMode, WebviewStateManager } from "./state";
-import type { WebviewState } from "../port/webviewState";
 
 /**
- * Builds a `WebviewStateManager` wired to spies for the collaborators
- * that `restoreViewport`, `captureViewState`, and `applyViewState` touch.
+ * Builds a `WebviewStateManager` over a stub state store, a stub panel keeper
+ * and spies for the surface accessors it drives.
  */
-function setup(
-    savedState: unknown,
-    applied = true,
-    panelRoot: HTMLElement = document.createElement("div"),
-    realHost?: HostApiImpl<WebviewState, never>,
-) {
-    const getState = vi.fn().mockReturnValue(savedState);
-    const updateState = vi.fn();
-    const setState = vi.fn();
+function setup(savedState: unknown, applied = true) {
+    const stateStore = { read: vi.fn().mockReturnValue(savedState), merge: vi.fn() };
+    const panelUiState = { restoreGroupsAndScroll: vi.fn(), startPersisting: vi.fn() };
     const setViewport = vi.fn().mockReturnValue(applied);
     const getViewport = vi
         .fn()
@@ -35,7 +26,6 @@ function setup(
         selectedElementIds: [],
     });
     const applyViewState = vi.fn();
-    const host = realHost ?? ({ getState, updateState, setState } as any);
     const modeler = {
         viewport: { setViewport, getViewport, onViewportChanged },
         rootElement: { setRootElementById, getRootElementId, onRootChanged },
@@ -44,7 +34,8 @@ function setup(
         applyViewState,
     } as any;
     return {
-        manager: new WebviewStateManager(host, modeler, panelRoot),
+        manager: new WebviewStateManager(stateStore, modeler, panelUiState),
+        panelUiState,
         setViewport,
         setRootElementById,
         getRootElementId,
@@ -53,7 +44,7 @@ function setup(
         selectElementsByIds,
         captureViewState,
         applyViewState,
-        updateState,
+        merge: stateStore.merge,
         onRootChanged,
         onViewportChanged,
         onSelectionChanged,
@@ -62,7 +53,6 @@ function setup(
 
 afterEach(() => {
     vi.useRealTimers();
-    document.body.innerHTML = "";
 });
 
 describe("WebviewStateManager.restoreViewport", () => {
@@ -171,54 +161,33 @@ describe("WebviewStateManager.captureViewState / applyViewState", () => {
     });
 });
 
-describe("WebviewStateManager panel scoping", () => {
-    /** A panel host with a scroll container, plus a decoy panel elsewhere. */
-    function panels() {
-        const panelRoot = document.createElement("div");
-        const scroll = document.createElement("div");
-        scroll.className = "bio-properties-panel-scroll-container";
-        panelRoot.appendChild(scroll);
-        document.body.appendChild(panelRoot);
+describe("WebviewStateManager panel UI state", () => {
+    it("restores the panel's groups and scroll through the panel keeper", () => {
+        const { manager, panelUiState } = setup(undefined);
 
-        const otherPanel = document.createElement("div");
-        const otherScroll = document.createElement("div");
-        otherScroll.className = "bio-properties-panel-scroll-container";
-        otherPanel.appendChild(otherScroll);
-        document.body.appendChild(otherPanel);
+        manager.restorePanelUiState();
 
-        return { panelRoot, scroll, otherScroll, otherPanel };
-    }
+        expect(panelUiState.restoreGroupsAndScroll).toHaveBeenCalledOnce();
+    });
 
-    it("binds scroll persistence to the scroll container within the passed panelRoot", () => {
-        vi.useFakeTimers();
-        const { panelRoot, scroll, otherScroll } = panels();
-        const { manager, updateState } = setup(undefined, true, panelRoot);
+    it("starts persisting the panel together with the canvas", () => {
+        const { manager, panelUiState } = setup(undefined);
 
         manager.startPersisting();
 
-        Object.defineProperty(scroll, "scrollTop", { value: 42, configurable: true });
-        scroll.dispatchEvent(new Event("scroll"));
-        vi.advanceTimersByTime(100);
-        expect(updateState).toHaveBeenCalledWith({ panelScroll: 42 });
-
-        // A scroll in a foreign panel must not be persisted as ours.
-        updateState.mockClear();
-        Object.defineProperty(otherScroll, "scrollTop", { value: 99, configurable: true });
-        otherScroll.dispatchEvent(new Event("scroll"));
-        vi.advanceTimersByTime(100);
-        expect(updateState).not.toHaveBeenCalled();
+        expect(panelUiState.startPersisting).toHaveBeenCalledOnce();
     });
 });
 
 describe("WebviewStateManager.flushViewport", () => {
     it("persists the current viewbox and drill-down plane synchronously", () => {
-        const { manager, getViewport, getRootElementId, updateState } = setup(undefined);
+        const { manager, getViewport, getRootElementId, merge } = setup(undefined);
         getRootElementId.mockReturnValue("SubProcess_1_plane");
 
         manager.flushViewport();
 
         expect(getViewport).toHaveBeenCalledOnce();
-        expect(updateState).toHaveBeenCalledWith({
+        expect(merge).toHaveBeenCalledWith({
             viewport: { x: 5, y: 10, width: 400, height: 300, scale: 1.2 },
             rootElementId: "SubProcess_1_plane",
         });
@@ -227,24 +196,24 @@ describe("WebviewStateManager.flushViewport", () => {
     it("persists no plane id at the top-level (implicit) root", () => {
         // getRootElementId already returns undefined for the implicit root, so
         // a top-level flush clears any stale plane rather than saving one.
-        const { manager, getRootElementId, updateState } = setup(undefined);
+        const { manager, getRootElementId, merge } = setup(undefined);
         getRootElementId.mockReturnValue(undefined);
 
         manager.flushViewport();
 
-        expect(updateState).toHaveBeenCalledWith({
+        expect(merge).toHaveBeenCalledWith({
             viewport: { x: 5, y: 10, width: 400, height: 300, scale: 1.2 },
             rootElementId: undefined,
         });
     });
 
     it("skips persistence when the viewbox is degenerate", () => {
-        const { manager, getViewport, updateState } = setup(undefined);
+        const { manager, getViewport, merge } = setup(undefined);
         getViewport.mockReturnValue({ x: NaN, y: NaN, width: NaN, height: NaN });
 
         manager.flushViewport();
 
-        expect(updateState).not.toHaveBeenCalled();
+        expect(merge).not.toHaveBeenCalled();
     });
 });
 
@@ -265,9 +234,9 @@ describe("readSavedMode", () => {
 
 describe("WebviewStateManager.persistMode", () => {
     it("persists the surface mode", () => {
-        const { manager, updateState } = setup(undefined);
+        const { manager, merge } = setup(undefined);
         manager.persistMode("design");
-        expect(updateState).toHaveBeenCalledWith({ mode: "design" });
+        expect(merge).toHaveBeenCalledWith({ mode: "design" });
     });
 });
 
@@ -296,7 +265,7 @@ describe("WebviewStateManager.restoreSelection", () => {
 
 describe("WebviewStateManager.startPersisting", () => {
     it("persists the plane, viewbox, and selection the canvas reports", () => {
-        const { manager, updateState, onRootChanged, onViewportChanged, onSelectionChanged } =
+        const { manager, merge, onRootChanged, onViewportChanged, onSelectionChanged } =
             setup(undefined);
         const viewport = { x: 1, y: 2, width: 300, height: 200 };
 
@@ -305,29 +274,10 @@ describe("WebviewStateManager.startPersisting", () => {
         onViewportChanged.mock.calls[0][0](viewport);
         onSelectionChanged.mock.calls[0][0](["Task_1"]);
 
-        expect(updateState.mock.calls).toEqual([
+        expect(merge.mock.calls).toEqual([
             [{ rootElementId: "SubProcess_1_plane" }],
             [{ viewport }],
             [{ selectedElementIds: ["Task_1"] }],
         ]);
-    });
-});
-
-describe("WebviewStateManager on a first-ever open", () => {
-    it("seeds the persisted state with the first write", () => {
-        let persisted: WebviewState | undefined;
-        vi.stubGlobal("acquireVsCodeApi", () => ({
-            getState: () => persisted,
-            setState: (state: WebviewState) => {
-                persisted = state;
-            },
-            postMessage: vi.fn(),
-        }));
-        const { manager } = setup(undefined, true, undefined, new HostApiImpl());
-
-        manager.persistMode("view");
-
-        expect(persisted).toEqual({ mode: "view" });
-        vi.unstubAllGlobals();
     });
 });

@@ -40,7 +40,8 @@ Each file sits in a role folder under `src/`:
 - `service/` keeps the document and the view state in sync with the host and
   publishes the process variables.
 - `port/` types the host channel, the state it persists and the ports the
-  document session calls; `domain/` holds the pure rules.
+  document session and the view-state manager call; `domain/` holds the pure
+  rules.
 - `templateEditor/` is the element template editor's page, in the same role
   folders.
 

@@ -313,6 +313,8 @@ the document session calls, such as `BpmnDocumentSurface`, are `port/`, so
 the surface's document adapter implements one without importing the service.
 The view-state manager and the process-variable publisher sync with the host
 through injected handles like the document session, so they are `service/`.
+The surface binding builds the manager's state store and the properties
+panel's DOM adapter and hands them in, so the manager touches no DOM.
 The template editor is a context of its own, `templateEditor/`, with the same
 roles and its own entry, `templateEditorMain.ts`. The DMN, Form and
 deployment webviews map their files in their own migration (#2129).

@@ -1,9 +1,11 @@
 import type { ModelerCapabilities } from "@miragon/bpmn-modeler";
 import {
+    createWebviewStateStore,
     DiagramFormattedCommand,
     type ElementTemplatesQuery,
     GetBpmnlintConfigCommand,
     GetElementTemplatesCommand,
+    PropertiesPanelUiStateAdapter,
     type WebviewStateHost,
 } from "@miragon/bpmn-modeler-shared";
 import { type DetectedEngine, engineSupports } from "@miragon/bpmn-modeler-types";
@@ -45,6 +47,8 @@ export function createSurfaceBinder(
     host: HostChannel & WebviewStateHost<WebviewState>,
     { session, panelRoot, engine, capabilities, elementTemplatesReply }: SurfaceBinderPorts,
 ): SurfaceBinder {
+    const stateStore = createWebviewStateStore(host);
+
     function bindSurface(handle: SurfaceHandle): SurfaceBinding {
         // The readonly viewer never schedules a sync, so a host flush finds nothing pending.
         if (isEditableHandle(handle)) {
@@ -83,7 +87,11 @@ export function createSurfaceBinder(
         }
 
         return {
-            stateManager: new WebviewStateManager(host, handle, panelRoot),
+            stateManager: new WebviewStateManager(
+                stateStore,
+                handle,
+                new PropertiesPanelUiStateAdapter(stateStore, panelRoot),
+            ),
             dispose: () => cancelPendingVariablePublish(),
         };
     }

@@ -5,6 +5,7 @@ import {
     type Command,
     isMessageOfType,
     type MessageOfType,
+    PropertiesPanelUiStateAdapter,
     type ProtocolMessageType,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
@@ -142,6 +143,20 @@ function binderFor({
 
 const asSurface = (handle: object) => handle as unknown as SurfaceHandle;
 
+function scrollContainerIn(panelRoot: HTMLElement): HTMLElement {
+    const container = document.createElement("div");
+    container.className = "bio-properties-panel-scroll-container";
+    panelRoot.appendChild(container);
+    return container;
+}
+
+// The panel debounces its scroll writes by 100 ms.
+function scrollTo(container: HTMLElement, position: number): void {
+    Object.defineProperty(container, "scrollTop", { value: position, configurable: true });
+    container.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(100);
+}
+
 describe("createSurfaceBinder", () => {
     beforeEach(() => {
         vi.useFakeTimers();
@@ -215,18 +230,35 @@ describe("createSurfaceBinder", () => {
             expect(host.postMessage).not.toHaveBeenCalled();
         });
 
-        it("builds the state manager over the surface and the panel root", () => {
-            const { host, panelRoot, binder } = binderFor();
+        it("builds the state manager over the host's state, the surface and the panel", () => {
+            const { host, binder } = binderFor();
             const viewer = fakeViewer();
 
             const binding = binder.bindSurface(asSurface(viewer));
+            const [, stateStore] = mocks.stateManagerCreated.mock.calls[0];
+            stateStore.merge({ mode: "view" });
 
             expect(mocks.stateManagerCreated).toHaveBeenCalledExactlyOnceWith(
                 binding.stateManager,
-                host,
+                expect.objectContaining({ read: expect.any(Function) }),
                 viewer,
-                panelRoot,
+                expect.any(PropertiesPanelUiStateAdapter),
             );
+            expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ mode: "view" });
+        });
+
+        it("persists only the scrolling of the panel within the panel root", () => {
+            const { host, panelRoot, binder } = binderFor();
+            const scroll = scrollContainerIn(panelRoot);
+            const foreignScroll = scrollContainerIn(document.createElement("div"));
+
+            binder.bindSurface(asSurface(fakeViewer()));
+            const [, , , panelUiState] = mocks.stateManagerCreated.mock.calls[0];
+            panelUiState.startPersisting();
+            scrollTo(foreignScroll, 99);
+            scrollTo(scroll, 42);
+
+            expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelScroll: 42 });
         });
 
         it("seeds the C7 process variables and publishes them again after a change", async () => {
