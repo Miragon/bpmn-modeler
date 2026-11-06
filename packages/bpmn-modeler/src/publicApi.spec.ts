@@ -139,7 +139,8 @@ void _scenarioAsyncNav;
 
 const _formAwareNavigation = {
     openReference: (_reference) => undefined,
-    isReferenceAvailable: ({ id, kind }) => kind !== "form" || id === "Form_Request",
+    isReferenceAvailable: ({ id, kind }) =>
+        ({ process: true, decision: true, form: id === "Form_Request" })[kind],
     onReferenceAvailabilityChanged: (_listener) => () => undefined,
 } satisfies ModelNavigationPort;
 void _formAwareNavigation;

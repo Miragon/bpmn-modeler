@@ -388,27 +388,43 @@ rule scoped to a folder or file set fails when the scope matches nothing
 The engine lives under `tools/`, not `libs/`: it is dev-only tooling that no
 host or webview ships.
 
-A domain value that describes the world, such as `Engine`, keeps its rules in
-one home module. The typed ESLint rule `miragon/no-guarded-value-comparison`
+A domain value that describes the world keeps its rules in one home module.
+The typed ESLint rule `miragon/no-guarded-value-comparison`
 ([`tools/repo-checks/eslint`](../../tools/repo-checks/eslint/noGuardedValueComparison.cjs))
 reports `===`, `!==`, `==`, `!=` and each `case` that compares such a value
-with a string literal outside its home, in every folder. Code elsewhere asks
-the home: a capability in the `Record<Engine, …>` table of
-`libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after the
-rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
-lookup, so the compiler reports a missing engine. Each registry entry in
+with a string literal outside its home, in every folder. Each registry entry in
 `eslint.config.cjs` names the type, its module, its homes and an error message
-that names the fix.
+that names the fix. Two types are registered, and code elsewhere asks their
+home:
+
+- **`Engine`:** a capability in the `Record<Engine, …>` table of
+  `libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after
+  the rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
+  lookup.
+- **`ReferenceKind`:** a capability in the `Record<ReferenceKind, …>` table of
+  `libs/modeler-types/src/referenceKind.ts` (`referenceKindSupports`: only a
+  form reference has an availability status and a preview), or a
+  `Record<ReferenceKind, …>` lookup: the file extension
+  (`REFERENCED_MODEL_FILE_EXTENSION`), where an element writes each kind and
+  whether it is a QName (`libs/model-navigation/src/extractReference.ts`), and
+  what declares each kind in a file (the core's
+  `navigation/domain/modelDeclaration.ts`).
+
+A lookup keyed by the union makes the compiler report a missing member, so a
+new engine or reference kind is decided in every table before it builds.
 
 - **Typed, not name-based.** The rule reads the type checker through the parser
   services typescript-eslint already provides, so it sees the value under any
   name: a local, a parameter, a type parameter (resolved to its constraint),
   with `null` and `undefined` removed. A value of raw `string` or `unknown` is
-  invisible; it is parsed with `isEngine` first (parse, don't validate).
+  invisible; it is parsed with `isEngine` or `isReferenceKind` first (parse,
+  don't validate).
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
-  two places.
+  two places. `ReferenceKind` joined because the form-only availability rule
+  was written in both the context pad and the webview's navigation port, and a
+  core service chose the files to search by comparing it.
 - **Never vacuous.** The registry is resolved against the program on every run:
   a missing module, a missing export or a type that is no string-literal union
   throws, and so does a file without type information.
@@ -422,7 +438,8 @@ that names the fix.
   `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
   root, so a run from a workspace directory gets type information too.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
-  value typed `string`, and Kotlin.
+  value typed `string`, a value used as data instead of compared (such as a
+  kind spelled into a regex as an XML element name), and Kotlin.
 
 Alternatives considered:
 

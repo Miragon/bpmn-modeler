@@ -24,12 +24,12 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
-import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+import { referenceKindSupports, type ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import { extractModelReference, extractReference } from "./extractReference";
 import type { BusinessObjectLike } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
-import type { ModelNavigationPort } from "./ModelNavigationPort";
+import type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort";
 import type { FormPreviewController } from "./FormPreviewController";
 
 interface ContextPad {
@@ -112,10 +112,7 @@ export class NavigateContextPadProvider {
             return {};
         }
         const reference = extractModelReference(element.businessObject, kind);
-        if (
-            !reference ||
-            (kind === "form" && !this.formReferenceStatusClient.isResolved(reference.id))
-        ) {
+        if (!reference || !this.isAvailable(reference)) {
             return {};
         }
 
@@ -130,11 +127,7 @@ export class NavigateContextPadProvider {
                     // navigates to the current id, not a stale one.
                     click: (_event, clickedElement) => {
                         const current = extractModelReference(clickedElement.businessObject, kind);
-                        if (
-                            current &&
-                            (kind !== "form" ||
-                                this.formReferenceStatusClient.isResolved(current.id))
-                        ) {
+                        if (current && this.isAvailable(current)) {
                             this.port.openReference(current);
                         }
                     },
@@ -142,7 +135,7 @@ export class NavigateContextPadProvider {
             },
         };
         if (
-            kind === "form" &&
+            referenceKindSupports(kind, "preview") &&
             this.port.formPreview &&
             !this.formPreviewController?.isVisible(element)
         ) {
@@ -162,6 +155,13 @@ export class NavigateContextPadProvider {
             };
         }
         return entries;
+    }
+
+    private isAvailable(reference: ModelReference): boolean {
+        return (
+            !referenceKindSupports(reference.kind, "availabilityStatus") ||
+            this.formReferenceStatusClient.isResolved(reference.id)
+        );
     }
 
     private detectKind(element: Element): ReferenceKind | undefined {

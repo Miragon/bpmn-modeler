@@ -1,10 +1,10 @@
-import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+import { REFERENCED_MODEL_FILE_EXTENSION, type ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { LocateResult, SearchOutcome } from "../../kernel/domain/locateResult";
 import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
 import { scanWorkspaceFiles, WorkspaceFileQuery } from "../../kernel/service/workspaceFileSearch";
-import { declaresReferencedModel } from "../domain/modelDeclaration";
+import { declaresReferencedModel, formIdDeclaredIn } from "../domain/modelDeclaration";
 
 export interface FormDeclaration {
     id: string;
@@ -39,23 +39,10 @@ export class ReferencedModelLocator {
                 ` sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
 
-        if (kind === "form") {
-            const result = await this.findFormDeclarations(sourceDocumentPath);
-            if (result.kind !== "matches") return result;
-            return {
-                kind: "matches",
-                paths: result.declarations
-                    .filter((declaration) => declaration.id === referenceId)
-                    .map((declaration) => declaration.path),
-                readFailures: result.readFailures,
-            };
-        }
-
-        const extension = kind === "process" ? ".bpmn" : ".dmn";
         const reference = { id: referenceId, kind, namespace };
         return scanWorkspaceFiles(
             this.vsWorkspace,
-            this.filesEndingWith(extension, sourceDocumentPath),
+            this.filesEndingWith(REFERENCED_MODEL_FILE_EXTENSION[kind], sourceDocumentPath),
             (content, path) => (declaresReferencedModel(content, reference) ? path : undefined),
             (paths) => ({ paths }),
         );
@@ -65,7 +52,7 @@ export class ReferencedModelLocator {
     findFormDeclarations(sourceDocumentPath?: string): Promise<FormDeclarationsResult> {
         return scanWorkspaceFiles(
             this.vsWorkspace,
-            this.filesEndingWith(".form", sourceDocumentPath),
+            this.filesEndingWith(REFERENCED_MODEL_FILE_EXTENSION.form, sourceDocumentPath),
             declarationIn,
             (declarations) => ({ declarations }),
         );
@@ -85,12 +72,6 @@ export class ReferencedModelLocator {
 }
 
 function declarationIn(content: string, path: string): FormDeclaration | undefined {
-    try {
-        const parsed = JSON.parse(content) as { id?: unknown };
-        return typeof parsed.id === "string" && parsed.id.length > 0
-            ? { id: parsed.id, path }
-            : undefined;
-    } catch {
-        return undefined;
-    }
+    const id = formIdDeclaredIn(content);
+    return id === undefined ? undefined : { id, path };
 }

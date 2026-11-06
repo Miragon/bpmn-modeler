@@ -1,4 +1,5 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
+import { REFERENCED_MODEL_FILE_EXTENSION } from "@miragon/bpmn-modeler-types";
 
 import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
@@ -12,7 +13,7 @@ import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedMode
 
 const WATCH_DEBOUNCE_MS = 150;
 
-const isFormFile = (path: string) => path.endsWith(".form");
+const isFormFile = (path: string) => path.endsWith(REFERENCED_MODEL_FILE_EXTENSION.form);
 
 interface EditorState {
     sourcePath: string;

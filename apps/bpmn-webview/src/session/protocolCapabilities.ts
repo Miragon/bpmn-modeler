@@ -19,6 +19,7 @@ import {
     type DetectedEngine,
     engineSupports,
     extractProcessVariables,
+    referenceKindSupports,
 } from "@miragon/bpmn-modeler-types";
 
 import { isModelerHandle, type SurfaceHandle } from "../surface";
@@ -151,7 +152,8 @@ export function createProtocolCapabilities(
                 },
                 openReference: ({ id, kind, namespace }) =>
                     host.postMessage(new NavigateToReferencedModelCommand(id, kind, namespace)),
-                isReferenceAvailable: ({ id, kind }) => kind !== "form" || formReferences.has(id),
+                isReferenceAvailable: ({ id, kind }) =>
+                    !referenceKindSupports(kind, "availabilityStatus") || formReferences.has(id),
                 isReferenceAvailabilityKnown: () => formReferences.known,
                 onReferenceAvailabilityChanged: (listener) => formReferences.onChanged(listener),
             },

@@ -70,6 +70,20 @@ if (guardedTarget?.engine !== "c7") { void guardedTarget; }`,
             errors: 0,
         },
         {
+            comparison: "a reference kind in a core service",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedReference: { readonly kind: import("@miragon/bpmn-modeler-types").ReferenceKind };
+if (guardedReference.kind === "form") { void guardedReference; }`,
+            errors: 1,
+        },
+        {
+            comparison: "a reference kind in its home",
+            file: "libs/modeler-types/src/referenceKind.ts",
+            snippet: `declare const guardedReference: { readonly kind: ReferenceKind };
+if (guardedReference.kind === "form") { void guardedReference; }`,
+            errors: 0,
+        },
+        {
             comparison: "an unregistered union",
             file: DEPLOYMENT_SERVICE,
             snippet: `declare const guardedAuth: { readonly type: "none" | "basic" | "oauth2" };
