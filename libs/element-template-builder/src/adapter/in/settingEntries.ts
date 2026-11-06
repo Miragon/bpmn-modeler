@@ -1,23 +1,23 @@
 import type { ComponentType } from "@bpmn-io/properties-panel/preact";
 
-import type { BindingField, EngineCatalog } from "../catalog";
-import { bindingOptions } from "../domain/bindingOptions";
-import { allowedTypes, bindingSpecOf } from "../domain/bindingRules";
-import { conditionOf, conditionRows } from "../domain/conditions";
-import { elementTypeName } from "../domain/elementTypes";
-import { arrayOf, objectOf, stringOf, stringsOf, valueAt, type Json } from "../domain/json";
-import { normalizedNumberText, readNumberText } from "../domain/numberText";
+import type { BindingField, EngineCatalog } from "../../domain/catalog";
+import { bindingOptions } from "../../domain/bindingOptions";
+import { allowedTypes, bindingSpecOf } from "../../domain/bindingRules";
+import { conditionOf, conditionRows } from "../../domain/conditions";
+import { elementTypeName } from "../../domain/elementTypes";
+import { arrayOf, objectOf, stringOf, stringsOf, valueAt, type Json } from "../../domain/json";
+import { normalizedNumberText, readNumberText } from "../../domain/numberText";
 import {
     propertyCapabilities,
     typeCapabilities,
     type PropertyCapabilities,
-} from "../domain/propertyCapabilities";
+} from "../../domain/propertyCapabilities";
 import {
     jsonOnlyGroupKeys,
     jsonOnlyPropertyKeys,
     jsonOnlyTemplateKeys,
-} from "../domain/templateKeys";
-import type { JsonPath, TemplateEdit } from "../domain/templateText";
+} from "../../domain/templateKeys";
+import type { JsonPath, TemplateEdit } from "../../domain/templateText";
 import {
     addChoice,
     changeBindingField,
@@ -29,7 +29,7 @@ import {
     setConstraint,
     setField,
     updateChoice,
-} from "../domain/transforms";
+} from "../../domain/transforms";
 import {
     AppliesToEntry,
     ChoicesEntry,
@@ -37,7 +37,7 @@ import {
     JsonOnlyEntry,
     type Choice,
 } from "./entries";
-import { entryIdOf } from "./entryIds";
+import { entryIdOf, entryPrefix } from "../../domain/entryIds";
 import {
     CheckSetting,
     SelectSetting,
@@ -163,7 +163,7 @@ export function templateEntries(ctx: EntryContext, ids: Set<string>): Setting[] 
             }),
         );
     }
-    return [...settings, ...jsonOnly(ctx, "template", jsonOnlyTemplateKeys(template))];
+    return [...settings, ...jsonOnly(ctx, entryPrefix("template"), jsonOnlyTemplateKeys(template))];
 }
 
 export function groupEntries(
@@ -192,7 +192,7 @@ export function groupEntries(
         textEntry(ctx, ids, ["groups", index, "label"], "Label", {
             description: "The group's heading in the properties panel.",
         }),
-        ...jsonOnly(ctx, `group-${index}`, jsonOnlyGroupKeys(group)),
+        ...jsonOnly(ctx, entryPrefix("groups", index), jsonOnlyGroupKeys(group)),
     ];
 }
 
@@ -368,7 +368,7 @@ export function propertyEntries(
     }
     return [
         ...settings,
-        ...jsonOnly(ctx, `property-${index}`, jsonOnlyPropertyKeys(property, extras)),
+        ...jsonOnly(ctx, entryPrefix("properties", index), jsonOnlyPropertyKeys(property, extras)),
     ];
 }
 
@@ -730,7 +730,7 @@ function checkEntry(
 
 function jsonOnly(ctx: EntryContext, prefix: string, keys: readonly string[]): Setting[] {
     return keys.length > 0
-        ? [{ id: `${prefix}-json-only`, component: JsonOnlyEntry, keys, translate: ctx.translate }]
+        ? [{ id: `${prefix}json-only`, component: JsonOnlyEntry, keys, translate: ctx.translate }]
         : [];
 }
 

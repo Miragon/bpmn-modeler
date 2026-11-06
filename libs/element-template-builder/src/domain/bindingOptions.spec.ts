@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "./catalog";
 import { bindingFits, bindingOptions } from "./bindingOptions";
 import { bindingSpecOf } from "./bindingRules";
 

@@ -245,8 +245,8 @@ imports show the role it has. Each workspace declares its kind once, in the
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
-The webviews and the template builder move into their role folders in their
-own migrations (#2129, #2130).
+The template builder sits in its role folders (#2130). The webviews move into
+theirs in their own migration (#2129).
 
 In a `hexagonal` workspace the first role folder in a file's path is its role,
 and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
@@ -404,14 +404,18 @@ a lint-style summary whose list opens upwards without covering a field. The JSON
 stays one toggle away beside it, where the host's own JSON support (`$schema`
 IntelliSense, undo, diagnostics) applies.
 
-The builder library keeps its layers pointing one way, and its
-`architecture.spec.ts` enforces it: `catalog/` is the engines' data, `domain/` the
-rules over it as pure code, `ui/` renders both. The catalog's conformance and
-coverage specs hold it to the official schemas in both directions, so a schema bump
-fails until someone decides what the builder does with a new binding. It depends
-on `jsonc-parser`, because an edit must keep the file's formatting, comments and
-unknown keys, so it changes the text rather than reprinting a parsed template, and
-on `@bpmn-io/element-templates-validator`, so it does not restate the schemas.
+The builder library is a `hexagonal` workspace: `domain/catalog/` is the
+engines' data, the rest of `domain/` the rules over it as pure code, and
+`adapter/in/` the UI that renders both. The repo-level role-folder rules hold
+that direction; the library's own `architecture.spec.ts` adds what they do not
+read: the catalog imports no rule and declares no function but `catalogFor`,
+the domain names no DOM global, and only `adapter/in/` imports the panel's
+Preact or a stylesheet. The catalog's conformance and coverage specs hold it to
+the official schemas in both directions, so a schema bump fails until someone
+decides what the builder does with a new binding. It depends on `jsonc-parser`,
+because an edit must keep the file's formatting, comments and unknown keys, so
+it changes the text rather than reprinting a parsed template, and on
+`@bpmn-io/element-templates-validator`, so it does not restate the schemas.
 Its Preact is the one `@bpmn-io/properties-panel` bundles, so the page ships no
 second copy. `applyTemplateEdits` returns a result instead of throwing: valid JSON
 that breaks the schema can make an edit impossible, and the page then writes

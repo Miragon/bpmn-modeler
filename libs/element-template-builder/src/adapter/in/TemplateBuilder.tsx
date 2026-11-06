@@ -2,19 +2,19 @@
 import type { ComponentChildren, ComponentType } from "@bpmn-io/properties-panel/preact";
 import { useEffect, useReducer, useRef } from "@bpmn-io/properties-panel/preact/hooks";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "../../domain/catalog";
 import {
     BUILDER_TABS,
     initialNavigation,
     navigate,
     shownItem,
     type BuilderTab,
-} from "../domain/builderNavigation";
-import type { TemplateBuilderState } from "../domain/editorPage";
-import { arrayOf, objectOf, stringOf, valueAt } from "../domain/json";
-import { problemSummary } from "../domain/problemSummary";
-import type { TemplateEdit } from "../domain/templateText";
-import { bindingTargets, groupTitle, problemPlace, propertyTitle } from "../domain/titles";
+} from "../../domain/builderNavigation";
+import type { TemplateBuilderState } from "../../domain/editorPage";
+import { arrayOf, objectOf, stringOf, valueAt } from "../../domain/json";
+import { problemSummary } from "../../domain/problemSummary";
+import type { TemplateEdit } from "../../domain/templateText";
+import { bindingTargets, groupTitle, problemPlace, propertyTitle } from "../../domain/titles";
 import {
     addGroup,
     addProperty,
@@ -22,8 +22,9 @@ import {
     moveProperty,
     removeGroup,
     removeProperty,
-} from "../domain/transforms";
-import { diagnosticsByEntry, entryIdOf, type EntryDiagnostic } from "./entryIds";
+} from "../../domain/transforms";
+import { diagnosticsByEntry, entryIdOf, entryPrefix, entryTarget } from "../../domain/entryIds";
+import { mostSevere } from "../../domain/severity";
 import { Action, Heading, Index, OtherMatches } from "./parts";
 import { type Problem, ProblemsBar, SeverityIcon } from "./ProblemsBar";
 import {
@@ -101,16 +102,8 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
     });
 
     const showProblem = ({ entryId }: Problem) => {
-        if (!entryId) {
-            return;
-        }
-        const [kind, index] = entryId.split("-");
-        if (kind === "property") {
-            dispatch({ kind: "show", tab: "properties", index: Number(index), focus: entryId });
-        } else if (kind === "group") {
-            dispatch({ kind: "show", tab: "groups", index: Number(index), focus: entryId });
-        } else {
-            dispatch({ kind: "show", tab: "template", focus: entryId });
+        if (entryId) {
+            dispatch({ kind: "show", ...entryTarget(entryId), focus: entryId });
         }
     };
 
@@ -121,7 +114,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                 <Row
                     key={props.id}
                     {...props}
-                    message={mostSevere(placed.byEntry[props.id])}
+                    message={mostSevere(placed.byEntry[props.id] ?? [])}
                     modified={props.path ? valueAt(template, props.path) !== undefined : false}
                 />
             );
@@ -206,7 +199,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                 items={matchingGroups.map((at) => ({
                     index: at,
                     title: groupTitle(groups[at], translate),
-                    severity: worstUnder(`group-${at}-`),
+                    severity: worstUnder(entryPrefix("groups", at)),
                 }))}
                 selected={groupIndex}
                 onSelect={(at) => dispatch({ kind: "open", tab: "groups", index: at })}
@@ -278,7 +271,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                 items={matchingProperties.map((at) => ({
                     index: at,
                     title: titleOfProperty(properties[at]),
-                    severity: worstUnder(`property-${at}-`),
+                    severity: worstUnder(entryPrefix("properties", at)),
                 }))}
                 selected={propertyIndex}
                 onSelect={(at) => dispatch({ kind: "open", tab: "properties", index: at })}
@@ -426,13 +419,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                     aria-label={translate("Parts of the template")}
                 >
                     {BUILDER_TABS.map((key) => {
-                        const severity = worstUnder(
-                            key === "template"
-                                ? "template-"
-                                : key === "groups"
-                                  ? "group-"
-                                  : "property-",
-                        );
+                        const severity = worstUnder(entryPrefix(key));
                         return (
                             <button
                                 type="button"
@@ -499,20 +486,4 @@ function filterSettings(
         }
     }
     return kept;
-}
-
-const SEVERITY_RANK: Readonly<Record<EntryDiagnostic["severity"], number>> = {
-    error: 2,
-    warning: 1,
-    info: 0,
-};
-
-function mostSevere(
-    diagnostics: readonly EntryDiagnostic[] | undefined,
-): EntryDiagnostic | undefined {
-    return diagnostics?.reduce<EntryDiagnostic | undefined>(
-        (worst, next) =>
-            worst && SEVERITY_RANK[worst.severity] >= SEVERITY_RANK[next.severity] ? worst : next,
-        undefined,
-    );
 }
