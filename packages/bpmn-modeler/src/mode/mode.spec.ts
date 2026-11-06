@@ -1,4 +1,4 @@
-import type { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import type { EditableSurfaceMode } from "@miragon/bpmn-modeler-types";
 import { describe, it, expect, expectTypeOf, vi } from "vitest";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 
@@ -26,9 +26,9 @@ function createPorts(initial: ModelerMode) {
 }
 
 describe("ModelerMode", () => {
-    // Published: deriving it from the private SurfaceMode would change the rolled-up .d.ts.
+    // Published: deriving it from the private EditableSurfaceMode would change the rolled-up .d.ts.
     it("holds exactly the editable surface modes", () => {
-        expectTypeOf<ModelerMode>().toEqualTypeOf<Exclude<SurfaceMode, "view">>();
+        expectTypeOf<ModelerMode>().toEqualTypeOf<EditableSurfaceMode>();
     });
 });
 

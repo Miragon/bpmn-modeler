@@ -17,8 +17,8 @@
  * `propertiesPanel.providersChanged` so a live panel re-derives immediately.
  */
 import {
+    type EditableSurfaceMode,
     parseEditableMode,
-    type SurfaceMode,
     surfaceModeSupports,
 } from "@miragon/bpmn-modeler-types";
 
@@ -29,7 +29,7 @@ import {
     hasEngineGroups,
 } from "./engineGroupData";
 
-export type PropertiesPanelMode = Exclude<SurfaceMode, "view">;
+export type PropertiesPanelMode = EditableSurfaceMode;
 
 // Structural slivers of the bpmn-js-properties-panel group/entry shapes and the
 // DI services this provider reads — only the members it touches.
