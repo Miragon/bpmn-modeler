@@ -10,7 +10,7 @@ import {
     MarketplacePromptShowResult,
 } from "../../../protocol/domain/types";
 
-/** IntelliJ asks in one form and the core checks the answer, so the check stays here. */
+/** `problemWith` cannot cross the bridge; the core checks the answer and asks again. */
 export class RpcMarketplacePrompt implements MarketplacePromptPort {
     constructor(private readonly rpc: Rpc) {}
 

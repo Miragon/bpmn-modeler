@@ -91,7 +91,7 @@ describe("VsCodeMarketplacePrompt", () => {
         expect(vscodeWindow.quickPicks).toEqual([]);
     });
 
-    it("shows a refused entry again with why the core refused it", async () => {
+    it("shows a refused entry again, and the core's check on it says why it was refused", async () => {
         void new VsCodeMarketplacePrompt().promptForMarketplace(
             addPrompt({ location: "acme", invalidLocation: REFUSED }),
         );
