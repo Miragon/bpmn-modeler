@@ -46,18 +46,15 @@ export function describeLintingPreferenceContract(
         it.each([
             { behaviour: "turn linting off", choices: [false] },
             { behaviour: "turn linting off, then back on", choices: [false, true] },
-        ])(
-            "reads back each choice once its call resolves: $behaviour",
-            async ({ choices }) => {
-                const reads: boolean[] = [];
-                for (const choice of choices) {
-                    await fixture.preference.setLintingEnabled(choice);
-                    reads.push(fixture.settings.getLintingEnabled());
-                }
+        ])("reads back each choice once its call resolves: $behaviour", async ({ choices }) => {
+            const reads: boolean[] = [];
+            for (const choice of choices) {
+                await fixture.preference.setLintingEnabled(choice);
+                reads.push(fixture.settings.getLintingEnabled());
+            }
 
-                expect(reads).toEqual(choices);
-            },
-        );
+            expect(reads).toEqual(choices);
+        });
 
         it("keeps the choice for every project the user opens afterwards", async () => {
             await fixture.preference.setLintingEnabled(false);
