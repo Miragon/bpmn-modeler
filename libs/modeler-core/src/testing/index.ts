@@ -1,4 +1,5 @@
 export * from "./createTestHost";
+export * from "./documentContract";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
 export * from "./InMemoryDeploymentState";
