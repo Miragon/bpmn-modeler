@@ -23,10 +23,13 @@ Pull any decision out of such code first; the decision itself is not exempt.
 ## 1. Red
 
 1. Find the rule's home (see step 2) and search for copies of the rule
-   elsewhere: other services, the other host, Kotlin, the webview. The spec
-   targets the one home; the copies go in step 3. `corepack yarn fitness`
-   lists, as `change-coupling`, file pairs that keep changing together
-   without an import; a hidden pair naming your file is a candidate copy.
+   elsewhere: other services, the other host, Kotlin, the webview, with the
+   search of the
+   [architecture-review](../architecture-review/SKILL.md#3-search-for-copies)
+   skill. The spec targets the one home; the copies go in step 3.
+   `corepack yarn fitness` lists, as `change-coupling`, file pairs that keep
+   changing together without an import; a hidden pair naming your file is a
+   candidate copy.
    `missed-partner` lists files the branch changed without their usual
    partner; a partner it names may hold a copy of the rule.
 2. Write the spec first. For a bug, reproduce the report in the smallest setup
