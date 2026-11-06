@@ -32,9 +32,15 @@ export class InMemoryMarketplaceRegistrations implements MarketplaceRegistration
     readonly lists: Record<MarketplaceScope, MarketplaceSettingsEntry[]>;
     writable: readonly WritableScope[] = BOTH_SCOPES;
     selfHostedIn: SettingsPlace | undefined = { kind: "file", path: ["settings.json"] };
+    private refusal: Error | undefined;
 
     constructor(private readonly settings: InMemorySettings) {
         this.lists = { allProjects: [...settings.values.marketplaces], project: [] };
+    }
+
+    /** Every later write rejects with `error` and changes no list. */
+    refuseWrites(error: Error): void {
+        this.refusal = error;
     }
 
     async read(): Promise<MarketplaceRegistrations> {
@@ -49,6 +55,7 @@ export class InMemoryMarketplaceRegistrations implements MarketplaceRegistration
     }
 
     async register(location: string, scope: MarketplaceScope): Promise<void> {
+        if (this.refusal) throw this.refusal;
         if (!this.lists[scope].includes(location)) {
             this.lists[scope].push(location);
         }
@@ -56,6 +63,7 @@ export class InMemoryMarketplaceRegistrations implements MarketplaceRegistration
     }
 
     async unregister(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
+        if (this.refusal) throw this.refusal;
         for (const scope of Object.keys(this.lists) as MarketplaceScope[]) {
             this.lists[scope] = withoutMarketplaceEntries(this.lists[scope], entries);
         }

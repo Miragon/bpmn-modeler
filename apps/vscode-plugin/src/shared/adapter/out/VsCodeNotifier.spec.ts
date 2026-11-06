@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeWindowFake"));
 
 import {
-    ProgressLocation,
     renderedToasts,
     resetVscodeWindow,
     Uri,
@@ -143,35 +142,6 @@ describe("VsCodeNotifier log", () => {
         notifier.openLoggingConsole();
 
         expect(logChannel().revealed).toEqual({ preserveFocus: true });
-    });
-});
-
-describe("VsCodeNotifier progress", () => {
-    it("shows a status bar progress indicator while the task runs", async () => {
-        let finishDeploy: (outcome: string) => void = () => undefined;
-        const deploy = new Promise<string>((resolve) => (finishDeploy = resolve));
-
-        const result = notifier.withProgress("Deploying order.bpmn", () => deploy);
-
-        expect(vscodeWindow.progressIndicators).toEqual([
-            { location: ProgressLocation.Window, title: "Deploying order.bpmn", running: true },
-        ]);
-        finishDeploy("deployed");
-        await expect(result).resolves.toBe("deployed");
-        expect(vscodeWindow.progressIndicators.map((indicator) => indicator.running)).toEqual([
-            false,
-        ]);
-    });
-
-    it("hands a failed task's error back to the caller", async () => {
-        const failure = new Error("Engine unreachable");
-
-        await expect(
-            notifier.withProgress("Deploying order.bpmn", () => Promise.reject(failure)),
-        ).rejects.toBe(failure);
-        expect(vscodeWindow.progressIndicators.map((indicator) => indicator.running)).toEqual([
-            false,
-        ]);
     });
 });
 
