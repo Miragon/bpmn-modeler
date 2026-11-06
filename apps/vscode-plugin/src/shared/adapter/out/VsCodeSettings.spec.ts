@@ -26,29 +26,15 @@ vi.mock("vscode", () => ({
 import { ConfigurationTarget, workspace } from "vscode";
 
 import {
-    DEFAULT_MODELER_SETTINGS,
     ModelerSettingsSnapshot,
+    RawModelerSettings,
     settingKeyOf,
     SettingsPlace,
 } from "@miragon/bpmn-modeler-core";
-import {
-    readSettingsSnapshot,
-    settingsNormalizationCases,
-    TYPESCRIPT_ONLY_SETTINGS_CASES,
-} from "@miragon/bpmn-modeler-core/testing";
+import { describeSettingsContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { MODELER_SETTINGS_SECTION } from "../../domain/modelerSettingsSection";
 import { VsCodeSettings } from "./VsCodeSettings";
-
-const SHARED_CASES = settingsNormalizationCases(
-    readFileSync(
-        resolve(
-            __dirname,
-            "../../../../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
-        ),
-        "utf8",
-    ),
-);
 
 const MANIFEST_DEFAULTS = new Map(
     Object.entries(
@@ -74,6 +60,16 @@ function stubConfiguration(userValues: Record<string, unknown>) {
     );
 }
 
+/** The settings under the keys VS Code stores them by. */
+function userValuesOf(settings: RawModelerSettings): Record<string, unknown> {
+    return Object.fromEntries(
+        Object.entries(settings).map(([key, value]) => [
+            settingKeyOf(key as keyof ModelerSettingsSnapshot),
+            value,
+        ]),
+    );
+}
+
 /** Toggles whether VS Code considers a workspace open. */
 function setWorkspaceOpen(open: boolean) {
     (workspace as { workspaceFolders: unknown }).workspaceFolders = open ? [{}] : undefined;
@@ -88,88 +84,32 @@ beforeEach(() => {
     setWorkspaceOpen(false);
 });
 
-describe("VsCodeSettings reads", () => {
-    it.each([...SHARED_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
-        "$name",
-        ({ raw, normalized }) => {
-            stubConfiguration(
-                Object.fromEntries(
-                    Object.entries(raw).map(([key, value]) => [
-                        settingKeyOf(key as keyof ModelerSettingsSnapshot),
-                        value,
-                    ]),
-                ),
-            );
-            stubInspect({ globalValue: raw.marketplaces });
-
-            expect(readSettingsSnapshot(new VsCodeSettings())).toEqual({
-                ...DEFAULT_MODELER_SETTINGS,
-                ...normalized,
-            });
-        },
-    );
-
-    it.each([
-        {
-            case: "the linting flag the user turned off",
-            userValues: { "linting.enabled": false },
-            enabled: false,
-        },
-        {
-            case: "the default linting flag",
-            userValues: {},
-            enabled: DEFAULT_MODELER_SETTINGS.lintingEnabled,
-        },
-        {
-            case: "a linting flag that is no boolean as the default",
-            userValues: { "linting.enabled": 0 },
-            enabled: DEFAULT_MODELER_SETTINGS.lintingEnabled,
-        },
-    ])("$case", ({ userValues, enabled }) => {
-        stubConfiguration(userValues);
-
-        expect(new VsCodeSettings().getLintingEnabled()).toBe(enabled);
-    });
-});
+describeSettingsContract(
+    "VsCodeSettings",
+    async () => {
+        stubConfiguration({});
+        stubInspect({});
+        return {
+            settings: new VsCodeSettings(),
+            store: async (settings, projectMarketplaces) => {
+                stubConfiguration(userValuesOf(settings));
+                stubInspect({
+                    globalValue: settings.marketplaces,
+                    workspaceValue: projectMarketplaces,
+                });
+            },
+        };
+    },
+    readFileSync(
+        resolve(
+            __dirname,
+            "../../../../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
+        ),
+        "utf8",
+    ),
+);
 
 describe("VsCodeSettings.getMarketplaces", () => {
-    it("unions the User and Workspace lists, User first", () => {
-        stubInspect({
-            globalValue: ["https://github.com/acme/user"],
-            workspaceValue: ["https://github.com/acme/ws"],
-        });
-
-        expect(new VsCodeSettings().getMarketplaces()).toEqual([
-            "https://github.com/acme/user",
-            "https://github.com/acme/ws",
-        ]);
-    });
-
-    it("dedupes an entry present in both scopes (structural, incl. objects)", () => {
-        stubInspect({
-            globalValue: [
-                "https://github.com/acme/one",
-                { provider: "gitlab", repo: "group/proj", baseUrl: "https://gl.acme.com" },
-            ],
-            workspaceValue: [
-                "https://github.com/acme/one",
-                { provider: "gitlab", repo: "group/proj", baseUrl: "https://gl.acme.com" },
-                "https://github.com/acme/two",
-            ],
-        });
-
-        expect(new VsCodeSettings().getMarketplaces()).toEqual([
-            "https://github.com/acme/one",
-            { provider: "gitlab", repo: "group/proj", baseUrl: "https://gl.acme.com" },
-            "https://github.com/acme/two",
-        ]);
-    });
-
-    it("returns an empty list when neither scope has entries", () => {
-        stubInspect({});
-        expect(new VsCodeSettings().getMarketplaces()).toEqual([]);
-    });
-
     it.each([
         {
             scope: "User",
