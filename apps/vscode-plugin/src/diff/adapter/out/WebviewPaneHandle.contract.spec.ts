@@ -5,7 +5,7 @@ import { describeDiffPaneContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { WebviewPaneHandle } from "./WebviewPaneHandle";
 
-// The suite never loads a page; the bootstrap reads the extension context.
+// bootstrapWebview imports `vscode`, which Vitest cannot resolve; the suite never calls bootstrap().
 vi.mock("../../../shared/adapter/out/bootstrapWebview", () => ({
     bootstrapWebview: vi.fn(),
 }));
@@ -16,12 +16,16 @@ function documentUri(uri: string) {
     return { scheme: protocol.slice(0, -1), path: pathname, fsPath: pathname, toString: () => uri };
 }
 
-/** The panel VS Code hands a custom editor; its webview takes every post while the panel is open. */
+/**
+ * The panel VS Code hands a custom editor. Once disposed, its webview drops a
+ * post and answers `false`, as VS Code's does.
+ */
 class FakeWebviewPanel {
     readonly posted: unknown[] = [];
-    disposed = false;
+    private disposed = false;
     readonly webview = {
         postMessage: async (message: unknown) => {
+            if (this.disposed) return false;
             this.posted.push(message);
             return true;
         },
