@@ -628,6 +628,10 @@
         }
       ]
     },
+    "missed-partner": {
+      "version": 1,
+      "findings": []
+    },
     "repeated-value-sets": {
       "version": 1,
       "findings": [

@@ -1067,6 +1067,10 @@
         }
       ]
     },
+    "missed-partner": {
+      "version": 1,
+      "findings": []
+    },
     "mutation-score": {
       "version": 1,
       "unmeasurable": "none of the 0 stored mutation runs measured a commit on this first-parent chain"
