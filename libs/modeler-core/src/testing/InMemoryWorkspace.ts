@@ -110,11 +110,15 @@ export class InMemoryWorkspace implements WorkspacePort {
     }
 
     async readFile(path: string): Promise<string> {
-        const content = this.files.get(withoutFileScheme(path));
-        if (content === undefined) {
-            throw new FileNotFound(path);
+        const filePath = withoutFileScheme(path);
+        const content = this.files.get(filePath);
+        if (content !== undefined) {
+            return content;
         }
-        return content;
+        if (this.directories.has(filePath)) {
+            throw new Error(`EISDIR: illegal operation on a directory, read '${path}'`);
+        }
+        throw new FileNotFound(path);
     }
 
     async isSymbolicLink(path: string): Promise<boolean> {
