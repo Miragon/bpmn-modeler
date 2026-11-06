@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-04
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -367,10 +367,10 @@ extension; the bridge leaves out the panel visibility.
 
 A host supplies adapters and maps its own surface (VS Code commands and views,
 bridge RPC) onto these modules. It keeps only what is genuinely host-specific:
-VS Code's input UI, settings writes and reload hint; the bridge's
-workspace-root registration, acknowledged marketplace persistence and
-rendering on `document/didChange`, because the host owns the document revision
-there. Host classes depend on the core ports, not
+the layout of the prompts the core builds, its own stores (VS Code's settings,
+IntelliJ's application and project stores) and VS Code's reload hint; the
+bridge's workspace-root registration and rendering on `document/didChange`,
+because the host owns the document revision there. Host classes depend on the core ports, not
 on concrete adapters, so the in-memory test kit fits every one of them. Inbound
 adapters never import outbound ones (rule 6 of the
 [role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
@@ -664,10 +664,56 @@ password dialog. Both hosts return the answer as typed, and
 the core (`enteredToken`) takes a blank answer for no token, so a blank token
 is never stored and no host trims.
 
+The template marketplace's add and remove flows run in the core's
+`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, and
+`template-marketplace/domain/marketplacePrompts.ts` builds all their text.
+Removing is a choice: `marketplaceRemoval` returns the nothing-registered
+message, or a `chooseMany` prompt whose items name each entry and the scopes
+that hold it (`This project`, `All my projects`, or both), so it needed no new
+port method. Adding asks for free text and a scope together, which no
+`PickerPort` method can, so it is a new kind of input:
+`MarketplacePromptPort.promptForMarketplace` takes the `MarketplaceAddPrompt`
+that `marketplaceAddPrompt` builds (title, prompt, placeholder, the scopes to
+choose from with where each is saved, the current answer and, when the core
+asks again, why it refused the location) and returns the location and scope as
+entered, or `undefined`. The core checks the location with
+`registrableLocation` (`parseMarketplaceUrl` after the `~` expansion) and asks
+again with the refused entry until it can register one or the user cancels. The
+prompt also carries that check as a function, `problemWith`. VS Code runs it in
+its input box as the user types, so it never answers with a location the core
+refuses; a function cannot cross the bridge, so IntelliJ relies on the core
+asking again. Each host keeps its layout: VS Code asks in steps (an input box,
+then a quick pick when there is a choice), IntelliJ in one form whose checkbox
+stands for the second of two scopes. The bridge sends the prompt without the
+function over `marketplacePrompt/show`, and IntelliJ's `MarketplaceRouter`
+shows its `AddMarketplaceDialog`.
+
+Each host keeps its marketplace registrations behind
+`MarketplaceRegistrationsPort`. `read` returns what is registered in which
+scope, the scopes the host can write now with where it saves each, and where a
+self-hosted marketplace is written by hand; `register` and `unregister` write.
+A write resolves only once `SettingsPort` reads the new list, so the prune
+after a removal keeps exactly what is still registered: VS Code reads its
+settings live, and IntelliJ pushes the new snapshot before it acks
+`marketplaceState/save` or `marketplaceState/remove`; `marketplaceState/read`
+reads its stores. The scope vocabulary is the core's `MarketplaceScope`
+(`project`, `allProjects`), whose one home is `MARKETPLACE_SCOPES`; VS Code's
+settings adapter and Kotlin's `MarketplaceScope` speak it too. Where a scope is
+saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
+file by its path segments or a settings page by the names that lead to it, and
+the core words it: `Saved in .vscode/settings.json` and `Saved in Settings ▸
+User` on VS Code, `Saved in .idea/workspace.xml` and `Saved in Settings ▸ Tools
+▸ Miragon BPMN Modeler ▸ Template Marketplaces` on IntelliJ. The
+invalid-location message names a place for self-hosted hosts only where there
+is one: VS Code's `settings.json`. IntelliJ's lists hold URL strings, which
+cannot name a self-hosted host, so it reports none. VS Code's reload hint after
+an in-place update, and the `not a registered configuration` match that
+triggers it, stay in its `TemplateMarketplaceController`.
+
 No adapter builds prompt text. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
-as the masked one, needs its own port method, RPC and Kotlin handler, as the
-token prompt has.
+as the masked token or the marketplace's free-text location, needs its own port
+method, RPC and Kotlin handler, as those two have.
 
 Two kinds of text belong to the host and are written there: its chrome, such as
 VS Code's "Reload Window" button, and messages about its own failure, such as
@@ -904,11 +950,12 @@ because host work can queue behind a modal dialog or a keychain prompt. Prompts
 wait for the user. A write the core keeps its own state in step with has no
 deadline either, because giving up on a write the host still applies would
 leave that state out of step with the host: `document/write` and
-`deploymentState/save` update a bridge mirror only on their reply, and a failed
-`marketplaceState/save` drops the templates its add just fetched. Such a
-request holds its caller until the host answers. `document/write` runs on the
-EDT, so a modal dialog delays it; the host answers the other two on its reader
-thread, which runs no work that waits for the user. `Rpc` fails every
+`deploymentState/save` update a bridge mirror only on their reply, a failed
+`marketplaceState/save` drops the templates its add just fetched, and the prune
+after `marketplaceState/remove` reads the list the host pushed before its
+reply. Such a request holds its caller until the host answers.
+`document/write` runs on the EDT, so a modal dialog delays it; the host answers
+the others on its reader thread, which runs no work that waits for the user. `Rpc` fails every
 outstanding and later request once its input ends; the stdio binding signals
 the end of stdin and then exits the process.
 
@@ -1147,6 +1194,35 @@ a cached result must equal an uncached run.
   touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
   the hosts per-item freedom: a host renders only what the shared shape
   carries, so a widget-specific touch needs a field in that shape first.
+- The marketplace's free-text location could have come through a generic
+  text-input port beside `TokenPromptPort`, with the scope through
+  `PickerPort.choose`. That costs the same protocol as the add question (one
+  port method, one RPC, one Kotlin handler) but splits IntelliJ's one form into
+  two dialogs and the question into two prompts the core has to sequence. A
+  text prompt with a `password` flag in place of `TokenPromptPort` adds no RPC,
+  but changes `tokenPrompt/show` and its handler, makes `RpcChannel`'s log
+  redaction depend on a flag instead of the method, and still splits the form.
+  The add question costs one RPC for one flow; another free-text question will
+  need its own method or a generalisation of this one.
+- Checking the location only after the answer would cost VS Code its check as
+  the user types and make it ask for the scope before saying the location is
+  wrong. The `problemWith` function in the prompt is the check the core applies
+  anyway, at the cost of a prompt that is not plain data: the bridge drops the
+  function and IntelliJ learns of a refusal only when the core asks again.
+- The hosts worded where a scope is saved themselves, and the words drifted
+  ("Saved in your user settings" against "Also shown in Settings ▸ Tools ▸
+  Miragon BPMN Modeler"); IntelliJ's hint even sent self-hosted hosts to a
+  settings page that accepts only URL strings. Wording both scopes alike
+  without the place would drop what tells the user whether an entry lands in
+  the repository or in their own settings. A typed `SettingsPlace` keeps that
+  fact per host and the words in the core; a text from the host would be host
+  prose again.
+- IntelliJ could have piggybacked its registrations on `marketplace/add` and
+  `marketplace/remove`, saving `marketplaceState/read`, but the bridge would
+  need a mirror for them and a read would hang off a trigger. Accepted cost of
+  the core's remove choice: IntelliJ shows it in the generic `picker/show`
+  list popup, which picks several entries with Ctrl- or Shift-click where its
+  own dialog had checkboxes, as every `chooseMany` prompt there does.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

@@ -133,6 +133,7 @@ in the bridge README):
 | host → core | `linting/toggle` | the BPMNlint widget's click flips the user's lint choice |
 | core → host | `settings/setLintingEnabled` | `PropertiesComponent`; the host stores the lint choice and pushes the snapshot |
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
+| core → host | `marketplacePrompt/show`, `marketplaceState/*` | the core's add question in `AddMarketplaceDialog`; the app and project marketplace stores |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
 
 **Handler coverage.** `ProtocolHandlerCoverageTest` registers the production

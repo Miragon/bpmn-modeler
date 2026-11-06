@@ -2,6 +2,7 @@ import { ConfigurationTarget, workspace } from "vscode";
 
 import {
     ColorThemeSetting,
+    MarketplaceScope,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
     parseSetting,
@@ -98,30 +99,32 @@ export class VsCodeSettings implements SettingsPort {
 
     /**
      * The deduped union of registered marketplaces, each annotated with the
-     * scope(s) it lives in (User first, since the union orders User before
-     * Workspace). The Remove Marketplace command needs this: one picker item per
-     * union entry, with a description naming where the entry is registered, and a
-     * removal that deletes it from *every* scope it appears in.
+     * scope(s) it lives in: User settings hold "all projects", Workspace settings
+     * "this project" (User first, as the union orders them). The remove choice
+     * offers one item per union entry, and a removal deletes it from *every*
+     * scope it appears in.
      *
      * Dedup is by {@link entryKey} — the same structural key {@link getMarketplaces}
-     * uses — so the picker's identity can never drift from what removal matches.
+     * uses — so the choice's identity can never drift from what removal matches.
      */
     getMarketplacesWithScopes(): {
         entry: MarketplaceSettingsEntry;
-        scopes: ("user" | "workspace")[];
+        scopes: MarketplaceScope[];
     }[] {
         const { userEntries, workspaceEntries } = marketplacesByScope(modelerConfiguration());
-        // User first so a shared "all my projects" entry annotated with both
-        // scopes still reads "User and Workspace settings", not the reverse.
-        const scoped: [MarketplaceSettingsEntry, "user" | "workspace"][] = [
-            ...userEntries.map((entry) => [entry, "user"] as [MarketplaceSettingsEntry, "user"]),
-            ...workspaceEntries.map(
-                (entry) => [entry, "workspace"] as [MarketplaceSettingsEntry, "workspace"],
-            ),
+        const scoped: [MarketplaceSettingsEntry, MarketplaceScope][] = [
+            ...userEntries.map((entry): [MarketplaceSettingsEntry, MarketplaceScope] => [
+                entry,
+                "allProjects",
+            ]),
+            ...workspaceEntries.map((entry): [MarketplaceSettingsEntry, MarketplaceScope] => [
+                entry,
+                "project",
+            ]),
         ];
         const byKey = new Map<
             string,
-            { entry: MarketplaceSettingsEntry; scopes: ("user" | "workspace")[] }
+            { entry: MarketplaceSettingsEntry; scopes: MarketplaceScope[] }
         >();
         for (const [entry, scope] of scoped) {
             const key = entryKey(entry);
@@ -181,35 +184,39 @@ export class VsCodeSettings implements SettingsPort {
         await config.update("marketplaces", filtered.length > 0 ? filtered : undefined, target);
     }
 
+    /** Workspace settings exist only while a folder or workspace is open. */
+    canWriteWorkspaceSettings(): boolean {
+        return hasWorkspace();
+    }
+
     /**
-     * Registers a marketplace at the caller-chosen scope. The controller decides
-     * (via a quick pick), because scope is a user intent — `"workspace"` keeps the
-     * entry a per-project concern in `.vscode/settings.json`; `"user"` promotes it
-     * to "all my projects". A `"workspace"` request with no folder/workspace open
-     * falls back to Global, because `update()` to Workspace throws without one.
+     * Registers a marketplace at the scope the user chose: `"project"` keeps the
+     * entry a per-project concern in the Workspace settings; `"allProjects"`
+     * promotes it to the User settings. A `"project"` request with no
+     * folder/workspace open falls back to Global, because `update()` to
+     * Workspace throws without one.
      *
-     * Dedup follows the effective-union rule: a `"workspace"` add is a no-op if the
-     * URL exists in *either* scope (it already resolves for this project); a
-     * `"user"` add de-dups only against the User list, so an entry that lives
-     * workspace-level can still be promoted user-wide. Either way it appends only
-     * to the **target scope's own** list from `inspect()` — never the union — so a
-     * workspace write can't copy User-level entries into the repo's settings.
+     * Dedup follows the effective-union rule: a `"project"` add is a no-op if the
+     * URL exists in *either* scope (it already resolves for this project); an
+     * `"allProjects"` add de-dups only against the User list, so an entry that
+     * lives workspace-level can still be promoted user-wide. Either way it
+     * appends only to the **target scope's own** list from `inspect()` — never
+     * the union — so a workspace write can't copy User-level entries into the
+     * repo's settings.
      *
      * String `includes` de-dups only against other strings, which is all the Add
      * command writes; a string that resolves to the same repo as an object entry
      * slips through, costing only a redundant fetch into the same cache slot.
      */
-    async addMarketplace(url: string, scope: "workspace" | "user"): Promise<void> {
+    async addMarketplace(url: string, scope: MarketplaceScope): Promise<void> {
         const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
-        const hasWorkspace =
-            workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
         const target =
-            scope === "user" || !hasWorkspace
+            scope === "allProjects" || !hasWorkspace()
                 ? ConfigurationTarget.Global
                 : ConfigurationTarget.Workspace;
         if (target === ConfigurationTarget.Global) {
-            // Promotion rule: only the User list de-dups a "user" add, so an entry
+            // Promotion rule: only the User list de-dups an "allProjects" add, so an entry
             // present workspace-level can still be lifted to "all my projects".
             if (userEntries.includes(url)) {
                 return;
@@ -241,6 +248,10 @@ export class VsCodeSettings implements SettingsPort {
  */
 function entryKey(entry: MarketplaceSettingsEntry): string {
     return JSON.stringify(entry);
+}
+
+function hasWorkspace(): boolean {
+    return workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
 }
 
 /** Each scope's own list, read as the core reads `marketplaces`. */

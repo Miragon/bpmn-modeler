@@ -4,6 +4,7 @@ import { EditorSessionLifecycle } from "../editorSession/service/EditorSessionLi
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { WebviewMessageRouter } from "../editorSession/service/WebviewMessageRouter";
 import { ModelerSettingsSnapshot } from "../kernel/domain/modelerSettings";
+import { MarketplaceAddAnswer } from "../template-marketplace/domain/marketplacePrompts";
 import { DocumentChangeStream, FakeEditorHandle } from "./FakeEditorHandle";
 import {
     InMemorySecretStore,
@@ -11,6 +12,10 @@ import {
     ScriptedTokenPrompt,
 } from "./InMemoryCredentials";
 import { InMemoryDeploymentState } from "./InMemoryDeploymentState";
+import {
+    InMemoryMarketplaceRegistrations,
+    ScriptedMarketplacePrompt,
+} from "./InMemoryMarketplaceRegistrations";
 import {
     InMemoryClipboard,
     InMemoryPropertiesPanelState,
@@ -28,6 +33,8 @@ export interface TestHostOptions {
     settings?: Partial<ModelerSettingsSnapshot>;
     promptAnswers?: PromptAnswers;
     tokenAnswers?: Record<string, string>;
+    /** Answered in order, one per add prompt. */
+    marketplaceAnswers?: MarketplaceAddAnswer[];
 }
 
 export interface TestSessionOptions {
@@ -47,6 +54,7 @@ export function createTestHost(options: TestHostOptions = {}) {
     const notifier = new RecordingNotifier();
     const lifecycles = new Map<string, EditorSessionLifecycle>();
     const documentChanges = new DocumentChangeStream();
+    const settings = new InMemorySettings(options.settings);
     const openHandles = new Set<FakeEditorHandle>();
     const registerHandle = (handle: FakeEditorHandle, focused: boolean): void => {
         handle.active = focused;
@@ -65,13 +73,15 @@ export function createTestHost(options: TestHostOptions = {}) {
         documents: new EditorSessionDocuments(store),
         notifier,
         picker: new ScriptedPicker(options.promptAnswers),
-        settings: new InMemorySettings(options.settings),
+        settings,
         workspace: new InMemoryWorkspace(options.folders, options.files),
         statusBar: new RecordingStatusBar(),
         clipboard: new InMemoryClipboard(),
         secrets: new InMemorySecretStore(),
         tokens: new InMemoryTokenStore(),
         tokenPrompt: new ScriptedTokenPrompt(options.tokenAnswers),
+        marketplaceRegistrations: new InMemoryMarketplaceRegistrations(settings),
+        marketplacePrompt: new ScriptedMarketplacePrompt(options.marketplaceAnswers),
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),
         diagnostics: new RecordingDiagnostics(),

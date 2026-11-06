@@ -1,3 +1,6 @@
+import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { MarketplaceAddAnswer, MarketplaceAddPrompt } from "../domain/marketplacePrompts";
+import { MarketplaceRegistrations, MarketplaceScope } from "../domain/marketplaceRegistrations";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { TokenPrompt } from "../domain/tokenPrompt";
 
@@ -53,4 +56,27 @@ export interface TokenStorePort {
  */
 export interface TokenPromptPort {
     promptForToken(prompt: TokenPrompt): Promise<string | undefined>;
+}
+
+/**
+ * Shows the core's {@link MarketplaceAddPrompt}, in one form or in steps as the
+ * host lays it out.
+ *
+ * @returns the answer as entered, or `undefined` on dismissal; the core checks
+ * the location and asks again when it refuses it.
+ */
+export interface MarketplacePromptPort {
+    promptForMarketplace(prompt: MarketplaceAddPrompt): Promise<MarketplaceAddAnswer | undefined>;
+}
+
+/**
+ * The host's own stores of marketplace registrations, one per scope. A write
+ * resolves only once `SettingsPort.getMarketplaces` reads the new list, so the
+ * prune that follows a removal keeps exactly what is still registered.
+ */
+export interface MarketplaceRegistrationsPort {
+    read(): Promise<MarketplaceRegistrations>;
+    register(location: string, scope: MarketplaceScope): Promise<void>;
+    /** Removes each entry from every scope that holds it. */
+    unregister(entries: readonly MarketplaceSettingsEntry[]): Promise<void>;
 }

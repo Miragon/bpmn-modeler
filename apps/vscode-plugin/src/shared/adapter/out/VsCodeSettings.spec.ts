@@ -201,9 +201,9 @@ describe("VsCodeSettings.getMarketplacesWithScopes", () => {
         });
 
         expect(new VsCodeSettings().getMarketplacesWithScopes()).toEqual([
-            { entry: "https://github.com/acme/user", scopes: ["user"] },
-            { entry: "https://github.com/acme/shared", scopes: ["user", "workspace"] },
-            { entry: "https://github.com/acme/ws", scopes: ["workspace"] },
+            { entry: "https://github.com/acme/user", scopes: ["allProjects"] },
+            { entry: "https://github.com/acme/shared", scopes: ["allProjects", "project"] },
+            { entry: "https://github.com/acme/ws", scopes: ["project"] },
         ]);
     });
 
@@ -216,7 +216,7 @@ describe("VsCodeSettings.getMarketplacesWithScopes", () => {
         stubInspect({ globalValue: [obj], workspaceValue: [obj] });
 
         expect(new VsCodeSettings().getMarketplacesWithScopes()).toEqual([
-            { entry: obj, scopes: ["user", "workspace"] },
+            { entry: obj, scopes: ["allProjects", "project"] },
         ]);
     });
 });
@@ -325,15 +325,26 @@ describe("VsCodeSettings.removeMarketplaces", () => {
     });
 });
 
+describe("VsCodeSettings.canWriteWorkspaceSettings", () => {
+    it.each([
+        { behaviour: "while a workspace is open", open: true },
+        { behaviour: "not without a workspace", open: false },
+    ])("writes Workspace settings $behaviour", ({ open }) => {
+        setWorkspaceOpen(open);
+
+        expect(new VsCodeSettings().canWriteWorkspaceSettings()).toBe(open);
+    });
+});
+
 describe("VsCodeSettings.addMarketplace", () => {
-    it("appends to the Workspace scope's own list when scoped to the workspace", async () => {
+    it("appends to the Workspace scope's own list for this project", async () => {
         setWorkspaceOpen(true);
         stubInspect({
             globalValue: ["https://github.com/acme/user"],
             workspaceValue: ["https://github.com/acme/ws"],
         });
 
-        await new VsCodeSettings().addMarketplace("https://github.com/acme/new", "workspace");
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/new", "project");
 
         // Only the workspace list is extended — the User entry must not be copied
         // into the repo's settings.
@@ -344,11 +355,11 @@ describe("VsCodeSettings.addMarketplace", () => {
         );
     });
 
-    it("falls back to Global scope for a workspace add when no workspace is open", async () => {
+    it("falls back to Global scope for a project add when no workspace is open", async () => {
         setWorkspaceOpen(false);
         stubInspect({ globalValue: ["https://github.com/acme/user"] });
 
-        await new VsCodeSettings().addMarketplace("https://github.com/acme/new", "workspace");
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/new", "project");
 
         expect(updateMock).toHaveBeenCalledWith(
             "marketplaces",
@@ -357,28 +368,28 @@ describe("VsCodeSettings.addMarketplace", () => {
         );
     });
 
-    it("is a no-op for a workspace add when the URL already exists in the other scope", async () => {
+    it("is a no-op for a project add when the URL already exists in the other scope", async () => {
         setWorkspaceOpen(true);
         stubInspect({
             globalValue: ["https://github.com/acme/shared"],
             workspaceValue: [],
         });
 
-        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "workspace");
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "project");
 
         expect(updateMock).not.toHaveBeenCalled();
     });
 
-    it("appends to Global and targets Global for a user add even with a workspace open", async () => {
+    it("appends to Global and targets Global for an all-projects add even with a workspace open", async () => {
         setWorkspaceOpen(true);
         stubInspect({
             globalValue: ["https://github.com/acme/user"],
             workspaceValue: ["https://github.com/acme/ws"],
         });
 
-        await new VsCodeSettings().addMarketplace("https://github.com/acme/new", "user");
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/new", "allProjects");
 
-        // A user add writes only the User list — the workspace entry must not leak
+        // An all-projects add writes only the User list — the workspace entry must not leak
         // into user settings.
         expect(updateMock).toHaveBeenCalledWith(
             "marketplaces",
@@ -387,14 +398,14 @@ describe("VsCodeSettings.addMarketplace", () => {
         );
     });
 
-    it("promotes a workspace-only entry to Global for a user add", async () => {
+    it("promotes a workspace-only entry to Global for an all-projects add", async () => {
         setWorkspaceOpen(true);
         stubInspect({
             globalValue: [],
             workspaceValue: ["https://github.com/acme/shared"],
         });
 
-        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "user");
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "allProjects");
 
         // Present workspace-level, absent user-level → still written to the User
         // list (promotion is allowed).
@@ -407,12 +418,12 @@ describe("VsCodeSettings.addMarketplace", () => {
 
     it.each([
         {
-            scope: "user" as const,
+            scope: "allProjects" as const,
             target: ConfigurationTarget.Global,
             value: { globalValue: "https://github.com/acme" },
         },
         {
-            scope: "workspace" as const,
+            scope: "project" as const,
             target: ConfigurationTarget.Workspace,
             value: { workspaceValue: "https://github.com/acme" },
         },
@@ -432,14 +443,14 @@ describe("VsCodeSettings.addMarketplace", () => {
         },
     );
 
-    it("is a no-op for a user add when the URL already exists in the User list", async () => {
+    it("is a no-op for an all-projects add when the URL already exists in the User list", async () => {
         setWorkspaceOpen(true);
         stubInspect({
             globalValue: ["https://github.com/acme/shared"],
             workspaceValue: [],
         });
 
-        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "user");
+        await new VsCodeSettings().addMarketplace("https://github.com/acme/shared", "allProjects");
 
         expect(updateMock).not.toHaveBeenCalled();
     });

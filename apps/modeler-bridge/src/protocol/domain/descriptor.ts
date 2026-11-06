@@ -41,10 +41,12 @@ import {
     EditorPostMessageParams,
     EditorRefParams,
     EmptyParams,
-    MarketplaceAddParams,
-    MarketplaceRemoveParams,
+    MarketplaceCommandParams,
+    MarketplacePromptShowParams,
+    MarketplacePromptShowResult,
+    MarketplaceStateReadResult,
+    MarketplaceStateRemoveParams,
     MarketplaceStateSaveParams,
-    MarketplaceUpdateParams,
     MigrateAllParams,
     NotifierLogParams,
     NotifierMessageParams,
@@ -164,7 +166,10 @@ export const METHODS = {
     secretStoreSaveApprovedDestinations: "secretStore/saveApprovedDestinations",
     secretStoreDelete: "secretStore/delete",
     deploymentStateSave: "deploymentState/save",
+    marketplaceStateRead: "marketplaceState/read",
     marketplaceStateSave: "marketplaceState/save",
+    marketplaceStateRemove: "marketplaceState/remove",
+    marketplacePromptShow: "marketplacePrompt/show",
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
@@ -335,23 +340,19 @@ export const PROTOCOL = [
         method: METHODS.marketplaceAdd,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: {
-            location: "https://github.com/owner/repo",
-            settings: {},
-            scope: "project",
-        } satisfies MarketplaceAddParams,
+        paramsFixture: { settings: {} } satisfies MarketplaceCommandParams,
     },
     {
         method: METHODS.marketplaceUpdate,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { settings: {} } satisfies MarketplaceUpdateParams,
+        paramsFixture: { settings: {} } satisfies MarketplaceCommandParams,
     },
     {
         method: METHODS.marketplaceRemove,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { settings: {}, removedCount: 1 } satisfies MarketplaceRemoveParams,
+        paramsFixture: { settings: {} } satisfies MarketplaceCommandParams,
     },
     {
         method: METHODS.modelerChangeEngineVersion,
@@ -576,8 +577,27 @@ export const PROTOCOL = [
             },
         } satisfies DeploymentSaveParams,
     },
-    // Acknowledged persist: the host adds the entry, fans the snapshot to all
-    // bridges, then acks an empty reply — the core awaits only the round-trip.
+    {
+        method: METHODS.marketplaceStateRead,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: {
+            registered: [{ entry: "https://github.com/owner/repo", scopes: ["allProjects"] }],
+            writable: [
+                { scope: "project", savedIn: { kind: "file", path: [".idea", "workspace.xml"] } },
+                {
+                    scope: "allProjects",
+                    savedIn: { kind: "settingsPage", path: ["Settings", "Tools"] },
+                },
+            ],
+            selfHostedIn: { kind: "file", path: ["settings.json"] },
+        } satisfies MarketplaceStateReadResult,
+    },
+    // Acknowledged writes: the host writes its store, pushes the fresh snapshot
+    // to every affected bridge, then acks an empty reply, so the prune that
+    // follows reads the list as the host now holds it.
     {
         method: METHODS.marketplaceStateSave,
         direction: "coreToHost",
@@ -587,6 +607,45 @@ export const PROTOCOL = [
             location: "https://github.com/owner/repo",
             scope: "project",
         } satisfies MarketplaceStateSaveParams,
+    },
+    {
+        method: METHODS.marketplaceStateRemove,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "syncedWrite",
+        paramsFixture: {
+            entries: ["https://github.com/owner/repo"],
+        } satisfies MarketplaceStateRemoveParams,
+    },
+    {
+        method: METHODS.marketplacePromptShow,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "prompt",
+        paramsFixture: {
+            title: "Add Template Marketplace",
+            prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
+            placeholder: "https://github.com/owner/repo  or  ~/path/to/folder",
+            location: "acme",
+            invalidLocation: "Enter a GitHub or GitLab repository URL.",
+            scopes: [
+                {
+                    scope: "project",
+                    label: "Register for this project",
+                    description: "Saved in .idea/workspace.xml",
+                },
+                {
+                    scope: "allProjects",
+                    label: "Register for all my projects",
+                    description: "Saved in Settings ▸ Tools",
+                },
+            ],
+            scope: "project",
+        } satisfies MarketplacePromptShowParams,
+        resultFixture: {
+            location: "https://github.com/owner/repo",
+            scope: "allProjects",
+        } satisfies MarketplacePromptShowResult,
     },
     {
         method: METHODS.tokenStoreGet,

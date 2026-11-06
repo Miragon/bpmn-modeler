@@ -49,6 +49,21 @@ class ProjectMarketplacesStore(private val project: Project) {
         }
     }
 
+    /** Every registration with the scopes whose lists hold it, in the order of [merged]. */
+    internal fun registered(): List<MarketplaceRegistration> {
+        val app = ModelerSettingsStore.getInstance().current().marketplaces.toSet()
+        val project = list().toSet()
+        return merged().map { location ->
+            MarketplaceRegistration(
+                location,
+                listOfNotNull(
+                    MarketplaceScope.ALL_PROJECTS.takeIf { location in app },
+                    MarketplaceScope.PROJECT.takeIf { location in project },
+                ),
+            )
+        }
+    }
+
     /**
      * The union the core fetches: the app-level list first (shared across
      * projects), then this project's own entries. Deduped so an entry present in
