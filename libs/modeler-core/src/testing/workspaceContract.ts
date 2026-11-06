@@ -57,6 +57,11 @@ const WATCHER_SCENARIO_TIMEOUT_MS = 15000;
  * - A drive letter's case and a UNC share, which a directory on the test
  *   machine cannot hold. The VS Code adapter's spec pins how it spells them;
  *   the bridge spells them through `toWorkspacePath`, whose spec pins a UNC path.
+ * - `findFiles` through a symbolic link, which both hosts follow as ripgrep
+ *   does: no core call site relies on it, the VS Code adapter only forwards to
+ *   VS Code's search, and the in-memory workspace has no link targets.
+ *   `nodeAdapters.spec.ts` pins the bridge and `vscodeWorkspaceFake.spec.ts`
+ *   the fake the VS Code adapter runs on.
  */
 export function describeWorkspaceContract(
     adapter: string,
