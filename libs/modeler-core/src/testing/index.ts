@@ -1,5 +1,6 @@
 export * from "./createTestHost";
 export * from "./diffPaneContract";
+export * from "./editorHandleContract";
 export * from "./FakeDiffPaneHandle";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
@@ -12,6 +13,8 @@ export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
 export * from "./ScriptedPicker";
+export * from "./secretStoreContract";
 export * from "./settingsNormalization";
+export * from "./tokenStoreContract";
 export * from "./workspaceContract";
 export * from "./surfaceCoverage";

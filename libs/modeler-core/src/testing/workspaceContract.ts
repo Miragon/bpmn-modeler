@@ -6,6 +6,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
 import { WorkspacePort } from "../kernel/port/hostPorts";
+import { isWithinRoot } from "../kernel/domain/rootContainment";
 import { WatcherEventKind } from "../kernel/domain/watcherEvents";
 
 /** One {@link WorkspacePort} adapter under the {@link describeWorkspaceContract} scenarios. */
@@ -20,6 +21,8 @@ export interface WorkspaceContractFixture {
     moveDirectoryIn(path: string, files: Readonly<Record<string, string>>): Promise<void>;
     /** Removes a file the way another program would; the port has no file delete. */
     removeFile(path: string): Promise<void>;
+    /** Links `path` to `target`, which need not exist, as another program would. */
+    createSymbolicLink(path: string, target: string): Promise<void>;
     /** Resolves once the watchers created before the call report changes. */
     watchersReady(): Promise<void>;
     /** Resolves once the events of earlier changes have been delivered. */
@@ -37,11 +40,28 @@ const WATCHER_SCENARIO_TIMEOUT_MS = 15000;
 
 /**
  * The rules of {@link WorkspacePort} the core relies on, run against one
- * adapter. The in-memory fake and the bridge's `NodeWorkspace` both run them,
- * so within these scenarios a spec that passes on the fake cannot rely on a
- * rule the bridge breaks. Where the hosts differ, VS Code is the reference.
- * A directory created or deleted as a whole may arrive as one event for it or
- * as one for each of its files; the fake reports the directory, as VS Code does.
+ * adapter. The in-memory fake, the bridge's `NodeWorkspace` and
+ * `VsCodeWorkspace` (over a fake of VS Code's API) run them, so within these
+ * scenarios a spec that passes on the fake cannot rely on a rule a host
+ * breaks. Where the hosts differ, VS Code is the reference, and where the core
+ * handles either answer a scenario accepts both: a folder's spelling, and a
+ * directory created or deleted as a whole arriving as one event for it or one
+ * for each of its files (the fake reports the directory, as VS Code does).
+ *
+ * Left out:
+ * - The order of `findFiles` and `readDirectory` results: neither host sorts
+ *   them, and the core sorts the file lists it offers from `findFiles`
+ *   (`fileChoicesInWorkspaceOrder`).
+ * - A file created and removed within one burst: VS Code drops it, the bridge
+ *   reports the delete, and the core handles both.
+ * - A drive letter's case and a UNC share, which a directory on the test
+ *   machine cannot hold. The VS Code adapter's spec pins how it spells them;
+ *   the bridge spells them through `toWorkspacePath`, whose spec pins a UNC path.
+ * - `findFiles` through a symbolic link, which both hosts follow as ripgrep
+ *   does: no core call site relies on it, the VS Code adapter only forwards to
+ *   VS Code's search, and the in-memory workspace has no link targets.
+ *   `nodeAdapters.spec.ts` pins the bridge and `vscodeWorkspaceFake.spec.ts`
+ *   the fake the VS Code adapter runs on.
  */
 export function describeWorkspaceContract(
     adapter: string,
@@ -103,37 +123,58 @@ export function describeWorkspaceContract(
                 expect(workspace.getWorkspaceFolderForDocument(root)).toBe(root);
             });
 
+            // The core treats the first folder as the workspace's primary one.
+            it("lists the folders in the order they were opened, not sorted", () => {
+                const { workspace, root } = fixture;
+                fixture.openFolder(`${root}/shipping`);
+                fixture.openFolder(`${root}/billing`);
+
+                expect(workspace.getWorkspaceFolderPaths()).toEqual([
+                    `${root}/shipping`,
+                    `${root}/billing`,
+                ]);
+            });
+
+            // The core walks up from a document's directory to the folder found for
+            // it, so the two must be spelled alike.
             it.each([
                 {
                     behaviour:
                         "encloses every document of a workspace opened at the filesystem root",
                     folder: "/",
                     document: "/work/order.bpmn",
-                    enclosing: "/",
+                    spellings: ["/"],
                 },
                 {
+                    // VS Code answers in its URI path of the drive, the bridge as the folder was opened.
                     behaviour: "encloses the documents of a workspace opened at a drive root",
                     folder: "C:/",
                     document: "C:/work/order.bpmn",
-                    enclosing: "C:/",
+                    spellings: ["C:/", "/c:/"],
                 },
                 {
                     behaviour: "encloses the documents of a drive root spelled as a URI path",
                     folder: "/c:/",
                     document: "/c:/work/order.bpmn",
-                    enclosing: "/c:/",
+                    spellings: ["/c:/"],
                 },
-                {
-                    behaviour:
-                        "does not count a sibling that shares the folder's name prefix as inside",
-                    folder: "/work",
-                    document: "/work2/order.bpmn",
-                    enclosing: undefined,
-                },
-            ])("$behaviour", ({ folder, document, enclosing }) => {
+            ])("$behaviour", ({ folder, document, spellings }) => {
+                const { workspace } = fixture;
                 fixture.openFolder(folder);
+                const directory = workspace.getDocumentDirectory(document);
 
-                expect(fixture.workspace.findWorkspaceFolderForDocument(document)).toBe(enclosing);
+                expect(spellings).toContain(workspace.findWorkspaceFolderForDocument(document));
+                expect(
+                    isWithinRoot(directory, workspace.getWorkspaceFolderForDocument(directory)),
+                ).toBe(true);
+            });
+
+            it("does not count a sibling that shares the folder's name prefix as inside", () => {
+                fixture.openFolder("/work");
+
+                expect(
+                    fixture.workspace.findWorkspaceFolderForDocument("/work2/order.bpmn"),
+                ).toBeUndefined();
             });
 
             it("throws NoWorkspaceFolderFoundError for a document outside every folder", () => {
@@ -145,10 +186,11 @@ export function describeWorkspaceContract(
             });
 
             // VS Code answers in the folder's spelling, the bridge in the document's.
-            it("resolves a file:// document in either spelling", () => {
+            it("resolves a file:// document in either spelling, its directory spelled like its folder", () => {
                 const { workspace, root } = fixture;
                 fixture.openFolder(root);
                 const document = `file://${root}/a/order.bpmn`;
+                const directory = workspace.getDocumentDirectory(document);
 
                 expect([root, `file://${root}`]).toContain(
                     workspace.findWorkspaceFolderForDocument(document),
@@ -156,9 +198,10 @@ export function describeWorkspaceContract(
                 expect([root, `file://${root}`]).toContain(
                     workspace.getWorkspaceFolderForDocument(document),
                 );
-                expect([`${root}/a`, `file://${root}/a`]).toContain(
-                    workspace.getDocumentDirectory(document),
-                );
+                expect([`${root}/a`, `file://${root}/a`]).toContain(directory);
+                expect(
+                    isWithinRoot(directory, workspace.getWorkspaceFolderForDocument(directory)),
+                ).toBe(true);
             });
         });
 
@@ -208,6 +251,55 @@ export function describeWorkspaceContract(
                     FileNotFound,
                 );
                 await expect(workspace.isSymbolicLink(`${root}/missing`)).resolves.toBe(false);
+            });
+
+            // The core's walks catch only DirectoryNotFound to skip a path that holds
+            // no directory, so a config folder or a typo'd source path that names a
+            // file must not fail the walk.
+            it("rejects listing a file, or a path through one, with DirectoryNotFound", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/sources/order.json`, "{}");
+
+                await expect(workspace.readDirectory(`${root}/sources/order.json`)).rejects.toThrow(
+                    DirectoryNotFound,
+                );
+                await expect(
+                    workspace.readDirectory(`${root}/sources/order.json/sub`),
+                ).rejects.toThrow(DirectoryNotFound);
+            });
+
+            // FileNotFound reads as "absent, use the defaults"; a `.env` that is a
+            // Python virtualenv directory must be reported instead (EnvValueResolver).
+            it("rejects reading a directory with an error other than FileNotFound", async () => {
+                const { workspace, root } = fixture;
+                await fixture.createDirectory(`${root}/.env`);
+
+                await expect(workspace.readFile(`${root}/.env`)).rejects.not.toBeInstanceOf(
+                    FileNotFound,
+                );
+            });
+
+            // The core reads no `.env` through a link, and its walks have no cycle guard.
+            it("tells a symbolic link, also a dangling one, from a file, and lists no link", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/env/values.env`, "A=1");
+                await fixture.createSymbolicLink(`${root}/env/.env`, `${root}/env/values.env`);
+                await fixture.createSymbolicLink(
+                    `${root}/env/dangling.env`,
+                    `${root}/env/gone.env`,
+                );
+                await fixture.createSymbolicLink(`${root}/env/up`, root);
+
+                await expect(workspace.isSymbolicLink(`${root}/env/.env`)).resolves.toBe(true);
+                await expect(workspace.isSymbolicLink(`${root}/env/dangling.env`)).resolves.toBe(
+                    true,
+                );
+                await expect(workspace.isSymbolicLink(`${root}/env/values.env`)).resolves.toBe(
+                    false,
+                );
+                await expect(workspace.readDirectory(`${root}/env`)).resolves.toEqual([
+                    ["values.env", "file"],
+                ]);
             });
 
             it("reads, writes and lists through file:// paths", async () => {
@@ -288,6 +380,23 @@ export function describeWorkspaceContract(
                 expect(found.sort()).toEqual([
                     `${root}/proj/build/gen/generated.bpmn`,
                     `${root}/proj/order.bpmn`,
+                ]);
+            });
+
+            // VS Code leaves a folder open inside another to its own search. The core
+            // does not dedupe, so a file found twice is offered as two candidates.
+            it("finds a file inside a folder open within another folder once", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/proj/order.bpmn`, "");
+                await workspace.writeFile(`${root}/proj/sub/ship.bpmn`, "");
+                fixture.openFolder(`${root}/proj`);
+                fixture.openFolder(`${root}/proj/sub`);
+
+                const found = await workspace.findFiles("**/*.bpmn", "**/node_modules/**");
+
+                expect(found.sort()).toEqual([
+                    `${root}/proj/order.bpmn`,
+                    `${root}/proj/sub/ship.bpmn`,
                 ]);
             });
         });
