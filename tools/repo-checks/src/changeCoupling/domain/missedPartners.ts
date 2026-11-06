@@ -20,11 +20,11 @@ export const MISSED_PARTNER_THRESHOLDS: MissedPartnerThresholds = {
     minSharedChanges: CODE_MAAT_THRESHOLDS.minSharedChanges,
     // The replay's widest margin over chance at lift 4; above 60 % warnings fall, the margin does not grow.
     minConfidencePercent: 60,
+    // Barely binds at 60 % in the replay; it keeps out a partner that changes in most commits.
     minLift: 4,
     maxChangesetSize: CODE_MAAT_THRESHOLDS.maxChangesetSize,
 };
 
-/** The association rule file → partner the change broke, with the counts behind it. */
 export interface MissedPartner {
     readonly file: string;
     readonly partner: string;

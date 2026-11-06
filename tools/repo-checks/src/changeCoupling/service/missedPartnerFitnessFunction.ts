@@ -65,7 +65,7 @@ export function createMissedPartnerFitnessFunction({
             {
                 kind: "trial",
                 commit: "f9560b0a",
-                outcome: `fitness missed-partner replay, 194 of ${REPLAYED_COMMITS} commits not mechanical, a hit when the partner changed within the next ${REPLAY_LOOK_AHEAD}: 60 % confidence and lift 4 give 155 warnings, precision 31.6 % against 19.8 % by chance (11.8 points); 30 % without a lift floor 814 warnings, 25.3 % against 25.6 %; 30 % with lift 4 631 warnings, 7.0 points; 70 % and 80 % with lift 4 keep the margin (11.5, 11.7) at 94 and 46 warnings; lift 8 at 60 % drops 24 warnings that hit as often (8 of 24) as the rest`,
+                outcome: `fitness missed-partner replay, 194 of ${REPLAYED_COMMITS} commits not mechanical, a hit when the partner changed within the next ${REPLAY_LOOK_AHEAD}: 60 % confidence and lift 4 give 155 warnings, precision 31.6 % against 19.8 % by chance (11.8 points); without a lift floor 60 % gives 157 warnings, 31.2 % against 20.2 % (11.0 points), the 2 the floor drops all misses; 30 % without a lift floor 814 warnings, 25.3 % against 25.6 %; 30 % with lift 4 631 warnings, 7.0 points; 70 % and 80 % with lift 4 keep the margin (11.5, 11.7) at 94 and 46 warnings; lift 8 at 60 % drops 24 warnings that hit as often (8 of 24) as the rest`,
             },
         ],
         findFindings: ({ repoRoot, changeBase }) => {

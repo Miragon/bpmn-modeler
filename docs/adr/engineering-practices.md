@@ -876,14 +876,21 @@ Replay at `f9560b0a`, 194 commits replayed:
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 30 % | 1 | 814 | 25.3 % | 25.6 % | −0.3 |
 | 30 % | 4 | 631 | 26.9 % | 19.9 % | 7.0 |
+| 40 % | 1 | 498 | 25.5 % | 23.9 % | 1.6 |
 | 40 % | 4 | 426 | 27.2 % | 19.7 % | 7.5 |
+| 50 % | 1 | 314 | 26.8 % | 22.2 % | 4.6 |
 | 50 % | 4 | 292 | 27.1 % | 19.9 % | 7.1 |
+| 60 % | 1 | 157 | 31.2 % | 20.2 % | 11.0 |
 | 60 % | 4 | 155 | 31.6 % | 19.8 % | 11.8 |
 | 60 % | 8 | 131 | 31.3 % | 15.6 % | 15.7 |
 
-Confidence alone carries no signal. The lift floor of 4 gives the margin; 60 %
-widens it to 11.8 points at 0.8 warnings per replayed commit. A probe at 70 %
-and 80 % kept the margin (11.5, 11.7) at 94 and 46 warnings, so 60 % is chosen.
+Up to 50 %, confidence alone stays near chance (−0.3 to 4.6 points) and the
+lift floor of 4 raises the margin to 7.0–7.5. At 60 %, confidence alone reaches
+11.0 points; the floor drops 2 of its 157 warnings, both misses, for 11.8
+points at 0.8 warnings per replayed commit. It stays as the guard against a
+partner that changes in most commits, which confidence does not see. A probe
+at 70 % and 80 % kept the margin (11.5, 11.7) at 94 and 46 warnings, so 60 % is
+chosen.
 Lift 8 at 60 % widens the margin only by lowering the chance rate: the 24
 warnings it drops hit as often (8 of 24) as the ones it keeps, so the floor
 stays at 4. The price is the known lint-config copy:
@@ -897,9 +904,11 @@ Alternatives considered:
 
 - **A failing gate.** #2049 blocks only static fitness functions; co-change
   is a habit, not a rule, so a gate would fail correct PRs.
-- **Confidence alone.** At or near chance in the replay above and in the
-  throwaway replay at `773f8014`, where frequently changed partners hit 35 %
-  against 34 %.
+- **Confidence alone.** Near chance up to 50 % in the replay above and at
+  30 % in the throwaway replay at `773f8014`, where frequently changed
+  partners hit 35 % against 34 %. At 60 % it nearly matches the floor (11.0
+  against 11.8 points), but nothing then keeps out a partner that changes in
+  most commits, as in the 2 warnings the floor drops.
 - **Added value** (confidence minus P's change rate, in Moonen et al.'s top
   group). In the throwaway replay it widened the margin to 8 points against 13
   for lift 4.

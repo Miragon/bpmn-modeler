@@ -105,7 +105,7 @@ export function replayMissedPartners(
             warnings.push({
                 pair,
                 hit: lookAhead.some(({ paths }) => paths.includes(pair.partner)),
-                chanceRate: shareOfWindowsWith(pair.partner, history),
+                chanceRate: shareOfLookAheadWindowsChanging(pair.partner, history),
             });
         }
     }
@@ -124,8 +124,10 @@ export function replayMissedPartners(
     };
 }
 
-/** The share of look-ahead-long runs of consecutive history commits in which `path` changed. */
-function shareOfWindowsWith(path: string, history: readonly ReplayChangeset[]): number {
+function shareOfLookAheadWindowsChanging(
+    path: string,
+    history: readonly ReplayChangeset[],
+): number {
     const windowCount = history.length - REPLAY_LOOK_AHEAD + 1;
     const coveredStarts = new Set<number>();
     history.forEach(({ paths }, position) => {
