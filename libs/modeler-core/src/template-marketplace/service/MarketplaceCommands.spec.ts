@@ -221,15 +221,26 @@ describe("MarketplaceCommands.add", () => {
         expect(notifier.infos).toEqual(["Marketplace added."]);
     });
 
-    it("registers nothing for this project when all my projects already hold the entry", async () => {
+    it("says where the entry is registered and registers nothing for this project when all my projects already hold it", async () => {
         const { commands, registrations, notifier } = marketplaceHost({
             answers: [{ location: "/work/a", scope: "project" }],
         });
 
         await commands.add();
 
+        expect(notifier.infos).toEqual(["Marketplace already registered for all my projects."]);
         expect(registrations.lists).toEqual({ project: [], allProjects: ["/work/a"] });
-        expect(notifier.infos).toEqual(["Marketplace added."]);
+    });
+
+    it("still fetches an entry already registered, as only an add or update fills this workspace's cache", async () => {
+        const { commands, cachedTemplateNames, templates } = marketplaceHost({
+            answers: [{ location: "/work/a", scope: "allProjects" }],
+        });
+
+        await commands.add();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(templates.reloads).toBe(1);
     });
 
     it("shares an entry of this project with all my projects", async () => {

@@ -241,7 +241,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         expect((await fs.readdir(cacheRoot)).length).toBe(1);
     });
 
-    it("registers nothing for this project when all my projects already hold the fetched entry", async () => {
+    it("says where the entry is registered and saves nothing for this project when all my projects already hold the fetched entry", async () => {
         const { rpc, frames, tmp } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
@@ -253,7 +253,10 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             intellijRegistrations({ allProjects: [folder] }),
         );
 
-        await waitForFrame(frames, isShowInfo("Marketplace added."));
+        const toast = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+        expect(toast.params).toEqual({
+            message: "Marketplace already registered for all my projects.",
+        });
         expect(frames.find(isSaveRequest)).toBeUndefined();
     });
 
