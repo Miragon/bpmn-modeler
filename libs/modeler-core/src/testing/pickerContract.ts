@@ -45,6 +45,12 @@ interface ConfirmAnswer {
     readonly confirmed: boolean;
 }
 
+interface SearchPick {
+    readonly behaviour: string;
+    readonly row: number;
+    readonly chosen: string;
+}
+
 interface LocateOutcome {
     readonly paths: readonly string[];
 }
@@ -172,6 +178,20 @@ const CONFIRM_ANSWERS: readonly ConfirmAnswer[] = [
     },
 ];
 
+/** Row 0 is where a reversed or path-sorted choice shows another file; row 1 shares its label with row 0. */
+const SEARCH_PICKS: readonly SearchPick[] = [
+    {
+        behaviour: "the first row, so the choice keeps the prompt's order",
+        row: 0,
+        chosen: "/work/b/order.bpmn",
+    },
+    {
+        behaviour: "a row whose label another row shares",
+        row: 1,
+        chosen: "/work/a/order.bpmn",
+    },
+];
+
 function locate(
     search: () => Promise<LocateOutcome>,
 ): SearchPrompt<LocateOutcome> & { readonly searches: number } {
@@ -212,8 +232,9 @@ function expectOfferedValues(chosen: readonly unknown[], offered: readonly unkno
  *   paths relative to the workspace, and filters on descriptions; the bridge
  *   sends absolute paths and no icon. Each adapter's own spec pins its layout.
  * - The labels a search's choice lists: the kit's fake shows none, so only the
- *   rows of `choose` and `chooseMany` are read back, and a search's choice is
- *   held to its order through the row the user picks.
+ *   rows of `choose` and `chooseMany` are read back. A search's choice is held
+ *   to the prompt's order through its first row, which a reversed or re-sorted
+ *   list fills with another file.
  * - That a confirmation is modal, and what shows while a search runs: VS Code
  *   reveals a busy list after 150 ms, the bridge brackets the search with
  *   status-bar progress. Neither reaches the core.
@@ -299,16 +320,19 @@ export function describePickerContract(
                 paths: LOCATED_FILES.items.map((item) => item.value),
             };
 
-            it("searches once and returns the untouched outcome with the value picked from the choice it leaves", async () => {
-                const search = locate(async () => ambiguous);
-                fixture.userPicks(LOCATED_FILES, 1);
+            it.each(SEARCH_PICKS)(
+                "searches once and returns the untouched outcome with the value of $behaviour",
+                async ({ row, chosen: picked }) => {
+                    const search = locate(async () => ambiguous);
+                    fixture.userPicks(LOCATED_FILES, row);
 
-                const { outcome, chosen } = await fixture.picker.searchAndChoose(search);
+                    const { outcome, chosen } = await fixture.picker.searchAndChoose(search);
 
-                expect(outcome).toBe(ambiguous);
-                expect(chosen).toBe("/work/a/order.bpmn");
-                expect(search.searches).toBe(1);
-            });
+                    expect(outcome).toBe(ambiguous);
+                    expect(chosen).toBe(picked);
+                    expect(search.searches).toBe(1);
+                },
+            );
 
             it("returns the untouched outcome and no choice when the user dismisses the list", async () => {
                 fixture.userDismisses(LOCATED_FILES);
