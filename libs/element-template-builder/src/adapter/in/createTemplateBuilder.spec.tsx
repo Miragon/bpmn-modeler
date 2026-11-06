@@ -7,7 +7,7 @@ import {
     C8_SCHEMA,
     mountBuilder,
     type BuilderHarness,
-} from "./__fixtures__/builderHarness";
+} from "../../__fixtures__/builderHarness";
 
 type Json = Record<string, unknown>;
 

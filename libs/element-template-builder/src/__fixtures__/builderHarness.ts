@@ -1,14 +1,14 @@
 import { act } from "@bpmn-io/properties-panel/preact/test-utils";
 import { vi } from "vitest";
 
-import { ruleDiagnostics, type Diagnostic } from "../../../domain/diagnostics";
-import { catalogFor } from "../../../domain/catalog";
-import { applyTemplateEdits, type TemplateEdit } from "../../../domain/templateText";
+import { ruleDiagnostics, type Diagnostic } from "../domain/diagnostics";
+import { catalogFor } from "../domain/catalog";
+import { applyTemplateEdits, type TemplateEdit } from "../domain/templateText";
 import {
     createTemplateBuilder,
     type TemplateBuilderHandle,
     type TemplateBuilderOptions,
-} from "../createTemplateBuilder";
+} from "../adapter/in/createTemplateBuilder";
 
 type Json = Record<string, unknown>;
 
