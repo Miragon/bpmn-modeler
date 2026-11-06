@@ -54,13 +54,11 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         if (this.openFailure) throw this.openFailure;
         const uri = await this.scriptUriOf(editorId, script);
         if (uri === undefined) return;
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, uri);
+        if (this.openTabs.has(filePath)) return;
+        await this.scriptFiles.writeFile(filePath, script.content);
         const { elementId, kind, listenerIndex } = script;
-        this.openTabs.set(await this.scriptFiles.prepareScriptFile(editorId, uri), {
-            editorId,
-            elementId,
-            kind,
-            listenerIndex,
-        });
+        this.openTabs.set(filePath, { editorId, elementId, kind, listenerIndex });
     }
 
     async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
