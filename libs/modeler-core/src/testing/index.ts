@@ -10,6 +10,7 @@ export * from "./InMemoryWorkspace";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
+export * from "./scriptEditorContract";
 export * from "./ScriptedPicker";
 export * from "./secretStoreContract";
 export * from "./settingsNormalization";
