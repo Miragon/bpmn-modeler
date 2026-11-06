@@ -4,6 +4,7 @@ import {
     EXCLUDED_DIRS,
     excludedDirsGlob,
     isExcludedDirBelow,
+    isIgnoredWatchDirName,
     isInsideExcludedDirBelow,
 } from "./excludedDirs";
 import { globToRegExp } from "./globToRegExp";
@@ -119,6 +120,29 @@ describe("isExcludedDirBelow", () => {
         { folder: "/home/.work/repo", root: "/home/.work/repo", excluded: false },
     ])("judges $folder excluded: $excluded", ({ folder, root = "/repo", excluded }) => {
         expect(isExcludedDirBelow(folder, root)).toBe(excluded);
+    });
+});
+
+describe("isIgnoredWatchDirName", () => {
+    it.each([...EXCLUDED_DIRS])("leaves the excluded folder %s out of the watch", (directory) => {
+        expect(isIgnoredWatchDirName(directory)).toBe(true);
+    });
+
+    it.each([
+        { directory: ".git", ignored: true },
+        { directory: ".svn", ignored: true },
+        { directory: ".hg", ignored: true },
+        { directory: ".gradle", ignored: true },
+        { directory: ".idea", ignored: true },
+        { directory: ".angular", ignored: true },
+        { directory: ".camunda", ignored: false },
+        { directory: ".history", ignored: false },
+        { directory: ".vscode", ignored: false },
+        { directory: "models", ignored: false },
+        { directory: "builds", ignored: false },
+        { directory: ".github", ignored: false },
+    ])("judges $directory ignored by the watch: $ignored", ({ directory, ignored }) => {
+        expect(isIgnoredWatchDirName(directory)).toBe(ignored);
     });
 });
 

@@ -14,6 +14,7 @@ export * from "./kernel/domain/engineVersions";
 export * from "./kernel/domain/errorLogText";
 export * from "./kernel/domain/errors";
 export * from "./kernel/domain/escapeRegExpLiteral";
+export { isIgnoredWatchDirName } from "./kernel/domain/excludedDirs";
 export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/port/hostPorts";
 export * from "./kernel/domain/http";
