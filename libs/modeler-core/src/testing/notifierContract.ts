@@ -109,9 +109,9 @@ function pendingTask<T>(): PendingTask<T> {
  * against one adapter. `withProgress` runs the task once, resolves with its
  * value and rejects with its error, the very instance, so a caller can still
  * tell an error by its class and fields. The progress shows from the task's
- * start until it settles, and ends either way, also while another run is still
- * going. Runs of one title may overlap, so a title shows while any run of it
- * is going.
+ * start until it settles, and ends either way, also while a run of another
+ * title is still going. Runs of one title may overlap, so a title shows while
+ * any run of it is going.
  *
  * Left out:
  * - The notifier's other members: they only render (toasts, log lines, the
