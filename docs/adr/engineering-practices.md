@@ -80,6 +80,10 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
   does.
+- `describeScriptEditorContract`: `RecordingScriptEditor`, VS Code's
+  `ScriptTaskService` over a fake of the editor tabs
+  (`vscodeEditorTabsFake.ts`) and the bridge's `BridgeScriptEditor` over a
+  loopback that answers as `ScriptRouter` and `ScriptEditorManager` do.
 - `describeSecretStoreContract`: `InMemorySecretStore`, `VsCodeSecretStore`
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
