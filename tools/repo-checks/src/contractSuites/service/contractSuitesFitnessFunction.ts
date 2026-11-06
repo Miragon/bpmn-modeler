@@ -42,7 +42,6 @@ export function createContractSuitesFitnessFunction({
         reportsWrongly: [
             "Strategies the core chooses between rather than host adapters: CamundaEnginePort's C7 client, C8 client and router, and RepositorySource's GitHub, GitLab and local sources.",
             "A pair whose spec runs shared scenarios through a helper the type derivation does not recognise: VsCodeSettings and BridgeSettings run the shared settings normalization cases through readSettingsSnapshot(settings: SettingsPort), which takes the port instead of producing it.",
-            "NotifierPort, which is not render-only by type only because withProgress<T> hands back the task's own Promise<T>.",
         ],
         evidence: [
             {

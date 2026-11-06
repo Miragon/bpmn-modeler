@@ -1050,8 +1050,11 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   `Promise<T>` are reads. A port that has a suite lists every adapter that
   skips it, render-only or not. On the ports the issue names, `StatusBarPort`
   (`show`, `hide`) and `DiagnosticsPort` (`publish`, `clear`) are render-only.
-  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, so
-  its three adapters are listed, while its base `LoggerPort` is render-only.
+  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, and
+  its three adapters hand that result back in three ways (VS Code's progress
+  API, `try`/`finally` around the bridge's progress notifications, a direct
+  call in the fake), so they are listed as true findings, while its base
+  `LoggerPort` is render-only.
   `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`, so
   that port is marked render-only although the core reads the value back
   through `SettingsPort.getLintingEnabled`.
