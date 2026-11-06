@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { createModeler } from "./createModeler";
 import { DmnModeler } from "./modeler";
@@ -7,6 +7,7 @@ import type {
     DmnModelerHandle,
     DmnModelerOptions,
     DmnOperationResult,
+    DmnThemeMode,
     DmnView,
     DmnViewChangedEvent,
 } from "./publicApi";
@@ -16,6 +17,9 @@ void _classConformance;
 
 const _factoryConformance: CreateDmnModeler = createModeler;
 void _factoryConformance;
+
+// DmnThemeMode aliases the private SurfaceThemeMode, so an edit there would change the published type.
+expectTypeOf<DmnThemeMode>().toEqualTypeOf<"light" | "dark" | "automatic">();
 
 async function _handleUsage(handle: DmnModelerHandle): Promise<void> {
     await handle.setLocale("de");
