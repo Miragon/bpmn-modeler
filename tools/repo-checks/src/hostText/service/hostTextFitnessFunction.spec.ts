@@ -84,11 +84,14 @@ describe("the host text fitness function on a hand-built Kotlin tree", () => {
         ]);
     });
 
-    it("does not read the same text logged through log.info", () => {
-        expect(findingsOf({ [ACTION]: action('log.info("Add Template Marketplace")') })).toEqual(
-            [],
-        );
-    });
+    it.each(["log.info", "thisLogger().warn"])(
+        "does not read the same text logged through %s",
+        (logCall) => {
+            expect(
+                findingsOf({ [ACTION]: action(`${logCall}("Add Template Marketplace")`) }),
+            ).toEqual([]);
+        },
+    );
 
     it("reports a template and a raw string around a placeholder, but not a format of placeholders", () => {
         expect(

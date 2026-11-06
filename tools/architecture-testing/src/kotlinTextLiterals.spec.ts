@@ -120,9 +120,24 @@ describe("readKotlinTextLiterals", () => {
             site: { construct: false, callee: "show" },
         },
         {
-            call: "a method on a call's result",
+            call: "a method on a call's result, named by that call's callee",
             source: 'thisLogger().warn("the text")',
-            site: { construct: false, callee: "warn" },
+            site: { construct: false, callee: "warn", receiver: "thisLogger" },
+        },
+        {
+            call: "a method on the result of a call with arguments and type arguments",
+            source: 'logger<A>(b(c)).warn("the text")',
+            site: { construct: false, callee: "warn", receiver: "logger" },
+        },
+        {
+            call: "a method on a parenthesized expression",
+            source: 'val a = (b + c).show("the text")',
+            site: { construct: false, callee: "show" },
+        },
+        {
+            call: "a method after an unmatched parenthesis",
+            source: ').show("the text")',
+            site: { construct: false, callee: "show" },
         },
         {
             call: "a callee without a name",

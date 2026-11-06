@@ -163,6 +163,10 @@ describe("hostTextFindings", () => {
         { call: "log.warn(…)", site: { construct: false, callee: "warn", receiver: "log" } },
         { call: "LOG.info(…)", site: { construct: false, callee: "info", receiver: "LOG" } },
         {
+            call: "thisLogger().warn(…), IntelliJ's logger",
+            site: { construct: false, callee: "warn", receiver: "thisLogger" },
+        },
+        {
             call: "throw IOException(…), a Kotlin constructor",
             site: { construct: false, callee: "IOException", thrown: true },
         },
