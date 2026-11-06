@@ -91,8 +91,9 @@ the registry grows, so never assume which functions exist.
   `base.ref` the `<rev>` given.
 - Limits: `misses` and `reportsWrongly` are what a review needs. `measures`
   says what a function reads; query it when a finding surprises you.
-  `categories`, `reliesOn` and `evidence` (the trials that calibrated the
-  function, on other trees) are long and say nothing about this one.
+  `categories` and `reliesOn` say nothing about this tree. `evidence` holds
+  the trials that calibrated the function, on commits of this repository; it
+  is long, so query it per row as step 6 says, never whole.
 - A function's own `base.source` is `snapshot` or `checkout`; with its
   `base.unmeasurable` every finding counts as new.
 - `outcome.kind` is `measured` (`findings`, `resolved`) or `unmeasurable`
@@ -105,8 +106,8 @@ the registry grows, so never assume which functions exist.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
-jq -r '.functions[] | [.id, .outcome.kind, ([.outcome.findings[]? | select(.status == "new")] | length), (.outcome.resolved // [] | length), (.outcome.reason // "")] | @tsv' "$R"
-jq '.functions[] | {id, misses, reportsWrongly}' "$R"
+jq -r '.functions[] | [.id, .version, .outcome.kind, ([.outcome.findings[]? | select(.status == "new")] | length), (.outcome.resolved // [] | length), (.outcome.reason // "")] | @tsv' "$R"
+jq '.functions[] | {id, version, misses, reportsWrongly}' "$R"
 jq -r --arg id '<id>' '.functions[] | select(.id == $id) | .measures' "$R"
 # new and resolved findings, and every finding whose key names a touched file
 jq -r --rawfile touched "$OUT/touched.txt" '
@@ -252,6 +253,16 @@ what it learns back.
   `reportsWrongly` and `misses`, then open the row's `path:line` and check
   that the code is what its `message` claims. Never drop a row unchecked: a
   true finding dismissed is as bad as a false one reported.
+- Before you mark a row false or propose a `reportsWrongly` entry, look up
+  the function's trials that name the row's files. A trial ran on a commit of
+  this repository, so it can name a row that is still in the tree. A trial
+  that counts the row as true settles it.
+
+    ```sh
+    OUT="${TMPDIR:-/tmp}/architecture-review"; R="$OUT/report.json"
+    jq -r --arg id '<id>' --arg file '<file name>' '.functions[] | select(.id == $id) | .evidence[]? | select(tostring | contains($file))' "$R"
+    ```
+
 - A row the code disproves is a false alarm. List it under Marked, no action
   with the evidence: the code that disproves it, and the `reportsWrongly`
   entry it matches, if any.
@@ -264,7 +275,9 @@ what it learns back.
   file or type name (#2049), so a proposal does not either.
 - Each proposal names the function's `id` and `version`, the row's `key` (for
   a miss, the `path:line` of the erosion), the case, and whether it is a fix
-  in this PR (one that adds or changes that function) or an issue to file.
+  in this PR (one that adds or changes that function) or an issue for a
+  maintainer to check before it is filed. A proposal that changes a
+  function's rule bumps its `version` and needs a measured trial (#2049).
 
 These proposals go under Fitness function feedback, never among the findings.
 
@@ -316,7 +329,7 @@ Measured: <ids>. Not measured: `<id>` (<reason>).
 ### Fitness function feedback
 
 - `<id>` v<version>, `<key>` or the missed `<path:line>`: <false alarm | missed erosion>, <the case and its evidence>.
-  Proposal: <narrower rule | exclusion derived from types, folders, imports or configuration | `reportsWrongly` or `misses` entry>; <fix in this PR | issue to file>.
+  Proposal: <narrower rule | exclusion derived from types, folders, imports or configuration | `reportsWrongly` or `misses` entry>; <fix in this PR | issue for a maintainer>.
 
 Comments only; this review does not block.
 ```

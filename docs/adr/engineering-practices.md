@@ -1386,12 +1386,15 @@ or an issue names `path:line` of each copy.
 
 A fitness function can report wrongly or miss erosion beyond its declared
 limits, so the review checks each row in the code before it reports or drops
-it, and marks a row the code disproves as a false alarm, with the evidence.
-For each false alarm no `reportsWrongly` entry declares, and each erosion a
-function's `measures` covers but it missed, it proposes, apart from its
-findings, a narrower rule, an exclusion derived from types, folders, imports
-or configuration, or at least a `reportsWrongly` or `misses` entry, and says
-whether that is a fix in the PR or an issue.
+it, looks up the function's trials that name the row's files before it calls
+the row false, and marks a row the code disproves as a false alarm, with the
+evidence. For each false alarm no `reportsWrongly` entry declares, and each
+erosion a function's `measures` covers but it missed, it proposes, apart from
+its findings, a narrower rule, an exclusion derived from types, folders,
+imports or configuration, or at least a `reportsWrongly` or `misses` entry,
+and says whether that is a fix in the PR or an issue for a maintainer to check
+before it is filed. A proposal that changes a function's rule bumps its
+version and needs a measured trial.
 
 It is not a fitness function: a model's judgement is not deterministic, and
 two runs on one tree differ. It comments and never blocks.
@@ -1415,11 +1418,11 @@ reference, and one judge per run scored each reference item exact, partial or
 missed and each further finding true, plausible or false. Round 1 ran the
 skill as first written, three times per case. Round 2 ran it twice per case
 after the 15 changes round 1 proposed (two of them in part). Round 3 ran it
-once per case as this section describes it, with the row check and the
-proposals for the fitness functions, and a second judge per run checked in
-the code each row the run set aside, each proposal and each row it cited as
-erosion. One run per case shows that the step runs and what its feedback is
-worth, not a trend.
+once per case with the row check and the proposals for the fitness functions
+(the trial lookup came from its results and is unmeasured), and a second
+judge per run checked in the code each row the run set aside, each proposal
+and each row it cited as erosion. One run per case shows that the step runs
+and what its feedback is worth, not a trend.
 
 | Case (items) | Round | Matched per run (exact) | Added: true / plausible / false | Mean run time |
 | --- | --- | --- | --- | --- |
@@ -1476,15 +1479,21 @@ round-3 judge scored three findings as support for S1 and S2, not as added.
   dismissed, at least one per run. The worst: the #1799 run called the
   lint-config copy, which `change-coupling`'s evidence names, two halves of
   one protocol and proposed a `reportsWrongly` entry that declares it false.
-  Of 17 proposals, 6 are correct and actionable, 3 right but vague, 7 wrong
-  (an entry that would mark correct rows false or restates an existing one,
-  or a rule on a false premise) and 1 would read a type name, which no
-  fitness function may. Two rows the runs cited as applying to a finding are
-  declared false alarms. The step finds real gaps in the functions, but each
-  proposal needs a maintainer's check before it becomes an issue, the row
-  check does not stop true findings from being dismissed, and a whole tree
-  has more rows than one run checks (331 for `repeated-value-sets` and
-  `host-text` at #1799).
+  Two of the six, that copy and a `host-text` row of #2047, are rows the
+  function's own trials count as true, so the review now looks those trials
+  up before it calls a row false. Of 17 proposals, 6 are correct and
+  actionable, 3 right but vague, 7 wrong (an entry that would mark correct
+  rows false or restates an existing one, or a rule on a false premise) and 1
+  would read a type name, which no fitness function may. One row a run cited
+  as applying to a finding is a declared false alarm (the hotspots rank of
+  `TemplateBuilder.tsx`, which comes from branch commits). #1799's judge
+  also called its marketplace dialog titles host chrome, but `host-text`
+  declares IntelliJ's action names, not dialog titles, and #2172 has since
+  moved those titles into the core. The step finds real gaps in the
+  functions, but each proposal needs a maintainer's check before it becomes
+  an issue, the row check does not stop true findings from being dismissed,
+  and a whole tree has more rows than one run checks (331 for
+  `repeated-value-sets` and `host-text` at #1799).
 - **Cost:** 10.1 to 16.9 min per round-3 run (mean 13.9 min; round 2 11.6,
   round 1 9.3), plus 5 to 13 s for the report; tokens were not recorded. One
   run per case cannot say how much of the rise step 6 causes. The PR's author
@@ -1529,9 +1538,8 @@ bash and name the hazards (in 5 of 6 round-2 runs and in the round-3 run on
 #1799 on macOS the reviewer's own commands hit zsh or BSD regex hazards; no
 block of the skill failed), take a stacked PR's own change from the last
 merge of its base, shard a whole tree by port family or give it a port and
-row budget, find second copies by their values, print each function's
-version in step 2 for step 6's proposals, and check that a row is not one
-rule in two places before proposing to declare it a false report; then
+row budget, find second copies by their values, and check that a row is not
+one rule in two places before proposing to declare it a false report; then
 measure on 3 to 5 held-out merged PRs whose erosion a later issue
 documented, with one judge per case and architecture items scored apart from
 correctness bugs. If that run matches most architectural items at a false
