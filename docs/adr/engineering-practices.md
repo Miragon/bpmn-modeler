@@ -409,8 +409,11 @@ home:
   (`libs/model-navigation/src/extractReference.ts`), and which file declares
   each kind, its extension and what in its content declares it (the core's
   `navigation/domain/modelDeclaration.ts`: `declaringFileExtension`,
-  `declaresReferencedModel`). Only the capabilities live in `modeler-types`,
-  because only they are read by browser code.
+  `declaresReferencedModel`). Only the capabilities live in `modeler-types`:
+  two packages read them, the webview's navigation port (`apps/bpmn-webview`)
+  and the context pad (`libs/model-navigation`), and `modeler-types`, which
+  holds the type, is their common dependency. The source table is read only in
+  `model-navigation`, the declarations only in the core.
 
 A lookup keyed by the union makes the compiler report a missing member, so a
 new engine or reference kind is decided in every table before it builds.
