@@ -138,7 +138,7 @@ switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
 handler table finds no entry for them. Code that owns a closed set makes a
 missing type a compile error: a handler table has a mapped type that needs an
 entry for every type (the BPMN webview's session messages in
-`apps/bpmn-webview/src/session/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
+`apps/bpmn-webview/src/adapter/in/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
 the keys a table gets through spreads, so a spec checks that no two spread
 handler groups name the same type. The classes remain the constructors and the
 wire format is unchanged: the same `type` strings and fields, which the

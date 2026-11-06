@@ -37,7 +37,7 @@ which takes over another process's route. If portless needs setup, inspect
 missing prerequisite.
 
 The BPMN preview opens at `/`. Its development host in
-`apps/bpmn-webview/src/host.ts` serves a C7 fixture with the C7 and C8 sample
+`apps/bpmn-webview/src/adapter/out/host.ts` serves a C7 fixture with the C7 and C8 sample
 element templates. `?mode=neutral` opens an untagged model in Design with
 Implement greyed out; `?mode=diff-before` and `?mode=diff-after` each show one
 read-only diff pane with real `bpmn-js-differ` highlights. These panes have no

@@ -23,6 +23,27 @@ the viewer and designer surfaces; only the modeler surface consumes them. The
 active mode is persisted in the webview state so a hidden/reopened editor
 restores its surface.
 
+## Source layout
+
+Each file sits in a role folder under `src/`:
+
+- `main.ts` and `templateEditorMain.ts` are the entries of the two bundles
+  (`index.js`, `templateEditor.js`); `index.ts` is the barrel.
+- `composition/bootstrap.ts` wires the editor page and runs its boot phases.
+- `adapter/in/` turns the host's queries and the page's input into calls: the
+  message router, the host's requests on the live surface, the mode strip, the
+  editor chrome, the surface binding and the diff pane.
+- `adapter/out/` wraps the modeler library (surface factories and modules, the
+  document I/O of the live surface) and implements its ports over the host
+  channel (capabilities, clipboard, linting, the form preview); `host.ts`
+  selects the host channel.
+- `service/` keeps the document and the view state in sync with the host and
+  publishes the process variables.
+- `port/` types the host channel and the state it persists; `domain/` holds
+  the pure rules.
+- `templateEditor/` is the element template editor's page, in the same role
+  folders.
+
 ## Why this lives in its own workspace
 
 Webview frontends are browser code with their own bundler, dependency tree,
