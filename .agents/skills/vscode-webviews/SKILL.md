@@ -24,8 +24,8 @@ Webview HTML is generated at runtime by functions in the host adapters, not serv
 ### Deployment Webview (`DeploymentWebviewHtml.ts`)
 
 The deployment sidebar's form markup lives in **one** place:
-`apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which the
-bundle injects into `#app` at runtime. Every host shell (Vite `index.html`, the
+`apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`), which
+the bundle injects into `#app` at runtime. Every host shell (Vite `index.html`, the
 VS Code `DeploymentWebviewHtml.ts`, the IntelliJ tool-window `WebviewServer.kt`)
 ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 `DeploymentWebviewHtml.ts` keeps only the CSP nonce + asset-URI injection.
@@ -131,8 +131,8 @@ webviewPanel.webview.postMessage(query);
 const host = getHostApi();
 host.postMessage(command);
 ```
-The BPMN webview's bootstrap and session modules post through `HostChannel`
-(`apps/bpmn-webview/src/session/hostChannel.ts`), which takes only the commands
+The BPMN webview's bootstrap, adapters and services post through `HostChannel`
+(`apps/bpmn-webview/src/port/hostChannel.ts`), which takes only the commands
 in `BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`).
 `bootstrap` narrows its host to it once. `DiffMode` posts through
 `DiffPaneChannel` (same file), which takes only `DIFF_PANE_COMMAND_TYPES`
@@ -169,7 +169,7 @@ The BPMN editor's router comes from a table instead: the core `BpmnEditorFeature
 
 Diff panes are not editor sessions. Both hosts route their commands through the core `createDiffPaneRouter` (`libs/modeler-core/src/diff/service/`), a `CommandTable` over `DiffPaneCommandType` and `DiffPaneHandshakeCommandType` (the editor requests the page posts before it knows it is a diff pane) whose handlers get the pane instead of an editor id; an entry missing from `DiffPaneHostExtensions` (swap, pane log) turns its command into an ignored entry. Each host pins those routes in the same surface coverage spec.
 
-**Webview receives Queries** (a switch, as in `apps/dmn-webview/src/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/session/messageRouter.ts`):
+**Webview receives Queries** (a switch, as in `apps/dmn-webview/src/adapter/in/hostMessageRouter.ts`; the BPMN webview looks the handler up in a type-keyed table instead, `apps/bpmn-webview/src/adapter/in/messageRouter.ts`):
 ```typescript
 const inbound = asProtocolMessage(message);
 switch (inbound.type) {
@@ -188,7 +188,7 @@ switch (inbound.type) {
 Some operations need a response (e.g., clipboard read). The webview sends a Command and waits for a Query response using the `createResolver` utility from `@miragon/bpmn-modeler-shared`:
 
 ```typescript
-// Webview side (simplified from apps/bpmn-webview/src/session/protocolClipboard.ts)
+// Webview side (simplified from apps/bpmn-webview/src/adapter/out/protocolClipboard.ts)
 let clipboardResolver = createResolver<ClipboardQuery>();
 
 const requestClipboard = async (): Promise<string> => {
@@ -204,7 +204,7 @@ const requestClipboard = async (): Promise<string> => {
 
 The extension host handles `GetClipboardCommand` by reading the system clipboard via `vscode.env.clipboard.readText()`, then posts a `ClipboardQuery` back to the webview with the text, or with empty text when the read fails, so every request is answered.
 
-Bound every awaited host reply, because a reply can still be lost (e.g. IntelliJ drops best-effort frames while the bridge respawns): `wait(HOST_REPLY_TIMEOUT_MS)` for a single-slot reply, or `createReplyRegistry` (both in `libs/shared/src/lib/utils.ts`) when several requests are in flight and each reply carries a `requestId` (workspace definition search). An unanswered request then settles as `undefined`. The initial file requests (`BpmnDocumentSession.waitForInitialHostFile` in `apps/bpmn-webview/src/session/documentSession.ts`, `DmnDocumentSession.openInitialDocument`) deliberately wait indefinitely, since a cold first open can take longer than any backstop.
+Bound every awaited host reply, because a reply can still be lost (e.g. IntelliJ drops best-effort frames while the bridge respawns): `wait(HOST_REPLY_TIMEOUT_MS)` for a single-slot reply, or `createReplyRegistry` (both in `libs/shared/src/lib/utils.ts`) when several requests are in flight and each reply carries a `requestId` (workspace definition search). An unanswered request then settles as `undefined`. The initial file requests (`BpmnDocumentSession.waitForInitialHostFile` in `apps/bpmn-webview/src/service/documentSession.ts`, `DmnDocumentSession.openInitialDocument`) deliberately wait indefinitely, since a cold first open can take longer than any backstop.
 
 ## State Persistence
 
@@ -244,12 +244,12 @@ IntelliJ, or a plain browser. Two implementations back it:
 - **`HostApiImpl`**: wraps the real `acquireVsCodeApi()` singleton for
   production use. VS Code, IntelliJ and the desktop app inject the same shim.
 - **`MockHostApi`**: abstract base for development mocks. The bpmn-webview
-  defines `MockHost` (in `apps/bpmn-webview/src/host.ts`) which extends
+  defines `MockHost` (in `apps/bpmn-webview/src/adapter/out/host.ts`) which extends
   `MockHostApi` and dispatches synthetic responses so the webview can run
   standalone in a browser via `vite serve`.
 
 ```typescript
-// apps/bpmn-webview/src/host.ts
+// apps/bpmn-webview/src/adapter/out/host.ts
 export function getHostApi(): HostApi<StateType, MessageType> {
   if (process.env.NODE_ENV === "development") {
     return new MockHost();               // standalone browser
@@ -291,7 +291,7 @@ folded into the main `index.css` bundle, so there is no `#theme-link`. The share
 classes (`vscode-dark` / `vscode-high-contrast`, watched by a `MutationObserver`)
 and drives two sinks: the page-level scope on `<html>` (host chrome + surfaces
 with no live instance) and the modeler instance's `setTheme` (BPMN: through
-`apps/bpmn-webview/src/session/modeController.ts`, so a mode switch builds the
+`apps/bpmn-webview/src/adapter/in/modeController.ts`, so a mode switch builds the
 next surface in the current theme). The scope attribute
 name is passed in per package (`applyPageThemeScope("data-dmn-theme", kind)`), so
 each package's CSS stays self-contained. The package still mirrors the resolved
@@ -321,10 +321,10 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
-- **Deployment form markup (single source)**: `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`)
+- **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`
 - **Host API interface + implementations** (`HostApi`/`HostApiImpl`/`MockHostApi`): `libs/shared/src/lib/host.ts`
-- **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/host.ts`
+- **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/adapter/out/host.ts`
 - **Resolver utilities**: `libs/shared/src/lib/utils.ts` (`createResolver`, `createReplyRegistry`, `HOST_REPLY_TIMEOUT_MS`)

@@ -3,7 +3,7 @@ import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
-const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/lazySvgToImage.ts");
+const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/adapter/out/lazySvgToImage.ts");
 
 // The package exposes no deep path to the real module, so the shim's own import
 // must bypass the redirect by importer rather than through an alias.
@@ -82,7 +82,7 @@ export default defineConfig({
             // import — the host shells no longer link a `#theme-link`.
             input: {
                 index: resolve(__dirname, "src/main.ts"),
-                templateEditor: resolve(__dirname, "src/templateEditor/main.ts"),
+                templateEditor: resolve(__dirname, "src/templateEditorMain.ts"),
             },
             output: {
                 entryFileNames: `[name].js`,

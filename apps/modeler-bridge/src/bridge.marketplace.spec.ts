@@ -8,12 +8,14 @@
  * source needing no network, so the happy path is fully deterministic here; the
  * token round-trip stays covered by the core's `TemplateMarketplaceService.spec.ts`.
  *
- * Covered: `marketplace/add` requesting `marketplaceState/save`, then (once acked)
- * refreshing the open editor with the freshly cached template and toasting
- * success, or warning when no source could be fetched; the missing-manifest
- * failure path toasting an error and NOT persisting;
- * a rejected persist failing the add and pruning the fetched cache; and
- * `marketplace/update` folding a piggybacked marketplace list into a summary.
+ * Covered: `marketplace/add` reading the host's scopes (`marketplaceState/read`),
+ * asking the core's add question (`marketplacePrompt/show`), asking again when
+ * the core refuses the location, reading the registrations again once the
+ * marketplace is fetched, and registering through the acknowledged
+ * `marketplaceState/save` unless a list the scope reaches holds it already; `marketplace/remove` offering the registered entries
+ * through `picker/show` and unregistering them through the acknowledged
+ * `marketplaceState/remove`; and `marketplace/update` folding a piggybacked
+ * marketplace list into a summary.
  */
 
 import { promises as fs } from "node:fs";
@@ -46,7 +48,36 @@ const TEMPLATE_JSON = JSON.stringify({
     properties: [],
 });
 
-const isSaveRequest = (f: any) => f.method === "marketplaceState/save" && f.id != null;
+/** The scopes IntelliJ reports: it keeps no place for a self-hosted marketplace. */
+function intellijRegistrations({
+    project = [],
+    allProjects = [],
+}: { project?: string[]; allProjects?: string[] } = {}) {
+    return {
+        registered: { project, allProjects },
+        writable: [
+            { scope: "project", savedIn: { kind: "file", path: [".idea", "workspace.xml"] } },
+            {
+                scope: "allProjects",
+                savedIn: {
+                    kind: "settingsPage",
+                    path: ["Settings", "Tools", "Miragon BPMN Modeler", "Template Marketplaces"],
+                },
+            },
+        ],
+    };
+}
+
+/** A core→host request as the harness records it. */
+interface RequestFrame {
+    readonly id: number;
+    readonly method: string;
+    readonly params: Record<string, unknown>;
+}
+
+const isRequest = (method: string) => (f: { method?: string; id?: number }) =>
+    f.method === method && f.id != null;
+const isSaveRequest = isRequest("marketplaceState/save");
 const isShowInfo = (message: string) => (f: any) =>
     f.method === "notifier/showInfo" && f.params.message === message;
 
@@ -133,32 +164,120 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         return folder;
     }
 
-    it("adds a local marketplace: persists, then refreshes the editor with the cached template", async () => {
+    /** Answers the core's request for `method` the next time it is sent, from `fromIndex` on. */
+    async function answer(
+        rpc: Rpc,
+        frames: unknown[],
+        method: string,
+        result: unknown,
+        fromIndex = 0,
+    ): Promise<RequestFrame> {
+        const request: RequestFrame = await waitForFrame(frames, isRequest(method), { fromIndex });
+        await rpc.handleLine(hostReply(request.id, result));
+        return request;
+    }
+
+    /** Starts an add and answers the host's scopes and the add question with `location` and `scope`. */
+    async function addMarketplace(
+        rpc: Rpc,
+        frames: unknown[],
+        location: string,
+        scope = "project",
+    ): Promise<RequestFrame> {
+        await rpc.handleLine(hostNotification("marketplace/add", { settings: {} }));
+        await answer(rpc, frames, "marketplaceState/read", intellijRegistrations());
+        return answer(rpc, frames, "marketplacePrompt/show", { location, scope });
+    }
+
+    /** Answers the registrations read the add makes once it fetched the marketplace. */
+    function answerReadAfterFetch(
+        rpc: Rpc,
+        frames: unknown[],
+        question: RequestFrame,
+        registrations = intellijRegistrations(),
+    ): Promise<RequestFrame> {
+        return answer(
+            rpc,
+            frames,
+            "marketplaceState/read",
+            registrations,
+            frames.indexOf(question) + 1,
+        );
+    }
+
+    it("adds a local marketplace: asks the core's question, registers the answer's scope, then refreshes the editor", async () => {
         const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        await rpc.handleLine(
-            hostNotification("marketplace/add", { location: folder, settings: {} }),
-        );
+        const question = await addMarketplace(rpc, frames, folder, "allProjects");
 
-        // The persist is an acknowledged request: it must surface as a frame with
-        // both a method and an id, carrying the added location.
-        const save = await waitForFrame(frames, isSaveRequest);
-        expect(save.params.location).toBe(folder);
-        // An add that carried no scope must not invent one — the host defaults it.
-        expect(save.params.scope).toBeUndefined();
+        expect(question.params).toEqual({
+            title: "Add Template Marketplace",
+            prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
+            placeholder: "https://github.com/owner/repo  or  ~/path/to/folder",
+            location: "",
+            scopes: [
+                {
+                    scope: "project",
+                    label: "Register for this project",
+                    description: "Saved in .idea/workspace.xml",
+                },
+                {
+                    scope: "allProjects",
+                    label: "Register for all my projects",
+                    description:
+                        "Saved in Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces",
+                },
+            ],
+            scope: "project",
+        });
+        await answerReadAfterFetch(rpc, frames, question);
+        // The registration is an acknowledged request carrying the answer's scope.
+        const save = await answer(rpc, frames, "marketplaceState/save", null);
+        expect(save.params).toEqual({ location: folder, scope: "allProjects" });
 
-        // Ack it so the flow proceeds to the refresh + success toast.
-        await rpc.handleLine(hostReply(save.id, null));
-
-        // The refresh re-pushes templates; the cached marketplace template must be
-        // present in the merged set the editor receives.
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
         await waitForFrame(frames, isShowInfo("Marketplace added."));
+        expect((await fs.readdir(cacheRoot)).length).toBe(1);
+    });
 
-        // The template actually landed on disk under the injected cache root.
-        const marketplaceDirs = await fs.readdir(cacheRoot);
-        expect(marketplaceDirs.length).toBe(1);
+    it("registers nothing for this project when all my projects already hold the fetched entry", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+
+        const question = await addMarketplace(rpc, frames, folder, "project");
+        await answerReadAfterFetch(
+            rpc,
+            frames,
+            question,
+            intellijRegistrations({ allProjects: [folder] }),
+        );
+
+        await waitForFrame(frames, isShowInfo("Marketplace added."));
+        expect(frames.find(isSaveRequest)).toBeUndefined();
+    });
+
+    it("asks again with the refused entry and why, without naming a place IntelliJ lacks", async () => {
+        const { rpc, frames } = await setup();
+
+        const first = await addMarketplace(rpc, frames, "https://git.acme.com/group/project");
+        const again = await answer(
+            rpc,
+            frames,
+            "marketplacePrompt/show",
+            null,
+            frames.indexOf(first) + 1,
+        );
+
+        expect(again.params).toMatchObject({
+            location: "https://git.acme.com/group/project",
+            invalidLocation:
+                "Enter a GitHub or GitLab repository URL, or a local folder path, holding a marketplace.json.",
+            scope: "project",
+        });
+        await settle();
+        expect(frames.find(isSaveRequest)).toBeUndefined();
+        expect(frames.find((f) => f.method?.startsWith("notifier/show"))).toBeUndefined();
     });
 
     it("persists an added marketplace whose sources serve nothing, and warns why", async () => {
@@ -171,11 +290,9 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             "utf8",
         );
 
-        await rpc.handleLine(
-            hostNotification("marketplace/add", { location: folder, settings: {} }),
-        );
-        const save = await waitForFrame(frames, isSaveRequest);
-        await rpc.handleLine(hostReply(save.id, null));
+        const question = await addMarketplace(rpc, frames, folder);
+        await answerReadAfterFetch(rpc, frames, question);
+        await answer(rpc, frames, "marketplaceState/save", null);
 
         const toast = await waitForFrame(
             frames,
@@ -191,33 +308,13 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         });
     });
 
-    it("echoes the add's scope back on the persist request", async () => {
-        const { rpc, frames, tmp } = await setup();
-        const folder = await writeLocalMarketplace(tmp);
-
-        await rpc.handleLine(
-            hostNotification("marketplace/add", {
-                location: folder,
-                settings: {},
-                scope: "application",
-            }),
-        );
-
-        // The bridge treats scope as opaque: whatever the add carried must ride the
-        // round trip back to the host, which alone knows what it means.
-        const save = await waitForFrame(frames, isSaveRequest);
-        expect(save.params.scope).toBe("application");
-    });
-
     it("does not persist when the marketplace.json is missing", async () => {
         const { rpc, frames, tmp } = await setup();
         // A folder with no marketplace.json — the fetch throws before any persist.
         const folder = join(tmp, "empty");
         await fs.mkdir(folder, { recursive: true });
 
-        await rpc.handleLine(
-            hostNotification("marketplace/add", { location: folder, settings: {} }),
-        );
+        await addMarketplace(rpc, frames, folder);
 
         await waitForFrame(frames, (f) => f.method === "notifier/showError");
         await settle();
@@ -240,40 +337,59 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
     });
 
-    it("removes a marketplace: prunes its cache slot without re-fetching and reports the selection count", async () => {
+    it("removes a marketplace: offers the host's entries, unregisters the chosen one and prunes its cache slot", async () => {
         const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
-
-        // Cache the marketplace first, then confirm its slot is on disk.
         await rpc.handleLine(
             hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
         );
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
         expect((await fs.readdir(cacheRoot)).length).toBe(1);
 
-        // Remove it: the host already dropped it from settings, so the post-removal
-        // snapshot is empty and the prune sweeps the orphaned slot.
         await rpc.handleLine(
-            hostNotification("marketplace/remove", {
-                settings: { marketplaces: [] },
-                removedCount: 1,
-            }),
+            hostNotification("marketplace/remove", { settings: { marketplaces: [folder] } }),
         );
+        await answer(
+            rpc,
+            frames,
+            "marketplaceState/read",
+            intellijRegistrations({ project: [folder] }),
+        );
+        const choice = await answer(rpc, frames, "picker/show", { selected: [0] });
+        const removal = await waitForFrame(frames, isRequest("marketplaceState/remove"));
+        // IntelliJ pushes the post-removal snapshot before it acks.
+        await rpc.handleLine(
+            hostNotification("settings/didChange", { settings: { marketplaces: [] } }),
+        );
+        await rpc.handleLine(hostReply(removal.id, null));
 
         await waitForFrame(frames, isShowInfo("Removed 1 marketplace(s)."));
-        // Remove never persists — the host already unregistered the entries.
-        expect(frames.find((f) => f.method === "marketplaceState/save")).toBeUndefined();
-        // The orphaned cache slot is gone.
-        expect((await fs.readdir(cacheRoot)).length).toBe(0);
+        expect(choice.params).toEqual({
+            title: "Remove Template Marketplace",
+            placeholder: "Select marketplaces to remove",
+            canPickMany: true,
+            items: [{ label: folder, description: "This project" }],
+        });
+        expect(removal.params).toEqual({ entries: [folder] });
+        expect(await fs.readdir(cacheRoot)).toEqual([]);
+    });
+
+    it("says that nothing is registered and offers no choice", async () => {
+        const { rpc, frames } = await setup();
+
+        await rpc.handleLine(hostNotification("marketplace/remove", { settings: {} }));
+        await answer(rpc, frames, "marketplaceState/read", intellijRegistrations());
+
+        await waitForFrame(frames, isShowInfo("No marketplaces registered."));
+        expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
     });
 
     it("expands a leading ~ against the home dir before fetching and persisting", async () => {
         const { rpc, frames, tmp } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        await rpc.handleLine(
-            hostNotification("marketplace/add", { location: "  ~/marketplace  ", settings: {} }),
-        );
+        const question = await addMarketplace(rpc, frames, "  ~/marketplace  ");
+        await answerReadAfterFetch(rpc, frames, question);
 
         const save = await waitForFrame(frames, isSaveRequest);
         expect(save.params.location).toBe(folder);
@@ -283,9 +399,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        await rpc.handleLine(
-            hostNotification("marketplace/add", { location: folder, settings: {} }),
-        );
+        const question = await addMarketplace(rpc, frames, folder);
+        await answerReadAfterFetch(rpc, frames, question);
         const save = await waitForFrame(frames, isSaveRequest);
         await rpc.handleLine(hostErrorReply(save.id, "disk full"));
 

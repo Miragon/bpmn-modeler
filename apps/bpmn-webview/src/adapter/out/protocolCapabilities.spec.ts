@@ -1,0 +1,270 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+    type Command,
+    FormReferenceStatusQuery,
+    type Query,
+    WorkspaceDefinitionsQuery,
+} from "@miragon/bpmn-modeler-shared";
+import type { WorkspaceDefinition } from "@miragon/bpmn-modeler";
+
+import type { SurfaceHandle } from "../../domain/surface";
+import { createProtocolCapabilities, DEFINITION_SEARCH_TIMEOUT_MS } from "./protocolCapabilities";
+
+const orderDefinition: WorkspaceDefinition = {
+    kind: "message",
+    name: "OrderPlaced",
+    source: { path: "order.bpmn", label: "order.bpmn" },
+    usages: [],
+};
+
+function createHost() {
+    const sent: (Command | Query)[] = [];
+    return {
+        sent,
+        postMessage: vi.fn((message: Command | Query) => {
+            sent.push(message);
+        }),
+        sentOfType: (type: string) =>
+            sent.filter((message) => message.type === type) as (Command &
+                Record<string, unknown>)[],
+    };
+}
+
+function modelerSurface(definitions: unknown): SurfaceHandle {
+    return {
+        setMode: vi.fn(),
+        getDefinitions: vi.fn(() => definitions),
+    } as unknown as SurfaceHandle;
+}
+
+const scriptTaskDefinitions = {
+    rootElements: [
+        {
+            $type: "bpmn:Process",
+            flowElements: [{ $type: "bpmn:ScriptTask", id: "Task_1", resultVariable: "total" }],
+        },
+    ],
+};
+
+const scriptOpenEvent = {
+    elementId: "Task_1",
+    kind: "script-task" as const,
+    listenerIndex: undefined,
+    eventName: undefined,
+    scriptFormat: "javascript",
+    content: "total = 1",
+};
+
+describe("createProtocolCapabilities", () => {
+    it("retains the latest preview preference across surfaces and notifies only changes", () => {
+        const host = createHost();
+        const adapter = createProtocolCapabilities(host, () => {
+            throw new Error("surface not constructed yet");
+        });
+        const port = adapter.capabilities.modelNavigation.formPreview!;
+        expect(port.isAutomaticEnabled!()).toBe(true);
+        const changed = vi.fn();
+        const unsubscribe = port.onAutomaticChanged!(changed);
+        adapter.setFormPreviewAutomatic(false);
+        adapter.setFormPreviewAutomatic(false);
+        expect(port.isAutomaticEnabled!()).toBe(false);
+        expect(changed).toHaveBeenCalledOnce();
+        unsubscribe();
+        adapter.setFormPreviewAutomatic(true);
+        expect(changed).toHaveBeenCalledOnce();
+        port.onAutomaticChanged!(changed);
+        adapter.dispose();
+        adapter.setFormPreviewAutomatic(false);
+        expect(changed).toHaveBeenCalledOnce();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("posts the namespace a QName reference is bound to", () => {
+        const host = createHost();
+        const { capabilities } = createProtocolCapabilities(host, () => modelerSurface({}));
+
+        capabilities.modelNavigation.openReference({
+            id: "Process_Target",
+            kind: "process",
+            namespace: "urn:example:child",
+        });
+
+        expect(host.sentOfType("NavigateToReferencedModelCommand")).toEqual([
+            expect.objectContaining({
+                referenceId: "Process_Target",
+                referenceKind: "process",
+                referenceNamespace: "urn:example:child",
+            }),
+        ]);
+    });
+
+    it("posts a host command for every navigation, code-link and script-source call", () => {
+        const host = createHost();
+        const { capabilities } = createProtocolCapabilities(host, () => modelerSurface({}));
+
+        capabilities.modelNavigation.openReference({ id: "Form_1", kind: "form" });
+        capabilities.codeLink.navigateToImplementation("com.example.Delegate", "javaClass");
+        capabilities.codeLink.syncActivities([]);
+        capabilities.scripting.scriptSourceChanged({
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            content: "total = 2",
+        });
+
+        expect(host.sent.map((message) => message.type)).toEqual([
+            "NavigateToReferencedModelCommand",
+            "NavigateToImplementationCommand",
+            "SyncActivitiesCommand",
+            "UpdateScriptSourceCommand",
+        ]);
+        expect(host.sentOfType("UpdateScriptSourceCommand")).toEqual([
+            expect.objectContaining({ elementId: "Task_1", content: "total = 2" }),
+        ]);
+    });
+
+    it("opens a script editor with the process variables of the live modeler", () => {
+        const host = createHost();
+        let surface = modelerSurface({ rootElements: [] });
+        const { capabilities } = createProtocolCapabilities(host, () => surface);
+        surface = modelerSurface(scriptTaskDefinitions);
+
+        capabilities.scripting.openScriptEditor(scriptOpenEvent);
+
+        const [command] = host.sentOfType("OpenScriptEditorCommand");
+        expect(command).toMatchObject({ elementId: "Task_1", content: "total = 1" });
+        expect(command.variables).toEqual([expect.objectContaining({ name: "total" })]);
+    });
+
+    it("opens a script editor without variables from a surface other than the modeler", () => {
+        const host = createHost();
+        const designer = { newDiagram: vi.fn() } as unknown as SurfaceHandle;
+        const { capabilities } = createProtocolCapabilities(host, () => designer);
+
+        capabilities.scripting.openScriptEditor(scriptOpenEvent);
+
+        expect(host.sentOfType("OpenScriptEditorCommand")).toEqual([
+            expect.objectContaining({ variables: [] }),
+        ]);
+    });
+
+    it("offers a form reference only once the host reports the form", () => {
+        const host = createHost();
+        const { capabilities, handlers } = createProtocolCapabilities(host, () =>
+            modelerSurface({}),
+        );
+        const { modelNavigation } = capabilities;
+        const availabilityChanged = vi.fn();
+        modelNavigation.onReferenceAvailabilityChanged!(availabilityChanged);
+
+        expect(modelNavigation.isReferenceAvailable!({ id: "Process_1", kind: "process" })).toBe(
+            true,
+        );
+        expect(modelNavigation.isReferenceAvailable!({ id: "Form_1", kind: "form" })).toBe(false);
+
+        handlers.FormReferenceStatusQuery(new FormReferenceStatusQuery(["Form_1"]));
+
+        expect(modelNavigation.isReferenceAvailable!({ id: "Form_1", kind: "form" })).toBe(true);
+        expect(availabilityChanged).toHaveBeenCalledOnce();
+    });
+
+    it("distinguishes a pending index from an initially empty index and notifies only once", () => {
+        const protocol = createProtocolCapabilities(createHost(), () => modelerSurface({}));
+        const navigation = protocol.capabilities.modelNavigation;
+        const changed = vi.fn();
+        navigation.onReferenceAvailabilityChanged!(changed);
+        expect(navigation.isReferenceAvailabilityKnown!()).toBe(false);
+        protocol.handlers.FormReferenceStatusQuery(new FormReferenceStatusQuery([]));
+        expect(navigation.isReferenceAvailabilityKnown!()).toBe(true);
+        expect(changed).toHaveBeenCalledOnce();
+        protocol.handlers.FormReferenceStatusQuery(new FormReferenceStatusQuery([]));
+        expect(changed).toHaveBeenCalledOnce();
+        protocol.dispose();
+    });
+
+    it("asks the host for form reference status only for Camunda 8", () => {
+        const host = createHost();
+        const protocol = createProtocolCapabilities(host, () => modelerSurface({}));
+
+        protocol.requestFormReferenceStatus("c7");
+        protocol.requestFormReferenceStatus(undefined);
+        expect(host.sentOfType("GetFormReferenceStatusCommand")).toHaveLength(0);
+
+        protocol.requestFormReferenceStatus("c8");
+        expect(host.sentOfType("GetFormReferenceStatusCommand")).toHaveLength(1);
+    });
+
+    it("pairs each search reply with its request id and rejects a failed search", async () => {
+        const host = createHost();
+        const { capabilities, handlers } = createProtocolCapabilities(host, () =>
+            modelerSurface({}),
+        );
+
+        const first = capabilities.definitionSearch.search({ kind: "message", text: "pay" });
+        const second = capabilities.definitionSearch.search({ kind: "message", text: "order" });
+        const [firstRequest, secondRequest] = host.sentOfType("SearchWorkspaceDefinitionsCommand");
+        handlers.WorkspaceDefinitionsQuery(new WorkspaceDefinitionsQuery(99, []));
+        handlers.WorkspaceDefinitionsQuery(
+            new WorkspaceDefinitionsQuery(secondRequest.requestId as number, [orderDefinition]),
+        );
+        handlers.WorkspaceDefinitionsQuery(
+            new WorkspaceDefinitionsQuery(firstRequest.requestId as number, [], true),
+        );
+
+        expect(firstRequest).toMatchObject({ kind: "message", text: "pay" });
+        expect(secondRequest.requestId).not.toBe(firstRequest.requestId);
+        await expect(second).resolves.toEqual([orderDefinition]);
+        await expect(first).rejects.toThrow("The host could not search other models");
+    });
+
+    it("fails a search the host never answers with a warning and ignores its late reply", async () => {
+        vi.useFakeTimers();
+        const host = createHost();
+        const { capabilities, handlers } = createProtocolCapabilities(host, () =>
+            modelerSurface({}),
+        );
+        const settled = vi.fn();
+        void capabilities.definitionSearch.search({ kind: "message", text: "order" }).then(
+            (definitions) => settled({ definitions }),
+            (error: Error) => settled({ error: error.message }),
+        );
+        const [{ requestId }] = host.sentOfType("SearchWorkspaceDefinitionsCommand");
+
+        await vi.advanceTimersByTimeAsync(DEFINITION_SEARCH_TIMEOUT_MS - 1);
+        expect(settled).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(settled).toHaveBeenCalledExactlyOnceWith({
+            error: "The host did not answer the search",
+        });
+        expect(host.sentOfType("LogWarningCommand")).toEqual([
+            expect.objectContaining({ message: "No workspace search reply from the host" }),
+        ]);
+
+        handlers.WorkspaceDefinitionsQuery(
+            new WorkspaceDefinitionsQuery(requestId as number, [orderDefinition]),
+        );
+        await Promise.resolve();
+        expect(settled).toHaveBeenCalledOnce();
+    });
+
+    it("still resolves a search answered just before the deadline", async () => {
+        vi.useFakeTimers();
+        const host = createHost();
+        const { capabilities, handlers } = createProtocolCapabilities(host, () =>
+            modelerSurface({}),
+        );
+        const search = capabilities.definitionSearch.search({ kind: "message", text: "order" });
+        const [{ requestId }] = host.sentOfType("SearchWorkspaceDefinitionsCommand");
+
+        await vi.advanceTimersByTimeAsync(DEFINITION_SEARCH_TIMEOUT_MS - 1);
+        handlers.WorkspaceDefinitionsQuery(
+            new WorkspaceDefinitionsQuery(requestId as number, [orderDefinition]),
+        );
+
+        await expect(search).resolves.toEqual([orderDefinition]);
+    });
+});

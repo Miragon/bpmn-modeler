@@ -14,7 +14,7 @@
  *   /template-editor.html?file=unshaped   an edit the JSON cannot take
  *   /template-editor.html?file=process    a template the preview cannot show
  *
- * It relies on the dev-only recorder in apps/bpmn-webview/src/templateEditor/main.ts,
+ * It relies on the dev-only recorder in apps/bpmn-webview/src/templateEditorMain.ts,
  * which adds every text the page translates to `window.__harvested`. The page
  * applies its own edits without a host, so the driver can switch a property
  * through every binding and type the builder offers, which renders their
