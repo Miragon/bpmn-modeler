@@ -13,6 +13,7 @@ export * from "./inMemoryHostSurfaces";
 export * from "./InMemorySettings";
 export * from "./InMemoryWorkspace";
 export * from "./lintingPreferenceContract";
+export * from "./marketplacePromptContract";
 export * from "./marketplaceRegistrationsContract";
 export * from "./notifierContract";
 export * from "./pickerContract";
