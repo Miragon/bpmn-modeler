@@ -1379,10 +1379,10 @@ that already disagree, adapters of one port that disagree, two derivations of
 one state, logic in the wrong layer, wiring per host, a workspace without its
 siblings' guards, catch-all modules and silently ignored commands. On a whole
 tree it names what it did not cover. It proposes measures from trends. Each
-finding names `path:line`, its evidence and the fitness function or limit
-that applies; a report row it drops goes under "Marked, no action". "Already
-duplicated before this PR" is never a reason to keep a copy: the PR fixes it,
-or an issue names `path:line` of each copy.
+finding names `path:line`, its evidence and the fitness function, limit or
+trial that applies; a report row it drops goes under "Marked, no action".
+"Already duplicated before this PR" is never a reason to keep a copy: the PR
+fixes it, or an issue names `path:line` of each copy.
 
 A fitness function can report wrongly or miss erosion beyond its declared
 limits, so the review checks each row in the code before it reports or drops
@@ -1478,19 +1478,22 @@ round-3 judge scored three findings as support for S1 and S2, not as added.
   findings are worth acting on.
 - **Fitness function feedback** (round 3). Each run kept its proposals apart
   from its findings and named the function's `id` and version in each. Of
-  the 40 report rows the runs set aside, 25 are false alarms an entry already
-  declares, 4 undeclared ones (the runs proposed a fix for 2, and claimed 2
-  declared ones as undeclared), 5 unclear and 6 true findings wrongly
-  dismissed, at least one per run. The worst: the #1799 run called the
-  lint-config copy, which `change-coupling`'s evidence names, two halves of
-  one protocol and proposed a `reportsWrongly` entry that declares it false.
-  Two of the six, that copy and a `host-text` row of #2047, are rows the
-  function's own trials count as true, so the review now looks those trials
-  up before it calls a row false. The trials ran on other commits, and the
-  #1799 run dismissed the copy although a `missed-partner` limit it read
-  names it, so a trial decides only where it names the row and the row's
-  code is unchanged. Of 17 proposals, 6 are correct and actionable, 3 right
-  but vague, 7 wrong (an entry that would mark correct rows false or
+  the 40 items the runs set aside (one item can hold several report rows),
+  25 are false alarms an entry already declares, 4 undeclared ones (the runs
+  proposed a fix for 2, and claimed 2 declared ones as undeclared), 5
+  unclear and 6 true findings wrongly dismissed, at least one per run. The
+  worst: the #1799 run called the lint-config copy, which `change-coupling`'s
+  evidence names, two halves of one protocol and proposed a `reportsWrongly`
+  entry that declares it false. Two of the six, that copy and a `host-text`
+  row of #2047, are rows the function's own trials count as true, so the
+  review now looks those trials up before it calls a row false. The
+  lint-config trial ran at `c53e97f0`, after #1799's tree. The `host-text`
+  trial ran at #2047's own commit but counts the file's 7 texts together,
+  and the judge rated one of them a declared false alarm and one unclear.
+  The #1799 run also dismissed the copy although a `missed-partner` limit it
+  read names it. So a trial decides only where it names the row and the
+  row's code is unchanged. Of 17 proposals, 6 are correct and actionable, 3
+  right but vague, 7 wrong (an entry that would mark correct rows false or
   restates an existing one, or a rule on a false premise) and 1 would read a
   type name, which no fitness function may. Two of the 6 correct ones narrow
   rows an entry already declares (log text that reaches a logger through a
@@ -1498,15 +1501,14 @@ round-3 judge scored three findings as support for S1 and S2, not as added.
   explained by their shared import). Round 3's step did not ask for that, so
   the review now asks for such a rule where the code can decide the case.
   One row a run cited as applying to a finding is a declared false alarm
-  (the hotspots rank of
-  `TemplateBuilder.tsx`, which comes from branch commits). #1799's judge
-  also called its marketplace dialog titles host chrome, but `host-text`
-  declares IntelliJ's action names, not dialog titles, and #2172 has since
-  moved those titles into the core. The step finds real gaps in the
-  functions, but each proposal needs a maintainer's check before it becomes
-  an issue, the row check does not stop true findings from being dismissed,
-  and a whole tree has more rows than one run checks (331 for
-  `repeated-value-sets` and `host-text` at #1799).
+  (the `hotspots` rank of `TemplateBuilder.tsx`, which comes from branch
+  commits). #1799's judge also called its marketplace dialog titles host
+  chrome, but `host-text` declares IntelliJ's action names, not dialog
+  titles, and #2172 has since moved those titles into the core. The step
+  finds real gaps in the functions, but each proposal needs a maintainer's
+  check before it becomes an issue, the row check does not stop true
+  findings from being dismissed, and a whole tree has more rows than one run
+  checks (331 for `repeated-value-sets` and `host-text` at #1799).
 - **Cost:** 10.1 to 16.9 min per round-3 run (mean 13.9 min; round 2 11.6,
   round 1 9.3), plus 5 to 13 s for the report; tokens were not recorded. One
   run per case cannot say how much of the rise step 6 causes. The PR's author
@@ -1555,10 +1557,10 @@ row budget, find second copies by their values, and check that a row is not
 one rule in two places before proposing to declare it a false report; then
 measure on 3 to 5 held-out merged PRs that no function's `evidence` names,
 whose erosion a later issue documented, with one judge per case and
-architecture items scored apart from correctness bugs. If that run matches most architectural items at a false
-rate under 10 %, a non-blocking, path-triggered job that posts only the top
-findings a PR introduced is worth a pilot. The 10 % bar is a judgement, not
-a measurement.
+architecture items scored apart from correctness bugs. If that run matches
+most architectural items at a false rate under 10 %, a non-blocking,
+path-triggered job that posts only the top findings a PR introduced is worth
+a pilot. The 10 % bar is a judgement, not a measurement.
 
 Alternatives considered:
 

@@ -291,7 +291,8 @@ These proposals go under Fitness function feedback, never among the findings.
 
 - Each finding names `path:line`, its evidence (the code, a grep hit, a
   report row) and what applies: each fitness function's `id` and status, each
-  limit quoted from its `misses` or `reportsWrongly`, or no fitness function.
+  limit quoted from its `misses` or `reportsWrongly`, each trial quoted from
+  its `evidence`, or no fitness function.
 - A row a `reportsWrongly` entry describes goes under Marked, no action once
   the code shows it is that case.
 - "Already duplicated before this PR" is never a reason to keep a copy.
@@ -321,7 +322,7 @@ Measured: <ids>. Not measured: `<id>` (<reason>).
 
 1. `<path:line>`: <what erodes the design, and how; say if it predates the change>.
    Evidence: <code, grep hit or report row>.
-   Applies: <`id` new | existing | resolved>, <limit of `id`: "<quote>">, … or <no fitness function>.
+   Applies: <`id` new | existing | resolved>, <limit of `id`: "<quote>">, <trial of `id` at `<commit>`: "<quote>">, … or <no fitness function>.
    Proposal: <fix in this PR> or <issue naming `path:line` of each copy>.
 
 ### Marked, no action
