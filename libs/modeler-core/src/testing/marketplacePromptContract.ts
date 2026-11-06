@@ -245,7 +245,7 @@ export function describeMarketplacePromptContract(
             },
         );
 
-        it("starts each question from its own location, as the core asks again after a refusal", async () => {
+        it("starts each question from its own location: the refused one when asked again, an empty one on the next add", async () => {
             await ask(question(), { enters: "~/first", picks: "project" });
 
             const answer = await ask(question(BOTH_SCOPES, REFUSED), {
@@ -255,6 +255,10 @@ export function describeMarketplacePromptContract(
 
             expect(fixture.shown().location).toBe(REFUSED.location);
             expect(answer).toEqual({ location: ENTERED, scope: "allProjects" });
+
+            await ask(question(), { enters: "~/next", picks: "project" });
+
+            expect(fixture.shown().location).toBe("");
         });
     });
 }
