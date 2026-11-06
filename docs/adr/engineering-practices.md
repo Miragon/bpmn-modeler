@@ -954,11 +954,12 @@ from git.
   quote inside a placeholder never ends the string around it. A call's callee
   is the name before its `(`, its receiver the name before the `.` or, on a
   call's result, that call's callee (`thisLogger` in `thisLogger().warn(…)`);
-  a `(` after `fun`, `class` or a keyword such as `if` opens no call.
-  `readKotlinImports` reads the imports with the same lexer. Neither reads
-  types. In both languages the calls around a literal end at the nearest
-  function or lambda (in Kotlin, the nearest brace): code a callee runs is no
-  argument it is handed.
+  a `(` after `fun`, `class` or a keyword such as `if` opens no call, past
+  type parameters whatever their bounds hold (`fun <T : Any> List<T>.f(…)`).
+  `readKotlinImports` reads the imports with the same lexer; a line break, a
+  `;` or `as` ends one. Neither reads types. In both languages the calls
+  around a literal end at the nearest function or lambda (in Kotlin, the
+  nearest brace): code a callee runs is no argument it is handed.
 - **A text** is a literal one of whose stretches holds two words: two
   whitespace-separated tokens that each hold a letter or a digit. A placeholder
   is no word, so formats such as `${a}: ${b}` and `$(${icon}) ${label}` hold no
@@ -977,8 +978,13 @@ from git.
   `logAndRethrow(async () => …)`: 5 texts of `CommandController.ts` at
   `cd48f2cd`. Kotlin's `error(…)`, `require(…)` and `check(…)` throw, but the
   UI DSL's validation `error(…)` shows its text, and a callee name cannot tell
-  them apart, so they are read. A lazy Kotlin log message, `log.debug { … }`,
-  is read as well; the tree holds none.
+  them apart, so they are read. An exception Kotlin constructs without
+  throwing it, as in `completeExceptionally(IllegalStateException(…))` or
+  `Result.failure(IOException(…))`, is read too: without `new` a constructor
+  cannot be told from a call. A Kotlin log message built in a lambda or in a
+  braced `if`, `when` or `try` block, such as `log.debug { … }` or
+  `log.warn(if (a) { … } else { … })`, is read as well, because the calls
+  around a literal end at any brace. At `cd48f2cd` the tree holds neither.
 - **Identity and delta.** One finding per literal, keyed by its path and its
   whitespace-collapsed text, not its line; the message is the text, cut at
   100 characters. Moved code stays existing, the same text twice in a file
