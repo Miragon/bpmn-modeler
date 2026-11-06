@@ -1,13 +1,16 @@
 package io.miragon.intellij.bpmn
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
-import com.intellij.ui.dsl.builder.bindSelected
+import com.intellij.ui.dsl.builder.RightGap
+import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.util.ui.NamedColorUtil
 import javax.swing.JComponent
 
 /** The core's add question, as `marketplacePrompt/show` carries it. */
@@ -25,63 +28,66 @@ internal data class MarketplaceScopeChoice(val scope: String, val label: String,
 
 internal data class MarketplaceAddAnswer(val location: String, val scope: String)
 
-/**
- * The add question as one form: the location, and a checkbox that stands for
- * the second of two scopes, unchecked for the first. A question without a
- * choice shows no checkbox and answers with its scope.
- */
-internal class MarketplaceAddForm(private val question: MarketplaceAddQuestion) {
+/** The answer the form edits, starting from the core's current answer. */
+internal class MarketplaceAddForm(question: MarketplaceAddQuestion) {
     var location: String = question.location
-    val scopeCheckbox: MarketplaceScopeChoice? = question.scopes.takeIf { it.size == 2 }?.last()
-    var scopeChecked: Boolean = scopeCheckbox?.scope == question.scope
+    var scope: String = question.scope
 
-    fun answer(): MarketplaceAddAnswer =
-        MarketplaceAddAnswer(
-            location,
-            when {
-                scopeCheckbox == null -> question.scope
-                scopeChecked -> scopeCheckbox.scope
-                else -> question.scopes.first().scope
-            },
-        )
+    fun answer(): MarketplaceAddAnswer = MarketplaceAddAnswer(location, scope)
 }
 
 /**
- * Shows a [MarketplaceAddForm] built with the Kotlin UI DSL, which can host the
- * checkbox a bare `Messages.showInputDialog` cannot. It checks nothing: the
+ * The add question as one form: the location, why the core refused it when it
+ * asks again, and one radio button per scope the core offers, with its label
+ * and where it is saved. Without a choice the form answers the core's scope.
+ */
+internal fun marketplaceAddPanel(
+    question: MarketplaceAddQuestion,
+    form: MarketplaceAddForm,
+): DialogPanel =
+    panel {
+        row {
+            textField()
+                .align(AlignX.FILL)
+                .bindText(form::location)
+                .comment(StringUtil.escapeXmlEntities(question.prompt))
+                .focused()
+                .applyToComponent { emptyText.setText(question.placeholder) }
+        }
+        question.invalidLocation?.let { refusal ->
+            row {
+                icon(AllIcons.General.Error).gap(RightGap.SMALL)
+                text(StringUtil.escapeXmlEntities(refusal))
+                    .applyToComponent { foreground = NamedColorUtil.getErrorForeground() }
+            }
+        }
+        if (question.scopes.isNotEmpty()) {
+            buttonsGroup {
+                question.scopes.forEach { choice ->
+                    row {
+                        radioButton(choice.label, choice.scope)
+                            .comment(StringUtil.escapeXmlEntities(choice.description))
+                    }
+                }
+            }.bind(form::scope)
+        }
+    }
+
+/**
+ * Shows the add question built with the Kotlin UI DSL, which can host the
+ * scope choice a bare `Messages.showInputDialog` cannot. It checks nothing: the
  * core checks the location after OK and asks again with why it refused it.
  */
 internal class AddMarketplaceDialog(project: Project, private val question: MarketplaceAddQuestion) :
     DialogWrapper(project) {
     private val form = MarketplaceAddForm(question)
-    private lateinit var locationField: JBTextField
 
     init {
         title = question.title
         init()
-        question.invalidLocation?.let { setErrorText(it, locationField) }
     }
 
-    override fun createCenterPanel(): JComponent =
-        panel {
-            row {
-                locationField =
-                    textField()
-                        .align(AlignX.FILL)
-                        .bindText(form::location)
-                        .comment(StringUtil.escapeXmlEntities(question.prompt))
-                        .focused()
-                        .applyToComponent { emptyText.setText(question.placeholder) }
-                        .component
-            }
-            form.scopeCheckbox?.let { choice ->
-                row {
-                    checkBox(choice.label)
-                        .bindSelected(form::scopeChecked)
-                        .comment(StringUtil.escapeXmlEntities(choice.description))
-                }
-            }
-        }
+    override fun createCenterPanel(): JComponent = marketplaceAddPanel(question, form)
 
     /** The answer as entered, or null when the user cancelled. */
     fun ask(): MarketplaceAddAnswer? = if (showAndGet()) form.answer() else null

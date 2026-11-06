@@ -683,10 +683,12 @@ prompt also carries that check as a function, `problemWith`. VS Code runs it in
 its input box as the user types, so it never answers with a location the core
 refuses; a function cannot cross the bridge, so IntelliJ relies on the core
 asking again. Each host keeps its layout: VS Code asks in steps (an input box,
-then a quick pick when there is a choice), IntelliJ in one form whose checkbox
-stands for the second of two scopes. The bridge sends the prompt without the
-function over `marketplacePrompt/show`, and IntelliJ's `MarketplaceRouter`
-shows its `AddMarketplaceDialog`.
+then a quick pick when there is a choice), IntelliJ in one form with a radio
+button per scope, and the refusal under the location field when the core asks
+again. Both show every scope with the core's label and "Saved in …"
+description. The bridge sends the prompt without the function over
+`marketplacePrompt/show`, and IntelliJ's `MarketplaceRouter` shows its
+`AddMarketplaceDialog`.
 
 Each host keeps its marketplace registrations behind
 `MarketplaceRegistrationsPort`. `read` returns each scope's own list as the
