@@ -28,8 +28,9 @@ library's `Business key`), which the editor never requests anymore.
   template of the file, the problems list, and switches one property through
   every binding and type the builder offers. Its header lists the page states
   (`?engine=c7`, `?file=problems`, …) to run it on.
-- **`build-overlay.mjs`** — prunes the overlay against the **union** of the
-  harvests + the shared library. Keeps a key only when the shared library lacks
+- **`build-overlay.mjs`** — prunes the overlay of every language
+  `supportedModelerLanguages` offers against the **union** of the harvests +
+  the shared library. Keeps a key only when the shared library lacks
   it (exact or normalized) **and** a harvest recorded it — plus the `SOURCE_ONLY`
   allowlist for strings the harvest drivers structurally can't reach. Everything
   else drops: keys the shared library covers (upstreamed C7 + legacy twins),

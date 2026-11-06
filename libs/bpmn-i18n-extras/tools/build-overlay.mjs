@@ -1,6 +1,7 @@
 /**
- * Prunes the overlay against runtime truth. Run with bun (it imports the TS
- * locale files and the shared library directly):
+ * Prunes the overlay of every language the modeler offers against runtime
+ * truth. Run with bun: it imports the TS sources, whose extensionless imports
+ * Node cannot resolve, and the shared library directly.
  *
  *   bun libs/bpmn-i18n-extras/tools/build-overlay.mjs           # report only
  *   bun libs/bpmn-i18n-extras/tools/build-overlay.mjs --write   # rewrite files
@@ -34,22 +35,10 @@ import { dirname, join } from "node:path";
 
 import { dictionaries as shared } from "@miragon/bpmn-modeler-i18n";
 
+import { supportedModelerLanguages } from "../src/index.ts";
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LANG_DIR = join(HERE, "..", "src", "languages");
-const LOCALES = [
-    "de",
-    "en",
-    "es",
-    "fr",
-    "it",
-    "ja",
-    "ko",
-    "nl-nl",
-    "pt-br",
-    "ru",
-    "zh-Hans",
-    "zh-Hant",
-];
 const write = process.argv.includes("--write");
 
 const norm = (s) =>
@@ -185,10 +174,10 @@ const HEADER = `/*
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */`;
 
-for (const locale of LOCALES) {
+for (const { locale } of supportedModelerLanguages) {
     const dict = await load(locale);
     const pruned = Object.fromEntries(Object.entries(dict).filter(([k]) => !deadSet.has(k)));
     const body = `${HEADER}\nconst dictionary: Record<string, string> = ${JSON.stringify(pruned, null, 4)};\n\nexport default dictionary;\n`;
     writeFileSync(join(LANG_DIR, `${locale}.ts`), body);
 }
-console.log(`\nrewrote ${LOCALES.length} locale files.`);
+console.log(`\nrewrote ${supportedModelerLanguages.length} locale files.`);

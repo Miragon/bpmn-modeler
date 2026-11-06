@@ -24,6 +24,7 @@ export function createRepeatedValueSetsFitnessFunction({
             "Copies that live in logic, such as the allMatch parsing of the element template builder.",
             "Sets with another member: `| undefined`, a spread, an enum, object keys, switch cases, and !== or && chains.",
             "Kotlin and JSON, such as the enum arrays of a package.json or a JSON schema.",
+            "A copy of a set whose home is a dependency, outside the tracked files, such as the 12 locales of @miragon/bpmn-modeler-i18n: one tracked copy is the set's only occurrence.",
         ],
         reportsWrongly: [
             "A copy that drifts from its home, a value added to or removed from one copy only, shows as resolved, not new: each tree is measured alone, so the report reads the drift as a fix. A resolved set is a fix only where its copies are gone, import their home or are pinned to it.",

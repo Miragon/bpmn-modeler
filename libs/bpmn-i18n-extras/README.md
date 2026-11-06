@@ -29,7 +29,7 @@ only fills the residual gap.
   locale the shared library ships.
 - **`supportedModelerLanguages`** — the shared `supportedLanguages` catalogue
   (locale code and label): the one list of languages the modeler offers. The VS
-  Code language QuickPick reads it. The copies that cannot import it are pinned
+  Code language QuickPick and `tools/build-overlay.mjs` read it. The copies that cannot import it are pinned
   to it: `manifest.contract.spec.ts` checks the `miragon.bpmnModeler.language`
   enum and labels in `apps/vscode-plugin/package.json` and the table in
   `docs/vscode/features/language-support.md`, and IntelliJ's `ModelerLocalesTest`
