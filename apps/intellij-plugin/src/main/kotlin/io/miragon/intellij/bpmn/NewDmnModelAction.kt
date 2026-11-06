@@ -49,6 +49,6 @@ class NewDmnModelAction : DumbAwareAction() {
                 </dmndi:DMNDiagram>
               </dmndi:DMNDI>
             </definitions>
-            """.trimIndent()
+            """.trimIndent() + "\n"
     }
 }
