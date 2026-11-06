@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    credentialRefSignatureOf,
     type DraftActivity,
     type DraftControls,
     type DraftSnapshot,
@@ -127,5 +128,30 @@ describe("draftControls", () => {
         ],
     ])("%s", (_, overrides, controls) => {
         expect(draftControls(draft(overrides))).toMatchObject(controls);
+    });
+});
+
+describe("credentialRefSignatureOf", () => {
+    const PASSWORD_REF = "${env:MIRAGON_PW}";
+    type Credentials = (string | undefined)[];
+    const signaturesDiffer = (saved: Credentials, current: Credentials): boolean =>
+        credentialRefSignatureOf(saved) !== credentialRefSignatureOf(current);
+
+    it.each<[string, Credentials, Credentials]>([
+        ["a reference replacing a literal", ["user", "secret"], ["user", PASSWORD_REF]],
+        ["a literal replacing a reference", ["user", PASSWORD_REF], ["user", "secret"]],
+        ["a reference to another reference", [PASSWORD_REF], ["${env:MIRAGON_OTHER_PW}"]],
+        ["a reference inside a literal", ["user"], ["user-${env:MIRAGON_SUFFIX}"]],
+        ["the same reference in another field", [PASSWORD_REF, ""], ["", PASSWORD_REF]],
+    ])("counts %s as a target change", (_, saved, current) => {
+        expect(signaturesDiffer(saved, current)).toBe(true);
+    });
+
+    it.each<[string, Credentials, Credentials]>([
+        ["a literal edit", ["user", "secret"], ["user", "other"]],
+        ["a literal filling an empty field", [undefined, ""], ["user", "secret"]],
+        ["whitespace around a reference", [PASSWORD_REF], [`  ${PASSWORD_REF} `]],
+    ])("leaves %s free", (_, saved, current) => {
+        expect(signaturesDiffer(saved, current)).toBe(false);
     });
 });

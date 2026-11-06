@@ -34,7 +34,6 @@ export function createConventionCoverageFitnessFunction({
         ],
         reportsWrongly: [
             "Counts per rule, not per file: a file breaking two rules is two findings, so the count exceeds the number of files.",
-            "Workspaces not yet moved into role folders (the DMN, Form and deployment webviews until #2129) count nearly every file as outside a role folder.",
             "A misplaced module directly in src/ is an entry by the convention, so it shows only at its importers, under “nothing imports an entry”.",
         ],
         evidence: [

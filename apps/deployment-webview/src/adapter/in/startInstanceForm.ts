@@ -1,14 +1,14 @@
 import {
     AuthConfigPayload,
-    type DeploymentSidebarCommand,
     LogInfoCommand,
     RequestPayloadFilesCommand,
     StartInstanceCommand,
     StartInstanceConfigPayload,
     StartInstanceResultQuery,
-    HostApi,
 } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
+
+import type { DeploymentHost } from "../../port/deploymentHost";
 
 /**
  * Manages the Start Instance tab DOM state: populating fields, collecting
@@ -36,7 +36,7 @@ export class StartInstanceForm {
 
     /** Resolves DOM references and binds events; throws if an expected element is missing. */
     constructor(
-        private readonly host: Pick<HostApi<unknown, DeploymentSidebarCommand>, "postMessage">,
+        private readonly host: Pick<DeploymentHost, "postMessage">,
         private readonly getSharedAuth: () => AuthConfigPayload,
         private readonly getSharedConnection: () => {
             endpoint: string;

@@ -6,7 +6,6 @@ import {
     DeploymentConfigPayload,
     DeploymentFormDefaults,
     DeploymentResultQuery,
-    type DeploymentSidebarCommand,
     DeploymentTargetPayload,
     DeploymentTargetsQuery,
     LogInfoCommand,
@@ -16,17 +15,17 @@ import {
     SaveTargetCommand,
     SelectTargetCommand,
     StoredCredentialsQuery,
-    HostApi,
 } from "@miragon/bpmn-modeler-shared";
 import { Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import {
+    credentialRefSignatureOf,
     type DraftActivity,
     type DraftSnapshot,
     draftControls,
     executionBlockedReason,
-} from "../domain/deploymentDraft";
-import { WebviewState } from "./host";
+} from "../../domain/deploymentDraft";
+import type { DeploymentHost } from "../../port/deploymentHost";
 
 const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
     c7: "<endpoint>/deployment/create",
@@ -39,7 +38,7 @@ const CONVENTION_START_URL: Record<Engine, string> = {
 
 /**
  * Intentionally framework-free — manipulates the DOM directly and talks to
- * the extension host via the `postMessage` API wrapped by {@link HostApi}.
+ * the extension host via the `postMessage` API wrapped by {@link DeploymentHost}.
  */
 export class DeploymentForm {
     private static readonly DEFAULT_COLLAPSED_SECTIONS: string[] = [];
@@ -127,7 +126,7 @@ export class DeploymentForm {
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
-    constructor(private readonly host: HostApi<WebviewState, DeploymentSidebarCommand>) {
+    constructor(private readonly host: DeploymentHost) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
         this.targetSelect = this.requireElement<HTMLSelectElement>("#target-select");
         this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");
@@ -855,15 +854,4 @@ export class DeploymentForm {
         }
         return el;
     }
-}
-
-/**
- * Env references in credentials are saved to the shared targets file, so
- * changing one needs Save like a connection change. Literal edits stay free;
- * anything containing `${env:` counts, leaving the exact rule to the host.
- */
-function credentialRefSignatureOf(values: (string | undefined)[]): string {
-    return JSON.stringify(
-        values.map((value = "") => (value.includes("${env:") ? value.trim() : "")),
-    );
 }

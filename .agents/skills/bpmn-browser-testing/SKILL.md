@@ -43,7 +43,7 @@ Implement greyed out; `?mode=diff-before` and `?mode=diff-after` each show one
 read-only diff pane with real `bpmn-js-differ` highlights. These panes have no
 partner for synchronized navigation. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
-decision from `apps/dmn-webview/src/host.ts`.
+decision from `apps/dmn-webview/src/adapter/out/host.ts`.
 
 ### Not available in a browser preview
 

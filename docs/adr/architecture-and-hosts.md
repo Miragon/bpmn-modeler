@@ -245,8 +245,8 @@ imports show the role it has. Each workspace declares its kind once, in the
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
-The template builder (#2130) and the BPMN webview sit in their role folders.
-The DMN, Form and deployment webviews move in their own migration (#2129).
+Every webview (#2129) and the template builder (#2130) sit in their role
+folders.
 
 In a `hexagonal` workspace the first role folder in a file's path is its role,
 and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
@@ -301,8 +301,8 @@ queries are `adapter/in/`, the host channel and the modeler-library wrappers
 module that imports it. The host channel's type and the state it persists are
 `port/`, so the UI and the host adapter share them without importing each
 other. A document session that keeps the modeler in sync with the host
-through injected handles is `service/` (the BPMN webview's
-`BpmnDocumentSession`).
+through injected handles is `service/` (the DMN webview's
+`DmnDocumentSession`, the BPMN webview's `BpmnDocumentSession`).
 
 The BPMN webview splits its adapters on the live surface by direction: the
 host's requests on the surface, the mode strip and the binding of a surface's
@@ -317,8 +317,7 @@ through injected handles like the document session, so they are `service/`.
 The surface binding builds the manager's state store and the properties
 panel's DOM adapter and hands them in, so the manager touches no DOM.
 The template editor is a context of its own, `templateEditor/`, with the same
-roles and its own entry, `templateEditorMain.ts`. The DMN, Form and
-deployment webviews map their files in their own migration (#2129).
+roles and its own entry, `templateEditorMain.ts`.
 
 The bridge serves the host's RPC through handler tables in
 `<context>/adapter/in/` (`editorSessionHandlers`, `deploymentHandlers`, …),

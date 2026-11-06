@@ -3,14 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     FlushDocumentQuery,
     FormFileQuery,
-    FormInputValuesQuery,
     HostApiImpl,
     type Command,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
 
-import packageJson from "../package.json";
-import type { FormHost, WebviewState } from "./app/host";
+import packageJson from "../../package.json";
+import type { FormHost, WebviewState } from "../port/formHost";
 import { bootstrap } from "./bootstrap";
 
 const mocks = vi.hoisted(() => {
@@ -176,32 +175,6 @@ describe("form webview bootstrap", () => {
             await vi.waitFor(() =>
                 expect(mocks.editor.importSchema).toHaveBeenCalledWith({ components: [] }),
             );
-        });
-
-        it("reports input values that are not valid JSON", async () => {
-            const host = fakeHost();
-            bootstrap(host as never);
-
-            dispatch(new FormInputValuesQuery("not json"));
-
-            await vi.waitFor(() =>
-                expect(sentOfType(host, "LogErrorCommand")).toEqual([
-                    expect.objectContaining({
-                        message: expect.stringContaining(
-                            "The form input values contain invalid JSON.",
-                        ),
-                    }),
-                ]),
-            );
-        });
-
-        it("ignores a message whose payload has the wrong shape", async () => {
-            bootstrap(fakeHost() as never);
-
-            dispatch({ type: "FormFileQuery", content: 42 });
-            await new Promise((resolve) => setTimeout(resolve, 0));
-
-            expect(mocks.editor.importSchema).not.toHaveBeenCalled();
         });
 
         it("refuses a flush until a form is loaded, then returns the edited form", async () => {

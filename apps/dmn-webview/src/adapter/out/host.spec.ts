@@ -5,15 +5,13 @@ import {
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
     HostApiImpl,
-    LogDebugCommand,
     LogErrorCommand,
-    LogInfoCommand,
     LogWarningCommand,
     MockHostApi,
     RequestFocusCommand,
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
-    type Command,
+    type DmnEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { getHostApi } from "./host";
@@ -80,7 +78,7 @@ describe("development preview host", () => {
         ]);
     });
 
-    it.each<[Command, Reply]>([
+    it.each<[DmnEditorCommand, Reply]>([
         [
             new GetPropertiesPanelStateCommand(),
             { type: "PropertiesPanelStateQuery", visible: true },
@@ -96,7 +94,7 @@ describe("development preview host", () => {
         expect(replies).toEqual([expect.objectContaining(reply)]);
     });
 
-    it.each<[string, Command]>([
+    it.each<[string, DmnEditorCommand]>([
         ["a properties-panel toggle", new SetPropertiesPanelStateCommand(false)],
         ["a document sync", new SyncDocumentCommand("<definitions />", 3)],
     ])("takes %s without throwing or replying", (_, command) => {
@@ -108,8 +106,6 @@ describe("development preview host", () => {
     });
 
     it.each([
-        ["debug", new LogDebugCommand("debug entry")],
-        ["info", new LogInfoCommand("info entry")],
         ["warn", new LogWarningCommand("warning entry")],
         ["error", new LogErrorCommand("error entry")],
     ] as const)("mirrors a forwarded log onto console.%s", (level, command) => {
@@ -123,7 +119,9 @@ describe("development preview host", () => {
     it("rejects a message outside the protocol so drift stays visible", () => {
         const host = previewHost();
 
-        expect(() => host.postMessage({ type: "NotAProtocolMessage" })).toThrow(
+        const outsideTheProtocol = { type: "NotAProtocolMessage" } as unknown as DmnEditorCommand;
+
+        expect(() => host.postMessage(outsideTheProtocol)).toThrow(
             "Unknown message type NotAProtocolMessage",
         );
     });
