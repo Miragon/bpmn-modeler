@@ -11,6 +11,8 @@ export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
 export * from "./ScriptedPicker";
+export * from "./secretStoreContract";
 export * from "./settingsNormalization";
+export * from "./tokenStoreContract";
 export * from "./workspaceContract";
 export * from "./surfaceCoverage";
