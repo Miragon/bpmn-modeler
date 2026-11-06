@@ -331,8 +331,8 @@ and `types: []` loads no `@types` package. `findContractSuites` reads from such
 a program the interfaces of the port files a caller names, the named classes
 whose `implements` clause reaches one through extended interfaces or an
 intersection, the functions a helper module exports with a parameter that
-produces a port, a type parameter standing for its constraint, and
-the specs that import such a class as a value, with the helpers they call. It
+produces a port (a type parameter stands for its constraint), and the specs
+that import such a class as a value, with the helpers they call. It
 throws when the helper module is not in the program, so a moved kit cannot
 leave every adapter without a suite. Only `sourceTree.ts` and `typeProgram.ts` touch the file
 system; the rest are pure functions over source text or a program. The engine
@@ -1019,9 +1019,10 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   the `tsconfig.base.json` paths: the core. The rule is about ports the core
   reads back from, and only a helper of the core's kit can cover them, so the
   `port/` folders of the hosts and the tooling are not read. At `cd48f2cd`
-  they would add 18 pairs no helper can cover: 12 without a suite (11
-  adapters of `tools/repo-checks` ports and `RpcEditorHandle` as the bridge's
-  `HostEditorHandle`) and 6 render-only pairs of bridge and tooling ports.
+  they would add 18 pairs no helper can cover, all set aside: 12 with one
+  adapter each (11 adapters of `tools/repo-checks` ports and `RpcEditorHandle`
+  as the bridge's `HostEditorHandle`) and 6 render-only pairs of bridge and
+  tooling ports. The 42 pairs without a suite would stay the same.
 - **Adapters.** A named class outside specs, declaration files and test
   folders (`__fixtures__`, `__tests__`, `test`, `tests`, the patterns of
   [Size and complexity](#size-and-complexity)) of any hexagonal workspace
@@ -1110,9 +1111,10 @@ by name, the types add `DiffPaneHandle` (no `Port` in its name),
 `RepositorySource` (the GitHub, GitLab and local template sources),
 `LoggerPort` and the three ports with one adapter, and today
 `RpcLintingPreference`, not `BridgeSettings`, implements
-`LintingPreferencePort`. 8 listed pairs are none of the issue's backfill
-ports, render-only ports or engine strategies: `NotifierPort` (3),
-`RepositorySource` (3, strategies of their own) and `DiffPaneHandle` (2).
+`LintingPreferencePort`. 11 pairs are none of the issue's backfill ports,
+render-only ports or engine strategies: the 3 with one adapter, `NotifierPort`
+(3, whose `withProgress` the core reads back), `RepositorySource` (3,
+strategies of their own) and `DiffPaneHandle` (2).
 Building the program and reading took 1.5 to 1.7 s on the working tree and
 1.1 to 1.7 s on a checkout without `node_modules` (six runs each, load
 average 6 to 7), with the same 57 findings. `corepack yarn fitness` took 6.7
@@ -1130,7 +1132,8 @@ Alternatives considered:
   `DiffPaneHandle`, `HttpClient` and `RepositorySource`, and a helper renamed
   for readability would drop out.
 - **The `port/` folders of every hexagonal workspace.** 18 more pairs at
-  `cd48f2cd`, none of which a helper of the core's kit can cover.
+  `cd48f2cd`, none of which a helper of the core's kit can cover, all set
+  aside: 12 with one adapter each and 6 render-only.
 - **Ports with one adapter listed with the others.** At `cd48f2cd` they add
   3 pairs whose adapter has no second class to disagree with, so the list
   would ask for suites that guard nothing until one appears.
