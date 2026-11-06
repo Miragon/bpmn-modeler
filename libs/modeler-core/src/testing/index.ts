@@ -5,6 +5,7 @@ export * from "./InMemoryDeploymentState";
 export * from "./inMemoryHostSurfaces";
 export * from "./InMemorySettings";
 export * from "./InMemoryWorkspace";
+export * from "./notifierContract";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
