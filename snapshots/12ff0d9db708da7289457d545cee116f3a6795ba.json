@@ -469,6 +469,10 @@
         }
       ]
     },
+    "contract-suites": {
+      "version": 1,
+      "unmeasurable": "the workspace of @miragon/bpmn-modeler-core/testing declares no interface in a port/ folder"
+    },
     "convention-coverage": {
       "version": 1,
       "findings": [

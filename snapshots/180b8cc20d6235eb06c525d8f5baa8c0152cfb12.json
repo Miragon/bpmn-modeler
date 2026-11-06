@@ -490,6 +490,467 @@
         }
       ]
     },
+    "contract-suites": {
+      "version": 1,
+      "findings": [
+        {
+          "key": "apps/modeler-bridge/src/deployment/adapter/out/RpcDeploymentState.ts#RpcDeploymentState → libs/modeler-core/src/deployment/port/deploymentPorts.ts#DeploymentStatePort",
+          "path": "apps/modeler-bridge/src/deployment/adapter/out/RpcDeploymentState.ts",
+          "line": 21,
+          "message": "`RpcDeploymentState`: `DeploymentStatePort` has no suite (1 of 3 adapters); the core reads back `load`",
+          "group": "no-suite",
+          "rank": 2
+        },
+        {
+          "key": "apps/modeler-bridge/src/deployment/adapter/out/RpcSecretStore.ts#RpcSecretStore → libs/modeler-core/src/deployment/port/deploymentPorts.ts#SecretStorePort",
+          "path": "apps/modeler-bridge/src/deployment/adapter/out/RpcSecretStore.ts",
+          "line": 14,
+          "message": "`RpcSecretStore`: `SecretStorePort` has no suite (1 of 3 adapters); the core reads back `getBasicAuth`, `getOAuth2` and `getApprovedDestinations`",
+          "group": "no-suite",
+          "rank": 3
+        },
+        {
+          "key": "apps/modeler-bridge/src/diff/adapter/out/RpcDiffPaneHandle.ts#RpcDiffPaneHandle → libs/modeler-core/src/diff/port/DiffPaneHandle.ts#DiffPaneHandle",
+          "path": "apps/modeler-bridge/src/diff/adapter/out/RpcDiffPaneHandle.ts",
+          "line": 33,
+          "message": "`RpcDiffPaneHandle`: `DiffPaneHandle` has no suite (1 of 2 adapters); the core reads back `uri`, `isReady`, `getText` and 1 more",
+          "group": "no-suite",
+          "rank": 17
+        },
+        {
+          "key": "apps/modeler-bridge/src/editorSession/adapter/out/RpcDocumentPort.ts#RpcDocumentPort → libs/modeler-core/src/kernel/port/hostPorts.ts#DocumentPort",
+          "path": "apps/modeler-bridge/src/editorSession/adapter/out/RpcDocumentPort.ts",
+          "line": 8,
+          "message": "`RpcDocumentPort`: `DocumentPort` has no suite (1 of 2 adapters); the core reads back `getContent`, `getFilePath`, `write` and 1 more",
+          "group": "no-suite",
+          "rank": 18
+        },
+        {
+          "key": "apps/modeler-bridge/src/editorSession/adapter/out/RpcEditorHandle.ts#RpcEditorHandle → libs/modeler-core/src/editorSession/port/EditorHandle.ts#EditorHandle",
+          "path": "apps/modeler-bridge/src/editorSession/adapter/out/RpcEditorHandle.ts",
+          "line": 19,
+          "message": "`RpcEditorHandle`: `EditorHandle` has no suite (1 of 3 adapters); the core reads back `id`, `documentUriString`, `documentPath` and 12 more",
+          "group": "no-suite",
+          "rank": 4
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/BridgeSettings.ts#BridgeSettings → libs/modeler-core/src/kernel/port/hostPorts.ts#SettingsPort",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/BridgeSettings.ts",
+          "line": 29,
+          "message": "`BridgeSettings`: `SettingsPort` has no suite (1 of 3 adapters); the core reads back `getAlignToOrigin`, `getShowTransactionBoundaries`, `getConfigFolder` and 10 more",
+          "group": "no-suite",
+          "rank": 9
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/RpcClipboard.ts#RpcClipboard → libs/modeler-core/src/kernel/port/hostPorts.ts#ClipboardPort",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/RpcClipboard.ts",
+          "line": 16,
+          "message": "`RpcClipboard`: `ClipboardPort` has no suite (1 of 3 adapters); the core reads back `readClipboard`",
+          "group": "no-suite",
+          "rank": 5
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/RpcNotifier.ts#RpcNotifier → libs/modeler-core/src/kernel/port/hostPorts.ts#LoggerPort",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/RpcNotifier.ts",
+          "line": 11,
+          "message": "`RpcNotifier`: `LoggerPort` only renders (1 of 3 adapters); every member returns nothing: `logDebug`, `logInfo`, `logWarning` and 1 more",
+          "group": "render-only",
+          "rank": 6
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/RpcNotifier.ts#RpcNotifier → libs/modeler-core/src/kernel/port/hostPorts.ts#NotifierPort",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/RpcNotifier.ts",
+          "line": 11,
+          "message": "`RpcNotifier`: `NotifierPort` has no suite (1 of 3 adapters); the core reads back `withProgress`",
+          "group": "no-suite",
+          "rank": 7
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/RpcPicker.ts#RpcPicker → libs/modeler-core/src/kernel/port/hostPorts.ts#PickerPort",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/RpcPicker.ts",
+          "line": 12,
+          "message": "`RpcPicker`: `PickerPort` has no suite (1 of 3 adapters); the core reads back `choose`, `chooseMany`, `confirm` and 1 more",
+          "group": "no-suite",
+          "rank": 8
+        },
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/RpcStatusBar.ts#RpcStatusBar → libs/modeler-core/src/kernel/port/hostPorts.ts#StatusBarPort",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/RpcStatusBar.ts",
+          "line": 11,
+          "message": "`RpcStatusBar`: `StatusBarPort` only renders (1 of 3 adapters); every member returns nothing: `show` and `hide`",
+          "group": "render-only",
+          "rank": 10
+        },
+        {
+          "key": "apps/modeler-bridge/src/modeler/bpmn/adapter/out/RpcLintingPreference.ts#RpcLintingPreference → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#LintingPreferencePort",
+          "path": "apps/modeler-bridge/src/modeler/bpmn/adapter/out/RpcLintingPreference.ts",
+          "line": 10,
+          "message": "`RpcLintingPreference`: `LintingPreferencePort` only renders (1 of 2 adapters); every member returns nothing: `setLintingEnabled`",
+          "group": "render-only",
+          "rank": 19
+        },
+        {
+          "key": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts#BridgeScriptEditor → libs/modeler-core/src/scriptTask/port/ScriptEditorPort.ts#ScriptEditorPort",
+          "path": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
+          "line": 74,
+          "message": "`BridgeScriptEditor`: `ScriptEditorPort` has no suite (1 of 3 adapters); the core reads back `materialize`",
+          "group": "no-suite",
+          "rank": 13
+        },
+        {
+          "key": "apps/modeler-bridge/src/templateMarketplace/adapter/out/RpcTokenPrompt.ts#RpcTokenPrompt → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#TokenPromptPort",
+          "path": "apps/modeler-bridge/src/templateMarketplace/adapter/out/RpcTokenPrompt.ts",
+          "line": 7,
+          "message": "`RpcTokenPrompt`: `TokenPromptPort` has no suite (1 of 3 adapters); the core reads back `promptForToken`",
+          "group": "no-suite",
+          "rank": 15
+        },
+        {
+          "key": "apps/modeler-bridge/src/templateMarketplace/adapter/out/RpcTokenStore.ts#RpcTokenStore → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#TokenStorePort",
+          "path": "apps/modeler-bridge/src/templateMarketplace/adapter/out/RpcTokenStore.ts",
+          "line": 14,
+          "message": "`RpcTokenStore`: `TokenStorePort` has no suite (1 of 3 adapters); the core reads back `getToken`",
+          "group": "no-suite",
+          "rank": 16
+        },
+        {
+          "key": "apps/vscode-plugin/src/deployment/adapter/out/VsCodeDeploymentState.ts#VsCodeDeploymentState → libs/modeler-core/src/deployment/port/deploymentPorts.ts#DeploymentStatePort",
+          "path": "apps/vscode-plugin/src/deployment/adapter/out/VsCodeDeploymentState.ts",
+          "line": 27,
+          "message": "`VsCodeDeploymentState`: `DeploymentStatePort` has no suite (1 of 3 adapters); the core reads back `load`",
+          "group": "no-suite",
+          "rank": 2
+        },
+        {
+          "key": "apps/vscode-plugin/src/deployment/adapter/out/VsCodeSecretStore.ts#VsCodeSecretStore → libs/modeler-core/src/deployment/port/deploymentPorts.ts#SecretStorePort",
+          "path": "apps/vscode-plugin/src/deployment/adapter/out/VsCodeSecretStore.ts",
+          "line": 43,
+          "message": "`VsCodeSecretStore`: `SecretStorePort` has no suite (1 of 3 adapters); the core reads back `getBasicAuth`, `getOAuth2` and `getApprovedDestinations`",
+          "group": "no-suite",
+          "rank": 3
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/adapter/out/WebviewPaneHandle.ts#WebviewPaneHandle → libs/modeler-core/src/diff/port/DiffPaneHandle.ts#DiffPaneHandle",
+          "path": "apps/vscode-plugin/src/diff/adapter/out/WebviewPaneHandle.ts",
+          "line": 14,
+          "message": "`WebviewPaneHandle`: `DiffPaneHandle` has no suite (1 of 2 adapters); the core reads back `uri`, `isReady`, `getText` and 1 more",
+          "group": "no-suite",
+          "rank": 17
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/adapter/out/PropertiesPanelStateRepository.ts#PropertiesPanelStateRepository → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#PropertiesPanelStatePort",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/adapter/out/PropertiesPanelStateRepository.ts",
+          "line": 19,
+          "message": "`PropertiesPanelStateRepository`: `PropertiesPanelStatePort` has no suite (1 of 2 adapters); the core reads back `getVisibility`",
+          "group": "no-suite",
+          "rank": 20
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/adapter/out/VsCodeLintingPreference.ts#VsCodeLintingPreference → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#LintingPreferencePort",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/adapter/out/VsCodeLintingPreference.ts",
+          "line": 6,
+          "message": "`VsCodeLintingPreference`: `LintingPreferencePort` only renders (1 of 2 adapters); every member returns nothing: `setLintingEnabled`",
+          "group": "render-only",
+          "rank": 19
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts#ScriptTaskService → libs/modeler-core/src/scriptTask/port/ScriptEditorPort.ts#ScriptEditorPort",
+          "path": "apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts",
+          "line": 101,
+          "message": "`ScriptTaskService`: `ScriptEditorPort` has no suite (1 of 3 adapters); the core reads back `materialize`",
+          "group": "no-suite",
+          "rank": 13
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeClipboard.ts#VsCodeClipboard → libs/modeler-core/src/kernel/port/hostPorts.ts#ClipboardPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeClipboard.ts",
+          "line": 12,
+          "message": "`VsCodeClipboard`: `ClipboardPort` has no suite (1 of 3 adapters); the core reads back `readClipboard`",
+          "group": "no-suite",
+          "rank": 5
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeDiagnostics.ts#VsCodeDiagnostics → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#DiagnosticsPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeDiagnostics.ts",
+          "line": 32,
+          "message": "`VsCodeDiagnostics`: `DiagnosticsPort` only renders (1 of 3 adapters); every member returns nothing: `publish` and `clear`",
+          "group": "render-only",
+          "rank": 12
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeEditorHandle.ts#VsCodeEditorHandle → libs/modeler-core/src/editorSession/port/EditorHandle.ts#EditorHandle",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeEditorHandle.ts",
+          "line": 28,
+          "message": "`VsCodeEditorHandle`: `EditorHandle` has no suite (1 of 3 adapters); the core reads back `id`, `documentUriString`, `documentPath` and 12 more",
+          "group": "no-suite",
+          "rank": 4
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeNotifier.ts#VsCodeNotifier → libs/modeler-core/src/kernel/port/hostPorts.ts#LoggerPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeNotifier.ts",
+          "line": 24,
+          "message": "`VsCodeNotifier`: `LoggerPort` only renders (1 of 3 adapters); every member returns nothing: `logDebug`, `logInfo`, `logWarning` and 1 more",
+          "group": "render-only",
+          "rank": 6
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeNotifier.ts#VsCodeNotifier → libs/modeler-core/src/kernel/port/hostPorts.ts#NotifierPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeNotifier.ts",
+          "line": 24,
+          "message": "`VsCodeNotifier`: `NotifierPort` has no suite (1 of 3 adapters); the core reads back `withProgress`",
+          "group": "no-suite",
+          "rank": 7
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodePicker.ts#VsCodePicker → libs/modeler-core/src/kernel/port/hostPorts.ts#PickerPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodePicker.ts",
+          "line": 39,
+          "message": "`VsCodePicker`: `PickerPort` has no suite (1 of 3 adapters); the core reads back `choose`, `chooseMany`, `confirm` and 1 more",
+          "group": "no-suite",
+          "rank": 8
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts#VsCodeSettings → libs/modeler-core/src/kernel/port/hostPorts.ts#SettingsPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeSettings.ts",
+          "line": 20,
+          "message": "`VsCodeSettings`: `SettingsPort` has no suite (1 of 3 adapters); the core reads back `getAlignToOrigin`, `getShowTransactionBoundaries`, `getConfigFolder` and 10 more",
+          "group": "no-suite",
+          "rank": 9
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts#VsCodeStatusBar → libs/modeler-core/src/kernel/port/hostPorts.ts#StatusBarPort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeStatusBar.ts",
+          "line": 52,
+          "message": "`VsCodeStatusBar`: `StatusBarPort` only renders (1 of 3 adapters); every member returns nothing: `show` and `hide`",
+          "group": "render-only",
+          "rank": 10
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts#VsCodeWorkspace → libs/modeler-core/src/kernel/port/hostPorts.ts#WorkspacePort",
+          "path": "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts",
+          "line": 20,
+          "message": "`VsCodeWorkspace`: runs no `WorkspacePort` suite (`describeWorkspaceContract`); `NodeWorkspace` and `InMemoryWorkspace` do",
+          "group": "skips-suite",
+          "rank": 11
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenPrompt.ts#VsCodeTokenPrompt → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#TokenPromptPort",
+          "path": "apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenPrompt.ts",
+          "line": 8,
+          "message": "`VsCodeTokenPrompt`: `TokenPromptPort` has no suite (1 of 3 adapters); the core reads back `promptForToken`",
+          "group": "no-suite",
+          "rank": 15
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenStore.ts#VsCodeTokenStore → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#TokenStorePort",
+          "path": "apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenStore.ts",
+          "line": 16,
+          "message": "`VsCodeTokenStore`: `TokenStorePort` has no suite (1 of 3 adapters); the core reads back `getToken`",
+          "group": "no-suite",
+          "rank": 16
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda7RestClient.ts#Camunda7RestClient → libs/modeler-core/src/deployment/port/deploymentPorts.ts#CamundaEnginePort",
+          "path": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda7RestClient.ts",
+          "line": 25,
+          "message": "`Camunda7RestClient`: `CamundaEnginePort` has no suite (1 of 3 adapters); the core reads back `deploy` and `startInstance`",
+          "group": "no-suite",
+          "rank": 1
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda7RestClient.ts#Camunda7RestClient → libs/modeler-core/src/deployment/port/deploymentPorts.ts#EngineInspectionPort",
+          "path": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda7RestClient.ts",
+          "line": 25,
+          "message": "`Camunda7RestClient`: `EngineInspectionPort` has no suite (its only adapter); the core reads back `fetchLatestDefinition`",
+          "group": "one-adapter",
+          "rank": 21
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda8RestClient.ts#Camunda8RestClient → libs/modeler-core/src/deployment/port/deploymentPorts.ts#CamundaEnginePort",
+          "path": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda8RestClient.ts",
+          "line": 18,
+          "message": "`Camunda8RestClient`: `CamundaEnginePort` has no suite (1 of 3 adapters); the core reads back `deploy` and `startInstance`",
+          "group": "no-suite",
+          "rank": 1
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/adapter/out/camunda/CamundaEngineRouter.ts#CamundaEngineRouter → libs/modeler-core/src/deployment/port/deploymentPorts.ts#CamundaEnginePort",
+          "path": "libs/modeler-core/src/deployment/adapter/out/camunda/CamundaEngineRouter.ts",
+          "line": 14,
+          "message": "`CamundaEngineRouter`: `CamundaEnginePort` has no suite (1 of 3 adapters); the core reads back `deploy` and `startInstance`",
+          "group": "no-suite",
+          "rank": 1
+        },
+        {
+          "key": "libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts#EditorSessionDocuments → libs/modeler-core/src/kernel/port/hostPorts.ts#DocumentPort",
+          "path": "libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts",
+          "line": 15,
+          "message": "`EditorSessionDocuments`: `DocumentPort` has no suite (1 of 2 adapters); the core reads back `getContent`, `getFilePath`, `write` and 1 more",
+          "group": "no-suite",
+          "rank": 18
+        },
+        {
+          "key": "libs/modeler-core/src/kernel/adapter/out/FetchHttpClient.ts#FetchHttpClient → libs/modeler-core/src/kernel/port/HttpClient.ts#HttpClient",
+          "path": "libs/modeler-core/src/kernel/adapter/out/FetchHttpClient.ts",
+          "line": 10,
+          "message": "`FetchHttpClient`: `HttpClient` has no suite (its only adapter); the core reads back `getText`, `getJson`, `postJson` and 2 more",
+          "group": "one-adapter",
+          "rank": 22
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NodeBpmnLinter.ts#NodeBpmnLinter → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#LintRunnerPort",
+          "path": "libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NodeBpmnLinter.ts",
+          "line": 59,
+          "message": "`NodeBpmnLinter`: `LintRunnerPort` has no suite (its only adapter); the core reads back `lint`",
+          "group": "one-adapter",
+          "rank": 23
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NoopDiagnostics.ts#NoopDiagnostics → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#DiagnosticsPort",
+          "path": "libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NoopDiagnostics.ts",
+          "line": 10,
+          "message": "`NoopDiagnostics`: `DiagnosticsPort` only renders (1 of 3 adapters); every member returns nothing: `publish` and `clear`",
+          "group": "render-only",
+          "rank": 12
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/adapter/out/GitHubSource.ts#GitHubSource → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#RepositorySource",
+          "path": "libs/modeler-core/src/template-marketplace/adapter/out/GitHubSource.ts",
+          "line": 23,
+          "message": "`GitHubSource`: `RepositorySource` has no suite (1 of 3 adapters); the core reads back `listTemplateFiles` and `fetchFile`",
+          "group": "no-suite",
+          "rank": 14
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/adapter/out/GitLabSource.ts#GitLabSource → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#RepositorySource",
+          "path": "libs/modeler-core/src/template-marketplace/adapter/out/GitLabSource.ts",
+          "line": 25,
+          "message": "`GitLabSource`: `RepositorySource` has no suite (1 of 3 adapters); the core reads back `listTemplateFiles` and `fetchFile`",
+          "group": "no-suite",
+          "rank": 14
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts#LocalFileSource → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#RepositorySource",
+          "path": "libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts",
+          "line": 15,
+          "message": "`LocalFileSource`: `RepositorySource` has no suite (1 of 3 adapters); the core reads back `listTemplateFiles` and `fetchFile`",
+          "group": "no-suite",
+          "rank": 14
+        },
+        {
+          "key": "libs/modeler-core/src/testing/FakeEditorHandle.ts#FakeEditorHandle → libs/modeler-core/src/editorSession/port/EditorHandle.ts#EditorHandle",
+          "path": "libs/modeler-core/src/testing/FakeEditorHandle.ts",
+          "line": 48,
+          "message": "`FakeEditorHandle`: `EditorHandle` has no suite (1 of 3 adapters); the core reads back `id`, `documentUriString`, `documentPath` and 12 more",
+          "group": "no-suite",
+          "rank": 4
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryCredentials.ts#InMemorySecretStore → libs/modeler-core/src/deployment/port/deploymentPorts.ts#SecretStorePort",
+          "path": "libs/modeler-core/src/testing/InMemoryCredentials.ts",
+          "line": 12,
+          "message": "`InMemorySecretStore`: `SecretStorePort` has no suite (1 of 3 adapters); the core reads back `getBasicAuth`, `getOAuth2` and `getApprovedDestinations`",
+          "group": "no-suite",
+          "rank": 3
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryCredentials.ts#InMemoryTokenStore → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#TokenStorePort",
+          "path": "libs/modeler-core/src/testing/InMemoryCredentials.ts",
+          "line": 57,
+          "message": "`InMemoryTokenStore`: `TokenStorePort` has no suite (1 of 3 adapters); the core reads back `getToken`",
+          "group": "no-suite",
+          "rank": 16
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryCredentials.ts#ScriptedTokenPrompt → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#TokenPromptPort",
+          "path": "libs/modeler-core/src/testing/InMemoryCredentials.ts",
+          "line": 72,
+          "message": "`ScriptedTokenPrompt`: `TokenPromptPort` has no suite (1 of 3 adapters); the core reads back `promptForToken`",
+          "group": "no-suite",
+          "rank": 15
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemoryDeploymentState.ts#InMemoryDeploymentState → libs/modeler-core/src/deployment/port/deploymentPorts.ts#DeploymentStatePort",
+          "path": "libs/modeler-core/src/testing/InMemoryDeploymentState.ts",
+          "line": 14,
+          "message": "`InMemoryDeploymentState`: `DeploymentStatePort` has no suite (1 of 3 adapters); the core reads back `load`",
+          "group": "no-suite",
+          "rank": 2
+        },
+        {
+          "key": "libs/modeler-core/src/testing/InMemorySettings.ts#InMemorySettings → libs/modeler-core/src/kernel/port/hostPorts.ts#SettingsPort",
+          "path": "libs/modeler-core/src/testing/InMemorySettings.ts",
+          "line": 11,
+          "message": "`InMemorySettings`: `SettingsPort` has no suite (1 of 3 adapters); the core reads back `getAlignToOrigin`, `getShowTransactionBoundaries`, `getConfigFolder` and 10 more",
+          "group": "no-suite",
+          "rank": 9
+        },
+        {
+          "key": "libs/modeler-core/src/testing/RecordingNotifier.ts#RecordingNotifier → libs/modeler-core/src/kernel/port/hostPorts.ts#LoggerPort",
+          "path": "libs/modeler-core/src/testing/RecordingNotifier.ts",
+          "line": 15,
+          "message": "`RecordingNotifier`: `LoggerPort` only renders (1 of 3 adapters); every member returns nothing: `logDebug`, `logInfo`, `logWarning` and 1 more",
+          "group": "render-only",
+          "rank": 6
+        },
+        {
+          "key": "libs/modeler-core/src/testing/RecordingNotifier.ts#RecordingNotifier → libs/modeler-core/src/kernel/port/hostPorts.ts#NotifierPort",
+          "path": "libs/modeler-core/src/testing/RecordingNotifier.ts",
+          "line": 15,
+          "message": "`RecordingNotifier`: `NotifierPort` has no suite (1 of 3 adapters); the core reads back `withProgress`",
+          "group": "no-suite",
+          "rank": 7
+        },
+        {
+          "key": "libs/modeler-core/src/testing/RecordingScriptEditor.ts#RecordingScriptEditor → libs/modeler-core/src/scriptTask/port/ScriptEditorPort.ts#ScriptEditorPort",
+          "path": "libs/modeler-core/src/testing/RecordingScriptEditor.ts",
+          "line": 15,
+          "message": "`RecordingScriptEditor`: `ScriptEditorPort` has no suite (1 of 3 adapters); the core reads back `materialize`",
+          "group": "no-suite",
+          "rank": 13
+        },
+        {
+          "key": "libs/modeler-core/src/testing/RecordingStatusBar.ts#RecordingStatusBar → libs/modeler-core/src/kernel/port/hostPorts.ts#StatusBarPort",
+          "path": "libs/modeler-core/src/testing/RecordingStatusBar.ts",
+          "line": 8,
+          "message": "`RecordingStatusBar`: `StatusBarPort` only renders (1 of 3 adapters); every member returns nothing: `show` and `hide`",
+          "group": "render-only",
+          "rank": 10
+        },
+        {
+          "key": "libs/modeler-core/src/testing/ScriptedPicker.ts#ScriptedPicker → libs/modeler-core/src/kernel/port/hostPorts.ts#PickerPort",
+          "path": "libs/modeler-core/src/testing/ScriptedPicker.ts",
+          "line": 19,
+          "message": "`ScriptedPicker`: `PickerPort` has no suite (1 of 3 adapters); the core reads back `choose`, `chooseMany`, `confirm` and 1 more",
+          "group": "no-suite",
+          "rank": 8
+        },
+        {
+          "key": "libs/modeler-core/src/testing/inMemoryHostSurfaces.ts#InMemoryClipboard → libs/modeler-core/src/kernel/port/hostPorts.ts#ClipboardPort",
+          "path": "libs/modeler-core/src/testing/inMemoryHostSurfaces.ts",
+          "line": 6,
+          "message": "`InMemoryClipboard`: `ClipboardPort` has no suite (1 of 3 adapters); the core reads back `readClipboard`",
+          "group": "no-suite",
+          "rank": 5
+        },
+        {
+          "key": "libs/modeler-core/src/testing/inMemoryHostSurfaces.ts#InMemoryPropertiesPanelState → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#PropertiesPanelStatePort",
+          "path": "libs/modeler-core/src/testing/inMemoryHostSurfaces.ts",
+          "line": 18,
+          "message": "`InMemoryPropertiesPanelState`: `PropertiesPanelStatePort` has no suite (1 of 2 adapters); the core reads back `getVisibility`",
+          "group": "no-suite",
+          "rank": 20
+        },
+        {
+          "key": "libs/modeler-core/src/testing/inMemoryHostSurfaces.ts#RecordingDiagnostics → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#DiagnosticsPort",
+          "path": "libs/modeler-core/src/testing/inMemoryHostSurfaces.ts",
+          "line": 30,
+          "message": "`RecordingDiagnostics`: `DiagnosticsPort` only renders (1 of 3 adapters); every member returns nothing: `publish` and `clear`",
+          "group": "render-only",
+          "rank": 12
+        }
+      ]
+    },
     "convention-coverage": {
       "version": 1,
       "findings": [
