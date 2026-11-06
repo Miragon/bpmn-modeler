@@ -42,17 +42,48 @@ interface EnumeratedProperty {
     readonly values: readonly unknown[];
 }
 
+// Draft-07 keywords whose value is a subschema or a list of them, and those
+// whose value maps a name to one.
+const SUBSCHEMA_KEYWORDS = [
+    "items",
+    "additionalItems",
+    "contains",
+    "additionalProperties",
+    "propertyNames",
+    "allOf",
+    "anyOf",
+    "oneOf",
+    "not",
+    "if",
+    "then",
+    "else",
+];
+const NAMED_SUBSCHEMA_KEYWORDS = [
+    "properties",
+    "patternProperties",
+    "dependencies",
+    "definitions",
+    "$defs",
+];
+
 /** Every schema node below `node` by dotted path, e.g. `auth.username` from a target entry. */
 function schemaProperties(node: unknown, path: readonly string[] = []): SchemaProperty[] {
+    if (Array.isArray(node)) {
+        return node.flatMap((child) => schemaProperties(child, path));
+    }
     if (typeof node !== "object" || node === null) {
         return [];
     }
     const schemaNode = node as Record<string, unknown>;
-    const nested = Object.entries(schemaNode.properties ?? {}).flatMap(([name, child]) =>
-        schemaProperties(child, [...path, name]),
+    const named = NAMED_SUBSCHEMA_KEYWORDS.flatMap((keyword) =>
+        Object.entries(schemaNode[keyword] ?? {}).flatMap(([name, child]) =>
+            schemaProperties(child, [...path, name]),
+        ),
     );
-    const items = schemaProperties(schemaNode.items, path);
-    return [{ field: path.join("."), schemaNode }, ...nested, ...items];
+    const unnamed = SUBSCHEMA_KEYWORDS.flatMap((keyword) =>
+        schemaProperties(schemaNode[keyword], path),
+    );
+    return [{ field: path.join("."), schemaNode }, ...named, ...unnamed];
 }
 
 function patternedProperties(node: unknown): PatternedProperty[] {
@@ -120,6 +151,30 @@ describe("deployment targets schema", () => {
             expect(targetEnums.map((property) => property.field).sort()).toEqual(
                 ENUMERATED_FIELD_HOMES.map(([field]) => field).sort(),
             );
+        });
+
+        // The check above is only as complete as the walk that collects the enums.
+        it.each<[string, unknown]>([
+            ["properties", { properties: { type: { enum: ["x"] } } }],
+            ["patternProperties", { patternProperties: { "^x": { enum: ["x"] } } }],
+            ["additionalProperties", { additionalProperties: { enum: ["x"] } }],
+            ["propertyNames", { propertyNames: { enum: ["x"] } }],
+            ["dependencies", { dependencies: { type: { properties: { x: { enum: ["x"] } } } } }],
+            ["items", { items: { enum: ["x"] } }],
+            ["a tuple of items", { items: [{ type: "string" }, { enum: ["x"] }] }],
+            ["additionalItems", { additionalItems: { enum: ["x"] } }],
+            ["contains", { contains: { enum: ["x"] } }],
+            ["allOf", { allOf: [{ properties: { type: { enum: ["x"] } } }] }],
+            ["anyOf", { anyOf: [{ enum: ["x"] }] }],
+            ["oneOf", { oneOf: [{ enum: ["x"] }] }],
+            ["not", { not: { enum: ["x"] } }],
+            ["if", { if: { enum: ["x"] } }],
+            ["then", { then: { properties: { type: { enum: ["x"] } } } }],
+            ["else", { else: { enum: ["x"] } }],
+            ["definitions", { definitions: { authType: { enum: ["x"] } } }],
+            ["$defs", { $defs: { authType: { enum: ["x"] } } }],
+        ])("finds an enum under %s", (_keyword, schemaFragment) => {
+            expect(enumeratedProperties(schemaFragment)).toHaveLength(1);
         });
 
         it.each(ENUMERATED_FIELD_HOMES)(
