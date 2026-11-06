@@ -7,6 +7,7 @@ const PORTS = "/repo/core/port/ports.ts";
 const VALUES = "/repo/core/domain/values.ts";
 const KIT = "/repo/core/testing/index.ts";
 const MORE_KIT = "/repo/core/testing/more.ts";
+const RE_EXPORTED_KIT = "/repo/core/testing/reExported.ts";
 const HOST_HANDLE = "/repo/host/HostHandle.ts";
 const ADAPTERS = "/repo/host/adapters.ts";
 const DEFAULT_ADAPTER = "/repo/host/defaultAdapter.ts";
@@ -145,8 +146,15 @@ export function describeRenderer(adapter: string, renderer: Renderer): void {
 export const LABEL = "contract";
 
 export { describeFoo as describeFooAgain };
+export { describeBox } from "./reExported";
 
 export * from "./more";
+`,
+    [RE_EXPORTED_KIT]: `import type { Box } from "../port/ports";
+
+export function describeBox(create: () => Box<string>): void {
+    void create;
+}
 `,
     [MORE_KIT]: `import type { Handle } from "../port/ports";
 
@@ -295,10 +303,11 @@ describe("findContractSuites", () => {
         ]);
     });
 
-    it("lists each exported function whose parameter is a factory of a port or of a fixture holding one", () => {
+    it("lists each exported function whose parameter is a factory of a port or of a fixture holding one, re-exported by name or by star", () => {
         expect(suites.helpers).toEqual([
             { ...DESCRIBE_FOO, ports: [FOO] },
             { fileName: KIT, name: "runFoo", ports: [FOO] },
+            { fileName: RE_EXPORTED_KIT, name: "describeBox", ports: [BOX] },
             { fileName: MORE_KIT, name: "describeHandle", ports: [HANDLE, RENDERER] },
         ]);
     });
