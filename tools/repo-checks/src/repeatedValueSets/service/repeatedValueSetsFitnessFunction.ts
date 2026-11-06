@@ -30,8 +30,6 @@ export function createRepeatedValueSetsFitnessFunction({
         reportsWrongly: [
             "A copy that drifts from its home, a value added to or removed from one copy only, shows as resolved, not new: each tree is measured alone, so the report reads the drift as a fix. A resolved set is a fix only where its copies are gone, import their home or are pinned to it.",
             "Sets equal by coincidence: the three bpmn-js popup menus `bpmn-append` · `bpmn-create` · `bpmn-replace` that two packages/bpmn-modeler features register a provider on, didi `$inject` lists, the npm dependency field names, git arguments, typeof chains and name|value unions.",
-            "A union the compiler checks against the port member that declares it: written again in a class member that implements that member, or in the type of a variable its result is assigned to, such as 11 of the 14 `directory` · `file` findings at add816a2, the entry type of WorkspacePort.readDirectory. A cast with as is not checked: the two in workspaceFileSearch.ts are copies, and the port's own finding lists them.",
-            "Type arguments of one generic where a value of one is assigned to the other and a coverage table, a mapped type over the union, closes the set, such as the command unions of BpmnEditorContributions and of the features' editorContribution, which CommandTable<BpmnEditorCommandType> routes (6 findings at add816a2).",
             "A copy pinned by a runtime spec, such as expect(copy).toEqual(home), stays listed: only the type equality assertion is read.",
             "A pin links two files, not two declarations: it also clears any other set the two files share.",
             "A set in a renamed file shows as new, because the key names the file.",
