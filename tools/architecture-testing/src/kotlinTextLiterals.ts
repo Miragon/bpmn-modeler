@@ -46,10 +46,15 @@ function isTypeArgumentToken(token: KotlinToken): boolean {
     );
 }
 
-/** The `<` that opens the type arguments a `>` closes; unset when the `>` compares. */
-function typeArgumentsStart(
+function acceptsAnyToken(): boolean {
+    return true;
+}
+
+/** The `<` that opens the angle brackets a `>` closes, if every token between them is accepted. */
+function angleBracketsStart(
     tokens: readonly KotlinToken[],
     closeIndex: number,
+    accepts: (token: KotlinToken) => boolean,
 ): number | undefined {
     let depth = 0;
     for (let index = closeIndex; index >= 0; index -= 1) {
@@ -61,15 +66,26 @@ function typeArgumentsStart(
             if (depth === 0) {
                 return index;
             }
-        } else if (!isTypeArgumentToken(token)) {
+        } else if (!accepts(token)) {
             return undefined;
         }
     }
     return undefined;
 }
 
-function skipTypeArguments(tokens: readonly KotlinToken[], index: number): number {
-    return isSymbol(tokens[index], ">") ? (typeArgumentsStart(tokens, index) ?? 0) - 1 : index;
+/** The `<` that opens the type arguments a `>` before a `(` closes; unset when the `>` compares. */
+function typeArgumentsStart(
+    tokens: readonly KotlinToken[],
+    closeIndex: number,
+): number | undefined {
+    return angleBracketsStart(tokens, closeIndex, isTypeArgumentToken);
+}
+
+// Before a `.` or a declared name, a `>` closes a receiver type or type parameters, whose bounds may hold any token: `<T : suspend () -> Unit>`.
+function skipAngleBrackets(tokens: readonly KotlinToken[], index: number): number {
+    return isSymbol(tokens[index], ">")
+        ? (angleBracketsStart(tokens, index, acceptsAnyToken) ?? 0) - 1
+        : index;
 }
 
 /** The index of what a `.` before `index` is called on: `a!!.b`, `List<T>.b`. */
@@ -89,7 +105,7 @@ function chainStart(tokens: readonly KotlinToken[], calleeIndex: number): number
     let start = calleeIndex;
     for (;;) {
         const target = targetBeforeDot(tokens, start);
-        const name = target === undefined ? undefined : skipTypeArguments(tokens, target);
+        const name = target === undefined ? undefined : skipAngleBrackets(tokens, target);
         if (name === undefined || nameAt(tokens, name) === undefined) {
             return start;
         }
@@ -104,7 +120,7 @@ function namedCall(tokens: readonly KotlinToken[], calleeIndex: number): CallSit
     }
     const keyword = keywordAt(
         tokens,
-        skipTypeArguments(tokens, chainStart(tokens, calleeIndex) - 1),
+        skipAngleBrackets(tokens, chainStart(tokens, calleeIndex) - 1),
     );
     if (keyword !== undefined && DECLARES_PARAMETERS.has(keyword)) {
         return undefined;
