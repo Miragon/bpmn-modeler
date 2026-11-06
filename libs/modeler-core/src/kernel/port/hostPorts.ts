@@ -142,23 +142,32 @@ export interface SettingsPort {
  */
 export interface WorkspacePort {
     /**
-     * The innermost folder holding `document`. For a `file://` document the
-     * answer may come in either spelling: VS Code answers in the folder's, the
-     * bridge in the document's.
+     * The innermost folder holding `document`. For a `file://` document or a
+     * drive path the answer may come in either spelling: VS Code answers in its
+     * URI path (`/c:/` for `C:/`), the bridge in the document's.
      *
      * @throws {NoWorkspaceFolderFoundError} if `document` is outside every folder.
      */
     getWorkspaceFolderForDocument(document: string): string;
     findWorkspaceFolderForDocument(document: string): string | undefined;
+    /** In the order the folders were opened: the first is the workspace's primary folder. */
     getWorkspaceFolderPaths(): string[];
+    /**
+     * Spelled like the folder {@link getWorkspaceFolderForDocument} finds for
+     * it, so the core can walk up from one to the other.
+     */
     getDocumentDirectory(document: string): string;
     /**
      * An empty directory lists as `[]`.
      *
-     * @throws {DirectoryNotFound} if `path` is missing.
+     * @throws {DirectoryNotFound} if `path` is missing or is not a directory.
      */
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
-    /** @throws {FileNotFound} if `path` is missing. */
+    /**
+     * @throws {FileNotFound} only if `path` is missing. Any other failure, a
+     *   directory at `path` included, rejects with another error, so the core
+     *   reports it instead of treating the file as absent.
+     */
     readFile(path: string): Promise<string>;
     /** `false` when `path` is absent; a dangling link still counts as a link. */
     isSymbolicLink(path: string): Promise<boolean>;
@@ -177,7 +186,8 @@ export interface WorkspacePort {
      *
      * `pattern` and `exclude` match a file's path relative to its workspace
      * folder, so the folders above a workspace folder exclude none of its
-     * files. `undefined` keeps the host's own default excludes (VS Code's
+     * files. A folder open inside another is searched on its own, so each file
+     * is listed once. `undefined` keeps the host's own default excludes (VS Code's
      * `files.exclude`), `null` drops them. A host need not read a folder that
      * `exclude` covers whole ({@link import("../domain/globToRegExp").coveredFolderRegExp}).
      */
