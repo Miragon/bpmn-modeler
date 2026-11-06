@@ -28,7 +28,8 @@ import io.miragon.intellij.bpmn.bridge.orderedCredentialStoreExecutor
  *  - satisfy the document port (`document/write` / `document/save`) against the
  *    real IntelliJ `Document`;
  *  - render the core's `NotifierPort` and status-bar ports as IntelliJ UI, and
- *    its pickers (`picker/show`) as a native `JBPopup` chooser.
+ *    its pickers (`picker/show`) as a native `JBPopup` chooser, or a checkbox
+ *    dialog for several picks.
  *
  * **Role.** This service is the composition root + façade. It wires the bridge
  * collaborators in `io.miragon.intellij.bpmn.bridge` — the [RpcChannel]

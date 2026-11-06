@@ -1225,10 +1225,13 @@ a cached result must equal an uncached run.
   prose again.
 - IntelliJ could have piggybacked its registrations on `marketplace/add` and
   `marketplace/remove`, saving `marketplaceState/read`, but the bridge would
-  need a mirror for them and a read would hang off a trigger. Accepted cost of
-  the core's remove choice: IntelliJ shows it in the generic `picker/show`
-  list popup, which picks several entries with Ctrl- or Shift-click where its
-  own dialog had checkboxes, as every `chooseMany` prompt there does.
+  need a mirror for them and a read would hang off a trigger.
+- IntelliJ could show a `chooseMany` prompt in the list popup it uses for
+  `choose`, with Ctrl- and Shift-click for several rows. A plain click or Enter
+  chooses a popup row at once, so one stray click would remove a marketplace
+  or deploy one file. `HostPicker` shows `chooseMany` as a `PickManyDialog`
+  instead: a checkbox per item and OK, as IntelliJ's own remove dialog had
+  before the core built the choice. OK with nothing checked is a cancel.
 - `MarketplaceRegistrationsPort.read` could return the merged registrations
   with their scopes. Each host and the test fake then merged the lists
   themselves (one entry per structural key, its scopes, all-projects first):
