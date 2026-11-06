@@ -303,10 +303,14 @@ export function describeEditorHandleContract(
                     },
                 },
                 { state: "with nothing to save", prepare: async () => undefined },
-            ])("reports a save $state as saved", async ({ prepare }) => {
+            ])("reports a save $state as saved and as no content change", async ({ prepare }) => {
                 await prepare(fixture.handle);
+                const changes = recordChanges();
 
                 await expect(fixture.handle.save()).resolves.toBe(true);
+
+                // VS Code reports the dirty flag a save clears as a change without content changes.
+                expect(changes.filter((change) => change.hasContentChanges)).toEqual([]);
             });
         });
 

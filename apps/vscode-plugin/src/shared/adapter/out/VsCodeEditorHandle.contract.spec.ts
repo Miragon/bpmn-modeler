@@ -72,12 +72,14 @@ class Emitter<T> {
     }
 }
 
+/** A text document that reports each change through VS Code's global `onDidChangeTextDocument`. */
 class FakeTextDocument {
     isDirty = false;
 
     constructor(
         readonly uri: Uri,
         private text: string,
+        private readonly changes: Emitter<unknown>,
     ) {}
 
     getText(): string {
@@ -88,14 +90,19 @@ class FakeTextDocument {
         return { offset };
     }
 
+    /** VS Code reports the dirty flag a save clears as a change with no content changes. */
     async save(): Promise<boolean> {
-        this.isDirty = false;
+        if (this.isDirty) {
+            this.isDirty = false;
+            this.changes.fire({ document: this, contentChanges: [] });
+        }
         return true;
     }
 
     replace(start: number, end: number, text: string): void {
         this.text = this.text.slice(0, start) + text + this.text.slice(end);
         this.isDirty = true;
+        this.changes.fire({ document: this, contentChanges: [{ text }] });
     }
 }
 
@@ -143,12 +150,8 @@ class FakeWebviewPanel {
 describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
     const textDocumentChanges = new Emitter<unknown>();
     const configurationChanges = new Emitter<unknown>();
-    const document = new FakeTextDocument(Uri.file(`/work/${fileName}`), content);
+    const document = new FakeTextDocument(Uri.file(`/work/${fileName}`), content, textDocumentChanges);
     const panel = new FakeWebviewPanel();
-    const changeText = (change: () => void, text: string) => {
-        change();
-        textDocumentChanges.fire({ document, contentChanges: [{ text }] });
-    };
 
     vscodeHost.onDidChangeTextDocument = textDocumentChanges.event;
     vscodeHost.onDidChangeConfiguration = configurationChanges.event;
@@ -157,7 +160,7 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
         await new Promise((resolve) => setTimeout(resolve, 0));
         for (const { range, text } of (edit as { replacements: { range: FakeRange; text: string }[] })
             .replacements) {
-            changeText(() => document.replace(range.start.offset, range.end.offset, text), text);
+            document.replace(range.start.offset, range.end.offset, text);
         }
         return true;
     };
@@ -175,8 +178,7 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
         receivedByWebview: () => panel.posted,
         focus: () => panel.show({ active: true, visible: true }),
         blur: () => panel.show({ active: false, visible: true }),
-        editElsewhere: (edited) =>
-            changeText(() => document.replace(0, document.getText().length, edited), edited),
+        editElsewhere: (edited) => document.replace(0, document.getText().length, edited),
         changeSettings: (values) => {
             const sections = Object.keys(values).map(
                 (key) =>
