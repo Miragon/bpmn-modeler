@@ -666,11 +666,11 @@ input. The trend joins the stored series by that key at the base too, so a
 renamed file keeps its series (see **Trend**). Not followed: a rename git does
 not pair (a file changed too much for its 50 % similarity index, or a new file
 not yet added), a key that names a folder, and a text or set moved into another
-file. The diff took under 30 ms at
-#2140 (`f08fb08a` against `2af0dd7d`, 85 renames), whose new and resolved
-counts it took from host-text 50 + 50, contract-suites 17 + 17,
-change-coupling 14 + 14, repeated-value-sets 9 + 9 and hotspots 2 + 2 to 0, and
-size-and-complexity from 47 + 50 to 3 + 6, the files the PR added and deleted.
+file. The diff took under 30 ms at #2140 (`f08fb08a` against `2af0dd7d`, 85
+renames), whose new and resolved counts it took from host-text 50 + 50,
+contract-suites 17 + 17, change-coupling 14 + 14, repeated-value-sets 9 + 9 and
+hotspots 2 + 2 to 0, and size-and-complexity from 47 + 50 to 3 + 6, the files
+the PR added and deleted.
 The role-folder moves #2179 to #2181 dropped likewise; what they still show are
 added and deleted files, sets moved into new files, and change-coupling pairs
 the other side holds under no name. Two PRs without renames, #2172 and #2192,
@@ -699,10 +699,10 @@ holds them, the PR that made the change. A commit without a usable entry (no
 snapshot, another version, unmeasurable) is skipped, so a change behind a gap
 is dated to the oldest stored commit that shows it. A finding's series lies
 under the key the delta matched it by at the merge base, so a file renamed
-since then continues its old path's series: at #2140 each of the 44 renamed
-files size-and-complexity measures. A commit that lacks the key, or holds it
-twice, ends the series, so a rename before the merge base still ends it there.
-A key that repeats at HEAD gets no trend,
+since then continues its old path's series, as all 44 renamed files that
+size-and-complexity measures at #2140 do. A commit that lacks the key, or holds
+it twice, ends the series, so a rename before the merge base still ends it
+there. A key that repeats at HEAD gets no trend,
 and neither does one whose series ends before its first stored commit, such as
 a file the PR adds: HEAD's values alone show no change, and the Markdown
 prints `no trend` rather than `unchanged`. The trend keeps the newest five changes and the point before them. The Markdown
