@@ -23,15 +23,15 @@ const COPIED_ELEMENTS = JSON.stringify({
 
 /**
  * The rules of {@link ClipboardPort} the core relies on, run against one
- * adapter. The sandboxed webview cannot reach the clipboard, so
- * `BpmnClipboardMediator` writes a copy through the port and reads it back on
- * paste: the text comes back exactly as written, the latest write wins, and
- * the port reads and writes the system clipboard, so a copy in another program
- * pastes in the modeler and the reverse. A clipboard without text reads as
- * empty text, which the mediator hands the webview as nothing to paste.
+ * adapter. The sandboxed webview cannot reach the clipboard, so the core
+ * writes a copy through the port and reads it back on paste: the text comes
+ * back exactly as written, the latest write wins, and the port reads and
+ * writes the system clipboard, so a copy in another program pastes in the
+ * modeler and the reverse. A clipboard without text reads as empty text,
+ * which the core hands the webview as nothing to paste.
  *
  * Left out:
- * - A read or write that fails: the mediator logs it and answers empty text,
+ * - A read or write that fails: the core logs it and answers empty text,
  *   so whether an adapter throws or answers empty text is not pinned.
  * - When a write lands: the bridge sends it without awaiting the host, so its
  *   promise resolves before the host writes. The core never waits for a copy,

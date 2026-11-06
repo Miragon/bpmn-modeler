@@ -16,14 +16,14 @@ const STORED_VISIBILITIES = [
 
 /**
  * The rules of {@link PropertiesPanelStatePort} the core relies on, run
- * against one adapter. `BpmnPropertiesPanelService` stores the visibility the
- * user last chose and reads it synchronously to pre-render the next webview's
- * panel, so the panel is visible until a choice is stored, the stored choice
- * reads back once its write resolves, and it outlives the adapter, which
- * carries it across a restart of the host.
+ * against one adapter. The core stores the visibility the user last chose and
+ * reads it synchronously to pre-render the next webview's panel, so the panel
+ * is visible until a choice is stored, the stored choice reads back once its
+ * write resolves, and it outlives the adapter, which carries it across a
+ * restart of the host.
  *
  * Left out:
- * - A write that fails: the service logs it, so what an adapter reads after
+ * - A write that fails: the core logs it, so what an adapter reads after
  *   one is not pinned.
  * - Two defaults kept apart: VS Code keys the DMN editor's default on its own,
  *   which its composition decides; the core holds one port per editor.

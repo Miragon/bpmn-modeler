@@ -19,11 +19,11 @@ export interface LintingPreferenceContractFixture {
 /**
  * The rules of {@link LintingPreferencePort} the core relies on, run against
  * one adapter and the settings of its host. The port returns nothing; the
- * core reads the choice back through `SettingsPort.getLintingEnabled`.
- * `setLintingEnabledHandler` stores a choice only when it differs from that
- * read, and the bridge's lint widget stores the opposite of it, so both rely
- * on the read returning the stored choice once the call resolves. The choice
- * is the user's and holds for every project, as both hosts store it.
+ * core reads the choice back through `SettingsPort.getLintingEnabled`. It
+ * stores a choice only when it differs from the value read back, and the
+ * bridge's toggle stores the opposite of that value, so both rely on the read
+ * returning the stored choice once the call resolves. The choice is the
+ * user's and holds for every project, as both hosts store it.
  *
  * Left out: the settings change that re-lints the open editors. It reaches
  * the core through `EditorHandle.onDidChangeSetting`, another port.
